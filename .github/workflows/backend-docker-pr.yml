@@ -23,4 +23,4 @@ jobs:
         with:
           context: backend
           push: false
-          tags: ghcr.io/${{ github.event.repository.name }}
+          tags: ghcr.io/${{ github.repository }}
