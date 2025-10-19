@@ -4,7 +4,7 @@ This directory contains the Go backend for the Bissbilanz project. It uses the [
 
 ## Prerequisites
 
-- Go 1.21 or newer
+- Go 1.25
 
 ## Installation
 
