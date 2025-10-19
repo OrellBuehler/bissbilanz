@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/bissbilanz/backend/internal/config"
+	"github.com/bissbilanz/backend/internal/database"
 	healthhandler "github.com/bissbilanz/backend/internal/handlers/health"
 	healthservice "github.com/bissbilanz/backend/internal/services/health"
 )
@@ -13,9 +14,15 @@ import (
 func main() {
 	cfg := config.Load()
 
+	db, err := database.Connect(cfg.DSN())
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
 	app := fiber.New()
 
-	healthSvc := healthservice.New()
+	healthSvc := healthservice.New(db)
 	healthHandler := healthhandler.New(healthSvc)
 	healthHandler.RegisterRoutes(app)
 
