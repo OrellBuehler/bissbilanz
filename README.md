@@ -1,5 +1,9 @@
 # bissbilanz
 
+## Requirements
+
+- Go 1.25
+
 ## Project Structure
 
 - `backend/`: Server-side application code, APIs, and integration services.

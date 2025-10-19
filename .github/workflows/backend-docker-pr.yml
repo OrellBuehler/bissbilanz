@@ -23,4 +23,4 @@ jobs:
         with:
           context: backend
           push: false
-          tags: ghcr.io/${{ github.repository }}/backend:pr-build
+          tags: ghcr.io/${{ lower(github.repository) }}/backend:pr-build

@@ -1,6 +1,6 @@
 module github.com/bissbilanz/backend
 
-go 1.24.3
+go 1.25
 
 require (
     github.com/gofiber/fiber/v2 v2.52.4
