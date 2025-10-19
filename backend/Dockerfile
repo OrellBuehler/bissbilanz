@@ -13,6 +13,10 @@ RUN go mod download
 # Copy the remaining source code.
 COPY . .
 
+# Ensure dependencies remain available after copying the full project,
+# which rewrites go.sum from the build context.
+RUN go mod download
+
 # Build a statically linked binary for Linux.
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /bin/server ./cmd/server

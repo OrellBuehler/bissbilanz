@@ -1,14 +1,21 @@
 # Backend
 
-This directory contains the Go backend for the Bissbilanz project. It uses Go's standard `net/http` package and follows a layered structure with separate packages for configuration, services, and HTTP handlers.
+This directory contains the Go backend for the Bissbilanz project. It uses the [Fiber](https://gofiber.io/) web framework and follows a layered structure with separate packages for configuration, services, and HTTP handlers.
 
 ## Prerequisites
 
-- Go 1.24 or newer
+- Go 1.21 or newer
 
 ## Installation
 
-The backend only relies on the Go standard library, so there are no external modules to download. Simply ensure Go is installed at the required version.
+Fetch dependencies (requires network access to download modules):
+
+```bash
+cd backend
+GOPROXY=https://proxy.golang.org,direct go get github.com/gofiber/fiber/v2@latest
+```
+
+If access to the public Go proxy is restricted, configure an alternative proxy or download the module manually before running the application.
 
 ## Running the server
 
@@ -28,12 +35,11 @@ backend/
 │       └── main.go        # Application entrypoint
 ├── internal/
 │   ├── config/            # Configuration helpers
-│   ├── database/          # Connectivity checks for PostgreSQL
 │   ├── handlers/
 │   │   └── health/        # HTTP handlers
 │   └── services/
 │       └── health/        # Business logic/services
 ├── go.mod
-├── go.sum                 # Empty until external dependencies are added
+├── go.sum                 # Generated after downloading dependencies
 └── README.md
 ```
