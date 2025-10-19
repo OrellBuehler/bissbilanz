@@ -2,8 +2,7 @@ package main
 
 import (
 	"log"
-
-	"github.com/gofiber/fiber/v2"
+	"net/http"
 
 	"github.com/bissbilanz/backend/internal/config"
 	"github.com/bissbilanz/backend/internal/database"
@@ -20,14 +19,14 @@ func main() {
 	}
 	defer db.Close()
 
-	app := fiber.New()
+	mux := http.NewServeMux()
 
 	healthSvc := healthservice.New(db)
 	healthHandler := healthhandler.New(healthSvc)
-	healthHandler.RegisterRoutes(app)
+	healthHandler.RegisterRoutes(mux)
 
 	log.Printf("Starting server on %s", cfg.Address())
-	if err := app.Listen(cfg.Address()); err != nil {
+	if err := http.ListenAndServe(cfg.Address(), mux); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }

@@ -1,16 +1,18 @@
 package health
 
-import "database/sql"
-
 type Service interface {
 	Status() map[string]string
 }
 
-type service struct {
-	db *sql.DB
+type Pinger interface {
+	Ping() error
 }
 
-func New(db *sql.DB) Service {
+type service struct {
+	db Pinger
+}
+
+func New(db Pinger) Service {
 	return &service{db: db}
 }
 
