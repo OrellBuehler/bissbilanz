@@ -17,5 +17,5 @@ func (h *Handler) RegisterRoutes(app *fiber.App) {
 }
 
 func (h *Handler) Health(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusOK).JSON(h.service.Status())
+	return c.Status(fiber.StatusOK).JSON(h.service.Status(c.UserContext()))
 }
