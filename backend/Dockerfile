@@ -15,6 +15,8 @@ WORKDIR /app
 COPY --from=builder /app/server ./server
 
 ENV PORT=3000
-EXPOSE 3000
+ENV MCP_HOST=0.0.0.0
+ENV MCP_PORT=4000
+EXPOSE 3000 4000
 
 CMD ["/app/server"]
