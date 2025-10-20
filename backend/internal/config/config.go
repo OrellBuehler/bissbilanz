@@ -62,8 +62,8 @@ func Load() Config {
 	}
 
 	datasetPath := os.Getenv("NAEHRWERTDATEN_DATASET_PATH")
-	if datasetPath == "" {
-		datasetPath = "/api/1/de/food"
+        if datasetPath == "" {
+                datasetPath = "/api/1/de/foods"
 	}
 
 	pageSize := 250

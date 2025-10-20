@@ -21,7 +21,7 @@ func TestFetchPageLive(t *testing.T) {
 		client: &http.Client{Timeout: 45 * time.Second},
 		cfg: Config{
 			BaseURL:     "https://naehrwertdaten.ch",
-			DatasetPath: "/api/1/de/food",
+                        DatasetPath: "/api/1/de/foods",
 			PageSize:    5,
 			MaxRecords:  5,
 		},
@@ -65,7 +65,7 @@ func TestFetchAllRespectsLimit(t *testing.T) {
 		client: &http.Client{Timeout: 60 * time.Second},
 		cfg: Config{
 			BaseURL:     "https://naehrwertdaten.ch",
-			DatasetPath: "/api/1/de/food",
+                        DatasetPath: "/api/1/de/foods",
 			PageSize:    6,
 			MaxRecords:  6,
 		},
