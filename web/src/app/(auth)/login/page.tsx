@@ -67,7 +67,7 @@ export default function LoginPage() {
             .
           </span>
           <span>
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="#" className="font-medium text-primary hover:underline">
               Sign up
             </Link>
