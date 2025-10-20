@@ -26,6 +26,11 @@ type Config struct {
 	OpenFoodFactsQuery        map[string]string
 	OpenFoodFactsFields       []string
 	OpenFoodFactsUA           string
+	DemoUserEmail             string
+	DemoUserPassword          string
+	DemoUserToken             string
+	DemoUserID                string
+	DemoUserDisplayName       string
 }
 
 func Load() Config {
@@ -129,6 +134,12 @@ func Load() Config {
 
 	userAgent := os.Getenv("OPENFOODFACTS_USER_AGENT")
 
+	demoEmail := os.Getenv("AUTH_DEMO_EMAIL")
+	demoPassword := os.Getenv("AUTH_DEMO_PASSWORD")
+	demoToken := os.Getenv("AUTH_DEMO_TOKEN")
+	demoUserID := os.Getenv("AUTH_DEMO_USER_ID")
+	demoDisplayName := os.Getenv("AUTH_DEMO_DISPLAY_NAME")
+
 	return Config{
 		Port:                      port,
 		DatabaseURL:               databaseURL,
@@ -147,6 +158,11 @@ func Load() Config {
 		OpenFoodFactsQuery:        queryParams,
 		OpenFoodFactsFields:       fields,
 		OpenFoodFactsUA:           userAgent,
+		DemoUserEmail:             demoEmail,
+		DemoUserPassword:          demoPassword,
+		DemoUserToken:             demoToken,
+		DemoUserID:                demoUserID,
+		DemoUserDisplayName:       demoDisplayName,
 	}
 }
 
