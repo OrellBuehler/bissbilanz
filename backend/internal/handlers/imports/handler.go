@@ -34,6 +34,15 @@ func (h *Handler) RegisterRoutes(app *fiber.App) {
 }
 
 // Trigger starts a new background import run.
+// @Summary Trigger a new import run
+// @Tags Imports
+// @Param source path string true "Import source"
+// @Produce json
+// @Success 202 {object} importservice.ImportStatus
+// @Failure 404 {object} fiber.Map
+// @Failure 409 {object} fiber.Map
+// @Failure 500 {object} fiber.Map
+// @Router /imports/{source} [post]
 func (h *Handler) Trigger(c *fiber.Ctx) error {
 	source := strings.ToLower(c.Params("source"))
 	svc, ok := h.services[source]
@@ -60,6 +69,13 @@ func (h *Handler) Trigger(c *fiber.Ctx) error {
 }
 
 // Status returns the last known import status without triggering a new run.
+// @Summary Retrieve the most recent status of an import source
+// @Tags Imports
+// @Param source path string true "Import source"
+// @Produce json
+// @Success 200 {object} importservice.ImportStatus
+// @Failure 404 {object} fiber.Map
+// @Router /imports/{source}/status [get]
 func (h *Handler) Status(c *fiber.Ctx) error {
 	source := strings.ToLower(c.Params("source"))
 	svc, ok := h.services[source]
