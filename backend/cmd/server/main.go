@@ -14,9 +14,11 @@ import (
 
 	"github.com/bissbilanz/backend/internal/config"
 	"github.com/bissbilanz/backend/internal/database"
+	authhandler "github.com/bissbilanz/backend/internal/handlers/auth"
 	healthhandler "github.com/bissbilanz/backend/internal/handlers/health"
 	importshandler "github.com/bissbilanz/backend/internal/handlers/imports"
 	"github.com/bissbilanz/backend/internal/mcp"
+	authservice "github.com/bissbilanz/backend/internal/services/auth"
 	healthservice "github.com/bissbilanz/backend/internal/services/health"
 	importservice "github.com/bissbilanz/backend/internal/services/imports"
 	naehrwertdatenservice "github.com/bissbilanz/backend/internal/services/imports/naehrwertdaten"
@@ -66,6 +68,16 @@ func main() {
 	}
 
 	app := fiber.New()
+	authSvc := authservice.New(authservice.Config{
+		Email:       cfg.DemoUserEmail,
+		Password:    cfg.DemoUserPassword,
+		Token:       cfg.DemoUserToken,
+		UserID:      cfg.DemoUserID,
+		DisplayName: cfg.DemoUserDisplayName,
+	})
+
+	authHandler := authhandler.New(authSvc)
+	authHandler.RegisterRoutes(app)
 	healthHandler := healthhandler.New(healthSvc)
 	healthHandler.RegisterRoutes(app)
 	importsHandler := importshandler.New(services)
