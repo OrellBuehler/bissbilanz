@@ -1,0 +1,46 @@
+name: Trivy Security Scans
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  filesystem:
+    name: Repository scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy (filesystem)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+          scanners: vuln,secret,config
+
+  backend-image:
+    name: Backend image scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set repository name to lowercase
+        run: |
+          echo "REPOSITORY_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Build backend image
+        run: |
+          docker build -t ghcr.io/${{ env.REPOSITORY_LC }}:trivy-test backend
+
+      - name: Run Trivy (image)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ghcr.io/${{ env.REPOSITORY_LC }}:trivy-test
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
