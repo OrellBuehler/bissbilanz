@@ -1,0 +1,256 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Bissbilanz API",
+    "description": "HTTP API for orchestrating data imports and reporting service health.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service health checks"
+    },
+    {
+      "name": "Imports",
+      "description": "Triggering and monitoring importer jobs"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Retrieve the current service health status",
+        "operationId": "healthStatus",
+        "responses": {
+          "200": {
+            "description": "Successful health status response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imports/{source}": {
+      "post": {
+        "tags": [
+          "Imports"
+        ],
+        "summary": "Trigger a new import run",
+        "operationId": "triggerImport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ImportSource"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The import was accepted and is running in the background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested import source is not registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An import for the requested source is already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportInProgressError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The import runner encountered an unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imports/{source}/status": {
+      "get": {
+        "tags": [
+          "Imports"
+        ],
+        "summary": "Retrieve the most recent status for an import source",
+        "operationId": "getImportStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ImportSource"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current status information for the import source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested import source is not registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ImportSource": {
+        "name": "source",
+        "in": "path",
+        "required": true,
+        "description": "Identifier of the import source (e.g. `naehrwertdaten`, `openfoodfacts`).",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Overall health indicator"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Breakdown of individual subsystem health checks"
+          }
+        }
+      },
+      "ImportStatus": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "running",
+          "started_at",
+          "items_processed"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Unique identifier of the import job"
+          },
+          "running": {
+            "type": "boolean",
+            "description": "Whether the import is currently executing"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the import began"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Timestamp when the import finished, if available"
+          },
+          "batch_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Identifier of the batch that was processed"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the imported dataset"
+          },
+          "items_processed": {
+            "type": "integer",
+            "description": "Number of processed items"
+          },
+          "last_error": {
+            "type": "string",
+            "description": "Last error message reported by the importer"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human readable error message"
+          },
+          "source": {
+            "type": "string",
+            "description": "Identifier of the import source involved in the error"
+          }
+        }
+      },
+      "ImportInProgressError": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "$ref": "#/components/schemas/ImportStatus"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

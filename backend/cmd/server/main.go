@@ -70,6 +70,7 @@ func main() {
 	healthHandler.RegisterRoutes(app)
 	importsHandler := importshandler.New(services)
 	importsHandler.RegisterRoutes(app)
+	registerSwagger(app)
 
 	var serverOpts []mcp.ServerOption
 	if token := cfg.MCPAuthToken(); token != "" {
