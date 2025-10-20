@@ -19,6 +19,7 @@ type Config struct {
 	NaehrwertdatenDatasetPath string
 	NaehrwertdatenPageSize    int
 	NaehrwertdatenMaxRecords  int
+	NaehrwertdatenUA          string
 	OpenFoodFactsBaseURL      string
 	OpenFoodFactsSearchPath   string
 	OpenFoodFactsPageSize     int
@@ -62,8 +63,13 @@ func Load() Config {
 	}
 
 	datasetPath := os.Getenv("NAEHRWERTDATEN_DATASET_PATH")
-        if datasetPath == "" {
-                datasetPath = "/api/1/de/foods"
+	if datasetPath == "" {
+		datasetPath = "/api/1/de/foods"
+	}
+
+	naehrwertUA := os.Getenv("NAEHRWERTDATEN_USER_AGENT")
+	if naehrwertUA == "" {
+		naehrwertUA = "bissbilanz-importer (+https://github.com/bissbilanz)"
 	}
 
 	pageSize := 250
@@ -140,6 +146,7 @@ func Load() Config {
 		NaehrwertdatenDatasetPath: datasetPath,
 		NaehrwertdatenPageSize:    pageSize,
 		NaehrwertdatenMaxRecords:  maxRecords,
+		NaehrwertdatenUA:          naehrwertUA,
 		OpenFoodFactsBaseURL:      offBase,
 		OpenFoodFactsSearchPath:   offPath,
 		OpenFoodFactsPageSize:     offPageSize,
@@ -184,6 +191,10 @@ func (c Config) NaehrwertdatenPageLimit() int {
 
 func (c Config) NaehrwertdatenRecordLimit() int {
 	return c.NaehrwertdatenMaxRecords
+}
+
+func (c Config) NaehrwertdatenUserAgent() string {
+	return c.NaehrwertdatenUA
 }
 
 func (c Config) OpenFoodFactsBase() string {

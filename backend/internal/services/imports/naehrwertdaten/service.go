@@ -24,6 +24,7 @@ type Config struct {
 	StorageDir  string
 	PageSize    int
 	MaxRecords  int
+	UserAgent   string
 }
 
 // Service exposes operations for triggering and monitoring imports.
@@ -54,6 +55,9 @@ func New(db *sql.DB, client *http.Client, cfg Config) (Service, error) {
 	}
 	if cfg.PageSize <= 0 {
 		cfg.PageSize = 250
+	}
+	if strings.TrimSpace(cfg.UserAgent) == "" {
+		cfg.UserAgent = "bissbilanz-importer (+https://github.com/bissbilanz)"
 	}
 
 	r := &runner{
@@ -182,6 +186,13 @@ func (r *runner) fetchPage(ctx context.Context, page int) ([]json.RawMessage, st
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, "", false, fmt.Errorf("build request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Accept-Language", "de-CH,de;q=0.8,en;q=0.5")
+	if cfgUA := strings.TrimSpace(r.cfg.UserAgent); cfgUA != "" {
+		req.Header.Set("User-Agent", cfgUA)
 	}
 
 	resp, err := r.client.Do(req)

@@ -41,6 +41,7 @@ func main() {
 		StorageDir:  cfg.StorageDir(),
 		PageSize:    cfg.NaehrwertdatenPageLimit(),
 		MaxRecords:  cfg.NaehrwertdatenRecordLimit(),
+		UserAgent:   cfg.NaehrwertdatenUserAgent(),
 	})
 	if err != nil {
 		log.Fatalf("failed to initialize naehrwertdaten importer: %v", err)
