@@ -18,7 +18,9 @@ import (
 	importshandler "github.com/bissbilanz/backend/internal/handlers/imports"
 	"github.com/bissbilanz/backend/internal/mcp"
 	healthservice "github.com/bissbilanz/backend/internal/services/health"
+	importservice "github.com/bissbilanz/backend/internal/services/imports"
 	naehrwertdatenservice "github.com/bissbilanz/backend/internal/services/imports/naehrwertdaten"
+	openfoodfactsservice "github.com/bissbilanz/backend/internal/services/imports/openfoodfacts"
 )
 
 func main() {
@@ -31,7 +33,9 @@ func main() {
 	defer db.Close()
 
 	healthSvc := healthservice.New(db)
-	naehrwertSvc, err := naehrwertdatenservice.New(db, &http.Client{Timeout: 120 * time.Second}, naehrwertdatenservice.Config{
+	httpClient := &http.Client{Timeout: 120 * time.Second}
+
+	naehrwertSvc, err := naehrwertdatenservice.New(db, httpClient, naehrwertdatenservice.Config{
 		BaseURL:     cfg.NaehrwertdatenBase(),
 		DatasetPath: cfg.NaehrwertdatenDataset(),
 		StorageDir:  cfg.StorageDir(),
@@ -42,10 +46,29 @@ func main() {
 		log.Fatalf("failed to initialize naehrwertdaten importer: %v", err)
 	}
 
+	openfoodfactsSvc, err := openfoodfactsservice.New(db, httpClient, openfoodfactsservice.Config{
+		BaseURL:    cfg.OpenFoodFactsBase(),
+		SearchPath: cfg.OpenFoodFactsSearchEndpoint(),
+		StorageDir: cfg.StorageDir(),
+		PageSize:   cfg.OpenFoodFactsPageLimit(),
+		MaxRecords: cfg.OpenFoodFactsRecordLimit(),
+		Query:      cfg.OpenFoodFactsQueryParams(),
+		Fields:     cfg.OpenFoodFactsFieldList(),
+		UserAgent:  cfg.OpenFoodFactsUserAgent(),
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize Open Food Facts importer: %v", err)
+	}
+
+	services := map[string]importservice.Service{
+		"naehrwertdaten": naehrwertSvc,
+		"openfoodfacts":  openfoodfactsSvc,
+	}
+
 	app := fiber.New()
 	healthHandler := healthhandler.New(healthSvc)
 	healthHandler.RegisterRoutes(app)
-	importsHandler := importshandler.New(naehrwertSvc)
+	importsHandler := importshandler.New(services)
 	importsHandler.RegisterRoutes(app)
 
 	var serverOpts []mcp.ServerOption
@@ -58,10 +81,14 @@ func main() {
 		status := healthSvc.Status(ctx)
 		return &mcp.ToolResponse{Result: status}, nil
 	})
-       mcpServer.RegisterTool("naehrwertdaten.status", func(ctx context.Context, call *mcp.ToolCall) (*mcp.ToolResponse, error) {
-               status := naehrwertSvc.Status()
-               return &mcp.ToolResponse{Result: status}, nil
-       })
+	mcpServer.RegisterTool("naehrwertdaten.status", func(ctx context.Context, call *mcp.ToolCall) (*mcp.ToolResponse, error) {
+		status := naehrwertSvc.Status()
+		return &mcp.ToolResponse{Result: status}, nil
+	})
+	mcpServer.RegisterTool("openfoodfacts.status", func(ctx context.Context, call *mcp.ToolCall) (*mcp.ToolResponse, error) {
+		status := openfoodfactsSvc.Status()
+		return &mcp.ToolResponse{Result: status}, nil
+	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

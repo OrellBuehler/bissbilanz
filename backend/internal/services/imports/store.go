@@ -1,4 +1,4 @@
-package naehrwertdaten
+package imports
 
 import (
 	"context"
@@ -10,18 +10,47 @@ import (
 	"unicode"
 )
 
-type querier interface {
+// Querier abstracts the database operations needed by the importers.
+type Querier interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-func ensureDataSource(ctx context.Context, q querier, baseURL string) (int64, error) {
-	const (
-		name    = "Swiss Food Composition (naehrwertdaten.ch)"
-		srcType = "open_data"
-		license = "CC BY 4.0"
-	)
-	notes := "Imported via automated pipeline from https://naehrwertdaten.ch/de/."
+// DataSourceInfo captures metadata about an external data source.
+type DataSourceInfo struct {
+	Name        string
+	Type        string
+	EndpointURL string
+	License     string
+	Notes       string
+}
+
+// FoodRecord represents the normalized data extracted from an external item.
+type FoodRecord struct {
+	ExternalID   string
+	Code         string
+	Name         string
+	CategoryPath string
+	Nutrients    []NutrientRecord
+	Raw          json.RawMessage
+}
+
+// NutrientRecord captures nutrient information for a food item.
+type NutrientRecord struct {
+	Code  string
+	Name  string
+	Unit  string
+	Value float64
+}
+
+// EnsureDataSource upserts a data source entry and returns its identifier.
+func EnsureDataSource(ctx context.Context, q Querier, info DataSourceInfo) (int64, error) {
+	if strings.TrimSpace(info.Name) == "" {
+		return 0, fmt.Errorf("data source name required")
+	}
+	if info.Type == "" {
+		info.Type = "open_data"
+	}
 	var id int64
 	if err := q.QueryRowContext(ctx, `
                 INSERT INTO data_sources (name, type, endpoint_url, license, notes)
@@ -31,13 +60,14 @@ func ensureDataSource(ctx context.Context, q querier, baseURL string) (int64, er
                     license = EXCLUDED.license,
                     notes = EXCLUDED.notes
                 RETURNING id
-        `, name, srcType, baseURL, license, notes).Scan(&id); err != nil {
+        `, info.Name, info.Type, info.EndpointURL, nullString(info.License), nullString(info.Notes)).Scan(&id); err != nil {
 		return 0, fmt.Errorf("ensure data source: %w", err)
 	}
 	return id, nil
 }
 
-func createImportBatch(ctx context.Context, q querier, sourceID int64, version, rawPath, status string) (int64, error) {
+// CreateImportBatch creates a new import batch entry.
+func CreateImportBatch(ctx context.Context, q Querier, sourceID int64, version, rawPath, status string) (int64, error) {
 	if status == "" {
 		status = "running"
 	}
@@ -52,7 +82,8 @@ func createImportBatch(ctx context.Context, q querier, sourceID int64, version, 
 	return id, nil
 }
 
-func updateImportBatchStatus(ctx context.Context, q querier, batchID int64, status string) error {
+// UpdateImportBatchStatus updates the completion status of a batch.
+func UpdateImportBatchStatus(ctx context.Context, q Querier, batchID int64, status string) error {
 	if _, err := q.ExecContext(ctx, `
                 UPDATE import_batches
                 SET status = $1, imported_at = NOW()
@@ -63,7 +94,8 @@ func updateImportBatchStatus(ctx context.Context, q querier, batchID int64, stat
 	return nil
 }
 
-func ensureMeasurementUnit(ctx context.Context, q querier, name, symbol, quantity, description string) (int64, error) {
+// EnsureMeasurementUnit upserts a measurement unit and returns its identifier.
+func EnsureMeasurementUnit(ctx context.Context, q Querier, name, symbol, quantity, description string) (int64, error) {
 	symbol = strings.TrimSpace(symbol)
 	if symbol == "" {
 		symbol = strings.ToLower(name)
@@ -87,7 +119,8 @@ func ensureMeasurementUnit(ctx context.Context, q querier, name, symbol, quantit
 	return id, nil
 }
 
-func upsertFood(ctx context.Context, q querier, sourceID, defaultUnitID int64, record FoodRecord) (string, error) {
+// UpsertFood inserts or updates a food entry and returns its identifier.
+func UpsertFood(ctx context.Context, q Querier, sourceID, defaultUnitID int64, record FoodRecord) (string, error) {
 	var foodID string
 	if err := q.QueryRowContext(ctx, `
                 INSERT INTO foods (
@@ -113,7 +146,8 @@ func upsertFood(ctx context.Context, q querier, sourceID, defaultUnitID int64, r
 	return foodID, nil
 }
 
-func upsertSourceRecord(ctx context.Context, q querier, sourceID, batchID int64, foodID string, externalID string, raw json.RawMessage) error {
+// UpsertSourceRecord stores the raw payload for a food item linked to an import batch.
+func UpsertSourceRecord(ctx context.Context, q Querier, sourceID, batchID int64, foodID string, externalID string, raw json.RawMessage) error {
 	if externalID == "" {
 		return fmt.Errorf("external id required for source record")
 	}
@@ -131,7 +165,8 @@ func upsertSourceRecord(ctx context.Context, q querier, sourceID, batchID int64,
 	return nil
 }
 
-func applyNutrients(ctx context.Context, q querier, foodID string, nutrients []NutrientRecord) error {
+// ApplyNutrients upserts the nutrient values for a food item.
+func ApplyNutrients(ctx context.Context, q Querier, foodID string, nutrients []NutrientRecord) error {
 	if len(nutrients) == 0 {
 		return nil
 	}
@@ -140,14 +175,14 @@ func applyNutrients(ctx context.Context, q querier, foodID string, nutrients []N
 		if nutrient.Value <= 0 {
 			continue
 		}
-		unitSymbol := normalizeUnitSymbol(nutrient.Unit)
+		unitSymbol := NormalizeUnitSymbol(nutrient.Unit)
 		if unitSymbol == "" {
 			unitSymbol = "g"
 		}
 		unitID, ok := unitCache[unitSymbol]
 		if !ok {
-			name := unitNameForSymbol(unitSymbol)
-			id, err := ensureMeasurementUnit(ctx, q, name, unitSymbol, "", "")
+			name := UnitNameForSymbol(unitSymbol)
+			id, err := EnsureMeasurementUnit(ctx, q, name, unitSymbol, "", "")
 			if err != nil {
 				return err
 			}
@@ -165,7 +200,7 @@ func applyNutrients(ctx context.Context, q querier, foodID string, nutrients []N
 	return nil
 }
 
-func ensureNutrientDefinition(ctx context.Context, q querier, nutrient NutrientRecord, unitID int64) (int64, error) {
+func ensureNutrientDefinition(ctx context.Context, q Querier, nutrient NutrientRecord, unitID int64) (int64, error) {
 	name := strings.TrimSpace(nutrient.Name)
 	code := strings.TrimSpace(nutrient.Code)
 	if code == "" {
@@ -192,7 +227,7 @@ func ensureNutrientDefinition(ctx context.Context, q querier, nutrient NutrientR
 	return id, nil
 }
 
-func upsertFoodNutrient(ctx context.Context, q querier, foodID string, nutrientID int64, amount float64) error {
+func upsertFoodNutrient(ctx context.Context, q Querier, foodID string, nutrientID int64, amount float64) error {
 	if _, err := q.ExecContext(ctx, `
                 INSERT INTO food_nutrients (food_id, nutrient_id, amount_per_100g, last_updated_at)
                 VALUES ($1, $2, $3, NOW())
@@ -205,6 +240,7 @@ func upsertFoodNutrient(ctx context.Context, q querier, foodID string, nutrientI
 	return nil
 }
 
+// NullString converts an empty string into a sql.NullString.
 func nullString(v string) sql.NullString {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -213,7 +249,8 @@ func nullString(v string) sql.NullString {
 	return sql.NullString{String: v, Valid: true}
 }
 
-func normalizeUnitSymbol(symbol string) string {
+// NormalizeUnitSymbol canonicalizes unit symbols for consistent storage.
+func NormalizeUnitSymbol(symbol string) string {
 	symbol = strings.TrimSpace(symbol)
 	if symbol == "" {
 		return ""
@@ -257,7 +294,8 @@ func normalizeUnitSymbol(symbol string) string {
 	}
 }
 
-func unitNameForSymbol(symbol string) string {
+// UnitNameForSymbol returns a human readable name for a unit symbol.
+func UnitNameForSymbol(symbol string) string {
 	switch strings.ToLower(symbol) {
 	case "g":
 		return "Gram"

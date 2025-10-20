@@ -1,4 +1,4 @@
-package naehrwertdaten
+package openfoodfacts
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,13 +18,16 @@ import (
 	"github.com/bissbilanz/backend/internal/services/imports"
 )
 
-// Config collects runtime configuration for the importer service.
+// Config collects runtime configuration for the Open Food Facts importer.
 type Config struct {
-	BaseURL     string
-	DatasetPath string
-	StorageDir  string
-	PageSize    int
-	MaxRecords  int
+	BaseURL    string
+	SearchPath string
+	StorageDir string
+	PageSize   int
+	MaxRecords int
+	Query      map[string]string
+	Fields     []string
+	UserAgent  string
 }
 
 // Service exposes operations for triggering and monitoring imports.
@@ -38,13 +42,19 @@ type runner struct {
 	cfg    Config
 }
 
-// New constructs a new naehrwertdaten importer service instance.
+// New constructs a new Open Food Facts importer service instance.
 func New(db *sql.DB, client *http.Client, cfg Config) (Service, error) {
 	if db == nil {
 		return nil, errors.New("db is required")
 	}
 	if client == nil {
 		client = http.DefaultClient
+	}
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://world.openfoodfacts.org"
+	}
+	if cfg.SearchPath == "" {
+		cfg.SearchPath = "/api/v2/search"
 	}
 	if cfg.StorageDir == "" {
 		cfg.StorageDir = "./data"
@@ -53,7 +63,14 @@ func New(db *sql.DB, client *http.Client, cfg Config) (Service, error) {
 		return nil, fmt.Errorf("create storage dir: %w", err)
 	}
 	if cfg.PageSize <= 0 {
-		cfg.PageSize = 250
+		cfg.PageSize = 200
+	}
+	if cfg.Query == nil {
+		cfg.Query = map[string]string{
+			"json": "true",
+		}
+	} else {
+		cfg.Query["json"] = "true"
 	}
 
 	r := &runner{
@@ -70,9 +87,8 @@ func (r *runner) Execute(ctx context.Context) (imports.Result, error) {
 	if err != nil {
 		return imports.Result{}, err
 	}
-
 	if len(data) == 0 {
-		return imports.Result{Version: version}, errors.New("no data returned from naehrwertdaten")
+		return imports.Result{Version: version}, errors.New("no data returned from openfoodfacts")
 	}
 
 	filePath, err := r.persistRaw(data)
@@ -81,11 +97,11 @@ func (r *runner) Execute(ctx context.Context) (imports.Result, error) {
 	}
 
 	sourceID, err := imports.EnsureDataSource(ctx, r.db, imports.DataSourceInfo{
-		Name:        "Swiss Food Composition (naehrwertdaten.ch)",
+		Name:        "Open Food Facts",
 		Type:        "open_data",
 		EndpointURL: r.cfg.BaseURL,
-		License:     "CC BY 4.0",
-		Notes:       "Imported via automated pipeline from https://naehrwertdaten.ch/de/.",
+		License:     "ODbL 1.0",
+		Notes:       "Imported via automated pipeline from https://world.openfoodfacts.org.",
 	})
 	if err != nil {
 		return imports.Result{Version: version}, err
@@ -114,7 +130,7 @@ func (r *runner) fetchAll(ctx context.Context) ([]json.RawMessage, string, error
 	var all []json.RawMessage
 	var version string
 	page := 1
-	recordsLimit := r.cfg.MaxRecords
+	limit := r.cfg.MaxRecords
 
 	for {
 		select {
@@ -127,19 +143,16 @@ func (r *runner) fetchAll(ctx context.Context) ([]json.RawMessage, string, error
 		if err != nil {
 			return nil, version, err
 		}
-
 		if version == "" {
 			version = pageVersion
 		}
-
 		if len(items) == 0 {
 			break
 		}
-
 		all = append(all, items...)
 
-		if recordsLimit > 0 && len(all) >= recordsLimit {
-			all = all[:recordsLimit]
+		if limit > 0 && len(all) >= limit {
+			all = all[:limit]
 			break
 		}
 
@@ -155,33 +168,37 @@ func (r *runner) fetchAll(ctx context.Context) ([]json.RawMessage, string, error
 
 func (r *runner) fetchPage(ctx context.Context, page int) ([]json.RawMessage, string, bool, error) {
 	base := strings.TrimSuffix(r.cfg.BaseURL, "/")
-	path := r.cfg.DatasetPath
+	path := r.cfg.SearchPath
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	reqURL := fmt.Sprintf("%s%s", base, path)
+	endpoint := fmt.Sprintf("%s%s", base, path)
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, "", false, fmt.Errorf("parse endpoint: %w", err)
+	}
 
-	query := make([]string, 0, 3)
-	if strings.Contains(reqURL, "?") {
-		parts := strings.SplitN(reqURL, "?", 2)
-		reqURL = parts[0]
-		if len(parts) == 2 && parts[1] != "" {
-			query = append(query, parts[1])
+	query := parsed.Query()
+	for key, value := range r.cfg.Query {
+		if strings.TrimSpace(value) != "" {
+			query.Set(key, value)
 		}
 	}
-
-	query = append(query, fmt.Sprintf("page=%d", page))
+	query.Set("page", strconv.Itoa(page))
 	if r.cfg.PageSize > 0 {
-		query = append(query, fmt.Sprintf("pageSize=%d", r.cfg.PageSize))
+		query.Set("page_size", strconv.Itoa(r.cfg.PageSize))
 	}
-
-	if len(query) > 0 {
-		reqURL = reqURL + "?" + strings.Join(query, "&")
+	if len(r.cfg.Fields) > 0 {
+		query.Set("fields", strings.Join(r.cfg.Fields, ","))
 	}
+	parsed.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
 		return nil, "", false, fmt.Errorf("build request: %w", err)
+	}
+	if ua := strings.TrimSpace(r.cfg.UserAgent); ua != "" {
+		req.Header.Set("User-Agent", ua)
 	}
 
 	resp, err := r.client.Do(req)
@@ -200,19 +217,28 @@ func (r *runner) fetchPage(ctx context.Context, page int) ([]json.RawMessage, st
 		return nil, "", false, fmt.Errorf("decode response page %d: %w", page, err)
 	}
 
-	items, err := extractItems(payload)
+	items, err := extractProducts(payload)
 	if err != nil {
 		return nil, "", false, err
 	}
 
-	version := extractString(payload, "version")
+	version := extractString(payload, "search_id")
+	if version == "" {
+		count := extractInt(payload, "count")
+		if count > 0 {
+			version = fmt.Sprintf("count-%d", count)
+		} else {
+			version = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
+
 	hasMore := computeHasMore(payload, len(items), page)
 
 	return items, version, hasMore, nil
 }
 
 func (r *runner) persistRaw(items []json.RawMessage) (string, error) {
-	fileName := fmt.Sprintf("naehrwertdaten-%s.json", time.Now().UTC().Format("20060102-150405"))
+	fileName := fmt.Sprintf("openfoodfacts-%s.json", time.Now().UTC().Format("20060102-150405"))
 	path := filepath.Join(r.cfg.StorageDir, fileName)
 
 	tmpPath := path + ".tmp"
@@ -266,7 +292,7 @@ func (r *runner) applyData(ctx context.Context, batchID, sourceID int64, items [
 
 	var processed int
 	for _, raw := range items {
-		record, err := parseFood(raw)
+		record, err := parseProduct(raw)
 		if err != nil {
 			continue
 		}
@@ -301,69 +327,17 @@ func (r *runner) applyData(ctx context.Context, batchID, sourceID int64, items [
 	return processed, nil
 }
 
-func computeHasMore(payload map[string]json.RawMessage, itemsCount, page int) bool {
+func extractProducts(payload map[string]json.RawMessage) ([]json.RawMessage, error) {
 	if payload == nil {
-		return false
+		return nil, errors.New("empty response payload")
 	}
-	for _, key := range []string{"has_more", "hasMore"} {
-		if raw, ok := payload[key]; ok {
-			if b, err := strconv.ParseBool(strings.ToLower(strings.Trim(string(raw), "\""))); err == nil {
-				return b
-			}
-		}
+	if raw, ok := payload["products"]; ok {
+		return decodeArray(raw)
 	}
-
-	totalPages := extractInt(payload, "page_count")
-	if totalPages == 0 {
-		totalPages = extractInt(payload, "pageCount")
-	}
-	if totalPages == 0 {
-		totalPages = extractInt(payload, "total_pages")
-	}
-	if totalPages == 0 {
-		totalPages = extractInt(payload, "totalPages")
-	}
-	if totalPages > 0 {
-		return page < totalPages
-	}
-
-	totalItems := extractInt(payload, "total")
-	if totalItems == 0 {
-		totalItems = extractInt(payload, "total_items")
-	}
-	if totalItems > 0 && itemsCount > 0 {
-		pageSize := extractInt(payload, "page_size")
-		if pageSize == 0 {
-			pageSize = extractInt(payload, "pageSize")
-		}
-		if pageSize == 0 {
-			pageSize = itemsCount
-		}
-		return page*pageSize < totalItems
-	}
-
-	return itemsCount > 0
+	return nil, errors.New("unable to locate products array in response")
 }
 
-func extractItems(payload map[string]json.RawMessage) ([]json.RawMessage, error) {
-	keys := []string{"items", "data", "foods", "results", "records"}
-	for _, key := range keys {
-		if raw, ok := payload[key]; ok {
-			if arr, err := decodeArray(raw); err == nil {
-				return arr, nil
-			}
-			var nested map[string]json.RawMessage
-			if err := json.Unmarshal(raw, &nested); err == nil {
-				if arr, err := extractItems(nested); err == nil {
-					return arr, nil
-				}
-			}
-		}
-	}
-	return nil, errors.New("unable to locate items array in response")
-}
-
-func parseFood(raw json.RawMessage) (imports.FoodRecord, error) {
+func parseProduct(raw json.RawMessage) (imports.FoodRecord, error) {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &obj); err != nil {
 		return imports.FoodRecord{}, err
@@ -374,142 +348,121 @@ func parseFood(raw json.RawMessage) (imports.FoodRecord, error) {
 		decodeString(obj["id"]),
 		decodeString(obj["_id"]),
 		decodeString(obj["code"]),
-		decodeString(obj["foodId"]),
 	)
 	record.Code = firstNonEmpty(
 		decodeString(obj["code"]),
-		decodeString(obj["foodCode"]),
+		decodeString(obj["id"]),
 	)
-	record.Name = firstNonEmpty(
-		decodeName(obj["name"]),
-		decodeName(obj["description"]),
-		decodeName(obj["displayName"]),
-		decodeString(obj["title"]),
-	)
-	record.CategoryPath = decodeCategory(obj["category"])
-	if record.CategoryPath == "" {
-		record.CategoryPath = decodeCategory(obj["categories"])
-	}
-	record.Nutrients = decodeNutrients(obj)
+	record.Name = decodeProductName(obj)
+	record.CategoryPath = decodeCategories(obj)
+	record.Nutrients = decodeNutriments(obj)
 	return record, nil
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return strings.TrimSpace(v)
+func decodeProductName(obj map[string]json.RawMessage) string {
+	languages := []string{"de", "en", "fr", "it", "es"}
+	for _, lang := range languages {
+		key := fmt.Sprintf("product_name_%s", lang)
+		if val := decodeString(obj[key]); val != "" {
+			return val
+		}
+	}
+	for _, lang := range languages {
+		key := fmt.Sprintf("generic_name_%s", lang)
+		if val := decodeString(obj[key]); val != "" {
+			return val
+		}
+	}
+	if val := decodeString(obj["product_name"]); val != "" {
+		return val
+	}
+	if val := decodeString(obj["generic_name"]); val != "" {
+		return val
+	}
+	if val := decodeString(obj["product_name_translations"]); val != "" {
+		return val
+	}
+	return ""
+}
+
+func decodeCategories(obj map[string]json.RawMessage) string {
+	if raw, ok := obj["categories_hierarchy"]; ok {
+		if arr, err := decodeArray(raw); err == nil {
+			return formatCategoryHierarchy(arr)
+		}
+	}
+	if raw, ok := obj["categories_tags"]; ok {
+		if arr, err := decodeArray(raw); err == nil {
+			return formatCategoryHierarchy(arr)
+		}
+	}
+	if raw, ok := obj["categories"]; ok {
+		if s := decodeString(raw); s != "" {
+			parts := strings.Split(s, ",")
+			for i := range parts {
+				parts[i] = formatCategory(parts[i])
+			}
+			return strings.Join(parts, " > ")
 		}
 	}
 	return ""
 }
 
-func decodeName(raw json.RawMessage) string {
-	if len(raw) == 0 {
+func formatCategoryHierarchy(arr []json.RawMessage) string {
+	if len(arr) == 0 {
 		return ""
 	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		return strings.TrimSpace(s)
-	}
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &obj); err == nil {
-		for _, key := range []string{"de", "en", "fr", "it", "label", "name"} {
-			if val, ok := obj[key]; ok {
-				if str := decodeName(val); str != "" {
-					return str
-				}
-			}
+	parts := make([]string, 0, len(arr))
+	for _, raw := range arr {
+		if str := decodeString(raw); str != "" {
+			parts = append(parts, formatCategory(str))
 		}
 	}
-	return ""
+	return strings.Join(parts, " > ")
 }
 
-func decodeCategory(raw json.RawMessage) string {
-	if len(raw) == 0 {
+func formatCategory(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return ""
 	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		return strings.TrimSpace(s)
+	if idx := strings.Index(value, ":"); idx >= 0 && idx < len(value)-1 {
+		value = value[idx+1:]
 	}
-	var arr []json.RawMessage
-	if err := json.Unmarshal(raw, &arr); err == nil {
-		parts := make([]string, 0, len(arr))
-		for _, item := range arr {
-			if name := decodeName(item); name != "" {
-				parts = append(parts, name)
-				continue
-			}
-			if str := decodeString(item); str != "" {
-				parts = append(parts, str)
-			}
-		}
-		return strings.Join(parts, " > ")
-	}
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &obj); err == nil {
-		if path, ok := obj["path"]; ok {
-			if str := decodeCategory(path); str != "" {
-				return str
-			}
-		}
-		if name, ok := obj["name"]; ok {
-			if str := decodeName(name); str != "" {
-				return str
-			}
-		}
-	}
-	return ""
+	value = strings.ReplaceAll(value, "-", " ")
+	value = strings.ReplaceAll(value, "_", " ")
+	return strings.Title(value)
 }
 
-func decodeNutrients(obj map[string]json.RawMessage) []imports.NutrientRecord {
-	if obj == nil {
+func decodeNutriments(obj map[string]json.RawMessage) []imports.NutrientRecord {
+	raw, ok := obj["nutriments"]
+	if !ok || len(raw) == 0 {
 		return nil
 	}
-	var raw json.RawMessage
-	if val, ok := obj["nutrients"]; ok {
-		raw = val
-	} else if val, ok := obj["values"]; ok {
-		raw = val
-	}
-	if len(raw) == 0 {
+	var nutriments map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &nutriments); err != nil {
 		return nil
 	}
-	arr, err := decodeArray(raw)
-	if err != nil {
-		return nil
-	}
-	result := make([]imports.NutrientRecord, 0, len(arr))
-	for _, item := range arr {
-		var entry map[string]json.RawMessage
-		if err := json.Unmarshal(item, &entry); err != nil {
+	result := make([]imports.NutrientRecord, 0)
+	for key, valueRaw := range nutriments {
+		if !strings.HasSuffix(key, "_100g") {
 			continue
 		}
-		value := decodeFloat(entry["value"])
-		if value == 0 {
-			value = decodeFloat(entry["per100g"])
-		}
-		if value == 0 {
-			value = decodeFloat(entry["amount"])
-		}
-		code := firstNonEmpty(
-			decodeString(entry["code"]),
-			decodeString(entry["nutrientCode"]),
-			decodeString(entry["id"]),
-			decodeString(entry["short"]),
-		)
-		name := firstNonEmpty(
-			decodeName(entry["name"]),
-			decodeName(entry["description"]),
-			decodeString(entry["label"]),
-		)
-		unit := extractUnit(entry)
+		base := strings.TrimSuffix(key, "_100g")
+		value := decodeFloat(valueRaw)
 		if value == 0 {
 			continue
 		}
-		if code == "" && name == "" {
-			continue
+		unit := decodeString(nutriments[base+"_unit"])
+		if unit == "" {
+			if strings.HasSuffix(base, "-kcal") {
+				unit = "kcal"
+			} else if strings.HasSuffix(base, "-kj") {
+				unit = "kJ"
+			}
 		}
+		name := formatNutrientName(base)
+		code := formatNutrientCode(base)
 		result = append(result, imports.NutrientRecord{
 			Code:  code,
 			Name:  name,
@@ -520,54 +473,48 @@ func decodeNutrients(obj map[string]json.RawMessage) []imports.NutrientRecord {
 	return result
 }
 
-func extractUnit(entry map[string]json.RawMessage) string {
-	if entry == nil {
+func formatNutrientName(key string) string {
+	key = strings.TrimSpace(key)
+	key = strings.ReplaceAll(key, "_", " ")
+	key = strings.ReplaceAll(key, "-", " ")
+	if key == "" {
 		return ""
 	}
-	if raw, ok := entry["unit"]; ok {
-		if s := decodeString(raw); s != "" {
-			return s
-		}
-		var obj map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &obj); err == nil {
-			for _, key := range []string{"symbol", "short", "abbreviation", "name"} {
-				if val, ok := obj[key]; ok {
-					if s := decodeString(val); s != "" {
-						return s
-					}
-				}
-			}
-		}
+	words := strings.Fields(key)
+	for i, word := range words {
+		words[i] = strings.Title(word)
 	}
-	for _, key := range []string{"unitShort", "unitSymbol", "unitLabel"} {
-		if raw, ok := entry[key]; ok {
-			if s := decodeString(raw); s != "" {
-				return s
-			}
-		}
-	}
-	return ""
+	return strings.Join(words, " ")
 }
 
-func decodeFloat(raw json.RawMessage) float64 {
-	if len(raw) == 0 {
-		return 0
+func formatNutrientCode(key string) string {
+	replacer := strings.NewReplacer("-", "_", " ", "_", ":", "_", ".", "_")
+	return strings.ToUpper(replacer.Replace(key))
+}
+
+func computeHasMore(payload map[string]json.RawMessage, itemsCount, page int) bool {
+	if payload == nil {
+		return false
 	}
-	var f float64
-	if err := json.Unmarshal(raw, &f); err == nil {
-		return f
+	totalPages := extractInt(payload, "page_count")
+	if totalPages == 0 {
+		totalPages = extractInt(payload, "pageCount")
 	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		s = strings.TrimSpace(strings.ReplaceAll(s, ",", "."))
-		if s == "" {
-			return 0
+	if totalPages > 0 {
+		return page < totalPages
+	}
+	totalItems := extractInt(payload, "count")
+	if totalItems > 0 && itemsCount > 0 {
+		pageSize := extractInt(payload, "page_size")
+		if pageSize == 0 {
+			pageSize = extractInt(payload, "pageSize")
 		}
-		if v, err := strconv.ParseFloat(s, 64); err == nil {
-			return v
+		if pageSize == 0 {
+			pageSize = itemsCount
 		}
+		return page*pageSize < totalItems
 	}
-	return 0
+	return itemsCount > 0
 }
 
 func decodeArray(raw json.RawMessage) ([]json.RawMessage, error) {
@@ -596,6 +543,27 @@ func decodeString(raw json.RawMessage) string {
 		return strings.TrimSpace(s)
 	}
 	return ""
+}
+
+func decodeFloat(raw json.RawMessage) float64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	var f float64
+	if err := json.Unmarshal(raw, &f); err == nil {
+		return f
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		s = strings.TrimSpace(strings.ReplaceAll(s, ",", "."))
+		if s == "" {
+			return 0
+		}
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			return v
+		}
+	}
+	return 0
 }
 
 func extractString(payload map[string]json.RawMessage, key string) string {
@@ -629,4 +597,13 @@ func extractInt(payload map[string]json.RawMessage, key string) int {
 		}
 	}
 	return 0
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
