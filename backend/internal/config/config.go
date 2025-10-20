@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -17,6 +19,13 @@ type Config struct {
 	NaehrwertdatenDatasetPath string
 	NaehrwertdatenPageSize    int
 	NaehrwertdatenMaxRecords  int
+	OpenFoodFactsBaseURL      string
+	OpenFoodFactsSearchPath   string
+	OpenFoodFactsPageSize     int
+	OpenFoodFactsMaxRecords   int
+	OpenFoodFactsQuery        map[string]string
+	OpenFoodFactsFields       []string
+	OpenFoodFactsUA           string
 }
 
 func Load() Config {
@@ -71,6 +80,55 @@ func Load() Config {
 		}
 	}
 
+	offBase := os.Getenv("OPENFOODFACTS_BASE_URL")
+	if offBase == "" {
+		offBase = "https://world.openfoodfacts.org"
+	}
+
+	offPath := os.Getenv("OPENFOODFACTS_SEARCH_PATH")
+	if offPath == "" {
+		offPath = "/api/v2/search"
+	}
+
+	offPageSize := 200
+	if v := os.Getenv("OPENFOODFACTS_PAGE_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			offPageSize = n
+		}
+	}
+
+	offMaxRecords := 0
+	if v := os.Getenv("OPENFOODFACTS_MAX_RECORDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offMaxRecords = n
+		}
+	}
+
+	queryParams := make(map[string]string)
+	if raw := os.Getenv("OPENFOODFACTS_QUERY"); raw != "" {
+		if values, err := url.ParseQuery(raw); err == nil {
+			for key, vals := range values {
+				if len(vals) > 0 {
+					queryParams[key] = vals[len(vals)-1]
+				}
+			}
+		}
+	}
+
+	var fields []string
+	if raw := os.Getenv("OPENFOODFACTS_FIELDS"); raw != "" {
+		parts := strings.Split(raw, ",")
+		fields = make([]string, 0, len(parts))
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				fields = append(fields, trimmed)
+			}
+		}
+	}
+
+	userAgent := os.Getenv("OPENFOODFACTS_USER_AGENT")
+
 	return Config{
 		Port:                      port,
 		DatabaseURL:               databaseURL,
@@ -82,6 +140,13 @@ func Load() Config {
 		NaehrwertdatenDatasetPath: datasetPath,
 		NaehrwertdatenPageSize:    pageSize,
 		NaehrwertdatenMaxRecords:  maxRecords,
+		OpenFoodFactsBaseURL:      offBase,
+		OpenFoodFactsSearchPath:   offPath,
+		OpenFoodFactsPageSize:     offPageSize,
+		OpenFoodFactsMaxRecords:   offMaxRecords,
+		OpenFoodFactsQuery:        queryParams,
+		OpenFoodFactsFields:       fields,
+		OpenFoodFactsUA:           userAgent,
 	}
 }
 
@@ -119,4 +184,41 @@ func (c Config) NaehrwertdatenPageLimit() int {
 
 func (c Config) NaehrwertdatenRecordLimit() int {
 	return c.NaehrwertdatenMaxRecords
+}
+
+func (c Config) OpenFoodFactsBase() string {
+	return c.OpenFoodFactsBaseURL
+}
+
+func (c Config) OpenFoodFactsSearchEndpoint() string {
+	return c.OpenFoodFactsSearchPath
+}
+
+func (c Config) OpenFoodFactsPageLimit() int {
+	return c.OpenFoodFactsPageSize
+}
+
+func (c Config) OpenFoodFactsRecordLimit() int {
+	return c.OpenFoodFactsMaxRecords
+}
+
+func (c Config) OpenFoodFactsQueryParams() map[string]string {
+	result := make(map[string]string, len(c.OpenFoodFactsQuery))
+	for key, value := range c.OpenFoodFactsQuery {
+		result[key] = value
+	}
+	return result
+}
+
+func (c Config) OpenFoodFactsFieldList() []string {
+	if len(c.OpenFoodFactsFields) == 0 {
+		return nil
+	}
+	result := make([]string, len(c.OpenFoodFactsFields))
+	copy(result, c.OpenFoodFactsFields)
+	return result
+}
+
+func (c Config) OpenFoodFactsUserAgent() string {
+	return c.OpenFoodFactsUA
 }
