@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -14,8 +15,10 @@ import (
 	"github.com/bissbilanz/backend/internal/config"
 	"github.com/bissbilanz/backend/internal/database"
 	healthhandler "github.com/bissbilanz/backend/internal/handlers/health"
+	importshandler "github.com/bissbilanz/backend/internal/handlers/imports"
 	"github.com/bissbilanz/backend/internal/mcp"
 	healthservice "github.com/bissbilanz/backend/internal/services/health"
+	naehrwertdatenservice "github.com/bissbilanz/backend/internal/services/imports/naehrwertdaten"
 )
 
 func main() {
@@ -28,10 +31,22 @@ func main() {
 	defer db.Close()
 
 	healthSvc := healthservice.New(db)
+	naehrwertSvc, err := naehrwertdatenservice.New(db, &http.Client{Timeout: 120 * time.Second}, naehrwertdatenservice.Config{
+		BaseURL:     cfg.NaehrwertdatenBase(),
+		DatasetPath: cfg.NaehrwertdatenDataset(),
+		StorageDir:  cfg.StorageDir(),
+		PageSize:    cfg.NaehrwertdatenPageLimit(),
+		MaxRecords:  cfg.NaehrwertdatenRecordLimit(),
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize naehrwertdaten importer: %v", err)
+	}
 
 	app := fiber.New()
 	healthHandler := healthhandler.New(healthSvc)
 	healthHandler.RegisterRoutes(app)
+	importsHandler := importshandler.New(naehrwertSvc)
+	importsHandler.RegisterRoutes(app)
 
 	var serverOpts []mcp.ServerOption
 	if token := cfg.MCPAuthToken(); token != "" {
@@ -43,6 +58,10 @@ func main() {
 		status := healthSvc.Status(ctx)
 		return &mcp.ToolResponse{Result: status}, nil
 	})
+       mcpServer.RegisterTool("naehrwertdaten.status", func(ctx context.Context, call *mcp.ToolCall) (*mcp.ToolResponse, error) {
+               status := naehrwertSvc.Status()
+               return &mcp.ToolResponse{Result: status}, nil
+       })
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
