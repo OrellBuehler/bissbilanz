@@ -191,11 +191,18 @@ See design document for detailed MCP tool schemas.
 
 ## Key Features
 
-### Phase 1 (Foundation) - In Progress
-- SvelteKit + Bun setup
-- Infomaniak authentication
-- Database schema with Drizzle
-- Basic authenticated layout
+### Phase 1 (Foundation) - ✅ Complete
+- ✅ SvelteKit + Bun project setup
+- ✅ Infomaniak OIDC authentication
+- ✅ PostgreSQL database with Drizzle ORM
+- ✅ Complete database schema (users, sessions, foods, recipes, entries, goals)
+- ✅ Session management middleware
+- ✅ Auth API endpoints (login, callback, logout, me)
+- ✅ Client-side auth store with Svelte 5 runes
+- ✅ Protected route structure (/app/*)
+- ✅ Basic authenticated layout with navigation
+- ✅ Docker build and deployment configuration
+- ✅ CI/CD workflows (build, push, deploy)
 
 ### Phase 2 (Core Tracking) - Planned
 - Dashboard with meal sections
