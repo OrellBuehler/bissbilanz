@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { toFoodInsert } from '../../src/lib/server/foods';
+import { toFoodInsert, toFoodUpdate } from '../../src/lib/server/foods';
 
 describe('toFoodInsert', () => {
 	test('maps validated input to insert row', () => {
@@ -17,5 +17,13 @@ describe('toFoodInsert', () => {
 		const row = toFoodInsert('user-id', input);
 		expect(row.userId).toBe('user-id');
 		expect(row.name).toBe('Oats');
+	});
+});
+
+describe('toFoodUpdate', () => {
+	test('maps partial input to update row', () => {
+		const row = toFoodUpdate({ name: 'Greek Yogurt', calories: 120 });
+		expect(row.name).toBe('Greek Yogurt');
+		expect(row.calories).toBe(120);
 	});
 });
