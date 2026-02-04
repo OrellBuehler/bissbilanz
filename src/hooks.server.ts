@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSessionWithUser } from '$lib/server/session';
+import { securityHeaders } from '$lib/server/security';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get('session');
@@ -18,5 +19,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/');
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+	for (const [key, value] of Object.entries(securityHeaders())) {
+		response.headers.set(key, value);
+	}
+	return response;
 };
