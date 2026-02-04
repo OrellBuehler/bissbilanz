@@ -73,3 +73,25 @@ export const deleteEntry = async (userId: string, id: string) => {
 	const db = getDB();
 	await db.delete(foodEntries).where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)));
 };
+
+export const copyEntries = async (userId: string, fromDate: string, toDate: string) => {
+	const db = getDB();
+	const entries = await db
+		.select()
+		.from(foodEntries)
+		.where(and(eq(foodEntries.userId, userId), eq(foodEntries.date, fromDate)));
+
+	if (!entries.length) return [];
+
+	const rows = entries.map((entry) => ({
+		userId,
+		foodId: entry.foodId,
+		recipeId: entry.recipeId,
+		mealType: entry.mealType,
+		servings: entry.servings,
+		notes: entry.notes,
+		date: toDate
+	}));
+
+	return db.insert(foodEntries).values(rows).returning();
+};
