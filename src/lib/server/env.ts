@@ -1,7 +1,22 @@
+type DatabaseEnv = Record<string, string | undefined>;
+
+const toNumber = (value: string | undefined, fallback: number) => {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const parseDatabaseConfig = (env: DatabaseEnv) => ({
+	url: env.DATABASE_URL!,
+	poolMax: toNumber(env.DATABASE_POOL_MAX, 10),
+	idleTimeoutSeconds: toNumber(env.DATABASE_IDLE_TIMEOUT_SECONDS, 30),
+	connectTimeoutSeconds: toNumber(env.DATABASE_CONNECT_TIMEOUT_SECONDS, 10),
+	statementTimeoutMs: toNumber(env.DATABASE_STATEMENT_TIMEOUT_MS, 30_000),
+	maxLifetimeSeconds: toNumber(env.DATABASE_MAX_LIFETIME_SECONDS, 300),
+	applicationName: env.DATABASE_APPLICATION_NAME ?? 'bissbilanz'
+});
+
 export const config = {
-	database: {
-		url: process.env.DATABASE_URL!
-	},
+	database: parseDatabaseConfig(process.env),
 	infomaniak: {
 		clientId: process.env.INFOMANIAK_CLIENT_ID!,
 		clientSecret: process.env.INFOMANIAK_CLIENT_SECRET!,
