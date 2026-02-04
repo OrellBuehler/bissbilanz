@@ -3,7 +3,7 @@ import { foods } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, eq, ilike } from 'drizzle-orm';
 
-type FoodCreateInput = typeof foodCreateSchema._type;
+type FoodCreateInput = typeof foodCreateSchema._output;
 
 export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	userId,
@@ -20,11 +20,24 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	isFavorite: input.isFavorite ?? false
 });
 
-export const listFoods = async (userId: string, query?: string) => {
+export const listFoods = async (
+	userId: string,
+	options?: { query?: string; limit?: number; offset?: number }
+) => {
 	const db = getDB();
-	const base = db.select().from(foods).where(eq(foods.userId, userId));
-	if (!query) return base.orderBy(foods.name);
-	return base.where(ilike(foods.name, `%${query}%`)).orderBy(foods.name);
+	const limit = options?.limit ?? 100;
+	const offset = options?.offset ?? 0;
+	const whereClause = options?.query
+		? and(eq(foods.userId, userId), ilike(foods.name, `%${options.query}%`))
+		: eq(foods.userId, userId);
+
+	return db
+		.select()
+		.from(foods)
+		.where(whereClause)
+		.orderBy(foods.name)
+		.limit(limit)
+		.offset(offset);
 };
 
 export const createFood = async (userId: string, payload: unknown) => {
@@ -34,7 +47,9 @@ export const createFood = async (userId: string, payload: unknown) => {
 	return created;
 };
 
-export const toFoodUpdate = (input: typeof foodUpdateSchema._type) => ({
+type FoodUpdateInput = typeof foodUpdateSchema._output;
+
+export const toFoodUpdate = (input: FoodUpdateInput) => ({
 	...input,
 	brand: input.brand ?? null,
 	barcode: input.barcode ?? null
