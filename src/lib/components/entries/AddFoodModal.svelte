@@ -7,6 +7,8 @@
 	let query = '';
 	let servings = 1;
 	let tab: 'search' | 'favorites' | 'recent' = 'search';
+	let recentFoods: Array<{ id: string; name: string }> = [];
+	let loadingRecent = false;
 
 	export let onClose: () => void;
 	export let onSave: (payload: { foodId: string; mealType: string; servings: number }) => void;
@@ -16,6 +18,25 @@
 
 	const handleAdd = (foodId: string) => {
 		onSave({ foodId, mealType, servings });
+	};
+
+	const loadRecentFoods = async () => {
+		if (recentFoods.length > 0) return;
+		loadingRecent = true;
+		try {
+			const res = await fetch('/api/foods/recent');
+			const data = await res.json();
+			recentFoods = data.foods;
+		} finally {
+			loadingRecent = false;
+		}
+	};
+
+	const selectTab = (newTab: 'search' | 'favorites' | 'recent') => {
+		tab = newTab;
+		if (newTab === 'recent') {
+			loadRecentFoods();
+		}
 	};
 </script>
 
@@ -32,7 +53,7 @@
 					class="rounded border px-3 py-1"
 					class:bg-black={tab === 'search'}
 					class:text-white={tab === 'search'}
-					onclick={() => (tab = 'search')}
+					onclick={() => selectTab('search')}
 				>
 					Search
 				</button>
@@ -40,7 +61,7 @@
 					class="rounded border px-3 py-1"
 					class:bg-black={tab === 'favorites'}
 					class:text-white={tab === 'favorites'}
-					onclick={() => (tab = 'favorites')}
+					onclick={() => selectTab('favorites')}
 				>
 					Favorites
 				</button>
@@ -48,7 +69,7 @@
 					class="rounded border px-3 py-1"
 					class:bg-black={tab === 'recent'}
 					class:text-white={tab === 'recent'}
-					onclick={() => (tab = 'recent')}
+					onclick={() => selectTab('recent')}
 				>
 					Recent
 				</button>
@@ -84,7 +105,22 @@
 					{/each}
 				</ul>
 			{:else if tab === 'recent'}
-				<p class="text-neutral-500">Recent foods coming soon</p>
+				{#if loadingRecent}
+					<p class="text-neutral-500">Loading...</p>
+				{:else}
+					<ul class="max-h-60 space-y-2 overflow-auto">
+						{#each recentFoods as food}
+							<li class="flex items-center justify-between">
+								<span>{food.name}</span>
+								<button class="rounded border px-2 py-1" onclick={() => handleAdd(food.id)}>
+									Add
+								</button>
+							</li>
+						{:else}
+							<li class="text-neutral-500">No recent foods</li>
+						{/each}
+					</ul>
+				{/if}
 			{/if}
 
 			<label class="grid gap-2">

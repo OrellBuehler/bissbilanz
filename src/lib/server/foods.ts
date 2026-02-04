@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
-import { foods } from '$lib/server/schema';
+import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, eq, ilike } from 'drizzle-orm';
+import { and, desc, eq, ilike } from 'drizzle-orm';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -69,4 +69,20 @@ export const updateFood = async (userId: string, id: string, payload: unknown) =
 export const deleteFood = async (userId: string, id: string) => {
 	const db = getDB();
 	await db.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
+};
+
+export const listRecentFoods = async (userId: string, limit = 25) => {
+	const db = getDB();
+	return db
+		.select({
+			id: foods.id,
+			name: foods.name,
+			brand: foods.brand,
+			isFavorite: foods.isFavorite
+		})
+		.from(foodEntries)
+		.innerJoin(foods, eq(foodEntries.foodId, foods.id))
+		.where(eq(foodEntries.userId, userId))
+		.orderBy(desc(foodEntries.createdAt))
+		.limit(limit);
 };
