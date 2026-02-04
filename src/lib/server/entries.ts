@@ -1,9 +1,10 @@
-import { db } from '$lib/server/db';
+import { getDB } from '$lib/server/db';
 import { foodEntries, foods } from '$lib/server/schema';
-import { entryCreateSchema } from '$lib/server/validation';
+import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { and, eq } from 'drizzle-orm';
 
 export const listEntriesByDate = async (userId: string, date: string) => {
+	const db = getDB();
 	return db
 		.select({
 			id: foodEntries.id,
@@ -24,6 +25,7 @@ export const listEntriesByDate = async (userId: string, date: string) => {
 };
 
 export const createEntry = async (userId: string, payload: unknown) => {
+	const db = getDB();
 	const parsed = entryCreateSchema.parse(payload);
 	const [created] = await db
 		.insert(foodEntries)
@@ -38,4 +40,25 @@ export const createEntry = async (userId: string, payload: unknown) => {
 		})
 		.returning();
 	return created;
+};
+
+export const toEntryUpdate = (input: typeof entryUpdateSchema._type) => ({
+	...input,
+	notes: input.notes ?? null
+});
+
+export const updateEntry = async (userId: string, id: string, payload: unknown) => {
+	const db = getDB();
+	const parsed = entryUpdateSchema.parse(payload);
+	const [updated] = await db
+		.update(foodEntries)
+		.set({ ...toEntryUpdate(parsed), updatedAt: new Date() })
+		.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
+		.returning();
+	return updated;
+};
+
+export const deleteEntry = async (userId: string, id: string) => {
+	const db = getDB();
+	await db.delete(foodEntries).where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)));
 };
