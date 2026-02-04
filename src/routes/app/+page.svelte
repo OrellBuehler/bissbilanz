@@ -7,6 +7,7 @@
 	import { today, yesterday } from '$lib/utils/dates';
 
 	let foods: Array<any> = [];
+	let recipes: Array<any> = [];
 	let entries: Array<any> = [];
 	let addModalOpen = false;
 	let editModalOpen = false;
@@ -18,9 +19,13 @@
 	const currentDate = today();
 
 	const loadData = async () => {
-		const foodsRes = await fetch('/api/foods');
+		const [foodsRes, recipesRes, entriesRes] = await Promise.all([
+			fetch('/api/foods'),
+			fetch('/api/recipes'),
+			fetch(`/api/entries?date=${currentDate}`)
+		]);
 		foods = (await foodsRes.json()).foods;
-		const entriesRes = await fetch(`/api/entries?date=${currentDate}`);
+		recipes = (await recipesRes.json()).recipes;
 		entries = (await entriesRes.json()).entries;
 	};
 
@@ -130,6 +135,7 @@
 	<AddFoodModal
 		open={addModalOpen}
 		{foods}
+		{recipes}
 		mealType={activeMeal}
 		onClose={() => (addModalOpen = false)}
 		onSave={addEntry}

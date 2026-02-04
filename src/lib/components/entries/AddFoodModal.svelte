@@ -3,21 +3,34 @@
 
 	export let open = false;
 	export let foods: Array<{ id: string; name: string; isFavorite?: boolean }> = [];
+	export let recipes: Array<{ id: string; name: string }> = [];
 	export let mealType = 'Breakfast';
 	let query = '';
 	let servings = 1;
-	let tab: 'search' | 'favorites' | 'recent' = 'search';
+	let tab: 'search' | 'favorites' | 'recent' | 'recipes' = 'search';
 	let recentFoods: Array<{ id: string; name: string }> = [];
 	let loadingRecent = false;
 
 	export let onClose: () => void;
-	export let onSave: (payload: { foodId: string; mealType: string; servings: number }) => void;
+	export let onSave: (payload: {
+		foodId?: string;
+		recipeId?: string;
+		mealType: string;
+		servings: number;
+	}) => void;
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
 
-	const handleAdd = (foodId: string) => {
+	const filteredRecipes = () =>
+		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
+
+	const handleAddFood = (foodId: string) => {
 		onSave({ foodId, mealType, servings });
+	};
+
+	const handleAddRecipe = (recipeId: string) => {
+		onSave({ recipeId, mealType, servings });
 	};
 
 	const loadRecentFoods = async () => {
@@ -32,7 +45,7 @@
 		}
 	};
 
-	const selectTab = (newTab: 'search' | 'favorites' | 'recent') => {
+	const selectTab = (newTab: 'search' | 'favorites' | 'recent' | 'recipes') => {
 		tab = newTab;
 		if (newTab === 'recent') {
 			loadRecentFoods();
@@ -48,7 +61,7 @@
 				<button onclick={onClose}>Close</button>
 			</div>
 
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				<button
 					class="rounded border px-3 py-1"
 					class:bg-black={tab === 'search'}
@@ -73,6 +86,14 @@
 				>
 					Recent
 				</button>
+				<button
+					class="rounded border px-3 py-1"
+					class:bg-black={tab === 'recipes'}
+					class:text-white={tab === 'recipes'}
+					onclick={() => selectTab('recipes')}
+				>
+					Recipes
+				</button>
 			</div>
 
 			{#if tab === 'search'}
@@ -85,7 +106,7 @@
 					{#each filtered() as food}
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
-							<button class="rounded border px-2 py-1" onclick={() => handleAdd(food.id)}>
+							<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
 								Add
 							</button>
 						</li>
@@ -96,7 +117,7 @@
 					{#each onlyFavorites(foods) as food}
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
-							<button class="rounded border px-2 py-1" onclick={() => handleAdd(food.id)}>
+							<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
 								Add
 							</button>
 						</li>
@@ -112,7 +133,7 @@
 						{#each recentFoods as food}
 							<li class="flex items-center justify-between">
 								<span>{food.name}</span>
-								<button class="rounded border px-2 py-1" onclick={() => handleAdd(food.id)}>
+								<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
 									Add
 								</button>
 							</li>
@@ -121,11 +142,35 @@
 						{/each}
 					</ul>
 				{/if}
+			{:else if tab === 'recipes'}
+				<input
+					class="w-full rounded border p-2"
+					placeholder="Search recipes..."
+					bind:value={query}
+				/>
+				<ul class="max-h-60 space-y-2 overflow-auto">
+					{#each filteredRecipes() as recipe}
+						<li class="flex items-center justify-between">
+							<span>{recipe.name}</span>
+							<button class="rounded border px-2 py-1" onclick={() => handleAddRecipe(recipe.id)}>
+								Add
+							</button>
+						</li>
+					{:else}
+						<li class="text-neutral-500">No recipes yet</li>
+					{/each}
+				</ul>
 			{/if}
 
 			<label class="grid gap-2">
 				<span>Servings</span>
-				<input class="rounded border p-2" type="number" bind:value={servings} min="0.1" step="0.1" />
+				<input
+					class="rounded border p-2"
+					type="number"
+					bind:value={servings}
+					min="0.1"
+					step="0.1"
+				/>
 			</label>
 		</div>
 	</div>
