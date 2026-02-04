@@ -2,7 +2,10 @@ import { redirect, error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { config } from '$lib/server/env';
 import { getDB, users } from '$lib/server/db';
-import { createSession, createSessionCookie } from '$lib/server/session';
+import { createSession } from '$lib/server/session';
+import { assertState } from '$lib/server/oidc-validate';
+import { verifyIdToken } from '$lib/server/oidc-jwt';
+import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 
 interface TokenResponse {
@@ -20,11 +23,23 @@ interface UserInfo {
 	picture?: string;
 }
 
-export const GET: RequestHandler = async ({ url, cookies }) => {
+export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) => {
 	const code = url.searchParams.get('code');
+	const state = url.searchParams.get('state');
+	const expectedState = cookies.get('oidc_state');
+	const expectedNonce = cookies.get('oidc_nonce');
+	const codeVerifier = cookies.get('oidc_verifier');
 	if (!code) {
 		throw error(400, 'Missing authorization code');
 	}
+
+	try {
+		rateLimit(`auth:callback:${getClientAddress()}`, 5, 60_000);
+	} catch {
+		throw error(429, 'Too many requests');
+	}
+
+	assertState(expectedState, state);
 
 	// Exchange code for tokens
 	const tokenResponse = await fetch('https://login.infomaniak.com/token', {
@@ -37,7 +52,8 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 			code,
 			client_id: config.infomaniak.clientId,
 			client_secret: config.infomaniak.clientSecret,
-			redirect_uri: config.infomaniak.redirectUri
+			redirect_uri: config.infomaniak.redirectUri,
+			code_verifier: codeVerifier ?? ''
 		})
 	});
 
@@ -46,6 +62,16 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	}
 
 	const tokens: TokenResponse = await tokenResponse.json();
+
+	await verifyIdToken(tokens.id_token, {
+		issuer: 'https://login.infomaniak.com',
+		audience: config.infomaniak.clientId,
+		nonce: expectedNonce ?? ''
+	});
+
+	cookies.delete('oidc_state', { path: '/' });
+	cookies.delete('oidc_nonce', { path: '/' });
+	cookies.delete('oidc_verifier', { path: '/' });
 
 	// Get user info
 	const userInfoResponse = await fetch('https://login.infomaniak.com/userinfo', {

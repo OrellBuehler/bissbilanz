@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
-import { getSessionWithUser, parseSessionCookie } from '$lib/server/session';
+import { getSessionWithUser } from '$lib/server/session';
 import type { RequestHandler } from './$types';
 import type { UserProfile } from '$lib/server/types';
 
-export const GET: RequestHandler = async ({ request }) => {
-	const sessionId = parseSessionCookie(request.headers.get('cookie'));
+export const GET: RequestHandler = async ({ cookies }) => {
+	const sessionId = cookies.get('session');
 
 	if (!sessionId) {
 		return json({ user: null });

@@ -1,6 +1,7 @@
 import { eq, inArray, lt } from 'drizzle-orm';
 import { getDB, sessions, users, type Session, type User } from './db';
 import { config } from './env';
+import { encryptToken } from './token-crypto';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -12,11 +13,15 @@ export async function createSession(userId: string, refreshToken?: string): Prom
 	const db = getDB();
 	const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
 
+	const encryptedRefreshToken = refreshToken
+		? await encryptToken(refreshToken, config.session.secret)
+		: null;
+
 	const [session] = await db
 		.insert(sessions)
 		.values({
 			userId,
-			refreshToken: refreshToken ?? null,
+			refreshToken: encryptedRefreshToken,
 			expiresAt
 		})
 		.returning();
