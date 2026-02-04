@@ -1,14 +1,18 @@
 <script lang="ts">
 	import MealSection from '$lib/components/entries/MealSection.svelte';
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
+	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import { calculateDailyTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
 	import { today, yesterday } from '$lib/utils/dates';
 
 	let foods: Array<any> = [];
 	let entries: Array<any> = [];
-	let open = false;
+	let addModalOpen = false;
+	let editModalOpen = false;
 	let activeMeal = 'Breakfast';
+	let editingEntry: { id: string; servings: number; mealType: string; foodName?: string } | null =
+		null;
 	let copying = false;
 
 	const currentDate = today();
@@ -26,8 +30,36 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ...payload, date: currentDate })
 		});
-		open = false;
+		addModalOpen = false;
 		await loadData();
+	};
+
+	const updateEntry = async (payload: { id: string; servings: number; mealType: string }) => {
+		await fetch(`/api/entries/${payload.id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ servings: payload.servings, mealType: payload.mealType })
+		});
+		editModalOpen = false;
+		editingEntry = null;
+		await loadData();
+	};
+
+	const deleteEntry = async (id: string) => {
+		await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+		editModalOpen = false;
+		editingEntry = null;
+		await loadData();
+	};
+
+	const openEditModal = (entry: {
+		id: string;
+		servings: number;
+		mealType: string;
+		foodName?: string;
+	}) => {
+		editingEntry = entry;
+		editModalOpen = true;
 	};
 
 	const copyYesterday = async () => {
@@ -50,11 +82,7 @@
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-semibold">Today</h1>
-		<button
-			class="rounded border px-3 py-1 text-sm"
-			onclick={copyYesterday}
-			disabled={copying}
-		>
+		<button class="rounded border px-3 py-1 text-sm" onclick={copyYesterday} disabled={copying}>
 			{copying ? 'Copying...' : 'Copy Yesterday'}
 		</button>
 	</div>
@@ -66,40 +94,54 @@
 			title="Breakfast"
 			entries={entries.filter((e) => e.mealType === 'Breakfast')}
 			onAdd={() => {
-				open = true;
+				addModalOpen = true;
 				activeMeal = 'Breakfast';
 			}}
+			onEdit={openEditModal}
 		/>
 		<MealSection
 			title="Lunch"
 			entries={entries.filter((e) => e.mealType === 'Lunch')}
 			onAdd={() => {
-				open = true;
+				addModalOpen = true;
 				activeMeal = 'Lunch';
 			}}
+			onEdit={openEditModal}
 		/>
 		<MealSection
 			title="Dinner"
 			entries={entries.filter((e) => e.mealType === 'Dinner')}
 			onAdd={() => {
-				open = true;
+				addModalOpen = true;
 				activeMeal = 'Dinner';
 			}}
+			onEdit={openEditModal}
 		/>
 		<MealSection
 			title="Snacks"
 			entries={entries.filter((e) => e.mealType === 'Snacks')}
 			onAdd={() => {
-				open = true;
+				addModalOpen = true;
 				activeMeal = 'Snacks';
 			}}
+			onEdit={openEditModal}
 		/>
 	</div>
 	<AddFoodModal
-		{open}
+		open={addModalOpen}
 		{foods}
 		mealType={activeMeal}
-		onClose={() => (open = false)}
+		onClose={() => (addModalOpen = false)}
 		onSave={addEntry}
+	/>
+	<EditEntryModal
+		open={editModalOpen}
+		entry={editingEntry}
+		onClose={() => {
+			editModalOpen = false;
+			editingEntry = null;
+		}}
+		onSave={updateEntry}
+		onDelete={deleteEntry}
 	/>
 </div>

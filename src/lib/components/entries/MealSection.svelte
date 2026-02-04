@@ -1,20 +1,47 @@
 <script lang="ts">
+	import { formatEntryLabel } from '$lib/utils/entries-ui';
+
 	export let title: string;
-	export let entries: Array<{ id: string; name: string; calories: number; servings: number }> = [];
+	export let entries: Array<{
+		id: string;
+		foodName?: string | null;
+		calories: number | null;
+		servings: number;
+		mealType: string;
+	}> = [];
 	export let onAdd: () => void;
+	export let onEdit: (entry: {
+		id: string;
+		servings: number;
+		mealType: string;
+		foodName?: string;
+	}) => void = () => {};
 </script>
 
 <section class="rounded border p-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold">{title}</h2>
-		<button class="rounded border px-3 py-1" on:click={onAdd}>Add Food</button>
+		<button class="rounded border px-3 py-1" onclick={onAdd}>Add Food</button>
 	</div>
 	<ul class="mt-3 space-y-2">
 		{#each entries as entry}
 			<li class="flex items-center justify-between text-sm">
-				<span>{entry.name}</span>
-				<span>{entry.calories * entry.servings} kcal</span>
+				<button
+					class="text-left hover:underline"
+					onclick={() =>
+						onEdit({
+							id: entry.id,
+							servings: entry.servings,
+							mealType: entry.mealType,
+							foodName: entry.foodName ?? undefined
+						})}
+				>
+					{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
+				</button>
+				<span class="text-neutral-500">{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span>
 			</li>
+		{:else}
+			<li class="text-sm text-neutral-400">No entries</li>
 		{/each}
 	</ul>
 </section>
