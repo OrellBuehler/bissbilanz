@@ -27,3 +27,6 @@ drizzle/
 
 # Uploads
 uploads/
+
+# Worktrees
+.worktrees/
