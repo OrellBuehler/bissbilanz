@@ -3,8 +3,15 @@ import { foodEntries, foods } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { and, eq } from 'drizzle-orm';
 
-export const listEntriesByDate = async (userId: string, date: string) => {
+export const listEntriesByDate = async (
+	userId: string,
+	date: string,
+	options?: { limit?: number; offset?: number }
+) => {
 	const db = getDB();
+	const limit = options?.limit ?? 100;
+	const offset = options?.offset ?? 0;
+
 	return db
 		.select({
 			id: foodEntries.id,
@@ -21,7 +28,9 @@ export const listEntriesByDate = async (userId: string, date: string) => {
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
-		.where(and(eq(foodEntries.userId, userId), eq(foodEntries.date, date)));
+		.where(and(eq(foodEntries.userId, userId), eq(foodEntries.date, date)))
+		.limit(limit)
+		.offset(offset);
 };
 
 export const createEntry = async (userId: string, payload: unknown) => {
@@ -42,7 +51,9 @@ export const createEntry = async (userId: string, payload: unknown) => {
 	return created;
 };
 
-export const toEntryUpdate = (input: typeof entryUpdateSchema._type) => ({
+type EntryUpdateInput = typeof entryUpdateSchema._output;
+
+export const toEntryUpdate = (input: EntryUpdateInput) => ({
 	...input,
 	notes: input.notes ?? null
 });
