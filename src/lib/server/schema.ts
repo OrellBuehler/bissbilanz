@@ -63,7 +63,11 @@ export const foods = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
-	(table) => [index('idx_foods_user_id').on(table.userId), index('idx_foods_barcode').on(table.barcode)]
+	(table) => [
+		index('idx_foods_user_id').on(table.userId),
+		index('idx_foods_barcode').on(table.barcode),
+		index('idx_foods_user_name').on(table.userId, table.name)
+	]
 );
 
 // Food Entries (daily log)
