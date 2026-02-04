@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { getSessionWithUser, parseSessionCookie } from '$lib/server/session';
+import { getSessionWithUser } from '$lib/server/session';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const sessionId = parseSessionCookie(event.request.headers.get('cookie'));
+	const sessionId = event.cookies.get('session');
 
 	if (sessionId) {
 		const result = await getSessionWithUser(sessionId);
