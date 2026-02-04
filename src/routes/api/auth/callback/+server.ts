@@ -2,7 +2,8 @@ import { redirect, error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { config } from '$lib/server/env';
 import { getDB, users } from '$lib/server/db';
-import { createSession, createSessionCookie } from '$lib/server/session';
+import { createSession } from '$lib/server/session';
+import { assertNonce, assertState, decodeIdToken } from '$lib/server/oidc-validate';
 import type { RequestHandler } from './$types';
 
 interface TokenResponse {
@@ -22,9 +23,15 @@ interface UserInfo {
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
 	const code = url.searchParams.get('code');
+	const state = url.searchParams.get('state');
+	const expectedState = cookies.get('oidc_state');
+	const expectedNonce = cookies.get('oidc_nonce');
+	const codeVerifier = cookies.get('oidc_verifier');
 	if (!code) {
 		throw error(400, 'Missing authorization code');
 	}
+
+	assertState(expectedState, state);
 
 	// Exchange code for tokens
 	const tokenResponse = await fetch('https://login.infomaniak.com/token', {
@@ -37,7 +44,8 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 			code,
 			client_id: config.infomaniak.clientId,
 			client_secret: config.infomaniak.clientSecret,
-			redirect_uri: config.infomaniak.redirectUri
+			redirect_uri: config.infomaniak.redirectUri,
+			code_verifier: codeVerifier ?? ''
 		})
 	});
 
@@ -46,6 +54,13 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	}
 
 	const tokens: TokenResponse = await tokenResponse.json();
+
+	const decoded = decodeIdToken(tokens.id_token);
+	assertNonce(expectedNonce, decoded.nonce);
+
+	cookies.delete('oidc_state', { path: '/' });
+	cookies.delete('oidc_nonce', { path: '/' });
+	cookies.delete('oidc_verifier', { path: '/' });
 
 	// Get user info
 	const userInfoResponse = await fetch('https://login.infomaniak.com/userinfo', {
