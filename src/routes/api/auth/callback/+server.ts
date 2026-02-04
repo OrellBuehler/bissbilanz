@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import { config } from '$lib/server/env';
 import { getDB, users } from '$lib/server/db';
 import { createSession } from '$lib/server/session';
-import { assertNonce, assertState, decodeIdToken } from '$lib/server/oidc-validate';
+import { assertState } from '$lib/server/oidc-validate';
+import { verifyIdToken } from '$lib/server/oidc-jwt';
 import type { RequestHandler } from './$types';
 
 interface TokenResponse {
@@ -55,8 +56,11 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 
 	const tokens: TokenResponse = await tokenResponse.json();
 
-	const decoded = decodeIdToken(tokens.id_token);
-	assertNonce(expectedNonce, decoded.nonce);
+	await verifyIdToken(tokens.id_token, {
+		issuer: 'https://login.infomaniak.com',
+		audience: config.infomaniak.clientId,
+		nonce: expectedNonce ?? ''
+	});
 
 	cookies.delete('oidc_state', { path: '/' });
 	cookies.delete('oidc_nonce', { path: '/' });
