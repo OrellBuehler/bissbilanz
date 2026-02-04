@@ -5,6 +5,7 @@ import { getDB, users } from '$lib/server/db';
 import { createSession } from '$lib/server/session';
 import { assertState } from '$lib/server/oidc-validate';
 import { verifyIdToken } from '$lib/server/oidc-jwt';
+import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 
 interface TokenResponse {
@@ -22,7 +23,7 @@ interface UserInfo {
 	picture?: string;
 }
 
-export const GET: RequestHandler = async ({ url, cookies }) => {
+export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const expectedState = cookies.get('oidc_state');
@@ -30,6 +31,12 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	const codeVerifier = cookies.get('oidc_verifier');
 	if (!code) {
 		throw error(400, 'Missing authorization code');
+	}
+
+	try {
+		rateLimit(`auth:callback:${getClientAddress()}`, 5, 60_000);
+	} catch {
+		throw error(429, 'Too many requests');
 	}
 
 	assertState(expectedState, state);
