@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { foodCreateSchema, entryCreateSchema, goalsSchema } from '../../src/lib/server/validation';
+import {
+	foodCreateSchema,
+	entryCreateSchema,
+	goalsSchema,
+	paginationSchema
+} from '../../src/lib/server/validation';
 
 describe('validation schemas', () => {
 	test('foodCreateSchema requires name and macros', () => {
@@ -20,5 +25,17 @@ describe('validation schemas', () => {
 	test('goalsSchema requires all macro goals', () => {
 		const result = goalsSchema.safeParse({ calorieGoal: 2000 });
 		expect(result.success).toBe(false);
+	});
+
+	test('paginationSchema applies defaults and bounds', () => {
+		const parsed = paginationSchema.parse({ limit: undefined, offset: undefined });
+		expect(parsed.limit).toBe(100);
+		expect(parsed.offset).toBe(0);
+	});
+
+	test('paginationSchema coerces numeric values', () => {
+		const parsed = paginationSchema.parse({ limit: '20', offset: '10' });
+		expect(parsed.limit).toBe(20);
+		expect(parsed.offset).toBe(10);
 	});
 });
