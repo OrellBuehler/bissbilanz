@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { goto } from '$app/navigation';
+	import * as m from '$lib/paraglide/messages';
 
 	const now = new Date();
 	let year = $state(now.getFullYear());
@@ -46,7 +47,7 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
-	<h1 class="text-2xl font-semibold">History</h1>
+	<h1 class="text-2xl font-semibold">{m.history_title()}</h1>
 
 	<div class="grid gap-6 md:grid-cols-2">
 		<div>
@@ -56,26 +57,26 @@
 		<div class="space-y-4">
 			<Card.Root>
 				<Card.Header class="pb-2">
-					<Card.Title class="text-base">Weekly Average (7 days)</Card.Title>
+					<Card.Title class="text-base">{m.history_weekly()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					{#if weeklyStats}
 						<MacroSummary totals={weeklyStats} round />
 					{:else}
-						<p class="text-muted-foreground">Loading...</p>
+						<p class="text-muted-foreground">{m.history_loading()}</p>
 					{/if}
 				</Card.Content>
 			</Card.Root>
 
 			<Card.Root>
 				<Card.Header class="pb-2">
-					<Card.Title class="text-base">Monthly Average (30 days)</Card.Title>
+					<Card.Title class="text-base">{m.history_monthly()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					{#if monthlyStats}
 						<MacroSummary totals={monthlyStats} round />
 					{:else}
-						<p class="text-muted-foreground">Loading...</p>
+						<p class="text-muted-foreground">{m.history_loading()}</p>
 					{/if}
 				</Card.Content>
 			</Card.Root>

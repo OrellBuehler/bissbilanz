@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MacroTotals } from '$lib/utils/nutrition';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		totals: MacroTotals;
@@ -13,9 +14,9 @@
 </script>
 
 <div class={`grid gap-2 text-sm ${gridClass}`}>
-	<div>Calories: {fmt(totals.calories)}</div>
-	<div>Protein: {fmt(totals.protein)}g</div>
-	<div>Carbs: {fmt(totals.carbs)}g</div>
-	<div>Fat: {fmt(totals.fat)}g</div>
-	<div>Fiber: {fmt(totals.fiber)}g</div>
+	<div>{m.macro_calories()} {fmt(totals.calories)}</div>
+	<div>{m.macro_protein()} {fmt(totals.protein)}g</div>
+	<div>{m.macro_carbs()} {fmt(totals.carbs)}g</div>
+	<div>{m.macro_fat()} {fmt(totals.fat)}g</div>
+	<div>{m.macro_fiber()} {fmt(totals.fiber)}g</div>
 </div>

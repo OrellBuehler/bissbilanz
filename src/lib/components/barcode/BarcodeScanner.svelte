@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		onScan: (barcode: string) => void;
@@ -48,6 +49,6 @@
 	{/if}
 	<div id="barcode-reader" class="mx-auto w-full max-w-md"></div>
 	{#if !scannerReady && !error}
-		<p class="text-center text-neutral-500">Starting camera...</p>
+		<p class="text-center text-neutral-500">{m.barcode_starting()}</p>
 	{/if}
 </div>

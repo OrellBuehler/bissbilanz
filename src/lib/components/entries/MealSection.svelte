@@ -2,6 +2,7 @@
 	import { formatEntryLabel } from '$lib/utils/entries-ui';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		title: string;
@@ -24,7 +25,7 @@
 	<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 		<Card.Title class="text-lg">{title}</Card.Title>
 		{#if !readonly && onAdd}
-			<Button variant="outline" size="sm" onclick={onAdd}>Add Food</Button>
+			<Button variant="outline" size="sm" onclick={onAdd}>{m.meal_add_food()}</Button>
 		{/if}
 	</Card.Header>
 	<Card.Content>
@@ -53,7 +54,7 @@
 					>
 				</li>
 			{:else}
-				<li class="text-sm text-muted-foreground">No entries</li>
+				<li class="text-sm text-muted-foreground">{m.meal_no_entries()}</li>
 			{/each}
 		</ul>
 	</Card.Content>

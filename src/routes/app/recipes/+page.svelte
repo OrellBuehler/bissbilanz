@@ -2,6 +2,7 @@
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = [];
 	let recipes: Array<{ id: string; name: string; totalServings: number }> = [];
@@ -38,9 +39,9 @@
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">Recipes</h1>
+		<h1 class="text-2xl font-semibold">{m.recipes_title()}</h1>
 		{#if !showForm}
-			<Button onclick={() => (showForm = true)}>New Recipe</Button>
+			<Button onclick={() => (showForm = true)}>{m.recipes_new()}</Button>
 		{/if}
 	</div>
 
@@ -53,14 +54,14 @@
 			<Card.Root class="flex items-center justify-between p-3">
 				<div>
 					<span class="font-medium">{recipe.name}</span>
-					<span class="text-sm text-muted-foreground">({recipe.totalServings} servings)</span>
+					<span class="text-sm text-muted-foreground">{m.recipes_servings({ count: recipe.totalServings })}</span>
 				</div>
 				<Button variant="destructive" size="sm" onclick={() => deleteRecipe(recipe.id)}>
-					Delete
+					{m.foods_delete()}
 				</Button>
 			</Card.Root>
 		{:else}
-			<li class="text-muted-foreground">No recipes yet</li>
+			<li class="text-muted-foreground">{m.recipes_no_recipes()}</li>
 		{/each}
 	</ul>
 </div>

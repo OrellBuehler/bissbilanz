@@ -4,6 +4,7 @@
 	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = [];
 	let query = '';
@@ -32,12 +33,12 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
-	<h1 class="text-2xl font-semibold">Foods</h1>
-	<Input placeholder="Search foods" bind:value={query} />
+	<h1 class="text-2xl font-semibold">{m.foods_title()}</h1>
+	<Input placeholder={m.foods_search_placeholder()} bind:value={query} />
 	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} />
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Add food</Card.Title>
+			<Card.Title>{m.foods_new()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<FoodForm onSave={createFood} />

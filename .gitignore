@@ -30,3 +30,6 @@ uploads/
 
 # Worktrees
 .worktrees/
+
+# Paraglide generated
+src/lib/paraglide/

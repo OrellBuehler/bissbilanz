@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open?: boolean;
@@ -37,18 +38,18 @@
 		}
 	};
 
-	const mealOptions = [
-		{ value: 'Breakfast', label: 'Breakfast' },
-		{ value: 'Lunch', label: 'Lunch' },
-		{ value: 'Dinner', label: 'Dinner' },
-		{ value: 'Snacks', label: 'Snacks' }
-	];
+	const mealOptions = $derived([
+		{ value: 'Breakfast', label: m.meal_breakfast() },
+		{ value: 'Lunch', label: m.meal_lunch() },
+		{ value: 'Dinner', label: m.meal_dinner() },
+		{ value: 'Snacks', label: m.meal_snacks() }
+	]);
 </script>
 
 <Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Edit Entry</Dialog.Title>
+			<Dialog.Title>{m.edit_entry_title()}</Dialog.Title>
 			{#if entry?.foodName}
 				<Dialog.Description>{entry.foodName}</Dialog.Description>
 			{/if}
@@ -56,7 +57,7 @@
 
 		<div class="grid gap-4">
 			<div class="grid gap-2">
-				<Label for="edit-servings">Servings</Label>
+				<Label for="edit-servings">{m.edit_entry_servings()}</Label>
 				<Input
 					id="edit-servings"
 					type="number"
@@ -67,10 +68,10 @@
 			</div>
 
 			<div class="grid gap-2">
-				<Label>Meal</Label>
+				<Label>{m.edit_entry_meal()}</Label>
 				<Select.Root type="single" bind:value={editMealType}>
 					<Select.Trigger>
-						{mealOptions.find((m) => m.value === editMealType)?.label || 'Select meal'}
+						{mealOptions.find((o) => o.value === editMealType)?.label || m.edit_entry_select_meal()}
 					</Select.Trigger>
 					<Select.Content>
 						{#each mealOptions as meal}
@@ -82,10 +83,10 @@
 		</div>
 
 		<Dialog.Footer class="flex justify-between sm:justify-between">
-			<Button variant="destructive" onclick={handleDelete}>Delete</Button>
+			<Button variant="destructive" onclick={handleDelete}>{m.edit_entry_delete()}</Button>
 			<div class="flex gap-2">
-				<Button variant="outline" onclick={onClose}>Cancel</Button>
-				<Button onclick={handleSave}>Save</Button>
+				<Button variant="outline" onclick={onClose}>{m.edit_entry_cancel()}</Button>
+				<Button onclick={handleSave}>{m.edit_entry_save()}</Button>
 			</div>
 		</Dialog.Footer>
 	</Dialog.Content>

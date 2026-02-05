@@ -6,6 +6,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		foods?: Array<{ id: string; name: string; servingUnit?: string }>;
@@ -40,12 +41,12 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>New Recipe</Card.Title>
+		<Card.Title>{m.recipe_form_title()}</Card.Title>
 	</Card.Header>
 	<Card.Content class="space-y-4">
-		<Input placeholder="Recipe name" bind:value={state.name} />
+		<Input placeholder={m.recipe_form_name()} bind:value={state.name} />
 		<div class="flex items-center gap-2">
-			<Label class="text-sm">Total servings:</Label>
+			<Label class="text-sm">{m.recipe_form_servings()}</Label>
 			<Input
 				class="w-20"
 				type="number"
@@ -55,18 +56,18 @@
 			/>
 		</div>
 		<div class="space-y-2">
-			<Label class="text-sm font-medium">Ingredients</Label>
+			<Label class="text-sm font-medium">{m.recipe_form_ingredients()}</Label>
 			{#each state.ingredients as ingredient, i}
 				<IngredientRow {ingredient} {foods} onRemove={() => removeIngredient(i)} />
 			{/each}
 			<Button variant="outline" size="sm" onclick={addIngredient}>
 				<Plus class="size-4" />
-				Add ingredient
+				{m.recipe_form_add_ingredient()}
 			</Button>
 		</div>
 	</Card.Content>
 	<Card.Footer class="flex justify-end gap-2">
-		<Button variant="outline" onclick={onCancel}>Cancel</Button>
-		<Button onclick={handleSubmit}>Save recipe</Button>
+		<Button variant="outline" onclick={onCancel}>{m.recipe_form_cancel()}</Button>
+		<Button onclick={handleSubmit}>{m.recipe_form_save()}</Button>
 	</Card.Footer>
 </Card.Root>

@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		year: number;
@@ -16,7 +17,15 @@
 
 	let { year, month, dayColors = {}, onDayClick, onPrevMonth, onNextMonth }: Props = $props();
 
-	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	const weekdays = $derived([
+		m.calendar_sun(),
+		m.calendar_mon(),
+		m.calendar_tue(),
+		m.calendar_wed(),
+		m.calendar_thu(),
+		m.calendar_fri(),
+		m.calendar_sat()
+	]);
 
 	const monthData = $derived(getMonthDays(year, month));
 	const firstDayOffset = $derived(getDayOfWeek(monthData.days[0]));

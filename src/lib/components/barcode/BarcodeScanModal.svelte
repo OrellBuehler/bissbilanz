@@ -3,6 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open?: boolean;
@@ -27,12 +28,12 @@
 <Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
 	<Dialog.Content class="max-w-lg">
 		<Dialog.Header>
-			<Dialog.Title>Scan Barcode</Dialog.Title>
+			<Dialog.Title>{m.barcode_title()}</Dialog.Title>
 		</Dialog.Header>
 		{#if error}
 			<Alert.Root variant="destructive">
 				<AlertCircle class="size-4" />
-				<Alert.Title>Error</Alert.Title>
+				<Alert.Title>{m.barcode_error()}</Alert.Title>
 				<Alert.Description>{error}</Alert.Description>
 			</Alert.Root>
 		{/if}

@@ -6,7 +6,7 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-	// Button is used for Save button
+	import * as m from '$lib/paraglide/messages';
 
 	type FoodFormData = {
 		name: string;
@@ -55,19 +55,19 @@
 </script>
 
 <div class="grid gap-3">
-	<Input placeholder="Name" bind:value={form.name} />
-	<Input placeholder="Brand" bind:value={form.brand} />
-	<Input placeholder="Barcode" bind:value={form.barcode} />
+	<Input placeholder={m.food_form_name()} bind:value={form.name} />
+	<Input placeholder={m.food_form_brand()} bind:value={form.brand} />
+	<Input placeholder={m.food_form_barcode()} bind:value={form.barcode} />
 	<div class="grid grid-cols-2 gap-2">
-		<Input type="number" placeholder="Serving size" bind:value={form.servingSize} />
-		<Input placeholder="Unit (g, ml, piece)" bind:value={form.servingUnit} />
+		<Input type="number" placeholder={m.food_form_serving_size()} bind:value={form.servingSize} />
+		<Input placeholder={m.food_form_unit()} bind:value={form.servingUnit} />
 	</div>
 	<div class="grid grid-cols-2 gap-2">
-		<Input type="number" placeholder="Calories" bind:value={form.calories} />
-		<Input type="number" placeholder="Protein" bind:value={form.protein} />
-		<Input type="number" placeholder="Carbs" bind:value={form.carbs} />
-		<Input type="number" placeholder="Fat" bind:value={form.fat} />
-		<Input type="number" placeholder="Fiber" bind:value={form.fiber} />
+		<Input type="number" placeholder={m.food_form_calories()} bind:value={form.calories} />
+		<Input type="number" placeholder={m.food_form_protein()} bind:value={form.protein} />
+		<Input type="number" placeholder={m.food_form_carbs()} bind:value={form.carbs} />
+		<Input type="number" placeholder={m.food_form_fat()} bind:value={form.fat} />
+		<Input type="number" placeholder={m.food_form_fiber()} bind:value={form.fiber} />
 	</div>
 
 	<Collapsible.Root bind:open={showAdvanced}>
@@ -79,21 +79,21 @@
 			{:else}
 				<ChevronRight class="size-4" />
 			{/if}
-			Advanced Nutrients
+			{m.food_form_advanced()}
 		</Collapsible.Trigger>
 		<Collapsible.Content>
 			<div class="grid grid-cols-2 gap-2 rounded-md border p-3">
-				<Input type="number" placeholder="Sodium (mg)" bind:value={form.sodium} />
-				<Input type="number" placeholder="Sugar (g)" bind:value={form.sugar} />
-				<Input type="number" placeholder="Saturated Fat (g)" bind:value={form.saturatedFat} />
-				<Input type="number" placeholder="Cholesterol (mg)" bind:value={form.cholesterol} />
+				<Input type="number" placeholder={m.food_form_sodium()} bind:value={form.sodium} />
+				<Input type="number" placeholder={m.food_form_sugar()} bind:value={form.sugar} />
+				<Input type="number" placeholder={m.food_form_saturated_fat()} bind:value={form.saturatedFat} />
+				<Input type="number" placeholder={m.food_form_cholesterol()} bind:value={form.cholesterol} />
 			</div>
 		</Collapsible.Content>
 	</Collapsible.Root>
 
 	<div class="flex items-center gap-2">
 		<Checkbox id="favorite" bind:checked={form.isFavorite} />
-		<Label for="favorite">Favorite</Label>
+		<Label for="favorite">{m.food_form_favorite()}</Label>
 	</div>
-	<Button onclick={() => onSave(form)}>Save</Button>
+	<Button onclick={() => onSave(form)}>{m.food_form_save()}</Button>
 </div>

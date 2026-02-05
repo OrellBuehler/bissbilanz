@@ -9,6 +9,7 @@
 	import { today, yesterday } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
+	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
@@ -106,18 +107,18 @@
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">Today</h1>
+		<h1 class="text-2xl font-semibold">{m.dashboard_today()}</h1>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
-				Scan
+				{m.dashboard_scan()}
 			</Button>
 			<Button variant="outline" size="sm" onclick={copyYesterday} disabled={copying}>
-				{copying ? 'Copying...' : 'Copy Yesterday'}
+				{copying ? m.dashboard_copying() : m.dashboard_copy_yesterday()}
 			</Button>
 		</div>
 	</div>
 	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>
-		{totals.calories} kcal
+		{m.dashboard_kcal({ value: totals.calories })}
 	</div>
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}

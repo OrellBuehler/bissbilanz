@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open?: boolean;
@@ -72,25 +73,25 @@
 <Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
 	<Dialog.Content class="max-w-lg">
 		<Dialog.Header>
-			<Dialog.Title>Add Food</Dialog.Title>
+			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
 		</Dialog.Header>
 
 		<Tabs.Root value={tab} onValueChange={handleTabChange}>
 			<Tabs.List class="grid w-full grid-cols-4">
-				<Tabs.Trigger value="search">Search</Tabs.Trigger>
-				<Tabs.Trigger value="favorites">Favorites</Tabs.Trigger>
-				<Tabs.Trigger value="recent">Recent</Tabs.Trigger>
-				<Tabs.Trigger value="recipes">Recipes</Tabs.Trigger>
+				<Tabs.Trigger value="search">{m.add_food_tab_search()}</Tabs.Trigger>
+				<Tabs.Trigger value="favorites">{m.add_food_tab_favorites()}</Tabs.Trigger>
+				<Tabs.Trigger value="recent">{m.add_food_tab_recent()}</Tabs.Trigger>
+				<Tabs.Trigger value="recipes">{m.add_food_tab_recipes()}</Tabs.Trigger>
 			</Tabs.List>
 
 			<Tabs.Content value="search" class="space-y-4">
-				<Input placeholder="Search foods..." bind:value={query} />
+				<Input placeholder={m.add_food_search_placeholder()} bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filtered() as food}
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
 							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-								Add
+								{m.add_food_add()}
 							</Button>
 						</li>
 					{/each}
@@ -103,53 +104,53 @@
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
 							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-								Add
+								{m.add_food_add()}
 							</Button>
 						</li>
 					{:else}
-						<li class="text-muted-foreground">No favorites yet</li>
+						<li class="text-muted-foreground">{m.add_food_no_favorites()}</li>
 					{/each}
 				</ul>
 			</Tabs.Content>
 
 			<Tabs.Content value="recent" class="space-y-4">
 				{#if loadingRecent}
-					<p class="text-muted-foreground">Loading...</p>
+					<p class="text-muted-foreground">{m.add_food_loading()}</p>
 				{:else}
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each recentFoods as food}
 							<li class="flex items-center justify-between">
 								<span>{food.name}</span>
 								<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-									Add
+									{m.add_food_add()}
 								</Button>
 							</li>
 						{:else}
-							<li class="text-muted-foreground">No recent foods</li>
+							<li class="text-muted-foreground">{m.add_food_no_recent()}</li>
 						{/each}
 					</ul>
 				{/if}
 			</Tabs.Content>
 
 			<Tabs.Content value="recipes" class="space-y-4">
-				<Input placeholder="Search recipes..." bind:value={query} />
+				<Input placeholder={m.add_food_search_recipes_placeholder()} bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filteredRecipes() as recipe}
 						<li class="flex items-center justify-between">
 							<span>{recipe.name}</span>
 							<Button variant="outline" size="sm" onclick={() => handleAddRecipe(recipe.id)}>
-								Add
+								{m.add_food_add()}
 							</Button>
 						</li>
 					{:else}
-						<li class="text-muted-foreground">No recipes yet</li>
+						<li class="text-muted-foreground">{m.add_food_no_recipes()}</li>
 					{/each}
 				</ul>
 			</Tabs.Content>
 		</Tabs.Root>
 
 		<div class="grid gap-2">
-			<Label for="servings">Servings</Label>
+			<Label for="servings">{m.add_food_servings()}</Label>
 			<Input id="servings" type="number" bind:value={servings} min="0.1" step="0.1" />
 		</div>
 	</Dialog.Content>

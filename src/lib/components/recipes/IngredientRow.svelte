@@ -3,6 +3,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import X from '@lucide/svelte/icons/x';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		ingredient: { foodId: string; quantity: number; servingUnit: string };
@@ -26,7 +27,7 @@
 <div class="flex items-center gap-2">
 	<Select.Root type="single" value={ingredient.foodId} onValueChange={handleFoodChange}>
 		<Select.Trigger class="flex-1">
-			{selectedFood?.name || 'Select food'}
+			{selectedFood?.name || m.recipe_form_select_food()}
 		</Select.Trigger>
 		<Select.Content>
 			{#each foods as food}
@@ -37,14 +38,14 @@
 	<Input
 		class="w-20"
 		type="number"
-		placeholder="Qty"
+		placeholder={m.recipe_form_qty()}
 		bind:value={ingredient.quantity}
 		min="0.1"
 		step="0.1"
 	/>
 	<Input
 		class="w-20"
-		placeholder="Unit"
+		placeholder={m.recipe_form_unit()}
 		bind:value={ingredient.servingUnit}
 	/>
 	<Button variant="ghost" size="icon" onclick={onRemove}>

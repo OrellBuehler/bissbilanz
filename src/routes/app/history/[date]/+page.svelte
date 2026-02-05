@@ -5,6 +5,7 @@
 	import { calculateDailyTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+	import * as m from '$lib/paraglide/messages';
 
 	let entries: Array<any> = $state([]);
 
@@ -27,10 +28,10 @@
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-semibold">{date}</h1>
-		<a href="/app/history" class="rounded border px-3 py-1 text-sm">Back to Calendar</a>
+		<a href="/app/history" class="rounded border px-3 py-1 text-sm">{m.history_back()}</a>
 	</div>
 
-	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{totals.calories} kcal</div>
+	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{m.dashboard_kcal({ value: totals.calories })}</div>
 
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
@@ -43,7 +44,7 @@
 	</div>
 
 	<div class="rounded border p-4">
-		<h3 class="mb-2 font-semibold">Daily Totals</h3>
+		<h3 class="mb-2 font-semibold">{m.history_daily_totals()}</h3>
 		<MacroSummary {totals} gridClass="grid-cols-2 md:grid-cols-5" />
 	</div>
 </div>

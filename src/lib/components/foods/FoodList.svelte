@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		foods?: Array<{ id: string; name: string; brand?: string | null }>;
@@ -21,8 +22,8 @@
 				{/if}
 			</div>
 			<div class="flex gap-2">
-				<Button variant="outline" size="sm" onclick={() => onEdit(food.id)}>Edit</Button>
-				<Button variant="outline" size="sm" onclick={() => onDelete(food.id)}>Delete</Button>
+				<Button variant="outline" size="sm" onclick={() => onEdit(food.id)}>{m.foods_edit()}</Button>
+				<Button variant="outline" size="sm" onclick={() => onDelete(food.id)}>{m.foods_delete()}</Button>
 			</div>
 		</Card.Root>
 	{/each}
