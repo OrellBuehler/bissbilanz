@@ -16,6 +16,7 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
+		"@inlang/paraglide-sveltekit": "^0.16.1",
 		"@internationalized/date": "^3.10.0",
 		"@lucide/svelte": "^0.561.0",
 		"@sveltejs/kit": "^2.50.1",
@@ -47,6 +48,7 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"@inlang/paraglide-js": "^2.10.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"drizzle-orm": "^0.45.1",
 		"html5-qrcode": "^2.3.8",
