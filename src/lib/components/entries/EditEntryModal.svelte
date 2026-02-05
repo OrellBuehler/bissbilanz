@@ -1,13 +1,16 @@
 <script lang="ts">
-	export let open = false;
-	export let entry: { id: string; servings: number; mealType: string; foodName?: string } | null =
-		null;
-	export let onClose: () => void;
-	export let onSave: (payload: { id: string; servings: number; mealType: string }) => void;
-	export let onDelete: (id: string) => void;
+	type Props = {
+		open?: boolean;
+		entry: { id: string; servings: number; mealType: string; foodName?: string } | null;
+		onClose: () => void;
+		onSave: (payload: { id: string; servings: number; mealType: string }) => void;
+		onDelete: (id: string) => void;
+	};
 
-	let editServings = 1;
-	let editMealType = '';
+	let { open = false, entry, onClose, onSave, onDelete }: Props = $props();
+
+	let editServings = $state(1);
+	let editMealType = $state('');
 
 	$effect(() => {
 		if (entry) {

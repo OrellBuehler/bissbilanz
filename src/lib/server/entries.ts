@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foodEntries, foods } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, lte } from 'drizzle-orm';
 
 export const listEntriesByDate = async (
 	userId: string,
@@ -72,6 +72,38 @@ export const updateEntry = async (userId: string, id: string, payload: unknown) 
 export const deleteEntry = async (userId: string, id: string) => {
 	const db = getDB();
 	await db.delete(foodEntries).where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)));
+};
+
+export const listEntriesByDateRange = async (
+	userId: string,
+	startDate: string,
+	endDate: string
+) => {
+	const db = getDB();
+	return db
+		.select({
+			id: foodEntries.id,
+			date: foodEntries.date,
+			mealType: foodEntries.mealType,
+			servings: foodEntries.servings,
+			notes: foodEntries.notes,
+			foodId: foodEntries.foodId,
+			foodName: foods.name,
+			calories: foods.calories,
+			protein: foods.protein,
+			carbs: foods.carbs,
+			fat: foods.fat,
+			fiber: foods.fiber
+		})
+		.from(foodEntries)
+		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
+		.where(
+			and(
+				eq(foodEntries.userId, userId),
+				gte(foodEntries.date, startDate),
+				lte(foodEntries.date, endDate)
+			)
+		);
 };
 
 export const copyEntries = async (userId: string, fromDate: string, toDate: string) => {

@@ -3,7 +3,7 @@ import { userGoals } from '$lib/server/schema';
 import { goalsSchema } from '$lib/server/validation';
 import { eq } from 'drizzle-orm';
 
-type GoalsInput = typeof goalsSchema._type;
+type GoalsInput = typeof goalsSchema._output;
 
 export const toGoalsUpsert = (userId: string, input: GoalsInput) => ({
 	userId,
