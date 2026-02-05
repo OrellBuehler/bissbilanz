@@ -58,6 +58,15 @@ export const foods = pgTable(
 		carbs: real('carbs').notNull(),
 		fat: real('fat').notNull(),
 		fiber: real('fiber').notNull(),
+		// Advanced nutrients (optional)
+		sodium: real('sodium'),
+		sugar: real('sugar'),
+		saturatedFat: real('saturated_fat'),
+		cholesterol: real('cholesterol'),
+		vitaminA: real('vitamin_a'),
+		vitaminC: real('vitamin_c'),
+		calcium: real('calcium'),
+		iron: real('iron'),
 		barcode: text('barcode').unique(),
 		isFavorite: boolean('is_favorite').notNull().default(false),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -104,6 +113,9 @@ export const userGoals = pgTable('user_goals', {
 	carbGoal: real('carb_goal').notNull(),
 	fatGoal: real('fat_goal').notNull(),
 	fiberGoal: real('fiber_goal').notNull(),
+	// Advanced nutrient goals (optional)
+	sodiumGoal: real('sodium_goal'),
+	sugarGoal: real('sugar_goal'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 

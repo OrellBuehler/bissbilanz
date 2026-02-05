@@ -16,6 +16,15 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	carbs: input.carbs,
 	fat: input.fat,
 	fiber: input.fiber,
+	// Advanced nutrients
+	sodium: input.sodium ?? null,
+	sugar: input.sugar ?? null,
+	saturatedFat: input.saturatedFat ?? null,
+	cholesterol: input.cholesterol ?? null,
+	vitaminA: input.vitaminA ?? null,
+	vitaminC: input.vitaminC ?? null,
+	calcium: input.calcium ?? null,
+	iron: input.iron ?? null,
 	barcode: input.barcode ?? null,
 	isFavorite: input.isFavorite ?? false
 });
