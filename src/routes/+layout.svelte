@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 
 	let { children } = $props();
 </script>
@@ -11,4 +11,4 @@
 </svelte:head>
 
 {@render children()}
-<ToastContainer />
+<Toaster />
