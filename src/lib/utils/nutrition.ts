@@ -37,3 +37,23 @@ export const calculateEntryTotals = (
 
 export const calculateDailyTotals = (entries: MacroTotals[]): MacroTotals =>
 	entries.reduce(addTotals, emptyTotals());
+
+type NutritionEntry = {
+	calories: number | null;
+	protein: number | null;
+	carbs: number | null;
+	fat: number | null;
+	fiber: number | null;
+	servings: number;
+};
+
+export const calculateEntryMacros = (entry: NutritionEntry): MacroTotals => ({
+	calories: (entry.calories ?? 0) * entry.servings,
+	protein: (entry.protein ?? 0) * entry.servings,
+	carbs: (entry.carbs ?? 0) * entry.servings,
+	fat: (entry.fat ?? 0) * entry.servings,
+	fiber: (entry.fiber ?? 0) * entry.servings
+});
+
+export const sumEntries = (entries: NutritionEntry[]): MacroTotals =>
+	entries.reduce((acc, entry) => addTotals(acc, calculateEntryMacros(entry)), emptyTotals());

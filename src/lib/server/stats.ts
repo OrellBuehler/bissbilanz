@@ -1,5 +1,6 @@
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { averageTotals } from '$lib/utils/stats';
+import { emptyTotals, addTotals, calculateEntryMacros, type MacroTotals } from '$lib/utils/nutrition';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -19,20 +20,13 @@ const groupEntriesByDate = (
 		fat: number | null;
 		fiber: number | null;
 	}>
-) => {
-	const groups: Record<
-		string,
-		{ calories: number; protein: number; carbs: number; fat: number; fiber: number }
-	> = {};
+): MacroTotals[] => {
+	const groups: Record<string, MacroTotals> = {};
 	for (const entry of entries) {
 		if (!groups[entry.date]) {
-			groups[entry.date] = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+			groups[entry.date] = emptyTotals();
 		}
-		groups[entry.date].calories += (entry.calories ?? 0) * entry.servings;
-		groups[entry.date].protein += (entry.protein ?? 0) * entry.servings;
-		groups[entry.date].carbs += (entry.carbs ?? 0) * entry.servings;
-		groups[entry.date].fat += (entry.fat ?? 0) * entry.servings;
-		groups[entry.date].fiber += (entry.fiber ?? 0) * entry.servings;
+		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
 	}
 	return Object.values(groups);
 };

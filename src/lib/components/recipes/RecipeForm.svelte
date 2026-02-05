@@ -2,15 +2,19 @@
 	import IngredientRow from './IngredientRow.svelte';
 	import { buildRecipePayload, type RecipeFormState } from '$lib/utils/recipe-builder';
 
-	export let foods: Array<{ id: string; name: string; servingUnit?: string }> = [];
-	export let onSave: (payload: ReturnType<typeof buildRecipePayload>) => void;
-	export let onCancel: () => void = () => {};
+	type Props = {
+		foods?: Array<{ id: string; name: string; servingUnit?: string }>;
+		onSave: (payload: ReturnType<typeof buildRecipePayload>) => void;
+		onCancel?: () => void;
+	};
 
-	let state: RecipeFormState = {
+	let { foods = [], onSave, onCancel = () => {} }: Props = $props();
+
+	let state: RecipeFormState = $state({
 		name: '',
 		totalServings: 1,
 		ingredients: [{ foodId: '', quantity: 1, servingUnit: 'g' }]
-	};
+	});
 
 	const addIngredient = () => {
 		state.ingredients = [...state.ingredients, { foodId: '', quantity: 1, servingUnit: 'g' }];

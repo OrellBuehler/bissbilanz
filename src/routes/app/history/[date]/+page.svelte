@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import MealSection from '$lib/components/entries/MealSection.svelte';
+	import MacroSummary from '$lib/components/MacroSummary.svelte';
 	import { calculateDailyTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
+	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 
 	let entries: Array<any> = $state([]);
 
@@ -31,32 +33,17 @@
 	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{totals.calories} kcal</div>
 
 	<div class="grid gap-4">
-		<MealSection
-			title="Breakfast"
-			entries={entries.filter((e) => e.mealType === 'Breakfast')}
-			readonly
-		/>
-		<MealSection title="Lunch" entries={entries.filter((e) => e.mealType === 'Lunch')} readonly />
-		<MealSection
-			title="Dinner"
-			entries={entries.filter((e) => e.mealType === 'Dinner')}
-			readonly
-		/>
-		<MealSection
-			title="Snacks"
-			entries={entries.filter((e) => e.mealType === 'Snacks')}
-			readonly
-		/>
+		{#each DEFAULT_MEAL_TYPES as mealType}
+			<MealSection
+				title={mealType}
+				entries={entries.filter((e) => e.mealType === mealType)}
+				readonly
+			/>
+		{/each}
 	</div>
 
 	<div class="rounded border p-4">
 		<h3 class="mb-2 font-semibold">Daily Totals</h3>
-		<div class="grid grid-cols-2 gap-2 text-sm md:grid-cols-5">
-			<div>Calories: {totals.calories}</div>
-			<div>Protein: {totals.protein}g</div>
-			<div>Carbs: {totals.carbs}g</div>
-			<div>Fat: {totals.fat}g</div>
-			<div>Fiber: {totals.fiber}g</div>
-		</div>
+		<MacroSummary {totals} gridClass="grid-cols-2 md:grid-cols-5" />
 	</div>
 </div>

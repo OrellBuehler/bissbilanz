@@ -33,12 +33,6 @@ export const createRecipe = async (userId: string, payload: unknown) => {
 	return recipe;
 };
 
-type RecipeUpdateInput = typeof recipeUpdateSchema._output;
-
-export const toRecipeUpdate = (input: RecipeUpdateInput) => ({
-	...input
-});
-
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
 	const [recipe] = await db
@@ -64,7 +58,7 @@ export const updateRecipe = async (userId: string, id: string, payload: unknown)
 
 	const [recipe] = await db
 		.update(recipes)
-		.set({ ...toRecipeUpdate(recipeData), updatedAt: new Date() })
+		.set({ ...recipeData, updatedAt: new Date() })
 		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
 		.returning();
 

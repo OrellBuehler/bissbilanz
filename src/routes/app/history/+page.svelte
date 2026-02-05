@@ -1,15 +1,14 @@
 <script lang="ts">
 	import Calendar from '$lib/components/history/Calendar.svelte';
-	import { today } from '$lib/utils/dates';
+	import MacroSummary from '$lib/components/MacroSummary.svelte';
+	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { goto } from '$app/navigation';
 
 	const now = new Date();
 	let year = $state(now.getFullYear());
 	let month = $state(now.getMonth());
-	let weeklyStats: { calories: number; protein: number; carbs: number; fat: number; fiber: number } | null =
-		$state(null);
-	let monthlyStats: { calories: number; protein: number; carbs: number; fat: number; fiber: number } | null =
-		$state(null);
+	let weeklyStats: MacroTotals | null = $state(null);
+	let monthlyStats: MacroTotals | null = $state(null);
 
 	const loadStats = async () => {
 		const [weeklyRes, monthlyRes] = await Promise.all([
@@ -57,13 +56,7 @@
 			<div class="rounded border p-4">
 				<h3 class="mb-2 font-semibold">Weekly Average (7 days)</h3>
 				{#if weeklyStats}
-					<div class="grid grid-cols-2 gap-2 text-sm">
-						<div>Calories: {Math.round(weeklyStats.calories)}</div>
-						<div>Protein: {Math.round(weeklyStats.protein)}g</div>
-						<div>Carbs: {Math.round(weeklyStats.carbs)}g</div>
-						<div>Fat: {Math.round(weeklyStats.fat)}g</div>
-						<div>Fiber: {Math.round(weeklyStats.fiber)}g</div>
-					</div>
+					<MacroSummary totals={weeklyStats} round />
 				{:else}
 					<p class="text-neutral-500">Loading...</p>
 				{/if}
@@ -72,13 +65,7 @@
 			<div class="rounded border p-4">
 				<h3 class="mb-2 font-semibold">Monthly Average (30 days)</h3>
 				{#if monthlyStats}
-					<div class="grid grid-cols-2 gap-2 text-sm">
-						<div>Calories: {Math.round(monthlyStats.calories)}</div>
-						<div>Protein: {Math.round(monthlyStats.protein)}g</div>
-						<div>Carbs: {Math.round(monthlyStats.carbs)}g</div>
-						<div>Fat: {Math.round(monthlyStats.fat)}g</div>
-						<div>Fiber: {Math.round(monthlyStats.fiber)}g</div>
-					</div>
+					<MacroSummary totals={monthlyStats} round />
 				{:else}
 					<p class="text-neutral-500">Loading...</p>
 				{/if}

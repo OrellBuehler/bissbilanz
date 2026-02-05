@@ -6,6 +6,7 @@
 	import { calculateDailyTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
 	import { today, yesterday } from '$lib/utils/dates';
+	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 
 	let foods: Array<any> = $state([]);
@@ -121,42 +122,17 @@
 		{totals.calories} kcal
 	</div>
 	<div class="grid gap-4">
-		<MealSection
-			title="Breakfast"
-			entries={entries.filter((e) => e.mealType === 'Breakfast')}
-			onAdd={() => {
-				addModalOpen = true;
-				activeMeal = 'Breakfast';
-			}}
-			onEdit={openEditModal}
-		/>
-		<MealSection
-			title="Lunch"
-			entries={entries.filter((e) => e.mealType === 'Lunch')}
-			onAdd={() => {
-				addModalOpen = true;
-				activeMeal = 'Lunch';
-			}}
-			onEdit={openEditModal}
-		/>
-		<MealSection
-			title="Dinner"
-			entries={entries.filter((e) => e.mealType === 'Dinner')}
-			onAdd={() => {
-				addModalOpen = true;
-				activeMeal = 'Dinner';
-			}}
-			onEdit={openEditModal}
-		/>
-		<MealSection
-			title="Snacks"
-			entries={entries.filter((e) => e.mealType === 'Snacks')}
-			onAdd={() => {
-				addModalOpen = true;
-				activeMeal = 'Snacks';
-			}}
-			onEdit={openEditModal}
-		/>
+		{#each DEFAULT_MEAL_TYPES as mealType}
+			<MealSection
+				title={mealType}
+				entries={entries.filter((e) => e.mealType === mealType)}
+				onAdd={() => {
+					addModalOpen = true;
+					activeMeal = mealType;
+				}}
+				onEdit={openEditModal}
+			/>
+		{/each}
 	</div>
 	<AddFoodModal
 		open={addModalOpen}

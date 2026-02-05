@@ -1,23 +1,34 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
 
-	export let open = false;
-	export let foods: Array<{ id: string; name: string; isFavorite?: boolean }> = [];
-	export let recipes: Array<{ id: string; name: string }> = [];
-	export let mealType = 'Breakfast';
-	let query = '';
-	let servings = 1;
-	let tab: 'search' | 'favorites' | 'recent' | 'recipes' = 'search';
-	let recentFoods: Array<{ id: string; name: string }> = [];
-	let loadingRecent = false;
+	type Props = {
+		open?: boolean;
+		foods?: Array<{ id: string; name: string; isFavorite?: boolean }>;
+		recipes?: Array<{ id: string; name: string }>;
+		mealType?: string;
+		onClose: () => void;
+		onSave: (payload: {
+			foodId?: string;
+			recipeId?: string;
+			mealType: string;
+			servings: number;
+		}) => void;
+	};
 
-	export let onClose: () => void;
-	export let onSave: (payload: {
-		foodId?: string;
-		recipeId?: string;
-		mealType: string;
-		servings: number;
-	}) => void;
+	let {
+		open = false,
+		foods = [],
+		recipes = [],
+		mealType = 'Breakfast',
+		onClose,
+		onSave
+	}: Props = $props();
+
+	let query = $state('');
+	let servings = $state(1);
+	let tab: 'search' | 'favorites' | 'recent' | 'recipes' = $state('search');
+	let recentFoods: Array<{ id: string; name: string }> = $state([]);
+	let loadingRecent = $state(false);
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));

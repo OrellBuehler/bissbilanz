@@ -1,7 +1,11 @@
 <script lang="ts">
-	export let foods: Array<{ id: string; name: string; brand?: string | null }> = [];
-	export let onEdit: (id: string) => void;
-	export let onDelete: (id: string) => void;
+	type Props = {
+		foods?: Array<{ id: string; name: string; brand?: string | null }>;
+		onEdit: (id: string) => void;
+		onDelete: (id: string) => void;
+	};
+
+	let { foods = [], onEdit, onDelete }: Props = $props();
 </script>
 
 <ul class="space-y-2">
@@ -14,8 +18,8 @@
 				{/if}
 			</div>
 			<div class="flex gap-2">
-				<button class="rounded border px-3 py-1" on:click={() => onEdit(food.id)}>Edit</button>
-				<button class="rounded border px-3 py-1" on:click={() => onDelete(food.id)}>Delete</button>
+				<button class="rounded border px-3 py-1" onclick={() => onEdit(food.id)}>Edit</button>
+				<button class="rounded border px-3 py-1" onclick={() => onDelete(food.id)}>Delete</button>
 			</div>
 		</li>
 	{/each}

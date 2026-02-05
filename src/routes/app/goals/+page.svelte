@@ -40,5 +40,5 @@
 			<input class="rounded border p-2" type="number" bind:value={form.fiberGoal} />
 		</label>
 	</div>
-	<button class="rounded bg-black px-4 py-2 text-white" on:click={saveGoals}>Save</button>
+	<button class="rounded bg-black px-4 py-2 text-white" onclick={saveGoals}>Save</button>
 </div>
