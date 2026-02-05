@@ -1,7 +1,50 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()]
+	plugins: [
+		tailwindcss(),
+		sveltekit(),
+		SvelteKitPWA({
+			registerType: 'autoUpdate',
+			manifest: {
+				name: 'Bissbilanz',
+				short_name: 'Bissbilanz',
+				description: 'Food tracking with AI assistance',
+				theme_color: '#000000',
+				background_color: '#ffffff',
+				display: 'standalone',
+				icons: [
+					{
+						src: '/icon-192.png',
+						sizes: '192x192',
+						type: 'image/png'
+					},
+					{
+						src: '/icon-512.png',
+						sizes: '512x512',
+						type: 'image/png'
+					}
+				]
+			},
+			workbox: {
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/.*\/api\/(foods|recipes|entries)/,
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'api-cache',
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 // 1 hour
+							}
+						}
+					}
+				]
+			}
+		})
+	]
 });
