@@ -71,6 +71,15 @@ export const deleteFood = async (userId: string, id: string) => {
 	await db.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
 };
 
+export const findFoodByBarcode = async (userId: string, barcode: string) => {
+	const db = getDB();
+	const [food] = await db
+		.select()
+		.from(foods)
+		.where(and(eq(foods.userId, userId), eq(foods.barcode, barcode)));
+	return food ?? null;
+};
+
 export const listRecentFoods = async (userId: string, limit = 25) => {
 	const db = getDB();
 	return db

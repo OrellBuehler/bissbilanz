@@ -1,24 +1,44 @@
 <script lang="ts">
-	export let initial = {
-		name: '',
-		brand: '',
-		servingSize: 0,
-		servingUnit: 'g',
-		calories: 0,
-		protein: 0,
-		carbs: 0,
-		fat: 0,
-		fiber: 0,
-		isFavorite: false
+	type FoodFormData = {
+		name: string;
+		brand: string;
+		servingSize: number;
+		servingUnit: string;
+		calories: number;
+		protein: number;
+		carbs: number;
+		fat: number;
+		fiber: number;
+		barcode: string;
+		isFavorite: boolean;
 	};
-	let form = { ...initial };
 
-	export let onSave: (payload: typeof form) => Promise<void>;
+	type Props = {
+		initial?: Partial<FoodFormData>;
+		onSave: (payload: FoodFormData) => Promise<void>;
+	};
+
+	let { initial = {}, onSave }: Props = $props();
+
+	let form = $state<FoodFormData>({
+		name: initial.name ?? '',
+		brand: initial.brand ?? '',
+		servingSize: initial.servingSize ?? 0,
+		servingUnit: initial.servingUnit ?? 'g',
+		calories: initial.calories ?? 0,
+		protein: initial.protein ?? 0,
+		carbs: initial.carbs ?? 0,
+		fat: initial.fat ?? 0,
+		fiber: initial.fiber ?? 0,
+		barcode: initial.barcode ?? '',
+		isFavorite: initial.isFavorite ?? false
+	});
 </script>
 
 <div class="grid gap-3">
 	<input class="rounded border p-2" placeholder="Name" bind:value={form.name} />
 	<input class="rounded border p-2" placeholder="Brand" bind:value={form.brand} />
+	<input class="rounded border p-2" placeholder="Barcode" bind:value={form.barcode} />
 	<div class="grid grid-cols-2 gap-2">
 		<input
 			class="rounded border p-2"
