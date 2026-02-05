@@ -2,6 +2,8 @@
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import { filterFoods } from '$lib/components/foods/foodFilters';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
 
 	let foods: Array<any> = [];
 	let query = '';
@@ -31,10 +33,14 @@
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<h1 class="text-2xl font-semibold">Foods</h1>
-	<input class="rounded border p-2" placeholder="Search foods" bind:value={query} />
+	<Input placeholder="Search foods" bind:value={query} />
 	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} />
-	<div class="rounded border p-4">
-		<h2 class="mb-3 font-medium">Add food</h2>
-		<FoodForm onSave={createFood} />
-	</div>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Add food</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<FoodForm onSave={createFood} />
+		</Card.Content>
+	</Card.Root>
 </div>

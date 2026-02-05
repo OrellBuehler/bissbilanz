@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = [];
 	let newName = '';
 
@@ -28,29 +32,30 @@
 
 <div class="mx-auto max-w-2xl space-y-6 p-6">
 	<h1 class="text-2xl font-semibold">Settings</h1>
-	<div class="rounded border p-4">
-		<h2 class="mb-3 font-medium">Custom Meal Types</h2>
-		<div class="flex gap-2">
-			<input
-				class="flex-1 rounded border p-2"
-				placeholder="Add meal type"
-				bind:value={newName}
-				onkeydown={(e) => e.key === 'Enter' && addMealType()}
-			/>
-			<button class="rounded bg-black px-4 py-2 text-white" onclick={addMealType}>Add</button>
-		</div>
-		<ul class="mt-4 space-y-2">
-			{#each mealTypes as meal}
-				<li class="flex items-center justify-between rounded border p-2">
-					<span>{meal.name}</span>
-					<button
-						class="rounded border px-3 py-1"
-						onclick={() => removeMealType(meal.id)}
-					>
-						Remove
-					</button>
-				</li>
-			{/each}
-		</ul>
-	</div>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Custom Meal Types</Card.Title>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			<div class="flex gap-2">
+				<Input
+					class="flex-1"
+					placeholder="Add meal type"
+					bind:value={newName}
+					onkeydown={(e) => e.key === 'Enter' && addMealType()}
+				/>
+				<Button onclick={addMealType}>Add</Button>
+			</div>
+			<ul class="space-y-2">
+				{#each mealTypes as meal}
+					<li class="flex items-center justify-between rounded-md border p-2">
+						<span>{meal.name}</span>
+						<Button variant="outline" size="sm" onclick={() => removeMealType(meal.id)}>
+							Remove
+						</Button>
+					</li>
+				{/each}
+			</ul>
+		</Card.Content>
+	</Card.Root>
 </div>

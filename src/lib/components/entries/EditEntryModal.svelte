@@ -1,4 +1,10 @@
 <script lang="ts">
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+
 	type Props = {
 		open?: boolean;
 		entry: { id: string; servings: number; mealType: string; foodName?: string } | null;
@@ -30,43 +36,57 @@
 			onDelete(entry.id);
 		}
 	};
+
+	const mealOptions = [
+		{ value: 'Breakfast', label: 'Breakfast' },
+		{ value: 'Lunch', label: 'Lunch' },
+		{ value: 'Dinner', label: 'Dinner' },
+		{ value: 'Snacks', label: 'Snacks' }
+	];
 </script>
 
-{#if open && entry}
-	<div class="fixed inset-0 z-50 bg-black/40 p-6">
-		<div class="mx-auto max-w-md space-y-4 rounded bg-white p-6">
-			<h3 class="text-lg font-semibold">Edit Entry</h3>
-			{#if entry.foodName}
-				<p class="text-neutral-600">{entry.foodName}</p>
+<Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
+	<Dialog.Content class="max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Edit Entry</Dialog.Title>
+			{#if entry?.foodName}
+				<Dialog.Description>{entry.foodName}</Dialog.Description>
 			{/if}
-			<label class="grid gap-2">
-				<span>Servings</span>
-				<input
-					class="rounded border p-2"
+		</Dialog.Header>
+
+		<div class="grid gap-4">
+			<div class="grid gap-2">
+				<Label for="edit-servings">Servings</Label>
+				<Input
+					id="edit-servings"
 					type="number"
 					bind:value={editServings}
 					min="0.1"
 					step="0.1"
 				/>
-			</label>
-			<label class="grid gap-2">
-				<span>Meal</span>
-				<select class="rounded border p-2" bind:value={editMealType}>
-					<option value="Breakfast">Breakfast</option>
-					<option value="Lunch">Lunch</option>
-					<option value="Dinner">Dinner</option>
-					<option value="Snacks">Snacks</option>
-				</select>
-			</label>
-			<div class="flex justify-between">
-				<button class="rounded border border-red-500 px-3 py-1 text-red-500" onclick={handleDelete}>
-					Delete
-				</button>
-				<div class="flex gap-2">
-					<button class="rounded border px-3 py-1" onclick={onClose}>Cancel</button>
-					<button class="rounded bg-black px-3 py-1 text-white" onclick={handleSave}>Save</button>
-				</div>
+			</div>
+
+			<div class="grid gap-2">
+				<Label>Meal</Label>
+				<Select.Root type="single" bind:value={editMealType}>
+					<Select.Trigger>
+						{mealOptions.find((m) => m.value === editMealType)?.label || 'Select meal'}
+					</Select.Trigger>
+					<Select.Content>
+						{#each mealOptions as meal}
+							<Select.Item value={meal.value}>{meal.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 			</div>
 		</div>
-	</div>
-{/if}
+
+		<Dialog.Footer class="flex justify-between sm:justify-between">
+			<Button variant="destructive" onclick={handleDelete}>Delete</Button>
+			<div class="flex gap-2">
+				<Button variant="outline" onclick={onClose}>Cancel</Button>
+				<Button onclick={handleSave}>Save</Button>
+			</div>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

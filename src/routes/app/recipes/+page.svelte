@@ -1,5 +1,7 @@
 <script lang="ts">
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = [];
 	let recipes: Array<{ id: string; name: string; totalServings: number }> = [];
@@ -38,9 +40,7 @@
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-semibold">Recipes</h1>
 		{#if !showForm}
-			<button class="rounded bg-black px-4 py-2 text-white" onclick={() => (showForm = true)}>
-				New Recipe
-			</button>
+			<Button onclick={() => (showForm = true)}>New Recipe</Button>
 		{/if}
 	</div>
 
@@ -50,20 +50,17 @@
 
 	<ul class="space-y-2">
 		{#each recipes as recipe}
-			<li class="flex items-center justify-between rounded border p-3">
+			<Card.Root class="flex items-center justify-between p-3">
 				<div>
 					<span class="font-medium">{recipe.name}</span>
-					<span class="text-sm text-neutral-500">({recipe.totalServings} servings)</span>
+					<span class="text-sm text-muted-foreground">({recipe.totalServings} servings)</span>
 				</div>
-				<button
-					class="rounded border px-3 py-1 text-red-500"
-					onclick={() => deleteRecipe(recipe.id)}
-				>
+				<Button variant="destructive" size="sm" onclick={() => deleteRecipe(recipe.id)}>
 					Delete
-				</button>
-			</li>
+				</Button>
+			</Card.Root>
 		{:else}
-			<li class="text-neutral-500">No recipes yet</li>
+			<li class="text-muted-foreground">No recipes yet</li>
 		{/each}
 	</ul>
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Calendar from '$lib/components/history/Calendar.svelte';
 	import MacroSummary from '$lib/components/MacroSummary.svelte';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { goto } from '$app/navigation';
 
@@ -53,23 +54,31 @@
 		</div>
 
 		<div class="space-y-4">
-			<div class="rounded border p-4">
-				<h3 class="mb-2 font-semibold">Weekly Average (7 days)</h3>
-				{#if weeklyStats}
-					<MacroSummary totals={weeklyStats} round />
-				{:else}
-					<p class="text-neutral-500">Loading...</p>
-				{/if}
-			</div>
+			<Card.Root>
+				<Card.Header class="pb-2">
+					<Card.Title class="text-base">Weekly Average (7 days)</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if weeklyStats}
+						<MacroSummary totals={weeklyStats} round />
+					{:else}
+						<p class="text-muted-foreground">Loading...</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 
-			<div class="rounded border p-4">
-				<h3 class="mb-2 font-semibold">Monthly Average (30 days)</h3>
-				{#if monthlyStats}
-					<MacroSummary totals={monthlyStats} round />
-				{:else}
-					<p class="text-neutral-500">Loading...</p>
-				{/if}
-			</div>
+			<Card.Root>
+				<Card.Header class="pb-2">
+					<Card.Title class="text-base">Monthly Average (30 days)</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if monthlyStats}
+						<MacroSummary totals={monthlyStats} round />
+					{:else}
+						<p class="text-muted-foreground">Loading...</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 		</div>
 	</div>
 </div>

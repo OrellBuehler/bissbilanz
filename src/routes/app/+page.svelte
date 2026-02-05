@@ -3,6 +3,7 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { calculateDailyTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
 	import { today, yesterday } from '$lib/utils/dates';
@@ -107,15 +108,12 @@
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-semibold">Today</h1>
 		<div class="flex gap-2">
-			<button
-				class="rounded border px-3 py-1 text-sm"
-				onclick={() => (scanModalOpen = true)}
-			>
+			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
 				Scan
-			</button>
-			<button class="rounded border px-3 py-1 text-sm" onclick={copyYesterday} disabled={copying}>
+			</Button>
+			<Button variant="outline" size="sm" onclick={copyYesterday} disabled={copying}>
 				{copying ? 'Copying...' : 'Copy Yesterday'}
-			</button>
+			</Button>
 		</div>
 	</div>
 	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>

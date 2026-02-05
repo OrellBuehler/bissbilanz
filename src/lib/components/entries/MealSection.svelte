@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { formatEntryLabel } from '$lib/utils/entries-ui';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
 
 	type Props = {
 		title: string;
@@ -18,38 +20,41 @@
 	let { title, entries = [], readonly = false, onAdd, onEdit }: Props = $props();
 </script>
 
-<section class="rounded border p-4">
-	<div class="flex items-center justify-between">
-		<h2 class="text-lg font-semibold">{title}</h2>
+<Card.Root>
+	<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+		<Card.Title class="text-lg">{title}</Card.Title>
 		{#if !readonly && onAdd}
-			<button class="rounded border px-3 py-1" onclick={onAdd}>Add Food</button>
+			<Button variant="outline" size="sm" onclick={onAdd}>Add Food</Button>
 		{/if}
-	</div>
-	<ul class="mt-3 space-y-2">
-		{#each entries as entry}
-			<li class="flex items-center justify-between text-sm">
-				{#if readonly}
-					<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
-				{:else}
-					<button
-						class="text-left hover:underline"
-						onclick={() =>
-							onEdit?.({
-								id: entry.id,
-								servings: entry.servings,
-								mealType: entry.mealType,
-								foodName: entry.foodName ?? undefined
-							})}
+	</Card.Header>
+	<Card.Content>
+		<ul class="space-y-2">
+			{#each entries as entry}
+				<li class="flex items-center justify-between text-sm">
+					{#if readonly}
+						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
+					{:else}
+						<Button
+							variant="ghost"
+							class="h-auto p-0 text-left hover:underline"
+							onclick={() =>
+								onEdit?.({
+									id: entry.id,
+									servings: entry.servings,
+									mealType: entry.mealType,
+									foodName: entry.foodName ?? undefined
+								})}
+						>
+							{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
+						</Button>
+					{/if}
+					<span class="text-muted-foreground"
+						>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
 					>
-						{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
-					</button>
-				{/if}
-				<span class="text-neutral-500"
-					>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
-				>
-			</li>
-		{:else}
-			<li class="text-sm text-neutral-400">No entries</li>
-		{/each}
-	</ul>
-</section>
+				</li>
+			{:else}
+				<li class="text-sm text-muted-foreground">No entries</li>
+			{/each}
+		</ul>
+	</Card.Content>
+</Card.Root>

@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 
 	type Props = {
 		open?: boolean;
@@ -56,133 +61,96 @@
 		}
 	};
 
-	const selectTab = (newTab: 'search' | 'favorites' | 'recent' | 'recipes') => {
-		tab = newTab;
-		if (newTab === 'recent') {
+	const handleTabChange = (value: string) => {
+		tab = value as typeof tab;
+		if (value === 'recent') {
 			loadRecentFoods();
 		}
 	};
 </script>
 
-{#if open}
-	<div class="fixed inset-0 z-50 bg-black/40 p-6">
-		<div class="mx-auto max-w-lg space-y-4 rounded bg-white p-6">
-			<div class="flex items-center justify-between">
-				<h3 class="text-lg font-semibold">Add Food</h3>
-				<button onclick={onClose}>Close</button>
-			</div>
+<Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
+	<Dialog.Content class="max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>Add Food</Dialog.Title>
+		</Dialog.Header>
 
-			<div class="flex flex-wrap gap-2">
-				<button
-					class="rounded border px-3 py-1"
-					class:bg-black={tab === 'search'}
-					class:text-white={tab === 'search'}
-					onclick={() => selectTab('search')}
-				>
-					Search
-				</button>
-				<button
-					class="rounded border px-3 py-1"
-					class:bg-black={tab === 'favorites'}
-					class:text-white={tab === 'favorites'}
-					onclick={() => selectTab('favorites')}
-				>
-					Favorites
-				</button>
-				<button
-					class="rounded border px-3 py-1"
-					class:bg-black={tab === 'recent'}
-					class:text-white={tab === 'recent'}
-					onclick={() => selectTab('recent')}
-				>
-					Recent
-				</button>
-				<button
-					class="rounded border px-3 py-1"
-					class:bg-black={tab === 'recipes'}
-					class:text-white={tab === 'recipes'}
-					onclick={() => selectTab('recipes')}
-				>
-					Recipes
-				</button>
-			</div>
+		<Tabs.Root value={tab} onValueChange={handleTabChange}>
+			<Tabs.List class="grid w-full grid-cols-4">
+				<Tabs.Trigger value="search">Search</Tabs.Trigger>
+				<Tabs.Trigger value="favorites">Favorites</Tabs.Trigger>
+				<Tabs.Trigger value="recent">Recent</Tabs.Trigger>
+				<Tabs.Trigger value="recipes">Recipes</Tabs.Trigger>
+			</Tabs.List>
 
-			{#if tab === 'search'}
-				<input
-					class="w-full rounded border p-2"
-					placeholder="Search foods..."
-					bind:value={query}
-				/>
+			<Tabs.Content value="search" class="space-y-4">
+				<Input placeholder="Search foods..." bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filtered() as food}
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
-							<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
+							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
 								Add
-							</button>
+							</Button>
 						</li>
 					{/each}
 				</ul>
-			{:else if tab === 'favorites'}
+			</Tabs.Content>
+
+			<Tabs.Content value="favorites" class="space-y-4">
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each onlyFavorites(foods) as food}
 						<li class="flex items-center justify-between">
 							<span>{food.name}</span>
-							<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
+							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
 								Add
-							</button>
+							</Button>
 						</li>
 					{:else}
-						<li class="text-neutral-500">No favorites yet</li>
+						<li class="text-muted-foreground">No favorites yet</li>
 					{/each}
 				</ul>
-			{:else if tab === 'recent'}
+			</Tabs.Content>
+
+			<Tabs.Content value="recent" class="space-y-4">
 				{#if loadingRecent}
-					<p class="text-neutral-500">Loading...</p>
+					<p class="text-muted-foreground">Loading...</p>
 				{:else}
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each recentFoods as food}
 							<li class="flex items-center justify-between">
 								<span>{food.name}</span>
-								<button class="rounded border px-2 py-1" onclick={() => handleAddFood(food.id)}>
+								<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
 									Add
-								</button>
+								</Button>
 							</li>
 						{:else}
-							<li class="text-neutral-500">No recent foods</li>
+							<li class="text-muted-foreground">No recent foods</li>
 						{/each}
 					</ul>
 				{/if}
-			{:else if tab === 'recipes'}
-				<input
-					class="w-full rounded border p-2"
-					placeholder="Search recipes..."
-					bind:value={query}
-				/>
+			</Tabs.Content>
+
+			<Tabs.Content value="recipes" class="space-y-4">
+				<Input placeholder="Search recipes..." bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filteredRecipes() as recipe}
 						<li class="flex items-center justify-between">
 							<span>{recipe.name}</span>
-							<button class="rounded border px-2 py-1" onclick={() => handleAddRecipe(recipe.id)}>
+							<Button variant="outline" size="sm" onclick={() => handleAddRecipe(recipe.id)}>
 								Add
-							</button>
+							</Button>
 						</li>
 					{:else}
-						<li class="text-neutral-500">No recipes yet</li>
+						<li class="text-muted-foreground">No recipes yet</li>
 					{/each}
 				</ul>
-			{/if}
+			</Tabs.Content>
+		</Tabs.Root>
 
-			<label class="grid gap-2">
-				<span>Servings</span>
-				<input
-					class="rounded border p-2"
-					type="number"
-					bind:value={servings}
-					min="0.1"
-					step="0.1"
-				/>
-			</label>
+		<div class="grid gap-2">
+			<Label for="servings">Servings</Label>
+			<Input id="servings" type="number" bind:value={servings} min="0.1" step="0.1" />
 		</div>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog.Root>
