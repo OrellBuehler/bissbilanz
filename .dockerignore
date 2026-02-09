@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+
+# Build output
+build
+.svelte-kit
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+docs
+*.md
+!README.md
+
+# Tests
+*.test.*
+*.spec.*
+coverage
+
+# Paraglide generated (rebuilt during build)
+src/lib/paraglide
+
+# Misc
+*.log
+.turbo
+.worktrees
