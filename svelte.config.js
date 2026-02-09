@@ -5,7 +5,12 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		// Disable SvelteKit's built-in CSRF to allow cross-origin OAuth token exchange.
+		// Manual CSRF origin checking is applied in hooks.server.ts for non-exempt routes.
+		csrf: {
+			trustedOrigins: ['*']
+		}
 	}
 };
 

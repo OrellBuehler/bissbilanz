@@ -254,10 +254,12 @@ See `docs/plans/` for detailed implementation plans.
 
 ## Git Workflow
 
+- **IMPORTANT:** Always commit changes when work is complete
+- **IMPORTANT:** NEVER include "Co-Authored-By" in commit messages
+
 ### Commit Messages
 - Use conventional commit format: `type: description`
 - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
-- **IMPORTANT:** NEVER include "Co-Authored-By" in commit messages
 - Keep messages concise and descriptive
 
 Examples:

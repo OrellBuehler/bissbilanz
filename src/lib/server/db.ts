@@ -1,11 +1,15 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { join } from 'node:path';
 import { config } from './env';
 import * as schema from './schema';
 
-let db: ReturnType<typeof drizzle> | null = null;
+type Database = ReturnType<typeof drizzle<typeof schema>>;
 
-export function getDB() {
+let db: Database | null = null;
+
+export function getDB(): Database {
 	if (!db) {
 		const client = postgres(config.database.url, {
 			max: config.database.poolMax,
@@ -20,6 +24,19 @@ export function getDB() {
 		db = drizzle(client, { schema });
 	}
 	return db;
+}
+
+export async function runMigrations(): Promise<void> {
+	const database = getDB();
+	const migrationsPath = join(process.cwd(), 'drizzle');
+	console.log(`Running database migrations from ${migrationsPath}...`);
+	try {
+		await migrate(database, { migrationsFolder: migrationsPath });
+		console.log('Migrations completed successfully');
+	} catch (error) {
+		console.error('Migration failed:', error);
+		throw error;
+	}
 }
 
 // Re-export schema for convenience
