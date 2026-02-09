@@ -252,6 +252,32 @@ See `docs/plans/` for detailed implementation plans.
 - Mobile-first responsive design
 - Follow color coding: Calories=Blue, Protein=Red, Carbs=Orange, Fat=Yellow, Fiber=Green
 
+## Planning & Documentation
+
+### Implementation Plans
+- **ALWAYS** create a detailed implementation plan in `docs/plans/` before starting non-trivial features
+- Use naming format: `YYYY-MM-DD-feature-name.md` (e.g., `2026-02-10-open-food-facts-integration.md`)
+- Plans should include:
+  - **Context**: Why this change is needed, what problem it solves
+  - **Implementation steps**: Detailed step-by-step approach with specific files to modify/create
+  - **Critical files**: Table of key files and their purpose
+  - **Verification**: How to test the changes end-to-end
+  - **Sources**: Links to external APIs, documentation, or references used
+
+### When to Create Plans
+- New feature implementation (e.g., barcode scanning, recipe management)
+- External API integration (e.g., Open Food Facts, payment providers)
+- Major refactoring or architecture changes
+- Database schema changes that affect multiple tables/features
+- Complex UI/UX flows that span multiple components
+
+### Updating Plans
+- Update existing plans in `docs/plans/` when:
+  - Implementation details change significantly from original design
+  - New requirements or constraints are discovered
+  - Alternative approaches are chosen during development
+- Add a "Updates" section at the end with date and changes made
+
 ## Git Workflow
 
 - **IMPORTANT:** Always commit changes when work is complete
