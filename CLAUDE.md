@@ -254,8 +254,19 @@ See `docs/plans/` for detailed implementation plans.
 
 ## Planning & Documentation
 
+### Documentation Folder Structure
+
+```
+docs/
+├── plans/        # NEW implementation plans (not started yet)
+├── in-progress/  # Active work with progress tracking
+└── finished/     # Completed plans (archived)
+```
+
 ### Implementation Plans
-- **ALWAYS** create a detailed implementation plan in `docs/plans/` before starting non-trivial features
+
+**ALWAYS create plans in `docs/plans/` before starting non-trivial work.**
+
 - Use naming format: `YYYY-MM-DD-feature-name.md` (e.g., `2026-02-10-open-food-facts-integration.md`)
 - Plans should include:
   - **Context**: Why this change is needed, what problem it solves
@@ -270,13 +281,92 @@ See `docs/plans/` for detailed implementation plans.
 - Major refactoring or architecture changes
 - Database schema changes that affect multiple tables/features
 - Complex UI/UX flows that span multiple components
+- Adding comprehensive test coverage
 
-### Updating Plans
-- Update existing plans in `docs/plans/` when:
-  - Implementation details change significantly from original design
-  - New requirements or constraints are discovered
-  - Alternative approaches are chosen during development
-- Add a "Updates" section at the end with date and changes made
+### Plan Lifecycle
+
+1. **New Plan** → Create in `docs/plans/`
+2. **Start Work** → Move to `docs/in-progress/` and create matching `{task-name}-progress.md`
+3. **Complete Work** → Move original plan to `docs/finished/`, delete progress file
+
+## Task Progress Tracking
+
+**CRITICAL:** When working on multi-step tasks, ALWAYS track progress in `docs/in-progress/`.
+
+### Creating Progress Files
+
+When starting work on a plan:
+1. Move the plan from `docs/plans/` to `docs/in-progress/`
+2. Create a `{task-name}-progress.md` file in `docs/in-progress/`
+3. The progress file MUST include:
+   - **Current Status** - Which phase/step you're on
+   - **Completed Phases** - Checklist with ✅ for done, ⏳ for pending
+   - **Test Statistics** - Number of tests, pass/fail status (if applicable)
+   - **Next Steps** - Ordered list of what to do next
+   - **WHERE TO CONTINUE** - **REQUIRED** - Exact file/function/line to continue from, with context
+   - **Notes & Learnings** - Important findings, blockers, or deviations from plan
+
+### WHERE TO CONTINUE Section (REQUIRED)
+
+**Every progress file MUST have a "WHERE TO CONTINUE" section** that includes:
+- The exact next file to create/edit
+- The specific function/component to implement
+- Any setup needed before continuing (e.g., "fixtures already updated", "mock already created")
+- Context from the last session (e.g., "was in middle of Phase 3, step 7")
+
+Example:
+```markdown
+## WHERE TO CONTINUE
+
+**Next File:** `tests/server/recipes-db.test.ts`
+
+**What to do:**
+1. Create the test file (fixtures already updated in previous session)
+2. Import createMockDB and TEST_RECIPE, TEST_RECIPE_WITH_INGREDIENTS
+3. Test multi-table inserts (recipe + ingredients in single operation)
+4. Test getRecipe with ingredients join (returns nested structure)
+5. Test updateRecipe ingredient replacement (delete old, insert new)
+
+**Context:** Completed entries-db tests (20 tests passing). All fixtures have valid UUIDs.
+Recipe schema uses `totalServings`, `quantity`, and `servingUnit` fields.
+```
+
+### When to Update Progress
+
+Update the progress file:
+- ✅ After completing each file/module/component
+- ✅ After running tests successfully
+- ✅ When encountering blockers or making changes to the original plan
+- ✅ **Before pausing work on the task (ALWAYS update before stopping)**
+- ✅ After each phase completion
+- ✅ **ESPECIALLY update "WHERE TO CONTINUE" before stopping work**
+
+### Completed Tasks
+
+When a task is fully complete:
+1. Move the original plan from `docs/in-progress/` to `docs/finished/`
+2. Delete the progress file (no longer needed)
+3. Update CLAUDE.md if new patterns or conventions were established
+
+### Example Workflow
+
+```bash
+# 1. ALWAYS read progress before continuing work
+cat docs/in-progress/my-task-progress.md
+
+# 2. Do work
+# ... implement next step from "WHERE TO CONTINUE" ...
+
+# 3. Run tests
+bun test
+
+# 4. Update progress file immediately
+# - Mark step complete with ✅
+# - Update test statistics
+# - Add notes about what was learned or changed
+# - Update "Next Steps"
+# - **UPDATE "WHERE TO CONTINUE" with exact next action**
+```
 
 ## Git Workflow
 
@@ -307,13 +397,14 @@ refactor: extract macro calculation to utility function
 - Macro calculation functions
 - Nutrition per serving calculations
 - Date utilities
-- Use Vitest
+- Validation schemas
+- Use Bun's built-in test runner (`bun test`)
 
 ### Integration Tests
-- API route handlers
-- Database operations
+- API route handlers (Layer 2 tests in `tests/api/`)
+- Database operations (Layer 1 tests in `tests/server/`)
 - MCP tools
-- Mock authentication
+- Mock authentication using helper factories in `tests/helpers/`
 
 ### E2E Tests
 - Critical user flows (login, add food, log entry)
