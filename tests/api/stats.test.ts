@@ -1,4 +1,54 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, beforeEach, mock } from 'bun:test';
+import { createMockEvent } from '../helpers/mock-request-event';
+import { TEST_USER } from '../helpers/fixtures';
+
+const mockStats = {
+	calories: 2000,
+	protein: 150,
+	carbs: 200,
+	fat: 67,
+	fiber: 30
+};
+
+let mockWeeklyResult: any = null;
+let mockMonthlyResult: any = null;
+
+mock.module('$lib/server/stats', () => ({
+	getWeeklyStats: async () => mockWeeklyResult,
+	getMonthlyStats: async () => mockMonthlyResult
+}));
+
+const weeklyModule = await import('../../src/routes/api/stats/weekly/+server');
+const monthlyModule = await import('../../src/routes/api/stats/monthly/+server');
+
+describe('api/stats routes', () => {
+	beforeEach(() => {
+		mockWeeklyResult = null;
+		mockMonthlyResult = null;
+	});
+
+	describe('GET /api/stats/weekly', () => {
+		test('returns weekly stats', async () => {
+			mockWeeklyResult = mockStats;
+			const event = createMockEvent({ user: TEST_USER });
+			const response = await weeklyModule.GET(event);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.stats.calories).toBe(2000);
+		});
+	});
+
+	describe('GET /api/stats/monthly', () => {
+		test('returns monthly stats', async () => {
+			mockMonthlyResult = mockStats;
+			const event = createMockEvent({ user: TEST_USER });
+			const response = await monthlyModule.GET(event);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.stats.calories).toBe(2000);
+		});
+	});
+});
 
 // Tests for stats API validation
 describe('stats API validation', () => {
