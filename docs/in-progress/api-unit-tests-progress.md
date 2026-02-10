@@ -2,7 +2,7 @@
 
 **Plan:** `/home/orell/github/bissbilanz/docs/in-progress/plan-api-unit-tests.md`
 
-## Current Status: Phase 3 - Complex Modules (Paused)
+## Current Status: Phase 3 - Complex Modules (In Progress)
 
 ### Completed Phases
 
@@ -18,11 +18,11 @@
 - ✅ `tests/server/meal-types-db.test.ts` (10 tests, all passing)
 - ✅ `tests/server/foods-db.test.ts` (20 tests, all passing)
 
-#### 🔄 Phase 3: Layer 1 - Complex Modules (In Progress - 1/5 complete)
+#### 🔄 Phase 3: Layer 1 - Complex Modules (In Progress - 3/5 complete)
 - ✅ `tests/server/entries-db.test.ts` (20 tests, all passing)
-- ⏳ `tests/server/recipes-db.test.ts` - NEXT (fixtures updated, ready to implement)
-- ⏳ `tests/server/stats-db.test.ts`
-- ⏳ `tests/server/session-db.test.ts`
+- ✅ `tests/server/recipes-db.test.ts` (20 tests, all passing)
+- ✅ `tests/server/stats-db.test.ts` (10 tests, all passing)
+- ⏳ `tests/server/session-db.test.ts` - NEXT
 - ⏳ `tests/server/oauth-db.test.ts`
 
 #### ⏳ Phase 4: Layer 2 - Simple Route Handlers (Not Started)
@@ -45,10 +45,11 @@
 - `tests/api/mcp.test.ts`
 
 ### Test Statistics
-- **Total Tests Written:** 57 new tests + 27 existing = 84 total
-- **Test Files:** 4 new + 1 existing validation.test.ts = 5 total
+- **Total Tests Written:** 87 new tests (10 most recent: stats-db)
+- **Total Tests Passing:** 146 tests across 40 files
+- **Test Files Created:** 6 new server DB test files
 - **All Tests Status:** ✅ Passing
-- **Coverage:** Server DB functions - 20% complete (4/20 modules)
+- **Coverage:** Server DB functions - 30% complete (6/20 modules)
 
 ### Fixture Updates Completed
 - ✅ All IDs converted to valid UUIDs
@@ -58,12 +59,9 @@
 - ✅ Added all advanced nutrient fields to TEST_FOOD
 
 ### Next Steps (When Resuming)
-1. Create `tests/server/recipes-db.test.ts` (fixtures ready)
-   - Test multi-table inserts (recipe + ingredients)
-   - Test getRecipe with ingredients join
-   - Test updateRecipe ingredient replacement
-2. Create `tests/server/stats-db.test.ts` (will mock entries module)
-3. Create `tests/server/session-db.test.ts` (will mock token-crypto)
+1. ✅ ~~Create `tests/server/recipes-db.test.ts`~~ (Complete - 20 tests passing)
+2. ✅ ~~Create `tests/server/stats-db.test.ts`~~ (Complete - 10 tests passing)
+3. Create `tests/server/session-db.test.ts` - NEXT (will mock token-crypto)
 4. Create `tests/server/oauth-db.test.ts` (largest module, uses bcrypt)
 5. Move to Phase 4 (Layer 2 - Route Handlers)
 
@@ -77,6 +75,10 @@
 - ✅ All tests must import modules AFTER setting up mocks with `mock.module()`
 - ✅ Bun's test runner works well, no need for vitest
 - ✅ $lib alias resolution works correctly in tests
+- ✅ Multi-table operations (recipes + ingredients) can be tested with sequential setResult calls
+- ✅ Recipe validation requires at least one ingredient in the ingredients array
+- ✅ Stats module requires mocking the entries module (listEntriesByDateRange function)
+- ✅ When testing averages, use consistent test data to avoid floating point precision issues
 
 ### Key Files
 - `tests/helpers/fixtures.ts` - All test data (complete)
@@ -87,29 +89,29 @@
 
 ## WHERE TO CONTINUE
 
-**Next File:** `tests/server/recipes-db.test.ts`
+**Next File:** `tests/server/session-db.test.ts`
 
 **What to do:**
-1. Create `tests/server/recipes-db.test.ts` (fixtures already updated with correct fields)
-2. Import from helpers: `createMockDB`, `TEST_USER`, `TEST_RECIPE`, `TEST_RECIPE_INGREDIENT`, `VALID_RECIPE_PAYLOAD`
-3. Import from server: `listRecipes`, `createRecipe`, `getRecipe`, `updateRecipe`, `deleteRecipe`
-4. Test cases to write:
-   - `listRecipes` - returns recipes ordered by name, empty array when none exist
-   - `createRecipe` - multi-table insert (recipe + ingredients), validation errors
-   - `getRecipe` - returns recipe with ingredients joined, returns null when not found
-   - `updateRecipe` - updates recipe metadata, replaces ingredients (delete + insert), returns undefined when not found
-   - `deleteRecipe` - deletes recipe (cascade should delete ingredients)
+1. First, read `src/lib/server/session.ts` to understand the functions to test
+2. Create `tests/server/session-db.test.ts`
+3. Import from helpers: `createMockDB`, `TEST_USER`, `TEST_SESSION`, `TEST_SESSION_WITH_USER`
+4. **IMPORTANT:** Mock `$lib/server/token-crypto` module (generates random session IDs/tokens)
+   - Mock the token generation function to return predictable values for testing
+5. Import from server: Functions from `$lib/server/session` (likely: createSession, getSession, deleteSession, etc.)
+6. Test cases to write:
+   - createSession - generates session with expiry date, associates with user
+   - getSession - returns session with joined user data, handles expired sessions
+   - deleteSession - deletes session by ID
+   - Session expiry logic
+   - Empty/null handling
 
 **Important Context:**
-- Recipe schema uses: `totalServings` (not `servings`), `quantity` (not `amount`), `servingUnit`
-- Fixtures already have correct UUIDs (format: `10000000-0000-4000-8000-XXXXXXXXXXXX`)
-- `createRecipe` does two operations: insert recipe, then insert ingredients
-- `getRecipe` does two queries: select recipe, then select ingredients (returns nested object)
-- `updateRecipe` conditionally replaces ingredients if provided (delete all, insert new)
-- All 84 existing tests passing
+- ✅ Completed stats-db.test.ts (10 tests, all passing)
+- All 146 tests currently passing across 40 files
+- Session module likely depends on token-crypto for generating secure session IDs
+- Mock pattern: `mock.module('$lib/server/token-crypto', () => ({ generateToken: () => 'mock-token' }))`
+- TEST_SESSION fixture has all necessary fields (id, userId, expiresAt, createdAt)
 
-**After recipes-db tests:**
-1. Create `tests/server/stats-db.test.ts` (will mock `$lib/server/entries` module)
-2. Create `tests/server/session-db.test.ts` (will mock `$lib/server/token-crypto`)
-3. Create `tests/server/oauth-db.test.ts` (largest module, uses bcrypt for real)
-4. Then move to Phase 4 (API route handlers)
+**After session-db tests:**
+1. Create `tests/server/oauth-db.test.ts` (largest module, uses bcrypt for password hashing)
+2. Then move to Phase 4 (API route handlers)
