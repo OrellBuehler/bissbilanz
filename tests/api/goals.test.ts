@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_GOALS, VALID_GOALS_PAYLOAD } from '../helpers/fixtures';
 
@@ -6,9 +7,21 @@ import { TEST_USER, TEST_GOALS, VALID_GOALS_PAYLOAD } from '../helpers/fixtures'
 let mockGoalsResult: any = null;
 let mockUpsertResult: any = null;
 
+// Mock ZodError for validation failures
+const mockValidationError = new ZodError([
+	{
+		code: 'invalid_type',
+		expected: 'number',
+		received: 'undefined',
+		path: ['calorieGoal'],
+		message: 'Required'
+	}
+]);
+
 mock.module('$lib/server/goals', () => ({
 	getGoals: async (userId: string) => mockGoalsResult,
-	upsertGoals: async (userId: string, payload: unknown) => mockUpsertResult
+	upsertGoals: async (userId: string, payload: unknown) =>
+		mockUpsertResult ? { success: true, data: mockUpsertResult } : { success: false, error: mockValidationError }
 }));
 
 // Import route handlers after mocking
@@ -126,6 +139,86 @@ describe('api/goals', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.goals).toBeTruthy();
+		});
+
+		describe('Validation errors', () => {
+			test('returns 400 when calorieGoal is missing', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						proteinGoal: 150,
+						carbGoal: 200
+					}
+				});
+
+				mockUpsertResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when goals are negative', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						calorieGoal: -2000,
+						proteinGoal: 150,
+						carbGoal: 200,
+						fatGoal: 67
+					}
+				});
+
+				mockUpsertResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when required macro goals are missing', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						calorieGoal: 2000
+						// Missing proteinGoal, carbGoal, fatGoal
+					}
+				});
+
+				mockUpsertResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when goals have invalid type', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						calorieGoal: 'not-a-number',
+						proteinGoal: 150,
+						carbGoal: 200,
+						fatGoal: 67
+					}
+				});
+
+				mockUpsertResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('validation error includes details', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {}
+				});
+
+				mockUpsertResult = null;
+				const response = await POST(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toBe('Validation failed');
+			});
 		});
 	});
 });

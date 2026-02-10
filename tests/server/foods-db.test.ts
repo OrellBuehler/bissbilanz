@@ -63,25 +63,36 @@ describe('foods-db', () => {
 			setResult([newFood]);
 
 			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);
-			expect(result).toEqual(newFood);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual(newFood);
+			}
 		});
 
-		test('throws validation error on missing required fields', async () => {
+		test('returns validation error on missing required fields', async () => {
 			const invalidPayload = {
 				name: 'Incomplete Food'
 				// missing servingSize, servingUnit, calories, etc.
 			};
 
-			expect(() => createFood(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await createFood(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
-		test('throws validation error on negative calories', async () => {
+		test('returns validation error on negative calories', async () => {
 			const invalidPayload = {
 				...VALID_FOOD_PAYLOAD,
 				calories: -100
 			};
 
-			expect(() => createFood(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await createFood(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
 		test('creates food with optional advanced nutrients', async () => {
@@ -96,8 +107,11 @@ describe('foods-db', () => {
 			setResult([newFood]);
 
 			const result = await createFood(TEST_USER.id, payloadWithNutrients);
-			expect(result.sodium).toBe(200);
-			expect(result.sugar).toBe(5);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.sodium).toBe(200);
+				expect(result.data.sugar).toBe(5);
+			}
 		});
 	});
 
@@ -107,7 +121,10 @@ describe('foods-db', () => {
 			setResult([updated]);
 
 			const result = await updateFood(TEST_USER.id, TEST_FOOD.id, { name: 'Steel Cut Oats' });
-			expect(result.name).toBe('Steel Cut Oats');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.name).toBe('Steel Cut Oats');
+			}
 		});
 
 		test('updates partial food fields', async () => {
@@ -115,14 +132,20 @@ describe('foods-db', () => {
 			setResult([updated]);
 
 			const result = await updateFood(TEST_USER.id, TEST_FOOD.id, { calories: 400 });
-			expect(result.calories).toBe(400);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.calories).toBe(400);
+			}
 		});
 
 		test('returns undefined when food not found', async () => {
 			setResult([]);
 
 			const result = await updateFood(TEST_USER.id, 'nonexistent-id', { name: 'New Name' });
-			expect(result).toBeUndefined();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeUndefined();
+			}
 		});
 
 		test('updates isFavorite flag', async () => {
@@ -130,7 +153,10 @@ describe('foods-db', () => {
 			setResult([updated]);
 
 			const result = await updateFood(TEST_USER.id, TEST_FOOD.id, { isFavorite: true });
-			expect(result.isFavorite).toBe(true);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.isFavorite).toBe(true);
+			}
 		});
 	});
 

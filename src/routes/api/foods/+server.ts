@@ -2,30 +2,51 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createFood, findFoodByBarcode, listFoods } from '$lib/server/foods';
 import { paginationSchema } from '$lib/server/validation';
+import { handleApiError, isZodError, requireAuth, validationError } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	try {
+		const userId = requireAuth(locals);
+
+		const barcode = url.searchParams.get('barcode');
+		if (barcode) {
+			const food = await findFoodByBarcode(userId, barcode);
+			return json({ food });
+		}
+
+		const paginationResult = paginationSchema.safeParse({
+			limit: url.searchParams.get('limit'),
+			offset: url.searchParams.get('offset')
+		});
+
+		if (!paginationResult.success) {
+			return validationError(paginationResult.error);
+		}
+
+		const query = url.searchParams.get('q') ?? undefined;
+		const { limit, offset } = paginationResult.data;
+		const foods = await listFoods(userId, { query, limit, offset });
+		return json({ foods });
+	} catch (error) {
+		return handleApiError(error);
 	}
-	const barcode = url.searchParams.get('barcode');
-	if (barcode) {
-		const food = await findFoodByBarcode(locals.user.id, barcode);
-		return json({ food });
-	}
-	const query = url.searchParams.get('q') ?? undefined;
-	const { limit, offset } = paginationSchema.parse({
-		limit: url.searchParams.get('limit'),
-		offset: url.searchParams.get('offset')
-	});
-	const foods = await listFoods(locals.user.id, { query, limit, offset });
-	return json({ foods });
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	try {
+		const userId = requireAuth(locals);
+		const body = await request.json();
+
+		const result = await createFood(userId, body);
+		if (!result.success) {
+			if (isZodError(result.error)) {
+				return validationError(result.error);
+			}
+			throw result.error;
+		}
+
+		return json({ food: result.data }, { status: 201 });
+	} catch (error) {
+		return handleApiError(error);
 	}
-	const body = await request.json();
-	const food = await createFood(locals.user.id, body);
-	return json({ food }, { status: 201 });
 };

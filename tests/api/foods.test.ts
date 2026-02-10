@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 
@@ -7,12 +8,24 @@ let mockListResult: any = [];
 let mockFindBarcodeResult: any = null;
 let mockCreateResult: any = null;
 
+// Mock ZodError for validation failures
+const mockValidationError = new ZodError([
+	{
+		code: 'invalid_type',
+		expected: 'string',
+		received: 'undefined',
+		path: ['name'],
+		message: 'Required'
+	}
+]);
+
 mock.module('$lib/server/foods', () => ({
 	listFoods: async (userId: string, options: any) => mockListResult,
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
-	createFood: async (userId: string, payload: unknown) => mockCreateResult,
+	createFood: async (userId: string, payload: unknown) =>
+		mockCreateResult ? { success: true, data: mockCreateResult } : { success: false, error: mockValidationError },
 	listRecentFoods: async (userId: string, limit?: number) => [],
-	updateFood: async () => {},
+	updateFood: async () => ({ success: true, data: undefined }),
 	deleteFood: async () => {},
 	toFoodInsert: () => ({}),
 	toFoodUpdate: () => ({})
@@ -21,9 +34,12 @@ mock.module('$lib/server/foods', () => ({
 // Mock validation schema
 mock.module('$lib/server/validation', () => ({
 	paginationSchema: {
-		parse: (data: any) => ({
-			limit: Number(data.limit) || 50,
-			offset: Number(data.offset) || 0
+		safeParse: (data: any) => ({
+			success: true,
+			data: {
+				limit: Number(data.limit) || 50,
+				offset: Number(data.offset) || 0
+			}
 		})
 	}
 }));
@@ -129,6 +145,104 @@ describe('api/foods', () => {
 
 			expect(response.status).toBe(201);
 			expect(data.food).toBeTruthy();
+		});
+
+		describe('Validation errors', () => {
+			test('returns 400 when name is missing', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						servingSize: 100,
+						servingUnit: 'g',
+						calories: 350,
+						protein: 10,
+						carbs: 60,
+						fat: 5,
+						fiber: 8
+					}
+				});
+
+				mockCreateResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when servingSize is missing', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						name: 'Test Food',
+						servingUnit: 'g',
+						calories: 350,
+						protein: 10,
+						carbs: 60,
+						fat: 5,
+						fiber: 8
+					}
+				});
+
+				mockCreateResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when calories is negative', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						name: 'Test Food',
+						servingSize: 100,
+						servingUnit: 'g',
+						calories: -100,
+						protein: 10,
+						carbs: 60,
+						fat: 5,
+						fiber: 8
+					}
+				});
+
+				mockCreateResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('returns 400 when macros are invalid type', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {
+						name: 'Test Food',
+						servingSize: 100,
+						servingUnit: 'g',
+						calories: 'not-a-number',
+						protein: 10,
+						carbs: 60,
+						fat: 5,
+						fiber: 8
+					}
+				});
+
+				mockCreateResult = null;
+				const response = await POST(event);
+
+				expect(response.status).toBe(400);
+			});
+
+			test('validation error includes details', async () => {
+				const event = createMockEvent({
+					user: TEST_USER,
+					body: {}
+				});
+
+				mockCreateResult = null;
+				const response = await POST(event);
+				const data = await response.json();
+
+				expect(response.status).toBe(400);
+				expect(data.error).toBe('Validation failed');
+			});
 		});
 	});
 });

@@ -2,6 +2,11 @@ import { getDB } from '$lib/server/db';
 import { foodEntries, foods } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { and, eq, gte, lte } from 'drizzle-orm';
+import type { ZodError } from 'zod';
+
+type SuccessResult<T> = { success: true; data: T };
+type ErrorResult = { success: false; error: ZodError | Error };
+type Result<T> = SuccessResult<T> | ErrorResult;
 
 export const listEntriesByDate = async (
 	userId: string,
@@ -33,22 +38,36 @@ export const listEntriesByDate = async (
 		.offset(offset);
 };
 
-export const createEntry = async (userId: string, payload: unknown) => {
-	const db = getDB();
-	const parsed = entryCreateSchema.parse(payload);
-	const [created] = await db
-		.insert(foodEntries)
-		.values({
-			userId,
-			foodId: parsed.foodId ?? null,
-			recipeId: parsed.recipeId ?? null,
-			mealType: parsed.mealType,
-			servings: parsed.servings,
-			notes: parsed.notes ?? null,
-			date: parsed.date
-		})
-		.returning();
-	return created;
+export const createEntry = async (
+	userId: string,
+	payload: unknown
+): Promise<Result<typeof foodEntries.$inferSelect>> => {
+	const result = entryCreateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
+
+	try {
+		const db = getDB();
+		const [created] = await db
+			.insert(foodEntries)
+			.values({
+				userId,
+				foodId: result.data.foodId ?? null,
+				recipeId: result.data.recipeId ?? null,
+				mealType: result.data.mealType,
+				servings: result.data.servings,
+				notes: result.data.notes ?? null,
+				date: result.data.date
+			})
+			.returning();
+		if (!created) {
+			return { success: false, error: new Error('Failed to create entry') };
+		}
+		return { success: true, data: created };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
 type EntryUpdateInput = typeof entryUpdateSchema._output;
@@ -58,15 +77,27 @@ export const toEntryUpdate = (input: EntryUpdateInput) => ({
 	notes: input.notes ?? null
 });
 
-export const updateEntry = async (userId: string, id: string, payload: unknown) => {
-	const db = getDB();
-	const parsed = entryUpdateSchema.parse(payload);
-	const [updated] = await db
-		.update(foodEntries)
-		.set({ ...toEntryUpdate(parsed), updatedAt: new Date() })
-		.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
-		.returning();
-	return updated;
+export const updateEntry = async (
+	userId: string,
+	id: string,
+	payload: unknown
+): Promise<Result<typeof foodEntries.$inferSelect | undefined>> => {
+	const result = entryUpdateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
+
+	try {
+		const db = getDB();
+		const [updated] = await db
+			.update(foodEntries)
+			.set({ ...toEntryUpdate(result.data), updatedAt: new Date() })
+			.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
+			.returning();
+		return { success: true, data: updated };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
 export const deleteEntry = async (userId: string, id: string) => {

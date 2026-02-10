@@ -79,10 +79,13 @@ describe('entries-db', () => {
 			setResult([newEntry]);
 
 			const result = await createEntry(TEST_USER.id, VALID_ENTRY_PAYLOAD);
-			expect(result).toEqual(newEntry);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual(newEntry);
+			}
 		});
 
-		test('throws validation error when both foodId and recipeId missing', async () => {
+		test('returns validation error when both foodId and recipeId missing', async () => {
 			const invalidPayload = {
 				date: '2026-02-10',
 				mealType: 'breakfast',
@@ -90,16 +93,24 @@ describe('entries-db', () => {
 				// missing both foodId and recipeId
 			};
 
-			expect(() => createEntry(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await createEntry(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
-		test('throws validation error on invalid date format', async () => {
+		test('returns validation error on invalid date format', async () => {
 			const invalidPayload = {
 				...VALID_ENTRY_PAYLOAD,
 				date: '02/10/2026' // wrong format
 			};
 
-			expect(() => createEntry(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await createEntry(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
 		test('creates entry with recipeId instead of foodId', async () => {
@@ -116,8 +127,11 @@ describe('entries-db', () => {
 				recipeId: '10000000-0000-4000-8000-000000000020',
 				servings: 1
 			});
-			expect(result.recipeId).toBe('10000000-0000-4000-8000-000000000020');
-			expect(result.foodId).toBeNull();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.recipeId).toBe('10000000-0000-4000-8000-000000000020');
+				expect(result.data.foodId).toBeNull();
+			}
 		});
 
 		test('creates entry with optional notes', async () => {
@@ -131,7 +145,10 @@ describe('entries-db', () => {
 				...VALID_ENTRY_PAYLOAD,
 				notes: 'Extra protein'
 			});
-			expect(result.notes).toBe('Extra protein');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.notes).toBe('Extra protein');
+			}
 		});
 	});
 
@@ -141,7 +158,10 @@ describe('entries-db', () => {
 			setResult([updated]);
 
 			const result = await updateEntry(TEST_USER.id, TEST_ENTRY.id, { servings: 2 });
-			expect(result.servings).toBe(2);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.servings).toBe(2);
+			}
 		});
 
 		test('updates partial entry fields', async () => {
@@ -149,14 +169,20 @@ describe('entries-db', () => {
 			setResult([updated]);
 
 			const result = await updateEntry(TEST_USER.id, TEST_ENTRY.id, { mealType: 'snack' });
-			expect(result.mealType).toBe('snack');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.mealType).toBe('snack');
+			}
 		});
 
 		test('returns undefined when entry not found', async () => {
 			setResult([]);
 
 			const result = await updateEntry(TEST_USER.id, 'nonexistent-id', { servings: 2 });
-			expect(result).toBeUndefined();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeUndefined();
+			}
 		});
 
 		test('updates notes to null', async () => {
@@ -164,7 +190,10 @@ describe('entries-db', () => {
 			setResult([updated]);
 
 			const result = await updateEntry(TEST_USER.id, TEST_ENTRY.id, { notes: null });
-			expect(result.notes).toBeNull();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.notes).toBeNull();
+			}
 		});
 	});
 

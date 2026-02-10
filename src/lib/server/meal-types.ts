@@ -1,8 +1,14 @@
 import { getDB } from '$lib/server/db';
 import { customMealTypes } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
+import { mealTypeCreateSchema, mealTypeUpdateSchema } from '$lib/server/validation';
+import type { ZodError } from 'zod';
 
 export type MealTypeInput = { name: string; sortOrder: number };
+
+type SuccessResult<T> = { success: true; data: T };
+type ErrorResult = { success: false; error: ZodError | Error };
+type Result<T> = SuccessResult<T> | ErrorResult;
 
 export const toMealTypeInsert = (userId: string, input: MealTypeInput) => ({
 	userId,
@@ -19,23 +25,51 @@ export const listMealTypes = async (userId: string) => {
 		.orderBy(customMealTypes.sortOrder);
 };
 
-export const createMealType = async (userId: string, input: MealTypeInput) => {
-	const db = getDB();
-	const [created] = await db
-		.insert(customMealTypes)
-		.values(toMealTypeInsert(userId, input))
-		.returning();
-	return created;
+export const createMealType = async (
+	userId: string,
+	payload: unknown
+): Promise<Result<typeof customMealTypes.$inferSelect>> => {
+	const result = mealTypeCreateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
+
+	try {
+		const db = getDB();
+		const [created] = await db
+			.insert(customMealTypes)
+			.values(toMealTypeInsert(userId, result.data))
+			.returning();
+		if (!created) {
+			return { success: false, error: new Error('Failed to create meal type') };
+		}
+		return { success: true, data: created };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
-export const updateMealType = async (userId: string, id: string, input: Partial<MealTypeInput>) => {
-	const db = getDB();
-	const [updated] = await db
-		.update(customMealTypes)
-		.set({ ...input })
-		.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)))
-		.returning();
-	return updated;
+export const updateMealType = async (
+	userId: string,
+	id: string,
+	payload: unknown
+): Promise<Result<typeof customMealTypes.$inferSelect | undefined>> => {
+	const result = mealTypeUpdateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
+
+	try {
+		const db = getDB();
+		const [updated] = await db
+			.update(customMealTypes)
+			.set({ ...result.data })
+			.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)))
+			.returning();
+		return { success: true, data: updated };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
 export const deleteMealType = async (userId: string, id: string) => {

@@ -1,20 +1,38 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteEntry, updateEntry } from '$lib/server/entries';
+import { handleApiError, notFound, requireAuth, validationError } from '$lib/server/errors';
 
 export const PATCH: RequestHandler = async ({ locals, request, params }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	try {
+		const userId = requireAuth(locals);
+		const body = await request.json();
+
+		const result = await updateEntry(userId, params.id, body);
+		if (!result.success) {
+			if (isZodError(result.error)) {
+				return validationError(result.error);
+			}
+			throw result.error;
+		}
+
+		// Return 404 for both non-existent and unauthorized (don't leak existence)
+		if (!result.data) {
+			return notFound('Entry');
+		}
+
+		return json({ entry: result.data });
+	} catch (error) {
+		return handleApiError(error);
 	}
-	const body = await request.json();
-	const entry = await updateEntry(locals.user.id, params.id, body);
-	return json({ entry });
 };
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	try {
+		const userId = requireAuth(locals);
+		await deleteEntry(userId, params.id);
+		return new Response(null, { status: 204 });
+	} catch (error) {
+		return handleApiError(error);
 	}
-	await deleteEntry(locals.user.id, params.id);
-	return new Response(null, { status: 204 });
 };

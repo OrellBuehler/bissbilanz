@@ -46,7 +46,10 @@ describe('meal-types-db', () => {
 			setResult([newMealType]);
 
 			const result = await createMealType(TEST_USER.id, VALID_MEAL_TYPE_PAYLOAD);
-			expect(result).toEqual(newMealType);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual(newMealType);
+			}
 		});
 
 		test('creates meal type with custom sortOrder', async () => {
@@ -55,8 +58,11 @@ describe('meal-types-db', () => {
 			setResult([newMealType]);
 
 			const result = await createMealType(TEST_USER.id, customPayload);
-			expect(result.sortOrder).toBe(5);
-			expect(result.name).toBe('Snack');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.sortOrder).toBe(5);
+				expect(result.data.name).toBe('Snack');
+			}
 		});
 	});
 
@@ -68,7 +74,10 @@ describe('meal-types-db', () => {
 			const result = await updateMealType(TEST_USER.id, TEST_MEAL_TYPE.id, {
 				name: 'Post-Workout'
 			});
-			expect(result.name).toBe('Post-Workout');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.name).toBe('Post-Workout');
+			}
 		});
 
 		test('updates meal type sortOrder', async () => {
@@ -76,7 +85,10 @@ describe('meal-types-db', () => {
 			setResult([updated]);
 
 			const result = await updateMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { sortOrder: 20 });
-			expect(result.sortOrder).toBe(20);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.sortOrder).toBe(20);
+			}
 		});
 
 		test('updates both name and sortOrder', async () => {
@@ -87,14 +99,20 @@ describe('meal-types-db', () => {
 				name: 'Late Night Snack',
 				sortOrder: 99
 			});
-			expect(result.name).toBe('Late Night Snack');
-			expect(result.sortOrder).toBe(99);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.name).toBe('Late Night Snack');
+				expect(result.data?.sortOrder).toBe(99);
+			}
 		});
 
 		test('returns undefined when meal type not found', async () => {
 			setResult([]);
 			const result = await updateMealType(TEST_USER.id, 'nonexistent-id', { name: 'New Name' });
-			expect(result).toBeUndefined();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeUndefined();
+			}
 		});
 	});
 

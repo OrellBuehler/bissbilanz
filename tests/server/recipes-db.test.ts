@@ -49,7 +49,10 @@ describe('recipes-db', () => {
 			setResult([newRecipe]);
 
 			const result = await createRecipe(TEST_USER.id, VALID_RECIPE_PAYLOAD);
-			expect(result).toEqual(newRecipe);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual(newRecipe);
+			}
 		});
 
 		test('creates recipe with multiple ingredients', async () => {
@@ -65,37 +68,52 @@ describe('recipes-db', () => {
 			setResult([newRecipe]);
 
 			const result = await createRecipe(TEST_USER.id, payload);
-			expect(result.name).toBe('Complex Recipe');
-			expect(result.totalServings).toBe(2);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.name).toBe('Complex Recipe');
+				expect(result.data.totalServings).toBe(2);
+			}
 		});
 
-		test('throws error on invalid payload', async () => {
+		test('returns error on invalid payload', async () => {
 			const invalidPayload = {
 				name: 'Recipe',
 				totalServings: 'not-a-number', // Invalid type
 				ingredients: []
 			};
 
-			await expect(createRecipe(TEST_USER.id, invalidPayload)).rejects.toThrow();
+			const result = await createRecipe(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
-		test('throws error when ingredients array is empty', async () => {
+		test('returns error when ingredients array is empty', async () => {
 			const payloadWithoutIngredients = {
 				name: 'Recipe',
 				totalServings: 1,
 				ingredients: []
 			};
 
-			await expect(createRecipe(TEST_USER.id, payloadWithoutIngredients)).rejects.toThrow();
+			const result = await createRecipe(TEST_USER.id, payloadWithoutIngredients);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
-		test('throws error when missing required fields', async () => {
+		test('returns error when missing required fields', async () => {
 			const payloadMissingName = {
 				totalServings: 1,
 				ingredients: [{ foodId: '10000000-0000-4000-8000-000000000010', quantity: 50, servingUnit: 'g' }]
 			};
 
-			await expect(createRecipe(TEST_USER.id, payloadMissingName)).rejects.toThrow();
+			const result = await createRecipe(TEST_USER.id, payloadMissingName);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 	});
 
@@ -147,8 +165,11 @@ describe('recipes-db', () => {
 			};
 
 			const result = await updateRecipe(TEST_USER.id, TEST_RECIPE.id, payload);
-			expect(result?.name).toBe('Updated Oatmeal');
-			expect(result?.totalServings).toBe(2);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.name).toBe('Updated Oatmeal');
+				expect(result.data?.totalServings).toBe(2);
+			}
 		});
 
 		test('updates recipe and replaces ingredients', async () => {
@@ -164,7 +185,10 @@ describe('recipes-db', () => {
 			};
 
 			const result = await updateRecipe(TEST_USER.id, TEST_RECIPE.id, payload);
-			expect(result?.name).toBe('Updated Recipe');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.name).toBe('Updated Recipe');
+			}
 		});
 
 		test('returns undefined when recipe not found', async () => {
@@ -172,7 +196,10 @@ describe('recipes-db', () => {
 
 			const payload = { name: 'Updated', totalServings: 1 };
 			const result = await updateRecipe(TEST_USER.id, 'non-existent-id', payload);
-			expect(result).toBeUndefined();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeUndefined();
+			}
 		});
 
 		test('returns undefined when recipe belongs to different user', async () => {
@@ -180,16 +207,23 @@ describe('recipes-db', () => {
 
 			const payload = { name: 'Updated', totalServings: 1 };
 			const result = await updateRecipe('different-user-id', TEST_RECIPE.id, payload);
-			expect(result).toBeUndefined();
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeUndefined();
+			}
 		});
 
-		test('throws error on invalid payload', async () => {
+		test('returns error on invalid payload', async () => {
 			const invalidPayload = {
 				name: 'Recipe',
 				totalServings: 'invalid' // Invalid type
 			};
 
-			await expect(updateRecipe(TEST_USER.id, TEST_RECIPE.id, invalidPayload)).rejects.toThrow();
+			const result = await updateRecipe(TEST_USER.id, TEST_RECIPE.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 	});
 

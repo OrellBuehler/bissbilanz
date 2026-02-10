@@ -38,7 +38,10 @@ describe('goals-db', () => {
 			setResult([newGoals]);
 
 			const result = await upsertGoals(TEST_USER.id, VALID_GOALS_PAYLOAD);
-			expect(result).toEqual(newGoals);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual(newGoals);
+			}
 		});
 
 		test('updates existing goals with valid payload', async () => {
@@ -53,10 +56,13 @@ describe('goals-db', () => {
 				...VALID_GOALS_PAYLOAD,
 				calorieGoal: 2200
 			});
-			expect(result.calorieGoal).toBe(2200);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.calorieGoal).toBe(2200);
+			}
 		});
 
-		test('throws validation error on invalid payload', async () => {
+		test('returns validation error on invalid payload', async () => {
 			const invalidPayload = {
 				calorieGoal: -100, // negative calories invalid
 				proteinGoal: 150,
@@ -65,16 +71,24 @@ describe('goals-db', () => {
 				fiberGoal: 30
 			};
 
-			expect(() => upsertGoals(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await upsertGoals(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
-		test('throws validation error on missing required fields', async () => {
+		test('returns validation error on missing required fields', async () => {
 			const invalidPayload = {
 				calorieGoal: 2000
 				// missing proteinGoal, carbGoal, fatGoal, fiberGoal
 			};
 
-			expect(() => upsertGoals(TEST_USER.id, invalidPayload)).toThrow();
+			const result = await upsertGoals(TEST_USER.id, invalidPayload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
 		});
 
 		test('accepts optional sodium and sugar goals', async () => {
@@ -86,8 +100,11 @@ describe('goals-db', () => {
 			setResult([{ ...TEST_GOALS, sodiumGoal: 2300, sugarGoal: 50 }]);
 
 			const result = await upsertGoals(TEST_USER.id, payloadWithOptional);
-			expect(result.sodiumGoal).toBe(2300);
-			expect(result.sugarGoal).toBe(50);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.sodiumGoal).toBe(2300);
+				expect(result.data.sugarGoal).toBe(50);
+			}
 		});
 	});
 });

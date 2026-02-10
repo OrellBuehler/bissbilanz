@@ -2,8 +2,13 @@ import { getDB } from '$lib/server/db';
 import { recipes, recipeIngredients } from '$lib/server/schema';
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, eq } from 'drizzle-orm';
+import type { ZodError } from 'zod';
 
 type RecipeInput = { name: string; totalServings: number };
+
+type SuccessResult<T> = { success: true; data: T };
+type ErrorResult = { success: false; error: ZodError | Error };
+type Result<T> = SuccessResult<T> | ErrorResult;
 
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
@@ -16,21 +21,39 @@ export const listRecipes = async (userId: string) => {
 	return db.select().from(recipes).where(eq(recipes.userId, userId)).orderBy(recipes.name);
 };
 
-export const createRecipe = async (userId: string, payload: unknown) => {
-	const db = getDB();
-	const parsed = recipeCreateSchema.parse(payload);
-	const [recipe] = await db.insert(recipes).values(toRecipeInsert(userId, parsed)).returning();
+export const createRecipe = async (
+	userId: string,
+	payload: unknown
+): Promise<Result<typeof recipes.$inferSelect>> => {
+	const result = recipeCreateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
 
-	const ingredientRows = parsed.ingredients.map((ingredient, index) => ({
-		recipeId: recipe.id,
-		foodId: ingredient.foodId,
-		quantity: ingredient.quantity,
-		servingUnit: ingredient.servingUnit,
-		sortOrder: index
-	}));
+	try {
+		const db = getDB();
+		const [recipe] = await db
+			.insert(recipes)
+			.values(toRecipeInsert(userId, result.data))
+			.returning();
 
-	await db.insert(recipeIngredients).values(ingredientRows);
-	return recipe;
+		if (!recipe) {
+			return { success: false, error: new Error('Failed to create recipe') };
+		}
+
+		const ingredientRows = result.data.ingredients.map((ingredient, index) => ({
+			recipeId: recipe.id,
+			foodId: ingredient.foodId,
+			quantity: ingredient.quantity,
+			servingUnit: ingredient.servingUnit,
+			sortOrder: index
+		}));
+
+		await db.insert(recipeIngredients).values(ingredientRows);
+		return { success: true, data: recipe };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
 export const getRecipe = async (userId: string, id: string) => {
@@ -51,30 +74,42 @@ export const getRecipe = async (userId: string, id: string) => {
 	return { ...recipe, ingredients };
 };
 
-export const updateRecipe = async (userId: string, id: string, payload: unknown) => {
-	const db = getDB();
-	const parsed = recipeUpdateSchema.parse(payload);
-	const { ingredients, ...recipeData } = parsed;
-
-	const [recipe] = await db
-		.update(recipes)
-		.set({ ...recipeData, updatedAt: new Date() })
-		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
-		.returning();
-
-	if (ingredients) {
-		await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
-		const rows = ingredients.map((ingredient, index) => ({
-			recipeId: id,
-			foodId: ingredient.foodId,
-			quantity: ingredient.quantity,
-			servingUnit: ingredient.servingUnit,
-			sortOrder: index
-		}));
-		await db.insert(recipeIngredients).values(rows);
+export const updateRecipe = async (
+	userId: string,
+	id: string,
+	payload: unknown
+): Promise<Result<typeof recipes.$inferSelect | undefined>> => {
+	const result = recipeUpdateSchema.safeParse(payload);
+	if (!result.success) {
+		return { success: false, error: result.error };
 	}
 
-	return recipe;
+	try {
+		const db = getDB();
+		const { ingredients, ...recipeData } = result.data;
+
+		const [recipe] = await db
+			.update(recipes)
+			.set({ ...recipeData, updatedAt: new Date() })
+			.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+			.returning();
+
+		if (ingredients && recipe) {
+			await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
+			const rows = ingredients.map((ingredient, index) => ({
+				recipeId: id,
+				foodId: ingredient.foodId,
+				quantity: ingredient.quantity,
+				servingUnit: ingredient.servingUnit,
+				sortOrder: index
+			}));
+			await db.insert(recipeIngredients).values(rows);
+		}
+
+		return { success: true, data: recipe };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
 };
 
 export const deleteRecipe = async (userId: string, id: string) => {
