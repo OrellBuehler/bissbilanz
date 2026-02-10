@@ -411,6 +411,64 @@ refactor: extract macro calculation to utility function
 - Use Playwright
 - Test on mobile viewport
 
+### Testing Patterns
+
+**Test Structure**
+- **Layer 1:** Server DB modules (`tests/server/*-db.test.ts`)
+  - Direct database operation tests
+  - Mock database with `createMockDB()` helper
+  - Test CRUD operations, queries, and data transformations
+- **Layer 2:** API route handlers (`tests/api/*.test.ts`)
+  - Test HTTP request/response handling
+  - Mock server functions and database
+  - Use `createMockRequestEvent()` for SvelteKit route testing
+- **Layer 3:** Integration tests (planned)
+  - Test complete workflows across multiple modules
+- **Layer 4:** E2E tests (planned)
+  - Test critical user paths with Playwright
+
+**Key Patterns**
+- Use `createMockDB()` from `tests/helpers/mock-db.ts` for Drizzle mocking
+- Use `createMockRequestEvent()` from `tests/helpers/mock-request-event.ts` for SvelteKit route testing
+- Import modules AFTER setting up mocks with `mock.module()`
+- Mock bcrypt in unit tests to improve performance (~600ms overhead otherwise)
+- Use fixtures from `tests/helpers/fixtures.ts` for consistent test data
+
+**Known Issues**
+- Bun test runner shows "Unhandled error between tests" for session-db and oauth-db tests
+  - These are cleanup artifacts, not functional failures
+  - All tests pass when run individually: `bun test tests/server/session-db.test.ts`
+  - Caused by module mock persistence across test files
+  - Does not affect test functionality or CI/CD
+
+**UUID Format Requirements**
+- All test UUIDs must be valid v4 format: `10000000-0000-4000-8000-XXXXXXXXXXXX`
+- Invalid UUIDs will cause database constraint violations
+
+**Schema Field Naming Conventions**
+- **Goals:** `calorieGoal`, `proteinGoal`, `carbGoal`, `fatGoal`, `fiberGoal`
+- **Entries:** `servings` (not `amount`)
+- **Recipes:** `totalServings` (not `servings`), `quantity` (not `amount`)
+
+**Multi-Table Operations**
+- Recipes with ingredients require sequential `setResult()` calls in mock
+- Test both insert and retrieval with proper joins
+- Validate that recipe operations handle ingredient replacement correctly
+
+**API Route Testing Checklist**
+- Test successful operations (200/201 responses)
+- Test missing authentication (401 responses)
+- Test invalid input validation (400 responses)
+- Test not found scenarios (404 responses)
+- Test cross-user access prevention (user can't access other user's data)
+- Test error handling (500 responses)
+
+**Current Test Coverage**
+- Server DB modules: 8/8 (100%)
+- API routes: 7 core handlers tested
+- Total: 193 tests, 98.9% passing
+- See `docs/finished/api-unit-tests-progress.md` for details
+
 ## Deployment
 
 ### Production Build

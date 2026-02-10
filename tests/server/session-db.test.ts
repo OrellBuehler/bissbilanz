@@ -58,10 +58,12 @@ mock.module('$lib/server/env', () => {
 // Now import schema (depends on env)
 const schema = await import('$lib/server/schema');
 
-// Mock db last (re-export schema)
+// Mock db last (re-export entire schema module)
 mock.module('$lib/server/db', () => ({
 	getDB: () => db,
-	...schema
+	...Object.fromEntries(
+		Object.entries(schema).map(([key, value]) => [key, value])
+	)
 }));
 
 // Import after mocking
