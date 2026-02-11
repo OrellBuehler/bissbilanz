@@ -27,12 +27,14 @@ interface MockDB {
 interface MockDBFactory {
 	db: MockDB;
 	setResult: (result: any) => void;
+	setError: (error: Error) => void;
 	reset: () => void;
 	getCalls: () => Array<{ method: string; args: any[] }>;
 }
 
 export function createMockDB(): MockDBFactory {
 	let mockResult: any = [];
+	let mockError: Error | null = null;
 	const calls: Array<{ method: string; args: any[] }> = [];
 
 	// Create a chainable object that tracks calls and resolves to mockResult
@@ -41,11 +43,20 @@ export function createMockDB(): MockDBFactory {
 			calls.push({ method: methodName, args: args || [] });
 		}
 
-		// The chain is PromiseLike, so await will resolve it
+		// The chain is PromiseLike, so await will resolve or reject
 		const chain = {
-			then: (resolve: (value: any) => any) => Promise.resolve(mockResult).then(resolve),
-			catch: (reject: (error: any) => any) => Promise.resolve(mockResult).catch(reject),
-			finally: (fn: () => void) => Promise.resolve(mockResult).finally(fn)
+			then: (resolve: (value: any) => any, reject?: (error: any) => any) =>
+				mockError
+					? Promise.reject(mockError).then(resolve, reject)
+					: Promise.resolve(mockResult).then(resolve, reject),
+			catch: (reject: (error: any) => any) =>
+				mockError
+					? Promise.reject(mockError).catch(reject)
+					: Promise.resolve(mockResult).catch(reject),
+			finally: (fn: () => void) =>
+				mockError
+					? Promise.reject(mockError).finally(fn)
+					: Promise.resolve(mockResult).finally(fn)
 		};
 
 		// Proxy to make any method call continue the chain
@@ -74,11 +85,11 @@ export function createMockDB(): MockDBFactory {
 						return {
 							findFirst: mock((...args: any[]) => {
 								calls.push({ method: `query.${String(tableName)}.findFirst`, args });
-								return Promise.resolve(mockResult);
+								return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
 							}),
 							findMany: mock((...args: any[]) => {
 								calls.push({ method: `query.${String(tableName)}.findMany`, args });
-								return Promise.resolve(mockResult);
+								return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
 							})
 						};
 					}
@@ -94,9 +105,15 @@ export function createMockDB(): MockDBFactory {
 		db,
 		setResult: (result: any) => {
 			mockResult = result;
+			mockError = null;
+		},
+		setError: (error: Error) => {
+			mockError = error;
+			mockResult = [];
 		},
 		reset: () => {
 			mockResult = [];
+			mockError = null;
 			calls.length = 0;
 		},
 		getCalls: () => [...calls]
