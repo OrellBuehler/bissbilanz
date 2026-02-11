@@ -71,6 +71,12 @@ export const foods = pgTable(
 		iron: real('iron'),
 		barcode: text('barcode').unique(),
 		isFavorite: boolean('is_favorite').notNull().default(false),
+		// Open Food Facts quality data
+		nutriScore: text('nutri_score'),
+		novaGroup: integer('nova_group'),
+		additives: text('additives').array(),
+		ingredientsText: text('ingredients_text'),
+		imageUrl: text('image_url'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},

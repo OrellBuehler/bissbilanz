@@ -29,13 +29,31 @@
 		await loadFoods();
 	};
 
+	const enrichFood = async (id: string, barcode: string) => {
+		const res = await fetch(`/api/openfoodfacts/${barcode}`);
+		if (!res.ok) return;
+		const { product } = await res.json();
+		await fetch(`/api/foods/${id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				nutriScore: product.nutriScore,
+				novaGroup: product.novaGroup,
+				additives: product.additives,
+				ingredientsText: product.ingredientsText,
+				imageUrl: product.imageUrl
+			})
+		});
+		await loadFoods();
+	};
+
 	loadFoods();
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
 	<h1 class="text-2xl font-semibold">{m.foods_title()}</h1>
 	<Input placeholder={m.foods_search_placeholder()} bind:value={query} />
-	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} />
+	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} onEnrich={enrichFood} />
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>{m.foods_new()}</Card.Title>

@@ -20,7 +20,13 @@ export const foodCreateSchema = z.object({
 	calcium: z.coerce.number().nonnegative().optional().nullable(),
 	iron: z.coerce.number().nonnegative().optional().nullable(),
 	barcode: z.string().optional().nullable(),
-	isFavorite: z.coerce.boolean().optional()
+	isFavorite: z.coerce.boolean().optional(),
+	// Open Food Facts quality data
+	nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().nullable(),
+	novaGroup: z.coerce.number().int().min(1).max(4).optional().nullable(),
+	additives: z.array(z.string()).optional().nullable(),
+	ingredientsText: z.string().optional().nullable(),
+	imageUrl: z.string().url().optional().nullable()
 });
 
 export const foodUpdateSchema = foodCreateSchema.partial();

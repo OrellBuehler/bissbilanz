@@ -31,7 +31,13 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	calcium: input.calcium ?? null,
 	iron: input.iron ?? null,
 	barcode: input.barcode ?? null,
-	isFavorite: input.isFavorite ?? false
+	isFavorite: input.isFavorite ?? false,
+	// Open Food Facts quality data
+	nutriScore: input.nutriScore ?? null,
+	novaGroup: input.novaGroup ?? null,
+	additives: input.additives ?? null,
+	ingredientsText: input.ingredientsText ?? null,
+	imageUrl: input.imageUrl ?? null
 });
 
 export const listFoods = async (
@@ -80,7 +86,12 @@ type FoodUpdateInput = typeof foodUpdateSchema._output;
 export const toFoodUpdate = (input: FoodUpdateInput) => ({
 	...input,
 	brand: input.brand ?? null,
-	barcode: input.barcode ?? null
+	barcode: input.barcode ?? null,
+	nutriScore: input.nutriScore ?? null,
+	novaGroup: input.novaGroup ?? null,
+	additives: input.additives ?? null,
+	ingredientsText: input.ingredientsText ?? null,
+	imageUrl: input.imageUrl ?? null
 });
 
 export const updateFood = async (
