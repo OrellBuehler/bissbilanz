@@ -143,7 +143,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return makeUserInfoResponse();
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -164,7 +164,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return makeUserInfoResponse();
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -185,7 +185,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return makeUserInfoResponse();
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -219,7 +219,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return makeUserInfoResponse();
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -236,7 +236,7 @@ describe('Auth callback flow', () => {
 		globalThis.fetch = (async () =>
 			new Response(JSON.stringify({ error: 'invalid_grant' }), {
 				status: 400
-			})) as typeof fetch;
+			})) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -254,7 +254,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 
@@ -274,7 +274,7 @@ describe('Auth callback flow', () => {
 			fetchCallCount++;
 			if (fetchCallCount === 1) return makeTokenResponse();
 			return makeUserInfoResponse();
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const event = createCallbackEvent({});
 

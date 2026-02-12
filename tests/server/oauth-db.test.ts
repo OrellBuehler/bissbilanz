@@ -377,7 +377,7 @@ describe('oauth-db', () => {
 		});
 
 		test('returns existing authorization if already exists', async () => {
-			const existing = { userId: TEST_USER.id, clientId: 'test-client', id: 'auth-123' };
+			const existing = { userId: TEST_USER.id, clientId: 'test-client', id: 'auth-123', approvedAt: new Date() };
 			setResult(existing);
 
 			const result = await createAuthorization(TEST_USER.id, 'test-client');

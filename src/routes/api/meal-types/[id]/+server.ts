@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteMealType, updateMealType } from '$lib/server/meal-types';
-import { handleApiError, notFound, requireAuth, validationError } from '$lib/server/errors';
+import { handleApiError, isZodError, notFound, requireAuth, validationError } from '$lib/server/errors';
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {

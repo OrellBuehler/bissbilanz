@@ -12,10 +12,9 @@ const mockValidationError = new ZodError([
 	{
 		code: 'invalid_type',
 		expected: 'number',
-		received: 'undefined',
 		path: ['calorieGoal'],
 		message: 'Required'
-	}
+	} as any
 ]);
 
 mock.module('$lib/server/goals', () => ({

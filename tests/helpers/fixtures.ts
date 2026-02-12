@@ -7,18 +7,20 @@ import type { User } from '$lib/server/schema';
 // Test user
 export const TEST_USER: User = {
 	id: '10000000-0000-4000-8000-000000000001',
-	infomaniakId: '12345',
+	infomaniakSub: '12345',
 	email: 'test@example.com',
 	name: 'Test User',
+	avatarUrl: null,
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
 
 export const TEST_USER_2: User = {
 	id: '10000000-0000-4000-8000-000000000002',
-	infomaniakId: '67890',
+	infomaniakSub: '67890',
 	email: 'other@example.com',
 	name: 'Other User',
+	avatarUrl: null,
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
@@ -46,6 +48,11 @@ export const TEST_FOOD = {
 	iron: null,
 	barcode: '1234567890123',
 	isFavorite: false,
+	nutriScore: null,
+	novaGroup: null,
+	additives: null,
+	ingredientsText: null,
+	imageUrl: null,
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
@@ -72,6 +79,11 @@ export const TEST_FOOD_2 = {
 	iron: null,
 	barcode: null,
 	isFavorite: false,
+	nutriScore: null,
+	novaGroup: null,
+	additives: null,
+	ingredientsText: null,
+	imageUrl: null,
 	createdAt: new Date('2026-01-02T00:00:00Z'),
 	updatedAt: new Date('2026-01-02T00:00:00Z')
 };
@@ -172,13 +184,13 @@ export const TEST_SESSION_WITH_USER = {
 // Test OAuth client
 export const TEST_OAUTH_CLIENT = {
 	id: 'client-123',
+	userId: null,
 	clientId: 'test-client',
-	clientSecret: '$2a$10$mockhashmockhashmockhashmo', // bcrypt hash of "secret"
-	name: 'Test Client',
-	redirectUris: ['http://localhost:3000/callback'],
-	confidential: true,
-	createdAt: new Date('2026-01-01T00:00:00Z'),
-	updatedAt: new Date('2026-01-01T00:00:00Z')
+	clientSecretHash: '$2a$10$mockhashmockhashmockhashmo', // bcrypt hash of "secret"
+	clientName: 'Test Client',
+	allowedRedirectUris: ['http://localhost:3000/callback'],
+	tokenEndpointAuthMethod: 'client_secret_post',
+	createdAt: new Date('2026-01-01T00:00:00Z')
 };
 
 export const TEST_OAUTH_AUTH_CODE = {

@@ -15,7 +15,7 @@ interface MockChain extends Promise<any> {
 }
 
 interface MockDB {
-	[key: string]: AnyFunction;
+	[key: string]: any;
 	query: {
 		[key: string]: {
 			findFirst: AnyFunction;

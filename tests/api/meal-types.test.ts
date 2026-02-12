@@ -12,10 +12,9 @@ const mockValidationError = new ZodError([
 	{
 		code: 'invalid_type',
 		expected: 'string',
-		received: 'undefined',
 		path: ['name'],
 		message: 'Required'
-	}
+	} as any
 ]);
 
 mock.module('$lib/server/meal-types', () => ({

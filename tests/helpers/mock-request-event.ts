@@ -16,7 +16,7 @@ interface MockEventOptions {
 	url?: string;
 }
 
-export function createMockEvent(options: MockEventOptions = {}): RequestEvent {
+export function createMockEvent(options: MockEventOptions = {}): RequestEvent<any, any> {
 	const {
 		user = null,
 		searchParams = {},

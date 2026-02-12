@@ -18,16 +18,19 @@ export const handleSearchFoods = async (userId: string, query: string) => {
 };
 
 export const handleCreateFood = async (userId: string, payload: unknown) => {
-	const food = await createFood(userId, payload);
-	return { foodId: food.id, success: true };
+	const result = await createFood(userId, payload);
+	if (!result.success) throw result.error;
+	return { foodId: result.data.id, success: true };
 };
 
 export const handleCreateRecipe = async (userId: string, payload: unknown) => {
-	const recipe = await createRecipe(userId, payload);
-	return { recipeId: recipe.id, success: true };
+	const result = await createRecipe(userId, payload);
+	if (!result.success) throw result.error;
+	return { recipeId: result.data.id, success: true };
 };
 
 export const handleLogFood = async (userId: string, payload: unknown) => {
-	const entry = await createEntry(userId, payload);
-	return { entryId: entry.id, success: true };
+	const result = await createEntry(userId, payload);
+	if (!result.success) throw result.error;
+	return { entryId: result.data.id, success: true };
 };

@@ -55,7 +55,7 @@ export function handleApiError(error: unknown): Response {
 		return json(
 			{
 				error: error.message,
-				...(error.details && { details: error.details })
+				...(error.details ? { details: error.details } : {})
 			},
 			{ status: error.status }
 		);

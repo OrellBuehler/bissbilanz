@@ -269,7 +269,7 @@ describe('Auth /me route', () => {
 	});
 
 	test('returns null user when session is expired/invalid', async () => {
-		mockGetSessionWithUser.mockReturnValue(Promise.resolve(null));
+		mockGetSessionWithUser.mockReturnValue(Promise.resolve(null) as any);
 
 		const event = {
 			cookies: {
