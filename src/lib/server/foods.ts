@@ -47,8 +47,9 @@ export const listFoods = async (
 	const db = getDB();
 	const limit = options?.limit ?? 100;
 	const offset = options?.offset ?? 0;
-	const whereClause = options?.query
-		? and(eq(foods.userId, userId), ilike(foods.name, `%${options.query}%`))
+	const escapedQuery = options?.query?.replace(/%/g, '\\%').replace(/_/g, '\\_');
+	const whereClause = escapedQuery
+		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`))
 		: eq(foods.userId, userId);
 
 	return db

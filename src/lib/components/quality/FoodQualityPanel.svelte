@@ -32,7 +32,7 @@
 			{#if novaGroup}
 				<div class="flex items-center justify-between">
 					<span class="text-sm text-muted-foreground">{m.quality_nova()}</span>
-					<NovaGroupBadge group={novaGroup as 1 | 2 | 3 | 4} />
+					<NovaGroupBadge group={novaGroup} />
 				</div>
 			{/if}
 

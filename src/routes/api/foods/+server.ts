@@ -10,6 +10,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const barcode = url.searchParams.get('barcode');
 		if (barcode) {
+			if (!/^\d{8,13}$/.test(barcode)) {
+				return json({ error: 'Invalid barcode format' }, { status: 400 });
+			}
 			const food = await findFoodByBarcode(userId, barcode);
 			return json({ food });
 		}

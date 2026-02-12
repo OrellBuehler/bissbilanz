@@ -17,13 +17,13 @@ const OFF_FIELDS = [
 const nutriScoreEnum = z.enum(['a', 'b', 'c', 'd', 'e']);
 
 const offProductSchema = z.object({
-	product_name: z.string().optional().default(''),
-	brands: z.string().optional().default(''),
+	product_name: z.string().max(500).optional().default(''),
+	brands: z.string().max(500).optional().default(''),
 	nutriscore_grade: nutriScoreEnum.optional().nullable(),
 	nova_group: z.coerce.number().int().min(1).max(4).optional().nullable(),
-	additives_tags: z.array(z.string()).optional().default([]),
-	ingredients_text: z.string().optional().nullable(),
-	image_front_url: z.string().url().optional().nullable(),
+	additives_tags: z.array(z.string().max(100)).max(100).optional().default([]),
+	ingredients_text: z.string().max(10000).optional().nullable(),
+	image_front_url: z.string().url().max(2000).optional().nullable(),
 	nutriments: z
 		.object({
 			'energy-kcal_100g': z.number().optional(),
@@ -89,8 +89,8 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 	const n = p.nutriments;
 
 	return {
-		name: p.product_name || '',
-		brand: p.brands || '',
+		name: p.product_name,
+		brand: p.brands,
 		servingSize: 100,
 		servingUnit: 'g',
 		calories: n['energy-kcal_100g'] ?? 0,
