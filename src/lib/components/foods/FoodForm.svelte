@@ -35,6 +35,8 @@
 
 	let showAdvanced = $state(false);
 
+	// Build initial form values (intentionally captures initial prop once — form state is independent)
+	// svelte-ignore state_referenced_locally
 	let form = $state<FoodFormData>({
 		name: initial.name ?? '',
 		brand: initial.brand ?? '',
