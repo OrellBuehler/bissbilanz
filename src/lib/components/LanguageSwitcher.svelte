@@ -4,9 +4,7 @@
 
 	const localeNames: Record<string, string> = {
 		en: 'English',
-		de: 'Deutsch',
-		fr: 'Français',
-		it: 'Italiano'
+		de: 'Deutsch'
 	};
 
 	const currentLocale = $derived(getLocale());
