@@ -161,6 +161,15 @@
   "quality_off_not_found": "Product not found in Open Food Facts",
   "quality_off_prefilled": "Pre-filled from Open Food Facts",
 
+  "charts_this_week": "This Week",
+  "charts_calories_trend": "Calorie Trend",
+  "charts_macro_breakdown": "Macro Breakdown",
+  "charts_7d": "7d",
+  "charts_30d": "30d",
+  "charts_custom": "Custom",
+  "charts_start_date": "Start",
+  "charts_end_date": "End",
+
   "error_unauthorized": "Unauthorized",
   "error_missing_date": "Missing date",
   "error_date_range_required": "Start date and end date required",
