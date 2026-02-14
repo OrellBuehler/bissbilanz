@@ -169,6 +169,7 @@
   "charts_custom": "Benutzerdefiniert",
   "charts_start_date": "Von",
   "charts_end_date": "Bis",
+  "charts_no_data": "Keine Daten für diesen Zeitraum",
 
   "error_unauthorized": "Nicht autorisiert",
   "error_missing_date": "Datum fehlt",

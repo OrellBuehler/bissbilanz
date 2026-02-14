@@ -22,6 +22,14 @@ export const addTotals = (a: MacroTotals, b: MacroTotals): MacroTotals => ({
 	fiber: a.fiber + b.fiber
 });
 
+export const roundTotals = (t: MacroTotals): MacroTotals => ({
+	calories: Math.round(t.calories),
+	protein: Math.round(t.protein * 10) / 10,
+	carbs: Math.round(t.carbs * 10) / 10,
+	fat: Math.round(t.fat * 10) / 10,
+	fiber: Math.round(t.fiber * 10) / 10
+});
+
 export const scaleTotals = (t: MacroTotals, factor: number): MacroTotals => ({
 	calories: t.calories * factor,
 	protein: t.protein * factor,

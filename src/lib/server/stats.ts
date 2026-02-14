@@ -1,6 +1,6 @@
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { averageTotals } from '$lib/utils/stats';
-import { emptyTotals, addTotals, calculateEntryMacros, type MacroTotals } from '$lib/utils/nutrition';
+import { emptyTotals, addTotals, calculateEntryMacros, roundTotals, type MacroTotals } from '$lib/utils/nutrition';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -63,7 +63,7 @@ export const getDailyBreakdown = async (
 	const end = new Date(endDate + 'T00:00:00Z');
 	while (current <= end) {
 		const dateStr = current.toISOString().split('T')[0];
-		result.push({ date: dateStr, ...(groups[dateStr] ?? emptyTotals()) });
+		result.push({ date: dateStr, ...roundTotals(groups[dateStr] ?? emptyTotals()) });
 		current.setUTCDate(current.getUTCDate() + 1);
 	}
 	return result;

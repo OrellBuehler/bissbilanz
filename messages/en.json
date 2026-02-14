@@ -169,6 +169,7 @@
   "charts_custom": "Custom",
   "charts_start_date": "Start",
   "charts_end_date": "End",
+  "charts_no_data": "No data for this period",
 
   "error_unauthorized": "Unauthorized",
   "error_missing_date": "Missing date",
