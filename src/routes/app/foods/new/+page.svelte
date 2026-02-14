@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -31,7 +32,7 @@
 	}
 
 	$effect(() => {
-		if (barcode) {
+		if (browser && barcode) {
 			fetchFromOFF(barcode);
 		}
 	});

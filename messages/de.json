@@ -50,8 +50,13 @@
   "foods_title": "Lebensmittel",
   "foods_search_placeholder": "Lebensmittel suchen",
   "foods_new": "Neues Lebensmittel",
+  "foods_new_description": "Neues Lebensmittel zur Datenbank hinzufügen",
   "foods_edit": "Bearbeiten",
   "foods_delete": "Löschen",
+  "foods_per_serving": "pro Portion",
+  "foods_kcal": "kcal",
+  "foods_empty": "Noch keine Lebensmittel. Füge dein erstes hinzu!",
+  "foods_no_results": "Keine Lebensmittel gefunden.",
 
   "food_form_name": "Name",
   "food_form_brand": "Marke",

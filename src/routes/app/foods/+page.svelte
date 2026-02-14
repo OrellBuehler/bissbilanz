@@ -4,11 +4,15 @@
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
 	import * as m from '$lib/paraglide/messages';
 
-	let foods: Array<any> = [];
-	let query = '';
+	let foods: Array<any> = $state([]);
+	let query = $state('');
+	let showNewFood = $state(false);
 
 	const loadFoods = async () => {
 		const res = await fetch('/api/foods');
@@ -22,6 +26,7 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
 		});
+		showNewFood = false;
 		await loadFoods();
 	};
 
@@ -51,17 +56,35 @@
 	onMount(() => {
 		loadFoods();
 	});
+
+	const filtered = $derived(filterFoods(foods, query));
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6">
-	<Input placeholder={m.foods_search_placeholder()} bind:value={query} />
-	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} onEnrich={enrichFood} />
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.foods_new()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<FoodForm onSave={createFood} />
-		</Card.Content>
-	</Card.Root>
+<div class="mx-auto max-w-2xl space-y-4">
+	<!-- Header -->
+	<div class="flex items-center justify-between">
+		<h1 class="text-2xl font-bold">{m.foods_title()}</h1>
+		<Button size="sm" onclick={() => (showNewFood = true)}>
+			<Plus class="mr-1.5 size-4" />
+			{m.foods_new()}
+		</Button>
+	</div>
+
+	<!-- Search -->
+	<div class="relative">
+		<Search class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+		<Input class="pl-9" placeholder={m.foods_search_placeholder()} bind:value={query} />
+	</div>
+
+	<!-- Food list -->
+	{#if query && filtered.length === 0}
+		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
+	{:else}
+		<FoodList foods={filtered} onEdit={() => {}} onDelete={deleteFood} onEnrich={enrichFood} />
+	{/if}
 </div>
+
+<!-- New food modal -->
+<ResponsiveModal bind:open={showNewFood} title={m.foods_new()} description={m.foods_new_description()}>
+	<FoodForm onSave={createFood} />
+</ResponsiveModal>

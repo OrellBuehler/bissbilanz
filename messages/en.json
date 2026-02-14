@@ -50,8 +50,13 @@
   "foods_title": "Foods",
   "foods_search_placeholder": "Search foods",
   "foods_new": "New Food",
+  "foods_new_description": "Add a new food to your database",
   "foods_edit": "Edit",
   "foods_delete": "Delete",
+  "foods_per_serving": "per serving",
+  "foods_kcal": "kcal",
+  "foods_empty": "No foods yet. Add your first food!",
+  "foods_no_results": "No foods match your search.",
 
   "food_form_name": "Name",
   "food_form_brand": "Brand",

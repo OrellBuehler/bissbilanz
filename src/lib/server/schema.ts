@@ -15,9 +15,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-import { servingUnitValues } from '$lib/units';
-export type { ServingUnit } from '$lib/units';
-export { servingUnitValues } from '$lib/units';
+import { servingUnitValues } from '../units';
+export type { ServingUnit } from '../units';
+export { servingUnitValues } from '../units';
 export const servingUnitEnum = pgEnum('serving_unit', servingUnitValues);
 
 // Users (from Infomaniak OIDC)
@@ -75,7 +75,7 @@ export const foods = pgTable(
 		vitaminC: real('vitamin_c'),
 		calcium: real('calcium'),
 		iron: real('iron'),
-		barcode: text('barcode').unique(),
+		barcode: text('barcode'),
 		isFavorite: boolean('is_favorite').notNull().default(false),
 		// Open Food Facts quality data
 		nutriScore: text('nutri_score'),
@@ -88,7 +88,7 @@ export const foods = pgTable(
 	},
 	(table) => [
 		index('idx_foods_user_id').on(table.userId),
-		index('idx_foods_barcode').on(table.barcode),
+		uniqueIndex('idx_foods_barcode').on(table.barcode).where(sql`barcode IS NOT NULL`),
 		index('idx_foods_user_name').on(table.userId, table.name)
 	]
 );
