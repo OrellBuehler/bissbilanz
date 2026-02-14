@@ -16,7 +16,7 @@
   "dashboard_scan": "Scan",
   "dashboard_copy_yesterday": "Copy Yesterday",
   "dashboard_copying": "Copying...",
-  "dashboard_kcal": "{value} kcal",
+  "dashboard_kcal": "{value} / {goal} kcal",
 
   "meal_breakfast": "Breakfast",
   "meal_lunch": "Lunch",
@@ -91,6 +91,7 @@
 
   "recipes_title": "Recipes",
   "recipes_new": "New Recipe",
+  "recipes_new_description": "Create a new recipe with ingredients",
   "recipes_servings": "({count} servings)",
   "recipes_no_recipes": "No recipes yet",
 

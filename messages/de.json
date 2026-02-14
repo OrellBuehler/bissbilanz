@@ -16,7 +16,7 @@
   "dashboard_scan": "Scannen",
   "dashboard_copy_yesterday": "Gestern kopieren",
   "dashboard_copying": "Kopiere...",
-  "dashboard_kcal": "{value} kcal",
+  "dashboard_kcal": "{value} / {goal} kcal",
 
   "meal_breakfast": "Frühstück",
   "meal_lunch": "Mittagessen",
@@ -91,6 +91,7 @@
 
   "recipes_title": "Rezepte",
   "recipes_new": "Neues Rezept",
+  "recipes_new_description": "Neues Rezept mit Zutaten erstellen",
   "recipes_servings": "({count} Portionen)",
   "recipes_no_recipes": "Noch keine Rezepte",
 

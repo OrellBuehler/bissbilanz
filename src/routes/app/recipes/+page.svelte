@@ -3,11 +3,13 @@
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
+	import Plus from '@lucide/svelte/icons/plus';
 	import * as m from '$lib/paraglide/messages';
 
-	let foods: Array<{ id: string; name: string; servingUnit?: string }> = [];
-	let recipes: Array<{ id: string; name: string; totalServings: number }> = [];
-	let showForm = false;
+	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
+	let recipes: Array<{ id: string; name: string; totalServings: number }> = $state([]);
+	let showNewRecipe = $state(false);
 
 	const loadFoods = async () => {
 		const res = await fetch('/api/foods');
@@ -25,7 +27,7 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
 		});
-		showForm = false;
+		showNewRecipe = false;
 		await loadRecipes();
 	};
 
@@ -40,17 +42,17 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6">
+<div class="mx-auto max-w-2xl space-y-4">
+	<!-- Header -->
 	<div class="flex items-center justify-between">
-		{#if !showForm}
-			<Button onclick={() => (showForm = true)}>{m.recipes_new()}</Button>
-		{/if}
+		<h1 class="text-2xl font-bold">{m.recipes_title()}</h1>
+		<Button size="sm" onclick={() => (showNewRecipe = true)}>
+			<Plus class="mr-1.5 size-4" />
+			{m.recipes_new()}
+		</Button>
 	</div>
 
-	{#if showForm}
-		<RecipeForm {foods} onSave={createRecipe} onCancel={() => (showForm = false)} />
-	{/if}
-
+	<!-- Recipe list -->
 	<ul class="space-y-2">
 		{#each recipes as recipe}
 			<Card.Root class="flex items-center justify-between p-3">
@@ -67,3 +69,8 @@
 		{/each}
 	</ul>
 </div>
+
+<!-- New recipe modal -->
+<ResponsiveModal bind:open={showNewRecipe} title={m.recipes_new()} description={m.recipes_new_description()}>
+	<RecipeForm {foods} onSave={createRecipe} />
+</ResponsiveModal>

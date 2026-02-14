@@ -50,7 +50,7 @@
 		});
 		addModalOpen = false;
 		scannedFood = null;
-		await loadData();
+		await Promise.all([loadData(), loadWeeklyChart()]);
 	};
 
 	const updateEntry = async (payload: { id: string; servings: number; mealType: string }) => {
@@ -61,14 +61,14 @@
 		});
 		editModalOpen = false;
 		editingEntry = null;
-		await loadData();
+		await Promise.all([loadData(), loadWeeklyChart()]);
 	};
 
 	const deleteEntry = async (id: string) => {
 		await fetch(`/api/entries/${id}`, { method: 'DELETE' });
 		editModalOpen = false;
 		editingEntry = null;
-		await loadData();
+		await Promise.all([loadData(), loadWeeklyChart()]);
 	};
 
 	const openEditModal = (entry: {
@@ -87,7 +87,7 @@
 			await fetch(`/api/entries/copy?fromDate=${yesterday()}&toDate=${currentDate}`, {
 				method: 'POST'
 			});
-			await loadData();
+			await Promise.all([loadData(), loadWeeklyChart()]);
 		} finally {
 			copying = false;
 		}
@@ -137,8 +137,8 @@
 			</Button>
 		</div>
 	</div>
-	<div class={`text-lg ${progressColor(totals.calories, weeklyCalorieGoal ?? 2000)}`}>
-		{m.dashboard_kcal({ value: totals.calories })}
+	<div class={`text-lg font-medium ${progressColor(totals.calories, weeklyCalorieGoal ?? 2000)}`}>
+		{m.dashboard_kcal({ value: Math.round(totals.calories), goal: weeklyCalorieGoal ?? 2000 })}
 	</div>
 	{#if weeklyData.length > 0}
 		<Card.Root>
