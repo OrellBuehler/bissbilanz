@@ -1,5 +1,6 @@
 import {
 	pgTable,
+	pgEnum,
 	uuid,
 	text,
 	timestamp,
@@ -13,6 +14,11 @@ import {
 	check
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+
+import { servingUnitValues } from '$lib/units';
+export type { ServingUnit } from '$lib/units';
+export { servingUnitValues } from '$lib/units';
+export const servingUnitEnum = pgEnum('serving_unit', servingUnitValues);
 
 // Users (from Infomaniak OIDC)
 export const users = pgTable('users', {
@@ -54,7 +60,7 @@ export const foods = pgTable(
 		name: text('name').notNull(),
 		brand: text('brand'),
 		servingSize: real('serving_size').notNull(),
-		servingUnit: text('serving_unit').notNull(),
+		servingUnit: servingUnitEnum('serving_unit').notNull(),
 		calories: real('calories').notNull(),
 		protein: real('protein').notNull(),
 		carbs: real('carbs').notNull(),
@@ -155,7 +161,7 @@ export const recipeIngredients = pgTable(
 			.notNull()
 			.references(() => foods.id, { onDelete: 'cascade' }),
 		quantity: real('quantity').notNull(),
-		servingUnit: text('serving_unit').notNull(),
+		servingUnit: servingUnitEnum('serving_unit').notNull(),
 		sortOrder: integer('sort_order').notNull()
 	},
 	(table) => [
