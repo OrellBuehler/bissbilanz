@@ -33,3 +33,6 @@ uploads/
 
 # Paraglide generated
 src/lib/paraglide/
+
+# Playwright MCP
+.playwright-mcp/
