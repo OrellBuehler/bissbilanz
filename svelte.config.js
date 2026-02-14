@@ -5,7 +5,9 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({
+			precompress: true
+		}),
 		// Disable SvelteKit's built-in CSRF to allow cross-origin MCP/OAuth requests.
 		// MCP clients (Claude, OpenAI, etc.) connect from unpredictable origins.
 		// Manual CSRF origin checking is applied in hooks.server.ts for non-exempt routes.
