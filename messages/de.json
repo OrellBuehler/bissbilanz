@@ -194,5 +194,11 @@
   "error_copy_dates_required": "Von- oder Bis-Datum fehlt",
   "error_recipe_not_found": "Rezept nicht gefunden",
   "error_food_required": "Lebensmittel oder Rezept erforderlich",
-  "error_generic": "Ein Fehler ist aufgetreten"
+  "error_generic": "Ein Fehler ist aufgetreten",
+
+  "pwa_install_prompt": "Bissbilanz installieren für schnellen Zugriff",
+  "pwa_install": "Installieren",
+  "pwa_offline": "Du bist offline — Änderungen werden bei Verbindung synchronisiert",
+  "pwa_update_available": "Eine neue Version ist verfügbar",
+  "pwa_update_refresh": "Aktualisieren"
 }

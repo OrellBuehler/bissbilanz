@@ -194,5 +194,11 @@
   "error_copy_dates_required": "Missing from date or to date",
   "error_recipe_not_found": "Recipe not found",
   "error_food_required": "Food or recipe is required",
-  "error_generic": "An error occurred"
+  "error_generic": "An error occurred",
+
+  "pwa_install_prompt": "Install Bissbilanz for quick access",
+  "pwa_install": "Install",
+  "pwa_offline": "You're offline — changes will sync when reconnected",
+  "pwa_update_available": "A new version is available",
+  "pwa_update_refresh": "Refresh to update"
 }
