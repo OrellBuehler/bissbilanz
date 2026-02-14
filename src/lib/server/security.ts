@@ -5,7 +5,7 @@ export const assertSameOrigin = (origin: string | null, expected: string) => {
 
 export const securityHeaders = () => ({
 	'content-security-policy':
-		"default-src 'self'; img-src 'self' data: https://images.openfoodfacts.net https://images.openfoodfacts.org; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'",
+		"default-src 'self'; img-src 'self' data: https://images.openfoodfacts.net https://images.openfoodfacts.org; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://a.orellbuehler.ch",
 	'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
 	'x-content-type-options': 'nosniff',
 	'x-frame-options': 'DENY',
