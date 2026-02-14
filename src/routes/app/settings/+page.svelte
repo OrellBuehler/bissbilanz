@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -29,7 +30,9 @@
 		await loadMealTypes();
 	};
 
-	loadMealTypes();
+	onMount(() => {
+		loadMealTypes();
+	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6">

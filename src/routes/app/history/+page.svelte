@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Calendar from '$lib/components/history/Calendar.svelte';
 	import MacroSummary from '$lib/components/MacroSummary.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -43,7 +44,9 @@
 		goto(`/app/history/${date}`);
 	};
 
-	loadStats();
+	onMount(() => {
+		loadStats();
+	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import { filterFoods } from '$lib/components/foods/foodFilters';
@@ -47,7 +48,9 @@
 		await loadFoods();
 	};
 
-	loadFoods();
+	onMount(() => {
+		loadFoods();
+	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
