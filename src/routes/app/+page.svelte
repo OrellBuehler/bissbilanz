@@ -3,8 +3,10 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
+	import CalorieTrendChart from '$lib/components/charts/CalorieTrendChart.svelte';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { calculateDailyTotals } from '$lib/utils/nutrition';
+	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
 	import { today, yesterday } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
@@ -24,6 +26,8 @@
 	let copying = $state(false);
 	let scannedFood: any = $state(null);
 	let scannedBarcode = $state('');
+	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
+	let weeklyCalorieGoal: number | undefined = $state(undefined);
 
 	const currentDate = today();
 
@@ -103,7 +107,21 @@
 
 	const totals = $derived(calculateDailyTotals(entries));
 
-	onMount(() => loadData());
+	const loadWeeklyChart = async () => {
+		const endDate = today();
+		const startDate = new Date();
+		startDate.setDate(startDate.getDate() - 6);
+		const start = startDate.toISOString().slice(0, 10);
+		const res = await fetch(`/api/stats/daily?startDate=${start}&endDate=${endDate}`);
+		const json = await res.json();
+		weeklyData = json.data;
+		weeklyCalorieGoal = json.goals?.calorieGoal ?? undefined;
+	};
+
+	onMount(() => {
+		loadData();
+		loadWeeklyChart();
+	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
@@ -121,6 +139,18 @@
 	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>
 		{m.dashboard_kcal({ value: totals.calories })}
 	</div>
+	{#if weeklyData.length > 0}
+		<Card.Root>
+			<Card.Header class="pb-2">
+				<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<div class="h-[200px]">
+					<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
+				</div>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
 			<MealSection
