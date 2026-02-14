@@ -8,7 +8,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
 	import { progressColor } from '$lib/utils/progress';
-	import { today, yesterday } from '$lib/utils/dates';
+	import { today, yesterday, daysAgo } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -108,14 +108,15 @@
 	const totals = $derived(calculateDailyTotals(entries));
 
 	const loadWeeklyChart = async () => {
-		const endDate = today();
-		const startDate = new Date();
-		startDate.setDate(startDate.getDate() - 6);
-		const start = startDate.toISOString().slice(0, 10);
-		const res = await fetch(`/api/stats/daily?startDate=${start}&endDate=${endDate}`);
-		const json = await res.json();
-		weeklyData = json.data;
-		weeklyCalorieGoal = json.goals?.calorieGoal ?? undefined;
+		try {
+			const res = await fetch(`/api/stats/daily?startDate=${daysAgo(7)}&endDate=${today()}`);
+			if (!res.ok) return;
+			const json = await res.json();
+			weeklyData = json.data ?? [];
+			weeklyCalorieGoal = json.goals?.calorieGoal ?? undefined;
+		} catch {
+			// silently ignore chart load failures
+		}
 	};
 
 	onMount(() => {
@@ -136,7 +137,7 @@
 			</Button>
 		</div>
 	</div>
-	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>
+	<div class={`text-lg ${progressColor(totals.calories, weeklyCalorieGoal ?? 2000)}`}>
 		{m.dashboard_kcal({ value: totals.calories })}
 	</div>
 	{#if weeklyData.length > 0}

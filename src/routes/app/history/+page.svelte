@@ -7,7 +7,7 @@
 	import ChartRangeSelector from '$lib/components/charts/ChartRangeSelector.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
-	import { today } from '$lib/utils/dates';
+	import { today, daysAgo } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import * as m from '$lib/paraglide/messages';
 
@@ -35,8 +35,9 @@
 			const res = await fetch(
 				`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`
 			);
+			if (!res.ok) return;
 			const json = await res.json();
-			chartData = json.data;
+			chartData = json.data ?? [];
 			calorieGoal = json.goals?.calorieGoal ?? undefined;
 		} finally {
 			chartLoading = false;
@@ -45,12 +46,6 @@
 
 	const handleRangeChange = (start: string, end: string) => {
 		loadChartData(start, end);
-	};
-
-	const getDefaultStart = () => {
-		const d = new Date();
-		d.setDate(d.getDate() - 6);
-		return d.toISOString().slice(0, 10);
 	};
 
 	const prevMonth = () => {
@@ -77,7 +72,7 @@
 
 	onMount(() => {
 		loadStats();
-		loadChartData(getDefaultStart(), today());
+		loadChartData(daysAgo(7), today());
 	});
 </script>
 

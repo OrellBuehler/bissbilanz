@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { today } from '$lib/utils/dates';
+	import { today, daysAgo } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onRangeChange }: { onRangeChange: (start: string, end: string) => void } = $props();
@@ -9,23 +9,19 @@
 	let customStart = $state('');
 	let customEnd = $state('');
 
-	const getDaysAgo = (days: number) => {
-		const d = new Date();
-		d.setDate(d.getDate() - (days - 1));
-		return d.toISOString().slice(0, 10);
-	};
+	const maxDate = today();
 
 	const selectRange = (range: '7d' | '30d' | 'custom') => {
 		activeRange = range;
 		if (range === '7d') {
-			onRangeChange(getDaysAgo(7), today());
+			onRangeChange(daysAgo(7), today());
 		} else if (range === '30d') {
-			onRangeChange(getDaysAgo(30), today());
+			onRangeChange(daysAgo(30), today());
 		}
 	};
 
 	const applyCustomRange = () => {
-		if (customStart && customEnd) {
+		if (customStart && customEnd && customStart <= customEnd) {
 			onRangeChange(customStart, customEnd);
 		}
 	};
@@ -62,6 +58,7 @@
 				<input
 					type="date"
 					class="border-input bg-background ml-1 rounded border px-2 py-1 text-sm"
+					max={customEnd || maxDate}
 					bind:value={customStart}
 					onchange={applyCustomRange}
 				/>
@@ -71,6 +68,8 @@
 				<input
 					type="date"
 					class="border-input bg-background ml-1 rounded border px-2 py-1 text-sm"
+					min={customStart}
+					max={maxDate}
 					bind:value={customEnd}
 					onchange={applyCustomRange}
 				/>

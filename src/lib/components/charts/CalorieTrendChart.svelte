@@ -39,7 +39,9 @@
 					{
 						type: 'line' as const,
 						y: calorieGoal,
-						style: 'stroke-dasharray: 6 4; stroke: hsl(var(--muted-foreground)); stroke-width: 1.5;'
+						stroke: 'hsl(var(--muted-foreground))',
+						strokeWidth: 1.5,
+						'stroke-dasharray': '6 4'
 					}
 				]
 			: []

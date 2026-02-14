@@ -37,3 +37,5 @@ export const getMonthName = (month: number) =>
 	][month]();
 
 export const getDayOfWeek = (isoDate: string) => new Date(isoDate + 'T00:00:00Z').getUTCDay();
+
+export const daysAgo = (days: number) => shiftDate(today(), -(days - 1));
