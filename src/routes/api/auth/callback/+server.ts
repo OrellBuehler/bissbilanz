@@ -74,7 +74,7 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) =>
 	cookies.delete('oidc_verifier', { path: '/' });
 
 	// Get user info
-	const userInfoResponse = await fetch('https://login.infomaniak.com/userinfo', {
+	const userInfoResponse = await fetch('https://login.infomaniak.com/oauth2/userinfo', {
 		headers: {
 			Authorization: `Bearer ${tokens.access_token}`
 		}

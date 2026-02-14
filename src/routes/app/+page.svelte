@@ -9,6 +9,7 @@
 	import { today, yesterday } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -102,7 +103,7 @@
 
 	const totals = $derived(calculateDailyTotals(entries));
 
-	loadData();
+	onMount(() => loadData());
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
