@@ -1,6 +1,6 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import { migrate } from 'drizzle-orm/bun-sql/migrator';
+import { SQL } from 'bun';
 import { join } from 'node:path';
 import { config } from './env';
 import * as schema from './schema';
@@ -11,17 +11,8 @@ let db: Database | null = null;
 
 export function getDB(): Database {
 	if (!db) {
-		const client = postgres(config.database.url, {
-			max: config.database.poolMax,
-			idle_timeout: config.database.idleTimeoutSeconds,
-			connect_timeout: config.database.connectTimeoutSeconds,
-			max_lifetime: config.database.maxLifetimeSeconds,
-			connection: {
-				application_name: config.database.applicationName,
-				statement_timeout: config.database.statementTimeoutMs
-			}
-		});
-		db = drizzle(client, { schema });
+		const client = new SQL(config.database.url);
+		db = drizzle({ client, schema });
 	}
 	return db;
 }
