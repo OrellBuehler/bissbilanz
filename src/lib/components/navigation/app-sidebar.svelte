@@ -25,6 +25,22 @@
 	const userDisplay = $derived(user?.name || user?.email || '');
 </script>
 
+{#snippet userInfo()}
+	<Avatar.Root class="size-8 rounded-lg">
+		<Avatar.Fallback class="rounded-lg">
+			{userInitial}
+		</Avatar.Fallback>
+	</Avatar.Root>
+	<div class="grid flex-1 text-start text-sm leading-tight">
+		<span class="truncate font-medium">{userDisplay}</span>
+		{#if user?.name && user?.email}
+			<span class="text-muted-foreground truncate text-xs">
+				{user.email}
+			</span>
+		{/if}
+	</div>
+{/snippet}
+
 <Sidebar.Root collapsible="offcanvas" {...restProps}>
 	<Sidebar.Header>
 		<Sidebar.Menu>
@@ -74,19 +90,7 @@
 								size="lg"
 								class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 							>
-								<Avatar.Root class="size-8 rounded-lg">
-									<Avatar.Fallback class="rounded-lg">
-										{userInitial}
-									</Avatar.Fallback>
-								</Avatar.Root>
-								<div class="grid flex-1 text-start text-sm leading-tight">
-									<span class="truncate font-medium">{userDisplay}</span>
-									{#if user?.name && user?.email}
-										<span class="text-muted-foreground truncate text-xs">
-											{user.email}
-										</span>
-									{/if}
-								</div>
+								{@render userInfo()}
 								<ChevronsUpDown class="ms-auto size-4" />
 							</Sidebar.MenuButton>
 						{/snippet}
@@ -99,19 +103,7 @@
 					>
 						<DropdownMenu.Label class="p-0 font-normal">
 							<div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-								<Avatar.Root class="size-8 rounded-lg">
-									<Avatar.Fallback class="rounded-lg">
-										{userInitial}
-									</Avatar.Fallback>
-								</Avatar.Root>
-								<div class="grid flex-1 text-start text-sm leading-tight">
-									<span class="truncate font-medium">{userDisplay}</span>
-									{#if user?.name && user?.email}
-										<span class="text-muted-foreground truncate text-xs">
-											{user.email}
-										</span>
-									{/if}
-								</div>
+								{@render userInfo()}
 							</div>
 						</DropdownMenu.Label>
 						<DropdownMenu.Separator />
