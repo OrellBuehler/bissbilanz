@@ -50,8 +50,7 @@
 	loadFoods();
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-6">
-	<h1 class="text-2xl font-semibold">{m.foods_title()}</h1>
+<div class="mx-auto max-w-4xl space-y-6">
 	<Input placeholder={m.foods_search_placeholder()} bind:value={query} />
 	<FoodList foods={filterFoods(foods, query)} onEdit={() => {}} onDelete={deleteFood} onEnrich={enrichFood} />
 	<Card.Root>

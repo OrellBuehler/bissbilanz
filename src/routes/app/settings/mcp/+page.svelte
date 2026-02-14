@@ -37,9 +37,8 @@
 	<title>MCP Settings - Bissbilanz</title>
 </svelte:head>
 
-<div class="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
+<div class="max-w-3xl mx-auto space-y-6">
 	<div>
-		<h1 class="text-3xl font-bold">MCP Integration</h1>
 		<p class="text-muted-foreground mt-1">
 			Configure Model Context Protocol access for Claude and other AI assistants
 		</p>

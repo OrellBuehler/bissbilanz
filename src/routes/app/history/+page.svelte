@@ -46,8 +46,7 @@
 	loadStats();
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-6">
-	<h1 class="text-2xl font-semibold">{m.history_title()}</h1>
+<div class="mx-auto max-w-4xl space-y-6">
 
 	<div class="grid gap-6 md:grid-cols-2">
 		<div>

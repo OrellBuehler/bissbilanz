@@ -106,9 +106,9 @@
 	onMount(() => loadData());
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-6">
+<div class="mx-auto max-w-4xl space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">{m.dashboard_today()}</h1>
+		<h2 class="text-2xl font-semibold">{m.dashboard_today()}</h2>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
 				{m.dashboard_scan()}

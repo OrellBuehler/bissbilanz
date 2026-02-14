@@ -81,9 +81,8 @@
 	};
 </script>
 
-<div class="mx-auto max-w-lg space-y-6 p-6">
-	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">New Food</h1>
+<div class="mx-auto max-w-lg space-y-6">
+	<div class="flex items-center justify-end">
 		<a href="/app/foods" class="rounded border px-3 py-1 text-sm">Cancel</a>
 	</div>
 

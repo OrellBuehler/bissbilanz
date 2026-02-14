@@ -25,9 +25,9 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-6">
+<div class="mx-auto max-w-4xl space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">{date}</h1>
+		<h2 class="text-2xl font-semibold">{date}</h2>
 		<a href="/app/history" class="rounded border px-3 py-1 text-sm">{m.history_back()}</a>
 	</div>
 
