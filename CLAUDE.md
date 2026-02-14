@@ -224,6 +224,9 @@ See `docs/plans/` for detailed implementation plans.
 
 ## Code Conventions
 
+### General
+- **Always use `bun` and `bunx`** instead of `npm` and `npx`
+
 ### TypeScript
 - Use strict type checking
 - Prefer `type` over `interface` for object shapes
