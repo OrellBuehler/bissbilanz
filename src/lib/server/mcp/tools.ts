@@ -5,7 +5,9 @@ export const toolNames = [
 	'create-food',
 	'create-recipe',
 	'log-food',
-	'search-foods'
+	'search-foods',
+	'get-supplement-status',
+	'log-supplement'
 ] as const;
 
 export const createFoodInput = z.object({
@@ -43,3 +45,9 @@ export const logFoodInput = z.object({
 });
 
 export const searchFoodsInput = z.object({ query: z.string() });
+
+export const logSupplementInput = z.object({
+	name: z.string().optional(),
+	supplementId: z.string().optional(),
+	date: z.string().optional()
+});
