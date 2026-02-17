@@ -29,7 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can open Settings and toggle visibility of each dashboard widget (favorites, supplements, weight), with the choice persisting across devices and sessions
   4. User can set their preferred start page (dashboard or favorites) in settings, and the PWA opens to that page on launch
   5. Route guard no longer rejects URLs containing fr or it locale segments
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Schema, preferences API, and route guard cleanup
+- [ ] 01-02-PLAN.md — Breadcrumb fix and auth callback locale persistence
+- [ ] 01-03-PLAN.md — Settings page UI, language switcher, and PWA start page
 
 ### Phase 2: Favorites
 **Goal**: Users can mark foods and recipes as favorites, view them as visual cards, and tap to instantly log a serving to the current meal
@@ -74,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/? | Not started | - |
+| 1. Foundation | 0/3 | Planning complete | - |
 | 2. Favorites | 0/? | Not started | - |
 | 3. Weight Tracking | 0/? | Not started | - |
 | 4. Supplement Polish | 0/? | Not started | - |
