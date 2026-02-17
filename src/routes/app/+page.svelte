@@ -13,6 +13,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/utils/api';
+	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -29,6 +30,7 @@
 	let scannedBarcode = $state('');
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
+	let supplementChecklist: Array<any> = $state([]);
 
 	const currentDate = today();
 
@@ -120,13 +122,40 @@
 		}
 	};
 
+	const loadSupplements = async () => {
+		try {
+			const res = await fetch('/api/supplements/today');
+			if (res.ok) {
+				supplementChecklist = (await res.json()).checklist;
+			}
+		} catch {
+			// silently ignore
+		}
+	};
+
+	const toggleSupplement = async (supplementId: string, taken: boolean) => {
+		if (taken) {
+			await fetch(`/api/supplements/${supplementId}/log`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: '{}'
+			});
+		} else {
+			const currentDate = today();
+			await fetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
+		}
+		await loadSupplements();
+	};
+
 	onMount(() => {
 		loadData();
 		loadWeeklyChart();
+		loadSupplements();
 
 		const onSynced = () => {
 			loadData();
 			loadWeeklyChart();
+			loadSupplements();
 		};
 		window.addEventListener('queue-synced', onSynced);
 		return () => window.removeEventListener('queue-synced', onSynced);
@@ -159,6 +188,9 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
+	{/if}
+	{#if supplementChecklist.length > 0}
+		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 	{/if}
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
