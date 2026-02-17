@@ -49,6 +49,7 @@
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.10.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
+		"@rodrigodagostino/svelte-sortable-list": "^2.1.10",
 		"bcrypt": "^6.0.0",
 		"drizzle-orm": "^0.45.1",
 		"html5-qrcode": "^2.3.8",
