@@ -32,6 +32,7 @@ export const users = pgTable('users', {
 	email: text('email'),
 	name: text('name'),
 	avatarUrl: text('avatar_url'),
+	locale: text('locale').default('en'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
@@ -135,6 +136,22 @@ export const userGoals = pgTable('user_goals', {
 	// Advanced nutrient goals (optional)
 	sodiumGoal: real('sodium_goal'),
 	sugarGoal: real('sugar_goal'),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+});
+
+// User Preferences
+export const userPreferences = pgTable('user_preferences', {
+	userId: uuid('user_id')
+		.primaryKey()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
+	showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
+	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
+	widgetOrder: text('widget_order')
+		.array()
+		.notNull()
+		.default(sql`ARRAY['favorites', 'supplements', 'weight']::text[]`),
+	startPage: text('start_page').notNull().default('dashboard'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
@@ -364,3 +381,5 @@ export type OAuthToken = typeof oauthTokens.$inferSelect;
 export type NewOAuthToken = typeof oauthTokens.$inferInsert;
 export type OAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
 export type NewOAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferInsert;
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type NewUserPreference = typeof userPreferences.$inferInsert;

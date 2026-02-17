@@ -11,6 +11,7 @@ export const TEST_USER: User = {
 	email: 'test@example.com',
 	name: 'Test User',
 	avatarUrl: null,
+	locale: 'en',
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
@@ -21,6 +22,7 @@ export const TEST_USER_2: User = {
 	email: 'other@example.com',
 	name: 'Other User',
 	avatarUrl: null,
+	locale: 'en',
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
