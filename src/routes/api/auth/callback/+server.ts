@@ -6,6 +6,7 @@ import { createSession } from '$lib/server/session';
 import { assertState } from '$lib/server/oidc-validate';
 import { verifyIdToken } from '$lib/server/oidc-jwt';
 import { rateLimit } from '$lib/server/rate-limit';
+import { extractLocaleFromHeader, isLocale } from '$lib/paraglide/runtime';
 import type { RequestHandler } from './$types';
 
 interface TokenResponse {
@@ -23,7 +24,7 @@ interface UserInfo {
 	picture?: string;
 }
 
-export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) => {
+export const GET: RequestHandler = async ({ url, cookies, getClientAddress, request }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const expectedState = cookies.get('oidc_state');
@@ -91,13 +92,18 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) =>
 	let [user] = await db.select().from(users).where(eq(users.infomaniakSub, userInfo.sub));
 
 	if (!user) {
+		// Detect browser language for new users
+		const browserLocale = extractLocaleFromHeader(request);
+		const detectedLocale = isLocale(browserLocale) ? browserLocale : 'en';
+
 		[user] = await db
 			.insert(users)
 			.values({
 				infomaniakSub: userInfo.sub,
 				email: userInfo.email || null,
 				name: userInfo.name || null,
-				avatarUrl: userInfo.picture || null
+				avatarUrl: userInfo.picture || null,
+				locale: detectedLocale
 			})
 			.returning();
 	} else {
@@ -123,6 +129,15 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress }) =>
 		secure: config.infomaniak.redirectUri.startsWith('https'),
 		sameSite: 'lax',
 		maxAge: 60 * 60 * 24 * 7 // 7 days
+	});
+
+	// Restore language preference via Paraglide locale cookie
+	cookies.set('PARAGLIDE_LOCALE', user.locale || 'en', {
+		path: '/',
+		maxAge: 34560000, // ~400 days, matches Paraglide's cookieMaxAge
+		httpOnly: false, // Paraglide reads this client-side
+		secure: config.infomaniak.redirectUri.startsWith('https'),
+		sameSite: 'lax'
 	});
 
 	throw redirect(302, '/app');
