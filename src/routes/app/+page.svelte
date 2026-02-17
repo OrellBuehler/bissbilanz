@@ -31,6 +31,7 @@
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
 	let supplementChecklist: Array<any> = $state([]);
+	let ready = $state(false);
 
 	const currentDate = today();
 
@@ -147,10 +148,30 @@
 		await loadSupplements();
 	};
 
-	onMount(() => {
+	const checkStartPage = async () => {
+		// Check start page preference -- redirect if needed (PWA launch)
+		try {
+			const res = await fetch('/api/preferences');
+			if (res.ok) {
+				const { preferences } = await res.json();
+				if (preferences.startPage === 'favorites') {
+					// TODO: Change to /app/favorites when favorites page is built (Phase 2)
+					goto('/app/foods', { replaceState: true });
+					return; // Don't load dashboard data
+				}
+			}
+		} catch {
+			// Silently ignore -- show dashboard as fallback
+		}
+		ready = true;
+
 		loadData();
 		loadWeeklyChart();
 		loadSupplements();
+	};
+
+	onMount(() => {
+		checkStartPage();
 
 		const onSynced = () => {
 			loadData();
@@ -162,6 +183,7 @@
 	});
 </script>
 
+{#if ready}
 <div class="mx-auto max-w-4xl space-y-6">
 	<div class="flex items-center justify-between">
 		<h2 class="text-2xl font-semibold">{m.dashboard_today()}</h2>
@@ -232,3 +254,4 @@
 		onBarcode={handleBarcodeScan}
 	/>
 </div>
+{/if}
