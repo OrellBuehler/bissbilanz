@@ -4,6 +4,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as m from '$lib/paraglide/messages';
+	import { deLocalizeHref } from '$lib/paraglide/runtime';
 
 	const labelMap: Record<string, () => string> = {
 		app: () => m.nav_dashboard(),
@@ -17,7 +18,7 @@
 	};
 
 	const breadcrumbs = $derived.by(() => {
-		const pathname = $page.url.pathname;
+		const pathname = deLocalizeHref($page.url.pathname);
 		const segments = pathname.split('/').filter(Boolean);
 		// segments: ['app'] or ['app', 'foods'] or ['app', 'foods', 'new'] etc.
 		const crumbs: Array<{ label: string; href: string }> = [];
