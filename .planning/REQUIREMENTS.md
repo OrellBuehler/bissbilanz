@@ -1,0 +1,141 @@
+# Requirements: Bissbilanz
+
+**Defined:** 2026-02-17
+**Core Value:** Users can quickly and accurately log what they eat each day and see their nutrition at a glance
+
+## v1 Requirements
+
+Requirements for this milestone. Each maps to roadmap phases.
+
+### Breadcrumb & Language
+
+- [ ] **LANG-01**: Breadcrumb navigation strips locale prefix and always shows dashboard as first crumb
+- [ ] **LANG-02**: User language preference persists to database (locale column on users table)
+- [ ] **LANG-03**: Language preference restores on login via PARAGLIDE_LOCALE cookie
+- [ ] **LANG-04**: LanguageSwitcher saves locale to user account on change
+- [ ] **LANG-05**: Stale fr/it locale checks removed from route guard in hooks.server.ts
+
+### Preferences Foundation
+
+- [ ] **PREF-01**: User preferences table stores per-user settings (widget visibility, tap action, start page)
+- [ ] **PREF-02**: Preferences API endpoint (GET + PATCH) with Zod validation
+- [ ] **PREF-03**: Settings page shows preferences controls for all dashboard widgets
+- [ ] **PREF-04**: User can configure start page (dashboard or favorites) in settings
+- [ ] **PREF-05**: PWA opens to user's configured start page
+
+### Favorites
+
+- [ ] **FAV-01**: User can mark foods as favorite (toggle isFavorite flag)
+- [ ] **FAV-02**: User can mark recipes as favorite (isFavorite + imageUrl columns on recipes)
+- [ ] **FAV-03**: Dedicated favorites page shows all favorites as visual image cards with nutrition info
+- [ ] **FAV-04**: Favorites ranked by log count (most-used items surface first)
+- [ ] **FAV-05**: Tap-to-log: configurable instant log (1 serving to current meal) or choose-servings picker
+- [ ] **FAV-06**: Dashboard favorites widget shows top 5 favorites with tap-to-log (hideable in settings)
+- [ ] **FAV-07**: Image upload for recipes via sharp server-side resize to 400px webp
+- [ ] **FAV-08**: FavoriteCard component reused across favorites page, dashboard widget, and AddFoodModal
+- [ ] **FAV-09**: Toast notification with undo action after logging from favorites
+
+### Supplement Tracking
+
+- [ ] **SUPP-01**: User can view today's supplement checklist and check off each supplement as taken
+- [ ] **SUPP-02**: Supplements have time-of-day scheduling (morning, noon, evening, or custom)
+- [ ] **SUPP-03**: User can view supplement adherence history (past days' completion)
+- [ ] **SUPP-04**: Dashboard supplement widget shows today's checklist (hideable in settings)
+- [ ] **SUPP-05**: Supplement check-off persists to supplement_logs table with timestamp
+
+### Weight Tracking
+
+- [ ] **WGHT-01**: User can log body weight at any time (stores timestamp, not just date)
+- [ ] **WGHT-02**: Weight stored in kg (single unit, no conversion)
+- [ ] **WGHT-03**: User can view weight history as a list with edit/delete
+- [ ] **WGHT-04**: Line chart shows weight over time with selectable range (7d, 30d, 90d, all)
+- [ ] **WGHT-05**: Smoothed trend line (7-day moving average) overlaid on weight chart
+- [ ] **WGHT-06**: Dashboard weight widget shows latest weight entry (hideable in settings)
+- [ ] **WGHT-07**: Dedicated weight page at /app/weight with chart, history, and log form
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Supplements
+
+- **SUPP-V2-01**: Supplement adherence streaks (N-day completion streaks)
+- **SUPP-V2-02**: PWA push notifications for supplement reminders
+- **SUPP-V2-03**: Weekly/monthly adherence heatmap or calendar view
+
+### Weight
+
+- **WGHT-V2-01**: Unit selection (kg/lbs) with user preference
+- **WGHT-V2-02**: Goal weight line overlaid on chart
+- **WGHT-V2-03**: Rate of change display (e.g., "−0.3 kg/week")
+- **WGHT-V2-04**: BMI calculation (requires height in user profile)
+
+### Favorites
+
+- **FAV-V2-01**: Favorites surfaced in AddFoodModal search flow (above regular results)
+- **FAV-V2-02**: Saved serving size with favorite (instant log uses saved amount)
+- **FAV-V2-03**: Manual reordering of favorites
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Drug interaction warnings | Medical liability; requires pharmaceutical database |
+| Supplement-to-nutrient mapping | Major scope expansion; requires micronutrient database |
+| Supplement barcode scanning | High complexity, most supplements not in food databases |
+| Body composition analysis | Requires hardware sensors; pseudoscience without them |
+| Calorie adjustment from weight trend | Algorithm complexity; MacroFactor's core IP |
+| Social weight sharing | Privacy-sensitive; body weight is not social content |
+| Multiple body measurements | Scope creep; weight alone covers 90% of need |
+| Wearable sync (Apple Health, etc.) | Major platform integration; separate milestone |
+| Algorithmic smart favorites | Unpredictable; users want control over favorites list |
+| Favorite meals (log multiple items) | Separate "meals" concept; high complexity |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| LANG-01 | — | Pending |
+| LANG-02 | — | Pending |
+| LANG-03 | — | Pending |
+| LANG-04 | — | Pending |
+| LANG-05 | — | Pending |
+| PREF-01 | — | Pending |
+| PREF-02 | — | Pending |
+| PREF-03 | — | Pending |
+| PREF-04 | — | Pending |
+| PREF-05 | — | Pending |
+| FAV-01 | — | Pending |
+| FAV-02 | — | Pending |
+| FAV-03 | — | Pending |
+| FAV-04 | — | Pending |
+| FAV-05 | — | Pending |
+| FAV-06 | — | Pending |
+| FAV-07 | — | Pending |
+| FAV-08 | — | Pending |
+| FAV-09 | — | Pending |
+| SUPP-01 | — | Pending |
+| SUPP-02 | — | Pending |
+| SUPP-03 | — | Pending |
+| SUPP-04 | — | Pending |
+| SUPP-05 | — | Pending |
+| WGHT-01 | — | Pending |
+| WGHT-02 | — | Pending |
+| WGHT-03 | — | Pending |
+| WGHT-04 | — | Pending |
+| WGHT-05 | — | Pending |
+| WGHT-06 | — | Pending |
+| WGHT-07 | — | Pending |
+
+**Coverage:**
+- v1 requirements: 31 total
+- Mapped to phases: 0
+- Unmapped: 31 ⚠️
+
+---
+*Requirements defined: 2026-02-17*
+*Last updated: 2026-02-17 after initial definition*
