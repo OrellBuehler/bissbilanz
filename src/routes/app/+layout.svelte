@@ -1,16 +1,23 @@
 <script lang="ts">
 	import { setUser } from '$lib/stores/auth.svelte';
+	import { startSyncListener } from '$lib/stores/sync';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/pwa/OfflineIndicator.svelte';
+	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
+	import { onMount } from 'svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
 	$effect(() => {
 		setUser(data.user);
+	});
+
+	onMount(() => {
+		startSyncListener();
 	});
 </script>
 
@@ -29,3 +36,4 @@
 		</div>
 	</Sidebar.Inset>
 </Sidebar.Provider>
+<UpdateToast />

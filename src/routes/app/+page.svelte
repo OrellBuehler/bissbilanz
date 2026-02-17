@@ -12,6 +12,7 @@
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -43,7 +44,7 @@
 	};
 
 	const addEntry = async (payload: any) => {
-		await fetch('/api/entries', {
+		await apiFetch('/api/entries', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ...payload, date: currentDate })
@@ -54,7 +55,7 @@
 	};
 
 	const updateEntry = async (payload: { id: string; servings: number; mealType: string }) => {
-		await fetch(`/api/entries/${payload.id}`, {
+		await apiFetch(`/api/entries/${payload.id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ servings: payload.servings, mealType: payload.mealType })
@@ -65,7 +66,7 @@
 	};
 
 	const deleteEntry = async (id: string) => {
-		await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+		await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
 		editModalOpen = false;
 		editingEntry = null;
 		await Promise.all([loadData(), loadWeeklyChart()]);
@@ -84,7 +85,7 @@
 	const copyYesterday = async () => {
 		copying = true;
 		try {
-			await fetch(`/api/entries/copy?fromDate=${yesterday()}&toDate=${currentDate}`, {
+			await apiFetch(`/api/entries/copy?fromDate=${yesterday()}&toDate=${currentDate}`, {
 				method: 'POST'
 			});
 			await Promise.all([loadData(), loadWeeklyChart()]);
