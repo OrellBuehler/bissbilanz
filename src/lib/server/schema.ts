@@ -20,6 +20,11 @@ export type { ServingUnit } from '../units';
 export { servingUnitValues } from '../units';
 export const servingUnitEnum = pgEnum('serving_unit', servingUnitValues);
 
+import { scheduleTypeValues } from '../supplement-units';
+export type { ScheduleType } from '../supplement-units';
+export { scheduleTypeValues } from '../supplement-units';
+export const scheduleTypeEnum = pgEnum('schedule_type', scheduleTypeValues);
+
 // Users (from Infomaniak OIDC)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -185,6 +190,53 @@ export const customMealTypes = pgTable(
 	(table) => [index('idx_custom_meal_types_user_id').on(table.userId)]
 );
 
+// Supplements
+export const supplements = pgTable(
+	'supplements',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		dosage: real('dosage').notNull(),
+		dosageUnit: text('dosage_unit').notNull(),
+		scheduleType: scheduleTypeEnum('schedule_type').notNull(),
+		scheduleDays: integer('schedule_days').array(),
+		scheduleStartDate: date('schedule_start_date'),
+		isActive: boolean('is_active').notNull().default(true),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_supplements_user_id').on(table.userId),
+		index('idx_supplements_user_active').on(table.userId, table.isActive)
+	]
+);
+
+// Supplement Logs
+export const supplementLogs = pgTable(
+	'supplement_logs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		supplementId: uuid('supplement_id')
+			.notNull()
+			.references(() => supplements.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		date: date('date').notNull(),
+		takenAt: timestamp('taken_at', { withTimezone: true }).notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		uniqueIndex('idx_supplement_logs_unique').on(table.supplementId, table.date),
+		index('idx_supplement_logs_user_date').on(table.userId, table.date),
+		index('idx_supplement_logs_supplement_id').on(table.supplementId)
+	]
+);
+
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(
 	'oauth_clients',
@@ -300,6 +352,10 @@ export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type NewRecipeIngredient = typeof recipeIngredients.$inferInsert;
 export type CustomMealType = typeof customMealTypes.$inferSelect;
 export type NewCustomMealType = typeof customMealTypes.$inferInsert;
+export type Supplement = typeof supplements.$inferSelect;
+export type NewSupplement = typeof supplements.$inferInsert;
+export type SupplementLog = typeof supplementLogs.$inferSelect;
+export type NewSupplementLog = typeof supplementLogs.$inferInsert;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type NewOAuthClient = typeof oauthClients.$inferInsert;
 export type OAuthAuthorization = typeof oauthAuthorizations.$inferSelect;
