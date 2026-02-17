@@ -17,7 +17,9 @@
 	});
 
 	onMount(() => {
-		startSyncListener();
+		startSyncListener(() => {
+			window.dispatchEvent(new CustomEvent('queue-synced'));
+		});
 	});
 </script>
 

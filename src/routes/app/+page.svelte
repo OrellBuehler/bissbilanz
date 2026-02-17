@@ -123,6 +123,13 @@
 	onMount(() => {
 		loadData();
 		loadWeeklyChart();
+
+		const onSynced = () => {
+			loadData();
+			loadWeeklyChart();
+		};
+		window.addEventListener('queue-synced', onSynced);
+		return () => window.removeEventListener('queue-synced', onSynced);
 	});
 </script>
 

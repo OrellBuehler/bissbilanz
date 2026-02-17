@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import { drainQueue, removeFromQueue } from '$lib/stores/offline-queue';
 
 let syncing = false;
+let listenerStarted = false;
 
 export async function syncQueue(): Promise<number> {
 	if (!browser || syncing || !navigator.onLine) return 0;
@@ -31,7 +32,11 @@ export async function syncQueue(): Promise<number> {
 	return synced;
 }
 
-export function startSyncListener(): void {
-	if (!browser) return;
-	window.addEventListener('online', () => syncQueue());
+export function startSyncListener(onSynced?: () => void): void {
+	if (!browser || listenerStarted) return;
+	listenerStarted = true;
+	window.addEventListener('online', async () => {
+		const count = await syncQueue();
+		if (count > 0 && onSynced) onSynced();
+	});
 }
