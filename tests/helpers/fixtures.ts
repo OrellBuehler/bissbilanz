@@ -217,6 +217,31 @@ export const TEST_OAUTH_TOKEN = {
 	createdAt: new Date('2026-02-10T00:00:00Z')
 };
 
+// Test supplement
+export const TEST_SUPPLEMENT = {
+	id: '10000000-0000-4000-8000-000000000060',
+	userId: TEST_USER.id,
+	name: 'Vitamin D3',
+	dosage: 1000,
+	dosageUnit: 'IU',
+	scheduleType: 'daily' as const,
+	scheduleDays: null,
+	scheduleStartDate: '2026-02-01',
+	isActive: true,
+	sortOrder: 0,
+	createdAt: new Date('2026-01-01T00:00:00Z'),
+	updatedAt: new Date('2026-01-01T00:00:00Z')
+};
+
+export const TEST_SUPPLEMENT_LOG = {
+	id: '10000000-0000-4000-8000-000000000061',
+	supplementId: TEST_SUPPLEMENT.id,
+	userId: TEST_USER.id,
+	date: '2026-02-17',
+	takenAt: new Date('2026-02-17T08:00:00Z'),
+	createdAt: new Date('2026-02-17T08:00:00Z')
+};
+
 // Valid payloads for POST requests
 export const VALID_FOOD_PAYLOAD = {
 	name: 'Oats',
@@ -261,6 +286,13 @@ export const VALID_GOALS_PAYLOAD = {
 export const VALID_MEAL_TYPE_PAYLOAD = {
 	name: 'Pre-Workout',
 	sortOrder: 10
+};
+
+export const VALID_SUPPLEMENT_PAYLOAD = {
+	name: 'Vitamin D3',
+	dosage: 1000,
+	dosageUnit: 'IU',
+	scheduleType: 'daily'
 };
 
 export const VALID_OAUTH_CLIENT_PAYLOAD = {
