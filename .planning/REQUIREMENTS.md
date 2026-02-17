@@ -9,9 +9,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Breadcrumb & Language
 
-- [ ] **LANG-01**: Breadcrumb navigation strips locale prefix and always shows dashboard as first crumb
+- [x] **LANG-01**: Breadcrumb navigation strips locale prefix and always shows dashboard as first crumb
 - [ ] **LANG-02**: User language preference persists to database (locale column on users table)
-- [ ] **LANG-03**: Language preference restores on login via PARAGLIDE_LOCALE cookie
+- [x] **LANG-03**: Language preference restores on login via PARAGLIDE_LOCALE cookie
 - [ ] **LANG-04**: LanguageSwitcher saves locale to user account on change
 - [ ] **LANG-05**: Stale fr/it locale checks removed from route guard in hooks.server.ts
 
@@ -99,9 +99,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LANG-01 | Phase 1 | Pending |
+| LANG-01 | Phase 1 | Complete |
 | LANG-02 | Phase 1 | Pending |
-| LANG-03 | Phase 1 | Pending |
+| LANG-03 | Phase 1 | Complete |
 | LANG-04 | Phase 1 | Pending |
 | LANG-05 | Phase 1 | Pending |
 | PREF-01 | Phase 1 | Pending |
