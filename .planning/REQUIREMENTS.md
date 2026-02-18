@@ -25,13 +25,13 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Favorites
 
-- [ ] **FAV-01**: User can mark foods as favorite (toggle isFavorite flag)
-- [ ] **FAV-02**: User can mark recipes as favorite (isFavorite + imageUrl columns on recipes)
+- [x] **FAV-01**: User can mark foods as favorite (toggle isFavorite flag)
+- [x] **FAV-02**: User can mark recipes as favorite (isFavorite + imageUrl columns on recipes)
 - [ ] **FAV-03**: Dedicated favorites page shows all favorites as visual image cards with nutrition info
-- [ ] **FAV-04**: Favorites ranked by log count (most-used items surface first)
+- [x] **FAV-04**: Favorites ranked by log count (most-used items surface first)
 - [ ] **FAV-05**: Tap-to-log: configurable instant log (1 serving to current meal) or choose-servings picker
 - [ ] **FAV-06**: Dashboard favorites widget shows top 5 favorites with tap-to-log (hideable in settings)
-- [ ] **FAV-07**: Image upload for recipes via sharp server-side resize to 400px webp
+- [x] **FAV-07**: Image upload for recipes via sharp server-side resize to 400px webp
 - [ ] **FAV-08**: FavoriteCard component reused across favorites page, dashboard widget, and AddFoodModal
 - [ ] **FAV-09**: Toast notification with undo action after logging from favorites
 
@@ -109,13 +109,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-03 | Phase 1 | Complete |
 | PREF-04 | Phase 1 | Complete |
 | PREF-05 | Phase 1 | Complete |
-| FAV-01 | Phase 2 | Pending |
-| FAV-02 | Phase 2 | Pending |
+| FAV-01 | Phase 2 | Complete |
+| FAV-02 | Phase 2 | Complete |
 | FAV-03 | Phase 2 | Pending |
-| FAV-04 | Phase 2 | Pending |
+| FAV-04 | Phase 2 | Complete |
 | FAV-05 | Phase 2 | Pending |
 | FAV-06 | Phase 2 | Pending |
-| FAV-07 | Phase 2 | Pending |
+| FAV-07 | Phase 2 | Complete |
 | FAV-08 | Phase 2 | Pending |
 | FAV-09 | Phase 2 | Pending |
 | SUPP-01 | Phase 4 | Pending |
