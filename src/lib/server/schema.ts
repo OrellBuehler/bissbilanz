@@ -152,6 +152,7 @@ export const userPreferences = pgTable('user_preferences', {
 		.notNull()
 		.default(sql`ARRAY['favorites', 'supplements', 'weight']::text[]`),
 	startPage: text('start_page').notNull().default('dashboard'),
+	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
@@ -165,6 +166,8 @@ export const recipes = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		totalServings: real('total_servings').notNull(),
+		isFavorite: boolean('is_favorite').notNull().default(false),
+		imageUrl: text('image_url'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
