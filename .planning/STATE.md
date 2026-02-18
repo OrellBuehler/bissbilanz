@@ -9,29 +9,29 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-17 — Completed 01-02-PLAN.md (i18n breadcrumb fix and locale persistence)
+Phase: 1 of 4 (Foundation) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-02-18 — Completed 01-03-PLAN.md (settings UI and start page redirect)
 
-Progress: [██████░░░░] 67% (2/3 plans in Phase 1)
+Progress: [██████████] 100% (3/3 plans in Phase 1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 3min
-- Total execution time: 6min
+- Total execution time: 8min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 2 | 6min | 3min |
+| 01-foundation | 3 | 8min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-02 (2min)
-- Trend: Starting
+- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (2min)
+- Trend: Consistent
 
 *Updated after each plan completion*
 
@@ -46,6 +46,10 @@ Recent decisions affecting current work:
 - Preferences PATCH splits locale update (users) from widget prefs (userPreferences) in one request (01-01)
 - Use deLocalizeHref (not manual regex) to strip locale from breadcrumb paths (01-02)
 - PARAGLIDE_LOCALE cookie: httpOnly: false, maxAge: 34560000 to match Paraglide defaults (01-02)
+- LanguageSwitcher uses RadioGroup (not links), lives exclusively in settings page (01-03)
+- All preference changes auto-save with toast -- no save button (01-03)
+- Start page redirect targets /app/foods as stand-in for /app/favorites until Phase 2 (01-03)
+- Dashboard uses ready guard to prevent flash before start page check (01-03)
 - Supplement tracking is schedule-based (not ad-hoc) — backend already fully implemented
 - Weight logging stores timestamp AND entry_date (user-local date) alongside loggedAt to avoid UTC drift (P-W1)
 - All dashboard widgets hideable via DB-stored userPreferences (not localStorage) — P-F5 avoidance
@@ -64,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-17
-Stopped at: Completed 01-01-PLAN.md (preferences schema and API)
+Last session: 2026-02-18
+Stopped at: Completed 01-03-PLAN.md (settings UI and start page redirect) -- Phase 1 complete
 Resume file: None

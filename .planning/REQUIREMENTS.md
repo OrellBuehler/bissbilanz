@@ -12,16 +12,16 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **LANG-01**: Breadcrumb navigation strips locale prefix and always shows dashboard as first crumb
 - [x] **LANG-02**: User language preference persists to database (locale column on users table)
 - [x] **LANG-03**: Language preference restores on login via PARAGLIDE_LOCALE cookie
-- [ ] **LANG-04**: LanguageSwitcher saves locale to user account on change
+- [x] **LANG-04**: LanguageSwitcher saves locale to user account on change
 - [x] **LANG-05**: Stale fr/it locale checks removed from route guard in hooks.server.ts
 
 ### Preferences Foundation
 
 - [x] **PREF-01**: User preferences table stores per-user settings (widget visibility, tap action, start page)
 - [x] **PREF-02**: Preferences API endpoint (GET + PATCH) with Zod validation
-- [ ] **PREF-03**: Settings page shows preferences controls for all dashboard widgets
-- [ ] **PREF-04**: User can configure start page (dashboard or favorites) in settings
-- [ ] **PREF-05**: PWA opens to user's configured start page
+- [x] **PREF-03**: Settings page shows preferences controls for all dashboard widgets
+- [x] **PREF-04**: User can configure start page (dashboard or favorites) in settings
+- [x] **PREF-05**: PWA opens to user's configured start page
 
 ### Favorites
 
@@ -102,13 +102,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LANG-01 | Phase 1 | Complete |
 | LANG-02 | Phase 1 | Complete |
 | LANG-03 | Phase 1 | Complete |
-| LANG-04 | Phase 1 | Pending |
+| LANG-04 | Phase 1 | Complete |
 | LANG-05 | Phase 1 | Complete |
 | PREF-01 | Phase 1 | Complete |
 | PREF-02 | Phase 1 | Complete |
-| PREF-03 | Phase 1 | Pending |
-| PREF-04 | Phase 1 | Pending |
-| PREF-05 | Phase 1 | Pending |
+| PREF-03 | Phase 1 | Complete |
+| PREF-04 | Phase 1 | Complete |
+| PREF-05 | Phase 1 | Complete |
 | FAV-01 | Phase 2 | Pending |
 | FAV-02 | Phase 2 | Pending |
 | FAV-03 | Phase 2 | Pending |
