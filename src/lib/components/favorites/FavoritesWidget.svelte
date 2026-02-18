@@ -68,7 +68,7 @@
 
 		const { entry } = await res.json();
 
-		toast.success(m.favorites_logged_toast({ name: item.name, meal }), {
+		toast.info(m.favorites_logged_toast({ name: item.name, meal }), {
 			action: {
 				label: m.favorites_undo(),
 				onClick: async () => {
