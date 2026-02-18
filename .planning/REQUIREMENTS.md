@@ -30,7 +30,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **FAV-03**: Dedicated favorites page shows all favorites as visual image cards with nutrition info
 - [x] **FAV-04**: Favorites ranked by log count (most-used items surface first)
 - [x] **FAV-05**: Tap-to-log: configurable instant log (1 serving to current meal) or choose-servings picker
-- [ ] **FAV-06**: Dashboard favorites widget shows top 5 favorites with tap-to-log (hideable in settings)
+- [x] **FAV-06**: Dashboard favorites widget shows top 5 favorites with tap-to-log (hideable in settings)
 - [x] **FAV-07**: Image upload for recipes via sharp server-side resize to 400px webp
 - [x] **FAV-08**: FavoriteCard component reused across favorites page, dashboard widget, and AddFoodModal
 - [x] **FAV-09**: Toast notification with undo action after logging from favorites
@@ -114,7 +114,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FAV-03 | Phase 2 | Complete |
 | FAV-04 | Phase 2 | Complete |
 | FAV-05 | Phase 2 | Complete |
-| FAV-06 | Phase 2 | Pending |
+| FAV-06 | Phase 2 | Complete |
 | FAV-07 | Phase 2 | Complete |
 | FAV-08 | Phase 2 | Complete |
 | FAV-09 | Phase 2 | Complete |
