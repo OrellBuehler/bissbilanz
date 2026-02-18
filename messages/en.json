@@ -187,11 +187,11 @@
   "settings_saved": "Saved",
   "settings_save_failed": "Failed to save",
 
-  "macro_calories": "Calories:",
-  "macro_protein": "Protein:",
-  "macro_carbs": "Carbs:",
-  "macro_fat": "Fat:",
-  "macro_fiber": "Fiber:",
+  "macro_calories": "Calories",
+  "macro_protein": "Protein",
+  "macro_carbs": "Carbs",
+  "macro_fat": "Fat",
+  "macro_fiber": "Fiber",
 
   "barcode_title": "Scan Barcode",
   "barcode_error": "Error",

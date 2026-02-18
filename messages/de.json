@@ -187,11 +187,11 @@
   "settings_saved": "Gespeichert",
   "settings_save_failed": "Speichern fehlgeschlagen",
 
-  "macro_calories": "Kalorien:",
-  "macro_protein": "Protein:",
-  "macro_carbs": "Kohlenhydrate:",
-  "macro_fat": "Fett:",
-  "macro_fiber": "Ballaststoffe:",
+  "macro_calories": "Kalorien",
+  "macro_protein": "Protein",
+  "macro_carbs": "Kohlenhydrate",
+  "macro_fat": "Fett",
+  "macro_fiber": "Ballaststoffe",
 
   "barcode_title": "Barcode scannen",
   "barcode_error": "Fehler",
