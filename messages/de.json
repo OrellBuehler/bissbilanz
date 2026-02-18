@@ -256,5 +256,18 @@
   "pwa_install": "Installieren",
   "pwa_offline": "Du bist offline — Änderungen werden bei Verbindung synchronisiert",
   "pwa_update_available": "Eine neue Version ist verfügbar",
-  "pwa_update_refresh": "Aktualisieren"
+  "pwa_update_refresh": "Aktualisieren",
+
+  "nav_favorites": "Favoriten",
+
+  "favorites_title": "Favoriten",
+  "favorites_foods_tab": "Lebensmittel",
+  "favorites_recipes_tab": "Rezepte",
+  "favorites_empty": "Noch keine Favoriten",
+  "favorites_browse_foods": "Lebensmittel durchsuchen",
+  "favorites_logged_toast": "{name} zu {meal} hinzugefuegt",
+  "favorites_undo": "Rueckgaengig",
+  "favorites_servings": "Portionen",
+  "favorites_log": "Eintragen",
+  "favorites_loading": "Laden..."
 }

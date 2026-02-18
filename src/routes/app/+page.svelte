@@ -160,8 +160,7 @@
 			if (res.ok) {
 				const { preferences } = await res.json();
 				if (preferences.startPage === 'favorites') {
-					// TODO: Change to /app/favorites when favorites page is built (Phase 2)
-					goto('/app/foods', { replaceState: true });
+					goto('/app/favorites', { replaceState: true });
 					return; // Don't load dashboard data
 				}
 			}
