@@ -68,7 +68,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- **Meal time routing**: When logging from favorites, route to the closest meal based on time of day (morning→breakfast, midday→lunch, evening→dinner, otherwise→snacks). The time windows should be user-configurable in Settings (e.g., breakfast 06:00–10:00, lunch 11:00–14:00, dinner 17:00–21:00). Currently hardcoded to "current meal" logic. → Add to a future phase.
 
 ### Blockers/Concerns
 

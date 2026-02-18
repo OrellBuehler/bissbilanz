@@ -22,23 +22,23 @@ result: pass
 
 ### 2. Toggle food as favorite
 expected: Navigate to a food's detail page (click a food from the food list). The page shows a "Mark as favorite" toggle/switch. Toggling it on persists immediately — refreshing the page still shows it as favorite.
-result: [pending]
+result: pass
 
 ### 3. Toggle recipe as favorite
 expected: Navigate to a recipe's detail page. The page shows a "Mark as favorite" toggle/switch and an image upload field. Toggling favorite on persists across page reload.
-result: [pending]
+result: pass
 
 ### 4. Favorites page shows cards with macros
 expected: After marking at least one food as favorite, the Favorites page "Foods" tab shows it as an image-first card. The card displays the food name, calories (blue), protein (red), carbs (orange), and fat (yellow). Items without an image show a colored letter placeholder.
-result: [pending]
+result: pass
 
 ### 5. Favorites page empty state
 expected: If no items are favorited for the active tab, a friendly empty state appears with a "Browse foods" button that links to /app/foods.
-result: [pending]
+result: pass
 
 ### 6. Tap-to-log from favorites page
 expected: Tapping a favorite card on the favorites page instantly logs 1 serving to the current meal (based on time of day). A success toast appears saying "Logged {name} to {meal}" with an "Undo" button.
-result: [pending]
+result: pass
 
 ### 7. Undo after logging
 expected: After tapping a favorite to log it, clicking "Undo" on the toast removes the entry. The logged entry is deleted.
