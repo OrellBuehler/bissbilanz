@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ## Current Position
 
 Phase: 2 of 4 (Favorites)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-18 — Completed 02-01-PLAN.md (backend foundation for favorites)
+Last activity: 2026-02-18 — Completed 02-02-PLAN.md (favorites UI with tap-to-log)
 
-Progress: [███-------] 33% (1/3 plans in Phase 2)
+Progress: [██████----] 67% (2/3 plans in Phase 2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 3min
-- Total execution time: 12min
+- Total execution time: 16min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 8min | 3min |
-| 02-favorites | 1 | 4min | 4min |
+| 02-favorites | 2 | 8min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (2min), 02-01 (4min)
+- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (2min), 02-01 (4min), 02-02 (4min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -59,6 +59,9 @@ Recent decisions affecting current work:
 - Recipe nutrition computed at query time via ingredient joins, not denormalized (02-01)
 - Images stored on filesystem with UUID filenames, served publicly without auth (02-01)
 - .gitignore uploads/ scoped to project root to avoid blocking src/routes/uploads/ (02-01)
+- Favorites nav link placed as second sidebar item (after Dashboard) with Heart icon (02-02)
+- Start page redirect updated from /app/foods to /app/favorites (02-02)
+- Deterministic placeholder colors from name char code hash over 8-color pastel palette (02-02)
 
 ### Pending Todos
 
@@ -73,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 02-01-PLAN.md (backend foundation for favorites)
+Stopped at: Completed 02-02-PLAN.md (favorites UI with tap-to-log)
 Resume file: None
