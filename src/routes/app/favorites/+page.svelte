@@ -118,7 +118,7 @@
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else}
 		<Tabs.Root value="foods">
-			<Tabs.List>
+			<Tabs.List class="w-full">
 				<Tabs.Trigger value="foods">{m.favorites_foods_tab()}</Tabs.Trigger>
 				<Tabs.Trigger value="recipes">{m.favorites_recipes_tab()}</Tabs.Trigger>
 			</Tabs.List>
