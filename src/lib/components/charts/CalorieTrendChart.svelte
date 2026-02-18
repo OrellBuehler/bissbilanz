@@ -88,6 +88,16 @@
 					format: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString(),
 					ticks: 4,
 					tickLabelProps: { class: 'text-[11px] fill-muted-foreground/70 font-medium tabular-nums' }
+				},
+				tooltip: {
+					root: {
+						variant: 'none',
+						classes: {
+							root: 'bg-background text-foreground border border-border/50 rounded-lg shadow-xl text-xs px-3 py-2'
+						}
+					},
+					header: { class: 'font-medium text-foreground' },
+					item: { classes: { label: 'text-muted-foreground', value: 'text-foreground font-mono font-medium tabular-nums' } }
 				}
 			}}
 		/>
