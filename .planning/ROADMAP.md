@@ -47,7 +47,12 @@ Plans:
   4. Recipes can have an image uploaded; the image is stored as a 400px WebP thumbnail and displayed on the favorite card
   5. After logging from favorites, a toast notification appears with an Undo action that removes the entry if tapped
   6. The dashboard favorites widget shows the top 5 favorites and is visible only when the user has enabled it in settings
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Schema migration, favorites API with ranking, and image upload backend
+- [ ] 02-02-PLAN.md — FavoriteCard component and favorites page with tap-to-log
+- [ ] 02-03-PLAN.md — Dashboard widget, AddFoodModal upgrade, and edit page image upload
 
 ### Phase 3: Weight Tracking
 **Goal**: Users can log their body weight at any time, view their history as a list, and see a trend chart with a smoothed line
@@ -80,6 +85,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/3 | Complete    | 2026-02-18 |
-| 2. Favorites | 0/? | Not started | - |
+| 2. Favorites | 0/3 | Not started | - |
 | 3. Weight Tracking | 0/? | Not started | - |
 | 4. Supplement Polish | 0/? | Not started | - |
