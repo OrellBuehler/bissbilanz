@@ -12,7 +12,7 @@ This milestone adds three new feature areas to an already-working food tracking 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Language fixes, userPreferences table, and preferences API/settings
+- [x] **Phase 1: Foundation** - Language fixes, userPreferences table, and preferences API/settings (completed 2026-02-18)
 - [ ] **Phase 2: Favorites** - Favorites system with image cards, tap-to-log, and dashboard widget
 - [ ] **Phase 3: Weight Tracking** - Weight logging, trend chart, and dashboard widget
 - [ ] **Phase 4: Supplement Polish** - Wire supplement UI to preferences and complete check-off flow
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can open Settings and toggle visibility of each dashboard widget (favorites, supplements, weight), with the choice persisting across devices and sessions
   4. User can set their preferred start page (dashboard or favorites) in settings, and the PWA opens to that page on launch
   5. Route guard no longer rejects URLs containing fr or it locale segments
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Schema, preferences API, and route guard cleanup
@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Planning complete | - |
+| 1. Foundation | 0/3 | Complete    | 2026-02-18 |
 | 2. Favorites | 0/? | Not started | - |
 | 3. Weight Tracking | 0/? | Not started | - |
 | 4. Supplement Polish | 0/? | Not started | - |
