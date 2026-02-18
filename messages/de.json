@@ -141,6 +141,9 @@
 
   "supplements_history_title": "Supplement-Verlauf",
   "supplements_history_empty": "Kein Supplement-Verlauf für diesen Zeitraum",
+  "supplements_history_from": "Von",
+  "supplements_history_to": "Bis",
+  "supplements_history_filter": "Filtern",
 
   "dashboard_supplements": "Supplemente",
   "dashboard_supplements_all_taken": "Alle genommen!",

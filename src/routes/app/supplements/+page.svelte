@@ -11,11 +11,12 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
+	import type { Supplement } from '$lib/server/schema';
 	import * as m from '$lib/paraglide/messages';
 
-	let supplements: Array<any> = $state([]);
+	let supplements: Supplement[] = $state([]);
 	let showForm = $state(false);
-	let editingSupplement: any = $state(null);
+	let editingSupplement: Supplement | null = $state(null);
 	let deletingId: string | null = $state(null);
 
 	const loadSupplements = async () => {
@@ -25,7 +26,7 @@
 		}
 	};
 
-	const createSupplement = async (payload: any) => {
+	const createSupplement = async (payload: Record<string, unknown>) => {
 		await fetch('/api/supplements', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -35,7 +36,7 @@
 		await loadSupplements();
 	};
 
-	const updateSupplement = async (payload: any) => {
+	const updateSupplement = async (payload: Record<string, unknown>) => {
 		if (!editingSupplement) return;
 		await fetch(`/api/supplements/${editingSupplement.id}`, {
 			method: 'PUT',
@@ -53,7 +54,7 @@
 		await loadSupplements();
 	};
 
-	const toggleActive = async (supplement: any) => {
+	const toggleActive = async (supplement: Supplement) => {
 		await fetch(`/api/supplements/${supplement.id}`, {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
@@ -62,7 +63,7 @@
 		await loadSupplements();
 	};
 
-	const openEdit = (supplement: any) => {
+	const openEdit = (supplement: Supplement) => {
 		editingSupplement = supplement;
 		showForm = true;
 	};

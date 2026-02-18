@@ -30,7 +30,12 @@
 	let scannedBarcode = $state('');
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
-	let supplementChecklist: Array<any> = $state([]);
+	type ChecklistItem = {
+		supplement: { id: string; name: string; dosage: number; dosageUnit: string };
+		taken: boolean;
+		takenAt: string | null;
+	};
+	let supplementChecklist: ChecklistItem[] = $state([]);
 	let ready = $state(false);
 
 	const currentDate = today();

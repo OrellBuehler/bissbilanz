@@ -3,39 +3,31 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { dosageUnitValues } from '$lib/supplement-units';
 	import { today } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
-	type Supplement = {
-		id: string;
-		name: string;
-		dosage: number;
-		dosageUnit: string;
-		scheduleType: string;
-		scheduleDays: number[] | null;
-		scheduleStartDate: string | null;
-		isActive: boolean;
-		sortOrder: number;
-	};
+	import type { Supplement } from '$lib/server/schema';
+	import type { ScheduleType } from '$lib/supplement-units';
 
 	let {
 		supplement,
 		onSave,
 		onCancel
 	}: {
-		supplement?: Supplement;
-		onSave: (payload: any) => void;
+		supplement?: Supplement | null;
+		onSave: (payload: Record<string, unknown>) => void;
 		onCancel: () => void;
 	} = $props();
 
 	let name = $state(supplement?.name ?? '');
 	let dosage = $state(supplement?.dosage ?? 0);
 	let dosageUnit = $state(supplement?.dosageUnit ?? 'mg');
-	let scheduleType = $state(supplement?.scheduleType ?? 'daily');
+	let scheduleType: ScheduleType = $state(supplement?.scheduleType ?? 'daily');
 	let scheduleDays = $state<number[]>(supplement?.scheduleDays ?? []);
 	let scheduleStartDate = $state(supplement?.scheduleStartDate ?? today());
 
-	const dosageUnits = ['mg', 'mcg', 'IU', 'g', 'capsules', 'tablets', 'drops', 'ml'];
+	const dosageUnits = dosageUnitValues;
 	const scheduleTypes = [
 		{ value: 'daily', label: () => m.supplements_schedule_daily() },
 		{ value: 'every_other_day', label: () => m.supplements_schedule_every_other_day() },
@@ -61,7 +53,7 @@
 	};
 
 	const handleSubmit = () => {
-		const payload: any = {
+		const payload: Record<string, unknown> = {
 			name,
 			dosage,
 			dosageUnit,
@@ -105,7 +97,7 @@
 
 	<div class="space-y-2">
 		<Label>{m.supplements_schedule()}</Label>
-		<Select.Root type="single" value={scheduleType} onValueChange={(v) => (scheduleType = v)}>
+		<Select.Root type="single" value={scheduleType} onValueChange={(v) => (scheduleType = v as ScheduleType)}>
 			<Select.Trigger>
 				<span>{scheduleTypes.find((s) => s.value === scheduleType)?.label() ?? scheduleType}</span>
 			</Select.Trigger>

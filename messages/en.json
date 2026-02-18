@@ -141,6 +141,9 @@
 
   "supplements_history_title": "Supplement History",
   "supplements_history_empty": "No supplement history for this period",
+  "supplements_history_from": "From",
+  "supplements_history_to": "To",
+  "supplements_history_filter": "Filter",
 
   "dashboard_supplements": "Supplements",
   "dashboard_supplements_all_taken": "All taken!",

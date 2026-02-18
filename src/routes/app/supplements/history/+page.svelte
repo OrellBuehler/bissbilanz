@@ -8,9 +8,16 @@
 	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 
+	type HistoryEntry = {
+		log: { id: string; supplementId: string; userId: string; date: string; takenAt: string };
+		supplementName: string;
+		dosage: number;
+		dosageUnit: string;
+	};
+
 	let from = $state(daysAgo(30));
 	let to = $state(today());
-	let history: Array<any> = $state([]);
+	let history: HistoryEntry[] = $state([]);
 
 	const loadHistory = async () => {
 		const res = await fetch(`/api/supplements/history?from=${from}&to=${to}`);
@@ -20,8 +27,8 @@
 	};
 
 	// Group logs by date
-	const grouped = $derived(() => {
-		const map = new Map<string, Array<any>>();
+	const grouped = $derived.by(() => {
+		const map = new Map<string, HistoryEntry[]>();
 		for (const entry of history) {
 			const date = entry.log.date;
 			if (!map.has(date)) map.set(date, []);
@@ -40,21 +47,21 @@
 
 	<div class="flex items-end gap-4">
 		<div class="space-y-1">
-			<Label for="from">From</Label>
+			<Label for="from">{m.supplements_history_from()}</Label>
 			<Input id="from" type="date" bind:value={from} />
 		</div>
 		<div class="space-y-1">
-			<Label for="to">To</Label>
+			<Label for="to">{m.supplements_history_to()}</Label>
 			<Input id="to" type="date" bind:value={to} />
 		</div>
-		<Button onclick={loadHistory}>Filter</Button>
+		<Button onclick={loadHistory}>{m.supplements_history_filter()}</Button>
 	</div>
 
-	{#if grouped().length === 0}
+	{#if grouped.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.supplements_history_empty()}</p>
 	{:else}
 		<div class="space-y-3">
-			{#each grouped() as [date, entries] (date)}
+			{#each grouped as [date, entries] (date)}
 				<Card.Root>
 					<Card.Header class="pb-2">
 						<Card.Title class="text-sm font-medium">{date}</Card.Title>
