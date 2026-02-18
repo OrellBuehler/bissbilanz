@@ -14,6 +14,7 @@
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/utils/api';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
+	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -36,6 +37,7 @@
 		takenAt: string | null;
 	};
 	let supplementChecklist: ChecklistItem[] = $state([]);
+	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
 
 	const currentDate = today();
@@ -154,14 +156,14 @@
 	};
 
 	const checkStartPage = async () => {
-		// Check start page preference -- redirect if needed (PWA launch)
 		try {
 			const res = await fetch('/api/preferences');
 			if (res.ok) {
 				const { preferences } = await res.json();
+				userPrefs = preferences;
 				if (preferences.startPage === 'favorites') {
 					goto('/app/favorites', { replaceState: true });
-					return; // Don't load dashboard data
+					return;
 				}
 			}
 		} catch {
@@ -214,6 +216,9 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
+	{/if}
+	{#if userPrefs?.showFavoritesWidget}
+		<FavoritesWidget onEntryLogged={loadData} />
 	{/if}
 	{#if supplementChecklist.length > 0}
 		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
