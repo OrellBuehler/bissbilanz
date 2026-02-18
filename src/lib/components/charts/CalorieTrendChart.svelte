@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { AreaChart } from 'layerchart';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
+	import { curveMonotoneX } from 'd3-shape';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import * as m from '$lib/paraglide/messages';
 
@@ -14,36 +15,48 @@
 		calorieGoal?: number;
 	} = $props();
 
+	const shortLabels = $derived(data.length > 10);
 	const chartData = $derived(
 		data.map((d) => ({
 			...d,
-			dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(undefined, {
-				month: 'short',
-				day: 'numeric'
-			})
+			dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(undefined, shortLabels
+				? { day: 'numeric', month: 'short' }
+				: { weekday: 'short', day: 'numeric' }
+			)
 		}))
+	);
+	const tickStep = $derived(data.length > 14 ? Math.ceil(data.length / 7) : 1);
+	const filteredTicks = $derived(
+		chartData.filter((_, i) => i % tickStep === 0).map(d => d.dateLabel)
 	);
 
 	const config: ChartConfig = {
 		calories: {
 			label: m.macro_calories(),
-			color: 'var(--color-chart-1)'
+			color: '#3B82F6'
 		}
 	};
 
-	const series = [{ key: 'calories', label: m.macro_calories(), color: 'var(--color-chart-1)' }];
+	const series = [{ key: 'calories', label: m.macro_calories(), color: '#3B82F6' }];
 
 	const maxCalories = $derived(Math.max(...data.map((d) => d.calories), 0));
 	const hasData = $derived(maxCalories > 0);
-	const yDomain = $derived([0, Math.max(maxCalories, calorieGoal ?? 100, 100)]);
+
+	const goalInRange = $derived(calorieGoal && maxCalories >= calorieGoal * 0.25);
+	const yMax = $derived(
+		goalInRange
+			? Math.max(maxCalories, calorieGoal!) * 1.15
+			: maxCalories * 1.3 || 100
+	);
+	const yDomain = $derived([0, yMax]);
 
 	const annotations = $derived(
-		calorieGoal
+		goalInRange
 			? [
 					{
 						type: 'line' as const,
-						y: calorieGoal,
-						stroke: 'hsl(var(--muted-foreground))',
+						y: calorieGoal!,
+						stroke: 'hsl(var(--muted-foreground) / 0.4)',
 						strokeWidth: 1.5,
 						'stroke-dasharray': '6 4'
 					}
@@ -65,9 +78,17 @@
 			grid={true}
 			rule={false}
 			props={{
-				area: { fillOpacity: 0.3 },
-				grid: { y: { style: 'stroke-dasharray: 3 3;' } },
-				yAxis: { format: (v) => Math.round(v).toLocaleString() }
+				area: { fillOpacity: 0.25, curve: curveMonotoneX },
+				grid: { y: { class: 'stroke-muted/30 [stroke-dasharray:3_6]' } },
+				xAxis: {
+					ticks: filteredTicks,
+					tickLabelProps: { class: 'text-[11px] fill-muted-foreground/70 font-medium' }
+				},
+				yAxis: {
+					format: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString(),
+					ticks: 4,
+					tickLabelProps: { class: 'text-[11px] fill-muted-foreground/70 font-medium tabular-nums' }
+				}
 			}}
 		/>
 	</ChartContainer>

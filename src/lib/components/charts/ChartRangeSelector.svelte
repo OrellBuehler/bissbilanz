@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button/index.js';
 	import { today, daysAgo } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
@@ -25,55 +24,46 @@
 			onRangeChange(customStart, customEnd);
 		}
 	};
+
+	const ranges = [
+		{ key: '7d' as const, label: () => m.charts_7d() },
+		{ key: '30d' as const, label: () => m.charts_30d() },
+		{ key: 'custom' as const, label: () => m.charts_custom() }
+	];
 </script>
 
-<div class="flex flex-wrap items-center gap-2">
-	<div class="flex gap-1">
-		<Button
-			variant={activeRange === '7d' ? 'default' : 'outline'}
-			size="sm"
-			onclick={() => selectRange('7d')}
-		>
-			{m.charts_7d()}
-		</Button>
-		<Button
-			variant={activeRange === '30d' ? 'default' : 'outline'}
-			size="sm"
-			onclick={() => selectRange('30d')}
-		>
-			{m.charts_30d()}
-		</Button>
-		<Button
-			variant={activeRange === 'custom' ? 'default' : 'outline'}
-			size="sm"
-			onclick={() => selectRange('custom')}
-		>
-			{m.charts_custom()}
-		</Button>
+<div class="flex flex-wrap items-center gap-3">
+	<div class="bg-muted inline-flex rounded-full p-1">
+		{#each ranges as range}
+			<button
+				class="relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 {activeRange === range.key
+					? 'bg-background text-foreground shadow-sm'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => selectRange(range.key)}
+			>
+				{range.label()}
+			</button>
+		{/each}
 	</div>
+
 	{#if activeRange === 'custom'}
 		<div class="flex items-center gap-2">
-			<label class="text-muted-foreground text-sm">
-				{m.charts_start_date()}
-				<input
-					type="date"
-					class="border-input bg-background ml-1 rounded border px-2 py-1 text-sm"
-					max={customEnd || maxDate}
-					bind:value={customStart}
-					onchange={applyCustomRange}
-				/>
-			</label>
-			<label class="text-muted-foreground text-sm">
-				{m.charts_end_date()}
-				<input
-					type="date"
-					class="border-input bg-background ml-1 rounded border px-2 py-1 text-sm"
-					min={customStart}
-					max={maxDate}
-					bind:value={customEnd}
-					onchange={applyCustomRange}
-				/>
-			</label>
+			<input
+				type="date"
+				class="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+				max={customEnd || maxDate}
+				bind:value={customStart}
+				onchange={applyCustomRange}
+			/>
+			<span class="text-muted-foreground text-sm">–</span>
+			<input
+				type="date"
+				class="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+				min={customStart}
+				max={maxDate}
+				bind:value={customEnd}
+				onchange={applyCustomRange}
+			/>
 		</div>
 	{/if}
 </div>
