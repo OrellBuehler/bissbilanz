@@ -269,5 +269,19 @@
   "favorites_undo": "Undo",
   "favorites_servings": "Servings",
   "favorites_log": "Log",
-  "favorites_loading": "Loading..."
+  "favorites_loading": "Loading...",
+
+  "food_detail_title": "Food Details",
+  "recipe_detail_title": "Recipe Details",
+  "mark_as_favorite": "Mark as favorite",
+  "image_upload_label": "Image",
+  "upload_image_button": "Upload Image",
+  "save_changes": "Save Changes",
+  "back_to_foods": "Back to Foods",
+  "back_to_recipes": "Back to Recipes",
+  "detail_saving": "Saving...",
+  "detail_saved": "Changes saved",
+  "detail_save_failed": "Failed to save changes",
+  "detail_ingredients": "Ingredients",
+  "detail_servings": "{count} servings"
 }

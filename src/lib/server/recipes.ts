@@ -4,7 +4,7 @@ import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, eq } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
-type RecipeInput = { name: string; totalServings: number };
+type RecipeInput = { name: string; totalServings: number; isFavorite?: boolean; imageUrl?: string | null };
 
 type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
@@ -13,7 +13,9 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
 	name: input.name,
-	totalServings: input.totalServings
+	totalServings: input.totalServings,
+	isFavorite: input.isFavorite ?? false,
+	imageUrl: input.imageUrl ?? null
 });
 
 export const listRecipes = async (userId: string) => {

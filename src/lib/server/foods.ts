@@ -40,6 +40,15 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	imageUrl: input.imageUrl ?? null
 });
 
+export const getFood = async (userId: string, id: string) => {
+	const db = getDB();
+	const [food] = await db
+		.select()
+		.from(foods)
+		.where(and(eq(foods.id, id), eq(foods.userId, userId)));
+	return food ?? null;
+};
+
 export const listFoods = async (
 	userId: string,
 	options?: { query?: string; limit?: number; offset?: number }

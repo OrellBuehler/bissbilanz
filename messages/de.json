@@ -269,5 +269,19 @@
   "favorites_undo": "Rueckgaengig",
   "favorites_servings": "Portionen",
   "favorites_log": "Eintragen",
-  "favorites_loading": "Laden..."
+  "favorites_loading": "Laden...",
+
+  "food_detail_title": "Lebensmittel-Details",
+  "recipe_detail_title": "Rezept-Details",
+  "mark_as_favorite": "Als Favorit markieren",
+  "image_upload_label": "Bild",
+  "upload_image_button": "Bild hochladen",
+  "save_changes": "Aenderungen speichern",
+  "back_to_foods": "Zurueck zu Lebensmitteln",
+  "back_to_recipes": "Zurueck zu Rezepten",
+  "detail_saving": "Speichern...",
+  "detail_saved": "Aenderungen gespeichert",
+  "detail_save_failed": "Speichern fehlgeschlagen",
+  "detail_ingredients": "Zutaten",
+  "detail_servings": "{count} Portionen"
 }
