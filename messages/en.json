@@ -156,6 +156,9 @@
   "goals_fat": "Fat (g)",
   "goals_fiber": "Fiber (g)",
   "goals_save": "Save",
+  "goals_saving": "Saving...",
+  "goals_saved": "Goals saved",
+  "goals_save_failed": "Failed to save goals",
 
   "history_title": "History",
   "history_weekly": "Weekly Average (7 days)",

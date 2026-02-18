@@ -1,27 +1,59 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 
-	let form = {
+	let form = $state({
 		calorieGoal: 2000,
 		proteinGoal: 150,
 		carbGoal: 220,
 		fatGoal: 60,
 		fiberGoal: 30
-	};
+	});
+	let saving = $state(false);
+	let loaded = $state(false);
+
+	onMount(async () => {
+		const res = await fetch('/api/goals');
+		if (res.ok) {
+			const data = await res.json();
+			if (data.goals) {
+				form.calorieGoal = data.goals.calorieGoal ?? 2000;
+				form.proteinGoal = data.goals.proteinGoal ?? 150;
+				form.carbGoal = data.goals.carbGoal ?? 220;
+				form.fatGoal = data.goals.fatGoal ?? 60;
+				form.fiberGoal = data.goals.fiberGoal ?? 30;
+			}
+		}
+		loaded = true;
+	});
 
 	const saveGoals = async () => {
-		await fetch('/api/goals', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(form)
-		});
+		saving = true;
+		try {
+			const res = await fetch('/api/goals', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(form)
+			});
+			if (res.ok) {
+				toast.success(m.goals_saved());
+			} else {
+				toast.error(m.goals_save_failed());
+			}
+		} catch {
+			toast.error(m.goals_save_failed());
+		} finally {
+			saving = false;
+		}
 	};
 </script>
 
+{#if loaded}
 <div class="mx-auto max-w-xl space-y-6">
 	<Card.Root>
 		<Card.Content class="grid gap-4 pt-6">
@@ -47,7 +79,10 @@
 			</div>
 		</Card.Content>
 		<Card.Footer>
-			<Button onclick={saveGoals}>{m.goals_save()}</Button>
+			<Button onclick={saveGoals} disabled={saving}>
+				{saving ? m.goals_saving() : m.goals_save()}
+			</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>
+{/if}

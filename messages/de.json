@@ -156,6 +156,9 @@
   "goals_fat": "Fett (g)",
   "goals_fiber": "Ballaststoffe (g)",
   "goals_save": "Speichern",
+  "goals_saving": "Speichern...",
+  "goals_saved": "Ziele gespeichert",
+  "goals_save_failed": "Ziele konnten nicht gespeichert werden",
 
   "history_title": "Verlauf",
   "history_weekly": "Wochendurchschnitt (7 Tage)",
