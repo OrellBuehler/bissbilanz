@@ -72,9 +72,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 2 (Favorites): Confirm whether sharp blocks Bun event loop for typical phone photo sizes before committing to synchronous approach (P-X3)
 - Phase 3 (Weight): Confirm Drizzle ORM syntax for SQL window function (7-day rolling average) before implementing; may need sql template literal escape hatch
 - All phases: Every schema change must generate and commit Drizzle migration before any code builds on it (P-X5)
+- CRITICAL (P-M1): NEVER use `db:push` — it skips the migration journal and breaks both dev startup (`runMigrations()` in hooks.server.ts) and production deployment. Only use `db:generate` → let `runMigrations()` apply on server start.
 
 ## Session Continuity
 

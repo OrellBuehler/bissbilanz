@@ -159,9 +159,9 @@ bun run preview
 
 # Database operations
 bun run db:generate    # Generate migrations from schema
-bun run db:push        # Push schema to database (dev)
-bun run db:migrate     # Run migrations (production)
+bun run db:migrate     # Run migrations (applied automatically on dev server start too)
 bun run db:studio      # Open Drizzle Studio
+# NOTE: Do NOT use db:push — see "Migration Safety" in Database section
 
 # Testing (Bun's built-in test runner, no package.json script)
 bun test                    # Run all tests
@@ -252,9 +252,13 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 
 ### Database
 - Use Drizzle ORM exclusively (no raw SQL unless necessary)
-- Run `bun run db:generate` after schema changes
-- Use `bun run db:push` in development
+- Run `bun run db:generate` after schema changes (NEVER `db:push`)
 - Use migrations in production
+
+#### Migration Safety (CRITICAL)
+- **NEVER use `db:push`.** It applies changes without updating the Drizzle migrations journal. Since `hooks.server.ts` runs `runMigrations()` on every server start, and production deployments rely on migrations, `db:push` will cause failures.
+- **Only workflow:** Edit schema → `bun run db:generate` → verify generated SQL → let `runMigrations()` apply on dev server start (or `bun run db:migrate` manually).
+- **Always verify** the dev server starts cleanly (`bun run dev`) after any schema change — migration errors surface as 500s on every page.
 
 ### API Routes
 - Validate inputs with Zod schemas
