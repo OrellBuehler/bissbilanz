@@ -52,11 +52,11 @@
 	</div>
 	<div class="p-2">
 		<p class="truncate text-sm font-medium">{name}</p>
-		<div class="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-			<span class="text-blue-600">{Math.round(calories)} kcal</span>
-			<span class="text-red-600">{protein.toFixed(1)}g P</span>
-			<span class="text-orange-600">{carbs.toFixed(1)}g C</span>
-			<span class="text-yellow-600">{fat.toFixed(1)}g F</span>
+		<div class="mt-1 flex flex-wrap gap-1">
+			<span class="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">{Math.round(calories)} kcal</span>
+			<span class="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">{protein.toFixed(1)}g P</span>
+			<span class="inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">{carbs.toFixed(1)}g C</span>
+			<span class="inline-flex items-center rounded-full bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">{fat.toFixed(1)}g F</span>
 		</div>
 	</div>
 </button>
