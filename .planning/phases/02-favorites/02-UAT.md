@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 02-favorites
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md]
 started: 2026-02-18T23:00:00Z
-updated: 2026-02-19T12:00:00Z
+updated: 2026-02-20T00:00:00Z
 ---
 
 ## Current Test
@@ -76,7 +76,7 @@ skipped: 1
 ## Gaps
 
 - truth: "Image upload on food detail page saves and displays image on favorite card"
-  status: failed
+  status: resolved
   reason: "User reported: PATCH /api/foods/{id} returns 400 - Validation failed: imageUrl Invalid URL"
   severity: major
   test: 8
@@ -91,7 +91,7 @@ skipped: 1
   debug_session: ""
 
 - truth: "AddFoodModal favorites tab shows items as list items matching other tabs"
-  status: failed
+  status: resolved
   reason: "User reported: works but style should be list items like all other tabs, not cards"
   severity: minor
   test: 11
