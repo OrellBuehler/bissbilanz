@@ -72,7 +72,7 @@ export const getWeightWithTrend = async (userId: string, from: string, to: strin
 		FROM daily
 		ORDER BY entry_date ASC
 	`);
-	return result.rows;
+	return result;
 };
 
 export const getLatestWeight = async (userId: string) => {
