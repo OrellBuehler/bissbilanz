@@ -288,5 +288,33 @@
   "detail_saved": "Aenderungen gespeichert",
   "detail_save_failed": "Speichern fehlgeschlagen",
   "detail_ingredients": "Zutaten",
-  "detail_servings": "{count} Portionen"
+  "detail_servings": "{count} Portionen",
+
+  "dashboard_weight": "Gewicht",
+  "dashboard_weight_latest": "{value} kg",
+  "dashboard_weight_no_entries": "Noch keine Eintraege",
+  "dashboard_weight_log_first": "Erstes Gewicht eintragen",
+  "dashboard_weight_view_all": "Gewicht",
+
+  "nav_weight": "Gewicht",
+
+  "weight_page_title": "Gewichtsverfolgung",
+  "weight_log": "Gewicht eintragen",
+  "weight_history": "Verlauf",
+  "weight_chart": "Gewichtsdiagramm",
+  "weight_kg_label": "Gewicht (kg)",
+  "weight_date_label": "Datum",
+  "weight_notes_label": "Notizen",
+  "weight_save": "Speichern",
+  "weight_actual": "Gewicht",
+  "weight_trend": "7-Tage Avg",
+  "weight_edit": "Bearbeiten",
+  "weight_delete": "Loeschen",
+  "weight_confirm_delete": "Diesen Gewichtseintrag loeschen?",
+  "weight_no_entries": "Noch keine Gewichtseintraege. Trage deinen ersten ein!",
+  "weight_range_7d": "7T",
+  "weight_range_30d": "30T",
+  "weight_range_90d": "90T",
+  "weight_range_all": "Alle",
+  "weight_latest": "Letztes Gewicht"
 }

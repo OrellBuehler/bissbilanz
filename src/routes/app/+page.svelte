@@ -15,6 +15,7 @@
 	import { apiFetch } from '$lib/utils/api';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
+	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -37,6 +38,7 @@
 		takenAt: string | null;
 	};
 	let supplementChecklist: ChecklistItem[] = $state([]);
+	let latestWeight: { weightKg: number; entryDate: string } | null = $state(null);
 	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
 
@@ -130,6 +132,18 @@
 		}
 	};
 
+	const loadLatestWeight = async () => {
+		try {
+			const res = await fetch('/api/weight/latest');
+			if (res.ok) {
+				const data = await res.json();
+				latestWeight = data.entry;
+			}
+		} catch {
+			// silently ignore
+		}
+	};
+
 	const loadSupplements = async () => {
 		try {
 			const res = await fetch('/api/supplements/today');
@@ -174,6 +188,7 @@
 		loadData();
 		loadWeeklyChart();
 		loadSupplements();
+		loadLatestWeight();
 	};
 
 	onMount(() => {
@@ -183,6 +198,7 @@
 			loadData();
 			loadWeeklyChart();
 			loadSupplements();
+			loadLatestWeight();
 		};
 		window.addEventListener('queue-synced', onSynced);
 		return () => window.removeEventListener('queue-synced', onSynced);
@@ -222,6 +238,9 @@
 	{/if}
 	{#if supplementChecklist.length > 0}
 		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+	{/if}
+	{#if userPrefs?.showWeightWidget}
+		<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
 	{/if}
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
