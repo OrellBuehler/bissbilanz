@@ -48,10 +48,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **WGHT-01**: User can log body weight at any time (stores timestamp, not just date)
 - [x] **WGHT-02**: Weight stored in kg (single unit, no conversion)
 - [x] **WGHT-03**: User can view weight history as a list with edit/delete
-- [ ] **WGHT-04**: Line chart shows weight over time with selectable range (7d, 30d, 90d, all)
+- [x] **WGHT-04**: Line chart shows weight over time with selectable range (7d, 30d, 90d, all)
 - [x] **WGHT-05**: Smoothed trend line (7-day moving average) overlaid on weight chart
 - [x] **WGHT-06**: Dashboard weight widget shows latest weight entry (hideable in settings)
-- [ ] **WGHT-07**: Dedicated weight page at /app/weight with chart, history, and log form
+- [x] **WGHT-07**: Dedicated weight page at /app/weight with chart, history, and log form
 
 ## v2 Requirements
 
@@ -126,10 +126,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WGHT-01 | Phase 3 | Complete |
 | WGHT-02 | Phase 3 | Complete |
 | WGHT-03 | Phase 3 | Complete |
-| WGHT-04 | Phase 3 | Pending |
+| WGHT-04 | Phase 3 | Complete |
 | WGHT-05 | Phase 3 | Complete |
 | WGHT-06 | Phase 3 | Complete |
-| WGHT-07 | Phase 3 | Pending |
+| WGHT-07 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 31 total

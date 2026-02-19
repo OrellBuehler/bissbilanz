@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 Phase: 3 of 4 (Weight Tracking)
 Plan: 3 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-19 — Completed 03-03-PLAN.md (dashboard weight widget)
+Last activity: 2026-02-19 — Completed 03-02-PLAN.md (weight page UI)
 
 Progress: [██████████] 100% (3/3 plans in Phase 3)
 
@@ -36,6 +36,7 @@ Progress: [██████████] 100% (3/3 plans in Phase 3)
 - Trend: Consistent
 
 *Updated after each plan completion*
+| Phase 03 P02 | 5min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - Used raw SQL via db.execute(sql`...`) for weight trend query -- Drizzle ORM lacks DISTINCT ON and window function support (03-01)
 - deleteWeightEntry returns boolean via .returning() for 404 detection in API route (03-01)
 - Weight widget placed after supplements in dashboard layout order (03-03)
+- [Phase 03]: LineChart uses spline prop for curve config in layerchart (not line like AreaChart)
+- [Phase 03]: ChartRangeSelector extended with optional ranges prop for reusability (backward-compatible)
 
 ### Pending Todos
 
