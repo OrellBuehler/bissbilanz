@@ -5,30 +5,30 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Users can quickly and accurately log what they eat each day and see their nutrition at a glance
-**Current focus:** Phase 4 — Supplement Polish
+**Current focus:** Phase 2 — Favorites (gap closure)
 
 ## Current Position
 
-Phase: 4 of 4 (Supplement Polish)
-Plan: 2 of 2 in current phase
+Phase: 2 of 4 (Favorites - gap closure)
+Plan: 4 of 4 in current phase
 Status: Complete
-Last activity: 2026-02-19 — Completed 04-02-PLAN.md (checklist grouping + adherence)
+Last activity: 2026-02-20 — Completed 02-04-PLAN.md (imageUrl validation + modal consistency)
 
-Progress: [██████████] 100% (2/2 plans in Phase 4)
+Progress: [██████████] 100% (4/4 plans in Phase 2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 3min
-- Total execution time: 38min
+- Total plans completed: 12
+- Average duration: 4min
+- Total execution time: 42min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 8min | 3min |
-| 02-favorites | 3 | 14min | 5min |
+| 02-favorites | 4 | 18min | 5min |
 | 03-weight-tracking | 3 | 9min | 3min |
 | 04-supplement-polish | 2 | 7min | 4min |
 
@@ -40,6 +40,7 @@ Progress: [██████████] 100% (2/2 plans in Phase 4)
 | Phase 03 P02 | 5min | 2 tasks | 6 files |
 | Phase 04-supplement-polish P01 | 3min | 2 tasks | 9 files |
 | Phase 04-supplement-polish P02 | 4min | 2 tasks | 5 files |
+| Phase 02-favorites P04 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length (04-01)
 - Checklist renders flat (no headers) when all items share same timeOfDay group for backward compatibility (04-02)
 - Adherence computed client-side by cross-referencing active supplements schedule with history logs (04-02)
+- Used Zod .refine() with regex for imageUrl validation instead of .url() to support both relative paths and absolute URLs (02-04)
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Completed 04-02-PLAN.md (checklist grouping + adherence) — Phase 4 complete (2/2)
+Last session: 2026-02-20
+Stopped at: Completed 02-04-PLAN.md (imageUrl validation + modal consistency) — Phase 2 gap closure complete (4/4)
 Resume file: None
