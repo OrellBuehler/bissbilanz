@@ -149,6 +149,8 @@
   "supplements_history_from": "From",
   "supplements_history_to": "To",
   "supplements_history_filter": "Filter",
+  "supplements_history_missed": "Missed",
+  "supplements_history_adherence": "{taken}/{total} taken",
 
   "dashboard_supplements": "Supplements",
   "dashboard_supplements_all_taken": "All taken!",

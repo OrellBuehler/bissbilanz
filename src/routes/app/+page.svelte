@@ -33,7 +33,7 @@
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
 	type ChecklistItem = {
-		supplement: { id: string; name: string; dosage: number; dosageUnit: string };
+		supplement: { id: string; name: string; dosage: number; dosageUnit: string; timeOfDay: string | null };
 		taken: boolean;
 		takenAt: string | null;
 	};

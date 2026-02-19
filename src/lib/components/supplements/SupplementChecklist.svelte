@@ -11,6 +11,7 @@
 			name: string;
 			dosage: number;
 			dosageUnit: string;
+			timeOfDay: string | null;
 		};
 		taken: boolean;
 		takenAt: string | null;
@@ -25,6 +26,25 @@
 	} = $props();
 
 	const takenCount = $derived(checklist.filter((c) => c.taken).length);
+
+	const timeLabels: Record<string, () => string> = {
+		morning: () => m.supplements_time_morning(),
+		noon: () => m.supplements_time_noon(),
+		evening: () => m.supplements_time_evening(),
+		anytime: () => m.supplements_time_anytime()
+	};
+
+	const timeOrder: (string | null)[] = ['morning', 'noon', 'evening', null];
+
+	const grouped = $derived.by(() => {
+		const groups = new Map<string | null, ChecklistItem[]>();
+		for (const item of checklist) {
+			const key = item.supplement.timeOfDay ?? null;
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)!.push(item);
+		}
+		return timeOrder.filter((t) => groups.has(t)).map((t) => ({ timeOfDay: t, items: groups.get(t)! }));
+	});
 </script>
 
 <Card.Root>
@@ -48,21 +68,28 @@
 			<p class="text-muted-foreground text-sm">{m.supplements_empty()}</p>
 		{:else}
 			<div class="space-y-2">
-				{#each checklist as item (item.supplement.id)}
-					<label
-						class="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted/50"
-					>
-						<Checkbox
-							checked={item.taken}
-							onCheckedChange={(checked) => onToggle(item.supplement.id, !!checked)}
-						/>
-						<span class={item.taken ? 'text-muted-foreground line-through' : ''}>
-							{item.supplement.name}
-						</span>
-						<span class="text-muted-foreground ml-auto text-sm">
-							{item.supplement.dosage} {item.supplement.dosageUnit}
-						</span>
-					</label>
+				{#each grouped as group}
+					{#if grouped.length > 1}
+						<p class="text-xs text-muted-foreground font-medium pt-2 first:pt-0">
+							{timeLabels[group.timeOfDay ?? 'anytime']()}
+						</p>
+					{/if}
+					{#each group.items as item (item.supplement.id)}
+						<label
+							class="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted/50"
+						>
+							<Checkbox
+								checked={item.taken}
+								onCheckedChange={(checked) => onToggle(item.supplement.id, !!checked)}
+							/>
+							<span class={item.taken ? 'text-muted-foreground line-through' : ''}>
+								{item.supplement.name}
+							</span>
+							<span class="text-muted-foreground ml-auto text-sm">
+								{item.supplement.dosage} {item.supplement.dosageUnit}
+							</span>
+						</label>
+					{/each}
 				{/each}
 			</div>
 		{/if}
