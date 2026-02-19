@@ -130,6 +130,11 @@
   "supplements_edit": "Supplement bearbeiten",
   "supplements_taken": "Genommen",
   "supplements_pending": "Ausstehend",
+  "supplements_time_of_day": "Tageszeit",
+  "supplements_time_morning": "Morgens",
+  "supplements_time_noon": "Mittags",
+  "supplements_time_evening": "Abends",
+  "supplements_time_anytime": "Jederzeit",
 
   "supplements_day_sun": "So",
   "supplements_day_mon": "Mo",

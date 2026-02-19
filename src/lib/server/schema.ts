@@ -226,6 +226,7 @@ export const supplements = pgTable(
 		scheduleStartDate: date('schedule_start_date'),
 		isActive: boolean('is_active').notNull().default(true),
 		sortOrder: integer('sort_order').notNull().default(0),
+		timeOfDay: text('time_of_day'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},

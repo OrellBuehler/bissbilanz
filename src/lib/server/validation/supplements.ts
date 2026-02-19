@@ -10,7 +10,8 @@ export const supplementCreateSchema = z
 		scheduleDays: z.array(z.coerce.number().int().min(0).max(6)).optional().nullable(),
 		scheduleStartDate: z.string().optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
-		sortOrder: z.coerce.number().int().optional()
+		sortOrder: z.coerce.number().int().optional(),
+		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional()
 	})
 	.refine(
 		(data) => {
@@ -30,7 +31,8 @@ export const supplementUpdateSchema = z.object({
 	scheduleDays: z.array(z.coerce.number().int().min(0).max(6)).optional().nullable(),
 	scheduleStartDate: z.string().optional().nullable(),
 	isActive: z.coerce.boolean().optional(),
-	sortOrder: z.coerce.number().int().optional()
+	sortOrder: z.coerce.number().int().optional(),
+	timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional()
 });
 
 export const supplementLogSchema = z.object({
