@@ -3,6 +3,7 @@ import Heart from '@lucide/svelte/icons/heart';
 import Utensils from '@lucide/svelte/icons/utensils';
 import CookingPot from '@lucide/svelte/icons/cooking-pot';
 import Pill from '@lucide/svelte/icons/pill';
+import Weight from '@lucide/svelte/icons/weight';
 import Target from '@lucide/svelte/icons/target';
 import Calendar from '@lucide/svelte/icons/calendar';
 import Settings from '@lucide/svelte/icons/settings';
@@ -22,6 +23,7 @@ export function getNavItems(): NavItem[] {
 		{ title: () => m.nav_foods(), href: '/app/foods', icon: Utensils },
 		{ title: () => m.nav_recipes(), href: '/app/recipes', icon: CookingPot },
 		{ title: () => m.nav_supplements(), href: '/app/supplements', icon: Pill },
+		{ title: () => m.nav_weight(), href: '/app/weight', icon: Weight },
 		{ title: () => m.nav_goals(), href: '/app/goals', icon: Target },
 		{ title: () => m.nav_history(), href: '/app/history', icon: Calendar },
 		{ title: () => m.nav_settings(), href: '/app/settings', icon: Settings }
