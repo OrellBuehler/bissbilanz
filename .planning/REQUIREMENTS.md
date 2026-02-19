@@ -37,9 +37,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Supplement Tracking
 
-- [ ] **SUPP-01**: User can view today's supplement checklist and check off each supplement as taken
+- [x] **SUPP-01**: User can view today's supplement checklist and check off each supplement as taken
 - [x] **SUPP-02**: Supplements have time-of-day scheduling (morning, noon, evening, or custom)
-- [ ] **SUPP-03**: User can view supplement adherence history (past days' completion)
+- [x] **SUPP-03**: User can view supplement adherence history (past days' completion)
 - [x] **SUPP-04**: Dashboard supplement widget shows today's checklist (hideable in settings)
 - [x] **SUPP-05**: Supplement check-off persists to supplement_logs table with timestamp
 
@@ -118,9 +118,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FAV-07 | Phase 2 | Complete |
 | FAV-08 | Phase 2 | Complete |
 | FAV-09 | Phase 2 | Complete |
-| SUPP-01 | Phase 4 | Pending |
+| SUPP-01 | Phase 4 | Complete |
 | SUPP-02 | Phase 4 | Complete |
-| SUPP-03 | Phase 4 | Pending |
+| SUPP-03 | Phase 4 | Complete |
 | SUPP-04 | Phase 4 | Complete |
 | SUPP-05 | Phase 4 | Complete |
 | WGHT-01 | Phase 3 | Complete |

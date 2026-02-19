@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ## Current Position
 
 Phase: 4 of 4 (Supplement Polish)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-19 — Completed 04-01-PLAN.md (timeOfDay + widget fix)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-19 — Completed 04-02-PLAN.md (checklist grouping + adherence)
 
-Progress: [█████████░] 50% (1/2 plans in Phase 4)
+Progress: [██████████] 100% (2/2 plans in Phase 4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 3min
-- Total execution time: 34min
+- Total execution time: 38min
 
 **By Phase:**
 
@@ -30,15 +30,16 @@ Progress: [█████████░] 50% (1/2 plans in Phase 4)
 | 01-foundation | 3 | 8min | 3min |
 | 02-favorites | 3 | 14min | 5min |
 | 03-weight-tracking | 3 | 9min | 3min |
-| 04-supplement-polish | 1 | 3min | 3min |
+| 04-supplement-polish | 2 | 7min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (6min), 03-01 (3min), 03-02 (3min), 03-03 (3min), 04-01 (3min)
+- Last 5 plans: 03-01 (3min), 03-02 (3min), 03-03 (3min), 04-01 (3min), 04-02 (4min)
 - Trend: Consistent
 
 *Updated after each plan completion*
 | Phase 03 P02 | 5min | 2 tasks | 6 files |
 | Phase 04-supplement-polish P01 | 3min | 2 tasks | 9 files |
+| Phase 04-supplement-polish P02 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 03]: ChartRangeSelector extended with optional ranges prop for reusability (backward-compatible)
 - timeOfDay uses nullable text column (not enum) for flexibility with morning/noon/evening values (04-01)
 - Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length (04-01)
+- Checklist renders flat (no headers) when all items share same timeOfDay group for backward compatibility (04-02)
+- Adherence computed client-side by cross-referencing active supplements schedule with history logs (04-02)
 
 ### Pending Todos
 
@@ -90,5 +93,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 04-01-PLAN.md (timeOfDay + widget fix) — Phase 4 plan 1 of 2
+Stopped at: Completed 04-02-PLAN.md (checklist grouping + adherence) — Phase 4 complete (2/2)
 Resume file: None
