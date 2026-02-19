@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
-	import FavoriteCard from '$lib/components/favorites/FavoriteCard.svelte';
-	import FavoritesGrid from '$lib/components/favorites/FavoritesGrid.svelte';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -167,25 +165,19 @@
 			<Tabs.Content value="favorites" class="space-y-4">
 				{#if loadingFavorites}
 					<p class="text-muted-foreground">{m.add_food_loading()}</p>
-				{:else if allFavorites.length === 0}
-					<p class="text-muted-foreground">{m.add_food_no_favorites()}</p>
 				{:else}
-					<div class="max-h-72 overflow-auto">
-						<FavoritesGrid>
-							{#each allFavorites as item (item.id)}
-								<FavoriteCard
-									name={item.name}
-									imageUrl={item.imageUrl}
-									calories={item.calories}
-									protein={item.protein}
-									carbs={item.carbs}
-									fat={item.fat}
-									type={item.type}
-									onTap={() => handleFavoriteTap(item)}
-								/>
-							{/each}
-						</FavoritesGrid>
-					</div>
+					<ul class="max-h-60 space-y-2 overflow-auto">
+						{#each allFavorites as item (item.id)}
+							<li class="flex items-center justify-between">
+								<span>{item.name}</span>
+								<Button variant="outline" size="sm" onclick={() => handleFavoriteTap(item)}>
+									{m.add_food_add()}
+								</Button>
+							</li>
+						{:else}
+							<li class="text-muted-foreground">{m.add_food_no_favorites()}</li>
+						{/each}
+					</ul>
 				{/if}
 			</Tabs.Content>
 
