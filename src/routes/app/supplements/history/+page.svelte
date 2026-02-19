@@ -6,6 +6,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
+	import { isSupplementDue } from '$lib/utils/supplements';
+	import type { ScheduleType } from '$lib/supplement-units';
 	import * as m from '$lib/paraglide/messages';
 
 	type HistoryEntry = {
@@ -15,26 +18,72 @@
 		dosageUnit: string;
 	};
 
+	type Supplement = {
+		id: string;
+		name: string;
+		dosage: number;
+		dosageUnit: string;
+		scheduleType: ScheduleType;
+		scheduleDays: number[] | null;
+		scheduleStartDate: string | null;
+		isActive: boolean;
+	};
+
+	type DayAdherence = {
+		date: string;
+		taken: { name: string; dosage: number; dosageUnit: string }[];
+		missed: { name: string; dosage: number; dosageUnit: string }[];
+	};
+
 	let from = $state(daysAgo(30));
 	let to = $state(today());
 	let history: HistoryEntry[] = $state([]);
+	let allSupplements: Supplement[] = $state([]);
 
 	const loadHistory = async () => {
-		const res = await fetch(`/api/supplements/history?from=${from}&to=${to}`);
-		if (res.ok) {
-			history = (await res.json()).history;
+		const [histRes, suppRes] = await Promise.all([
+			fetch(`/api/supplements/history?from=${from}&to=${to}`),
+			fetch('/api/supplements?all=true')
+		]);
+		if (histRes.ok) {
+			history = (await histRes.json()).history;
+		}
+		if (suppRes.ok) {
+			allSupplements = (await suppRes.json()).supplements;
 		}
 	};
 
-	// Group logs by date
-	const grouped = $derived.by(() => {
-		const map = new Map<string, HistoryEntry[]>();
+	const adherenceByDay = $derived.by(() => {
+		const activeSupplements = allSupplements.filter((s) => s.isActive);
+		if (activeSupplements.length === 0) return [];
+
+		const logsByDate = new Map<string, Set<string>>();
 		for (const entry of history) {
 			const date = entry.log.date;
-			if (!map.has(date)) map.set(date, []);
-			map.get(date)!.push(entry);
+			if (!logsByDate.has(date)) logsByDate.set(date, new Set());
+			logsByDate.get(date)!.add(entry.log.supplementId);
 		}
-		return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+		const days: DayAdherence[] = [];
+		const fromDate = new Date(from + 'T00:00:00');
+		const toDate = new Date(to + 'T00:00:00');
+
+		for (let d = new Date(toDate); d >= fromDate; d.setDate(d.getDate() - 1)) {
+			const dateStr = d.toISOString().slice(0, 10);
+			const due = activeSupplements.filter((s) =>
+				isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, new Date(dateStr + 'T00:00:00'))
+			);
+			if (due.length === 0) continue;
+
+			const takenIds = logsByDate.get(dateStr) ?? new Set();
+			days.push({
+				date: dateStr,
+				taken: due.filter((s) => takenIds.has(s.id)).map((s) => ({ name: s.name, dosage: s.dosage, dosageUnit: s.dosageUnit })),
+				missed: due.filter((s) => !takenIds.has(s.id)).map((s) => ({ name: s.name, dosage: s.dosage, dosageUnit: s.dosageUnit }))
+			});
+		}
+
+		return days;
 	});
 
 	onMount(loadHistory);
@@ -57,22 +106,32 @@
 		<Button onclick={loadHistory}>{m.supplements_history_filter()}</Button>
 	</div>
 
-	{#if grouped.length === 0}
+	{#if adherenceByDay.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.supplements_history_empty()}</p>
 	{:else}
 		<div class="space-y-3">
-			{#each grouped as [date, entries] (date)}
+			{#each adherenceByDay as day (day.date)}
 				<Card.Root>
-					<Card.Header class="pb-2">
-						<Card.Title class="text-sm font-medium">{date}</Card.Title>
+					<Card.Header class="flex flex-row items-center justify-between pb-2">
+						<Card.Title class="text-sm font-medium">{day.date}</Card.Title>
+						<span class="text-xs text-muted-foreground">
+							{m.supplements_history_adherence({ taken: String(day.taken.length), total: String(day.taken.length + day.missed.length) })}
+						</span>
 					</Card.Header>
 					<Card.Content>
 						<div class="space-y-1">
-							{#each entries as entry}
+							{#each day.taken as item}
 								<div class="flex items-center gap-2 text-sm">
 									<Check class="size-4 text-green-500" />
-									<span>{entry.supplementName}</span>
-									<span class="text-muted-foreground">{entry.dosage} {entry.dosageUnit}</span>
+									<span>{item.name}</span>
+									<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+								</div>
+							{/each}
+							{#each day.missed as item}
+								<div class="flex items-center gap-2 text-sm">
+									<X class="size-4 text-red-500" />
+									<span class="text-muted-foreground">{item.name}</span>
+									<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
 								</div>
 							{/each}
 						</div>
