@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Users can quickly and accurately log what they eat each day and see their nutrition at a glance
-**Current focus:** Phase 3 — Weight Tracking
+**Current focus:** Phase 4 — Supplement Polish
 
 ## Current Position
 
-Phase: 3 of 4 (Weight Tracking)
-Plan: 3 of 3 in current phase
+Phase: 4 of 4 (Supplement Polish)
+Plan: 1 of 2 in current phase
 Status: In Progress
-Last activity: 2026-02-19 — Completed 03-02-PLAN.md (weight page UI)
+Last activity: 2026-02-19 — Completed 04-01-PLAN.md (timeOfDay + widget fix)
 
-Progress: [██████████] 100% (3/3 plans in Phase 3)
+Progress: [█████████░] 50% (1/2 plans in Phase 4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 3min
-- Total execution time: 31min
+- Total execution time: 34min
 
 **By Phase:**
 
@@ -30,13 +30,15 @@ Progress: [██████████] 100% (3/3 plans in Phase 3)
 | 01-foundation | 3 | 8min | 3min |
 | 02-favorites | 3 | 14min | 5min |
 | 03-weight-tracking | 3 | 9min | 3min |
+| 04-supplement-polish | 1 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (4min), 02-02 (4min), 02-03 (6min), 03-01 (3min), 03-03 (3min)
+- Last 5 plans: 02-03 (6min), 03-01 (3min), 03-02 (3min), 03-03 (3min), 04-01 (3min)
 - Trend: Consistent
 
 *Updated after each plan completion*
 | Phase 03 P02 | 5min | 2 tasks | 6 files |
+| Phase 04-supplement-polish P01 | 3min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -72,6 +74,8 @@ Recent decisions affecting current work:
 - Weight widget placed after supplements in dashboard layout order (03-03)
 - [Phase 03]: LineChart uses spline prop for curve config in layerchart (not line like AreaChart)
 - [Phase 03]: ChartRangeSelector extended with optional ranges prop for reusability (backward-compatible)
+- timeOfDay uses nullable text column (not enum) for flexibility with morning/noon/evening values (04-01)
+- Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length (04-01)
 
 ### Pending Todos
 
@@ -86,5 +90,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 03-03-PLAN.md (dashboard weight widget) — Phase 3 plan 3 of 3
+Stopped at: Completed 04-01-PLAN.md (timeOfDay + widget fix) — Phase 4 plan 1 of 2
 Resume file: None
