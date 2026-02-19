@@ -45,11 +45,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Weight Tracking
 
-- [ ] **WGHT-01**: User can log body weight at any time (stores timestamp, not just date)
-- [ ] **WGHT-02**: Weight stored in kg (single unit, no conversion)
-- [ ] **WGHT-03**: User can view weight history as a list with edit/delete
+- [x] **WGHT-01**: User can log body weight at any time (stores timestamp, not just date)
+- [x] **WGHT-02**: Weight stored in kg (single unit, no conversion)
+- [x] **WGHT-03**: User can view weight history as a list with edit/delete
 - [ ] **WGHT-04**: Line chart shows weight over time with selectable range (7d, 30d, 90d, all)
-- [ ] **WGHT-05**: Smoothed trend line (7-day moving average) overlaid on weight chart
+- [x] **WGHT-05**: Smoothed trend line (7-day moving average) overlaid on weight chart
 - [ ] **WGHT-06**: Dashboard weight widget shows latest weight entry (hideable in settings)
 - [ ] **WGHT-07**: Dedicated weight page at /app/weight with chart, history, and log form
 
@@ -123,11 +123,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUPP-03 | Phase 4 | Pending |
 | SUPP-04 | Phase 4 | Pending |
 | SUPP-05 | Phase 4 | Pending |
-| WGHT-01 | Phase 3 | Pending |
-| WGHT-02 | Phase 3 | Pending |
-| WGHT-03 | Phase 3 | Pending |
+| WGHT-01 | Phase 3 | Complete |
+| WGHT-02 | Phase 3 | Complete |
+| WGHT-03 | Phase 3 | Complete |
 | WGHT-04 | Phase 3 | Pending |
-| WGHT-05 | Phase 3 | Pending |
+| WGHT-05 | Phase 3 | Complete |
 | WGHT-06 | Phase 3 | Pending |
 | WGHT-07 | Phase 3 | Pending |
 

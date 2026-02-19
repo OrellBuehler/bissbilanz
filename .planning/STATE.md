@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Users can quickly and accurately log what they eat each day and see their nutrition at a glance
-**Current focus:** Phase 2 — Favorites
+**Current focus:** Phase 3 — Weight Tracking
 
 ## Current Position
 
-Phase: 2 of 4 (Favorites)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-18 — Completed 02-03-PLAN.md (favorites integration across touchpoints)
+Phase: 3 of 4 (Weight Tracking)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-19 — Completed 03-01-PLAN.md (weight backend schema, CRUD, and API routes)
 
-Progress: [██████████] 100% (3/3 plans in Phase 2)
+Progress: [███-------] 33% (1/3 plans in Phase 3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 4min
-- Total execution time: 22min
+- Total execution time: 25min
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [██████████] 100% (3/3 plans in Phase 2)
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 8min | 3min |
 | 02-favorites | 3 | 14min | 5min |
+| 03-weight-tracking | 1 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2min), 01-03 (2min), 02-01 (4min), 02-02 (4min), 02-03 (6min)
+- Last 5 plans: 01-03 (2min), 02-01 (4min), 02-02 (4min), 02-03 (6min), 03-01 (3min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - Dashboard stores full userPrefs from /api/preferences for widget visibility gating (02-03)
 - AddFoodModal fetches favorite recipes with macros from /api/favorites on tab switch (02-03)
 - Food/recipe detail pages use client-side fetch pattern (no +page.server.ts) (02-03)
+- Used raw SQL via db.execute(sql`...`) for weight trend query -- Drizzle ORM lacks DISTINCT ON and window function support (03-01)
+- deleteWeightEntry returns boolean via .returning() for 404 detection in API route (03-01)
 
 ### Pending Todos
 
@@ -72,12 +75,12 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Phase 3 (Weight): Confirm Drizzle ORM syntax for SQL window function (7-day rolling average) before implementing; may need sql template literal escape hatch
+- ~~Phase 3 (Weight): Confirm Drizzle ORM syntax for SQL window function~~ RESOLVED: Used db.execute(sql`...`) with CTE + DISTINCT ON + AVG window (03-01)
 - All phases: Every schema change must generate and commit Drizzle migration before any code builds on it (P-X5)
 - CRITICAL (P-M1): NEVER use `db:push` — it skips the migration journal and breaks both dev startup (`runMigrations()` in hooks.server.ts) and production deployment. Only use `db:generate` → let `runMigrations()` apply on server start.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 02-03-PLAN.md (favorites integration) — Phase 2 complete
+Last session: 2026-02-19
+Stopped at: Completed 03-01-PLAN.md (weight backend) — Phase 3 plan 1 of 3
 Resume file: None
