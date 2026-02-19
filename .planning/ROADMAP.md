@@ -64,7 +64,12 @@ Plans:
   3. The weight chart displays logged weights as a line with selectable time ranges (7d, 30d, 90d, all) and a 7-day moving average overlay
   4. The dashboard weight widget shows the most recent weight entry and is visible only when the user has enabled it in settings
   5. Weight entries are always stored in kilograms with no unit conversion at the storage layer
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Schema, migration, validation, server module, and API routes
+- [ ] 03-02-PLAN.md — Weight page with chart, history list, log form, and navigation
+- [ ] 03-03-PLAN.md — Dashboard weight widget integration
 
 ### Phase 4: Supplement Polish
 **Goal**: Users can check off supplements from their daily schedule and see today's progress on the dashboard
@@ -86,5 +91,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/3 | Complete    | 2026-02-18 |
 | 2. Favorites | 0/3 | Complete    | 2026-02-18 |
-| 3. Weight Tracking | 0/? | Not started | - |
+| 3. Weight Tracking | 0/3 | Not started | - |
 | 4. Supplement Polish | 0/? | Not started | - |
