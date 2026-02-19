@@ -55,7 +55,8 @@ export const createSupplement = async (
 				scheduleDays: data.scheduleDays ?? null,
 				scheduleStartDate: data.scheduleStartDate ?? today(),
 				isActive: data.isActive ?? true,
-				sortOrder: data.sortOrder ?? 0
+				sortOrder: data.sortOrder ?? 0,
+				timeOfDay: data.timeOfDay ?? null
 			})
 			.returning();
 
