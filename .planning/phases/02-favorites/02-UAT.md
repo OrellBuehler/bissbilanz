@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-favorites
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md]
 started: 2026-02-18T23:00:00Z
@@ -80,9 +80,14 @@ skipped: 1
   reason: "User reported: PATCH /api/foods/{id} returns 400 - Validation failed: imageUrl Invalid URL"
   severity: major
   test: 8
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Zod .url() validator in foods.ts:29 requires absolute URLs, but image upload endpoint returns relative paths like /uploads/uuid.webp"
+  artifacts:
+    - path: "src/lib/server/validation/foods.ts"
+      issue: "imageUrl: z.string().url() rejects relative paths"
+    - path: "src/lib/server/images.ts"
+      issue: "processImage returns relative path /uploads/filename"
+  missing:
+    - "Change imageUrl validation to accept relative paths (e.g. z.string().url().or(z.string().startsWith('/')))"
   debug_session: ""
 
 - truth: "AddFoodModal favorites tab shows items as list items matching other tabs"
@@ -90,7 +95,10 @@ skipped: 1
   reason: "User reported: works but style should be list items like all other tabs, not cards"
   severity: minor
   test: 11
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Favorites tab uses FavoritesGrid + FavoriteCard (visual cards in a grid), while all other tabs use ul/li list with name + Add button"
+  artifacts:
+    - path: "src/lib/components/entries/AddFoodModal.svelte"
+      issue: "Favorites tab (lines 167-190) uses FavoritesGrid/FavoriteCard instead of ul/li pattern used by search/recent/recipes tabs"
+  missing:
+    - "Replace FavoritesGrid/FavoriteCard with ul/li + Button layout matching other tabs"
   debug_session: ""
