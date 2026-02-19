@@ -39,7 +39,7 @@
 		const res = await fetch(`/api/weight?from=${chartFrom}&to=${chartTo}`);
 		if (res.ok) {
 			const data = await res.json();
-			chartData = data.entries;
+			chartData = data.data;
 		}
 	};
 
