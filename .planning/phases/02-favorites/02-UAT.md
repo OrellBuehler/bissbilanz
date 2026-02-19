@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 02-favorites
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md]
 started: 2026-02-18T23:00:00Z
-updated: 2026-02-18T23:00:00Z
+updated: 2026-02-19T12:00:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Favorites nav link and page load
-expected: |
-  Sidebar navigation shows "Favorites" with a heart icon as the second item (after Dashboard). Clicking it navigates to /app/favorites. The page loads with "Foods" and "Recipes" tabs visible.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -42,36 +38,59 @@ result: pass
 
 ### 7. Undo after logging
 expected: After tapping a favorite to log it, clicking "Undo" on the toast removes the entry. The logged entry is deleted.
-result: [pending]
+result: pass
 
 ### 8. Image upload on food detail page
 expected: On the food detail page, a file input allows uploading an image. After selecting an image file, it uploads and a preview of the processed image appears. The image is visible on the food's favorite card.
-result: [pending]
+result: issue
+reported: "PATCH /api/foods/{id} returns 400 - Validation failed: imageUrl Invalid URL"
+severity: major
 
 ### 9. Dashboard favorites widget
 expected: When "Show favorites widget" is enabled in Settings, the dashboard shows a "Favorites" widget with up to 5 favorite cards. Cards use the same visual style as the favorites page. Tapping a card logs to the current meal with undo toast.
-result: [pending]
+result: pass
 
 ### 10. Dashboard widget hidden when disabled
 expected: When "Show favorites widget" is disabled in Settings, the favorites widget does not appear on the dashboard.
-result: [pending]
+result: pass
 
 ### 11. AddFoodModal favorites tab
 expected: When adding a food entry (e.g., from the dashboard meal section), the AddFoodModal's "Favorites" tab shows favorite items as visual cards (not a plain text list). Tapping a card selects it for logging.
-result: [pending]
+result: issue
+reported: "works but style should be list items like all other tabs, not cards"
+severity: minor
 
 ### 12. Start page redirect to favorites
 expected: In Settings, set the start page to "Favorites". Close and reopen the app (or navigate to /app). The app redirects to /app/favorites instead of showing the dashboard.
-result: [pending]
+result: skipped
+reason: cannot test at the moment
 
 ## Summary
 
 total: 12
-passed: 0
-issues: 0
-pending: 12
-skipped: 0
+passed: 9
+issues: 2
+pending: 0
+skipped: 1
 
 ## Gaps
 
-[none yet]
+- truth: "Image upload on food detail page saves and displays image on favorite card"
+  status: failed
+  reason: "User reported: PATCH /api/foods/{id} returns 400 - Validation failed: imageUrl Invalid URL"
+  severity: major
+  test: 8
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
+
+- truth: "AddFoodModal favorites tab shows items as list items matching other tabs"
+  status: failed
+  reason: "User reported: works but style should be list items like all other tabs, not cards"
+  severity: minor
+  test: 11
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
