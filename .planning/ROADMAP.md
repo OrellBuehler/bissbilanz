@@ -80,7 +80,11 @@ Plans:
   2. Checking off a supplement saves a log entry with a timestamp to the supplement_logs table
   3. User can view a history of past days showing which supplements were taken and which were missed
   4. The dashboard supplement widget shows today's checklist and is visible only when the user has enabled it in settings
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Schema migration for timeOfDay, validation, form update, and dashboard widget fix
+- [ ] 04-02-PLAN.md — Checklist grouping by time of day and history adherence view
 
 ## Progress
 
@@ -92,4 +96,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation | 0/3 | Complete    | 2026-02-18 |
 | 2. Favorites | 0/3 | Complete    | 2026-02-18 |
 | 3. Weight Tracking | 0/3 | Not started | - |
-| 4. Supplement Polish | 0/? | Not started | - |
+| 4. Supplement Polish | 0/2 | Not started | - |
