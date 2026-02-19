@@ -2,20 +2,48 @@
 	import { today, daysAgo } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
-	let { onRangeChange }: { onRangeChange: (start: string, end: string) => void } = $props();
+	type RangeOption = { key: string; label: () => string; from?: string };
 
-	let activeRange: '7d' | '30d' | 'custom' = $state('7d');
+	let {
+		onRangeChange,
+		ranges: customRanges,
+		activeRange: initialRange
+	}: {
+		onRangeChange: (start: string, end: string) => void;
+		ranges?: RangeOption[];
+		activeRange?: string;
+	} = $props();
+
+	const defaultRanges: RangeOption[] = [
+		{ key: '7d', label: () => m.charts_7d() },
+		{ key: '30d', label: () => m.charts_30d() },
+		{ key: 'custom', label: () => m.charts_custom() }
+	];
+
+	const ranges = $derived(customRanges ?? defaultRanges);
+	let activeRange = $state(initialRange ?? ranges[0]?.key ?? '7d');
+
 	let customStart = $state('');
 	let customEnd = $state('');
 
 	const maxDate = today();
 
-	const selectRange = (range: '7d' | '30d' | 'custom') => {
-		activeRange = range;
-		if (range === '7d') {
+	const selectRange = (key: string) => {
+		activeRange = key;
+		if (key === 'custom') return;
+		const range = ranges.find((r) => r.key === key);
+		if (range?.from) {
+			onRangeChange(range.from, today());
+			return;
+		}
+		if (key === '7d') {
 			onRangeChange(daysAgo(7), today());
-		} else if (range === '30d') {
+		} else if (key === '30d') {
 			onRangeChange(daysAgo(30), today());
+		} else if (key === '90d') {
+			onRangeChange(daysAgo(90), today());
+		} else if (key === 'all') {
+			onRangeChange('2000-01-01', today());
 		}
 	};
 
@@ -24,12 +52,6 @@
 			onRangeChange(customStart, customEnd);
 		}
 	};
-
-	const ranges = [
-		{ key: '7d' as const, label: () => m.charts_7d() },
-		{ key: '30d' as const, label: () => m.charts_30d() },
-		{ key: 'custom' as const, label: () => m.charts_custom() }
-	];
 </script>
 
 <div class="flex flex-wrap items-center gap-3">
