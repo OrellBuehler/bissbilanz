@@ -50,7 +50,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **WGHT-03**: User can view weight history as a list with edit/delete
 - [ ] **WGHT-04**: Line chart shows weight over time with selectable range (7d, 30d, 90d, all)
 - [x] **WGHT-05**: Smoothed trend line (7-day moving average) overlaid on weight chart
-- [ ] **WGHT-06**: Dashboard weight widget shows latest weight entry (hideable in settings)
+- [x] **WGHT-06**: Dashboard weight widget shows latest weight entry (hideable in settings)
 - [ ] **WGHT-07**: Dedicated weight page at /app/weight with chart, history, and log form
 
 ## v2 Requirements
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WGHT-03 | Phase 3 | Complete |
 | WGHT-04 | Phase 3 | Pending |
 | WGHT-05 | Phase 3 | Complete |
-| WGHT-06 | Phase 3 | Pending |
+| WGHT-06 | Phase 3 | Complete |
 | WGHT-07 | Phase 3 | Pending |
 
 **Coverage:**
