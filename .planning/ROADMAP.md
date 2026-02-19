@@ -47,7 +47,7 @@ Plans:
   4. Recipes can have an image uploaded; the image is stored as a 400px WebP thumbnail and displayed on the favorite card
   5. After logging from favorites, a toast notification appears with an Undo action that removes the entry if tapped
   6. The dashboard favorites widget shows the top 5 favorites and is visible only when the user has enabled it in settings
-**Plans:** 3/3 plans complete
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — Schema migration, favorites API with ranking, and image upload backend
@@ -94,6 +94,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/3 | Complete    | 2026-02-18 |
-| 2. Favorites | 0/3 | Complete    | 2026-02-18 |
+| 2. Favorites | 0/3 | Complete    | 2026-02-19 |
 | 3. Weight Tracking | 0/3 | Not started | - |
 | 4. Supplement Polish | 0/2 | Not started | - |
