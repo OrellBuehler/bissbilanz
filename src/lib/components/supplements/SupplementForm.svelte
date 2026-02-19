@@ -26,6 +26,7 @@
 	let scheduleType: ScheduleType = $state(supplement?.scheduleType ?? 'daily');
 	let scheduleDays = $state<number[]>(supplement?.scheduleDays ?? []);
 	let scheduleStartDate = $state(supplement?.scheduleStartDate ?? today());
+	let timeOfDay = $state<string | null>(supplement?.timeOfDay ?? null);
 
 	const dosageUnits = dosageUnitValues;
 	const scheduleTypes = [
@@ -34,6 +35,13 @@
 		{ value: 'weekly', label: () => m.supplements_schedule_weekly() },
 		{ value: 'specific_days', label: () => m.supplements_schedule_specific_days() }
 	];
+	const timeOfDayOptions = [
+		{ value: 'morning', label: () => m.supplements_time_morning() },
+		{ value: 'noon', label: () => m.supplements_time_noon() },
+		{ value: 'evening', label: () => m.supplements_time_evening() },
+		{ value: '', label: () => m.supplements_time_anytime() }
+	];
+
 	const dayLabels = [
 		m.supplements_day_sun,
 		m.supplements_day_mon,
@@ -65,6 +73,7 @@
 		if (scheduleType === 'every_other_day') {
 			payload.scheduleStartDate = scheduleStartDate;
 		}
+		payload.timeOfDay = timeOfDay || null;
 		onSave(payload);
 	};
 </script>
@@ -134,6 +143,20 @@
 			<Input id="startDate" type="date" bind:value={scheduleStartDate} />
 		</div>
 	{/if}
+
+	<div class="space-y-2">
+		<Label>{m.supplements_time_of_day()}</Label>
+		<Select.Root type="single" value={timeOfDay ?? ''} onValueChange={(v) => (timeOfDay = v || null)}>
+			<Select.Trigger>
+				<span>{timeOfDayOptions.find((o) => o.value === (timeOfDay ?? ''))?.label() ?? m.supplements_time_anytime()}</span>
+			</Select.Trigger>
+			<Select.Content>
+				{#each timeOfDayOptions as opt}
+					<Select.Item value={opt.value}>{opt.label()}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</div>
 
 	<div class="flex justify-end gap-2 pt-2">
 		<Button type="button" variant="outline" onclick={onCancel}>

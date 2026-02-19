@@ -236,7 +236,7 @@
 	{#if userPrefs?.showFavoritesWidget}
 		<FavoritesWidget onEntryLogged={loadData} />
 	{/if}
-	{#if supplementChecklist.length > 0}
+	{#if userPrefs?.showSupplementsWidget}
 		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 	{/if}
 	{#if userPrefs?.showWeightWidget}
