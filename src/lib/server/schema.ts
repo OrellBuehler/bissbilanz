@@ -257,6 +257,27 @@ export const supplementLogs = pgTable(
 	]
 );
 
+// Weight Entries
+export const weightEntries = pgTable(
+	'weight_entries',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		weightKg: real('weight_kg').notNull(),
+		entryDate: date('entry_date').notNull(),
+		loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),
+		notes: text('notes'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_weight_entries_user_date').on(table.userId, table.entryDate),
+		index('idx_weight_entries_user_logged').on(table.userId, table.loggedAt)
+	]
+);
+
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(
 	'oauth_clients',
@@ -386,3 +407,5 @@ export type OAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect
 export type NewOAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferInsert;
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type NewUserPreference = typeof userPreferences.$inferInsert;
+export type WeightEntry = typeof weightEntries.$inferSelect;
+export type NewWeightEntry = typeof weightEntries.$inferInsert;

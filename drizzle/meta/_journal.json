@@ -57,6 +57,13 @@
       "when": 1771453533626,
       "tag": "0007_clammy_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771534478595,
+      "tag": "0008_stale_elektra",
+      "breakpoints": true
     }
   ]
 }
