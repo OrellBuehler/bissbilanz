@@ -2,23 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-17)
+See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** Users can quickly and accurately log what they eat each day and see their nutrition at a glance
-**Current focus:** Phase 5 — Dashboard Preference Wiring
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 5 of 5 (Dashboard Preference Wiring)
-Plan: 1 of 1 in current phase
-Status: Complete
-Last activity: 2026-02-21 — Completed 05-01-PLAN.md (dashboard widget ordering + favoriteTapAction wiring)
-
-Progress: [██████████] 100% (1/1 plans in Phase 5)
+Phase: v1.0 complete (5 phases, 13 plans)
+Status: Milestone shipped
+Last activity: 2026-02-21 — v1.0 MVP milestone archived
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Velocity:**
 - Total plans completed: 13
 - Average duration: 4min
 - Total execution time: 48min
@@ -33,69 +30,23 @@ Progress: [██████████] 100% (1/1 plans in Phase 5)
 | 04-supplement-polish | 2 | 7min | 4min |
 | 05-dashboard-preference-wiring | 1 | 6min | 6min |
 
-**Recent Trend:**
-- Last 5 plans: 03-02 (3min), 03-03 (3min), 04-01 (3min), 04-02 (4min), 05-01 (6min)
-- Trend: Consistent
-
-*Updated after each plan completion*
-| Phase 03 P02 | 5min | 2 tasks | 6 files |
-| Phase 04-supplement-polish P01 | 3min | 2 tasks | 9 files |
-| Phase 04-supplement-polish P02 | 4min | 2 tasks | 5 files |
-| Phase 02-favorites P04 | 4min | 2 tasks | 2 files |
-| Phase 05-dashboard-preference-wiring P01 | 6min | 2 tasks | 2 files |
-
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Locale stored on users table (not preferences) since it affects Paraglide server-side rendering (01-01)
-- Preferences PATCH splits locale update (users) from widget prefs (userPreferences) in one request (01-01)
-- Use deLocalizeHref (not manual regex) to strip locale from breadcrumb paths (01-02)
-- PARAGLIDE_LOCALE cookie: httpOnly: false, maxAge: 34560000 to match Paraglide defaults (01-02)
-- LanguageSwitcher uses RadioGroup (not links), lives exclusively in settings page (01-03)
-- All preference changes auto-save with toast -- no save button (01-03)
-- Start page redirect targets /app/foods as stand-in for /app/favorites until Phase 2 (01-03)
-- Dashboard uses ready guard to prevent flash before start page check (01-03)
-- Supplement tracking is schedule-based (not ad-hoc) — backend already fully implemented
-- Weight logging stores timestamp AND entry_date (user-local date) alongside loggedAt to avoid UTC drift (P-W1)
-- All dashboard widgets hideable via DB-stored userPreferences (not localStorage) — P-F5 avoidance
-- Favorites ranked by log count; boolean isFavorite flag on owned foods (not join table)
-- Image upload uses sharp for server-side resize to 400px WebP
-- Recipe nutrition computed at query time via ingredient joins, not denormalized (02-01)
-- Images stored on filesystem with UUID filenames, served publicly without auth (02-01)
-- .gitignore uploads/ scoped to project root to avoid blocking src/routes/uploads/ (02-01)
-- Favorites nav link placed as second sidebar item (after Dashboard) with Heart icon (02-02)
-- Start page redirect updated from /app/foods to /app/favorites (02-02)
-- Deterministic placeholder colors from name char code hash over 8-color pastel palette (02-02)
-- Dashboard stores full userPrefs from /api/preferences for widget visibility gating (02-03)
-- AddFoodModal fetches favorite recipes with macros from /api/favorites on tab switch (02-03)
-- Food/recipe detail pages use client-side fetch pattern (no +page.server.ts) (02-03)
-- Used raw SQL via db.execute(sql`...`) for weight trend query -- Drizzle ORM lacks DISTINCT ON and window function support (03-01)
-- deleteWeightEntry returns boolean via .returning() for 404 detection in API route (03-01)
-- Weight widget placed after supplements in dashboard layout order (03-03)
-- [Phase 03]: LineChart uses spline prop for curve config in layerchart (not line like AreaChart)
-- [Phase 03]: ChartRangeSelector extended with optional ranges prop for reusability (backward-compatible)
-- timeOfDay uses nullable text column (not enum) for flexibility with morning/noon/evening values (04-01)
-- Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length (04-01)
-- Checklist renders flat (no headers) when all items share same timeOfDay group for backward compatibility (04-02)
-- Adherence computed client-side by cross-referencing active supplements schedule with history logs (04-02)
-- Used Zod .refine() with regex for imageUrl validation instead of .url() to support both relative paths and absolute URLs (02-04)
 
 ### Pending Todos
 
-- **Meal time routing**: When logging from favorites, route to the closest meal based on time of day (morning→breakfast, midday→lunch, evening→dinner, otherwise→snacks). The time windows should be user-configurable in Settings (e.g., breakfast 06:00–10:00, lunch 11:00–14:00, dinner 17:00–21:00). Currently hardcoded to "current meal" logic. → Add to a future phase.
+- **Meal time routing**: When logging from favorites, route to the closest meal based on time of day. Time windows should be user-configurable in Settings. Currently hardcoded to "current meal" logic.
 
 ### Blockers/Concerns
 
-- ~~Phase 3 (Weight): Confirm Drizzle ORM syntax for SQL window function~~ RESOLVED: Used db.execute(sql`...`) with CTE + DISTINCT ON + AVG window (03-01)
-- All phases: Every schema change must generate and commit Drizzle migration before any code builds on it (P-X5)
-- CRITICAL (P-M1): NEVER use `db:push` — it skips the migration journal and breaks both dev startup (`runMigrations()` in hooks.server.ts) and production deployment. Only use `db:generate` → let `runMigrations()` apply on server start.
+- All phases: Every schema change must generate and commit Drizzle migration before any code builds on it
+- CRITICAL: NEVER use `db:push` — only use `db:generate` → let `runMigrations()` apply on server start
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 05-01-PLAN.md (dashboard widget ordering + favoriteTapAction wiring) — Phase 5 complete (1/1)
+Stopped at: v1.0 milestone archived
 Resume file: None
