@@ -14,7 +14,8 @@ export const DEFAULT_PREFERENCES = {
 	showWeightWidget: true,
 	widgetOrder: ['favorites', 'supplements', 'weight'] as string[],
 	startPage: 'dashboard' as const,
-	locale: 'en' as const
+	locale: 'en' as const,
+	favoriteTapAction: 'instant' as const
 };
 
 export const getPreferences = async (userId: string) => {

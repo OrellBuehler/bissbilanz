@@ -260,6 +260,7 @@
   "error_copy_dates_required": "Von- oder Bis-Datum fehlt",
   "error_recipe_not_found": "Rezept nicht gefunden",
   "error_food_required": "Lebensmittel oder Rezept erforderlich",
+  "error_weight_range": "Gewicht muss zwischen 20 und 500 kg liegen",
   "error_generic": "Ein Fehler ist aufgetreten",
 
   "pwa_install_prompt": "Bissbilanz installieren für schnellen Zugriff",

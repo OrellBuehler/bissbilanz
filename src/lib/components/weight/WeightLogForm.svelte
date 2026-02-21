@@ -16,7 +16,7 @@
 		error = '';
 		const kg = parseFloat(weightKg);
 		if (isNaN(kg) || kg < 20 || kg > 500) {
-			error = 'Weight must be between 20 and 500 kg';
+			error = m.error_weight_range();
 			return;
 		}
 		if (!entryDate) {

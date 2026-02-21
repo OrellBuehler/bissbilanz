@@ -260,6 +260,7 @@
   "error_copy_dates_required": "Missing from date or to date",
   "error_recipe_not_found": "Recipe not found",
   "error_food_required": "Food or recipe is required",
+  "error_weight_range": "Weight must be between 20 and 500 kg",
   "error_generic": "An error occurred",
 
   "pwa_install_prompt": "Install Bissbilanz for quick access",

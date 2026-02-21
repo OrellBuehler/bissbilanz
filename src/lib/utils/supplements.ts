@@ -15,10 +15,10 @@ export function isSupplementDue(
 
 		case 'every_other_day': {
 			if (!scheduleStartDate) return true;
-			const start = new Date(scheduleStartDate);
-			const diffMs = date.getTime() - start.getTime();
-			const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-			return diffDays % 2 === 0;
+			const [sy, sm, sd] = scheduleStartDate.split('-').map(Number);
+			const startDays = Math.floor(new Date(sy, sm - 1, sd).getTime() / 86400000);
+			const dateDays = Math.floor(new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86400000);
+			return (dateDays - startDays) % 2 === 0;
 		}
 
 		case 'weekly':

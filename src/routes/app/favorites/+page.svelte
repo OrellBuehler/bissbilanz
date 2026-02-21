@@ -75,16 +75,18 @@
 
 		if (!res.ok) return;
 
-		const { entry } = await res.json();
+		const data = await res.json();
 
 		toast.info(m.favorites_logged_toast({ name: item.name, meal }), {
-			action: {
-				label: m.favorites_undo(),
-				onClick: async () => {
-					await apiFetch(`/api/entries/${entry.id}`, { method: 'DELETE' });
-					await loadData();
-				}
-			},
+			action: data.entry
+				? {
+						label: m.favorites_undo(),
+						onClick: async () => {
+							await apiFetch(`/api/entries/${data.entry.id}`, { method: 'DELETE' });
+							await loadData();
+						}
+					}
+				: undefined,
 			duration: 5000
 		});
 	};

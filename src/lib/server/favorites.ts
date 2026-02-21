@@ -18,7 +18,7 @@ export const listFavoriteFoods = async (userId: string, limit = 50) => {
 			logCount: count(foodEntries.id)
 		})
 		.from(foods)
-		.leftJoin(foodEntries, eq(foods.id, foodEntries.foodId))
+		.leftJoin(foodEntries, and(eq(foods.id, foodEntries.foodId), eq(foodEntries.userId, userId)))
 		.where(and(eq(foods.userId, userId), eq(foods.isFavorite, true)))
 		.groupBy(foods.id)
 		.orderBy(sql`count(${foodEntries.id}) DESC`)

@@ -43,7 +43,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
 		await deleteSupplement(userId, params.id);
-		return json({ success: true });
+		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);
 	}
