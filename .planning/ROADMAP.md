@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Favorites** - Favorites system with image cards, tap-to-log, and dashboard widget (completed 2026-02-18)
 - [ ] **Phase 3: Weight Tracking** - Weight logging, trend chart, and dashboard widget
 - [ ] **Phase 4: Supplement Polish** - Wire supplement UI to preferences and complete check-off flow
-- [ ] **Phase 5: Dashboard Preference Wiring** - Apply widget order and tap action preferences on dashboard (gap closure)
+- [x] **Phase 5: Dashboard Preference Wiring** - Apply widget order and tap action preferences on dashboard (gap closure) (completed 2026-02-21)
 
 ## Phase Details
 
@@ -95,7 +95,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Dashboard widgets render in the order configured by the user in settings (drag-and-drop reordering is applied at display time)
   2. Tapping a favorite on the dashboard widget respects the user's configured tap action (instant log or servings picker), matching the behavior on the standalone favorites page
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Wire widgetOrder rendering and favoriteTapAction prop to dashboard
@@ -111,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Favorites | 4/4 | Complete    | 2026-02-19 |
 | 3. Weight Tracking | 3/3 | Complete | 2026-02-19 |
 | 4. Supplement Polish | 2/2 | Complete | 2026-02-19 |
-| 5. Dashboard Preference Wiring | 0/1 | Not started | - |
+| 5. Dashboard Preference Wiring | 1/1 | Complete   | 2026-02-21 |

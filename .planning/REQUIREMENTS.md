@@ -19,7 +19,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **PREF-01**: User preferences table stores per-user settings (widget visibility, tap action, start page)
 - [x] **PREF-02**: Preferences API endpoint (GET + PATCH) with Zod validation
-- [ ] **PREF-03**: Settings page shows preferences controls for all dashboard widgets
+- [x] **PREF-03**: Settings page shows preferences controls for all dashboard widgets
 - [x] **PREF-04**: User can configure start page (dashboard or favorites) in settings
 - [x] **PREF-05**: PWA opens to user's configured start page
 
@@ -29,7 +29,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **FAV-02**: User can mark recipes as favorite (isFavorite + imageUrl columns on recipes)
 - [x] **FAV-03**: Dedicated favorites page shows all favorites as visual image cards with nutrition info
 - [x] **FAV-04**: Favorites ranked by log count (most-used items surface first)
-- [ ] **FAV-05**: Tap-to-log: configurable instant log (1 serving to current meal) or choose-servings picker
+- [x] **FAV-05**: Tap-to-log: configurable instant log (1 serving to current meal) or choose-servings picker
 - [x] **FAV-06**: Dashboard favorites widget shows top 5 favorites with tap-to-log (hideable in settings)
 - [x] **FAV-07**: Image upload for recipes via sharp server-side resize to 400px webp
 - [x] **FAV-08**: FavoriteCard component reused across favorites page, dashboard widget, and AddFoodModal
@@ -106,14 +106,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LANG-05 | Phase 1 | Complete |
 | PREF-01 | Phase 1 | Complete |
 | PREF-02 | Phase 1 | Complete |
-| PREF-03 | Phase 1, Phase 5 | Pending |
+| PREF-03 | Phase 1, Phase 5 | Complete |
 | PREF-04 | Phase 1 | Complete |
 | PREF-05 | Phase 1 | Complete |
 | FAV-01 | Phase 2 | Complete |
 | FAV-02 | Phase 2 | Complete |
 | FAV-03 | Phase 2 | Complete |
 | FAV-04 | Phase 2 | Complete |
-| FAV-05 | Phase 2, Phase 5 | Pending |
+| FAV-05 | Phase 2, Phase 5 | Complete |
 | FAV-06 | Phase 2 | Complete |
 | FAV-07 | Phase 2 | Complete |
 | FAV-08 | Phase 2 | Complete |
