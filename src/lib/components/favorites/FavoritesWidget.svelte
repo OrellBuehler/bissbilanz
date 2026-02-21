@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FavoriteCard from '$lib/components/favorites/FavoriteCard.svelte';
 	import FavoritesGrid from '$lib/components/favorites/FavoritesGrid.svelte';
+	import ServingsPicker from '$lib/components/favorites/ServingsPicker.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { getCurrentMealByTime } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
@@ -23,11 +24,14 @@
 
 	type Props = {
 		onEntryLogged: () => void;
+		favoriteTapAction?: 'instant' | 'picker';
 	};
 
-	let { onEntryLogged }: Props = $props();
+	let { onEntryLogged, favoriteTapAction = 'instant' }: Props = $props();
 
 	let items: FavoriteItem[] = $state([]);
+	let pickerOpen = $state(false);
+	let pickerItem: FavoriteItem | null = $state(null);
 
 	const loadFavorites = async () => {
 		try {
@@ -45,11 +49,11 @@
 		}
 	};
 
-	const logEntry = async (item: FavoriteItem) => {
+	const logEntry = async (item: FavoriteItem, servings = 1) => {
 		const meal = getCurrentMealByTime();
 		const payload: Record<string, unknown> = {
 			mealType: meal,
-			servings: 1,
+			servings,
 			date: today()
 		};
 		if (item.type === 'food') {
@@ -66,20 +70,37 @@
 
 		if (!res.ok) return;
 
-		const { entry } = await res.json();
+		const data = await res.json();
 
 		toast.info(m.favorites_logged_toast({ name: item.name, meal }), {
-			action: {
-				label: m.favorites_undo(),
-				onClick: async () => {
-					await apiFetch(`/api/entries/${entry.id}`, { method: 'DELETE' });
-					onEntryLogged();
-				}
-			},
+			action: data.entry
+				? {
+						label: m.favorites_undo(),
+						onClick: async () => {
+							await apiFetch(`/api/entries/${data.entry.id}`, { method: 'DELETE' });
+							onEntryLogged();
+						}
+					}
+				: undefined,
 			duration: 5000
 		});
 
 		onEntryLogged();
+	};
+
+	const handleTap = (item: FavoriteItem) => {
+		if (favoriteTapAction === 'picker') {
+			pickerItem = item;
+			pickerOpen = true;
+		} else {
+			logEntry(item);
+		}
+	};
+
+	const handlePickerConfirm = (servings: number) => {
+		if (pickerItem) logEntry(pickerItem, servings);
+		pickerOpen = false;
+		pickerItem = null;
 	};
 
 	onMount(() => {
@@ -103,10 +124,20 @@
 						carbs={item.carbs}
 						fat={item.fat}
 						type={item.type}
-						onTap={() => logEntry(item)}
+						onTap={() => handleTap(item)}
 					/>
 				{/each}
 			</FavoritesGrid>
 		</Card.Content>
 	</Card.Root>
 {/if}
+
+<ServingsPicker
+	open={pickerOpen}
+	itemName={pickerItem?.name ?? ''}
+	onConfirm={handlePickerConfirm}
+	onClose={() => {
+		pickerOpen = false;
+		pickerItem = null;
+	}}
+/>
