@@ -95,10 +95,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Dashboard widgets render in the order configured by the user in settings (drag-and-drop reordering is applied at display time)
   2. Tapping a favorite on the dashboard widget respects the user's configured tap action (instant log or servings picker), matching the behavior on the standalone favorites page
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- (to be planned)
+- [ ] 05-01-PLAN.md — Wire widgetOrder rendering and favoriteTapAction prop to dashboard
 
 ## Progress
 
@@ -111,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Favorites | 4/4 | Complete    | 2026-02-19 |
 | 3. Weight Tracking | 3/3 | Complete | 2026-02-19 |
 | 4. Supplement Polish | 2/2 | Complete | 2026-02-19 |
-| 5. Dashboard Preference Wiring | 0/0 | Not started | - |
+| 5. Dashboard Preference Wiring | 0/1 | Not started | - |
