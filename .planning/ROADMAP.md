@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Favorites** - Favorites system with image cards, tap-to-log, and dashboard widget (completed 2026-02-18)
 - [ ] **Phase 3: Weight Tracking** - Weight logging, trend chart, and dashboard widget
 - [ ] **Phase 4: Supplement Polish** - Wire supplement UI to preferences and complete check-off flow
+- [ ] **Phase 5: Dashboard Preference Wiring** - Apply widget order and tap action preferences on dashboard (gap closure)
 
 ## Phase Details
 
@@ -86,14 +87,28 @@ Plans:
 - [ ] 04-01-PLAN.md — Schema migration for timeOfDay, validation, form update, and dashboard widget fix
 - [ ] 04-02-PLAN.md — Checklist grouping by time of day and history adherence view
 
+### Phase 5: Dashboard Preference Wiring
+**Goal**: Dashboard renders widgets in user-configured order and FavoritesWidget respects the tap action preference
+**Depends on**: Phase 1, Phase 2
+**Requirements**: PREF-03, FAV-05
+**Gap Closure**: Closes gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. Dashboard widgets render in the order configured by the user in settings (drag-and-drop reordering is applied at display time)
+  2. Tapping a favorite on the dashboard widget respects the user's configured tap action (instant log or servings picker), matching the behavior on the standalone favorites page
+**Plans:** 0 plans
+
+Plans:
+- (to be planned)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Complete    | 2026-02-18 |
-| 2. Favorites | 0/3 | Complete    | 2026-02-19 |
-| 3. Weight Tracking | 0/3 | Not started | - |
-| 4. Supplement Polish | 0/2 | Not started | - |
+| 1. Foundation | 3/3 | Complete    | 2026-02-18 |
+| 2. Favorites | 4/4 | Complete    | 2026-02-19 |
+| 3. Weight Tracking | 3/3 | Complete | 2026-02-19 |
+| 4. Supplement Polish | 2/2 | Complete | 2026-02-19 |
+| 5. Dashboard Preference Wiring | 0/0 | Not started | - |
