@@ -15,6 +15,7 @@
 		settings: () => m.nav_settings(),
 		favorites: () => m.nav_favorites(),
 		supplements: () => m.nav_supplements(),
+		weight: () => m.nav_weight(),
 		new: () => m.foods_new(),
 		mcp: () => 'MCP'
 	};

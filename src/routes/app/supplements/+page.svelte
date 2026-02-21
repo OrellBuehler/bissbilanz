@@ -77,7 +77,7 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.supplements_title()}</h1>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" href="/app/supplements/history">

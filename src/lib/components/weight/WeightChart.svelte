@@ -31,7 +31,7 @@
 		data.map((d) => ({
 			weightKg: Number(d.weight_kg),
 			movingAvg: d.moving_avg ? Number(d.moving_avg) : null,
-			dateLabel: new Date(d.entry_date + 'T00:00:00Z').toLocaleDateString(
+			dateLabel: new Date(d.entry_date).toLocaleDateString(
 				undefined,
 				shortLabels
 					? { day: 'numeric', month: 'short' }
@@ -65,7 +65,7 @@
 </script>
 
 <div class="space-y-3">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-2">
 		<h2 class="text-lg font-semibold">{m.weight_chart()}</h2>
 		<ChartRangeSelector {ranges} activeRange="30d" {onRangeChange} />
 	</div>
