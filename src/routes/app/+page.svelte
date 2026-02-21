@@ -233,15 +233,15 @@
 			</Card.Content>
 		</Card.Root>
 	{/if}
-	{#if userPrefs?.showFavoritesWidget}
-		<FavoritesWidget onEntryLogged={loadData} />
-	{/if}
-	{#if userPrefs?.showSupplementsWidget}
-		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
-	{/if}
-	{#if userPrefs?.showWeightWidget}
-		<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
-	{/if}
+	{#each userPrefs?.widgetOrder ?? ['favorites', 'supplements', 'weight'] as widgetKey (widgetKey)}
+		{#if widgetKey === 'favorites' && userPrefs?.showFavoritesWidget}
+			<FavoritesWidget onEntryLogged={loadData} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
+		{:else if widgetKey === 'supplements' && userPrefs?.showSupplementsWidget}
+			<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+		{:else if widgetKey === 'weight' && userPrefs?.showWeightWidget}
+			<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
+		{/if}
+	{/each}
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
 			<MealSection
