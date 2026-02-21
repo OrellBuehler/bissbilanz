@@ -87,5 +87,5 @@
 
 <!-- New food modal -->
 <ResponsiveModal bind:open={showNewFood} title={m.foods_new()} description={m.foods_new_description()}>
-	<FoodForm onSave={createFood} />
+	<FoodForm onSave={createFood} onBarcodeScan={(barcode) => { showNewFood = false; goto(`/app/foods/new?barcode=${barcode}`); }} />
 </ResponsiveModal>

@@ -6,7 +6,9 @@
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	const barcode = $derived($page.url.searchParams.get('barcode') ?? '');
+	const urlBarcode = $derived($page.url.searchParams.get('barcode') ?? '');
+	let scannedBarcode = $state('');
+	const barcode = $derived(scannedBarcode || urlBarcode);
 
 	let offData = $state<any>(null);
 	let offLoading = $state(false);
@@ -71,6 +73,11 @@
 			: null
 	);
 
+	const handleBarcodeScan = (code: string) => {
+		scannedBarcode = code;
+		fetchFromOFF(code);
+	};
+
 	const handleSave = async (payload: any) => {
 		const body = qualityFields ? { ...payload, ...qualityFields } : payload;
 		await fetch('/api/foods', {
@@ -103,7 +110,7 @@
 
 	{#if !offLoading}
 		{#key offData}
-			<FoodForm initial={initialData} onSave={handleSave} />
+			<FoodForm initial={initialData} onSave={handleSave} onBarcodeScan={handleBarcodeScan} />
 		{/key}
 	{/if}
 </div>
