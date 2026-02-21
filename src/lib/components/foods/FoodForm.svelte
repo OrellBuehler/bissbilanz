@@ -5,6 +5,8 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
+	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import * as m from '$lib/paraglide/messages';
@@ -49,12 +51,19 @@
 	type Props = {
 		initial?: Partial<FoodFormData>;
 		onSave: (payload: FoodFormData) => Promise<void>;
+		onBarcodeScan?: (barcode: string) => void;
 	};
 
-	let { initial = {}, onSave }: Props = $props();
+	let { initial = {}, onSave, onBarcodeScan }: Props = $props();
 
 	let showAdvanced = $state(false);
 	let saving = $state(false);
+	let scanOpen = $state(false);
+
+	function handleScanned(barcode: string) {
+		form.barcode = barcode;
+		onBarcodeScan?.(barcode);
+	}
 
 	// Build initial form values (intentionally captures initial prop once — form state is independent)
 	// svelte-ignore state_referenced_locally
@@ -110,7 +119,12 @@
 	</div>
 	<div class="grid gap-1.5">
 		<Label for="barcode">{m.food_form_barcode()}</Label>
-		<Input id="barcode" bind:value={form.barcode} />
+		<div class="flex gap-2">
+			<Input id="barcode" bind:value={form.barcode} class="flex-1" />
+			<Button type="button" variant="outline" size="icon" onclick={() => (scanOpen = true)}>
+				<ScanBarcode class="size-4" />
+			</Button>
+		</div>
 	</div>
 	<div class="grid grid-cols-2 gap-2">
 		<div class="grid gap-1.5">
@@ -199,3 +213,5 @@
 	</div>
 	<Button disabled={!isValid || saving} onclick={handleSave}>{m.food_form_save()}</Button>
 </div>
+
+<BarcodeScanModal bind:open={scanOpen} onClose={() => (scanOpen = false)} onBarcode={handleScanned} />

@@ -20,6 +20,11 @@ export type { ServingUnit } from '../units';
 export { servingUnitValues } from '../units';
 export const servingUnitEnum = pgEnum('serving_unit', servingUnitValues);
 
+import { scheduleTypeValues } from '../supplement-units';
+export type { ScheduleType } from '../supplement-units';
+export { scheduleTypeValues } from '../supplement-units';
+export const scheduleTypeEnum = pgEnum('schedule_type', scheduleTypeValues);
+
 // Users (from Infomaniak OIDC)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -27,6 +32,7 @@ export const users = pgTable('users', {
 	email: text('email'),
 	name: text('name'),
 	avatarUrl: text('avatar_url'),
+	locale: text('locale').default('en'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
@@ -133,6 +139,23 @@ export const userGoals = pgTable('user_goals', {
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
+// User Preferences
+export const userPreferences = pgTable('user_preferences', {
+	userId: uuid('user_id')
+		.primaryKey()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
+	showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
+	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
+	widgetOrder: text('widget_order')
+		.array()
+		.notNull()
+		.default(sql`ARRAY['favorites', 'supplements', 'weight']::text[]`),
+	startPage: text('start_page').notNull().default('dashboard'),
+	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+});
+
 // Recipes
 export const recipes = pgTable(
 	'recipes',
@@ -143,6 +166,8 @@ export const recipes = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		totalServings: real('total_servings').notNull(),
+		isFavorite: boolean('is_favorite').notNull().default(false),
+		imageUrl: text('image_url'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -183,6 +208,75 @@ export const customMealTypes = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [index('idx_custom_meal_types_user_id').on(table.userId)]
+);
+
+// Supplements
+export const supplements = pgTable(
+	'supplements',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		dosage: real('dosage').notNull(),
+		dosageUnit: text('dosage_unit').notNull(),
+		scheduleType: scheduleTypeEnum('schedule_type').notNull(),
+		scheduleDays: integer('schedule_days').array(),
+		scheduleStartDate: date('schedule_start_date'),
+		isActive: boolean('is_active').notNull().default(true),
+		sortOrder: integer('sort_order').notNull().default(0),
+		timeOfDay: text('time_of_day'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_supplements_user_id').on(table.userId),
+		index('idx_supplements_user_active').on(table.userId, table.isActive)
+	]
+);
+
+// Supplement Logs
+export const supplementLogs = pgTable(
+	'supplement_logs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		supplementId: uuid('supplement_id')
+			.notNull()
+			.references(() => supplements.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		date: date('date').notNull(),
+		takenAt: timestamp('taken_at', { withTimezone: true }).notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		uniqueIndex('idx_supplement_logs_unique').on(table.supplementId, table.date),
+		index('idx_supplement_logs_user_date').on(table.userId, table.date),
+		index('idx_supplement_logs_supplement_id').on(table.supplementId)
+	]
+);
+
+// Weight Entries
+export const weightEntries = pgTable(
+	'weight_entries',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		weightKg: real('weight_kg').notNull(),
+		entryDate: date('entry_date').notNull(),
+		loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),
+		notes: text('notes'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_weight_entries_user_date').on(table.userId, table.entryDate),
+		index('idx_weight_entries_user_logged').on(table.userId, table.loggedAt)
+	]
 );
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
@@ -300,6 +394,10 @@ export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type NewRecipeIngredient = typeof recipeIngredients.$inferInsert;
 export type CustomMealType = typeof customMealTypes.$inferSelect;
 export type NewCustomMealType = typeof customMealTypes.$inferInsert;
+export type Supplement = typeof supplements.$inferSelect;
+export type NewSupplement = typeof supplements.$inferInsert;
+export type SupplementLog = typeof supplementLogs.$inferSelect;
+export type NewSupplementLog = typeof supplementLogs.$inferInsert;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type NewOAuthClient = typeof oauthClients.$inferInsert;
 export type OAuthAuthorization = typeof oauthAuthorizations.$inferSelect;
@@ -308,3 +406,7 @@ export type OAuthToken = typeof oauthTokens.$inferSelect;
 export type NewOAuthToken = typeof oauthTokens.$inferInsert;
 export type OAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
 export type NewOAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferInsert;
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type NewUserPreference = typeof userPreferences.$inferInsert;
+export type WeightEntry = typeof weightEntries.$inferSelect;
+export type NewWeightEntry = typeof weightEntries.$inferInsert;

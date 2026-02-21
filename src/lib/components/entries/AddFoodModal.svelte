@@ -1,16 +1,27 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as m from '$lib/paraglide/messages';
 
+	type FavoriteItem = {
+		id: string;
+		name: string;
+		imageUrl: string | null;
+		calories: number;
+		protein: number;
+		carbs: number;
+		fat: number;
+		type: 'food' | 'recipe';
+	};
+
 	type Props = {
 		open?: boolean;
-		foods?: Array<{ id: string; name: string; isFavorite?: boolean }>;
-		recipes?: Array<{ id: string; name: string }>;
+		foods?: Array<{ id: string; name: string; isFavorite?: boolean; calories?: number; protein?: number; carbs?: number; fat?: number; imageUrl?: string | null }>;
+		recipes?: Array<{ id: string; name: string; isFavorite?: boolean }>;
 		mealType?: string;
 		onClose: () => void;
 		onSave: (payload: {
@@ -35,12 +46,29 @@
 	let tab: 'search' | 'favorites' | 'recent' | 'recipes' = $state('search');
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
 	let loadingRecent = $state(false);
+	let favoriteRecipes: FavoriteItem[] = $state([]);
+	let loadingFavorites = $state(false);
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
 
 	const filteredRecipes = () =>
 		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
+
+	const favoriteFoods = $derived(
+		onlyFavorites(foods).map((f): FavoriteItem => ({
+			id: f.id,
+			name: f.name,
+			imageUrl: f.imageUrl ?? null,
+			calories: f.calories ?? 0,
+			protein: f.protein ?? 0,
+			carbs: f.carbs ?? 0,
+			fat: f.fat ?? 0,
+			type: 'food'
+		}))
+	);
+
+	const allFavorites = $derived([...favoriteFoods, ...favoriteRecipes]);
 
 	const handleAddFood = (foodId: string) => {
 		onSave({ foodId, mealType, servings });
@@ -62,10 +90,46 @@
 		}
 	};
 
+	const loadFavoriteRecipes = async () => {
+		if (favoriteRecipes.length > 0) return;
+		loadingFavorites = true;
+		try {
+			const res = await fetch('/api/favorites?type=recipes');
+			if (res.ok) {
+				const data = await res.json();
+				favoriteRecipes = (data.recipes ?? []).map((r: any): FavoriteItem => ({
+					id: r.id,
+					name: r.name,
+					imageUrl: r.imageUrl ?? null,
+					calories: r.calories ?? 0,
+					protein: r.protein ?? 0,
+					carbs: r.carbs ?? 0,
+					fat: r.fat ?? 0,
+					type: 'recipe'
+				}));
+			}
+		} catch {
+			// silently ignore
+		} finally {
+			loadingFavorites = false;
+		}
+	};
+
 	const handleTabChange = (value: string) => {
 		tab = value as typeof tab;
 		if (value === 'recent') {
 			loadRecentFoods();
+		}
+		if (value === 'favorites') {
+			loadFavoriteRecipes();
+		}
+	};
+
+	const handleFavoriteTap = (item: FavoriteItem) => {
+		if (item.type === 'food') {
+			handleAddFood(item.id);
+		} else {
+			handleAddRecipe(item.id);
 		}
 	};
 </script>
@@ -99,18 +163,22 @@
 			</Tabs.Content>
 
 			<Tabs.Content value="favorites" class="space-y-4">
-				<ul class="max-h-60 space-y-2 overflow-auto">
-					{#each onlyFavorites(foods) as food}
-						<li class="flex items-center justify-between">
-							<span>{food.name}</span>
-							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-								{m.add_food_add()}
-							</Button>
-						</li>
-					{:else}
-						<li class="text-muted-foreground">{m.add_food_no_favorites()}</li>
-					{/each}
-				</ul>
+				{#if loadingFavorites}
+					<p class="text-muted-foreground">{m.add_food_loading()}</p>
+				{:else}
+					<ul class="max-h-60 space-y-2 overflow-auto">
+						{#each allFavorites as item (item.id)}
+							<li class="flex items-center justify-between">
+								<span>{item.name}</span>
+								<Button variant="outline" size="sm" onclick={() => handleFavoriteTap(item)}>
+									{m.add_food_add()}
+								</Button>
+							</li>
+						{:else}
+							<li class="text-muted-foreground">{m.add_food_no_favorites()}</li>
+						{/each}
+					</ul>
+				{/if}
 			</Tabs.Content>
 
 			<Tabs.Content value="recent" class="space-y-4">

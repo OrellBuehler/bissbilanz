@@ -4,3 +4,6 @@ export * from './goals';
 export * from './meal-types';
 export * from './pagination';
 export * from './recipes';
+export * from './supplements';
+export * from './preferences';
+export * from './weight';

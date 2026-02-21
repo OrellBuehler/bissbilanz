@@ -36,6 +36,41 @@
       "when": 1771087019781,
       "tag": "0004_chilly_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771363283349,
+      "tag": "0005_natural_captain_britain",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771367124864,
+      "tag": "0006_adorable_menace",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1771453533626,
+      "tag": "0007_clammy_cyclops",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771534478595,
+      "tag": "0008_stale_elektra",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1771536897567,
+      "tag": "0009_worried_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

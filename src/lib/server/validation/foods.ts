@@ -26,7 +26,13 @@ export const foodCreateSchema = z.object({
 	novaGroup: z.coerce.number().int().min(1).max(4).optional().nullable(),
 	additives: z.array(z.string()).optional().nullable(),
 	ingredientsText: z.string().optional().nullable(),
-	imageUrl: z.string().url().optional().nullable()
+	imageUrl: z
+		.string()
+		.refine((val) => val.startsWith('/') || /^https?:\/\//.test(val), {
+			message: 'Must be a relative path or absolute URL'
+		})
+		.optional()
+		.nullable()
 });
 
 export const foodUpdateSchema = foodCreateSchema.partial();

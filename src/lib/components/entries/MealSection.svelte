@@ -12,6 +12,7 @@
 			calories: number | null;
 			servings: number;
 			mealType: string;
+			createdAt?: string | null;
 		}>;
 		readonly?: boolean;
 		onAdd?: () => void;
@@ -19,6 +20,12 @@
 	};
 
 	let { title, entries = [], readonly = false, onAdd, onEdit }: Props = $props();
+
+	const formatTime = (iso: string | null | undefined) => {
+		if (!iso) return '';
+		const d = new Date(iso);
+		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+	};
 </script>
 
 <Card.Root>
@@ -33,21 +40,31 @@
 			{#each entries as entry}
 				<li class="flex items-center justify-between text-sm">
 					{#if readonly}
-						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
+						<div class="flex items-center gap-2">
+							<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
+							{#if entry.createdAt}
+								<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+							{/if}
+						</div>
 					{:else}
-						<Button
-							variant="ghost"
-							class="h-auto p-0 text-left hover:underline"
-							onclick={() =>
-								onEdit?.({
-									id: entry.id,
-									servings: entry.servings,
-									mealType: entry.mealType,
-									foodName: entry.foodName ?? undefined
-								})}
-						>
-							{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
-						</Button>
+						<div class="flex items-center gap-2">
+							<Button
+								variant="ghost"
+								class="h-auto p-0 text-left hover:underline"
+								onclick={() =>
+									onEdit?.({
+										id: entry.id,
+										servings: entry.servings,
+										mealType: entry.mealType,
+										foodName: entry.foodName ?? undefined
+									})}
+							>
+								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
+							</Button>
+							{#if entry.createdAt}
+								<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+							{/if}
+						</div>
 					{/if}
 					<span class="text-muted-foreground"
 						>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span

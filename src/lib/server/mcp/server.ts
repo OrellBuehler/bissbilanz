@@ -5,7 +5,9 @@ import {
 	handleCreateRecipe,
 	handleGetDailyStatus,
 	handleLogFood,
-	handleSearchFoods
+	handleSearchFoods,
+	handleGetSupplementStatus,
+	handleLogSupplement
 } from './handlers';
 
 const MCP_SERVER_NAME = 'bissbilanz';
@@ -129,6 +131,39 @@ export function createMcpServer(userId: string): McpServer {
 		},
 		async (args) => {
 			const result = await handleLogFood(userId, { ...args, date: args.date ?? undefined });
+			return asText(result);
+		}
+	);
+
+	server.registerTool(
+		'get_supplement_status',
+		{
+			description:
+				"Get today's supplement checklist showing which supplements are due and whether they've been taken.",
+			inputSchema: {}
+		},
+		async () => {
+			const result = await handleGetSupplementStatus(userId);
+			return asText(result);
+		}
+	);
+
+	server.registerTool(
+		'log_supplement',
+		{
+			description:
+				'Mark a supplement as taken. Search by name or provide a specific supplement ID.',
+			inputSchema: {
+				name: z.string().optional().describe('Supplement name to search for (fuzzy match)'),
+				supplementId: z.string().optional().describe('Exact supplement ID'),
+				date: z
+					.string()
+					.optional()
+					.describe('Date in YYYY-MM-DD format. Defaults to today.')
+			}
+		},
+		async (args) => {
+			const result = await handleLogSupplement(userId, args);
 			return asText(result);
 		}
 	);

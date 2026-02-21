@@ -1,10 +1,10 @@
 import { getDB } from '$lib/server/db';
-import { recipes, recipeIngredients } from '$lib/server/schema';
+import { recipes, recipeIngredients, foods } from '$lib/server/schema';
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
-type RecipeInput = { name: string; totalServings: number };
+type RecipeInput = { name: string; totalServings: number; isFavorite?: boolean; imageUrl?: string | null };
 
 type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
@@ -13,12 +13,31 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
 	name: input.name,
-	totalServings: input.totalServings
+	totalServings: input.totalServings,
+	isFavorite: input.isFavorite ?? false,
+	imageUrl: input.imageUrl ?? null
 });
 
 export const listRecipes = async (userId: string) => {
 	const db = getDB();
-	return db.select().from(recipes).where(eq(recipes.userId, userId)).orderBy(recipes.name);
+	return db
+		.select({
+			id: recipes.id,
+			name: recipes.name,
+			totalServings: recipes.totalServings,
+			isFavorite: recipes.isFavorite,
+			imageUrl: recipes.imageUrl,
+			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+		})
+		.from(recipes)
+		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
+		.where(eq(recipes.userId, userId))
+		.groupBy(recipes.id)
+		.orderBy(recipes.name);
 };
 
 export const createRecipe = async (

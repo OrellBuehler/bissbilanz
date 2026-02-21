@@ -8,6 +8,7 @@
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
+	import { goto } from '$app/navigation';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -80,11 +81,11 @@
 	{#if query && filtered.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
-		<FoodList foods={filtered} onEdit={() => {}} onDelete={deleteFood} onEnrich={enrichFood} />
+		<FoodList foods={filtered} onEdit={(id) => goto(`/app/foods/${id}`)} onDelete={deleteFood} onEnrich={enrichFood} />
 	{/if}
 </div>
 
 <!-- New food modal -->
 <ResponsiveModal bind:open={showNewFood} title={m.foods_new()} description={m.foods_new_description()}>
-	<FoodForm onSave={createFood} />
+	<FoodForm onSave={createFood} onBarcodeScan={(barcode) => { showNewFood = false; goto(`/app/foods/new?barcode=${barcode}`); }} />
 </ResponsiveModal>

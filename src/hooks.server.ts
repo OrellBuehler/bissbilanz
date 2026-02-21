@@ -91,9 +91,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	// Protect /app routes - check the de-localized path
 	const isAppRoute =
 		pathname.startsWith('/app') ||
-		pathname.startsWith('/de/app') ||
-		pathname.startsWith('/fr/app') ||
-		pathname.startsWith('/it/app');
+		pathname.startsWith('/de/app');
 
 	if (isAppRoute && !event.locals.user) {
 		throw redirect(302, '/');

@@ -29,12 +29,16 @@ Bissbilanz is a food tracking application that allows users to:
 ### UI & Styling
 - **Components:** shadcn-svelte
 - **Styling:** Tailwind CSS 4.x
-- **Icons:** lucide-svelte
+- **Icons:** @lucide/svelte
 
 ### Features
 - **PWA:** @vite-pwa/sveltekit
 - **Barcode Scanning:** html5-qrcode
 - **AI Integration:** @modelcontextprotocol/sdk (MCP TypeScript SDK)
+- **i18n:** @inlang/paraglide-js (en, de locales)
+- **Charts:** layerchart
+- **Date Handling:** @internationalized/date
+- **Food Data:** Open Food Facts API
 
 ### Development
 - **Type Checking:** TypeScript 5.x
@@ -48,50 +52,73 @@ bissbilanz/
 ├── src/
 │   ├── lib/
 │   │   ├── components/      # Svelte components
-│   │   │   ├── auth/        # Auth-related components
-│   │   │   ├── foods/       # Food database components
+│   │   │   ├── barcode/     # Barcode scanning
+│   │   │   ├── charts/      # Data visualization (layerchart)
 │   │   │   ├── entries/     # Food entry components
+│   │   │   ├── foods/       # Food database components
+│   │   │   ├── history/     # History views
+│   │   │   ├── navigation/  # App sidebar & header
+│   │   │   ├── pwa/         # PWA install/update/offline
+│   │   │   ├── quality/     # NutriScore, NOVA, additives
 │   │   │   ├── recipes/     # Recipe components
-│   │   │   └── ui/          # shadcn-svelte components
+│   │   │   ├── supplements/ # Supplement tracking
+│   │   │   └── ui/          # shadcn-svelte primitives
+│   │   ├── config/          # App configuration (navigation)
 │   │   ├── server/          # Server-side code
-│   │   │   ├── db.ts        # Database connection & schema exports
 │   │   │   ├── schema.ts    # Drizzle schema definitions
+│   │   │   ├── db.ts        # Database connection
 │   │   │   ├── session.ts   # Session management
 │   │   │   ├── env.ts       # Environment config
+│   │   │   ├── oidc*.ts     # OIDC auth (cookies, jwt, validate)
+│   │   │   ├── openfoodfacts.ts # Open Food Facts API client
+│   │   │   ├── validation/  # Zod schemas (foods, entries, recipes, etc.)
 │   │   │   └── mcp/         # MCP server implementation
 │   │   ├── stores/          # Svelte stores (runes)
-│   │   │   └── auth.svelte.ts
-│   │   └── utils/           # Utility functions
+│   │   │   ├── auth.svelte.ts
+│   │   │   ├── toast.svelte.ts
+│   │   │   ├── offline-queue.ts
+│   │   │   └── sync.ts
+│   │   ├── i18n.ts          # Paraglide i18n re-exports
+│   │   └── utils/           # Utility functions (16+ modules)
 │   ├── routes/
 │   │   ├── api/
-│   │   │   ├── auth/        # Auth endpoints (login, callback, logout, me)
-│   │   │   ├── foods/       # Food CRUD endpoints
-│   │   │   ├── entries/     # Food entry endpoints
-│   │   │   ├── recipes/     # Recipe endpoints
-│   │   │   ├── goals/       # Goals endpoints
-│   │   │   ├── stats/       # Stats/analytics endpoints
+│   │   │   ├── auth/        # Auth endpoints
+│   │   │   ├── foods/       # Food CRUD
+│   │   │   ├── entries/     # Food entries
+│   │   │   ├── recipes/     # Recipes
+│   │   │   ├── goals/       # Goals
+│   │   │   ├── stats/       # Stats/analytics
+│   │   │   ├── supplements/ # Supplement tracking
+│   │   │   ├── meal-types/  # Custom meal types
+│   │   │   ├── preferences/ # User preferences
+│   │   │   ├── openfoodfacts/ # Barcode lookup proxy
+│   │   │   ├── oauth/       # OAuth provider (consent)
 │   │   │   └── mcp/         # MCP endpoint
+│   │   ├── authorize/       # OAuth authorization endpoint
+│   │   ├── token/           # OAuth token endpoint
 │   │   ├── app/             # Authenticated pages
 │   │   │   ├── +page.svelte # Dashboard
-│   │   │   ├── foods/       # Food database page
-│   │   │   ├── recipes/     # Recipes page
-│   │   │   ├── history/     # History page
-│   │   │   ├── goals/       # Goals page
-│   │   │   └── settings/    # Settings page
+│   │   │   ├── foods/       # Food database
+│   │   │   ├── recipes/     # Recipes
+│   │   │   ├── history/     # History with date drill-down
+│   │   │   ├── goals/       # Goals
+│   │   │   ├── supplements/ # Supplements with history
+│   │   │   └── settings/    # Settings (includes MCP config)
 │   │   └── +page.svelte     # Landing/login page
 │   ├── app.html
 │   └── hooks.server.ts      # Session middleware
 ├── drizzle/                 # Database migrations
-├── docs/
-│   └── plans/               # Design & implementation plans
+├── messages/                # i18n message files (en.json, de.json)
 ├── static/                  # Static assets (icons, manifest)
-├── tests/                   # Test files
-├── .env.example
+├── tests/
+│   ├── server/              # DB module tests
+│   ├── api/                 # API route tests
+│   ├── helpers/             # Test utilities (mock-db, fixtures)
+│   ├── integration/         # Integration tests
+│   └── utils/               # Utility tests
 ├── drizzle.config.ts
 ├── package.json
 ├── svelte.config.js
-├── tailwind.config.ts
-├── tsconfig.json
 └── vite.config.ts
 ```
 
@@ -106,8 +133,10 @@ bissbilanz/
 - **recipeIngredients** - Recipe ingredient mappings
 - **userGoals** - Daily macro goals per user
 - **customMealTypes** - Custom meal categories per user
-
-See `docs/plans/2026-02-03-bissbilanz-food-tracking-design.md` for detailed schema.
+- **supplements** - User supplement definitions with schedules
+- **supplementLogs** - Daily supplement intake logs
+- **userPreferences** - Dashboard widget toggles, start page, widget order
+- **oauthClients** / **oauthAuthorizations** - OAuth provider tables
 
 ## Development Commands
 
@@ -130,13 +159,14 @@ bun run preview
 
 # Database operations
 bun run db:generate    # Generate migrations from schema
-bun run db:push        # Push schema to database (dev)
-bun run db:migrate     # Run migrations (production)
+bun run db:migrate     # Run migrations (applied automatically on dev server start too)
 bun run db:studio      # Open Drizzle Studio
+# NOTE: Do NOT use db:push — see "Migration Safety" in Database section
 
-# Testing
-bun test
-bun test:e2e
+# Testing (Bun's built-in test runner, no package.json script)
+bun test                    # Run all tests
+bun test tests/server/      # Run server DB tests
+bun test tests/api/         # Run API route tests
 ```
 
 ## Environment Variables
@@ -147,19 +177,19 @@ Copy `.env.example` to `.env` and fill in:
 # Infomaniak OIDC
 INFOMANIAK_CLIENT_ID=your-client-id
 INFOMANIAK_CLIENT_SECRET=your-client-secret
-INFOMANIAK_REDIRECT_URI=http://localhost:5173/api/auth/callback
+INFOMANIAK_REDIRECT_URI=http://localhost:4000/api/auth/callback
 
 # Database
 DATABASE_URL=postgres://user:password@localhost:5432/bissbilanz
 
-# Session
+# Session (generate with: openssl rand -base64 32)
 SESSION_SECRET=generate-random-32-byte-string
 
 # App
-PUBLIC_APP_URL=http://localhost:5173
+PUBLIC_APP_URL=http://localhost:4000
 
 # MCP (optional)
-MCP_ENDPOINT_ENABLED=true
+MCP_ENDPOINT_ENABLED=false
 ```
 
 ## Authentication Flow
@@ -184,43 +214,26 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 - `create-recipe` - Create recipe with ingredients
 - `log-food` - Add food entry to daily log
 - `search-foods` - Search user's food database
+- `get-supplement-status` - Get today's supplement checklist
+- `log-supplement` - Log a supplement as taken (by name or ID)
 
 **Authentication:** MCP requests must include valid session cookie
 
-See design document for detailed MCP tool schemas.
+## Implemented Features
 
-## Key Features
-
-### Phase 1 (Foundation) - ✅ Complete
-- ✅ SvelteKit + Bun project setup
-- ✅ Infomaniak OIDC authentication
-- ✅ PostgreSQL database with Drizzle ORM
-- ✅ Complete database schema (users, sessions, foods, recipes, entries, goals)
-- ✅ Session management middleware
-- ✅ Auth API endpoints (login, callback, logout, me)
-- ✅ Client-side auth store with Svelte 5 runes
-- ✅ Protected route structure (/app/*)
-- ✅ Basic authenticated layout with navigation
-- ✅ Docker build and deployment configuration
-- ✅ CI/CD workflows (build, push, deploy)
-
-### Phase 2 (Core Tracking) - Planned
-- Dashboard with meal sections
-- Create/manage food database
-- Log food entries
-- Daily macro totals
-- Set and track goals
-
-### Phase 3+ (Future)
-- Favorites & recent foods
-- Meal copying
-- Recipes
-- History & stats
-- Barcode scanning
-- MCP integration
-- PWA with offline support
-
-See `docs/plans/` for detailed implementation plans.
+- Auth: Infomaniak OIDC, session management, OAuth provider endpoints
+- Dashboard: Meal sections, daily macro totals, food logging
+- Food database: CRUD, barcode scanning (html5-qrcode), Open Food Facts lookup
+- Food quality: NutriScore, NOVA group, additives display
+- Recipes: CRUD with ingredients, serving calculations
+- Entries: Log foods/recipes, meal types, servings
+- Goals: Daily macro goals, progress tracking
+- Supplements: Tracking with schedules, daily checklist, and history
+- History: Date-based drill-down, stats/analytics
+- i18n: English and German via Paraglide
+- PWA: Offline support, install banner, update toast
+- MCP: AI-assisted food logging endpoint
+- Charts: Data visualization with layerchart
 
 ## Code Conventions
 
@@ -239,12 +252,17 @@ See `docs/plans/` for detailed implementation plans.
 
 ### Database
 - Use Drizzle ORM exclusively (no raw SQL unless necessary)
-- Run `bun run db:generate` after schema changes
-- Use `bun run db:push` in development
+- Run `bun run db:generate` after schema changes (NEVER `db:push`)
 - Use migrations in production
+
+#### Migration Safety (CRITICAL)
+- **NEVER use `db:push`.** It applies changes without updating the Drizzle migrations journal. Since `hooks.server.ts` runs `runMigrations()` on every server start, and production deployments rely on migrations, `db:push` will cause failures.
+- **Only workflow:** Edit schema → `bun run db:generate` → verify generated SQL → let `runMigrations()` apply on dev server start (or `bun run db:migrate` manually).
+- **Always verify** the dev server starts cleanly (`bun run dev`) after any schema change — migration errors surface as 500s on every page.
 
 ### API Routes
 - Validate inputs with Zod schemas
+- Validation schemas are in `src/lib/server/validation/` (one file per domain)
 - Return consistent error format: `{ error: string }`
 - Always check user authentication/authorization
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
@@ -255,121 +273,11 @@ See `docs/plans/` for detailed implementation plans.
 - Mobile-first responsive design
 - Follow color coding: Calories=Blue, Protein=Red, Carbs=Orange, Fat=Yellow, Fiber=Green
 
-## Planning & Documentation
-
-### Documentation Folder Structure
-
-```
-docs/
-├── plans/        # NEW implementation plans (not started yet)
-├── in-progress/  # Active work with progress tracking
-└── finished/     # Completed plans (archived)
-```
-
-### Implementation Plans
-
-**ALWAYS create plans in `docs/plans/` before starting non-trivial work.**
-
-- Use naming format: `YYYY-MM-DD-feature-name.md` (e.g., `2026-02-10-open-food-facts-integration.md`)
-- Plans should include:
-  - **Context**: Why this change is needed, what problem it solves
-  - **Implementation steps**: Detailed step-by-step approach with specific files to modify/create
-  - **Critical files**: Table of key files and their purpose
-  - **Verification**: How to test the changes end-to-end
-  - **Sources**: Links to external APIs, documentation, or references used
-
-### When to Create Plans
-- New feature implementation (e.g., barcode scanning, recipe management)
-- External API integration (e.g., Open Food Facts, payment providers)
-- Major refactoring or architecture changes
-- Database schema changes that affect multiple tables/features
-- Complex UI/UX flows that span multiple components
-- Adding comprehensive test coverage
-
-### Plan Lifecycle
-
-1. **New Plan** → Create in `docs/plans/`
-2. **Start Work** → Move to `docs/in-progress/` and create matching `{task-name}-progress.md`
-3. **Complete Work** → Move original plan to `docs/finished/`, delete progress file
-
-## Task Progress Tracking
-
-**CRITICAL:** When working on multi-step tasks, ALWAYS track progress in `docs/in-progress/`.
-
-### Creating Progress Files
-
-When starting work on a plan:
-1. Move the plan from `docs/plans/` to `docs/in-progress/`
-2. Create a `{task-name}-progress.md` file in `docs/in-progress/`
-3. The progress file MUST include:
-   - **Current Status** - Which phase/step you're on
-   - **Completed Phases** - Checklist with ✅ for done, ⏳ for pending
-   - **Test Statistics** - Number of tests, pass/fail status (if applicable)
-   - **Next Steps** - Ordered list of what to do next
-   - **WHERE TO CONTINUE** - **REQUIRED** - Exact file/function/line to continue from, with context
-   - **Notes & Learnings** - Important findings, blockers, or deviations from plan
-
-### WHERE TO CONTINUE Section (REQUIRED)
-
-**Every progress file MUST have a "WHERE TO CONTINUE" section** that includes:
-- The exact next file to create/edit
-- The specific function/component to implement
-- Any setup needed before continuing (e.g., "fixtures already updated", "mock already created")
-- Context from the last session (e.g., "was in middle of Phase 3, step 7")
-
-Example:
-```markdown
-## WHERE TO CONTINUE
-
-**Next File:** `tests/server/recipes-db.test.ts`
-
-**What to do:**
-1. Create the test file (fixtures already updated in previous session)
-2. Import createMockDB and TEST_RECIPE, TEST_RECIPE_WITH_INGREDIENTS
-3. Test multi-table inserts (recipe + ingredients in single operation)
-4. Test getRecipe with ingredients join (returns nested structure)
-5. Test updateRecipe ingredient replacement (delete old, insert new)
-
-**Context:** Completed entries-db tests (20 tests passing). All fixtures have valid UUIDs.
-Recipe schema uses `totalServings`, `quantity`, and `servingUnit` fields.
-```
-
-### When to Update Progress
-
-Update the progress file:
-- ✅ After completing each file/module/component
-- ✅ After running tests successfully
-- ✅ When encountering blockers or making changes to the original plan
-- ✅ **Before pausing work on the task (ALWAYS update before stopping)**
-- ✅ After each phase completion
-- ✅ **ESPECIALLY update "WHERE TO CONTINUE" before stopping work**
-
-### Completed Tasks
-
-When a task is fully complete:
-1. Move the original plan from `docs/in-progress/` to `docs/finished/`
-2. Delete the progress file (no longer needed)
-3. Update CLAUDE.md if new patterns or conventions were established
-
-### Example Workflow
-
-```bash
-# 1. ALWAYS read progress before continuing work
-cat docs/in-progress/my-task-progress.md
-
-# 2. Do work
-# ... implement next step from "WHERE TO CONTINUE" ...
-
-# 3. Run tests
-bun test
-
-# 4. Update progress file immediately
-# - Mark step complete with ✅
-# - Update test statistics
-# - Add notes about what was learned or changed
-# - Update "Next Steps"
-# - **UPDATE "WHERE TO CONTINUE" with exact next action**
-```
+### i18n
+- Use Paraglide: `import * as m from '$lib/paraglide/messages'`
+- Supported locales: en (English), de (German) only
+- Paraglide output (`src/lib/paraglide/`) is gitignored — generated at build time by Vite plugin
+- Message files in `messages/en.json` and `messages/de.json`
 
 ## Git Workflow
 
@@ -385,7 +293,6 @@ Examples:
 ```
 feat: add food database CRUD endpoints
 fix: correct macro calculation for recipes
-docs: update CLAUDE.md with MCP integration details
 refactor: extract macro calculation to utility function
 ```
 
@@ -394,71 +301,41 @@ refactor: extract macro calculation to utility function
 - Feature branches: `feature/food-logging`, `feature/barcode-scanning`
 - Use git worktrees for isolated development
 
-## Testing Strategy
+## Testing
 
-### Unit Tests
-- Macro calculation functions
-- Nutrition per serving calculations
-- Date utilities
-- Validation schemas
-- Use Bun's built-in test runner (`bun test`)
+### Test Layers
+- **Layer 1 (server/):** DB operations with `createMockDB()` — direct database tests
+- **Layer 2 (api/):** Route handlers with `createMockRequestEvent()` — HTTP request/response tests
+- **Layer 3/4:** Integration and E2E tests (planned)
 
-### Integration Tests
-- API route handlers (Layer 2 tests in `tests/api/`)
-- Database operations (Layer 1 tests in `tests/server/`)
-- MCP tools
-- Mock authentication using helper factories in `tests/helpers/`
-
-### E2E Tests
-- Critical user flows (login, add food, log entry)
-- Use Playwright
-- Test on mobile viewport
-
-### Testing Patterns
-
-**Test Structure**
-- **Layer 1:** Server DB modules (`tests/server/*-db.test.ts`)
-  - Direct database operation tests
-  - Mock database with `createMockDB()` helper
-  - Test CRUD operations, queries, and data transformations
-- **Layer 2:** API route handlers (`tests/api/*.test.ts`)
-  - Test HTTP request/response handling
-  - Mock server functions and database
-  - Use `createMockRequestEvent()` for SvelteKit route testing
-- **Layer 3:** Integration tests (planned)
-  - Test complete workflows across multiple modules
-- **Layer 4:** E2E tests (planned)
-  - Test critical user paths with Playwright
-
-**Key Patterns**
+### Key Patterns
 - Use `createMockDB()` from `tests/helpers/mock-db.ts` for Drizzle mocking
 - Use `createMockRequestEvent()` from `tests/helpers/mock-request-event.ts` for SvelteKit route testing
 - Import modules AFTER setting up mocks with `mock.module()`
 - Mock bcrypt in unit tests to improve performance (~600ms overhead otherwise)
 - Use fixtures from `tests/helpers/fixtures.ts` for consistent test data
 
-**Known Issues**
+### Known Issues
 - Bun test runner shows "Unhandled error between tests" for session-db and oauth-db tests
   - These are cleanup artifacts, not functional failures
   - All tests pass when run individually: `bun test tests/server/session-db.test.ts`
   - Caused by module mock persistence across test files
-  - Does not affect test functionality or CI/CD
 
-**UUID Format Requirements**
+### UUID Format Requirements
 - All test UUIDs must be valid v4 format: `10000000-0000-4000-8000-XXXXXXXXXXXX`
 - Invalid UUIDs will cause database constraint violations
 
-**Schema Field Naming Conventions**
+### Schema Field Naming Conventions
 - **Goals:** `calorieGoal`, `proteinGoal`, `carbGoal`, `fatGoal`, `fiberGoal`
 - **Entries:** `servings` (not `amount`)
 - **Recipes:** `totalServings` (not `servings`), `quantity` (not `amount`)
 
-**Multi-Table Operations**
+### Multi-Table Operations
 - Recipes with ingredients require sequential `setResult()` calls in mock
 - Test both insert and retrieval with proper joins
 - Validate that recipe operations handle ingredient replacement correctly
 
-**API Route Testing Checklist**
+### API Route Testing Checklist
 - Test successful operations (200/201 responses)
 - Test missing authentication (401 responses)
 - Test invalid input validation (400 responses)
@@ -466,52 +343,7 @@ refactor: extract macro calculation to utility function
 - Test cross-user access prevention (user can't access other user's data)
 - Test error handling (500 responses)
 
-**Current Test Coverage**
-- Server DB modules: 8/8 (100%)
-- API routes: 7 core handlers tested
-- Total: 193 tests, 98.9% passing
-- See `docs/finished/api-unit-tests-progress.md` for details
-
 ## Deployment
 
-### Production Build
-```bash
-bun run build
-```
-
-### Docker
-- Use official Bun image
-- Multi-stage build
-- Configure PostgreSQL with SSL
-- Set environment variables via secrets
-
-### Monitoring
-- Log MCP requests and errors
-- Track database query performance
-- Monitor session creation/expiration
-
-## Reference Project
-
-Authentication and session management patterns based on:
-`/home/orell/github/wohnungs-plan`
-
-Key files to reference:
-- `/src/lib/server/session.ts` - Session management
-- `/src/lib/server/schema.ts` - User & session schema
-- `/src/lib/stores/auth.svelte.ts` - Client auth store
-- `/src/routes/api/auth/*` - Auth routes
-
-## Resources
-
-- [SvelteKit Docs](https://kit.svelte.dev)
-- [Drizzle ORM Docs](https://orm.drizzle.team)
-- [shadcn-svelte](https://shadcn-svelte.com)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
-- [Infomaniak OIDC](https://developer.infomaniak.com)
-
-## Support
-
-For questions about the codebase, check:
-1. This CLAUDE.md file
-2. Design document: `docs/plans/2026-02-03-bissbilanz-food-tracking-design.md`
-3. Implementation plans in `docs/plans/`
+- Build: `bun run build` (uses svelte-adapter-bun)
+- Docker: Multi-stage build with official Bun image (see Dockerfile)

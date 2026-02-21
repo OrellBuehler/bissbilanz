@@ -9,7 +9,9 @@ export const recipeIngredientSchema = z.object({
 export const recipeCreateSchema = z.object({
 	name: z.string().min(1),
 	totalServings: z.coerce.number().positive(),
-	ingredients: z.array(recipeIngredientSchema).min(1)
+	ingredients: z.array(recipeIngredientSchema).min(1),
+	isFavorite: z.boolean().optional(),
+	imageUrl: z.string().optional().nullable()
 });
 
 export const recipeUpdateSchema = recipeCreateSchema.partial();
