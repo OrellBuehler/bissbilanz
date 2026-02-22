@@ -78,7 +78,8 @@
 			grid={true}
 			rule={false}
 			props={{
-				area: { fillOpacity: 0.25, curve: curveMonotoneX },
+				area: { fillOpacity: 0.2, curve: curveMonotoneX },
+				line: { strokeWidth: 2.5 },
 				grid: { y: { class: 'stroke-muted/30 [stroke-dasharray:3_6]' } },
 				xAxis: {
 					ticks: filteredTicks,

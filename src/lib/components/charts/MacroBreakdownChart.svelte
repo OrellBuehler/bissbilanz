@@ -55,9 +55,9 @@
 			tooltip={true}
 			axis={true}
 			grid={true}
-			legend={true}
+			legend={false}
 			rule={false}
-			bandPadding={0.4}
+			bandPadding={0.28}
 			props={{
 				bars: { radius: 6, strokeWidth: 0, stroke: 'none' },
 				grid: { y: { class: 'stroke-muted/30 [stroke-dasharray:3_6]' } },

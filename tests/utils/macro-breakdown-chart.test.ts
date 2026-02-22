@@ -17,4 +17,10 @@ describe('MacroBreakdownChart', () => {
 
 		expect(source).not.toMatch(/bars:\s*\{[^}]*rounded:\s*['"]top['"][^}]*\}/);
 	});
+
+	test('disables built-in legend so history page can render a compact header legend', () => {
+		const source = readFileSync(CHART_FILE, 'utf8');
+
+		expect(source).toMatch(/legend=\{false\}/);
+	});
 });

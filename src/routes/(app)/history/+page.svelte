@@ -5,6 +5,9 @@
 	import MacroBreakdownChart from '$lib/components/charts/MacroBreakdownChart.svelte';
 	import ChartRangeSelector from '$lib/components/charts/ChartRangeSelector.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import Flame from '@lucide/svelte/icons/flame';
+	import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
+	import Target from '@lucide/svelte/icons/target';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { today, daysAgo } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
@@ -148,31 +151,69 @@
 	{#if chartLoading}
 		<div class="space-y-6">
 			<Card.Root>
-				<Card.Content class="px-4 py-4 sm:px-5">
-					<div class="bg-muted/50 h-[264px] animate-pulse rounded-xl"></div>
+				<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
+					<div class="bg-muted/50 h-[248px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content class="px-4 py-4 sm:px-5">
-					<div class="bg-muted/50 h-[264px] animate-pulse rounded-xl"></div>
+				<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
+					<div class="bg-muted/50 h-[248px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 		</div>
 	{:else if chartData.length > 0}
 		<Card.Root>
-			<Card.Content class="px-4 py-4 sm:px-5">
-				<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.charts_calories_trend()}</p>
-				<div class="h-[264px]">
-					<CalorieTrendChart data={chartData} {calorieGoal} />
+			<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
+				<div class="mb-2.5 flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<div class="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+							<Flame class="size-4" />
+						</div>
+						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{m.charts_calories_trend()}</p>
+					</div>
+					{#if calorieGoal}
+						<div class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground">
+							<Target class="size-3.5" />
+							<span>{Math.round(calorieGoal)} {m.foods_kcal()}</span>
+						</div>
+					{/if}
+				</div>
+				<div class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background p-2 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10">
+					<div class="h-[228px] sm:h-[236px]">
+						<CalorieTrendChart data={chartData} {calorieGoal} />
+					</div>
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
-			<Card.Content class="px-4 py-4 sm:px-5">
-				<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
-				<div class="h-[264px]">
-					<MacroBreakdownChart data={chartData} />
+			<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
+				<div class="mb-2.5 flex flex-wrap items-start justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<div class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+							<BarChart3 class="size-4" />
+						</div>
+						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
+					</div>
+					<div class="flex flex-wrap items-center justify-end gap-1.5">
+						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+							<span class="size-1.5 rounded-full bg-red-500"></span>{m.macro_protein()}
+						</span>
+						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+							<span class="size-1.5 rounded-full bg-orange-500"></span>{m.macro_carbs()}
+						</span>
+						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+							<span class="size-1.5 rounded-full bg-yellow-500"></span>{m.macro_fat()}
+						</span>
+						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+							<span class="size-1.5 rounded-full bg-green-500"></span>{m.macro_fiber()}
+						</span>
+					</div>
+				</div>
+				<div class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background p-2 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5">
+					<div class="h-[228px] sm:h-[236px]">
+						<MacroBreakdownChart data={chartData} />
+					</div>
 				</div>
 			</Card.Content>
 		</Card.Root>
