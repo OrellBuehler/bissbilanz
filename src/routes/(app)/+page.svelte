@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DayLog from '$lib/components/entries/DayLog.svelte';
+	import MacroSummaryCard from '$lib/components/entries/MacroSummaryCard.svelte';
 	import CalorieTrendChart from '$lib/components/charts/CalorieTrendChart.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -28,6 +29,7 @@
 	let latestWeight: { weightKg: number; entryDate: string } | null = $state(null);
 	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
+	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 
 	const isToday = $derived(activeDate === today());
 
@@ -187,8 +189,10 @@
 			<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 		{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
 			<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
+		{:else if sectionKey === 'summary'}
+			<MacroSummaryCard totals={daylogTotals} />
 		{:else if sectionKey === 'daylog'}
-			<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} />
+			<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} onTotalsChange={(t) => (daylogTotals = t)} />
 		{/if}
 	{/each}
 </div>

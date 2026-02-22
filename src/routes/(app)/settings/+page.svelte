@@ -43,6 +43,10 @@
 			name: () => m.settings_widget_weight(),
 			desc: () => m.settings_widget_weight_desc()
 		},
+		summary: {
+			name: () => m.settings_section_summary(),
+			desc: () => m.settings_section_summary_desc()
+		},
 		daylog: {
 			name: () => m.settings_section_daylog(),
 			desc: () => m.settings_section_daylog_desc()
@@ -83,7 +87,7 @@
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
 				widgetOrder = buildWidgetOrder(
-					preferences.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog']
+					preferences.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']
 				);
 				startPage = preferences.startPage ?? 'dashboard';
 			}

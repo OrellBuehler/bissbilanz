@@ -3,9 +3,8 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
-	import MacroSummary from '$lib/components/MacroSummary.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { calculateDailyTotals } from '$lib/utils/nutrition';
+	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/utils/api';
@@ -15,9 +14,10 @@
 		date: string;
 		refreshKey?: number;
 		onMutation?: () => void;
+		onTotalsChange?: (totals: MacroTotals) => void;
 	};
 
-	let { date, refreshKey = 0, onMutation }: Props = $props();
+	let { date, refreshKey = 0, onMutation, onTotalsChange }: Props = $props();
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
@@ -99,6 +99,10 @@
 	const totals = $derived(calculateDailyTotals(entries));
 
 	$effect(() => {
+		onTotalsChange?.(totals);
+	});
+
+	$effect(() => {
 		if (date) { loadData(); }
 		refreshKey; // track refreshKey to re-run on increment
 	});
@@ -123,10 +127,6 @@
 				onEdit={openEditModal}
 			/>
 		{/each}
-	</div>
-
-	<div class="rounded border p-4">
-		<MacroSummary {totals} round gridClass="grid-cols-2 md:grid-cols-5" />
 	</div>
 
 	<AddFoodModal
