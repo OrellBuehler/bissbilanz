@@ -11,7 +11,6 @@
 
 <div class="mx-auto max-w-4xl space-y-6 pb-6">
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h2 class="text-2xl font-semibold">{date}</h2>
 		<div class="flex gap-2">
 			<Button variant="outline" onclick={() => (scanModalOpen = true)}>
 				<ScanBarcode class="size-4" />

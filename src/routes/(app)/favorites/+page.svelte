@@ -161,8 +161,6 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-4">
-	<h2 class="text-2xl font-semibold">{m.favorites_title()}</h2>
-
 	{#if loading}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else}

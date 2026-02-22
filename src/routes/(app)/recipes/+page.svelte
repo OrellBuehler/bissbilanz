@@ -63,7 +63,6 @@
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
 	<!-- Header -->
 	<div class="flex flex-wrap items-start justify-between gap-2">
-		<h1 class="text-2xl font-bold">{m.recipes_title()}</h1>
 		<Button
 			size="sm"
 			class="shrink-0"

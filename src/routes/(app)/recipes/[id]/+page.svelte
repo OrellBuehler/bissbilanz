@@ -157,8 +157,6 @@
 	{#if loading}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if recipe}
-		<h1 class="text-2xl font-bold">{m.recipe_detail_title()}</h1>
-
 		<!-- Image section -->
 		<div class="aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
 			{#if imageUrl}

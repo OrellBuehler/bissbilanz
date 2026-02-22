@@ -131,10 +131,6 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
-	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-2xl font-bold">{m.supplements_history_title()}</h1>
-	</div>
-
 	<div class="rounded-lg border bg-card p-3 sm:p-4">
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div class="space-y-1">

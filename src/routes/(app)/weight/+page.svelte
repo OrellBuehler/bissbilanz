@@ -6,7 +6,6 @@
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Weight from '@lucide/svelte/icons/weight';
-	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import History from '@lucide/svelte/icons/history';
 	import * as m from '$lib/paraglide/messages';
 
@@ -79,17 +78,6 @@
 				class="absolute -bottom-16 left-8 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl"
 			></div>
 			<div class="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-				<div>
-					<div
-						class="mb-2 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
-					>
-						<Sparkles class="size-3.5 text-blue-600 dark:text-blue-400" />
-						<span>{m.weight_page_title()}</span>
-					</div>
-					<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">
-						{m.weight_page_title()}
-					</h1>
-				</div>
 				<div class="grid grid-cols-2 gap-2 sm:min-w-[360px] sm:gap-3">
 					<div class="rounded-xl border border-border/60 bg-background/85 p-3 backdrop-blur">
 						<div
