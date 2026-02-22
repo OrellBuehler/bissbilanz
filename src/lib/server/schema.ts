@@ -150,7 +150,7 @@ export const userPreferences = pgTable('user_preferences', {
 	widgetOrder: text('widget_order')
 		.array()
 		.notNull()
-		.default(sql`ARRAY['favorites', 'supplements', 'weight']::text[]`),
+		.default(sql`ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[]`),
 	startPage: text('start_page').notNull().default('dashboard'),
 	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()

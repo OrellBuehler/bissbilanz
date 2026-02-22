@@ -78,6 +78,13 @@
       "when": 1771760565372,
       "tag": "0010_graceful_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1771790202793,
+      "tag": "0011_secret_nextwave",
+      "breakpoints": true
     }
   ]
 }

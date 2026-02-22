@@ -169,31 +169,27 @@
 		{/if}
 	</div>
 
-	{#if weeklyData.length > 0}
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<div class="h-[200px]">
-					<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
-
-	{#if isToday}
-		{#each userPrefs?.widgetOrder ?? ['favorites', 'supplements', 'weight'] as widgetKey (widgetKey)}
-			{#if widgetKey === 'favorites' && userPrefs?.showFavoritesWidget}
-				<FavoritesWidget onEntryLogged={() => refreshKey++} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
-			{:else if widgetKey === 'supplements' && userPrefs?.showSupplementsWidget}
-				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
-			{:else if widgetKey === 'weight' && userPrefs?.showWeightWidget}
-				<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
-			{/if}
-		{/each}
-	{/if}
-
-	<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} />
+	{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
+		{#if sectionKey === 'chart' && weeklyData.length > 0}
+			<Card.Root>
+				<Card.Header class="pb-2">
+					<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="h-[200px]">
+						<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
+			<FavoritesWidget onEntryLogged={() => refreshKey++} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
+		{:else if sectionKey === 'supplements' && isToday && userPrefs?.showSupplementsWidget}
+			<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+		{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
+			<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
+		{:else if sectionKey === 'daylog'}
+			<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} />
+		{/if}
+	{/each}
 </div>
 {/if}

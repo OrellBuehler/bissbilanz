@@ -27,6 +27,10 @@
 	let prefsLoaded = $state(false);
 
 	const WIDGET_DEFS: Record<string, { name: () => string; desc: () => string }> = {
+		chart: {
+			name: () => m.settings_section_chart(),
+			desc: () => m.settings_section_chart_desc()
+		},
 		favorites: {
 			name: () => m.settings_widget_favorites(),
 			desc: () => m.settings_widget_favorites_desc()
@@ -38,6 +42,10 @@
 		weight: {
 			name: () => m.settings_widget_weight(),
 			desc: () => m.settings_widget_weight_desc()
+		},
+		daylog: {
+			name: () => m.settings_section_daylog(),
+			desc: () => m.settings_section_daylog_desc()
 		}
 	};
 
@@ -75,7 +83,7 @@
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
 				widgetOrder = buildWidgetOrder(
-					preferences.widgetOrder ?? ['favorites', 'supplements', 'weight']
+					preferences.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog']
 				);
 				startPage = preferences.startPage ?? 'dashboard';
 			}
@@ -149,10 +157,10 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 3. Dashboard Widgets Section -->
+	<!-- 3. Dashboard Sections -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>{m.settings_dashboard_widgets()}</Card.Title>
+			<Card.Title>{m.settings_dashboard_sections()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			{#if prefsLoaded}

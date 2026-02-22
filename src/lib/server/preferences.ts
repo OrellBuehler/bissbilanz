@@ -12,10 +12,19 @@ export const DEFAULT_PREFERENCES = {
 	showFavoritesWidget: true,
 	showSupplementsWidget: true,
 	showWeightWidget: true,
-	widgetOrder: ['favorites', 'supplements', 'weight'] as string[],
+	widgetOrder: ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
 	favoriteTapAction: 'instant' as const
+};
+
+const ALL_SECTION_KEYS = ['chart', 'favorites', 'supplements', 'weight', 'daylog'];
+
+const normalizeSectionOrder = (order: string[]): string[] => {
+	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));
+	if (!result.includes('chart')) result.unshift('chart');
+	if (!result.includes('daylog')) result.push('daylog');
+	return result;
 };
 
 export const getPreferences = async (userId: string) => {
@@ -35,6 +44,7 @@ export const getPreferences = async (userId: string) => {
 
 	return {
 		...prefs,
+		widgetOrder: normalizeSectionOrder(prefs.widgetOrder),
 		locale: user?.locale ?? 'en'
 	};
 };

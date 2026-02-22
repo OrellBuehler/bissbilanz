@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ALTER COLUMN "widget_order" SET DEFAULT ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[];
