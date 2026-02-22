@@ -23,7 +23,7 @@
 	variant="ghost"
 	size="icon"
 	class={cn(
-		'size-9 rounded-xl border border-white/50 bg-white/70 shadow-sm backdrop-blur-sm hover:bg-white/85 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12 md:size-7 md:rounded-md md:border-transparent md:bg-transparent md:shadow-none md:backdrop-blur-none',
+		'size-9 md:size-7',
 		className
 	)}
 	type="button"

@@ -51,7 +51,7 @@
 	class="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-border/70 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) md:px-0"
 >
 	<div
-		class="flex w-full items-center gap-1 rounded-2xl border border-white/50 bg-white/65 px-3 py-1.5 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-white/5 md:rounded-none md:border-0 md:bg-transparent md:px-4 md:py-0 md:shadow-none md:backdrop-blur-none lg:gap-2 lg:px-6"
+		class="flex w-full items-center gap-1 px-3 py-1.5 md:px-4 md:py-0 lg:gap-2 lg:px-6"
 	>
 		<Sidebar.Trigger class="-ms-1" />
 		<Separator orientation="vertical" class="mx-2 data-[orientation=vertical]:h-4" />
