@@ -1,28 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import MealSection from '$lib/components/entries/MealSection.svelte';
-	import MacroSummary from '$lib/components/MacroSummary.svelte';
-	import { calculateDailyTotals } from '$lib/utils/nutrition';
-	import { progressColor } from '$lib/utils/progress';
-	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	let entries: Array<any> = $state([]);
-
-	const date = $derived($page.params.date);
-
-	const loadData = async () => {
-		const res = await fetch(`/api/entries?date=${date}`);
-		entries = (await res.json()).entries;
-	};
-
-	const totals = $derived(calculateDailyTotals(entries));
-
-	$effect(() => {
-		if (date) {
-			loadData();
-		}
-	});
+	const date = $derived($page.params.date ?? '');
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
@@ -31,20 +12,5 @@
 		<a href="/history" class="rounded border px-3 py-1 text-sm">{m.history_back()}</a>
 	</div>
 
-	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{m.dashboard_kcal({ value: totals.calories, goal: 2000 })}</div>
-
-	<div class="grid gap-4">
-		{#each DEFAULT_MEAL_TYPES as mealType}
-			<MealSection
-				title={mealType}
-				entries={entries.filter((e) => e.mealType === mealType)}
-				readonly
-			/>
-		{/each}
-	</div>
-
-	<div class="rounded border p-4">
-		<h3 class="mb-2 font-semibold">{m.history_daily_totals()}</h3>
-		<MacroSummary {totals} gridClass="grid-cols-2 md:grid-cols-5" />
-	</div>
+	<DayLog {date} />
 </div>
