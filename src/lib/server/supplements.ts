@@ -49,11 +49,12 @@ export const getIngredientsForSupplements = async (
 
 const insertIngredients = async (
 	supplementId: string,
-	ingredients: { name: string; dosage: number; dosageUnit: string; sortOrder?: number }[]
+	ingredients: { name: string; dosage: number; dosageUnit: string; sortOrder?: number }[],
+	tx?: ReturnType<typeof getDB>
 ) => {
 	if (ingredients.length === 0) return;
-	const db = getDB();
-	await db.insert(supplementIngredients).values(
+	const d = tx ?? getDB();
+	await d.insert(supplementIngredients).values(
 		ingredients.map((ing, i) => ({
 			supplementId,
 			name: ing.name,
@@ -64,9 +65,9 @@ const insertIngredients = async (
 	);
 };
 
-const deleteIngredients = async (supplementId: string) => {
-	const db = getDB();
-	await db
+const deleteIngredients = async (supplementId: string, tx?: ReturnType<typeof getDB>) => {
+	const d = tx ?? getDB();
+	await d
 		.delete(supplementIngredients)
 		.where(eq(supplementIngredients.supplementId, supplementId));
 };
@@ -114,35 +115,38 @@ export const createSupplement = async (
 	try {
 		const db = getDB();
 		const { ingredients: ingredientsData, ...data } = result.data;
-		const [created] = await db
-			.insert(supplements)
-			.values({
-				userId,
-				name: data.name,
-				dosage: data.dosage,
-				dosageUnit: data.dosageUnit,
-				scheduleType: data.scheduleType,
-				scheduleDays: data.scheduleDays ?? null,
-				scheduleStartDate: data.scheduleStartDate ?? today(),
-				isActive: data.isActive ?? true,
-				sortOrder: data.sortOrder ?? 0,
-				timeOfDay: data.timeOfDay ?? null
-			})
-			.returning();
 
-		if (!created) {
-			return { success: false, error: new Error('Failed to create supplement') };
-		}
+		return await db.transaction(async (tx) => {
+			const [created] = await tx
+				.insert(supplements)
+				.values({
+					userId,
+					name: data.name,
+					dosage: data.dosage,
+					dosageUnit: data.dosageUnit,
+					scheduleType: data.scheduleType,
+					scheduleDays: data.scheduleDays ?? null,
+					scheduleStartDate: data.scheduleStartDate ?? today(),
+					isActive: data.isActive ?? true,
+					sortOrder: data.sortOrder ?? 0,
+					timeOfDay: data.timeOfDay ?? null
+				})
+				.returning();
 
-		if (ingredientsData && ingredientsData.length > 0) {
-			await insertIngredients(created.id, ingredientsData);
-		}
+			if (!created) {
+				throw new Error('Failed to create supplement');
+			}
 
-		const ingredients = ingredientsData?.length
-			? await getSupplementIngredients(created.id)
-			: [];
+			if (ingredientsData && ingredientsData.length > 0) {
+				await insertIngredients(created.id, ingredientsData, tx);
+			}
 
-		return { success: true, data: { ...created, ingredients } };
+			const ingredients = ingredientsData?.length
+				? await getSupplementIngredients(created.id)
+				: [];
+
+			return { success: true as const, data: { ...created, ingredients } };
+		});
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
@@ -161,25 +165,28 @@ export const updateSupplement = async (
 	try {
 		const db = getDB();
 		const { ingredients: ingredientsData, ...data } = result.data;
-		const [updated] = await db
-			.update(supplements)
-			.set({ ...data, updatedAt: new Date() })
-			.where(and(eq(supplements.id, id), eq(supplements.userId, userId)))
-			.returning();
 
-		if (!updated) {
-			return { success: true, data: undefined };
-		}
+		return await db.transaction(async (tx) => {
+			const [updated] = await tx
+				.update(supplements)
+				.set({ ...data, updatedAt: new Date() })
+				.where(and(eq(supplements.id, id), eq(supplements.userId, userId)))
+				.returning();
 
-		if (ingredientsData === null) {
-			await deleteIngredients(id);
-		} else if (ingredientsData !== undefined) {
-			await deleteIngredients(id);
-			await insertIngredients(id, ingredientsData);
-		}
+			if (!updated) {
+				return { success: true as const, data: undefined };
+			}
 
-		const ingredients = await getSupplementIngredients(id);
-		return { success: true, data: { ...updated, ingredients } };
+			if (ingredientsData === null) {
+				await deleteIngredients(id, tx);
+			} else if (ingredientsData !== undefined) {
+				await deleteIngredients(id, tx);
+				await insertIngredients(id, ingredientsData, tx);
+			}
+
+			const ingredients = await getSupplementIngredients(id);
+			return { success: true as const, data: { ...updated, ingredients } };
+		});
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
