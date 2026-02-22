@@ -270,8 +270,10 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 
 ### Styling
 - Use Tailwind utility classes
-- Use shadcn-svelte components for UI primitives
-- Mobile-first responsive design
+- Use shadcn-svelte components for UI primitives — prefer them over raw HTML elements unless no suitable component exists
+- Always use Lucide icons (`@lucide/svelte`) for icons — never use plain text characters, emoji, or other icon libraries
+- Use proper `Button` components with `variant` and `size` props (e.g. `size="icon"` for icon-only buttons) — never make bare icons clickable
+- Mobile-first responsive design — all UI must be usable on small screens unless explicitly told otherwise
 - Follow color coding: Calories=Blue, Protein=Red, Carbs=Orange, Fat=Yellow, Fiber=Green
 
 ### i18n

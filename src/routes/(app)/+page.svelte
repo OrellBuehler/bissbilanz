@@ -12,6 +12,7 @@
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 
 	let activeDate = $state(today());
 	let copying = $state(false);
@@ -148,7 +149,7 @@
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<div class="flex items-center gap-2">
 			<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
-				←
+				<ChevronLeft class="h-4 w-4" />
 			</Button>
 			<h2 class="text-2xl font-semibold">{dateLabel}</h2>
 			<Button
@@ -158,7 +159,7 @@
 				disabled={isToday}
 				aria-label={m.dashboard_next_day()}
 			>
-				→
+				<ChevronRight class="h-4 w-4" />
 			</Button>
 		</div>
 		{#if isToday}
