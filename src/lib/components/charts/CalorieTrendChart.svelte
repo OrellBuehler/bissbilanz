@@ -98,7 +98,7 @@
 						}
 					},
 					header: { class: 'font-medium text-foreground' },
-					item: { classes: { label: 'text-muted-foreground', value: 'text-foreground font-mono font-medium tabular-nums' } }
+					item: { classes: { label: 'text-muted-foreground', value: 'text-foreground font-medium tabular-nums' } }
 				}
 			}}
 		/>
