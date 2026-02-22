@@ -8,6 +8,7 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import * as m from '$lib/paraglide/messages';
 	import type { ComponentProps } from 'svelte';
+	import type { NavItem } from '$lib/config/navigation';
 
 	let { ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 
@@ -17,6 +18,12 @@
 	function isActive(href: string, pathname: string): boolean {
 		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
+	}
+
+	function menuButtonClass(item: NavItem, pathname: string): string {
+		const base =
+			'h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent';
+		return isActive(item.href, pathname) ? `${base} ${item.activeRing}` : base;
 	}
 
 	function handleNavClick() {
@@ -96,12 +103,7 @@
 							<Sidebar.MenuButton
 								isActive={isActive(item.href, $page.url.pathname)}
 								tooltipContent={item.title()}
-								class="h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent {isActive(
-									item.href,
-									$page.url.pathname
-								)
-									? item.activeBg
-									: ''}"
+								class={menuButtonClass(item, $page.url.pathname)}
 							>
 								{#snippet child({ props })}
 									<a href={item.href} {...withMobileCloseClick(props)}>
