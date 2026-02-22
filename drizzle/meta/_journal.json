@@ -92,6 +92,13 @@
       "when": 1771793035625,
       "tag": "0012_curious_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1771797876145,
+      "tag": "0013_rare_omega_red",
+      "breakpoints": true
     }
   ]
 }

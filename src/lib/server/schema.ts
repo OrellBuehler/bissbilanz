@@ -95,9 +95,26 @@ export const foods = pgTable(
 	(table) => [
 		index('idx_foods_user_id').on(table.userId),
 		uniqueIndex('idx_foods_barcode')
-			.on(table.barcode)
+			.on(table.userId, table.barcode)
 			.where(sql`barcode IS NOT NULL`),
-		index('idx_foods_user_name').on(table.userId, table.name)
+		index('idx_foods_user_name').on(table.userId, table.name),
+		check('foods_serving_positive', sql`${table.servingSize} > 0`),
+		check(
+			'foods_nutrition_nonnegative',
+			sql`${table.calories} >= 0 AND ${table.protein} >= 0 AND ${table.carbs} >= 0 AND ${table.fat} >= 0 AND ${table.fiber} >= 0`
+		),
+		check(
+			'foods_optional_nutrition_nonnegative',
+			sql`(${table.sodium} IS NULL OR ${table.sodium} >= 0) AND (${table.sugar} IS NULL OR ${table.sugar} >= 0) AND (${table.saturatedFat} IS NULL OR ${table.saturatedFat} >= 0) AND (${table.cholesterol} IS NULL OR ${table.cholesterol} >= 0) AND (${table.vitaminA} IS NULL OR ${table.vitaminA} >= 0) AND (${table.vitaminC} IS NULL OR ${table.vitaminC} >= 0) AND (${table.calcium} IS NULL OR ${table.calcium} >= 0) AND (${table.iron} IS NULL OR ${table.iron} >= 0)`
+		),
+		check(
+			'foods_nutri_score_valid',
+			sql`${table.nutriScore} IS NULL OR ${table.nutriScore} IN ('a', 'b', 'c', 'd', 'e')`
+		),
+		check(
+			'foods_nova_group_valid',
+			sql`${table.novaGroup} IS NULL OR (${table.novaGroup} >= 1 AND ${table.novaGroup} <= 4)`
+		)
 	]
 );
 
@@ -121,25 +138,44 @@ export const foodEntries = pgTable(
 	(table) => [
 		index('idx_food_entries_user_date').on(table.userId, table.date),
 		index('idx_food_entries_food_id').on(table.foodId),
-		index('idx_food_entries_recipe_id').on(table.recipeId)
+		index('idx_food_entries_recipe_id').on(table.recipeId),
+		index('idx_food_entries_created_at').on(table.createdAt),
+		check('food_entries_servings_positive', sql`${table.servings} > 0`),
+		check(
+			'food_entries_has_food_or_recipe',
+			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL`
+		)
 	]
 );
 
 // User Goals
-export const userGoals = pgTable('user_goals', {
-	userId: uuid('user_id')
-		.primaryKey()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	calorieGoal: real('calorie_goal').notNull(),
-	proteinGoal: real('protein_goal').notNull(),
-	carbGoal: real('carb_goal').notNull(),
-	fatGoal: real('fat_goal').notNull(),
-	fiberGoal: real('fiber_goal').notNull(),
-	// Advanced nutrient goals (optional)
-	sodiumGoal: real('sodium_goal'),
-	sugarGoal: real('sugar_goal'),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
-});
+export const userGoals = pgTable(
+	'user_goals',
+	{
+		userId: uuid('user_id')
+			.primaryKey()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		calorieGoal: real('calorie_goal').notNull(),
+		proteinGoal: real('protein_goal').notNull(),
+		carbGoal: real('carb_goal').notNull(),
+		fatGoal: real('fat_goal').notNull(),
+		fiberGoal: real('fiber_goal').notNull(),
+		// Advanced nutrient goals (optional)
+		sodiumGoal: real('sodium_goal'),
+		sugarGoal: real('sugar_goal'),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		check(
+			'user_goals_positive',
+			sql`${table.calorieGoal} > 0 AND ${table.proteinGoal} >= 0 AND ${table.carbGoal} >= 0 AND ${table.fatGoal} >= 0 AND ${table.fiberGoal} >= 0`
+		),
+		check(
+			'user_goals_optional_nonnegative',
+			sql`(${table.sodiumGoal} IS NULL OR ${table.sodiumGoal} >= 0) AND (${table.sugarGoal} IS NULL OR ${table.sugarGoal} >= 0)`
+		)
+	]
+);
 
 // User Preferences
 export const userPreferences = pgTable('user_preferences', {
@@ -174,7 +210,11 @@ export const recipes = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
-	(table) => [index('idx_recipes_user_id').on(table.userId)]
+	(table) => [
+		index('idx_recipes_user_id').on(table.userId),
+		index('idx_recipes_created_at').on(table.createdAt),
+		check('recipes_servings_positive', sql`${table.totalServings} > 0`)
+	]
 );
 
 // Recipe Ingredients
@@ -194,7 +234,8 @@ export const recipeIngredients = pgTable(
 	},
 	(table) => [
 		index('idx_recipe_ingredients_recipe_id').on(table.recipeId),
-		index('idx_recipe_ingredients_food_id').on(table.foodId)
+		index('idx_recipe_ingredients_food_id').on(table.foodId),
+		check('recipe_ingredients_quantity_positive', sql`${table.quantity} > 0`)
 	]
 );
 
@@ -264,7 +305,12 @@ export const supplements = pgTable(
 	},
 	(table) => [
 		index('idx_supplements_user_id').on(table.userId),
-		index('idx_supplements_user_active').on(table.userId, table.isActive)
+		index('idx_supplements_user_active').on(table.userId, table.isActive),
+		check('supplements_dosage_positive', sql`${table.dosage} > 0`),
+		check(
+			'supplements_schedule_days_required',
+			sql`${table.scheduleType} NOT IN ('weekly', 'specific_days') OR (${table.scheduleDays} IS NOT NULL AND array_length(${table.scheduleDays}, 1) > 0)`
+		)
 	]
 );
 
@@ -281,7 +327,10 @@ export const supplementIngredients = pgTable(
 		dosageUnit: text('dosage_unit').notNull(),
 		sortOrder: integer('sort_order').notNull().default(0)
 	},
-	(table) => [index('idx_supplement_ingredients_supplement_id').on(table.supplementId)]
+	(table) => [
+		index('idx_supplement_ingredients_supplement_id').on(table.supplementId),
+		check('supplement_ingredients_dosage_positive', sql`${table.dosage} > 0`)
+	]
 );
 
 // Supplement Logs
@@ -323,7 +372,8 @@ export const weightEntries = pgTable(
 	},
 	(table) => [
 		index('idx_weight_entries_user_date').on(table.userId, table.entryDate),
-		index('idx_weight_entries_user_logged').on(table.userId, table.loggedAt)
+		index('idx_weight_entries_user_logged').on(table.userId, table.loggedAt),
+		check('weight_entries_valid', sql`${table.weightKg} > 0 AND ${table.weightKg} <= 500`)
 	]
 );
 
