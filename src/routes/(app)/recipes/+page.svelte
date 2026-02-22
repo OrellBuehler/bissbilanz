@@ -61,19 +61,6 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
-	<!-- Header -->
-	<div class="flex flex-wrap items-start justify-between gap-2">
-		<Button
-			size="sm"
-			class="shrink-0"
-			aria-label={m.recipes_new()}
-			onclick={() => (showNewRecipe = true)}
-		>
-			<Plus class="size-4 sm:mr-1.5" />
-			<span class="hidden sm:inline">{m.recipes_new()}</span>
-		</Button>
-	</div>
-
 	<!-- Recipe list -->
 	{#if recipes.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.recipes_no_recipes()}</p>
@@ -113,6 +100,16 @@
 		</div>
 	{/if}
 </div>
+
+<!-- FAB -->
+<Button
+	size="icon"
+	class="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
+	aria-label={m.recipes_new()}
+	onclick={() => (showNewRecipe = true)}
+>
+	<Plus class="size-6" />
+</Button>
 
 <!-- New recipe modal -->
 <ResponsiveModal
