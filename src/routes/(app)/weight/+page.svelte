@@ -138,24 +138,13 @@
 
 	<Card.Root class="overflow-hidden">
 		<Card.Header class="pb-3">
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				<div class="flex items-center gap-2">
-					<div
-						class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
-					>
-						<Weight class="size-4" />
-					</div>
-					<div>
-						<Card.Title class="text-base tracking-tight">{m.weight_save()}</Card.Title>
-						<Card.Description class="text-xs">{m.weight_page_title()}</Card.Description>
-					</div>
-				</div>
+			<div class="flex items-center gap-2">
 				<div
-					class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+					class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
 				>
-					<Sparkles class="size-3.5 text-blue-600 dark:text-blue-400" />
-					{m.weight_page_title()}
+					<Weight class="size-4" />
 				</div>
+				<Card.Title class="text-base tracking-tight">{m.weight_save()}</Card.Title>
 			</div>
 		</Card.Header>
 		<Card.Content class="p-4 pt-0 sm:p-5 sm:pt-0">
