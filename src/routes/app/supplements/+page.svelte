@@ -31,7 +31,7 @@
 
 	let supplements: SupplementWithIngredients[] = $state([]);
 	let showForm = $state(false);
-	let editingSupplement: Supplement | null = $state(null);
+	let editingSupplement: SupplementWithIngredients | null = $state(null);
 	let deletingId: string | null = $state(null);
 
 	const loadSupplements = async () => {
@@ -69,7 +69,7 @@
 		await loadSupplements();
 	};
 
-	const toggleActive = async (supplement: Supplement) => {
+	const toggleActive = async (supplement: SupplementWithIngredients) => {
 		await fetch(`/api/supplements/${supplement.id}`, {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
@@ -78,7 +78,7 @@
 		await loadSupplements();
 	};
 
-	const openEdit = (supplement: Supplement) => {
+	const openEdit = (supplement: SupplementWithIngredients) => {
 		editingSupplement = supplement;
 		showForm = true;
 	};
