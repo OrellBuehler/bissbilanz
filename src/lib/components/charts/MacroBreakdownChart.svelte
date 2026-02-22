@@ -149,7 +149,7 @@
 					item: {
 						classes: {
 							label: 'text-muted-foreground',
-							value: 'text-foreground font-mono font-medium tabular-nums'
+							value: 'text-foreground font-medium tabular-nums'
 						}
 					}
 				}

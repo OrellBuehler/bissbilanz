@@ -192,7 +192,7 @@
 									},
 									header: { class: 'font-medium text-foreground' },
 									item: {
-										format: (v: number) => `${v.toFixed(1)} kg`,
+										format: (v: number | null) => (v == null ? '—' : `${v.toFixed(1)} kg`),
 										classes: {
 											label: 'text-muted-foreground',
 											value: 'text-foreground font-medium tabular-nums'
