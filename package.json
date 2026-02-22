@@ -15,7 +15,8 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"test:mobile": "bunx playwright test --reporter=list"
+		"test:mobile": "bunx playwright test --reporter=list",
+		"security": "./scripts/security/scan-all.sh"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.0",

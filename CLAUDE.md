@@ -127,6 +127,24 @@ bun test tests/api/         # Run API route tests
 - Paraglide output (`src/lib/paraglide/`) is gitignored — generated at build time by Vite plugin
 - Message files in `messages/en.json` and `messages/de.json`
 
+## Security
+
+After completing a feature, run the security scan suite before committing:
+
+```bash
+bun run security
+```
+
+This runs Semgrep (SAST), bun audit (dependency vulnerabilities), and Trivy (filesystem + IaC misconfigs). Fix any CRITICAL or HIGH findings before merging. Known accepted exceptions:
+
+- `minimatch` ReDoS (HIGH) via `@vite-pwa/sveltekit → workbox-build` — transitive, no upstream fix available yet
+
+To also scan the Docker image:
+
+```bash
+./scripts/security/scan-trivy.sh --images
+```
+
 ## Git Workflow
 
 - **IMPORTANT:** Always commit changes when work is complete
