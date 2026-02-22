@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
-import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import Plus from '@lucide/svelte/icons/plus';
 	import * as m from '$lib/paraglide/messages';
 
 	type FavoriteItem = {
@@ -141,21 +142,22 @@ import * as Dialog from '$lib/components/ui/dialog/index.js';
 		</Dialog.Header>
 
 		<Tabs.Root value={tab} onValueChange={handleTabChange}>
-			<Tabs.List class="grid w-full grid-cols-4">
-				<Tabs.Trigger value="search">{m.add_food_tab_search()}</Tabs.Trigger>
-				<Tabs.Trigger value="favorites">{m.add_food_tab_favorites()}</Tabs.Trigger>
-				<Tabs.Trigger value="recent">{m.add_food_tab_recent()}</Tabs.Trigger>
-				<Tabs.Trigger value="recipes">{m.add_food_tab_recipes()}</Tabs.Trigger>
+			<Tabs.List class="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
+				<Tabs.Trigger value="search" class="text-xs sm:text-sm">{m.add_food_tab_search()}</Tabs.Trigger>
+				<Tabs.Trigger value="favorites" class="text-xs sm:text-sm">{m.add_food_tab_favorites()}</Tabs.Trigger>
+				<Tabs.Trigger value="recent" class="text-xs sm:text-sm">{m.add_food_tab_recent()}</Tabs.Trigger>
+				<Tabs.Trigger value="recipes" class="text-xs sm:text-sm">{m.add_food_tab_recipes()}</Tabs.Trigger>
 			</Tabs.List>
 
 			<Tabs.Content value="search" class="space-y-4">
 				<Input placeholder={m.add_food_search_placeholder()} bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filtered() as food}
-						<li class="flex items-center justify-between">
-							<span>{food.name}</span>
-							<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-								{m.add_food_add()}
+						<li class="flex min-w-0 items-start justify-between gap-2">
+							<span class="min-w-0 break-words text-sm">{food.name}</span>
+							<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddFood(food.id)}>
+								<Plus class="size-4 sm:mr-1" />
+								<span class="hidden sm:inline">{m.add_food_add()}</span>
 							</Button>
 						</li>
 					{/each}
@@ -168,10 +170,11 @@ import * as Dialog from '$lib/components/ui/dialog/index.js';
 				{:else}
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each allFavorites as item (item.id)}
-							<li class="flex items-center justify-between">
-								<span>{item.name}</span>
-								<Button variant="outline" size="sm" onclick={() => handleFavoriteTap(item)}>
-									{m.add_food_add()}
+							<li class="flex min-w-0 items-start justify-between gap-2">
+								<span class="min-w-0 break-words text-sm">{item.name}</span>
+								<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleFavoriteTap(item)}>
+									<Plus class="size-4 sm:mr-1" />
+									<span class="hidden sm:inline">{m.add_food_add()}</span>
 								</Button>
 							</li>
 						{:else}
@@ -187,10 +190,11 @@ import * as Dialog from '$lib/components/ui/dialog/index.js';
 				{:else}
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each recentFoods as food}
-							<li class="flex items-center justify-between">
-								<span>{food.name}</span>
-								<Button variant="outline" size="sm" onclick={() => handleAddFood(food.id)}>
-									{m.add_food_add()}
+							<li class="flex min-w-0 items-start justify-between gap-2">
+								<span class="min-w-0 break-words text-sm">{food.name}</span>
+								<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddFood(food.id)}>
+									<Plus class="size-4 sm:mr-1" />
+									<span class="hidden sm:inline">{m.add_food_add()}</span>
 								</Button>
 							</li>
 						{:else}
@@ -204,10 +208,11 @@ import * as Dialog from '$lib/components/ui/dialog/index.js';
 				<Input placeholder={m.add_food_search_recipes_placeholder()} bind:value={query} />
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filteredRecipes() as recipe}
-						<li class="flex items-center justify-between">
-							<span>{recipe.name}</span>
-							<Button variant="outline" size="sm" onclick={() => handleAddRecipe(recipe.id)}>
-								{m.add_food_add()}
+						<li class="flex min-w-0 items-start justify-between gap-2">
+							<span class="min-w-0 break-words text-sm">{recipe.name}</span>
+							<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddRecipe(recipe.id)}>
+								<Plus class="size-4 sm:mr-1" />
+								<span class="hidden sm:inline">{m.add_food_add()}</span>
 							</Button>
 						</li>
 					{:else}

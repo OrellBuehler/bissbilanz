@@ -6,10 +6,12 @@
 	const date = $derived($page.params.date ?? '');
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6">
-	<div class="flex items-center justify-between">
+<div class="mx-auto max-w-4xl space-y-6 px-4 pb-6 sm:px-0">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h2 class="text-2xl font-semibold">{date}</h2>
-		<a href="/history" class="rounded border px-3 py-1 text-sm">{m.history_back()}</a>
+		<a href="/history" class="inline-flex w-full items-center justify-center rounded border px-3 py-2 text-sm sm:w-auto">
+			{m.history_back()}
+		</a>
 	</div>
 
 	<DayLog {date} />

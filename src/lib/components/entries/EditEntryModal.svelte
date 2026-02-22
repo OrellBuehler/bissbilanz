@@ -6,6 +6,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -53,7 +54,7 @@
 		<Dialog.Header>
 			<Dialog.Title>{m.edit_entry_title()}</Dialog.Title>
 			{#if entry?.foodName}
-				<Dialog.Description>{entry.foodName}</Dialog.Description>
+				<Dialog.Description class="break-words">{entry.foodName}</Dialog.Description>
 			{/if}
 		</Dialog.Header>
 
@@ -84,15 +85,18 @@
 			</div>
 		</div>
 
-		<Dialog.Footer class="flex flex-row items-center justify-between">
-			<Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" onclick={handleDelete} aria-label={m.edit_entry_delete()}>
+		<Dialog.Footer class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+			<Button variant="ghost" size="icon" class="self-start text-destructive hover:text-destructive sm:self-auto" onclick={handleDelete} aria-label={m.edit_entry_delete()}>
 				<Trash2 class="size-4" />
 			</Button>
-			<div class="flex gap-2">
-				<Button variant="outline" onclick={onClose}>{m.edit_entry_cancel()}</Button>
-				<Button onclick={handleSave}>
+			<div class="flex w-full gap-2 sm:w-auto">
+				<Button variant="outline" class="flex-1 sm:flex-none" aria-label={m.edit_entry_cancel()} onclick={onClose}>
+					<X class="size-4" />
+					<span class="hidden sm:inline">{m.edit_entry_cancel()}</span>
+				</Button>
+				<Button class="flex-1 sm:flex-none" aria-label={m.edit_entry_save()} onclick={handleSave}>
 					<Check class="size-4" />
-					{m.edit_entry_save()}
+					<span class="hidden sm:inline">{m.edit_entry_save()}</span>
 				</Button>
 			</div>
 		</Dialog.Footer>

@@ -8,6 +8,7 @@ const pages = [
 	{ name: 'History', path: '/history' },
 	{ name: 'Goals', path: '/goals' },
 	{ name: 'Supplements', path: '/supplements' },
+	{ name: 'Supplements History', path: '/supplements/history' },
 	{ name: 'Favorites', path: '/favorites' },
 	{ name: 'Weight', path: '/weight' },
 	{ name: 'Settings', path: '/settings' }

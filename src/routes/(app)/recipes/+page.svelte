@@ -60,13 +60,13 @@
 	const fmt = (n: number) => Math.round(n);
 </script>
 
-<div class="mx-auto max-w-2xl space-y-4">
+<div class="mx-auto max-w-2xl space-y-4 px-4 pb-4 sm:px-0">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-start justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.recipes_title()}</h1>
-		<Button size="sm" onclick={() => (showNewRecipe = true)}>
-			<Plus class="mr-1.5 size-4" />
-			{m.recipes_new()}
+		<Button size="sm" class="shrink-0" aria-label={m.recipes_new()} onclick={() => (showNewRecipe = true)}>
+			<Plus class="size-4 sm:mr-1.5" />
+			<span class="hidden sm:inline">{m.recipes_new()}</span>
 		</Button>
 	</div>
 
@@ -80,15 +80,15 @@
 					class="cursor-pointer transition-colors hover:bg-accent/50"
 					onclick={() => goto(`/recipes/${recipe.id}`)}
 				>
-					<Card.Content class="flex items-center justify-between p-4">
+					<Card.Content class="flex items-start justify-between gap-2 p-4">
 						<div class="min-w-0 flex-1">
-							<div class="flex items-baseline gap-2">
+							<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
 								<span class="truncate font-medium">{recipe.name}</span>
 								<span class="shrink-0 text-xs text-muted-foreground">
 									{m.recipes_servings({ count: recipe.totalServings })}
 								</span>
 							</div>
-							<div class="mt-1 flex gap-3 text-xs">
+							<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
 								<span class="font-medium text-blue-500">{fmt(recipe.calories)} kcal</span>
 								<span class="text-red-500">{fmt(recipe.protein)}g P</span>
 								<span class="text-orange-500">{fmt(recipe.carbs)}g C</span>
@@ -98,7 +98,7 @@
 						<Button
 							variant="ghost"
 							size="icon"
-							class="shrink-0 text-muted-foreground hover:text-destructive"
+							class="mt-0.5 shrink-0 text-muted-foreground hover:text-destructive"
 							onclick={(e) => deleteRecipe(e, recipe.id)}
 						>
 							<Trash2 class="size-4" />

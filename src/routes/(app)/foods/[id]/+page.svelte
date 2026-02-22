@@ -163,11 +163,11 @@
 	});
 </script>
 
-<div class="mx-auto max-w-2xl space-y-6">
+<div class="mx-auto max-w-2xl space-y-6 px-4 pb-6 sm:px-0">
 	<div class="flex items-center gap-2">
-		<Button variant="ghost" size="sm" href="/foods">
-			<ArrowLeft class="mr-1 size-4" />
-			{m.back_to_foods()}
+		<Button variant="ghost" size="sm" class="shrink-0" href="/foods" aria-label={m.back_to_foods()}>
+			<ArrowLeft class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
 	</div>
 
@@ -217,7 +217,7 @@
 				<Label for="food-serving">{m.food_form_serving_size()}</Label>
 				<Input id="food-serving" type="number" bind:value={servingSize} min="0" step="0.1" />
 			</div>
-			<div class="grid grid-cols-2 gap-4">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<div class="grid gap-2">
 					<Label for="food-calories">{m.food_form_calories()}</Label>
 					<Input id="food-calories" type="number" bind:value={calories} min="0" step="0.1" />
@@ -241,7 +241,7 @@
 			</div>
 		</div>
 
-		<Button onclick={saveChanges} disabled={saving}>
+		<Button class="w-full sm:w-auto" onclick={saveChanges} disabled={saving}>
 			{saving ? m.detail_saving() : m.save_changes()}
 		</Button>
 	{/if}

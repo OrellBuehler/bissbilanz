@@ -67,7 +67,7 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 pb-8">
+<div class="mx-auto max-w-4xl space-y-6 px-4 pb-8 sm:px-0">
 	<!-- Calendar & Averages -->
 	<div class="grid gap-6 md:grid-cols-2">
 		<Calendar {year} {month} onDayClick={goToDay} onPrevMonth={prevMonth} onNextMonth={nextMonth} />
@@ -82,7 +82,7 @@
 							<span class="text-3xl font-bold tabular-nums tracking-tight">{fmt(weeklyStats.calories)}</span>
 							<span class="text-muted-foreground text-sm font-medium">kcal</span>
 						</div>
-						<div class="grid grid-cols-4 gap-3">
+						<div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
 							<div>
 								<div class="mb-0.5 text-[11px] font-medium text-red-500">{m.macro_protein()}</div>
 								<div class="text-sm font-semibold tabular-nums">{fmt(weeklyStats.protein)}g</div>
@@ -115,7 +115,7 @@
 							<span class="text-3xl font-bold tabular-nums tracking-tight">{fmt(monthlyStats.calories)}</span>
 							<span class="text-muted-foreground text-sm font-medium">kcal</span>
 						</div>
-						<div class="grid grid-cols-4 gap-3">
+						<div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
 							<div>
 								<div class="mb-0.5 text-[11px] font-medium text-red-500">{m.macro_protein()}</div>
 								<div class="text-sm font-semibold tabular-nums">{fmt(monthlyStats.protein)}g</div>

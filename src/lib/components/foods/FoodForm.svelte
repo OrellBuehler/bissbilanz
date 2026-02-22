@@ -120,14 +120,14 @@
 	</div>
 	<div class="grid gap-1.5">
 		<Label for="barcode">{m.food_form_barcode()}</Label>
-		<div class="flex gap-2">
-			<Input id="barcode" bind:value={form.barcode} class="flex-1" />
+		<div class="flex min-w-0 gap-2">
+			<Input id="barcode" bind:value={form.barcode} class="min-w-0 flex-1" />
 			<Button type="button" variant="outline" size="icon" onclick={() => (scanOpen = true)}>
 				<ScanBarcode class="size-4" />
 			</Button>
 		</div>
 	</div>
-	<div class="grid grid-cols-2 gap-2">
+	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 		<div class="grid gap-1.5">
 			<Label for="servingSize">{m.food_form_serving_size()}</Label>
 			<Input id="servingSize" type="number" bind:value={form.servingSize} />
@@ -146,7 +146,7 @@
 			</Select.Root>
 		</div>
 	</div>
-	<div class="grid grid-cols-2 gap-2">
+	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 		<div class="grid gap-1.5">
 			<Label for="calories">{m.food_form_calories()}</Label>
 			<Input id="calories" type="number" bind:value={form.calories} />
@@ -181,7 +181,7 @@
 			{m.food_form_advanced()}
 		</Collapsible.Trigger>
 		<Collapsible.Content>
-			<div class="grid grid-cols-2 gap-2 rounded-md border p-3">
+			<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
 				<div class="grid gap-1.5">
 					<Label for="sodium">{m.food_form_sodium()}</Label>
 					<Input id="sodium" type="number" bind:value={form.sodium} />
@@ -212,7 +212,7 @@
 		<Checkbox id="favorite" bind:checked={form.isFavorite} />
 		<Label for="favorite">{m.food_form_favorite()}</Label>
 	</div>
-	<Button disabled={!isValid || saving} onclick={handleSave}>
+	<Button class="w-full sm:w-auto" disabled={!isValid || saving} onclick={handleSave}>
 		<Check class="size-4" />
 		{m.food_form_save()}
 	</Button>

@@ -62,20 +62,20 @@
 	const filtered = $derived(filterFoods(foods, query));
 </script>
 
-<div class="mx-auto max-w-2xl space-y-4">
+<div class="mx-auto max-w-2xl space-y-4 px-4 pb-4 sm:px-0">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-start justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.foods_title()}</h1>
-		<Button size="sm" onclick={() => (showNewFood = true)}>
-			<Plus class="mr-1.5 size-4" />
-			{m.foods_new()}
+		<Button size="sm" class="shrink-0" aria-label={m.foods_new()} onclick={() => (showNewFood = true)}>
+			<Plus class="size-4 sm:mr-1.5" />
+			<span class="hidden sm:inline">{m.foods_new()}</span>
 		</Button>
 	</div>
 
 	<!-- Search -->
 	<div class="relative">
 		<Search class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-		<Input class="pl-9" placeholder={m.foods_search_placeholder()} bind:value={query} />
+		<Input class="w-full min-w-0 pl-9" placeholder={m.foods_search_placeholder()} bind:value={query} />
 	</div>
 
 	<!-- Food list -->
