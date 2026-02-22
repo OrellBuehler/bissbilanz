@@ -5,8 +5,15 @@
 	import * as m from '$lib/paraglide/messages';
 
 	type DailyData = { date: string } & MacroTotals;
+	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
 
-	let { data }: { data: DailyData[] } = $props();
+	let {
+		data,
+		visibleKeys
+	}: {
+		data: DailyData[];
+		visibleKeys?: MacroKey[];
+	} = $props();
 
 	const shortLabels = $derived(data.length > 10);
 	const chartData = $derived(
@@ -30,15 +37,21 @@
 		fiber: { label: m.macro_fiber(), color: '#22C55E' }
 	};
 
-	const series = [
+	const allSeries = [
 		{ key: 'protein', label: m.macro_protein(), color: '#EF4444' },
 		{ key: 'carbs', label: m.macro_carbs(), color: '#F97316' },
 		{ key: 'fat', label: m.macro_fat(), color: '#EAB308' },
 		{ key: 'fiber', label: m.macro_fiber(), color: '#22C55E' }
-	];
+	] as const satisfies Array<{ key: MacroKey; label: string; color: string }>;
+
+	const activeKeys = $derived<MacroKey[]>(visibleKeys ?? ['protein', 'carbs', 'fat', 'fiber']);
+	const series = $derived(allSeries.filter((s) => activeKeys.includes(s.key)));
 
 	const maxMacro = $derived(
-		Math.max(...data.map((d) => d.protein + d.carbs + d.fat + d.fiber), 0)
+		Math.max(
+			...data.map((d) => activeKeys.reduce((sum, key) => sum + d[key], 0)),
+			0
+		)
 	);
 	const hasData = $derived(maxMacro > 0);
 	const yDomain = $derived([0, Math.max(maxMacro * 1.15, 50)]);

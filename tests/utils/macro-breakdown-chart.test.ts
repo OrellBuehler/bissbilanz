@@ -23,4 +23,11 @@ describe('MacroBreakdownChart', () => {
 
 		expect(source).toMatch(/legend=\{false\}/);
 	});
+
+	test('supports filtering visible macro series for custom legend toggles', () => {
+		const source = readFileSync(CHART_FILE, 'utf8');
+
+		expect(source).toMatch(/visibleKeys\?:/);
+		expect(source).toMatch(/const series = \$derived\(allSeries\.filter/);
+	});
 });

@@ -13,6 +13,8 @@
 	import { goto } from '$app/navigation';
 	import * as m from '$lib/paraglide/messages';
 
+	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
+
 	const now = new Date();
 	let year = $state(now.getFullYear());
 	let month = $state(now.getMonth());
@@ -21,6 +23,27 @@
 	let chartData: Array<{ date: string } & MacroTotals> = $state([]);
 	let calorieGoal: number | undefined = $state(undefined);
 	let chartLoading = $state(false);
+	let macroVisibility = $state<Record<MacroKey, boolean>>({
+		protein: true,
+		carbs: true,
+		fat: true,
+		fiber: true
+	});
+
+	const macroLegendItems = [
+		{ key: 'protein', label: () => m.macro_protein(), dotClass: 'bg-red-500' },
+		{ key: 'carbs', label: () => m.macro_carbs(), dotClass: 'bg-orange-500' },
+		{ key: 'fat', label: () => m.macro_fat(), dotClass: 'bg-yellow-500' },
+		{ key: 'fiber', label: () => m.macro_fiber(), dotClass: 'bg-green-500' }
+	] as const satisfies Array<{ key: MacroKey; label: () => string; dotClass: string }>;
+
+	const visibleMacroKeys = $derived(
+		(Object.keys(macroVisibility) as MacroKey[]).filter((key) => macroVisibility[key])
+	);
+
+	const toggleMacro = (key: MacroKey) => {
+		macroVisibility[key] = !macroVisibility[key];
+	};
 
 	const loadStats = async () => {
 		const [weeklyRes, monthlyRes] = await Promise.all([
@@ -178,7 +201,7 @@
 						</div>
 					{/if}
 				</div>
-				<div class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background p-2 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10">
+				<div class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10">
 					<div class="h-[228px] sm:h-[236px]">
 						<CalorieTrendChart data={chartData} {calorieGoal} />
 					</div>
@@ -196,23 +219,26 @@
 						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
 					</div>
 					<div class="flex flex-wrap items-center justify-end gap-1.5">
-						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-							<span class="size-1.5 rounded-full bg-red-500"></span>{m.macro_protein()}
-						</span>
-						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-							<span class="size-1.5 rounded-full bg-orange-500"></span>{m.macro_carbs()}
-						</span>
-						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-							<span class="size-1.5 rounded-full bg-yellow-500"></span>{m.macro_fat()}
-						</span>
-						<span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-							<span class="size-1.5 rounded-full bg-green-500"></span>{m.macro_fiber()}
-						</span>
+						{#each macroLegendItems as item (item.key)}
+							<button
+								type="button"
+								aria-pressed={macroVisibility[item.key]}
+								class={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
+									macroVisibility[item.key]
+										? 'border-border/60 bg-background/80 text-muted-foreground'
+										: 'border-border/40 bg-muted/40 text-muted-foreground/60'
+								}`}
+								onclick={() => toggleMacro(item.key)}
+							>
+								<span class={`size-1.5 rounded-full ${item.dotClass} ${macroVisibility[item.key] ? '' : 'opacity-35'}`}></span>
+								{item.label()}
+							</button>
+						{/each}
 					</div>
 				</div>
-				<div class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background p-2 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5">
+				<div class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background py-2 pr-2 pl-3 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5">
 					<div class="h-[228px] sm:h-[236px]">
-						<MacroBreakdownChart data={chartData} />
+						<MacroBreakdownChart data={chartData} visibleKeys={visibleMacroKeys} />
 					</div>
 				</div>
 			</Card.Content>
