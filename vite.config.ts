@@ -19,6 +19,8 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
+				scope: '/',
+				start_url: '/app',
 				name: 'Bissbilanz',
 				short_name: 'Bissbilanz',
 				description: 'Food tracking with AI assistance',
@@ -45,7 +47,7 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.html'],
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/.*\/api\/(foods|recipes|entries)/,
