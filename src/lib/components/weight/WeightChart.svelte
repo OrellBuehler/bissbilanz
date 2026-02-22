@@ -94,10 +94,10 @@
 				>
 					<Weight class="size-4" />
 				</div>
-				<div>
+				<div class="flex flex-1 items-center gap-2">
 					<h2 class="text-lg font-semibold tracking-tight">{m.weight_chart()}</h2>
 					{#if rangeDateLabel}
-						<p class="text-xs text-muted-foreground">{rangeDateLabel}</p>
+						<p class="ml-auto text-xs text-muted-foreground">{rangeDateLabel}</p>
 					{/if}
 				</div>
 			</div>
