@@ -9,6 +9,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
 	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -18,7 +19,7 @@
 
 	onMount(() => {
 		startSyncListener(() => {
-			window.dispatchEvent(new CustomEvent('queue-synced'));
+			invalidateAll();
 		});
 	});
 </script>

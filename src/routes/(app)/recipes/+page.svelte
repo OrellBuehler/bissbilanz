@@ -7,6 +7,7 @@
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type Recipe = {
@@ -36,7 +37,7 @@
 	};
 
 	const createRecipe = async (payload: any) => {
-		await fetch('/api/recipes', {
+		await apiFetch('/api/recipes', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
@@ -47,7 +48,7 @@
 
 	const deleteRecipe = async (e: Event, id: string) => {
 		e.stopPropagation();
-		await fetch(`/api/recipes/${id}`, { method: 'DELETE' });
+		await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
 		await loadRecipes();
 	};
 

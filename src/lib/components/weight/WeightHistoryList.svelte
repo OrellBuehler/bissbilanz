@@ -6,6 +6,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type WeightEntry = {
@@ -38,7 +39,7 @@
 		const kg = parseFloat(editWeight);
 		if (isNaN(kg) || kg < 20 || kg > 500) return;
 
-		await fetch(`/api/weight/${editingId}`, {
+		await apiFetch(`/api/weight/${editingId}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ weightKg: kg, notes: editNotes || undefined })
@@ -49,7 +50,7 @@
 
 	const confirmDelete = async () => {
 		if (!deletingId) return;
-		await fetch(`/api/weight/${deletingId}`, { method: 'DELETE' });
+		await apiFetch(`/api/weight/${deletingId}`, { method: 'DELETE' });
 		deletingId = null;
 		onChanged();
 	};

@@ -157,14 +157,14 @@
 
 	const toggleSupplement = async (supplementId: string, taken: boolean) => {
 		if (taken) {
-			await fetch(`/api/supplements/${supplementId}/log`, {
+			await apiFetch(`/api/supplements/${supplementId}/log`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: '{}'
 			});
 		} else {
 			const currentDate = today();
-			await fetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
+			await apiFetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
 		}
 		await loadSupplements();
 	};
@@ -193,15 +193,6 @@
 
 	onMount(() => {
 		checkStartPage();
-
-		const onSynced = () => {
-			loadData();
-			loadWeeklyChart();
-			loadSupplements();
-			loadLatestWeight();
-		};
-		window.addEventListener('queue-synced', onSynced);
-		return () => window.removeEventListener('queue-synced', onSynced);
 	});
 </script>
 

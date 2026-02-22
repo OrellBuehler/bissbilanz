@@ -5,6 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { toast } from 'svelte-sonner';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	let form = $state({
@@ -35,7 +36,7 @@
 	const saveGoals = async () => {
 		saving = true;
 		try {
-			const res = await fetch('/api/goals', {
+			const res = await apiFetch('/api/goals', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(form)

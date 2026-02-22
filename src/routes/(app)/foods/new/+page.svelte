@@ -4,6 +4,7 @@
 	import { browser } from '$app/environment';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	const urlBarcode = $derived($page.url.searchParams.get('barcode') ?? '');
@@ -80,7 +81,7 @@
 
 	const handleSave = async (payload: any) => {
 		const body = qualityFields ? { ...payload, ...qualityFields } : payload;
-		await fetch('/api/foods', {
+		await apiFetch('/api/foods', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)

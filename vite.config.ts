@@ -48,15 +48,28 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.{html,json}'],
+				navigateFallback: '/',
+				navigateFallbackDenylist: [/^\/api\//, /^\/login/],
 				runtimeCaching: [
 					{
-						urlPattern: /\/api\/(foods|recipes|entries)/,
+						urlPattern: /\/api\/auth\/me/,
+						handler: 'StaleWhileRevalidate',
+						options: {
+							cacheName: 'auth-cache',
+							expiration: {
+								maxEntries: 1,
+								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+							}
+						}
+					},
+					{
+						urlPattern: /\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites)/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
 							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 60 * 60 // 1 hour
+								maxEntries: 200,
+								maxAgeSeconds: 24 * 60 * 60 // 24 hours
 							}
 						}
 					}

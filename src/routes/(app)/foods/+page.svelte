@@ -9,6 +9,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { goto } from '$app/navigation';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -22,7 +23,7 @@
 	};
 
 	const createFood = async (payload: any) => {
-		await fetch('/api/foods', {
+		await apiFetch('/api/foods', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
@@ -32,7 +33,7 @@
 	};
 
 	const deleteFood = async (id: string) => {
-		await fetch(`/api/foods/${id}`, { method: 'DELETE' });
+		await apiFetch(`/api/foods/${id}`, { method: 'DELETE' });
 		await loadFoods();
 	};
 
@@ -40,7 +41,7 @@
 		const res = await fetch(`/api/openfoodfacts/${barcode}`);
 		if (!res.ok) return;
 		const { product } = await res.json();
-		await fetch(`/api/foods/${id}`, {
+		await apiFetch(`/api/foods/${id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({

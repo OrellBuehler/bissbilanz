@@ -12,6 +12,7 @@
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type SupplementWithIngredients = {
@@ -43,7 +44,7 @@
 	};
 
 	const createSupplement = async (payload: Record<string, unknown>) => {
-		await fetch('/api/supplements', {
+		await apiFetch('/api/supplements', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
@@ -54,7 +55,7 @@
 
 	const updateSupplement = async (payload: Record<string, unknown>) => {
 		if (!editingSupplement) return;
-		await fetch(`/api/supplements/${editingSupplement.id}`, {
+		await apiFetch(`/api/supplements/${editingSupplement.id}`, {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
@@ -65,13 +66,13 @@
 	};
 
 	const deleteSupplement = async (id: string) => {
-		await fetch(`/api/supplements/${id}`, { method: 'DELETE' });
+		await apiFetch(`/api/supplements/${id}`, { method: 'DELETE' });
 		deletingId = null;
 		await loadSupplements();
 	};
 
 	const toggleActive = async (supplement: SupplementWithIngredients) => {
-		await fetch(`/api/supplements/${supplement.id}`, {
+		await apiFetch(`/api/supplements/${supplement.id}`, {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ isActive: !supplement.isActive })

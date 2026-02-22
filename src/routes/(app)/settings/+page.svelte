@@ -11,6 +11,7 @@
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import { getUser } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	// Meal types state (preserved from existing page)
@@ -50,7 +51,7 @@
 
 	const savePreference = async (key: string, value: unknown) => {
 		try {
-			const res = await fetch('/api/preferences', {
+			const res = await apiFetch('/api/preferences', {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ [key]: value })
@@ -92,7 +93,7 @@
 
 	const addMealType = async () => {
 		if (!newName.trim()) return;
-		await fetch('/api/meal-types', {
+		await apiFetch('/api/meal-types', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ name: newName, sortOrder: mealTypes.length + 1 })
@@ -102,7 +103,7 @@
 	};
 
 	const removeMealType = async (id: string) => {
-		await fetch(`/api/meal-types/${id}`, { method: 'DELETE' });
+		await apiFetch(`/api/meal-types/${id}`, { method: 'DELETE' });
 		await loadMealTypes();
 	};
 
