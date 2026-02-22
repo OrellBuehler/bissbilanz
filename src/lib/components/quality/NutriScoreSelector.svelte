@@ -11,11 +11,11 @@
 	const grades: Grade[] = ['a', 'b', 'c', 'd', 'e'];
 
 	const colors: Record<Grade, { active: string; inactive: string }> = {
-		a: { active: 'bg-green-600 text-white', inactive: 'bg-green-100 text-green-400' },
-		b: { active: 'bg-lime-500 text-white', inactive: 'bg-lime-100 text-lime-400' },
-		c: { active: 'bg-yellow-400 text-white', inactive: 'bg-yellow-100 text-yellow-400' },
-		d: { active: 'bg-orange-500 text-white', inactive: 'bg-orange-100 text-orange-400' },
-		e: { active: 'bg-red-600 text-white', inactive: 'bg-red-100 text-red-400' }
+		a: { active: 'bg-green-600 text-white', inactive: 'bg-green-100 text-green-300' },
+		b: { active: 'bg-lime-500 text-white', inactive: 'bg-lime-100 text-lime-300' },
+		c: { active: 'bg-yellow-400 text-white', inactive: 'bg-yellow-100 text-yellow-300' },
+		d: { active: 'bg-orange-500 text-white', inactive: 'bg-orange-100 text-orange-300' },
+		e: { active: 'bg-red-600 text-white', inactive: 'bg-red-100 text-red-300' }
 	};
 
 	function select(grade: Grade) {

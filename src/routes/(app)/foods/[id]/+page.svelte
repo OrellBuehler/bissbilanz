@@ -29,6 +29,13 @@
 		nutriScore: string | null;
 	};
 
+	const VALID_GRADES = ['a', 'b', 'c', 'd', 'e'] as const;
+	type Grade = (typeof VALID_GRADES)[number];
+
+	function toGrade(v: string | null): Grade | null {
+		return VALID_GRADES.includes(v as Grade) ? (v as Grade) : null;
+	}
+
 	let food: Food | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
@@ -44,7 +51,7 @@
 	let fiber = $state(0);
 	let isFavorite = $state(false);
 	let imageUrl: string | null = $state(null);
-	let nutriScore = $state<'a' | 'b' | 'c' | 'd' | 'e' | null>(null);
+	let nutriScore = $state<Grade | null>(null);
 
 	const PALETTE = [
 		{ bg: 'bg-rose-200', text: 'text-rose-700' },
@@ -84,7 +91,7 @@
 				fiber = food.fiber;
 				isFavorite = food.isFavorite;
 				imageUrl = food.imageUrl;
-				nutriScore = (food.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null) ?? null;
+				nutriScore = toGrade(food.nutriScore);
 			}
 		} catch {
 			goto('/foods');
