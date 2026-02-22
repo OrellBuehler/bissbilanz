@@ -3,7 +3,6 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
 	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
@@ -15,16 +14,16 @@
 		refreshKey?: number;
 		onMutation?: () => void;
 		onTotalsChange?: (totals: MacroTotals) => void;
+		scanModalOpen?: boolean;
 	};
 
-	let { date, refreshKey = 0, onMutation, onTotalsChange }: Props = $props();
+	let { date, refreshKey = 0, onMutation, onTotalsChange, scanModalOpen = $bindable(false) }: Props = $props();
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
 	let entries: Array<any> = $state([]);
 	let addModalOpen = $state(false);
 	let editModalOpen = $state(false);
-	let scanModalOpen = $state(false);
 	let activeMeal = $state('Breakfast');
 	let editingEntry: { id: string; servings: number; mealType: string; foodName?: string } | null =
 		$state(null);
@@ -109,12 +108,6 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex justify-end">
-		<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
-			{m.dashboard_scan()}
-		</Button>
-	</div>
-
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}
 			<MealSection

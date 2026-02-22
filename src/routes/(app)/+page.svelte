@@ -13,7 +13,7 @@
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
 
 	let activeDate = $state(today());
 
@@ -30,6 +30,7 @@
 	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+	let scanModalOpen = $state(false);
 
 	const isToday = $derived(activeDate === today());
 
@@ -135,19 +136,25 @@
 
 {#if ready}
 <div class="mx-auto max-w-4xl space-y-6">
-	<div class="flex items-center gap-2">
-		<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
-			<ChevronLeft class="h-4 w-4" />
-		</Button>
-		<h2 class="text-2xl font-semibold">{dateLabel}</h2>
-		<Button
-			variant="ghost"
-			size="icon"
-			onclick={nextDay}
-			disabled={isToday}
-			aria-label={m.dashboard_next_day()}
-		>
-			<ChevronRight class="h-4 w-4" />
+	<div class="flex items-center justify-between gap-2">
+		<div class="flex items-center gap-2">
+			<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
+				<ChevronLeft class="h-4 w-4" />
+			</Button>
+			<h2 class="text-2xl font-semibold">{dateLabel}</h2>
+			<Button
+				variant="ghost"
+				size="icon"
+				onclick={nextDay}
+				disabled={isToday}
+				aria-label={m.dashboard_next_day()}
+			>
+				<ChevronRight class="h-4 w-4" />
+			</Button>
+		</div>
+		<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
+			<ScanBarcode class="h-4 w-4" />
+			{m.dashboard_scan()}
 		</Button>
 	</div>
 
@@ -172,7 +179,7 @@
 		{:else if sectionKey === 'summary'}
 			<MacroSummaryCard totals={daylogTotals} />
 		{:else if sectionKey === 'daylog'}
-			<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} onTotalsChange={(t) => (daylogTotals = t)} />
+			<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} onTotalsChange={(t) => (daylogTotals = t)} bind:scanModalOpen />
 		{/if}
 	{/each}
 </div>
