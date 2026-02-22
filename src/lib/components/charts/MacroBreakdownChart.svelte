@@ -59,7 +59,7 @@
 			rule={false}
 			bandPadding={0.4}
 			props={{
-				bars: { radius: 6, rounded: 'top', strokeWidth: 0, stroke: 'none' },
+				bars: { radius: 6, strokeWidth: 0, stroke: 'none' },
 				grid: { y: { class: 'stroke-muted/30 [stroke-dasharray:3_6]' } },
 				xAxis: {
 					ticks: filteredTicks,

@@ -148,30 +148,30 @@
 	{#if chartLoading}
 		<div class="space-y-6">
 			<Card.Root>
-				<Card.Content class="p-5">
-					<div class="bg-muted/50 h-[280px] animate-pulse rounded-xl"></div>
+				<Card.Content class="px-4 py-4 sm:px-5">
+					<div class="bg-muted/50 h-[264px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content class="p-5">
-					<div class="bg-muted/50 h-[280px] animate-pulse rounded-xl"></div>
+				<Card.Content class="px-4 py-4 sm:px-5">
+					<div class="bg-muted/50 h-[264px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 		</div>
 	{:else if chartData.length > 0}
 		<Card.Root>
-			<Card.Content class="p-5">
-				<p class="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">{m.charts_calories_trend()}</p>
-				<div class="h-[280px]">
+			<Card.Content class="px-4 py-4 sm:px-5">
+				<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.charts_calories_trend()}</p>
+				<div class="h-[264px]">
 					<CalorieTrendChart data={chartData} {calorieGoal} />
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
-			<Card.Content class="p-5">
-				<p class="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
-				<div class="h-[280px]">
+			<Card.Content class="px-4 py-4 sm:px-5">
+				<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
+				<div class="h-[264px]">
 					<MacroBreakdownChart data={chartData} />
 				</div>
 			</Card.Content>
