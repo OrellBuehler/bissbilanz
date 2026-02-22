@@ -28,6 +28,9 @@ describe('MacroBreakdownChart', () => {
 		const source = readFileSync(CHART_FILE, 'utf8');
 
 		expect(source).toMatch(/visibleKeys\?:/);
-		expect(source).toMatch(/const series = \$derived\(allSeries\.filter/);
+		expect(source).toMatch(/const activeSeries = \$derived\(allSeries\.filter/);
+		expect(source).toMatch(/key: `\$\{s\.key\}Body`/);
+		expect(source).toMatch(/key: `\$\{s\.key\}Cap`/);
+		expect(source).toMatch(/rounded: 'top'/);
 	});
 });

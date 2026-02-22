@@ -6,6 +6,17 @@
 
 	type DailyData = { date: string } & MacroTotals;
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
+	type ChartRow = DailyData & {
+		dateLabel: string;
+		proteinBody: number;
+		carbsBody: number;
+		fatBody: number;
+		fiberBody: number;
+		proteinCap: number;
+		carbsCap: number;
+		fatCap: number;
+		fiberCap: number;
+	};
 
 	let {
 		data,
@@ -16,20 +27,6 @@
 	} = $props();
 
 	const shortLabels = $derived(data.length > 10);
-	const chartData = $derived(
-		data.map((d) => ({
-			...d,
-			dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(undefined, shortLabels
-				? { day: 'numeric', month: 'short' }
-				: { weekday: 'short', day: 'numeric' }
-			)
-		}))
-	);
-	const tickStep = $derived(data.length > 14 ? Math.ceil(data.length / 7) : 1);
-	const filteredTicks = $derived(
-		chartData.filter((_, i) => i % tickStep === 0).map(d => d.dateLabel)
-	);
-
 	const config: ChartConfig = {
 		protein: { label: m.macro_protein(), color: '#EF4444' },
 		carbs: { label: m.macro_carbs(), color: '#F97316' },
@@ -45,7 +42,68 @@
 	] as const satisfies Array<{ key: MacroKey; label: string; color: string }>;
 
 	const activeKeys = $derived<MacroKey[]>(visibleKeys ?? ['protein', 'carbs', 'fat', 'fiber']);
-	const series = $derived(allSeries.filter((s) => activeKeys.includes(s.key)));
+	const activeSeries = $derived(allSeries.filter((s) => activeKeys.includes(s.key)));
+
+	const chartData = $derived<ChartRow[]>(
+		data.map((d) => {
+			const topKey = [...activeKeys].reverse().find((key) => d[key] > 0);
+			const base = {
+				...d,
+				dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(
+					undefined,
+					shortLabels
+						? { day: 'numeric', month: 'short' }
+						: { weekday: 'short', day: 'numeric' }
+				),
+				proteinBody: 0,
+				carbsBody: 0,
+				fatBody: 0,
+				fiberBody: 0,
+				proteinCap: 0,
+				carbsCap: 0,
+				fatCap: 0,
+				fiberCap: 0
+			} satisfies ChartRow;
+
+			for (const key of activeKeys) {
+				const value = d[key];
+				const isTop = topKey === key;
+				if (key === 'protein') {
+					base.proteinBody = isTop ? 0 : value;
+					base.proteinCap = isTop ? value : 0;
+				} else if (key === 'carbs') {
+					base.carbsBody = isTop ? 0 : value;
+					base.carbsCap = isTop ? value : 0;
+				} else if (key === 'fat') {
+					base.fatBody = isTop ? 0 : value;
+					base.fatCap = isTop ? value : 0;
+				} else {
+					base.fiberBody = isTop ? 0 : value;
+					base.fiberCap = isTop ? value : 0;
+				}
+			}
+
+			return base;
+		})
+	);
+
+	const tickStep = $derived(data.length > 14 ? Math.ceil(data.length / 7) : 1);
+	const filteredTicks = $derived(chartData.filter((_, i) => i % tickStep === 0).map((d) => d.dateLabel));
+
+	const series = $derived([
+		...activeSeries.map((s) => ({
+			key: `${s.key}Body`,
+			label: s.label,
+			color: s.color,
+			props: { rounded: 'none' as const, radius: 0 }
+		})),
+		...activeSeries.map((s) => ({
+			key: `${s.key}Cap`,
+			label: s.label,
+			color: s.color,
+			props: { rounded: 'top' as const }
+		}))
+	]);
 
 	const maxMacro = $derived(
 		Math.max(
