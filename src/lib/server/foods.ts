@@ -93,16 +93,11 @@ export const createFood = async (
 
 type FoodUpdateInput = typeof foodUpdateSchema._output;
 
-export const toFoodUpdate = (input: FoodUpdateInput) => ({
-	...input,
-	brand: input.brand ?? null,
-	barcode: input.barcode || null,
-	nutriScore: input.nutriScore ?? null,
-	novaGroup: input.novaGroup ?? null,
-	additives: input.additives ?? null,
-	ingredientsText: input.ingredientsText ?? null,
-	imageUrl: input.imageUrl ?? null
-});
+export const toFoodUpdate = (input: FoodUpdateInput) => {
+	const update = { ...input };
+	if (input.barcode !== undefined) update.barcode = input.barcode || null;
+	return update;
+};
 
 export const updateFood = async (
 	userId: string,
