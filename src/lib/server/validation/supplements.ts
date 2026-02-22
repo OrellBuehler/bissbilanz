@@ -19,7 +19,7 @@ export const supplementCreateSchema = z
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
 		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
-		ingredients: z.array(ingredientSchema).optional()
+		ingredients: z.array(ingredientSchema).max(50).optional()
 	})
 	.refine(
 		(data) => {
@@ -41,7 +41,7 @@ export const supplementUpdateSchema = z.object({
 	isActive: z.coerce.boolean().optional(),
 	sortOrder: z.coerce.number().int().optional(),
 	timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
-	ingredients: z.array(ingredientSchema).nullable().optional()
+	ingredients: z.array(ingredientSchema).max(50).nullable().optional()
 });
 
 export const supplementLogSchema = z.object({
