@@ -1,0 +1,6 @@
+.svelte-kit
+build
+node_modules
+drizzle
+src/lib/paraglide
+src/paraglide
