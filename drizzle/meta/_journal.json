@@ -85,6 +85,13 @@
       "when": 1771790202793,
       "tag": "0011_secret_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1771793035625,
+      "tag": "0012_curious_ironclad",
+      "breakpoints": true
     }
   ]
 }

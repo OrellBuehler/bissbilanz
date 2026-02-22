@@ -1,9 +1,10 @@
 <script lang="ts">
+	import FavoriteMealPicker from '$lib/components/favorites/FavoriteMealPicker.svelte';
 	import FavoriteCard from '$lib/components/favorites/FavoriteCard.svelte';
 	import FavoritesGrid from '$lib/components/favorites/FavoritesGrid.svelte';
 	import ServingsPicker from '$lib/components/favorites/ServingsPicker.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { getCurrentMealByTime } from '$lib/utils/meals';
+	import { DEFAULT_MEAL_TYPES, mergeMealTypes, resolveMealTypeForMinute } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
@@ -25,13 +26,27 @@
 	type Props = {
 		onEntryLogged: () => void;
 		favoriteTapAction?: 'instant' | 'picker';
+		favoriteMealAssignmentMode?: 'time_based' | 'ask_meal';
+		favoriteMealTimeframes?: Array<{
+			mealType: string;
+			startMinute: number;
+			endMinute: number;
+		}>;
 	};
 
-	let { onEntryLogged, favoriteTapAction = 'instant' }: Props = $props();
+	let {
+		onEntryLogged,
+		favoriteTapAction = 'instant',
+		favoriteMealAssignmentMode = 'time_based',
+		favoriteMealTimeframes = []
+	}: Props = $props();
 
 	let items: FavoriteItem[] = $state([]);
 	let pickerOpen = $state(false);
 	let pickerItem: FavoriteItem | null = $state(null);
+	let mealPickerOpen = $state(false);
+	let mealOptions: string[] = $state([...DEFAULT_MEAL_TYPES]);
+	let pendingLog: { item: FavoriteItem; servings: number } | null = $state(null);
 
 	const loadFavorites = async () => {
 		try {
@@ -49,8 +64,30 @@
 		}
 	};
 
-	const logEntry = async (item: FavoriteItem, servings = 1) => {
-		const meal = getCurrentMealByTime();
+	const loadMealOptions = async () => {
+		try {
+			const res = await fetch('/api/meal-types');
+			if (!res.ok) return;
+			const data = await res.json();
+			mealOptions = mergeMealTypes(
+				[...DEFAULT_MEAL_TYPES],
+				(data.mealTypes ?? []).map((meal: { name: string }) => meal.name)
+			);
+		} catch {
+			mealOptions = [...DEFAULT_MEAL_TYPES];
+		}
+	};
+
+	const getConfiguredMeal = (): string | null => {
+		if (favoriteMealAssignmentMode === 'ask_meal') return null;
+		const now = new Date();
+		const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+		return resolveMealTypeForMinute(minuteOfDay, favoriteMealTimeframes) ?? null;
+	};
+
+	const logEntry = async (item: FavoriteItem, servings = 1, mealType?: string) => {
+		const meal = mealType;
+		if (!meal) return;
 		const payload: Record<string, unknown> = {
 			mealType: meal,
 			servings,
@@ -88,23 +125,49 @@
 		onEntryLogged();
 	};
 
+	const continuePendingLog = () => {
+		if (!pendingLog) return;
+		const resolvedMeal = getConfiguredMeal();
+		if (resolvedMeal) {
+			void logEntry(pendingLog.item, pendingLog.servings, resolvedMeal);
+			pendingLog = null;
+			return;
+		}
+
+		mealPickerOpen = true;
+	};
+
 	const handleTap = (item: FavoriteItem) => {
+		pendingLog = { item, servings: 1 };
 		if (favoriteTapAction === 'picker') {
 			pickerItem = item;
 			pickerOpen = true;
-		} else {
-			logEntry(item);
+			return;
 		}
+
+		continuePendingLog();
 	};
 
 	const handlePickerConfirm = (servings: number) => {
-		if (pickerItem) logEntry(pickerItem, servings);
+		if (pendingLog) {
+			pendingLog = { ...pendingLog, servings };
+		}
 		pickerOpen = false;
 		pickerItem = null;
+		continuePendingLog();
+	};
+
+	const handleMealConfirm = (mealType: string) => {
+		if (pendingLog) {
+			void logEntry(pendingLog.item, pendingLog.servings, mealType);
+		}
+		mealPickerOpen = false;
+		pendingLog = null;
 	};
 
 	onMount(() => {
 		loadFavorites();
+		loadMealOptions();
 	});
 </script>
 
@@ -139,5 +202,17 @@
 	onClose={() => {
 		pickerOpen = false;
 		pickerItem = null;
+		pendingLog = null;
+	}}
+/>
+
+<FavoriteMealPicker
+	open={mealPickerOpen}
+	itemName={pendingLog?.item.name ?? ''}
+	{mealOptions}
+	onConfirm={handleMealConfirm}
+	onClose={() => {
+		mealPickerOpen = false;
+		pendingLog = null;
 	}}
 />

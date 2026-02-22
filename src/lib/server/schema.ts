@@ -153,6 +153,9 @@ export const userPreferences = pgTable('user_preferences', {
 		.default(sql`ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[]`),
 	startPage: text('start_page').notNull().default('dashboard'),
 	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
+	favoriteMealAssignmentMode: text('favorite_meal_assignment_mode')
+		.notNull()
+		.default('time_based'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
@@ -208,6 +211,38 @@ export const customMealTypes = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [index('idx_custom_meal_types_user_id').on(table.userId)]
+);
+
+// Favorites meal auto-assignment timeframes (used for quick logging)
+export const favoriteMealTimeframes = pgTable(
+	'favorite_meal_timeframes',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		mealType: text('meal_type').notNull(),
+		customMealTypeId: uuid('custom_meal_type_id').references(() => customMealTypes.id, {
+			onDelete: 'restrict'
+		}),
+		startMinute: integer('start_minute').notNull(),
+		endMinute: integer('end_minute').notNull(),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_favorite_meal_timeframes_user_id').on(table.userId),
+		index('idx_favorite_meal_timeframes_custom_meal_type_id').on(table.customMealTypeId),
+		check(
+			'favorite_meal_timeframes_minute_bounds',
+			sql`${table.startMinute} >= 0 AND ${table.startMinute} <= 1439 AND ${table.endMinute} >= 1 AND ${table.endMinute} <= 1439`
+		),
+		check(
+			'favorite_meal_timeframes_valid_range',
+			sql`${table.startMinute} < ${table.endMinute}`
+		)
+	]
 );
 
 // Supplements
