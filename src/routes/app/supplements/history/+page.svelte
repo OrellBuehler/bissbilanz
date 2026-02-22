@@ -156,6 +156,7 @@
 									<button
 										type="button"
 										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										aria-expanded={expandedItems.has(itemKey)}
 										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
 									>
 										<Check class="size-4 text-green-500 shrink-0" />
@@ -186,6 +187,7 @@
 									<button
 										type="button"
 										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										aria-expanded={expandedItems.has(itemKey)}
 										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
 									>
 										<X class="size-4 text-red-500 shrink-0" />
