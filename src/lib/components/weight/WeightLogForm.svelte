@@ -89,7 +89,7 @@
 
 	<div class="flex justify-end">
 		<Button type="submit" disabled={saving} class="w-full sm:w-auto" size="sm">
-			{saving ? '...' : m.weight_save()}
+			{saving ? '...' : m.weight_log()}
 		</Button>
 	</div>
 </form>

@@ -144,7 +144,7 @@
 				>
 					<Weight class="size-4" />
 				</div>
-				<Card.Title class="text-base tracking-tight">{m.weight_save()}</Card.Title>
+				<Card.Title class="text-base tracking-tight">{m.weight_log()}</Card.Title>
 			</div>
 		</Card.Header>
 		<Card.Content class="p-4 pt-0 sm:p-5 sm:pt-0">
