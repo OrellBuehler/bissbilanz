@@ -37,6 +37,6 @@ export function getNavItems(): NavItem[] {
 		{ title: () => m.nav_weight(), href: '/weight', icon: Weight, badgeColor: 'bg-teal-500' },
 		{ title: () => m.nav_goals(), href: '/goals', icon: Target, badgeColor: 'bg-amber-500' },
 		{ title: () => m.nav_history(), href: '/history', icon: Calendar, badgeColor: 'bg-indigo-500' },
-		{ title: () => m.nav_settings(), href: '/settings', icon: Settings, badgeColor: 'bg-slate-500' }
+		{ title: () => m.nav_settings(), href: '/settings', icon: Settings, badgeColor: 'bg-slate-600' }
 	];
 }

@@ -96,7 +96,7 @@
 							<Sidebar.MenuButton
 								isActive={isActive(item.href, $page.url.pathname)}
 								tooltipContent={item.title()}
-								class="h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-950/40 data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent"
+								class="h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-950/40 data-[active=true]:hover:bg-blue-100 dark:data-[active=true]:hover:bg-blue-950/60 data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent"
 							>
 								{#snippet child({ props })}
 									<a href={item.href} {...withMobileCloseClick(props)}>
