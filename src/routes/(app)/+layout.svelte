@@ -20,6 +20,7 @@
 	onMount(() => {
 		startSyncListener(() => {
 			invalidateAll();
+			window.dispatchEvent(new CustomEvent('queue-synced'));
 		});
 	});
 </script>

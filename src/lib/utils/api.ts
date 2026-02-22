@@ -6,7 +6,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 	const isWrite = method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
 
 	if (browser && !navigator.onLine && isWrite) {
-		const body = options.body ? JSON.parse(options.body as string) : {};
+		const body = typeof options.body === 'string' ? JSON.parse(options.body) : {};
 		await enqueue(method, url, body);
 		return new Response(JSON.stringify({ queued: true }), {
 			status: 200,

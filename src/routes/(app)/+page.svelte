@@ -193,6 +193,15 @@
 
 	onMount(() => {
 		checkStartPage();
+
+		const onSynced = () => {
+			loadData();
+			loadWeeklyChart();
+			loadSupplements();
+			loadLatestWeight();
+		};
+		window.addEventListener('queue-synced', onSynced);
+		return () => window.removeEventListener('queue-synced', onSynced);
 	});
 </script>
 

@@ -49,11 +49,11 @@ export default defineConfig({
 			workbox: {
 				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.{html,json}'],
 				navigateFallback: '/',
-				navigateFallbackDenylist: [/^\/api\//, /^\/login/],
+				navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/authorize/, /^\/token/],
 				runtimeCaching: [
 					{
-						urlPattern: /\/api\/auth\/me/,
-						handler: 'StaleWhileRevalidate',
+						urlPattern: /^\/api\/auth\/me$/,
+						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'auth-cache',
 							expiration: {
@@ -63,7 +63,7 @@ export default defineConfig({
 						}
 					},
 					{
-						urlPattern: /\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites)/,
+						urlPattern: /\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts)/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
