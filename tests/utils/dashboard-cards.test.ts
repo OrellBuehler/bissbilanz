@@ -11,7 +11,7 @@ describe('dashboard card styling', () => {
 		expect(source).toContain(
 			"import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';"
 		);
-		expect(source).toContain('<DashboardCard title={m.charts_this_week()}');
+		expect(source).toContain('<DashboardCard title={m.dashboard_summary()}');
 		expect(source).toContain('dashboardStyle={true}');
 	});
 
