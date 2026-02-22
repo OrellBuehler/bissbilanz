@@ -131,6 +131,15 @@
 
 	onMount(() => {
 		checkStartPage();
+
+		const onSynced = () => {
+			refreshKey++;
+			loadWeeklyChart();
+			loadSupplements();
+			loadLatestWeight();
+		};
+		window.addEventListener('queue-synced', onSynced);
+		return () => window.removeEventListener('queue-synced', onSynced);
 	});
 </script>
 
@@ -175,7 +184,7 @@
 	{#if isToday}
 		{#each userPrefs?.widgetOrder ?? ['favorites', 'supplements', 'weight'] as widgetKey (widgetKey)}
 			{#if widgetKey === 'favorites' && userPrefs?.showFavoritesWidget}
-				<FavoritesWidget onEntryLogged={() => {}} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
+				<FavoritesWidget onEntryLogged={() => refreshKey++} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
 			{:else if widgetKey === 'supplements' && userPrefs?.showSupplementsWidget}
 				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 			{:else if widgetKey === 'weight' && userPrefs?.showWeightWidget}

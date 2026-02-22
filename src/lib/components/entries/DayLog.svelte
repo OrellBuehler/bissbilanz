@@ -37,9 +37,9 @@
 			fetch('/api/recipes'),
 			fetch(`/api/entries?date=${date}`)
 		]);
-		foods = (await foodsRes.json()).foods;
-		recipes = (await recipesRes.json()).recipes;
-		entries = (await entriesRes.json()).entries;
+		foods = (await foodsRes.json()).foods ?? [];
+		recipes = (await recipesRes.json()).recipes ?? [];
+		entries = (await entriesRes.json()).entries ?? [];
 	};
 
 	const addEntry = async (payload: any) => {
