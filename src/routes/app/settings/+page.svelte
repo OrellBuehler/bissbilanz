@@ -115,6 +115,7 @@
 		savePreference('widgetOrder', newOrder);
 	};
 
+	const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
 	const user = $derived(getUser());
 
 	onMount(() => {
@@ -217,7 +218,17 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 5. Start Page Section -->
+	<!-- 5. About Section -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_about()}</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<p class="text-muted-foreground text-sm">{m.settings_version()} {appVersion}</p>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- 6. Start Page Section -->
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>{m.settings_start_page()}</Card.Title>

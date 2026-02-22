@@ -11,12 +11,14 @@ RUN bun install --frozen-lockfile
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
+ARG APP_VERSION=dev
 ARG GIT_HASH=unknown
 ARG BUILD_TIMESTAMP=unknown
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ENV VITE_APP_VERSION=${APP_VERSION}
 ENV VITE_GIT_HASH=${GIT_HASH}
 ENV VITE_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
 

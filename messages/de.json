@@ -201,6 +201,8 @@
   "settings_widget_weight_desc": "Zeigt deinen letzten Gewichtseintrag",
   "settings_saved": "Gespeichert",
   "settings_save_failed": "Speichern fehlgeschlagen",
+  "settings_about": "Info",
+  "settings_version": "Version",
 
   "macro_calories": "Kalorien",
   "macro_protein": "Protein",
