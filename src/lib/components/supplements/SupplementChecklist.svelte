@@ -89,7 +89,7 @@
 							<span class="text-muted-foreground ml-auto text-sm">
 								{item.supplement.dosage} {item.supplement.dosageUnit}
 								{#if item.supplement.ingredients && item.supplement.ingredients.length > 0}
-									<span class="text-xs">({m.supplements_ingredient_count({ count: String(item.supplement.ingredients.length) })})</span>
+									<span class="text-xs">({item.supplement.ingredients.length === 1 ? m.supplements_ingredient_count_one() : m.supplements_ingredient_count({ count: String(item.supplement.ingredients.length) })})</span>
 								{/if}
 							</span>
 						</label>

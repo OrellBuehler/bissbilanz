@@ -141,6 +141,7 @@
   "supplements_remove_ingredient": "Remove",
   "supplements_ingredient_name": "Ingredient",
   "supplements_ingredient_count": "{count} ingredients",
+  "supplements_ingredient_count_one": "1 ingredient",
   "supplements_serving_form": "Serving form",
 
   "supplements_day_sun": "Sun",

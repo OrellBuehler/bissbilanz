@@ -118,7 +118,7 @@
 							<div class="text-sm text-muted-foreground">
 								{supplement.dosage} {supplement.dosageUnit} &middot; {formatSchedule(supplement.scheduleType, supplement.scheduleDays)}
 								{#if supplement.ingredients?.length > 0}
-									&middot; {m.supplements_ingredient_count({ count: String(supplement.ingredients.length) })}
+									&middot; {supplement.ingredients.length === 1 ? m.supplements_ingredient_count_one() : m.supplements_ingredient_count({ count: String(supplement.ingredients.length) })}
 								{/if}
 							</div>
 						</div>

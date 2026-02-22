@@ -141,6 +141,7 @@
   "supplements_remove_ingredient": "Entfernen",
   "supplements_ingredient_name": "Inhaltsstoff",
   "supplements_ingredient_count": "{count} Inhaltsstoffe",
+  "supplements_ingredient_count_one": "1 Inhaltsstoff",
   "supplements_serving_form": "Darreichungsform",
 
   "supplements_day_sun": "So",
