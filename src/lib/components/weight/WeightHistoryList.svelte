@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -122,7 +122,10 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel onclick={() => (deletingId = null)}>{m.supplements_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={confirmDelete}>{m.weight_delete()}</AlertDialog.Action>
+			<AlertDialog.Action class={buttonVariants({ variant: 'destructive' })} onclick={confirmDelete}>
+				<Trash2 class="size-4" />
+				{m.weight_delete()}
+			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

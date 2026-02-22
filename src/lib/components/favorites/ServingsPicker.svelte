@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -47,7 +48,10 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button onclick={handleConfirm}>{m.favorites_log()}</Button>
+			<Button onclick={handleConfirm}>
+				<Check class="size-4" />
+				{m.favorites_log()}
+			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

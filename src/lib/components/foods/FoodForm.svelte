@@ -9,6 +9,7 @@
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
 
@@ -211,7 +212,10 @@
 		<Checkbox id="favorite" bind:checked={form.isFavorite} />
 		<Label for="favorite">{m.food_form_favorite()}</Label>
 	</div>
-	<Button disabled={!isValid || saving} onclick={handleSave}>{m.food_form_save()}</Button>
+	<Button disabled={!isValid || saving} onclick={handleSave}>
+		<Check class="size-4" />
+		{m.food_form_save()}
+	</Button>
 </div>
 
 <BarcodeScanModal bind:open={scanOpen} onClose={() => (scanOpen = false)} onBarcode={handleScanned} />

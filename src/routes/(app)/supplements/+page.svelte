@@ -10,6 +10,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import History from '@lucide/svelte/icons/history';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { apiFetch } from '$lib/utils/api';
@@ -157,7 +158,10 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel onclick={() => (deletingId = null)}>{m.supplements_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={() => deletingId && deleteSupplement(deletingId)}>{m.supplements_delete()}</AlertDialog.Action>
+			<AlertDialog.Action class={buttonVariants({ variant: 'destructive' })} onclick={() => deletingId && deleteSupplement(deletingId)}>
+				<Trash2 class="size-4" />
+				{m.supplements_delete()}
+			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

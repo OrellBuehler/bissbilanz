@@ -7,6 +7,7 @@
 	import { today } from '$lib/utils/dates';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
+	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 
 	import type { ScheduleType } from '$lib/supplement-units';
@@ -252,6 +253,7 @@
 			{m.supplements_cancel()}
 		</Button>
 		<Button type="submit" disabled={!name || dosage <= 0}>
+			<Check class="size-4" />
 			{m.supplements_save()}
 		</Button>
 	</div>

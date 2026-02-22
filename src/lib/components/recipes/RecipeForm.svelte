@@ -5,6 +5,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -63,5 +64,8 @@
 			{m.recipe_form_add_ingredient()}
 		</Button>
 	</div>
-	<Button class="w-full" type="submit">{m.recipe_form_save()}</Button>
+	<Button class="w-full" type="submit">
+		<Check class="size-4" />
+		{m.recipe_form_save()}
+	</Button>
 </form>

@@ -4,6 +4,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -82,11 +84,16 @@
 			</div>
 		</div>
 
-		<Dialog.Footer class="flex justify-between sm:justify-between">
-			<Button variant="destructive" onclick={handleDelete}>{m.edit_entry_delete()}</Button>
+		<Dialog.Footer class="flex flex-row items-center justify-between">
+			<Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" onclick={handleDelete} aria-label={m.edit_entry_delete()}>
+				<Trash2 class="size-4" />
+			</Button>
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={onClose}>{m.edit_entry_cancel()}</Button>
-				<Button onclick={handleSave}>{m.edit_entry_save()}</Button>
+				<Button onclick={handleSave}>
+					<Check class="size-4" />
+					{m.edit_entry_save()}
+				</Button>
 			</div>
 		</Dialog.Footer>
 	</Dialog.Content>
