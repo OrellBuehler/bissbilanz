@@ -275,6 +275,7 @@
   "pwa_offline": "You're offline — changes will sync when reconnected",
   "pwa_update_available": "A new version is available",
   "pwa_update_refresh": "Refresh to update",
+  "pwa_ios_install_prompt": "Install this app: tap {shareIcon} then \"Add to Home Screen\"",
 
   "nav_favorites": "Favorites",
 

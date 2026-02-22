@@ -47,10 +47,10 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.html'],
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.{html,json}'],
 				runtimeCaching: [
 					{
-						urlPattern: /^https:\/\/.*\/api\/(foods|recipes|entries)/,
+						urlPattern: /\/api\/(foods|recipes|entries)/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
