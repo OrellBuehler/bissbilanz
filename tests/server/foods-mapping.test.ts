@@ -26,4 +26,23 @@ describe('toFoodUpdate', () => {
 		expect(row.name).toBe('Greek Yogurt');
 		expect(row.calories).toBe(120);
 	});
+
+	test('partial update does not include unrelated nullable fields', () => {
+		const row = toFoodUpdate({ imageUrl: '/img.jpg' });
+		expect('nutriScore' in row).toBe(false);
+		expect('novaGroup' in row).toBe(false);
+		expect('additives' in row).toBe(false);
+		expect('ingredientsText' in row).toBe(false);
+	});
+
+	test('partial update with only name does not include imageUrl', () => {
+		const row = toFoodUpdate({ name: 'New Name' });
+		expect('imageUrl' in row).toBe(false);
+	});
+
+	test('explicit null values are preserved', () => {
+		const row = toFoodUpdate({ nutriScore: null });
+		expect('nutriScore' in row).toBe(true);
+		expect(row.nutriScore).toBeNull();
+	});
 });
