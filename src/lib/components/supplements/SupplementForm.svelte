@@ -184,7 +184,7 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<Button type="button" variant="ghost" size="icon" onclick={() => removeIngredient(i)}>
+						<Button type="button" variant="ghost" size="icon" aria-label={m.supplements_remove_ingredient()} onclick={() => removeIngredient(i)}>
 							<X class="size-4" />
 						</Button>
 					</div>
