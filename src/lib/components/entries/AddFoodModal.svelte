@@ -142,7 +142,7 @@
 		</Dialog.Header>
 
 		<Tabs.Root value={tab} onValueChange={handleTabChange}>
-			<Tabs.List class="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
+			<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
 				<Tabs.Trigger value="search" class="text-xs sm:text-sm">{m.add_food_tab_search()}</Tabs.Trigger>
 				<Tabs.Trigger value="favorites" class="text-xs sm:text-sm">{m.add_food_tab_favorites()}</Tabs.Trigger>
 				<Tabs.Trigger value="recent" class="text-xs sm:text-sm">{m.add_food_tab_recent()}</Tabs.Trigger>
