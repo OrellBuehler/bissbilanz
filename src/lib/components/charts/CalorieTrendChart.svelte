@@ -66,7 +66,7 @@
 </script>
 
 {#if hasData}
-	<ChartContainer {config} class="h-full w-full">
+	<ChartContainer {config} class="h-full w-full aspect-auto">
 		<AreaChart
 			data={chartData}
 			x="dateLabel"
