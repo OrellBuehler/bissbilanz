@@ -55,9 +55,7 @@
 <header
 	class="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-border/70 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) md:px-0"
 >
-	<div
-		class="flex w-full items-center gap-1 px-3 py-1.5 md:px-4 md:py-0 lg:gap-2 lg:px-6"
-	>
+	<div class="flex w-full items-center gap-1 px-3 py-1.5 md:px-4 md:py-0 lg:gap-2 lg:px-6">
 		<Sidebar.Trigger class="-ms-1" />
 		<Separator orientation="vertical" class="mx-2 data-[orientation=vertical]:h-4" />
 		<Breadcrumb.Root>
@@ -84,7 +82,11 @@
 					{#snippet child({ props })}
 						<button {...props} class="flex h-9 w-9 items-center justify-center rounded-full">
 							<Avatar.Root class="h-9 w-9 rounded-full">
-								<Avatar.Fallback class="rounded-full">{userInitial}</Avatar.Fallback>
+								<Avatar.Image src={user?.avatarUrl} alt={userDisplay} />
+								<Avatar.Fallback
+									class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+									>{userInitial}</Avatar.Fallback
+								>
 							</Avatar.Root>
 						</button>
 					{/snippet}
@@ -93,7 +95,11 @@
 					<DropdownMenu.Label class="p-0 font-normal">
 						<div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
 							<Avatar.Root class="size-8 rounded-lg">
-								<Avatar.Fallback class="rounded-lg">{userInitial}</Avatar.Fallback>
+								<Avatar.Image src={user?.avatarUrl} alt={userDisplay} />
+								<Avatar.Fallback
+									class="rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+									>{userInitial}</Avatar.Fallback
+								>
 							</Avatar.Root>
 							<div class="grid flex-1 text-start text-sm leading-tight">
 								<span class="truncate font-medium">{userDisplay}</span>

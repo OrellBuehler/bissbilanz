@@ -11,6 +11,7 @@ Make the sidebar more visually premium by giving each nav item a unique colored 
 Each nav item gets a `badgeColor` property in `navigation.ts`. The icon badge (the rounded square wrapping the icon) uses this color on both mobile and desktop — replacing the current neutral `bg-sidebar-accent` background.
 
 Colors:
+
 - Dashboard: `bg-blue-500`
 - Favorites: `bg-red-500`
 - Foods: `bg-orange-500`
