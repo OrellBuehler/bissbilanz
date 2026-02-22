@@ -35,7 +35,12 @@
 		const segments = pathname.split('/').filter(Boolean);
 		const crumbs: Array<{ label: string; href: string; isId: boolean }> = [];
 
-		for (let i = 1; i < segments.length; i++) {
+		if (segments.length === 0) {
+			crumbs.push({ label: labelMap['app']?.() || 'Dashboard', href: '/', isId: false });
+			return crumbs;
+		}
+
+		for (let i = 0; i < segments.length; i++) {
 			const segment = segments[i];
 			const href = '/' + segments.slice(0, i + 1).join('/');
 			const isId = UUID_RE.test(segment);
@@ -64,7 +69,7 @@
 						{/if}
 						<Breadcrumb.Item>
 							{#if i === breadcrumbs.length - 1 || breadcrumbs[i + 1]?.isId}
-								<Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
+								<Breadcrumb.Page class="font-semibold">{crumb.label}</Breadcrumb.Page>
 							{:else}
 								<Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
 							{/if}
