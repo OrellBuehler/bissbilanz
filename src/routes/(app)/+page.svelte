@@ -1,11 +1,11 @@
 <script lang="ts">
 	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import MacroSummaryCard from '$lib/components/entries/MacroSummaryCard.svelte';
-	import CalorieTrendChart from '$lib/components/charts/CalorieTrendChart.svelte';
+	import DailyMacroChart from '$lib/components/charts/DailyMacroChart.svelte';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type MacroTotals } from '$lib/utils/nutrition';
-	import { today, yesterday, daysAgo, shiftDate } from '$lib/utils/dates';
+	import { today, yesterday, shiftDate } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/utils/api';
@@ -13,13 +13,12 @@
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { ChevronLeft, ChevronRight, Flame, ScanBarcode, Target } from '@lucide/svelte';
+	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
+	import ChartPie from '@lucide/svelte/icons/chart-pie';
 
 	let activeDate = $state(today());
 
 	let refreshKey = $state(0);
-	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
-	let weeklyCalorieGoal: number | undefined = $state(undefined);
 	type ChecklistItem = {
 		supplement: {
 			id: string;
@@ -54,18 +53,6 @@
 
 	const nextDay = () => {
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
-	};
-
-	const loadWeeklyChart = async () => {
-		try {
-			const res = await fetch(`/api/stats/daily?startDate=${daysAgo(7)}&endDate=${today()}`);
-			if (!res.ok) return;
-			const json = await res.json();
-			weeklyData = json.data ?? [];
-			weeklyCalorieGoal = json.goals?.calorieGoal ?? undefined;
-		} catch {
-			// silently ignore chart load failures
-		}
 	};
 
 	const loadLatestWeight = async () => {
@@ -121,7 +108,6 @@
 		}
 		ready = true;
 
-		loadWeeklyChart();
 		loadSupplements();
 		loadLatestWeight();
 	};
@@ -131,7 +117,6 @@
 
 		const onSynced = () => {
 			refreshKey++;
-			loadWeeklyChart();
 			loadSupplements();
 			loadLatestWeight();
 		};
@@ -170,24 +155,10 @@
 		</div>
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
-			{#if sectionKey === 'chart' && weeklyData.length > 0}
-				<DashboardCard title={m.charts_this_week()} Icon={Flame} tone="blue">
-					{#snippet headerRight()}
-						{#if weeklyCalorieGoal}
-							<div
-								class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground"
-							>
-								<Target class="size-3.5" />
-								<span>{Math.round(weeklyCalorieGoal)} {m.foods_kcal()}</span>
-							</div>
-						{/if}
-					{/snippet}
-					<div
-						class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/60 via-blue-50/15 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/20 dark:via-blue-950/5"
-					>
-						<div class="h-[186px] sm:h-[196px]">
-							<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
-						</div>
+			{#if sectionKey === 'chart'}
+				<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
+					<div class="h-[200px] sm:h-[220px]">
+						<DailyMacroChart totals={daylogTotals} />
 					</div>
 				</DashboardCard>
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
@@ -211,7 +182,6 @@
 					date={activeDate}
 					{refreshKey}
 					dashboardStyle={true}
-					onMutation={loadWeeklyChart}
 					onTotalsChange={(t) => (daylogTotals = t)}
 					bind:scanModalOpen
 				/>
