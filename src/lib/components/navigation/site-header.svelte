@@ -1,10 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { logout, getUser } from '$lib/stores/auth.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import * as Avatar from '$lib/components/ui/avatar/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import LogOut from '@lucide/svelte/icons/log-out';
 	import * as m from '$lib/paraglide/messages';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
+
+	const user = $derived(getUser());
+	const userInitial = $derived((user?.name || user?.email || '?').charAt(0).toUpperCase());
+	const userDisplay = $derived(user?.name || user?.email || '');
 
 	const labelMap: Record<string, () => string> = {
 		app: () => m.nav_dashboard(),
@@ -63,5 +71,38 @@
 				{/each}
 			</Breadcrumb.List>
 		</Breadcrumb.Root>
+		<div class="ml-auto">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<button {...props} class="flex h-9 w-9 items-center justify-center rounded-full">
+							<Avatar.Root class="h-9 w-9 rounded-full">
+								<Avatar.Fallback class="rounded-full">{userInitial}</Avatar.Fallback>
+							</Avatar.Root>
+						</button>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content class="min-w-56 rounded-lg" align="end" sideOffset={4}>
+					<DropdownMenu.Label class="p-0 font-normal">
+						<div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+							<Avatar.Root class="size-8 rounded-lg">
+								<Avatar.Fallback class="rounded-lg">{userInitial}</Avatar.Fallback>
+							</Avatar.Root>
+							<div class="grid flex-1 text-start text-sm leading-tight">
+								<span class="truncate font-medium">{userDisplay}</span>
+								{#if user?.name && user?.email}
+									<span class="text-muted-foreground truncate text-xs">{user.email}</span>
+								{/if}
+							</div>
+						</div>
+					</DropdownMenu.Label>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item onclick={logout}>
+						<LogOut />
+						{m.auth_logout()}
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		</div>
 	</div>
 </header>
