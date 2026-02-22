@@ -105,7 +105,7 @@
 										>
 											<item.icon class="size-4.5 md:size-4" />
 										</span>
-										<span class="truncate font-medium">{item.title()}</span>
+										<span class="truncate font-semibold">{item.title()}</span>
 									</a>
 								{/snippet}
 							</Sidebar.MenuButton>
