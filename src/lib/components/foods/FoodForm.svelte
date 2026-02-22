@@ -6,6 +6,7 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
+	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -47,6 +48,7 @@
 		cholesterol?: number | null;
 		barcode: string;
 		isFavorite: boolean;
+		nutriScore?: 'a' | 'b' | 'c' | 'd' | 'e' | null;
 	};
 
 	type Props = {
@@ -83,7 +85,8 @@
 		saturatedFat: initial.saturatedFat ?? null,
 		cholesterol: initial.cholesterol ?? null,
 		barcode: initial.barcode ?? '',
-		isFavorite: initial.isFavorite ?? false
+		isFavorite: initial.isFavorite ?? false,
+		nutriScore: initial.nutriScore ?? null
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -197,6 +200,13 @@
 				<div class="grid gap-1.5">
 					<Label for="cholesterol">{m.food_form_cholesterol()}</Label>
 					<Input id="cholesterol" type="number" bind:value={form.cholesterol} />
+				</div>
+				<div class="col-span-full grid gap-1.5">
+					<Label>{m.quality_nutriscore()}</Label>
+					<NutriScoreSelector
+						value={form.nutriScore ?? null}
+						onchange={(v) => (form.nutriScore = v)}
+					/>
 				</div>
 			</div>
 		</Collapsible.Content>

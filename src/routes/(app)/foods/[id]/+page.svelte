@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -25,6 +26,7 @@
 		isFavorite: boolean;
 		imageUrl: string | null;
 		barcode: string | null;
+		nutriScore: string | null;
 	};
 
 	let food: Food | null = $state(null);
@@ -42,6 +44,7 @@
 	let fiber = $state(0);
 	let isFavorite = $state(false);
 	let imageUrl: string | null = $state(null);
+	let nutriScore = $state<'a' | 'b' | 'c' | 'd' | 'e' | null>(null);
 
 	const PALETTE = [
 		{ bg: 'bg-rose-200', text: 'text-rose-700' },
@@ -81,6 +84,7 @@
 				fiber = food.fiber;
 				isFavorite = food.isFavorite;
 				imageUrl = food.imageUrl;
+				nutriScore = (food.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null) ?? null;
 			}
 		} catch {
 			goto('/foods');
@@ -143,7 +147,8 @@
 					fat,
 					fiber,
 					isFavorite,
-					imageUrl
+					imageUrl,
+					nutriScore
 				})
 			});
 			if (res.ok) {
@@ -236,6 +241,10 @@
 					<Label for="food-fiber">{m.food_form_fiber()}</Label>
 					<Input id="food-fiber" type="number" bind:value={fiber} min="0" step="0.1" />
 				</div>
+			</div>
+			<div class="grid gap-2">
+				<Label>{m.quality_nutriscore()}</Label>
+				<NutriScoreSelector value={nutriScore} onchange={(v) => (nutriScore = v)} />
 			</div>
 		</div>
 

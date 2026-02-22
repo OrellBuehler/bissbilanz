@@ -56,6 +56,7 @@
 					sugar: offData.sugar,
 					saturatedFat: offData.saturatedFat,
 					cholesterol: offData.cholesterol,
+					nutriScore: offData.nutriScore,
 					barcode,
 					isFavorite: false
 				}
@@ -65,7 +66,6 @@
 	const qualityFields = $derived(
 		offData
 			? {
-					nutriScore: offData.nutriScore,
 					novaGroup: offData.novaGroup,
 					additives: offData.additives,
 					ingredientsText: offData.ingredientsText,
