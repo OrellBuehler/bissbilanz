@@ -4,6 +4,8 @@ import {
 	TEST_USER,
 	TEST_SUPPLEMENT,
 	TEST_SUPPLEMENT_LOG,
+	TEST_MULTI_SUPPLEMENT,
+	TEST_SUPPLEMENT_INGREDIENTS,
 	VALID_SUPPLEMENT_PAYLOAD,
 	VALID_MULTI_SUPPLEMENT_PAYLOAD
 } from '../helpers/fixtures';
@@ -361,12 +363,9 @@ describe('supplements-db', () => {
 
 	describe('getSupplementIngredients', () => {
 		test('returns ingredients for supplement', async () => {
-			const ingredients = [
-				{ id: 'i1', supplementId: 's1', name: 'Vitamin A', dosage: 800, dosageUnit: 'mcg', sortOrder: 0 }
-			];
-			setResult(ingredients);
-			const result = await getSupplementIngredients('s1');
-			expect(result).toEqual(ingredients);
+			setResult(TEST_SUPPLEMENT_INGREDIENTS);
+			const result = await getSupplementIngredients(TEST_MULTI_SUPPLEMENT.id);
+			expect(result).toEqual(TEST_SUPPLEMENT_INGREDIENTS);
 		});
 
 		test('returns empty array when no ingredients', async () => {
@@ -383,14 +382,10 @@ describe('supplements-db', () => {
 		});
 
 		test('returns grouped ingredients by supplementId', async () => {
-			const ingredients = [
-				{ id: 'i1', supplementId: 's1', name: 'Vitamin A', dosage: 800, dosageUnit: 'mcg', sortOrder: 0 },
-				{ id: 'i2', supplementId: 's1', name: 'Vitamin C', dosage: 80, dosageUnit: 'mg', sortOrder: 1 }
-			];
-			setResult(ingredients);
-			const result = await getIngredientsForSupplements(['s1']);
-			expect(result.get('s1')?.length).toBe(2);
-			expect(result.get('s1')?.[0].name).toBe('Vitamin A');
+			setResult(TEST_SUPPLEMENT_INGREDIENTS);
+			const result = await getIngredientsForSupplements([TEST_MULTI_SUPPLEMENT.id]);
+			expect(result.get(TEST_MULTI_SUPPLEMENT.id)?.length).toBe(3);
+			expect(result.get(TEST_MULTI_SUPPLEMENT.id)?.[0].name).toBe('Vitamin A');
 		});
 	});
 });

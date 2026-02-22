@@ -96,6 +96,14 @@ export function createMockDB(): MockDBFactory {
 				});
 			}
 
+			// Special handling for db.transaction(callback)
+			if (propStr === 'transaction') {
+				return async (callback: (tx: any) => Promise<any>) => {
+					calls.push({ method: 'transaction', args: [] });
+					return callback(db);
+				};
+			}
+
 			// All other methods start a chain
 			return (...args: any[]) => createChain(propStr, args);
 		}
