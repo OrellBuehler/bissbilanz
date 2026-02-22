@@ -2,7 +2,7 @@
 	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import MacroSummaryCard from '$lib/components/entries/MacroSummaryCard.svelte';
 	import CalorieTrendChart from '$lib/components/charts/CalorieTrendChart.svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type MacroTotals } from '$lib/utils/nutrition';
 	import { today, yesterday, daysAgo, shiftDate } from '$lib/utils/dates';
@@ -13,7 +13,7 @@
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
+	import { ChevronLeft, ChevronRight, Flame, ScanBarcode, Target } from '@lucide/svelte';
 
 	let activeDate = $state(today());
 
@@ -171,16 +171,25 @@
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
 			{#if sectionKey === 'chart' && weeklyData.length > 0}
-				<Card.Root>
-					<Card.Header class="pb-2">
-						<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
-					</Card.Header>
-					<Card.Content>
-						<div class="h-[200px]">
+				<DashboardCard title={m.charts_this_week()} Icon={Flame} tone="blue">
+					{#snippet headerRight()}
+						{#if weeklyCalorieGoal}
+							<div
+								class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground"
+							>
+								<Target class="size-3.5" />
+								<span>{Math.round(weeklyCalorieGoal)} {m.foods_kcal()}</span>
+							</div>
+						{/if}
+					{/snippet}
+					<div
+						class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/60 via-blue-50/15 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/20 dark:via-blue-950/5"
+					>
+						<div class="h-[186px] sm:h-[196px]">
 							<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
 						</div>
-					</Card.Content>
-				</Card.Root>
+					</div>
+				</DashboardCard>
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
 					onEntryLogged={() => refreshKey++}
@@ -201,6 +210,7 @@
 				<DayLog
 					date={activeDate}
 					{refreshKey}
+					dashboardStyle={true}
 					onMutation={loadWeeklyChart}
 					onTotalsChange={(t) => (daylogTotals = t)}
 					bind:scanModalOpen

@@ -12,6 +12,7 @@
 	type Props = {
 		date: string;
 		refreshKey?: number;
+		dashboardStyle?: boolean;
 		onMutation?: () => void;
 		onTotalsChange?: (totals: MacroTotals) => void;
 		scanModalOpen?: boolean;
@@ -20,6 +21,7 @@
 	let {
 		date,
 		refreshKey = 0,
+		dashboardStyle = false,
 		onMutation,
 		onTotalsChange,
 		scanModalOpen = $bindable(false)
@@ -120,6 +122,7 @@
 		{#each DEFAULT_MEAL_TYPES as mealType}
 			<MealSection
 				title={mealType}
+				{dashboardStyle}
 				entries={entries.filter((e) => e.mealType === mealType)}
 				onAdd={() => {
 					addModalOpen = true;

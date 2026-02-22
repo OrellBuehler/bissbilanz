@@ -3,12 +3,13 @@
 	import FavoriteCard from '$lib/components/favorites/FavoriteCard.svelte';
 	import FavoritesGrid from '$lib/components/favorites/FavoritesGrid.svelte';
 	import ServingsPicker from '$lib/components/favorites/ServingsPicker.svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { DEFAULT_MEAL_TYPES, mergeMealTypes, resolveMealTypeForMinute } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
+	import Star from '@lucide/svelte/icons/star';
 	import * as m from '$lib/paraglide/messages';
 
 	type FavoriteItem = {
@@ -169,27 +170,22 @@
 </script>
 
 {#if items.length > 0}
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-base">{m.favorites_title()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<FavoritesGrid>
-				{#each items as item (item.id)}
-					<FavoriteCard
-						name={item.name}
-						imageUrl={item.imageUrl}
-						calories={item.calories}
-						protein={item.protein}
-						carbs={item.carbs}
-						fat={item.fat}
-						type={item.type}
-						onTap={() => handleTap(item)}
-					/>
-				{/each}
-			</FavoritesGrid>
-		</Card.Content>
-	</Card.Root>
+	<DashboardCard title={m.favorites_title()} Icon={Star} tone="rose">
+		<FavoritesGrid>
+			{#each items as item (item.id)}
+				<FavoriteCard
+					name={item.name}
+					imageUrl={item.imageUrl}
+					calories={item.calories}
+					protein={item.protein}
+					carbs={item.carbs}
+					fat={item.fat}
+					type={item.type}
+					onTap={() => handleTap(item)}
+				/>
+			{/each}
+		</FavoritesGrid>
+	</DashboardCard>
 {/if}
 
 <ServingsPicker

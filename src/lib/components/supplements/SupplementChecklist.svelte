@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Pill from '@lucide/svelte/icons/pill';
@@ -50,16 +50,10 @@
 	});
 </script>
 
-<Card.Root>
-	<Card.Header
-		class="flex flex-col items-start justify-between gap-2 pb-2 sm:flex-row sm:items-center"
-	>
-		<div class="flex items-center gap-2">
-			<Pill class="h-5 w-5" />
-			<Card.Title class="text-base">{m.dashboard_supplements()}</Card.Title>
-		</div>
+<DashboardCard title={m.dashboard_supplements()} Icon={Pill} tone="emerald">
+	{#snippet headerRight()}
 		{#if checklist.length > 0}
-			<span class="text-muted-foreground text-sm sm:text-right">
+			<span class="text-muted-foreground max-w-[11rem] text-right text-xs sm:text-sm">
 				{#if takenCount === checklist.length}
 					{m.dashboard_supplements_all_taken()}
 				{:else}
@@ -70,21 +64,23 @@
 				{/if}
 			</span>
 		{/if}
-	</Card.Header>
-	<Card.Content>
+	{/snippet}
+	<div
+		class="rounded-xl border border-emerald-200/50 bg-emerald-50/25 p-2 dark:border-emerald-900/30 dark:bg-emerald-950/10"
+	>
 		{#if checklist.length === 0}
 			<p class="text-muted-foreground text-sm">{m.supplements_empty()}</p>
 		{:else}
 			<div class="space-y-2">
 				{#each grouped as group}
 					{#if grouped.length > 1}
-						<p class="text-xs text-muted-foreground font-medium pt-2 first:pt-0">
+						<p class="text-xs text-muted-foreground px-1 pt-2 font-medium first:pt-0">
 							{timeLabels[group.timeOfDay ?? 'anytime']()}
 						</p>
 					{/if}
 					{#each group.items as item (item.supplement.id)}
 						<label
-							class="flex min-w-0 cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
+							class="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-transparent bg-background/60 p-2.5 transition-colors hover:border-emerald-200/60 hover:bg-background dark:hover:border-emerald-900/40"
 						>
 							<Checkbox
 								checked={item.taken}
@@ -130,10 +126,10 @@
 				{/each}
 			</div>
 		{/if}
-		<div class="mt-3 border-t pt-3">
+		<div class="mt-3 border-t border-emerald-200/50 pt-3 dark:border-emerald-900/30">
 			<Button variant="ghost" size="sm" href="/supplements" class="w-full">
 				{m.supplements_title()}
 			</Button>
 		</div>
-	</Card.Content>
-</Card.Root>
+	</div>
+</DashboardCard>
