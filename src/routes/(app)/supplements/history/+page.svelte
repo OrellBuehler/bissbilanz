@@ -119,21 +119,27 @@
 	onMount(loadHistory);
 </script>
 
-<div class="mx-auto max-w-2xl space-y-4">
-	<div class="flex items-center justify-between">
+<div class="mx-auto max-w-2xl space-y-4 px-4 pb-4 sm:px-0">
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-2xl font-bold">{m.supplements_history_title()}</h1>
 	</div>
 
-	<div class="flex items-end gap-4">
-		<div class="space-y-1">
-			<Label for="from">{m.supplements_history_from()}</Label>
-			<Input id="from" type="date" bind:value={from} />
+	<div class="rounded-lg border bg-card p-3 sm:p-4">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+			<div class="space-y-1">
+				<Label for="from">{m.supplements_history_from()}</Label>
+				<Input id="from" type="date" bind:value={from} class="w-full min-w-0" />
+			</div>
+			<div class="space-y-1">
+				<Label for="to">{m.supplements_history_to()}</Label>
+				<Input id="to" type="date" bind:value={to} class="w-full min-w-0" />
+			</div>
 		</div>
-		<div class="space-y-1">
-			<Label for="to">{m.supplements_history_to()}</Label>
-			<Input id="to" type="date" bind:value={to} />
+		<div class="mt-3 flex">
+			<Button class="w-full sm:w-auto" onclick={loadHistory}>
+				{m.supplements_history_filter()}
+			</Button>
 		</div>
-		<Button onclick={loadHistory}>{m.supplements_history_filter()}</Button>
 	</div>
 
 	{#if adherenceByDay.length === 0}
@@ -142,7 +148,7 @@
 		<div class="space-y-3">
 			{#each adherenceByDay as day (day.date)}
 				<Card.Root>
-					<Card.Header class="flex flex-row items-center justify-between pb-2">
+					<Card.Header class="flex flex-col items-start justify-between gap-1 pb-2 sm:flex-row sm:items-center">
 						<Card.Title class="text-sm font-medium">{day.date}</Card.Title>
 						<span class="text-xs text-muted-foreground">
 							{m.supplements_history_adherence({ taken: String(day.taken.length), total: String(day.taken.length + day.missed.length) })}
@@ -155,7 +161,7 @@
 								<div>
 									<button
 										type="button"
-										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										class="flex w-full min-w-0 items-start gap-2 rounded px-1 py-1 text-left text-sm hover:bg-muted/50 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
 										aria-expanded={expandedItems.has(itemKey)}
 										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
 									>
@@ -167,13 +173,15 @@
 												<ChevronRight class="size-3 shrink-0" />
 											{/if}
 										{/if}
-										<span>{item.name}</span>
-										<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+											<span class="min-w-0 break-words">{item.name}</span>
+											<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
-												<div class="text-xs text-muted-foreground">
+												<div class="break-words text-xs text-muted-foreground">
 													{ing.name} — {ing.dosage} {ing.dosageUnit}
 												</div>
 											{/each}
@@ -186,7 +194,7 @@
 								<div>
 									<button
 										type="button"
-										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										class="flex w-full min-w-0 items-start gap-2 rounded px-1 py-1 text-left text-sm hover:bg-muted/50 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
 										aria-expanded={expandedItems.has(itemKey)}
 										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
 									>
@@ -198,13 +206,15 @@
 												<ChevronRight class="size-3 shrink-0" />
 											{/if}
 										{/if}
-										<span class="text-muted-foreground">{item.name}</span>
-										<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+											<span class="min-w-0 break-words text-muted-foreground">{item.name}</span>
+											<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
-												<div class="text-xs text-muted-foreground">
+												<div class="break-words text-xs text-muted-foreground">
 													{ing.name} — {ing.dosage} {ing.dosageUnit}
 												</div>
 											{/each}
