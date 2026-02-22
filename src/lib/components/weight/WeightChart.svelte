@@ -97,6 +97,7 @@
 							}
 						},
 						tooltip: {
+							hideTotal: true,
 							root: {
 								variant: 'none',
 								classes: {
