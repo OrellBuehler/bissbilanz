@@ -101,11 +101,11 @@
 								{#snippet child({ props })}
 									<a href={item.href} {...withMobileCloseClick(props)}>
 										<span
-											class="{item.badgeColor} flex size-8 shrink-0 items-center justify-center rounded-lg text-white"
+											class="{item.badgeColor} flex size-8 shrink-0 items-center justify-center rounded-lg"
 										>
 											<item.icon class="size-4.5 md:size-4" />
 										</span>
-										<span class="truncate font-medium md:font-normal">{item.title()}</span>
+										<span class="truncate font-medium">{item.title()}</span>
 									</a>
 								{/snippet}
 							</Sidebar.MenuButton>
