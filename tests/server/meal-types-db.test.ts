@@ -1,9 +1,10 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { ApiError } from '../../src/lib/server/errors';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_MEAL_TYPE, VALID_MEAL_TYPE_PAYLOAD } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, setError, reset } = createMockDB();
 
 // Mock modules
 mock.module('$lib/server/db', () => ({
@@ -127,6 +128,19 @@ describe('meal-types-db', () => {
 			setResult(undefined);
 			await deleteMealType(TEST_USER.id, 'nonexistent-id');
 			// No assertion needed - just verifies it doesn't throw
+		});
+
+		test('throws conflict when meal type is referenced by favorites timeframes', async () => {
+			setError(Object.assign(new Error('fk violation'), { code: '23503' }));
+
+			try {
+				await deleteMealType(TEST_USER.id, TEST_MEAL_TYPE.id);
+				throw new Error('Expected deleteMealType to throw');
+			} catch (error) {
+				expect(error).toBeInstanceOf(ApiError);
+				const apiError = error as ApiError;
+				expect(apiError.status).toBe(409);
+			}
 		});
 	});
 });

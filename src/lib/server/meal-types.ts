@@ -1,4 +1,5 @@
 import { getDB } from '$lib/server/db';
+import { ApiError } from '$lib/server/errors';
 import { customMealTypes } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from '$lib/server/validation';
@@ -74,7 +75,18 @@ export const updateMealType = async (
 
 export const deleteMealType = async (userId: string, id: string) => {
 	const db = getDB();
-	await db
-		.delete(customMealTypes)
-		.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)));
+	try {
+		await db
+			.delete(customMealTypes)
+			.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)));
+	} catch (error) {
+		const dbError = error as { code?: string };
+		if (dbError.code === '23503') {
+			throw new ApiError(
+				409,
+				'Meal type is used in favorites meal timeframes and cannot be deleted'
+			);
+		}
+		throw error;
+	}
 };

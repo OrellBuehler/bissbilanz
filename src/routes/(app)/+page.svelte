@@ -171,7 +171,12 @@
 				</Card.Content>
 			</Card.Root>
 		{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
-			<FavoritesWidget onEntryLogged={() => refreshKey++} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
+			<FavoritesWidget
+				onEntryLogged={() => refreshKey++}
+				favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'}
+				favoriteMealAssignmentMode={userPrefs?.favoriteMealAssignmentMode ?? 'time_based'}
+				favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
+			/>
 		{:else if sectionKey === 'supplements' && isToday && userPrefs?.showSupplementsWidget}
 			<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 		{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}

@@ -1,10 +1,11 @@
 <script lang="ts">
+	import FavoriteMealPicker from '$lib/components/favorites/FavoriteMealPicker.svelte';
 	import FavoriteCard from '$lib/components/favorites/FavoriteCard.svelte';
 	import FavoritesGrid from '$lib/components/favorites/FavoritesGrid.svelte';
 	import ServingsPicker from '$lib/components/favorites/ServingsPicker.svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { getCurrentMealByTime } from '$lib/utils/meals';
+	import { DEFAULT_MEAL_TYPES, mergeMealTypes, resolveMealTypeForMinute } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
@@ -28,15 +29,21 @@
 	let recipes: FavoriteItem[] = $state([]);
 	let loading = $state(true);
 	let tapAction: 'instant' | 'picker' = $state('instant');
+	let mealAssignmentMode: 'time_based' | 'ask_meal' = $state('time_based');
+	let favoriteMealTimeframes: Array<{ mealType: string; startMinute: number; endMinute: number }> = $state([]);
+	let mealOptions: string[] = $state([...DEFAULT_MEAL_TYPES]);
 
 	let pickerOpen = $state(false);
 	let pickerItem: FavoriteItem | null = $state(null);
+	let mealPickerOpen = $state(false);
+	let pendingLog: { item: FavoriteItem; servings: number } | null = $state(null);
 
 	const loadData = async () => {
 		try {
-			const [favRes, prefRes] = await Promise.all([
+			const [favRes, prefRes, mealTypesRes] = await Promise.all([
 				fetch('/api/favorites'),
-				fetch('/api/preferences')
+				fetch('/api/preferences'),
+				fetch('/api/meal-types')
 			]);
 			if (favRes.ok) {
 				const data = await favRes.json();
@@ -46,6 +53,15 @@
 			if (prefRes.ok) {
 				const prefData = await prefRes.json();
 				tapAction = prefData.preferences?.favoriteTapAction ?? 'instant';
+				mealAssignmentMode = prefData.preferences?.favoriteMealAssignmentMode ?? 'time_based';
+				favoriteMealTimeframes = prefData.preferences?.favoriteMealTimeframes ?? [];
+			}
+			if (mealTypesRes.ok) {
+				const mealTypeData = await mealTypesRes.json();
+				mealOptions = mergeMealTypes(
+					[...DEFAULT_MEAL_TYPES],
+					(mealTypeData.mealTypes ?? []).map((meal: { name: string }) => meal.name)
+				);
 			}
 		} catch {
 			// silently ignore load failures
@@ -54,8 +70,16 @@
 		}
 	};
 
-	const logEntry = async (item: FavoriteItem, servings = 1) => {
-		const meal = getCurrentMealByTime();
+	const getConfiguredMeal = (): string | null => {
+		if (mealAssignmentMode === 'ask_meal') return null;
+		const now = new Date();
+		const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+		return resolveMealTypeForMinute(minuteOfDay, favoriteMealTimeframes) ?? null;
+	};
+
+	const logEntry = async (item: FavoriteItem, servings = 1, mealType?: string) => {
+		const meal = mealType;
+		if (!meal) return;
 		const payload: Record<string, unknown> = {
 			mealType: meal,
 			servings,
@@ -91,21 +115,43 @@
 		});
 	};
 
+	const continuePendingLog = () => {
+		if (!pendingLog) return;
+		const resolvedMeal = getConfiguredMeal();
+		if (resolvedMeal) {
+			void logEntry(pendingLog.item, pendingLog.servings, resolvedMeal);
+			pendingLog = null;
+			return;
+		}
+		mealPickerOpen = true;
+	};
+
 	const handleTap = (item: FavoriteItem) => {
+		pendingLog = { item, servings: 1 };
 		if (tapAction === 'picker') {
 			pickerItem = item;
 			pickerOpen = true;
-		} else {
-			logEntry(item);
+			return;
 		}
+
+		continuePendingLog();
 	};
 
 	const handlePickerConfirm = (servings: number) => {
-		if (pickerItem) {
-			logEntry(pickerItem, servings);
+		if (pendingLog) {
+			pendingLog = { ...pendingLog, servings };
 		}
 		pickerOpen = false;
 		pickerItem = null;
+		continuePendingLog();
+	};
+
+	const handleMealConfirm = (mealType: string) => {
+		if (pendingLog) {
+			void logEntry(pendingLog.item, pendingLog.servings, mealType);
+		}
+		mealPickerOpen = false;
+		pendingLog = null;
 	};
 
 	onMount(() => {
@@ -185,5 +231,17 @@
 	onClose={() => {
 		pickerOpen = false;
 		pickerItem = null;
+		pendingLog = null;
+	}}
+/>
+
+<FavoriteMealPicker
+	open={mealPickerOpen}
+	itemName={pendingLog?.item.name ?? ''}
+	{mealOptions}
+	onConfirm={handleMealConfirm}
+	onClose={() => {
+		mealPickerOpen = false;
+		pendingLog = null;
 	}}
 />
