@@ -11,7 +11,7 @@
 		onBarcode: (barcode: string) => void;
 	};
 
-	let { open = false, onClose, onBarcode }: Props = $props();
+	let { open = $bindable(false), onClose, onBarcode }: Props = $props();
 
 	let error = $state('');
 

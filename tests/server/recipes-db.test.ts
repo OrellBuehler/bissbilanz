@@ -28,7 +28,19 @@ describe('recipes-db', () => {
 
 	describe('listRecipes', () => {
 		test('returns recipes ordered by name', async () => {
-			const recipes = [TEST_RECIPE];
+			const recipes = [
+				{
+					id: TEST_RECIPE.id,
+					name: TEST_RECIPE.name,
+					totalServings: TEST_RECIPE.totalServings,
+					isFavorite: TEST_RECIPE.isFavorite,
+					imageUrl: TEST_RECIPE.imageUrl,
+					calories: 0,
+					protein: 0,
+					carbs: 0,
+					fat: 0
+				}
+			];
 			setResult(recipes);
 
 			const result = await listRecipes(TEST_USER.id);

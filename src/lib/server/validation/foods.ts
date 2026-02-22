@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { servingUnitValues } from '$lib/units';
 
 export const foodCreateSchema = z.object({
 	name: z.string().min(1),
 	brand: z.string().optional().nullable(),
 	servingSize: z.coerce.number().positive(),
-	servingUnit: z.string().min(1),
+	servingUnit: z.enum(servingUnitValues),
 	calories: z.coerce.number().nonnegative(),
 	protein: z.coerce.number().nonnegative(),
 	carbs: z.coerce.number().nonnegative(),

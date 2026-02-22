@@ -34,7 +34,7 @@ export const TEST_FOOD = {
 	name: 'Oats',
 	brand: 'Generic',
 	servingSize: 100,
-	servingUnit: 'g',
+	servingUnit: 'g' as const,
 	calories: 389,
 	protein: 13.2,
 	carbs: 66.3,
@@ -65,7 +65,7 @@ export const TEST_FOOD_2 = {
 	name: 'Banana',
 	brand: null,
 	servingSize: 100,
-	servingUnit: 'g',
+	servingUnit: 'g' as const,
 	calories: 89,
 	protein: 1.1,
 	carbs: 22.8,
@@ -107,7 +107,7 @@ export const TEST_RECIPE_INGREDIENT = {
 	recipeId: TEST_RECIPE.id,
 	foodId: TEST_FOOD.id,
 	quantity: 50,
-	servingUnit: 'g',
+	servingUnit: 'g' as const,
 	sortOrder: 0
 };
 
@@ -296,7 +296,7 @@ export const VALID_FOOD_PAYLOAD = {
 	name: 'Oats',
 	brand: 'Generic',
 	servingSize: 100,
-	servingUnit: 'g',
+	servingUnit: 'g' as const,
 	calories: 389,
 	protein: 13.2,
 	carbs: 66.3,

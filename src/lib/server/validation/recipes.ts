@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { servingUnitValues } from '$lib/units';
 
 export const recipeIngredientSchema = z.object({
 	foodId: z.string().uuid(),
 	quantity: z.coerce.number().positive(),
-	servingUnit: z.string().min(1)
+	servingUnit: z.enum(servingUnitValues)
 });
 
 export const recipeCreateSchema = z.object({

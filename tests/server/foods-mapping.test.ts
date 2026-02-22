@@ -7,7 +7,7 @@ describe('toFoodInsert', () => {
 			name: 'Oats',
 			brand: null,
 			servingSize: 40,
-			servingUnit: 'g',
+			servingUnit: 'g' as const,
 			calories: 150,
 			protein: 5,
 			carbs: 27,

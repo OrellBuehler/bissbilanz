@@ -31,7 +31,7 @@
 		<a href="/app/history" class="rounded border px-3 py-1 text-sm">{m.history_back()}</a>
 	</div>
 
-	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{m.dashboard_kcal({ value: totals.calories })}</div>
+	<div class={`text-lg ${progressColor(totals.calories, 2000)}`}>{m.dashboard_kcal({ value: totals.calories, goal: 2000 })}</div>
 
 	<div class="grid gap-4">
 		{#each DEFAULT_MEAL_TYPES as mealType}

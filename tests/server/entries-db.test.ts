@@ -40,12 +40,14 @@ describe('entries-db', () => {
 					servings: TEST_ENTRY.servings,
 					notes: TEST_ENTRY.notes,
 					foodId: TEST_FOOD.id,
+					recipeId: TEST_ENTRY.recipeId,
 					foodName: TEST_FOOD.name,
 					calories: TEST_FOOD.calories,
 					protein: TEST_FOOD.protein,
 					carbs: TEST_FOOD.carbs,
 					fat: TEST_FOOD.fat,
-					fiber: TEST_FOOD.fiber
+					fiber: TEST_FOOD.fiber,
+					createdAt: TEST_ENTRY.createdAt
 				}
 			];
 			setResult(entriesWithFood);
@@ -221,6 +223,7 @@ describe('entries-db', () => {
 					servings: TEST_ENTRY.servings,
 					notes: TEST_ENTRY.notes,
 					foodId: TEST_FOOD.id,
+					recipeId: TEST_ENTRY.recipeId,
 					foodName: TEST_FOOD.name,
 					calories: TEST_FOOD.calories,
 					protein: TEST_FOOD.protein,

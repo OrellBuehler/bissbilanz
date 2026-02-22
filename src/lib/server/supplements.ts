@@ -50,7 +50,7 @@ export const getIngredientsForSupplements = async (
 const insertIngredients = async (
 	supplementId: string,
 	ingredients: { name: string; dosage: number; dosageUnit: string; sortOrder?: number }[],
-	tx?: ReturnType<typeof getDB>
+	tx?: { insert: ReturnType<typeof getDB>['insert'] }
 ) => {
 	if (ingredients.length === 0) return;
 	const d = tx ?? getDB();
@@ -65,7 +65,7 @@ const insertIngredients = async (
 	);
 };
 
-const deleteIngredients = async (supplementId: string, tx?: ReturnType<typeof getDB>) => {
+const deleteIngredients = async (supplementId: string, tx?: { delete: ReturnType<typeof getDB>['delete'] }) => {
 	const d = tx ?? getDB();
 	await d
 		.delete(supplementIngredients)

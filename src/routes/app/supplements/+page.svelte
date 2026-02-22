@@ -11,6 +11,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
+	import type { ScheduleType } from '$lib/supplement-units';
 	import * as m from '$lib/paraglide/messages';
 
 	type SupplementWithIngredients = {
@@ -116,7 +117,7 @@
 						<div class="flex-1 min-w-0">
 							<div class="font-medium">{supplement.name}</div>
 							<div class="text-sm text-muted-foreground">
-								{supplement.dosage} {supplement.dosageUnit} &middot; {formatSchedule(supplement.scheduleType, supplement.scheduleDays)}
+								{supplement.dosage} {supplement.dosageUnit} &middot; {formatSchedule(supplement.scheduleType as ScheduleType, supplement.scheduleDays)}
 								{#if supplement.ingredients?.length > 0}
 									&middot; {supplement.ingredients.length === 1 ? m.supplements_ingredient_count_one() : m.supplements_ingredient_count({ count: String(supplement.ingredients.length) })}
 								{/if}
