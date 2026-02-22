@@ -16,7 +16,7 @@
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 
 	let activeDate = $state(today());
-	let copying = $state(false);
+
 	let refreshKey = $state(0);
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
@@ -47,19 +47,6 @@
 
 	const nextDay = () => {
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
-	};
-
-	const copyYesterday = async () => {
-		copying = true;
-		try {
-			await apiFetch(`/api/entries/copy?fromDate=${yesterday()}&toDate=${today()}`, {
-				method: 'POST'
-			});
-			refreshKey++;
-			await loadWeeklyChart();
-		} finally {
-			copying = false;
-		}
 	};
 
 	const loadWeeklyChart = async () => {
@@ -148,27 +135,20 @@
 
 {#if ready}
 <div class="mx-auto max-w-4xl space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div class="flex items-center gap-2">
-			<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
-				<ChevronLeft class="h-4 w-4" />
-			</Button>
-			<h2 class="text-2xl font-semibold">{dateLabel}</h2>
-			<Button
-				variant="ghost"
-				size="icon"
-				onclick={nextDay}
-				disabled={isToday}
-				aria-label={m.dashboard_next_day()}
-			>
-				<ChevronRight class="h-4 w-4" />
-			</Button>
-		</div>
-		{#if isToday}
-			<Button variant="outline" size="sm" onclick={copyYesterday} disabled={copying}>
-				{copying ? m.dashboard_copying() : m.dashboard_copy_yesterday()}
-			</Button>
-		{/if}
+	<div class="flex items-center gap-2">
+		<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
+			<ChevronLeft class="h-4 w-4" />
+		</Button>
+		<h2 class="text-2xl font-semibold">{dateLabel}</h2>
+		<Button
+			variant="ghost"
+			size="icon"
+			onclick={nextDay}
+			disabled={isToday}
+			aria-label={m.dashboard_next_day()}
+		>
+			<ChevronRight class="h-4 w-4" />
+		</Button>
 	</div>
 
 	{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
