@@ -60,7 +60,7 @@
 	const fmt = (n: number) => Math.round(n);
 </script>
 
-<div class="mx-auto max-w-2xl space-y-4 px-4 pb-4 sm:px-0">
+<div class="mx-auto max-w-2xl space-y-4 pb-4">
 	<!-- Header -->
 	<div class="flex flex-wrap items-start justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.recipes_title()}</h1>

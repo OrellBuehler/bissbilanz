@@ -67,7 +67,7 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 px-4 pb-8 sm:px-0">
+<div class="mx-auto max-w-4xl space-y-6 pb-8">
 	<!-- Calendar & Averages -->
 	<div class="grid gap-6 md:grid-cols-2">
 		<Calendar {year} {month} onDayClick={goToDay} onPrevMonth={prevMonth} onNextMonth={nextMonth} />

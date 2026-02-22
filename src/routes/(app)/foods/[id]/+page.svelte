@@ -163,7 +163,7 @@
 	});
 </script>
 
-<div class="mx-auto max-w-2xl space-y-6 px-4 pb-6 sm:px-0">
+<div class="mx-auto max-w-2xl space-y-6 pb-6">
 	<div class="flex items-center gap-2">
 		<Button variant="ghost" size="sm" class="shrink-0" href="/foods" aria-label={m.back_to_foods()}>
 			<ArrowLeft class="size-4 sm:mr-1" />

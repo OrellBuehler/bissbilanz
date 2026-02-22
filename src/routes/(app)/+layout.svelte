@@ -34,7 +34,7 @@
 		<SiteHeader />
 		<OfflineIndicator />
 		<div class="flex flex-1 flex-col">
-			<main class="flex-1 p-4 lg:p-6">
+			<main class="flex-1 px-3 py-4 sm:p-4 lg:p-6">
 				{@render children()}
 			</main>
 		</div>

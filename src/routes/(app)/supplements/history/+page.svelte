@@ -119,7 +119,7 @@
 	onMount(loadHistory);
 </script>
 
-<div class="mx-auto max-w-2xl space-y-4 px-4 pb-4 sm:px-0">
+<div class="mx-auto max-w-2xl space-y-4 pb-4">
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-2xl font-bold">{m.supplements_history_title()}</h1>
 	</div>
