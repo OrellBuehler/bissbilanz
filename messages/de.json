@@ -17,6 +17,9 @@
   "dashboard_copy_yesterday": "Gestern kopieren",
   "dashboard_copying": "Kopiere...",
   "dashboard_kcal": "{value} / {goal} kcal",
+  "dashboard_previous_day": "Vorheriger Tag",
+  "dashboard_next_day": "Nächster Tag",
+  "dashboard_yesterday": "Gestern",
 
   "meal_breakfast": "Frühstück",
   "meal_lunch": "Mittagessen",
