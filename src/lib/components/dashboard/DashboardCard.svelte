@@ -71,7 +71,7 @@
 		className
 	)}
 >
-	<div class="flex items-start justify-between gap-3 px-4 pt-4 pb-2.5 sm:px-5 sm:pt-5 sm:pb-3">
+	<div class="flex items-start justify-between gap-3 px-4 pt-3 pb-2 sm:px-5 sm:pt-3.5 sm:pb-2.5">
 		<div class="min-w-0 flex items-center gap-2.5">
 			<div
 				class={cn(
@@ -94,7 +94,7 @@
 		{/if}
 	</div>
 
-	<div class={cn('px-4 pb-4 sm:px-5 sm:pb-5', contentClass)}>
+	<div class={cn('px-4 pb-3 sm:px-5 sm:pb-3.5', contentClass)}>
 		{@render children()}
 	</div>
 </Card.Root>
