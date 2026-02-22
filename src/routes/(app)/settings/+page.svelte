@@ -324,7 +324,7 @@
 	});
 </script>
 
-<div class="mx-auto max-w-2xl space-y-6">
+<div class="space-y-6">
 	<!-- 1. Account Section -->
 	<Card.Root>
 		<Card.Header>
