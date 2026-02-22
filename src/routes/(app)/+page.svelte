@@ -15,6 +15,7 @@
 
 	let activeDate = $state(today());
 	let copying = $state(false);
+	let refreshKey = $state(0);
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
 	type ChecklistItem = {
@@ -51,6 +52,7 @@
 			await apiFetch(`/api/entries/copy?fromDate=${yesterday()}&toDate=${today()}`, {
 				method: 'POST'
 			});
+			refreshKey++;
 			await loadWeeklyChart();
 		} finally {
 			copying = false;
@@ -182,6 +184,6 @@
 		{/each}
 	{/if}
 
-	<DayLog date={activeDate} onMutation={loadWeeklyChart} />
+	<DayLog date={activeDate} {refreshKey} onMutation={loadWeeklyChart} />
 </div>
 {/if}

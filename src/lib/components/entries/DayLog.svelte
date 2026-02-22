@@ -13,10 +13,11 @@
 
 	type Props = {
 		date: string;
+		refreshKey?: number;
 		onMutation?: () => void;
 	};
 
-	let { date, onMutation }: Props = $props();
+	let { date, refreshKey = 0, onMutation }: Props = $props();
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
@@ -98,7 +99,8 @@
 	const totals = $derived(calculateDailyTotals(entries));
 
 	$effect(() => {
-		if (date) loadData();
+		if (date) { loadData(); }
+		refreshKey; // track refreshKey to re-run on increment
 	});
 </script>
 
