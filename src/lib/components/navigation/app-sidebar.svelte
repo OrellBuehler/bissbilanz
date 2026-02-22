@@ -22,7 +22,7 @@
 
 	function menuButtonClass(item: NavItem, pathname: string): string {
 		const base =
-			'h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent';
+			'h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent';
 		return isActive(item.href, pathname) ? `${base} ${item.activeRing}` : base;
 	}
 
