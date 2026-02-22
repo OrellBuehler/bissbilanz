@@ -90,7 +90,7 @@
 						{m.weight_page_title()}
 					</h1>
 				</div>
-				<div class="grid grid-cols-2 gap-2 sm:min-w-90 sm:gap-3">
+				<div class="grid grid-cols-2 gap-2 sm:min-w-[360px] sm:gap-3">
 					<div class="rounded-xl border border-border/60 bg-background/85 p-3 backdrop-blur">
 						<div
 							class="text-muted-foreground mb-1 text-[11px] font-semibold uppercase tracking-wider"
@@ -137,7 +137,28 @@
 	</Card.Root>
 
 	<Card.Root class="overflow-hidden">
-		<Card.Content class="p-4 sm:p-5">
+		<Card.Header class="pb-3">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<div class="flex items-center gap-2">
+					<div
+						class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
+					>
+						<Weight class="size-4" />
+					</div>
+					<div>
+						<Card.Title class="text-base tracking-tight">{m.weight_save()}</Card.Title>
+						<Card.Description class="text-xs">{m.weight_page_title()}</Card.Description>
+					</div>
+				</div>
+				<div
+					class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+				>
+					<Sparkles class="size-3.5 text-blue-600 dark:text-blue-400" />
+					{m.weight_page_title()}
+				</div>
+			</div>
+		</Card.Header>
+		<Card.Content class="p-4 pt-0 sm:p-5 sm:pt-0">
 			<WeightLogForm onLogged={refreshAll} />
 		</Card.Content>
 	</Card.Root>
@@ -145,19 +166,19 @@
 	{#if loading}
 		<div class="space-y-4">
 			<Card.Root>
-				<Card.Content class="px-6">
-					<div class="bg-muted/50 h-90 animate-pulse rounded-xl"></div>
+				<Card.Content class="p-3 sm:p-4">
+					<div class="bg-muted/50 h-[360px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
 				<Card.Content class="p-4">
-					<div class="bg-muted/50 h-55 animate-pulse rounded-xl"></div>
+					<div class="bg-muted/50 h-[220px] animate-pulse rounded-xl"></div>
 				</Card.Content>
 			</Card.Root>
 		</div>
 	{:else}
 		<Card.Root class="overflow-hidden">
-			<Card.Content class="px-6">
+			<Card.Content class="p-3 sm:p-4">
 				<WeightChart data={chartData} onRangeChange={handleRangeChange} />
 			</Card.Content>
 		</Card.Root>
