@@ -7,9 +7,17 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { isSupplementDue } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import * as m from '$lib/paraglide/messages';
+
+	type IngredientInfo = {
+		name: string;
+		dosage: number;
+		dosageUnit: string;
+	};
 
 	type HistoryEntry = {
 		log: { id: string; supplementId: string; userId: string; date: string; takenAt: string };
@@ -27,18 +35,34 @@
 		scheduleDays: number[] | null;
 		scheduleStartDate: string | null;
 		isActive: boolean;
+		ingredients: IngredientInfo[];
+	};
+
+	type DayItem = {
+		name: string;
+		dosage: number;
+		dosageUnit: string;
+		ingredients: IngredientInfo[];
 	};
 
 	type DayAdherence = {
 		date: string;
-		taken: { name: string; dosage: number; dosageUnit: string }[];
-		missed: { name: string; dosage: number; dosageUnit: string }[];
+		taken: DayItem[];
+		missed: DayItem[];
 	};
 
 	let from = $state(daysAgo(30));
 	let to = $state(today());
 	let history: HistoryEntry[] = $state([]);
 	let allSupplements: Supplement[] = $state([]);
+	let expandedItems = $state(new Set<string>());
+
+	const toggleExpand = (key: string) => {
+		const next = new Set(expandedItems);
+		if (next.has(key)) next.delete(key);
+		else next.add(key);
+		expandedItems = next;
+	};
 
 	const loadHistory = async () => {
 		const [histRes, suppRes] = await Promise.all([
@@ -76,10 +100,16 @@
 			if (due.length === 0) continue;
 
 			const takenIds = logsByDate.get(dateStr) ?? new Set();
+			const toItem = (s: Supplement): DayItem => ({
+				name: s.name,
+				dosage: s.dosage,
+				dosageUnit: s.dosageUnit,
+				ingredients: s.ingredients ?? []
+			});
 			days.push({
 				date: dateStr,
-				taken: due.filter((s) => takenIds.has(s.id)).map((s) => ({ name: s.name, dosage: s.dosage, dosageUnit: s.dosageUnit })),
-				missed: due.filter((s) => !takenIds.has(s.id)).map((s) => ({ name: s.name, dosage: s.dosage, dosageUnit: s.dosageUnit }))
+				taken: due.filter((s) => takenIds.has(s.id)).map(toItem),
+				missed: due.filter((s) => !takenIds.has(s.id)).map(toItem)
 			});
 		}
 
@@ -121,17 +151,63 @@
 					<Card.Content>
 						<div class="space-y-1">
 							{#each day.taken as item}
-								<div class="flex items-center gap-2 text-sm">
-									<Check class="size-4 text-green-500" />
-									<span>{item.name}</span>
-									<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+								{@const itemKey = `${day.date}-taken-${item.name}`}
+								<div>
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
+									>
+										<Check class="size-4 text-green-500 shrink-0" />
+										{#if item.ingredients.length > 0}
+											{#if expandedItems.has(itemKey)}
+												<ChevronDown class="size-3 shrink-0" />
+											{:else}
+												<ChevronRight class="size-3 shrink-0" />
+											{/if}
+										{/if}
+										<span>{item.name}</span>
+										<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+									</button>
+									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
+										<div class="ml-10 mt-1 mb-1 space-y-0.5">
+											{#each item.ingredients as ing}
+												<div class="text-xs text-muted-foreground">
+													{ing.name} — {ing.dosage} {ing.dosageUnit}
+												</div>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							{/each}
 							{#each day.missed as item}
-								<div class="flex items-center gap-2 text-sm">
-									<X class="size-4 text-red-500" />
-									<span class="text-muted-foreground">{item.name}</span>
-									<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+								{@const itemKey = `${day.date}-missed-${item.name}`}
+								<div>
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 text-sm hover:bg-muted/50 rounded px-1 py-0.5 {item.ingredients.length > 0 ? 'cursor-pointer' : 'cursor-default'}"
+										onclick={() => item.ingredients.length > 0 && toggleExpand(itemKey)}
+									>
+										<X class="size-4 text-red-500 shrink-0" />
+										{#if item.ingredients.length > 0}
+											{#if expandedItems.has(itemKey)}
+												<ChevronDown class="size-3 shrink-0" />
+											{:else}
+												<ChevronRight class="size-3 shrink-0" />
+											{/if}
+										{/if}
+										<span class="text-muted-foreground">{item.name}</span>
+										<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+									</button>
+									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
+										<div class="ml-10 mt-1 mb-1 space-y-0.5">
+											{#each item.ingredients as ing}
+												<div class="text-xs text-muted-foreground">
+													{ing.name} — {ing.dosage} {ing.dosageUnit}
+												</div>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>

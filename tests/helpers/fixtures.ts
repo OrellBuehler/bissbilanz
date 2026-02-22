@@ -247,6 +247,50 @@ export const TEST_SUPPLEMENT_LOG = {
 	createdAt: new Date('2026-02-17T08:00:00Z')
 };
 
+// Test multi-ingredient supplement
+export const TEST_MULTI_SUPPLEMENT = {
+	id: '10000000-0000-4000-8000-000000000062',
+	userId: TEST_USER.id,
+	name: 'Daily Multivitamin',
+	dosage: 1,
+	dosageUnit: 'capsule',
+	scheduleType: 'daily' as const,
+	scheduleDays: null,
+	scheduleStartDate: '2026-02-01',
+	timeOfDay: 'morning' as const,
+	isActive: true,
+	sortOrder: 1,
+	createdAt: new Date('2026-01-01T00:00:00Z'),
+	updatedAt: new Date('2026-01-01T00:00:00Z')
+};
+
+export const TEST_SUPPLEMENT_INGREDIENTS = [
+	{
+		id: '10000000-0000-4000-8000-000000000070',
+		supplementId: TEST_MULTI_SUPPLEMENT.id,
+		name: 'Vitamin A',
+		dosage: 800,
+		dosageUnit: 'mcg',
+		sortOrder: 0
+	},
+	{
+		id: '10000000-0000-4000-8000-000000000071',
+		supplementId: TEST_MULTI_SUPPLEMENT.id,
+		name: 'Vitamin C',
+		dosage: 80,
+		dosageUnit: 'mg',
+		sortOrder: 1
+	},
+	{
+		id: '10000000-0000-4000-8000-000000000072',
+		supplementId: TEST_MULTI_SUPPLEMENT.id,
+		name: 'Zinc',
+		dosage: 10,
+		dosageUnit: 'mg',
+		sortOrder: 2
+	}
+];
+
 // Valid payloads for POST requests
 export const VALID_FOOD_PAYLOAD = {
 	name: 'Oats',
@@ -298,6 +342,18 @@ export const VALID_SUPPLEMENT_PAYLOAD = {
 	dosage: 1000,
 	dosageUnit: 'IU',
 	scheduleType: 'daily'
+};
+
+export const VALID_MULTI_SUPPLEMENT_PAYLOAD = {
+	name: 'Daily Multivitamin',
+	dosage: 1,
+	dosageUnit: 'capsule',
+	scheduleType: 'daily',
+	ingredients: [
+		{ name: 'Vitamin A', dosage: 800, dosageUnit: 'mcg' },
+		{ name: 'Vitamin C', dosage: 80, dosageUnit: 'mg' },
+		{ name: 'Zinc', dosage: 10, dosageUnit: 'mg' }
+	]
 };
 
 export const VALID_OAUTH_CLIENT_PAYLOAD = {

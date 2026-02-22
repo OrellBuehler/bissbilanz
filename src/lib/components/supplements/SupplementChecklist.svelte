@@ -12,6 +12,7 @@
 			dosage: number;
 			dosageUnit: string;
 			timeOfDay: string | null;
+			ingredients?: { name: string; dosage: number; dosageUnit: string }[];
 		};
 		taken: boolean;
 		takenAt: string | null;
@@ -87,6 +88,9 @@
 							</span>
 							<span class="text-muted-foreground ml-auto text-sm">
 								{item.supplement.dosage} {item.supplement.dosageUnit}
+								{#if item.supplement.ingredients && item.supplement.ingredients.length > 0}
+									<span class="text-xs">({m.supplements_ingredient_count({ count: String(item.supplement.ingredients.length) })})</span>
+								{/if}
 							</span>
 						</label>
 					{/each}

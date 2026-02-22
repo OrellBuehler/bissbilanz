@@ -55,6 +55,7 @@ export const handleGetSupplementStatus = async (userId: string) => {
 			name: s.name,
 			dosage: s.dosage,
 			dosageUnit: s.dosageUnit,
+			ingredients: s.ingredients ?? [],
 			taken: logMap.has(s.id),
 			takenAt: logMap.get(s.id)?.takenAt ?? null
 		}));
@@ -105,6 +106,7 @@ export const handleLogSupplement = async (
 			name: supplement?.name ?? 'Unknown',
 			dosage: supplement?.dosage,
 			dosageUnit: supplement?.dosageUnit,
+			ingredients: supplement?.ingredients ?? [],
 			date: targetDate
 		}
 	};

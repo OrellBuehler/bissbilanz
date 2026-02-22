@@ -11,10 +11,25 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
-	import type { Supplement } from '$lib/server/schema';
 	import * as m from '$lib/paraglide/messages';
 
-	let supplements: Supplement[] = $state([]);
+	type SupplementWithIngredients = {
+		id: string;
+		name: string;
+		dosage: number;
+		dosageUnit: string;
+		scheduleType: string;
+		scheduleDays: number[] | null;
+		scheduleStartDate: string | null;
+		timeOfDay: string | null;
+		isActive: boolean;
+		sortOrder: number;
+		ingredients: { name: string; dosage: number; dosageUnit: string }[];
+		createdAt: string | null;
+		updatedAt: string | null;
+	};
+
+	let supplements: SupplementWithIngredients[] = $state([]);
 	let showForm = $state(false);
 	let editingSupplement: Supplement | null = $state(null);
 	let deletingId: string | null = $state(null);
@@ -102,6 +117,9 @@
 							<div class="font-medium">{supplement.name}</div>
 							<div class="text-sm text-muted-foreground">
 								{supplement.dosage} {supplement.dosageUnit} &middot; {formatSchedule(supplement.scheduleType, supplement.scheduleDays)}
+								{#if supplement.ingredients?.length > 0}
+									&middot; {m.supplements_ingredient_count({ count: String(supplement.ingredients.length) })}
+								{/if}
 							</div>
 						</div>
 						<Switch

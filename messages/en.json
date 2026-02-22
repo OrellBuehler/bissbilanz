@@ -136,6 +136,13 @@
   "supplements_time_evening": "Evening",
   "supplements_time_anytime": "Anytime",
 
+  "supplements_ingredients": "Ingredients",
+  "supplements_add_ingredient": "Add ingredient",
+  "supplements_remove_ingredient": "Remove",
+  "supplements_ingredient_name": "Ingredient",
+  "supplements_ingredient_count": "{count} ingredients",
+  "supplements_serving_form": "Serving form",
+
   "supplements_day_sun": "Sun",
   "supplements_day_mon": "Mon",
   "supplements_day_tue": "Tue",

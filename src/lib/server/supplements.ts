@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
-import { supplements, supplementLogs } from '$lib/server/schema';
+import { supplements, supplementLogs, supplementIngredients } from '$lib/server/schema';
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
-import { and, eq, desc } from 'drizzle-orm';
+import { and, eq, desc, inArray } from 'drizzle-orm';
 import { gte, lte } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 import { today } from '$lib/utils/dates';
@@ -10,17 +10,84 @@ type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
 type Result<T> = SuccessResult<T> | ErrorResult;
 
+type IngredientRow = {
+	id: string;
+	supplementId: string;
+	name: string;
+	dosage: number;
+	dosageUnit: string;
+	sortOrder: number;
+};
+
+export const getSupplementIngredients = async (supplementId: string): Promise<IngredientRow[]> => {
+	const db = getDB();
+	return db
+		.select()
+		.from(supplementIngredients)
+		.where(eq(supplementIngredients.supplementId, supplementId))
+		.orderBy(supplementIngredients.sortOrder);
+};
+
+export const getIngredientsForSupplements = async (
+	supplementIds: string[]
+): Promise<Map<string, IngredientRow[]>> => {
+	if (supplementIds.length === 0) return new Map();
+	const db = getDB();
+	const rows = await db
+		.select()
+		.from(supplementIngredients)
+		.where(inArray(supplementIngredients.supplementId, supplementIds))
+		.orderBy(supplementIngredients.sortOrder);
+
+	const map = new Map<string, IngredientRow[]>();
+	for (const row of rows) {
+		if (!map.has(row.supplementId)) map.set(row.supplementId, []);
+		map.get(row.supplementId)!.push(row);
+	}
+	return map;
+};
+
+const insertIngredients = async (
+	supplementId: string,
+	ingredients: { name: string; dosage: number; dosageUnit: string; sortOrder?: number }[]
+) => {
+	if (ingredients.length === 0) return;
+	const db = getDB();
+	await db.insert(supplementIngredients).values(
+		ingredients.map((ing, i) => ({
+			supplementId,
+			name: ing.name,
+			dosage: ing.dosage,
+			dosageUnit: ing.dosageUnit,
+			sortOrder: ing.sortOrder ?? i
+		}))
+	);
+};
+
+const deleteIngredients = async (supplementId: string) => {
+	const db = getDB();
+	await db
+		.delete(supplementIngredients)
+		.where(eq(supplementIngredients.supplementId, supplementId));
+};
+
 export const listSupplements = async (userId: string, activeOnly = true) => {
 	const db = getDB();
 	const where = activeOnly
 		? and(eq(supplements.userId, userId), eq(supplements.isActive, true))
 		: eq(supplements.userId, userId);
 
-	return db
+	const rows = await db
 		.select()
 		.from(supplements)
 		.where(where)
 		.orderBy(supplements.sortOrder, supplements.name);
+
+	const ingredientsMap = await getIngredientsForSupplements(rows.map((r) => r.id));
+	return rows.map((r) => ({
+		...r,
+		ingredients: ingredientsMap.get(r.id) ?? []
+	}));
 };
 
 export const getSupplementById = async (userId: string, id: string) => {
@@ -29,13 +96,16 @@ export const getSupplementById = async (userId: string, id: string) => {
 		.select()
 		.from(supplements)
 		.where(and(eq(supplements.id, id), eq(supplements.userId, userId)));
-	return supplement ?? null;
+	if (!supplement) return null;
+
+	const ingredients = await getSupplementIngredients(id);
+	return { ...supplement, ingredients };
 };
 
 export const createSupplement = async (
 	userId: string,
 	payload: unknown
-): Promise<Result<typeof supplements.$inferSelect>> => {
+): Promise<Result<typeof supplements.$inferSelect & { ingredients: IngredientRow[] }>> => {
 	const result = supplementCreateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
@@ -43,7 +113,7 @@ export const createSupplement = async (
 
 	try {
 		const db = getDB();
-		const data = result.data;
+		const { ingredients: ingredientsData, ...data } = result.data;
 		const [created] = await db
 			.insert(supplements)
 			.values({
@@ -63,7 +133,16 @@ export const createSupplement = async (
 		if (!created) {
 			return { success: false, error: new Error('Failed to create supplement') };
 		}
-		return { success: true, data: created };
+
+		if (ingredientsData && ingredientsData.length > 0) {
+			await insertIngredients(created.id, ingredientsData);
+		}
+
+		const ingredients = ingredientsData?.length
+			? await getSupplementIngredients(created.id)
+			: [];
+
+		return { success: true, data: { ...created, ingredients } };
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
@@ -73,7 +152,7 @@ export const updateSupplement = async (
 	userId: string,
 	id: string,
 	payload: unknown
-): Promise<Result<typeof supplements.$inferSelect | undefined>> => {
+): Promise<Result<(typeof supplements.$inferSelect & { ingredients: IngredientRow[] }) | undefined>> => {
 	const result = supplementUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
@@ -81,12 +160,26 @@ export const updateSupplement = async (
 
 	try {
 		const db = getDB();
+		const { ingredients: ingredientsData, ...data } = result.data;
 		const [updated] = await db
 			.update(supplements)
-			.set({ ...result.data, updatedAt: new Date() })
+			.set({ ...data, updatedAt: new Date() })
 			.where(and(eq(supplements.id, id), eq(supplements.userId, userId)))
 			.returning();
-		return { success: true, data: updated };
+
+		if (!updated) {
+			return { success: true, data: undefined };
+		}
+
+		if (ingredientsData === null) {
+			await deleteIngredients(id);
+		} else if (ingredientsData !== undefined) {
+			await deleteIngredients(id);
+			await insertIngredients(id, ingredientsData);
+		}
+
+		const ingredients = await getSupplementIngredients(id);
+		return { success: true, data: { ...updated, ingredients } };
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}

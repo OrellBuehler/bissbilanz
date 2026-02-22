@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { scheduleTypeValues } from '../../supplement-units';
 
+export const ingredientSchema = z.object({
+	name: z.string().min(1),
+	dosage: z.coerce.number().positive(),
+	dosageUnit: z.string().min(1),
+	sortOrder: z.coerce.number().int().optional()
+});
+
 export const supplementCreateSchema = z
 	.object({
 		name: z.string().min(1),
@@ -11,7 +18,8 @@ export const supplementCreateSchema = z
 		scheduleStartDate: z.string().optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
-		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional()
+		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+		ingredients: z.array(ingredientSchema).optional()
 	})
 	.refine(
 		(data) => {
@@ -32,7 +40,8 @@ export const supplementUpdateSchema = z.object({
 	scheduleStartDate: z.string().optional().nullable(),
 	isActive: z.coerce.boolean().optional(),
 	sortOrder: z.coerce.number().int().optional(),
-	timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional()
+	timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+	ingredients: z.array(ingredientSchema).nullable().optional()
 });
 
 export const supplementLogSchema = z.object({

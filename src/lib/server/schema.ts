@@ -236,6 +236,22 @@ export const supplements = pgTable(
 	]
 );
 
+// Supplement Ingredients
+export const supplementIngredients = pgTable(
+	'supplement_ingredients',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		supplementId: uuid('supplement_id')
+			.notNull()
+			.references(() => supplements.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		dosage: real('dosage').notNull(),
+		dosageUnit: text('dosage_unit').notNull(),
+		sortOrder: integer('sort_order').notNull().default(0)
+	},
+	(table) => [index('idx_supplement_ingredients_supplement_id').on(table.supplementId)]
+);
+
 // Supplement Logs
 export const supplementLogs = pgTable(
 	'supplement_logs',
@@ -396,6 +412,8 @@ export type CustomMealType = typeof customMealTypes.$inferSelect;
 export type NewCustomMealType = typeof customMealTypes.$inferInsert;
 export type Supplement = typeof supplements.$inferSelect;
 export type NewSupplement = typeof supplements.$inferInsert;
+export type SupplementIngredient = typeof supplementIngredients.$inferSelect;
+export type NewSupplementIngredient = typeof supplementIngredients.$inferInsert;
 export type SupplementLog = typeof supplementLogs.$inferSelect;
 export type NewSupplementLog = typeof supplementLogs.$inferInsert;
 export type OAuthClient = typeof oauthClients.$inferSelect;
