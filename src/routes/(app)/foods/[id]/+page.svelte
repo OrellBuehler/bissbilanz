@@ -6,35 +6,40 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import * as m from '$lib/paraglide/messages';
 
-	type Ingredient = {
-		id: string;
-		foodId: string;
-		quantity: number;
-		servingUnit: string;
-		sortOrder: number;
-	};
-
-	type Recipe = {
+	type Food = {
 		id: string;
 		name: string;
-		totalServings: number;
+		brand: string | null;
+		servingSize: number;
+		servingUnit: string;
+		calories: number;
+		protein: number;
+		carbs: number;
+		fat: number;
+		fiber: number;
 		isFavorite: boolean;
 		imageUrl: string | null;
-		ingredients: Ingredient[];
+		barcode: string | null;
 	};
 
-	let recipe: Recipe | null = $state(null);
+	let food: Food | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
 
+	// Editable fields
 	let name = $state('');
-	let totalServings = $state(1);
+	let brand = $state('');
+	let servingSize = $state(0);
+	let calories = $state(0);
+	let protein = $state(0);
+	let carbs = $state(0);
+	let fat = $state(0);
+	let fiber = $state(0);
 	let isFavorite = $state(false);
 	let imageUrl: string | null = $state(null);
 
@@ -55,24 +60,30 @@
 	const placeholderColor = $derived(PALETTE[colorIndex]);
 	const initial = $derived(name.charAt(0).toUpperCase());
 
-	const loadRecipe = async () => {
+	const loadFood = async () => {
 		const id = $page.params.id;
 		try {
-			const res = await fetch(`/api/recipes/${id}`);
+			const res = await fetch(`/api/foods/${id}`);
 			if (!res.ok) {
-				goto('/app/recipes');
+				goto('/foods');
 				return;
 			}
 			const data = await res.json();
-			recipe = data.recipe;
-			if (recipe) {
-				name = recipe.name;
-				totalServings = recipe.totalServings;
-				isFavorite = recipe.isFavorite;
-				imageUrl = recipe.imageUrl;
+			food = data.food;
+			if (food) {
+				name = food.name;
+				brand = food.brand ?? '';
+				servingSize = food.servingSize;
+				calories = food.calories;
+				protein = food.protein;
+				carbs = food.carbs;
+				fat = food.fat;
+				fiber = food.fiber;
+				isFavorite = food.isFavorite;
+				imageUrl = food.imageUrl;
 			}
 		} catch {
-			goto('/app/recipes');
+			goto('/foods');
 		} finally {
 			loading = false;
 		}
@@ -81,7 +92,7 @@
 	const handleImageUpload = async (e: Event) => {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
-		if (!file || !recipe) return;
+		if (!file || !food) return;
 
 		const formData = new FormData();
 		formData.append('image', file);
@@ -95,7 +106,7 @@
 			const { imageUrl: newUrl } = await uploadRes.json();
 			imageUrl = newUrl;
 
-			await apiFetch(`/api/recipes/${recipe.id}`, {
+			await apiFetch(`/api/foods/${food.id}`, {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ imageUrl: newUrl })
@@ -106,9 +117,9 @@
 	};
 
 	const toggleFavorite = async () => {
-		if (!recipe) return;
+		if (!food) return;
 		isFavorite = !isFavorite;
-		await apiFetch(`/api/recipes/${recipe.id}`, {
+		await apiFetch(`/api/foods/${food.id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ isFavorite })
@@ -116,15 +127,21 @@
 	};
 
 	const saveChanges = async () => {
-		if (!recipe) return;
+		if (!food) return;
 		saving = true;
 		try {
-			const res = await apiFetch(`/api/recipes/${recipe.id}`, {
+			const res = await apiFetch(`/api/foods/${food.id}`, {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
 					name,
-					totalServings,
+					brand: brand || null,
+					servingSize,
+					calories,
+					protein,
+					carbs,
+					fat,
+					fiber,
 					isFavorite,
 					imageUrl
 				})
@@ -142,22 +159,22 @@
 	};
 
 	onMount(() => {
-		loadRecipe();
+		loadFood();
 	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6">
 	<div class="flex items-center gap-2">
-		<Button variant="ghost" size="sm" href="/app/recipes">
+		<Button variant="ghost" size="sm" href="/foods">
 			<ArrowLeft class="mr-1 size-4" />
-			{m.back_to_recipes()}
+			{m.back_to_foods()}
 		</Button>
 	</div>
 
 	{#if loading}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
-	{:else if recipe}
-		<h1 class="text-2xl font-bold">{m.recipe_detail_title()}</h1>
+	{:else if food}
+		<h1 class="text-2xl font-bold">{m.food_detail_title()}</h1>
 
 		<!-- Image section -->
 		<div class="aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
@@ -189,32 +206,40 @@
 		<!-- Editable fields -->
 		<div class="grid gap-4">
 			<div class="grid gap-2">
-				<Label for="recipe-name">{m.recipe_form_name()}</Label>
-				<Input id="recipe-name" bind:value={name} />
+				<Label for="food-name">{m.food_form_name()}</Label>
+				<Input id="food-name" bind:value={name} />
 			</div>
 			<div class="grid gap-2">
-				<Label for="recipe-servings">{m.recipe_form_servings()}</Label>
-				<Input id="recipe-servings" type="number" bind:value={totalServings} min="1" step="1" />
+				<Label for="food-brand">{m.food_form_brand()}</Label>
+				<Input id="food-brand" bind:value={brand} />
+			</div>
+			<div class="grid gap-2">
+				<Label for="food-serving">{m.food_form_serving_size()}</Label>
+				<Input id="food-serving" type="number" bind:value={servingSize} min="0" step="0.1" />
+			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<div class="grid gap-2">
+					<Label for="food-calories">{m.food_form_calories()}</Label>
+					<Input id="food-calories" type="number" bind:value={calories} min="0" step="0.1" />
+				</div>
+				<div class="grid gap-2">
+					<Label for="food-protein">{m.food_form_protein()}</Label>
+					<Input id="food-protein" type="number" bind:value={protein} min="0" step="0.1" />
+				</div>
+				<div class="grid gap-2">
+					<Label for="food-carbs">{m.food_form_carbs()}</Label>
+					<Input id="food-carbs" type="number" bind:value={carbs} min="0" step="0.1" />
+				</div>
+				<div class="grid gap-2">
+					<Label for="food-fat">{m.food_form_fat()}</Label>
+					<Input id="food-fat" type="number" bind:value={fat} min="0" step="0.1" />
+				</div>
+				<div class="grid gap-2">
+					<Label for="food-fiber">{m.food_form_fiber()}</Label>
+					<Input id="food-fiber" type="number" bind:value={fiber} min="0" step="0.1" />
+				</div>
 			</div>
 		</div>
-
-		<!-- Ingredients (read-only) -->
-		{#if recipe.ingredients.length > 0}
-			<Card.Root>
-				<Card.Header class="pb-2">
-					<Card.Title class="text-base">{m.detail_ingredients()}</Card.Title>
-				</Card.Header>
-				<Card.Content>
-					<ul class="space-y-1 text-sm">
-						{#each recipe.ingredients as ingredient}
-							<li class="text-muted-foreground">
-								{ingredient.quantity} {ingredient.servingUnit}
-							</li>
-						{/each}
-					</ul>
-				</Card.Content>
-			</Card.Root>
-		{/if}
 
 		<Button onclick={saveChanges} disabled={saving}>
 			{saving ? m.detail_saving() : m.save_changes()}

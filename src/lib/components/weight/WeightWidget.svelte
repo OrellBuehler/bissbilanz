@@ -28,12 +28,12 @@
 			<p class="text-2xl font-semibold">{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}</p>
 		{:else}
 			<p class="text-muted-foreground text-sm">{m.dashboard_weight_no_entries()}</p>
-			<Button variant="link" href="/app/weight" class="h-auto p-0 text-sm">
+			<Button variant="link" href="/weight" class="h-auto p-0 text-sm">
 				{m.dashboard_weight_log_first()}
 			</Button>
 		{/if}
 		<div class="mt-3 border-t pt-3">
-			<Button variant="ghost" size="sm" href="/app/weight" class="w-full">
+			<Button variant="ghost" size="sm" href="/weight" class="w-full">
 				{m.dashboard_weight_view_all()}
 			</Button>
 		</div>

@@ -96,7 +96,7 @@
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.supplements_title()}</h1>
 		<div class="flex gap-2">
-			<Button variant="outline" size="sm" href="/app/supplements/history">
+			<Button variant="outline" size="sm" href="/supplements/history">
 				<History class="mr-1.5 size-4" />
 				{m.supplements_history_title()}
 			</Button>

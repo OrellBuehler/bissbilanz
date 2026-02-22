@@ -130,7 +130,7 @@
 					<div class="flex flex-col items-center gap-4 py-12 text-center">
 						<Heart class="size-16 text-muted-foreground/40" />
 						<p class="text-muted-foreground">{m.favorites_empty()}</p>
-						<Button variant="outline" href="/app/foods">{m.favorites_browse_foods()}</Button>
+						<Button variant="outline" href="/foods">{m.favorites_browse_foods()}</Button>
 					</div>
 				{:else}
 					<FavoritesGrid>
@@ -155,7 +155,7 @@
 					<div class="flex flex-col items-center gap-4 py-12 text-center">
 						<Heart class="size-16 text-muted-foreground/40" />
 						<p class="text-muted-foreground">{m.favorites_empty_recipes()}</p>
-						<Button variant="outline" href="/app/recipes">{m.favorites_browse_recipes()}</Button>
+						<Button variant="outline" href="/recipes">{m.favorites_browse_recipes()}</Button>
 					</div>
 				{:else}
 					<FavoritesGrid>

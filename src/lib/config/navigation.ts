@@ -18,14 +18,14 @@ export type NavItem = {
 
 export function getNavItems(): NavItem[] {
 	return [
-		{ title: () => m.nav_dashboard(), href: '/app', icon: Home },
-		{ title: () => m.nav_favorites(), href: '/app/favorites', icon: Heart },
-		{ title: () => m.nav_foods(), href: '/app/foods', icon: Utensils },
-		{ title: () => m.nav_recipes(), href: '/app/recipes', icon: CookingPot },
-		{ title: () => m.nav_supplements(), href: '/app/supplements', icon: Pill },
-		{ title: () => m.nav_weight(), href: '/app/weight', icon: Weight },
-		{ title: () => m.nav_goals(), href: '/app/goals', icon: Target },
-		{ title: () => m.nav_history(), href: '/app/history', icon: Calendar },
-		{ title: () => m.nav_settings(), href: '/app/settings', icon: Settings }
+		{ title: () => m.nav_dashboard(), href: '/', icon: Home },
+		{ title: () => m.nav_favorites(), href: '/favorites', icon: Heart },
+		{ title: () => m.nav_foods(), href: '/foods', icon: Utensils },
+		{ title: () => m.nav_recipes(), href: '/recipes', icon: CookingPot },
+		{ title: () => m.nav_supplements(), href: '/supplements', icon: Pill },
+		{ title: () => m.nav_weight(), href: '/weight', icon: Weight },
+		{ title: () => m.nav_goals(), href: '/goals', icon: Target },
+		{ title: () => m.nav_history(), href: '/history', icon: Calendar },
+		{ title: () => m.nav_settings(), href: '/settings', icon: Settings }
 	];
 }

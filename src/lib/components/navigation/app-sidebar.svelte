@@ -16,7 +16,7 @@
 	const navItems = getNavItems();
 
 	function isActive(href: string, pathname: string): boolean {
-		if (href === '/app') return pathname === '/app';
+		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
 	}
 
@@ -47,7 +47,7 @@
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:!p-1.5">
 					{#snippet child({ props })}
-						<a href="/app" {...props}>
+						<a href="/" {...props}>
 							<UtensilsCrossed class="!size-5" />
 							<span class="text-base font-semibold">{m.app_title()}</span>
 						</a>

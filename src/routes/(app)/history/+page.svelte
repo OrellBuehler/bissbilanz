@@ -56,7 +56,7 @@
 	};
 
 	const goToDay = (date: string) => {
-		goto(`/app/history/${date}`);
+		goto(`/history/${date}`);
 	};
 
 	const fmt = (n: number) => Math.round(n).toLocaleString();

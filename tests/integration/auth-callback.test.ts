@@ -135,7 +135,7 @@ describe('Auth callback flow', () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	test('successful callback redirects to /app', async () => {
+	test('successful callback redirects to /', async () => {
 		setResult([TEST_USER]);
 
 		let fetchCallCount = 0;
@@ -152,7 +152,7 @@ describe('Auth callback flow', () => {
 			expect(true).toBe(false);
 		} catch (e: any) {
 			expect(e.status).toBe(302);
-			expect(e.location).toBe('/app');
+			expect(e.location).toBe('/');
 		}
 	});
 

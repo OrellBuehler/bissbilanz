@@ -140,5 +140,5 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, requ
 		sameSite: 'lax'
 	});
 
-	throw redirect(302, '/app');
+	throw redirect(302, '/');
 };

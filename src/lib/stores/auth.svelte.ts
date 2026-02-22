@@ -53,7 +53,7 @@ export async function logout(): Promise<void> {
 		await fetch('/api/auth/logout', { method: 'POST' });
 		state.user = null;
 		state.isAuthenticated = false;
-		window.location.href = '/';
+		window.location.href = '/login';
 	} catch (error) {
 		console.error('Logout failed:', error);
 	}

@@ -96,15 +96,16 @@ bissbilanz/
 │   │   │   └── mcp/         # MCP endpoint
 │   │   ├── authorize/       # OAuth authorization endpoint
 │   │   ├── token/           # OAuth token endpoint
-│   │   ├── app/             # Authenticated pages
-│   │   │   ├── +page.svelte # Dashboard
+│   │   ├── (app)/            # Authenticated pages (pathless group)
+│   │   │   ├── +page.svelte # Dashboard (/)
 │   │   │   ├── foods/       # Food database
 │   │   │   ├── recipes/     # Recipes
 │   │   │   ├── history/     # History with date drill-down
 │   │   │   ├── goals/       # Goals
 │   │   │   ├── supplements/ # Supplements with history
 │   │   │   └── settings/    # Settings (includes MCP config)
-│   │   └── +page.svelte     # Landing/login page
+│   │   ├── login/           # Login page
+│   │   └── app/[...rest]/   # Legacy redirect (301 /app/* → /*)
 │   ├── app.html
 │   └── hooks.server.ts      # Session middleware
 ├── drizzle/                 # Database migrations
@@ -194,12 +195,12 @@ MCP_ENDPOINT_ENABLED=false
 
 ## Authentication Flow
 
-1. User visits app → redirected to `/` (landing page)
+1. User visits app → redirected to `/login` if not authenticated
 2. Click "Login" → redirected to Infomaniak OAuth
 3. User authorizes → callback to `/api/auth/callback`
 4. Server creates session, sets HttpOnly cookie
-5. Redirect to `/app` (dashboard)
-6. All `/app/*` routes protected by session middleware
+5. Redirect to `/` (dashboard)
+6. All routes protected by session middleware (public whitelist: `/login`, `/api/`, `/authorize`, `/token`, `/oauth/`, `/.well-known/`, `/uploads/`)
 
 **Session duration:** 7 days
 **Cookie:** HttpOnly, Secure (production), SameSite=Lax

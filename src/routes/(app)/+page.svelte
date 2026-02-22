@@ -114,7 +114,7 @@
 			scannedBarcode = barcode;
 			addModalOpen = true;
 		} else {
-			goto(`/app/foods/new?barcode=${encodeURIComponent(barcode)}`);
+			goto(`/foods/new?barcode=${encodeURIComponent(barcode)}`);
 		}
 	};
 
@@ -176,7 +176,7 @@
 				const { preferences } = await res.json();
 				userPrefs = preferences;
 				if (preferences.startPage === 'favorites') {
-					goto('/app/favorites', { replaceState: true });
+					goto('/favorites', { replaceState: true });
 					return;
 				}
 			}

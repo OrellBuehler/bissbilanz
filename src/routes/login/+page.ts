@@ -6,7 +6,7 @@ export const load: PageLoad = async ({ fetch }) => {
 	const data = await response.json();
 
 	if (data.user) {
-		throw redirect(302, '/app');
+		throw redirect(302, '/');
 	}
 
 	return {};

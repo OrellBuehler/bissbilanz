@@ -77,7 +77,7 @@
 			{#each recipes as recipe}
 				<Card.Root
 					class="cursor-pointer transition-colors hover:bg-accent/50"
-					onclick={() => goto(`/app/recipes/${recipe.id}`)}
+					onclick={() => goto(`/recipes/${recipe.id}`)}
 				>
 					<Card.Content class="flex items-center justify-between p-4">
 						<div class="min-w-0 flex-1">

@@ -85,13 +85,13 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
-		goto('/app/foods');
+		goto('/foods');
 	};
 </script>
 
 <div class="mx-auto max-w-lg space-y-6">
 	<div class="flex items-center justify-end">
-		<a href="/app/foods" class="rounded border px-3 py-1 text-sm">Cancel</a>
+		<a href="/foods" class="rounded border px-3 py-1 text-sm">Cancel</a>
 	</div>
 
 	{#if offLoading}

@@ -20,7 +20,7 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			manifest: {
 				scope: '/',
-				start_url: '/app',
+				start_url: '/',
 				name: 'Bissbilanz',
 				short_name: 'Bissbilanz',
 				description: 'Food tracking with AI assistance',

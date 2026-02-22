@@ -98,7 +98,7 @@
 			</div>
 		{/if}
 		<div class="mt-3 border-t pt-3">
-			<Button variant="ghost" size="sm" href="/app/supplements" class="w-full">
+			<Button variant="ghost" size="sm" href="/supplements" class="w-full">
 				{m.supplements_title()}
 			</Button>
 		</div>

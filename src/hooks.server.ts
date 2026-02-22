@@ -88,13 +88,13 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// Protect /app routes - check the de-localized path
-	const isAppRoute =
-		pathname.startsWith('/app') ||
-		pathname.startsWith('/de/app');
+	// Protect all routes except public ones
+	const PUBLIC_PATHS = ['/login', '/api/', '/authorize', '/token', '/oauth/', '/.well-known/', '/uploads/'];
+	const stripped = pathname.startsWith('/de/') ? pathname.slice(3) : pathname === '/de' ? '/' : pathname;
+	const isPublicRoute = PUBLIC_PATHS.some(p => stripped.startsWith(p));
 
-	if (isAppRoute && !event.locals.user) {
-		throw redirect(302, '/');
+	if (!isPublicRoute && !event.locals.user) {
+		throw redirect(302, '/login');
 	}
 
 	const response = await resolve(event);
