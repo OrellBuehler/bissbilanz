@@ -67,7 +67,10 @@ bissbilanz/
 │   │   │   ├── quality/     # NutriScore, NOVA, additives
 │   │   │   ├── recipes/     # Recipe components
 │   │   │   ├── supplements/ # Supplement tracking
-│   │   │   └── ui/          # shadcn-svelte primitives
+│   │   │   ├── ui/          # shadcn-svelte primitives
+│   │   │   ├── dashboard/   # Dashboard widgets
+│   │   │   ├── favorites/   # Favorite meals
+│   │   │   └── weight/      # Weight tracking
 │   │   ├── config/          # App configuration (navigation)
 │   │   ├── server/          # Server-side code
 │   │   │   ├── schema.ts    # Drizzle schema definitions
@@ -98,7 +101,10 @@ bissbilanz/
 │   │   │   ├── preferences/ # User preferences
 │   │   │   ├── openfoodfacts/ # Barcode lookup proxy
 │   │   │   ├── oauth/       # OAuth provider (consent)
-│   │   │   └── mcp/         # MCP endpoint
+│   │   │   ├── mcp/         # MCP endpoint
+│   │   │   ├── favorites/   # Favorite meals
+│   │   │   ├── images/      # Image uploads
+│   │   │   └── weight/      # Weight tracking
 │   │   ├── authorize/       # OAuth authorization endpoint
 │   │   ├── token/           # OAuth token endpoint
 │   │   ├── (app)/            # Authenticated pages (pathless group)
@@ -108,7 +114,9 @@ bissbilanz/
 │   │   │   ├── history/     # History with date drill-down
 │   │   │   ├── goals/       # Goals
 │   │   │   ├── supplements/ # Supplements with history
-│   │   │   └── settings/    # Settings (includes MCP config)
+│   │   │   ├── settings/    # Settings (includes MCP config)
+│   │   │   ├── favorites/   # Favorite meals
+│   │   │   └── weight/      # Weight tracking
 │   │   ├── login/           # Login page
 │   │   └── app/[...rest]/   # Legacy redirect (301 /app/* → /*)
 │   ├── app.html
@@ -121,7 +129,8 @@ bissbilanz/
 │   ├── api/                 # API route tests
 │   ├── helpers/             # Test utilities (mock-db, fixtures)
 │   ├── integration/         # Integration tests
-│   └── utils/               # Utility tests
+│   ├── utils/               # Utility tests
+│   └── e2e/                 # End-to-end tests
 ├── drizzle.config.ts
 ├── package.json
 ├── svelte.config.js
@@ -142,8 +151,11 @@ bissbilanz/
 - **customMealTypes** - Custom meal categories per user
 - **supplements** - User supplement definitions with schedules
 - **supplementLogs** - Daily supplement intake logs
+- **supplementIngredients** - Supplement ingredient composition
+- **weightEntries** - Daily weight log entries
+- **favoriteMealTimeframes** - Saved favorite meal combinations
 - **userPreferences** - Dashboard widget toggles, start page, widget order
-- **oauthClients** / **oauthAuthorizations** - OAuth provider tables
+- **oauthClients** / **oauthAuthorizations** / **oauthTokens** / **oauthAuthorizationCodes** - OAuth provider tables
 
 ## Development Commands
 
@@ -242,6 +254,9 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 - PWA: Offline support, install banner, update toast
 - MCP: AI-assisted food logging endpoint
 - Charts: Data visualization with layerchart
+- Favorites: Save and reuse favorite meal combinations
+- Weight: Daily weight tracking and history
+- Images: Food/recipe image uploads
 
 ## Code Conventions
 
