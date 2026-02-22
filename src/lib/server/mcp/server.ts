@@ -7,7 +7,22 @@ import {
 	handleLogFood,
 	handleSearchFoods,
 	handleGetSupplementStatus,
-	handleLogSupplement
+	handleLogSupplement,
+	handleListEntries,
+	handleUpdateEntry,
+	handleDeleteEntry,
+	handleGetGoals,
+	handleUpdateGoals,
+	handleListRecipes,
+	handleGetRecipe,
+	handleGetFood,
+	handleListFavorites,
+	handleLogWeight,
+	handleGetWeight,
+	handleGetWeeklyStats,
+	handleGetMonthlyStats,
+	handleCopyEntries,
+	handleFindFoodByBarcode
 } from './handlers';
 
 const MCP_SERVER_NAME = 'bissbilanz';
@@ -28,6 +43,17 @@ export function createMcpServer(userId: string): McpServer {
 		]
 	});
 
+	const safe = <T extends unknown[], R>(fn: (...args: T) => Promise<R>) => {
+		return async (...args: T) => {
+			try {
+				return asText(await fn(...args));
+			} catch (e) {
+				const message = e instanceof Error ? e.message : String(e);
+				return asText({ error: message });
+			}
+		};
+	};
+
 	server.registerTool(
 		'get_daily_status',
 		{
@@ -37,10 +63,7 @@ export function createMcpServer(userId: string): McpServer {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
-		async ({ date }) => {
-			const result = await handleGetDailyStatus(userId, date);
-			return asText(result);
-		}
+		safe(({ date }) => handleGetDailyStatus(userId, date))
 	);
 
 	server.registerTool(
@@ -52,10 +75,7 @@ export function createMcpServer(userId: string): McpServer {
 				query: z.string().describe('Search query to match against food names')
 			}
 		},
-		async ({ query }) => {
-			const result = await handleSearchFoods(userId, query);
-			return asText(result);
-		}
+		safe(({ query }) => handleSearchFoods(userId, query))
 	);
 
 	server.registerTool(
@@ -76,10 +96,7 @@ export function createMcpServer(userId: string): McpServer {
 				barcode: z.string().optional().describe('Barcode number')
 			}
 		},
-		async (args) => {
-			const result = await handleCreateFood(userId, args);
-			return asText(result);
-		}
+		safe((args) => handleCreateFood(userId, args))
 	);
 
 	server.registerTool(
@@ -101,10 +118,7 @@ export function createMcpServer(userId: string): McpServer {
 					.describe('List of ingredients')
 			}
 		},
-		async (args) => {
-			const result = await handleCreateRecipe(userId, args);
-			return asText(result);
-		}
+		safe((args) => handleCreateRecipe(userId, args))
 	);
 
 	server.registerTool(
@@ -121,10 +135,7 @@ export function createMcpServer(userId: string): McpServer {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
-		async (args) => {
-			const result = await handleLogFood(userId, { ...args, date: args.date ?? undefined });
-			return asText(result);
-		}
+		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? undefined }))
 	);
 
 	server.registerTool(
@@ -134,10 +145,7 @@ export function createMcpServer(userId: string): McpServer {
 				"Get today's supplement checklist showing which supplements are due and whether they've been taken.",
 			inputSchema: {}
 		},
-		async () => {
-			const result = await handleGetSupplementStatus(userId);
-			return asText(result);
-		}
+		safe(() => handleGetSupplementStatus(userId))
 	);
 
 	server.registerTool(
@@ -151,10 +159,179 @@ export function createMcpServer(userId: string): McpServer {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
-		async (args) => {
-			const result = await handleLogSupplement(userId, args);
-			return asText(result);
-		}
+		safe((args) => handleLogSupplement(userId, args))
+	);
+
+	server.registerTool(
+		'list_entries',
+		{
+			description:
+				'List all food entries for a given date with food names, meal types, servings, and macros.',
+			inputSchema: {
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+			}
+		},
+		safe(({ date }) => handleListEntries(userId, date))
+	);
+
+	server.registerTool(
+		'update_entry',
+		{
+			description: 'Update an existing food entry. Can change servings, meal type, or notes.',
+			inputSchema: {
+				entryId: z.string().describe('ID of the entry to update'),
+				servings: z.number().optional().describe('New number of servings'),
+				mealType: z.string().optional().describe('New meal type'),
+				notes: z.string().optional().describe('New notes')
+			}
+		},
+		safe((args) => handleUpdateEntry(userId, args))
+	);
+
+	server.registerTool(
+		'delete_entry',
+		{
+			description: 'Delete a food entry from the diary.',
+			inputSchema: {
+				entryId: z.string().describe('ID of the entry to delete')
+			}
+		},
+		safe(({ entryId }) => handleDeleteEntry(userId, entryId))
+	);
+
+	server.registerTool(
+		'get_goals',
+		{
+			description:
+				"Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber.",
+			inputSchema: {}
+		},
+		safe(() => handleGetGoals(userId))
+	);
+
+	server.registerTool(
+		'update_goals',
+		{
+			description: 'Set or update daily nutrition goals.',
+			inputSchema: {
+				calorieGoal: z.number().describe('Daily calorie goal'),
+				proteinGoal: z.number().describe('Daily protein goal in grams'),
+				carbGoal: z.number().describe('Daily carbohydrate goal in grams'),
+				fatGoal: z.number().describe('Daily fat goal in grams'),
+				fiberGoal: z.number().describe('Daily fiber goal in grams')
+			}
+		},
+		safe((args) => handleUpdateGoals(userId, args))
+	);
+
+	server.registerTool(
+		'list_recipes',
+		{
+			description: "List all recipes in the user's database with total macros per serving.",
+			inputSchema: {}
+		},
+		safe(() => handleListRecipes(userId))
+	);
+
+	server.registerTool(
+		'get_recipe',
+		{
+			description: 'Get a recipe with its full ingredient list and macros.',
+			inputSchema: {
+				recipeId: z.string().describe('ID of the recipe')
+			}
+		},
+		safe(({ recipeId }) => handleGetRecipe(userId, recipeId))
+	);
+
+	server.registerTool(
+		'get_food',
+		{
+			description: 'Get full nutritional details for a specific food by ID.',
+			inputSchema: {
+				foodId: z.string().describe('ID of the food')
+			}
+		},
+		safe(({ foodId }) => handleGetFood(userId, foodId))
+	);
+
+	server.registerTool(
+		'list_favorites',
+		{
+			description: "List the user's favorite foods and recipes, sorted by most frequently logged.",
+			inputSchema: {}
+		},
+		safe(() => handleListFavorites(userId))
+	);
+
+	server.registerTool(
+		'log_weight',
+		{
+			description: 'Log a body weight measurement.',
+			inputSchema: {
+				weightKg: z.number().describe('Weight in kilograms'),
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				notes: z.string().optional().describe('Optional notes')
+			}
+		},
+		safe((args) => handleLogWeight(userId, args))
+	);
+
+	server.registerTool(
+		'get_weight',
+		{
+			description: 'Get the latest weight entry, or weight trend over a date range.',
+			inputSchema: {
+				from: z.string().optional().describe('Start date in YYYY-MM-DD format (for trend)'),
+				to: z.string().optional().describe('End date in YYYY-MM-DD format (for trend)')
+			}
+		},
+		safe((args) => handleGetWeight(userId, args))
+	);
+
+	server.registerTool(
+		'get_weekly_stats',
+		{
+			description: 'Get average daily nutrition over the past 7 days.',
+			inputSchema: {}
+		},
+		safe(() => handleGetWeeklyStats(userId))
+	);
+
+	server.registerTool(
+		'get_monthly_stats',
+		{
+			description: 'Get average daily nutrition over the past 30 days.',
+			inputSchema: {}
+		},
+		safe(() => handleGetMonthlyStats(userId))
+	);
+
+	server.registerTool(
+		'copy_entries',
+		{
+			description:
+				"Copy all food entries from one date to another. Useful for repeating a day's meals.",
+			inputSchema: {
+				fromDate: z.string().describe('Source date in YYYY-MM-DD format'),
+				toDate: z
+					.string()
+					.optional()
+					.describe('Target date in YYYY-MM-DD format. Defaults to today.')
+			}
+		},
+		safe((args) => handleCopyEntries(userId, args))
+	);
+
+	server.registerTool(
+		'find_food_by_barcode',
+		{
+			description: "Look up a food in the user's database by barcode number.",
+			inputSchema: {
+				barcode: z.string().describe('Barcode number to search for')
+			}
+		},
+		safe(({ barcode }) => handleFindFoodByBarcode(userId, barcode))
 	);
 
 	return server;

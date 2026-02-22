@@ -1,53 +1,24 @@
-import { z } from 'zod';
-
 export const toolNames = [
-	'get-daily-status',
-	'create-food',
-	'create-recipe',
-	'log-food',
-	'search-foods',
-	'get-supplement-status',
-	'log-supplement'
+	'get_daily_status',
+	'create_food',
+	'create_recipe',
+	'log_food',
+	'search_foods',
+	'get_supplement_status',
+	'log_supplement',
+	'list_entries',
+	'update_entry',
+	'delete_entry',
+	'get_goals',
+	'update_goals',
+	'list_recipes',
+	'get_recipe',
+	'get_food',
+	'list_favorites',
+	'log_weight',
+	'get_weight',
+	'get_weekly_stats',
+	'get_monthly_stats',
+	'copy_entries',
+	'find_food_by_barcode'
 ] as const;
-
-export const createFoodInput = z.object({
-	name: z.string(),
-	brand: z.string().optional(),
-	servingSize: z.number(),
-	servingUnit: z.string(),
-	calories: z.number(),
-	protein: z.number(),
-	carbs: z.number(),
-	fat: z.number(),
-	fiber: z.number(),
-	barcode: z.string().optional()
-});
-
-export const createRecipeInput = z.object({
-	name: z.string(),
-	totalServings: z.number(),
-	ingredients: z.array(
-		z.object({
-			foodId: z.string(),
-			quantity: z.number(),
-			servingUnit: z.string()
-		})
-	)
-});
-
-export const logFoodInput = z.object({
-	foodId: z.string().optional(),
-	recipeId: z.string().optional(),
-	mealType: z.string(),
-	servings: z.number(),
-	notes: z.string().optional(),
-	date: z.string().optional()
-});
-
-export const searchFoodsInput = z.object({ query: z.string() });
-
-export const logSupplementInput = z.object({
-	name: z.string().optional(),
-	supplementId: z.string().optional(),
-	date: z.string().optional()
-});
