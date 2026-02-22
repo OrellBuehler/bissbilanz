@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { buildAuthorizeUrl, createCodeChallenge, generateNonce, generateState } from '../../src/lib/server/oidc';
+import {
+	buildAuthorizeUrl,
+	createCodeChallenge,
+	generateNonce,
+	generateState
+} from '../../src/lib/server/oidc';
 
 const RFC_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const RFC_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';

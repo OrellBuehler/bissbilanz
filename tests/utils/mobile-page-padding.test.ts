@@ -33,7 +33,8 @@ describe('mobile page padding', () => {
 
 	test('pages do not add duplicate mobile horizontal gutters on top-level wrappers', () => {
 		const pageFiles = collectPageFiles(APP_ROUTES_DIR);
-		const duplicateGutterPattern = /class="[^"]*mx-auto[^"]*max-w-[^"]*\bpx-4\b[^"]*\bsm:px-0\b[^"]*"/;
+		const duplicateGutterPattern =
+			/class="[^"]*mx-auto[^"]*max-w-[^"]*\bpx-4\b[^"]*\bsm:px-0\b[^"]*"/;
 
 		const offenders = pageFiles
 			.map((file) => ({ file, source: readFileSync(file, 'utf8') }))

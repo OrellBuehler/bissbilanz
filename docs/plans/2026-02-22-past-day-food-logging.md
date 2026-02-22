@@ -13,6 +13,7 @@
 ### Task 1: Add i18n keys
 
 **Files:**
+
 - Modify: `messages/en.json`
 - Modify: `messages/de.json`
 
@@ -58,6 +59,7 @@ git commit -m "feat: add i18n keys for past-day navigation"
 ### Task 2: Create `DayLog.svelte`
 
 **Files:**
+
 - Create: `src/lib/components/entries/DayLog.svelte`
 
 This component owns all entry CRUD for a given `date`. It is extracted from the dashboard — copy the logic, adapt for a prop-driven date.
@@ -245,6 +247,7 @@ git commit -m "feat: add DayLog component for date-aware entry CRUD"
 ### Task 3: Update history detail page
 
 **Files:**
+
 - Modify: `src/routes/(app)/history/[date]/+page.svelte`
 
 Replace the read-only meal section grid and standalone `MacroSummary` with `<DayLog>`. Keep the page header (date + back button).
@@ -283,6 +286,7 @@ Expected: no errors.
 **Step 3: Verify manually**
 
 Start the dev server (`bun run dev`), navigate to `/history`, click any day that has entries. Confirm:
+
 - Entries are shown (not blank)
 - "Add Food" buttons appear in each meal section
 - You can add a new entry and it saves
@@ -301,6 +305,7 @@ git commit -m "feat: make history detail page editable via DayLog"
 ### Task 4: Update dashboard with date navigation
 
 **Files:**
+
 - Modify: `src/routes/(app)/+page.svelte`
 
 Add `activeDate` state (starts as today), prev/next arrows in the header, hide today-only widgets when on a past day, and replace the inline entry CRUD with `<DayLog>`.
@@ -330,7 +335,13 @@ Replace the entire file with:
 	let weeklyData: Array<{ date: string } & MacroTotals> = $state([]);
 	let weeklyCalorieGoal: number | undefined = $state(undefined);
 	type ChecklistItem = {
-		supplement: { id: string; name: string; dosage: number; dosageUnit: string; timeOfDay: string | null };
+		supplement: {
+			id: string;
+			name: string;
+			dosage: number;
+			dosageUnit: string;
+			timeOfDay: string | null;
+		};
 		taken: boolean;
 		takenAt: string | null;
 	};
@@ -445,57 +456,68 @@ Replace the entire file with:
 </script>
 
 {#if ready}
-<div class="mx-auto max-w-4xl space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div class="flex items-center gap-2">
-			<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
-				←
-			</Button>
-			<h2 class="text-2xl font-semibold">{dateLabel}</h2>
-			<Button
-				variant="ghost"
-				size="icon"
-				onclick={nextDay}
-				disabled={isToday}
-				aria-label={m.dashboard_next_day()}
-			>
-				→
-			</Button>
-		</div>
-		{#if isToday}
-			<Button variant="outline" size="sm" onclick={copyYesterday} disabled={copying}>
-				{copying ? m.dashboard_copying() : m.dashboard_copy_yesterday()}
-			</Button>
-		{/if}
-	</div>
-
-	{#if weeklyData.length > 0}
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<div class="h-[200px]">
-					<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
-
-	{#if isToday}
-		{#each userPrefs?.widgetOrder ?? ['favorites', 'supplements', 'weight'] as widgetKey (widgetKey)}
-			{#if widgetKey === 'favorites' && userPrefs?.showFavoritesWidget}
-				<FavoritesWidget onEntryLogged={() => {}} favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'} />
-			{:else if widgetKey === 'supplements' && userPrefs?.showSupplementsWidget}
-				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
-			{:else if widgetKey === 'weight' && userPrefs?.showWeightWidget}
-				<WeightWidget weightKg={latestWeight?.weightKg ?? null} entryDate={latestWeight?.entryDate ?? null} />
+	<div class="mx-auto max-w-4xl space-y-6">
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<div class="flex items-center gap-2">
+				<Button
+					variant="ghost"
+					size="icon"
+					onclick={prevDay}
+					aria-label={m.dashboard_previous_day()}
+				>
+					←
+				</Button>
+				<h2 class="text-2xl font-semibold">{dateLabel}</h2>
+				<Button
+					variant="ghost"
+					size="icon"
+					onclick={nextDay}
+					disabled={isToday}
+					aria-label={m.dashboard_next_day()}
+				>
+					→
+				</Button>
+			</div>
+			{#if isToday}
+				<Button variant="outline" size="sm" onclick={copyYesterday} disabled={copying}>
+					{copying ? m.dashboard_copying() : m.dashboard_copy_yesterday()}
+				</Button>
 			{/if}
-		{/each}
-	{/if}
+		</div>
 
-	<DayLog date={activeDate} onMutation={loadWeeklyChart} />
-</div>
+		{#if weeklyData.length > 0}
+			<Card.Root>
+				<Card.Header class="pb-2">
+					<Card.Title class="text-base">{m.charts_this_week()}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="h-[200px]">
+						<CalorieTrendChart data={weeklyData} calorieGoal={weeklyCalorieGoal} />
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if isToday}
+			{#each userPrefs?.widgetOrder ?? ['favorites', 'supplements', 'weight'] as widgetKey (widgetKey)}
+				{#if widgetKey === 'favorites' && userPrefs?.showFavoritesWidget}
+					<FavoritesWidget
+						onEntryLogged={() => {}}
+						favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'}
+					/>
+				{:else if widgetKey === 'supplements' && userPrefs?.showSupplementsWidget}
+					<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+				{:else if widgetKey === 'weight' && userPrefs?.showWeightWidget}
+					<WeightWidget
+						weightKg={latestWeight?.weightKg ?? null}
+						entryDate={latestWeight?.entryDate ?? null}
+					/>
+				{/if}
+			{/each}
+		{/if}
+
+		<DayLog date={activeDate} onMutation={loadWeeklyChart} />
+	</div>
 {/if}
 ```
 

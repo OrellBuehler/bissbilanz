@@ -12,8 +12,12 @@
 		ingredientsText?: string | null;
 	};
 
-	let { nutriScore = null, novaGroup = null, additives = null, ingredientsText = null }: Props =
-		$props();
+	let {
+		nutriScore = null,
+		novaGroup = null,
+		additives = null,
+		ingredientsText = null
+	}: Props = $props();
 
 	const hasData = $derived(nutriScore || novaGroup || (additives && additives.length > 0));
 </script>

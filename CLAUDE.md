@@ -5,6 +5,7 @@ A calorie and macro tracking application with AI-assisted logging via MCP integr
 ## Project Overview
 
 Bissbilanz is a food tracking application that allows users to:
+
 - Track calories and macros (protein, carbs, fat, fiber)
 - Create and manage a personal food database
 - Build recipes with multiple ingredients
@@ -19,6 +20,7 @@ Bissbilanz is a food tracking application that allows users to:
 ## Tech Stack
 
 ### Core
+
 - **Frontend:** SvelteKit 2.x with Svelte 5 (runes)
 - **Runtime:** Bun (development and production)
 - **Database:** PostgreSQL
@@ -27,11 +29,13 @@ Bissbilanz is a food tracking application that allows users to:
 - **Deployment:** svelte-adapter-bun
 
 ### UI & Styling
+
 - **Components:** shadcn-svelte
 - **Styling:** Tailwind CSS 4.x
 - **Icons:** @lucide/svelte
 
 ### Features
+
 - **PWA:** @vite-pwa/sveltekit
 - **Barcode Scanning:** html5-qrcode
 - **AI Integration:** @modelcontextprotocol/sdk (MCP TypeScript SDK)
@@ -41,6 +45,7 @@ Bissbilanz is a food tracking application that allows users to:
 - **Food Data:** Open Food Facts API
 
 ### Development
+
 - **Type Checking:** TypeScript 5.x
 - **Package Manager:** Bun
 - **Code Quality:** svelte-check
@@ -126,6 +131,7 @@ bissbilanz/
 ## Database Schema
 
 ### Core Tables
+
 - **users** - User accounts (from Infomaniak OIDC)
 - **sessions** - Authentication sessions
 - **foods** - User-created food database (with optional barcode)
@@ -210,6 +216,7 @@ MCP_ENDPOINT_ENABLED=false
 The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 
 ### Available Tools
+
 - `get-daily-status` - Get current day's nutrition state
 - `create-food` - Create new food in user's database
 - `create-recipe` - Create recipe with ingredients
@@ -239,29 +246,35 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 ## Code Conventions
 
 ### General
+
 - **Always use `bun` and `bunx`** instead of `npm` and `npx`
 
 ### TypeScript
+
 - Use strict type checking
 - Prefer `type` over `interface` for object shapes
 - Use Zod for runtime validation (API inputs, MCP tool schemas)
 
 ### Svelte
+
 - Use Svelte 5 runes (`$state`, `$derived`, `$effect`)
 - Component files: PascalCase.svelte
 - Prefer composition over complex components
 
 ### Database
+
 - Use Drizzle ORM exclusively (no raw SQL unless necessary)
 - Run `bun run db:generate` after schema changes (NEVER `db:push`)
 - Use migrations in production
 
 #### Migration Safety (CRITICAL)
+
 - **NEVER use `db:push`.** It applies changes without updating the Drizzle migrations journal. Since `hooks.server.ts` runs `runMigrations()` on every server start, and production deployments rely on migrations, `db:push` will cause failures.
 - **Only workflow:** Edit schema → `bun run db:generate` → verify generated SQL → let `runMigrations()` apply on dev server start (or `bun run db:migrate` manually).
 - **Always verify** the dev server starts cleanly (`bun run dev`) after any schema change — migration errors surface as 500s on every page.
 
 ### API Routes
+
 - Validate inputs with Zod schemas
 - Validation schemas are in `src/lib/server/validation/` (one file per domain)
 - Return consistent error format: `{ error: string }`
@@ -269,6 +282,7 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
 
 ### Styling
+
 - Use Tailwind utility classes
 - Use shadcn-svelte components for UI primitives — prefer them over raw HTML elements unless no suitable component exists
 - Always use Lucide icons (`@lucide/svelte`) for icons — never use plain text characters, emoji, or other icon libraries
@@ -277,6 +291,7 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 - Follow color coding: Calories=Blue, Protein=Red, Carbs=Orange, Fat=Yellow, Fiber=Green
 
 ### i18n
+
 - Use Paraglide: `import * as m from '$lib/paraglide/messages'`
 - Supported locales: en (English), de (German) only
 - Paraglide output (`src/lib/paraglide/`) is gitignored — generated at build time by Vite plugin
@@ -288,11 +303,13 @@ The app exposes an MCP endpoint at `/api/mcp` for AI-assisted logging.
 - **IMPORTANT:** NEVER include "Co-Authored-By" in commit messages
 
 ### Commit Messages
+
 - Use conventional commit format: `type: description`
 - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - Keep messages concise and descriptive
 
 Examples:
+
 ```
 feat: add food database CRUD endpoints
 fix: correct macro calculation for recipes
@@ -300,6 +317,7 @@ refactor: extract macro calculation to utility function
 ```
 
 ### Branching
+
 - `main` - production-ready code
 - Feature branches: `feature/food-logging`, `feature/barcode-scanning`
 - Use git worktrees for isolated development
@@ -307,11 +325,13 @@ refactor: extract macro calculation to utility function
 ## Testing
 
 ### Test Layers
+
 - **Layer 1 (server/):** DB operations with `createMockDB()` — direct database tests
 - **Layer 2 (api/):** Route handlers with `createMockRequestEvent()` — HTTP request/response tests
 - **Layer 3/4:** Integration and E2E tests (planned)
 
 ### Key Patterns
+
 - Use `createMockDB()` from `tests/helpers/mock-db.ts` for Drizzle mocking
 - Use `createMockRequestEvent()` from `tests/helpers/mock-request-event.ts` for SvelteKit route testing
 - Import modules AFTER setting up mocks with `mock.module()`
@@ -319,26 +339,31 @@ refactor: extract macro calculation to utility function
 - Use fixtures from `tests/helpers/fixtures.ts` for consistent test data
 
 ### Known Issues
+
 - Bun test runner shows "Unhandled error between tests" for session-db and oauth-db tests
   - These are cleanup artifacts, not functional failures
   - All tests pass when run individually: `bun test tests/server/session-db.test.ts`
   - Caused by module mock persistence across test files
 
 ### UUID Format Requirements
+
 - All test UUIDs must be valid v4 format: `10000000-0000-4000-8000-XXXXXXXXXXXX`
 - Invalid UUIDs will cause database constraint violations
 
 ### Schema Field Naming Conventions
+
 - **Goals:** `calorieGoal`, `proteinGoal`, `carbGoal`, `fatGoal`, `fiberGoal`
 - **Entries:** `servings` (not `amount`)
 - **Recipes:** `totalServings` (not `servings`), `quantity` (not `amount`)
 
 ### Multi-Table Operations
+
 - Recipes with ingredients require sequential `setResult()` calls in mock
 - Test both insert and retrieval with proper joins
 - Validate that recipe operations handle ingredient replacement correctly
 
 ### API Route Testing Checklist
+
 - Test successful operations (200/201 responses)
 - Test missing authentication (401 responses)
 - Test invalid input validation (400 responses)

@@ -56,9 +56,7 @@ const schema = await import('$lib/server/schema');
 // Mock db (re-export entire schema module)
 mock.module('$lib/server/db', () => ({
 	getDB: () => db,
-	...Object.fromEntries(
-		Object.entries(schema).map(([key, value]) => [key, value])
-	)
+	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
 // Import after mocking
@@ -377,7 +375,12 @@ describe('oauth-db', () => {
 		});
 
 		test('returns existing authorization if already exists', async () => {
-			const existing = { userId: TEST_USER.id, clientId: 'test-client', id: 'auth-123', approvedAt: new Date() };
+			const existing = {
+				userId: TEST_USER.id,
+				clientId: 'test-client',
+				id: 'auth-123',
+				approvedAt: new Date()
+			};
 			setResult(existing);
 
 			const result = await createAuthorization(TEST_USER.id, 'test-client');

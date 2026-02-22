@@ -16,9 +16,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	try {
 		const { client, secret } = await getOrCreateOAuthClient(userId);
 
-		const serverUrl = config.app.url
-			? `${config.app.url}/api/mcp`
-			: `${url.origin}/api/mcp`;
+		const serverUrl = config.app.url ? `${config.app.url}/api/mcp` : `${url.origin}/api/mcp`;
 
 		return {
 			clientId: client.clientId,
@@ -49,9 +47,7 @@ export const actions = {
 		try {
 			const { client, secret } = await regenerateClientSecret(userId);
 
-			const serverUrl = config.app.url
-				? `${config.app.url}/api/mcp`
-				: `${url.origin}/api/mcp`;
+			const serverUrl = config.app.url ? `${config.app.url}/api/mcp` : `${url.origin}/api/mcp`;
 
 			return {
 				success: true,
@@ -88,9 +84,7 @@ export const actions = {
 			const isHttps = url.protocol === 'https:';
 			const isLocalhost =
 				url.protocol === 'http:' &&
-				(url.hostname === 'localhost' ||
-					url.hostname === '127.0.0.1' ||
-					url.hostname === '[::1]');
+				(url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]');
 
 			if (!isHttps && !isLocalhost) {
 				return fail(400, { error: 'Redirect URI must be HTTPS or localhost' });

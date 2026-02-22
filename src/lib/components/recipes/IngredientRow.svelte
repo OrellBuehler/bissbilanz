@@ -57,7 +57,11 @@
 		min="0.1"
 		step="0.1"
 	/>
-	<Select.Root type="single" value={ingredient.servingUnit} onValueChange={(v) => (ingredient.servingUnit = v)}>
+	<Select.Root
+		type="single"
+		value={ingredient.servingUnit}
+		onValueChange={(v) => (ingredient.servingUnit = v)}
+	>
 		<Select.Trigger class="w-24">
 			{unitLabels[ingredient.servingUnit]?.() ?? ingredient.servingUnit}
 		</Select.Trigger>

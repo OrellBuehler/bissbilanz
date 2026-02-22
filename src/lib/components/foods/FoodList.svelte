@@ -67,9 +67,16 @@
 				onclick={() => onEdit(food.id)}
 			>
 				<!-- Calorie badge -->
-				<div class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950">
-					<span class="text-lg font-bold leading-tight text-blue-600 dark:text-blue-400">{food.calories}</span>
-					<span class="text-[10px] font-medium uppercase tracking-wider text-blue-500/70 dark:text-blue-400/70">{m.foods_kcal()}</span>
+				<div
+					class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950"
+				>
+					<span class="text-lg font-bold leading-tight text-blue-600 dark:text-blue-400"
+						>{food.calories}</span
+					>
+					<span
+						class="text-[10px] font-medium uppercase tracking-wider text-blue-500/70 dark:text-blue-400/70"
+						>{m.foods_kcal()}</span
+					>
 				</div>
 
 				<!-- Name, brand, macro bars -->
@@ -109,14 +116,16 @@
 
 				<!-- Actions dropdown -->
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<div
-					role="presentation"
-					onclick={(e) => e.stopPropagation()}
-				>
+				<div role="presentation" onclick={(e) => e.stopPropagation()}>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
-								<Button {...props} variant="ghost" size="icon" class="size-8 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100">
+								<Button
+									{...props}
+									variant="ghost"
+									size="icon"
+									class="size-8 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+								>
 									<MoreVertical class="size-4" />
 								</Button>
 							{/snippet}

@@ -31,6 +31,7 @@ PostgreSQL (via Drizzle ORM)
 **Cross-layer utilities** live in `src/lib/utils/` (client-safe) and `src/lib/server/validation/` (Zod schemas). They are consumed by any layer but hold no state themselves.
 
 **Key invariants already in the codebase:**
+
 - Every database table carries a `userId` column. All queries filter by `eq(table.userId, userId)`.
 - Business logic functions return `Result<T> = { success: true; data: T } | { success: false; error: ZodError | Error }`.
 - HTTP handlers always call `requireAuth(locals)` first, then delegate to business logic, then call `handleApiError(error)` in the catch block.
@@ -45,19 +46,23 @@ PostgreSQL (via Drizzle ORM)
 The supplement system is the most complete of the three features. All four layers already exist:
 
 **Data Access Layer — fully implemented:**
+
 - `supplements` table in `src/lib/server/schema.ts` (id, userId, name, dosage, dosageUnit, scheduleType, scheduleDays, scheduleStartDate, isActive, sortOrder)
 - `supplement_logs` table (id, supplementId, userId, date, takenAt) with unique constraint on `(supplementId, date)`
 - `scheduleTypeEnum` PostgreSQL enum (`daily`, `every_other_day`, `weekly`, `specific_days`)
 - Type exports: `Supplement`, `NewSupplement`, `SupplementLog`, `NewSupplementLog`
 
 **Business Logic Layer — fully implemented:**
+
 - `src/lib/server/supplements.ts`: `listSupplements`, `getSupplementById`, `createSupplement`, `updateSupplement`, `deleteSupplement`, `logSupplement`, `unlogSupplement`, `getLogsForDate`, `getLogsForRange`
 - All functions return `Result<T>` and scope by `userId`
 
 **Validation Layer — fully implemented:**
+
 - `src/lib/server/validation/supplements.ts`: `supplementCreateSchema`, `supplementUpdateSchema`, `supplementLogSchema`
 
 **HTTP Handler Layer — fully implemented:**
+
 - `GET/POST /api/supplements` — list and create
 - `GET/PUT/DELETE /api/supplements/[id]` — read, update, delete individual
 - `GET /api/supplements/today` — today's checklist with taken status
@@ -66,6 +71,7 @@ The supplement system is the most complete of the three features. All four layer
 - `GET /api/supplements/history` — date-range adherence history
 
 **Presentation Layer — fully implemented:**
+
 - `src/routes/app/supplements/+page.svelte` — management page (list, add, edit, delete, toggle active)
 - `src/routes/app/supplements/history/+page.svelte` — date-range history view
 - `src/lib/components/supplements/SupplementChecklist.svelte` — dashboard card component
@@ -73,10 +79,12 @@ The supplement system is the most complete of the three features. All four layer
 - Dashboard (`src/routes/app/+page.svelte`) already loads and renders the checklist
 
 **Utility Layer — fully implemented:**
+
 - `src/lib/utils/supplements.ts`: `isSupplementDue(scheduleType, scheduleDays, scheduleStartDate, date)`, `formatSchedule()`
 - `src/lib/supplement-units.ts`: `scheduleTypeValues`, `dosageUnitValues`
 
 **MCP Layer — fully implemented:**
+
 - `get-supplement-status` and `log-supplement` tools in `src/lib/server/mcp/tools.ts` and `src/lib/server/mcp/handlers.ts`
 - Navigation item already added in `src/lib/config/navigation.ts`
 
@@ -85,6 +93,7 @@ The supplement system is the most complete of the three features. All four layer
 Based on `docs/plans/2026-02-17-supplement-tracking-design.md` and PROJECT.md active items, the supplement checklist widget needs to be hideable via user preferences. This depends on the `userPreferences` table added by the favorites feature. The checklist widget already renders conditionally (`{#if supplementChecklist.length > 0}`) but the "hide widget" toggle ties into the preferences system.
 
 **Component boundary for remaining work:**
+
 - `SupplementChecklist.svelte` → reads `showSupplementsOnDashboard` from user preferences (from `/api/preferences`)
 - Dashboard page → conditionally renders widget based on loaded preference
 
@@ -101,20 +110,22 @@ A single `weightLogs` table is sufficient:
 ```typescript
 // src/lib/server/schema.ts — add after supplementLogs
 export const weightLogs = pgTable(
-  'weight_logs',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    weight: real('weight').notNull(),          // in kg (store metric, display in user's unit)
-    unit: text('unit').notNull().default('kg'), // 'kg' | 'lbs'
-    loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),
-    notes: text('notes'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
-  },
-  (table) => [
-    index('idx_weight_logs_user_id').on(table.userId),
-    index('idx_weight_logs_user_logged_at').on(table.userId, table.loggedAt)
-  ]
+	'weight_logs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		weight: real('weight').notNull(), // in kg (store metric, display in user's unit)
+		unit: text('unit').notNull().default('kg'), // 'kg' | 'lbs'
+		loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),
+		notes: text('notes'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_weight_logs_user_id').on(table.userId),
+		index('idx_weight_logs_user_logged_at').on(table.userId, table.loggedAt)
+	]
 );
 ```
 
@@ -125,6 +136,7 @@ Per `PROJECT.md`: "Weight logging stores timestamp (not just date)" because "log
 File: `src/lib/server/weight.ts`
 
 Functions following the existing pattern:
+
 - `listWeightLogs(userId, options?: { from?, to?, limit? })` → returns array (no Result needed, read-only)
 - `createWeightLog(userId, payload)` → `Result<WeightLog>` (validates via Zod)
 - `deleteWeightLog(userId, id)` → void (scoped delete)
@@ -136,10 +148,10 @@ File: `src/lib/server/validation/weight.ts`
 
 ```typescript
 export const weightCreateSchema = z.object({
-  weight: z.coerce.number().positive(),
-  unit: z.enum(['kg', 'lbs']).default('kg'),
-  loggedAt: z.string().datetime().optional(), // defaults to now() server-side
-  notes: z.string().optional().nullable()
+	weight: z.coerce.number().positive(),
+	unit: z.enum(['kg', 'lbs']).default('kg'),
+	loggedAt: z.string().datetime().optional(), // defaults to now() server-side
+	notes: z.string().optional().nullable()
 });
 ```
 
@@ -170,6 +182,7 @@ Dashboard page loads latest weight from `/api/weight/latest`. Widget is hidden i
 ### Navigation
 
 Add weight entry to `src/lib/config/navigation.ts`:
+
 ```typescript
 { title: () => m.nav_weight(), href: '/app/weight', icon: Scale }
 ```
@@ -187,22 +200,27 @@ The `foods` table already has `isFavorite boolean` and `imageUrl text` columns. 
 Two changes to `src/lib/server/schema.ts`:
 
 **1. Extend `recipes` table** — add `isFavorite` and `imageUrl` (mirrors existing `foods` columns):
+
 ```typescript
 isFavorite: boolean('is_favorite').notNull().default(false),
 imageUrl: text('image_url')
 ```
 
 **2. New `userPreferences` table:**
+
 ```typescript
 export const userPreferences = pgTable('user_preferences', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
-  showFavoritesOnDashboard: boolean('show_favorites_on_dashboard').notNull().default(true),
-  showSupplementsOnDashboard: boolean('show_supplements_on_dashboard').notNull().default(true),
-  showWeightOnDashboard: boolean('show_weight_on_dashboard').notNull().default(true),
-  favoriteTapAction: text('favorite_tap_action').notNull().default('instant'), // 'instant' | 'choose_servings'
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' })
+		.unique(),
+	showFavoritesOnDashboard: boolean('show_favorites_on_dashboard').notNull().default(true),
+	showSupplementsOnDashboard: boolean('show_supplements_on_dashboard').notNull().default(true),
+	showWeightOnDashboard: boolean('show_weight_on_dashboard').notNull().default(true),
+	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'), // 'instant' | 'choose_servings'
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 ```
 
@@ -211,26 +229,30 @@ Note: `userPreferences` is a cross-feature dependency. The supplement widget and
 ### Required Business Logic Layer
 
 **`src/lib/server/preferences.ts`:**
+
 - `getPreferences(userId)` → `UserPreferences | null`
 - `upsertPreferences(userId, payload)` → `Result<UserPreferences>` using `onConflictDoUpdate` on `userId` (same pattern as `goals.ts`)
 
 **`src/lib/server/favorites.ts`:**
+
 - `listFavorites(userId)` → combined array of favorite foods + recipes with entry log counts (requires a LEFT JOIN to `foodEntries` grouping by `foodId` or `recipeId` for count)
 - `setFoodFavorite(userId, foodId, isFavorite)` → updates `foods.isFavorite` via `updateFood`
 - `setRecipeFavorite(userId, recipeId, isFavorite)` → updates `recipes.isFavorite`
 
 **`src/lib/server/uploads.ts`:**
+
 - `saveUploadedImage(buffer, filename)` → resizes to 400px WebP using `sharp`, saves to `static/uploads/`, returns URL path
 
 ### Required Validation Layer
 
 **`src/lib/server/validation/preferences.ts`:**
+
 ```typescript
 export const preferencesUpdateSchema = z.object({
-  showFavoritesOnDashboard: z.boolean().optional(),
-  showSupplementsOnDashboard: z.boolean().optional(),
-  showWeightOnDashboard: z.boolean().optional(),
-  favoriteTapAction: z.enum(['instant', 'choose_servings']).optional()
+	showFavoritesOnDashboard: z.boolean().optional(),
+	showSupplementsOnDashboard: z.boolean().optional(),
+	showWeightOnDashboard: z.boolean().optional(),
+	favoriteTapAction: z.enum(['instant', 'choose_servings']).optional()
 });
 ```
 
@@ -297,15 +319,15 @@ WeightForm.svelte (new)
 
 ### Who Owns What
 
-| Layer | Supplement | Weight | Favorites |
-|-------|-----------|--------|-----------|
-| Schema | Done | New table needed | Extend recipes + new userPreferences |
-| Validation | Done | New file needed | New files needed |
-| Business Logic | Done | New file needed | New files needed |
-| API Routes | Done | 4 new routes | 3 new routes |
-| Page Components | Done | 1 new page | 1 new page |
-| Widget Components | Done (in dashboard) | New component | New components |
-| Utilities | Done | New unit conversion | Existing isFavorite filter is sufficient |
+| Layer             | Supplement          | Weight              | Favorites                                |
+| ----------------- | ------------------- | ------------------- | ---------------------------------------- |
+| Schema            | Done                | New table needed    | Extend recipes + new userPreferences     |
+| Validation        | Done                | New file needed     | New files needed                         |
+| Business Logic    | Done                | New file needed     | New files needed                         |
+| API Routes        | Done                | 4 new routes        | 3 new routes                             |
+| Page Components   | Done                | 1 new page          | 1 new page                               |
+| Widget Components | Done (in dashboard) | New component       | New components                           |
+| Utilities         | Done                | New unit conversion | Existing isFavorite filter is sufficient |
 
 ---
 
@@ -461,57 +483,57 @@ Each widget is a "dumb" component: it receives data as props and fires callbacks
 
 ### Supplement — Already Exists
 
-| File | Layer | Status |
-|------|-------|--------|
-| `src/lib/server/schema.ts` | Data | Done — supplements + supplementLogs tables |
-| `src/lib/supplement-units.ts` | Util | Done |
-| `src/lib/server/validation/supplements.ts` | Validation | Done |
-| `src/lib/server/supplements.ts` | Business Logic | Done |
-| `src/routes/api/supplements/**` | HTTP | Done — 6 routes |
-| `src/lib/utils/supplements.ts` | Client Util | Done |
-| `src/lib/components/supplements/SupplementChecklist.svelte` | Component | Done |
-| `src/lib/components/supplements/SupplementForm.svelte` | Component | Done |
-| `src/routes/app/supplements/+page.svelte` | Page | Done |
-| `src/routes/app/supplements/history/+page.svelte` | Page | Done |
-| `src/lib/server/mcp/handlers.ts` | MCP | Done — get-supplement-status, log-supplement |
+| File                                                        | Layer          | Status                                       |
+| ----------------------------------------------------------- | -------------- | -------------------------------------------- |
+| `src/lib/server/schema.ts`                                  | Data           | Done — supplements + supplementLogs tables   |
+| `src/lib/supplement-units.ts`                               | Util           | Done                                         |
+| `src/lib/server/validation/supplements.ts`                  | Validation     | Done                                         |
+| `src/lib/server/supplements.ts`                             | Business Logic | Done                                         |
+| `src/routes/api/supplements/**`                             | HTTP           | Done — 6 routes                              |
+| `src/lib/utils/supplements.ts`                              | Client Util    | Done                                         |
+| `src/lib/components/supplements/SupplementChecklist.svelte` | Component      | Done                                         |
+| `src/lib/components/supplements/SupplementForm.svelte`      | Component      | Done                                         |
+| `src/routes/app/supplements/+page.svelte`                   | Page           | Done                                         |
+| `src/routes/app/supplements/history/+page.svelte`           | Page           | Done                                         |
+| `src/lib/server/mcp/handlers.ts`                            | MCP            | Done — get-supplement-status, log-supplement |
 
 ### Weight — New Files Needed
 
-| File | Layer | Status |
-|------|-------|--------|
-| `src/lib/server/schema.ts` | Data | Extend — add weightLogs table |
-| `src/lib/server/validation/weight.ts` | Validation | New |
-| `src/lib/server/weight.ts` | Business Logic | New |
-| `src/routes/api/weight/+server.ts` | HTTP | New |
-| `src/routes/api/weight/latest/+server.ts` | HTTP | New |
-| `src/routes/api/weight/[id]/+server.ts` | HTTP | New |
-| `src/lib/utils/weight.ts` | Client Util | New |
-| `src/lib/components/weight/WeightWidget.svelte` | Component | New |
-| `src/lib/components/weight/WeightChart.svelte` | Component | New |
-| `src/lib/components/weight/WeightForm.svelte` | Component | New |
-| `src/routes/app/weight/+page.svelte` | Page | New |
+| File                                            | Layer          | Status                        |
+| ----------------------------------------------- | -------------- | ----------------------------- |
+| `src/lib/server/schema.ts`                      | Data           | Extend — add weightLogs table |
+| `src/lib/server/validation/weight.ts`           | Validation     | New                           |
+| `src/lib/server/weight.ts`                      | Business Logic | New                           |
+| `src/routes/api/weight/+server.ts`              | HTTP           | New                           |
+| `src/routes/api/weight/latest/+server.ts`       | HTTP           | New                           |
+| `src/routes/api/weight/[id]/+server.ts`         | HTTP           | New                           |
+| `src/lib/utils/weight.ts`                       | Client Util    | New                           |
+| `src/lib/components/weight/WeightWidget.svelte` | Component      | New                           |
+| `src/lib/components/weight/WeightChart.svelte`  | Component      | New                           |
+| `src/lib/components/weight/WeightForm.svelte`   | Component      | New                           |
+| `src/routes/app/weight/+page.svelte`            | Page           | New                           |
 
 ### Favorites — New and Modified Files
 
-| File | Layer | Status |
-|------|-------|--------|
-| `src/lib/server/schema.ts` | Data | Extend — recipes + userPreferences |
-| `src/lib/server/validation/preferences.ts` | Validation | New |
-| `src/lib/server/preferences.ts` | Business Logic | New |
-| `src/lib/server/favorites.ts` | Business Logic | New |
-| `src/lib/server/uploads.ts` | Business Logic | New |
-| `src/routes/api/preferences/+server.ts` | HTTP | New |
-| `src/routes/api/favorites/+server.ts` | HTTP | New |
-| `src/routes/api/uploads/+server.ts` | HTTP | New |
-| `src/lib/components/favorites/FavoriteCard.svelte` | Component | New |
-| `src/lib/components/favorites/FavoritesWidget.svelte` | Component | New |
-| `src/lib/components/favorites/ServingsPicker.svelte` | Component | New |
-| `src/routes/app/favorites/+page.svelte` | Page | New |
-| `src/lib/config/navigation.ts` | Config | Extend |
-| `src/lib/components/entries/AddFoodModal.svelte` | Component | Modify |
-| `src/routes/app/settings/+page.svelte` | Page | Modify |
-| `src/routes/app/+page.svelte` | Page | Modify (add 3 widgets) |
+| File                                                  | Layer          | Status                             |
+| ----------------------------------------------------- | -------------- | ---------------------------------- |
+| `src/lib/server/schema.ts`                            | Data           | Extend — recipes + userPreferences |
+| `src/lib/server/validation/preferences.ts`            | Validation     | New                                |
+| `src/lib/server/preferences.ts`                       | Business Logic | New                                |
+| `src/lib/server/favorites.ts`                         | Business Logic | New                                |
+| `src/lib/server/uploads.ts`                           | Business Logic | New                                |
+| `src/routes/api/preferences/+server.ts`               | HTTP           | New                                |
+| `src/routes/api/favorites/+server.ts`                 | HTTP           | New                                |
+| `src/routes/api/uploads/+server.ts`                   | HTTP           | New                                |
+| `src/lib/components/favorites/FavoriteCard.svelte`    | Component      | New                                |
+| `src/lib/components/favorites/FavoritesWidget.svelte` | Component      | New                                |
+| `src/lib/components/favorites/ServingsPicker.svelte`  | Component      | New                                |
+| `src/routes/app/favorites/+page.svelte`               | Page           | New                                |
+| `src/lib/config/navigation.ts`                        | Config         | Extend                             |
+| `src/lib/components/entries/AddFoodModal.svelte`      | Component      | Modify                             |
+| `src/routes/app/settings/+page.svelte`                | Page           | Modify                             |
+| `src/routes/app/+page.svelte`                         | Page           | Modify (add 3 widgets)             |
 
 ---
 
-*Research completed: 2026-02-17*
+_Research completed: 2026-02-17_

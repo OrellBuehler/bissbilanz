@@ -17,7 +17,13 @@
 		scanModalOpen?: boolean;
 	};
 
-	let { date, refreshKey = 0, onMutation, onTotalsChange, scanModalOpen = $bindable(false) }: Props = $props();
+	let {
+		date,
+		refreshKey = 0,
+		onMutation,
+		onTotalsChange,
+		scanModalOpen = $bindable(false)
+	}: Props = $props();
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
@@ -102,7 +108,9 @@
 	});
 
 	$effect(() => {
-		if (date) { loadData(); }
+		if (date) {
+			loadData();
+		}
 		refreshKey; // track refreshKey to re-run on increment
 	});
 </script>

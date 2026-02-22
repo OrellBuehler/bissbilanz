@@ -26,11 +26,11 @@ key-files:
     - messages/de.json
 
 key-decisions:
-  - "Checklist renders flat (no headers) when all items share same timeOfDay group for backward compatibility"
-  - "Adherence computed client-side by cross-referencing active supplements schedule with history logs"
+  - 'Checklist renders flat (no headers) when all items share same timeOfDay group for backward compatibility'
+  - 'Adherence computed client-side by cross-referencing active supplements schedule with history logs'
 
 patterns-established:
-  - "Schedule-aware adherence: use isSupplementDue per date to determine expected vs actual"
+  - 'Schedule-aware adherence: use isSupplementDue per date to determine expected vs actual'
 
 requirements-completed: [SUPP-01, SUPP-03]
 
@@ -51,6 +51,7 @@ completed: 2026-02-19
 - **Files modified:** 5
 
 ## Accomplishments
+
 - Grouped supplement checklist by time of day (morning/noon/evening/anytime) with section headers
 - Added adherence tracking to history page showing taken (green) and missed (red) supplements per day
 - Adherence fraction displayed per day card header
@@ -64,6 +65,7 @@ Each task was committed atomically:
 2. **Task 2: Enhance history page with adherence tracking** - `bcd8c38` (feat)
 
 ## Files Created/Modified
+
 - `src/lib/components/supplements/SupplementChecklist.svelte` - Grouped by timeOfDay with section headers
 - `src/routes/app/+page.svelte` - Updated ChecklistItem type to include timeOfDay
 - `src/routes/app/supplements/history/+page.svelte` - Adherence view with taken/missed per day
@@ -71,6 +73,7 @@ Each task was committed atomically:
 - `messages/de.json` - Added German translations for adherence keys
 
 ## Decisions Made
+
 - Checklist renders flat (no section headers) when all items share the same timeOfDay group, preserving current appearance for users who haven't set timeOfDay
 - Adherence computed client-side by fetching all supplements and cross-referencing with history logs using isSupplementDue
 
@@ -79,6 +82,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 3 - Blocking] Updated dashboard ChecklistItem type**
+
 - **Found during:** Task 1 (checklist grouping)
 - **Issue:** Dashboard's local ChecklistItem type was missing timeOfDay, causing type mismatch with updated component
 - **Fix:** Added `timeOfDay: string | null` to dashboard's ChecklistItem type
@@ -91,12 +95,15 @@ Each task was committed atomically:
 **Impact on plan:** Type alignment fix necessary for correctness. No scope creep.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Phase 4 (Supplement Polish) is now complete
 - All supplement UX enhancements delivered: timeOfDay, grouping, adherence tracking
 
@@ -105,5 +112,6 @@ None - no external service configuration required.
 All files verified present. Commits 5a0699e and bcd8c38 confirmed in git log.
 
 ---
-*Phase: 04-supplement-polish*
-*Completed: 2026-02-19*
+
+_Phase: 04-supplement-polish_
+_Completed: 2026-02-19_

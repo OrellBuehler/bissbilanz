@@ -208,7 +208,8 @@
 					<ul class="space-y-1 text-sm">
 						{#each recipe.ingredients as ingredient}
 							<li class="text-muted-foreground">
-								{ingredient.quantity} {ingredient.servingUnit}
+								{ingredient.quantity}
+								{ingredient.servingUnit}
 							</li>
 						{/each}
 					</ul>

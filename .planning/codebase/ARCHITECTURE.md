@@ -7,6 +7,7 @@
 **Overall:** Layered MVC with Svelte 5 reactive components on frontend, server modules with Drizzle ORM on backend, and API request handler layer in between.
 
 **Key Characteristics:**
+
 - Strict separation between client-side state (`$lib/stores/`) and server logic (`$lib/server/`)
 - Database operations isolated in module-level functions with Drizzle ORM
 - API routes as thin request/response handlers that delegate to server modules
@@ -17,6 +18,7 @@
 ## Layers
 
 **Presentation Layer (Frontend):**
+
 - Purpose: Render UI and manage client-side state for user interactions
 - Location: `src/routes/app/*` (pages), `src/lib/components/` (components), `src/lib/stores/` (state)
 - Contains: Svelte pages, component trees, reactive stores
@@ -24,6 +26,7 @@
 - Used by: Browser/SvelteKit router
 
 **HTTP Handler Layer:**
+
 - Purpose: Parse HTTP requests, invoke business logic, serialize responses
 - Location: `src/routes/api/*` (route handlers: `+server.ts`)
 - Contains: `GET`/`POST`/`PUT`/`DELETE` request handlers
@@ -31,6 +34,7 @@
 - Used by: Frontend fetch calls, external MCP clients
 
 **Business Logic Layer:**
+
 - Purpose: Implement domain operations (CRUD, queries, validations) independent of HTTP
 - Location: `src/lib/server/*.ts` (e.g., `foods.ts`, `entries.ts`, `recipes.ts`, `session.ts`)
 - Contains: Functions like `createFood()`, `listFoods()`, `getEntry()` with Result<T> return types
@@ -38,6 +42,7 @@
 - Used by: HTTP handlers, MCP tools, internal operations
 
 **Data Access Layer:**
+
 - Purpose: Query and persist data
 - Location: `src/lib/server/db.ts` (Drizzle instance), `src/lib/server/schema.ts` (table definitions)
 - Contains: Drizzle database operations (select, insert, update, delete), table schema
@@ -45,6 +50,7 @@
 - Used by: Business logic layer exclusively via `getDB()`
 
 **Cross-Layer Utilities:**
+
 - Purpose: Shared utility functions used across layers
 - Location: `src/lib/utils/` (client utilities), `src/lib/server/validation/` (validation schemas)
 - Contains: Macro calculations, date helpers, form builders, Zod validation schemas
@@ -92,24 +98,28 @@
 ## Key Abstractions
 
 **Result<T> Type:**
+
 - Purpose: Unified error handling for business logic that validates input (Zod) or database operations
 - Examples: `src/lib/server/foods.ts`, `src/lib/server/entries.ts`, `src/lib/server/recipes.ts`
 - Pattern: `{ success: true; data: T } | { success: false; error: ZodError | Error }`
 - Used in: Module functions to separate validation errors from runtime errors
 
 **ApiError Class:**
+
 - Purpose: Throw HTTP errors with status codes from business logic
 - Location: `src/lib/server/errors.ts`
 - Pattern: `throw new ApiError(400, 'Invalid input', { details })`
 - Used in: Business logic and handlers to control response status
 
 **Validation Schemas:**
+
 - Purpose: Single source of truth for input validation (request bodies, form inputs)
 - Location: `src/lib/server/validation/*.ts` (e.g., `foods.ts`, `entries.ts`)
 - Examples: `foodCreateSchema`, `entryCreateSchema`, `recipeCreateSchema`
 - Pattern: Zod `.safeParse()` returns Result that handlers convert to 400 responses
 
 **MCP Tools (Model Context Protocol):**
+
 - Purpose: Expose food logging operations to AI agents via standard protocol
 - Location: `src/lib/server/mcp/` (server.ts, tools.ts, handlers.ts)
 - Examples: `get-daily-status`, `create-food`, `log-food`, `search-foods`
@@ -118,26 +128,31 @@
 ## Entry Points
 
 **Web Application:**
+
 - Location: `src/routes/+page.svelte` (landing), `src/routes/app/+page.svelte` (dashboard)
 - Triggers: Browser navigation to `/` or `/app`
 - Responsibilities: Render login UI or authenticated dashboard, orchestrate page-level data fetching
 
 **API Endpoints:**
+
 - Location: `src/routes/api/*/+server.ts` (e.g., `/api/foods`, `/api/entries`)
 - Triggers: Fetch requests from frontend or external clients
 - Responsibilities: Validate requests, extract user context, call business logic, serialize responses
 
 **Authentication Callback:**
+
 - Location: `src/routes/api/auth/callback/+server.ts`
 - Triggers: OAuth provider redirect after user authorization
 - Responsibilities: Validate JWT, create session, set cookie, redirect to app
 
 **Server Initialization:**
+
 - Location: `src/hooks.server.ts` with `export async function init()`
 - Triggers: On Bun server startup
 - Responsibilities: Run database migrations via `runMigrations()`
 
 **MCP Endpoint:**
+
 - Location: `src/routes/api/mcp/+server.ts`
 - Triggers: POST requests from AI client tools
 - Responsibilities: Route MCP requests to handlers, validate session, return tool results
@@ -167,24 +182,25 @@
      - Returns generic 500 for unknown errors
 
 **Example Pattern** (from `src/routes/api/entries/+server.ts`):
+
 ```typescript
 export const POST: RequestHandler = async ({ locals, request }) => {
-  try {
-    const userId = requireAuth(locals);  // Throws if no auth
-    const body = await request.json();
+	try {
+		const userId = requireAuth(locals); // Throws if no auth
+		const body = await request.json();
 
-    const result = await createEntry(userId, body);  // Returns Result<T>
-    if (!result.success) {
-      if (isZodError(result.error)) {
-        return validationError(result.error);  // 400
-      }
-      throw result.error;  // Caught below
-    }
+		const result = await createEntry(userId, body); // Returns Result<T>
+		if (!result.success) {
+			if (isZodError(result.error)) {
+				return validationError(result.error); // 400
+			}
+			throw result.error; // Caught below
+		}
 
-    return json({ entry: result.data }, { status: 201 });
-  } catch (error) {
-    return handleApiError(error);  // Routes to 401/400/404/500
-  }
+		return json({ entry: result.data }, { status: 201 });
+	} catch (error) {
+		return handleApiError(error); // Routes to 401/400/404/500
+	}
 };
 ```
 
@@ -204,4 +220,4 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 ---
 
-*Architecture analysis: 2026-02-17*
+_Architecture analysis: 2026-02-17_

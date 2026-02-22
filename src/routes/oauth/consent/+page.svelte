@@ -29,8 +29,8 @@
 				<div class="space-y-4">
 					<div>
 						<p class="text-sm text-slate-600 mb-3">
-							<strong>{data.clientName ?? 'An application'}</strong> is requesting access to
-							your account with the following permissions:
+							<strong>{data.clientName ?? 'An application'}</strong> is requesting access to your account
+							with the following permissions:
 						</p>
 						<ul class="space-y-2">
 							{#each permissions as permission}
@@ -76,11 +76,7 @@
 					<input type="hidden" name="redirect_uri" value={data.redirectUri} />
 					<input type="hidden" name="state" value={data.state} />
 					<input type="hidden" name="code_challenge" value={data.codeChallenge} />
-					<input
-						type="hidden"
-						name="code_challenge_method"
-						value={data.codeChallengeMethod}
-					/>
+					<input type="hidden" name="code_challenge_method" value={data.codeChallengeMethod} />
 					<Button type="submit" class="w-full">Approve</Button>
 				</form>
 			</div>

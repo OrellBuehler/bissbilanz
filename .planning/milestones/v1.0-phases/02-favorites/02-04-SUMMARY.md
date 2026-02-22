@@ -15,7 +15,7 @@ affects: []
 tech-stack:
   added: []
   patterns:
-    - "Zod .refine() for mixed URL/path validation"
+    - 'Zod .refine() for mixed URL/path validation'
 
 key-files:
   created: []
@@ -24,10 +24,10 @@ key-files:
     - src/lib/components/entries/AddFoodModal.svelte
 
 key-decisions:
-  - "Used .refine() with regex for URL validation instead of .url() to support both relative paths and absolute URLs"
+  - 'Used .refine() with regex for URL validation instead of .url() to support both relative paths and absolute URLs'
 
 patterns-established:
-  - "imageUrl accepts /uploads/... (local) and https://... (external) formats"
+  - 'imageUrl accepts /uploads/... (local) and https://... (external) formats'
 
 requirements-completed: [FAV-01, FAV-02, FAV-03, FAV-04, FAV-05, FAV-06, FAV-07, FAV-08, FAV-09]
 
@@ -48,6 +48,7 @@ completed: 2026-02-20
 - **Files modified:** 2
 
 ## Accomplishments
+
 - imageUrl validator now accepts both `/uploads/...` relative paths and `https://...` absolute URLs
 - AddFoodModal favorites tab renders as ul/li list matching search, recent, and recipes tabs
 - Removed unused FavoriteCard and FavoritesGrid imports from AddFoodModal
@@ -60,10 +61,12 @@ Each task was committed atomically:
 2. **Task 2: Replace FavoritesGrid/FavoriteCard with ul/li list pattern in AddFoodModal** - `06799ec` (fix)
 
 ## Files Created/Modified
+
 - `src/lib/server/validation/foods.ts` - Replaced `.url()` with `.refine()` for imageUrl field
 - `src/lib/components/entries/AddFoodModal.svelte` - Replaced FavoritesGrid/FavoriteCard with ul/li list pattern
 
 ## Decisions Made
+
 - Used `.refine()` with regex `/^https?:\/\//` instead of `.url()` to support both relative paths (local uploads) and absolute URLs (Open Food Facts)
 
 ## Deviations from Plan
@@ -71,18 +74,22 @@ Each task was committed atomically:
 None - plan executed exactly as written.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Phase 02 (Favorites) is now complete with all gaps closed
 - Both UAT issues (test 8: imageUrl validation, test 11: modal consistency) are resolved
 
 ---
-*Phase: 02-favorites*
-*Completed: 2026-02-20*
+
+_Phase: 02-favorites_
+_Completed: 2026-02-20_
 
 ## Self-Check: PASSED
 

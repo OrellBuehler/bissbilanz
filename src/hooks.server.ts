@@ -89,9 +89,21 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Protect all routes except public ones
-	const PUBLIC_PATHS = ['/login', '/api/', '/authorize', '/token', '/oauth/', '/.well-known/', '/uploads/'];
-	const stripped = pathname.startsWith('/de/') ? pathname.slice(3) : pathname === '/de' ? '/' : pathname;
-	const isPublicRoute = PUBLIC_PATHS.some(p => stripped.startsWith(p));
+	const PUBLIC_PATHS = [
+		'/login',
+		'/api/',
+		'/authorize',
+		'/token',
+		'/oauth/',
+		'/.well-known/',
+		'/uploads/'
+	];
+	const stripped = pathname.startsWith('/de/')
+		? pathname.slice(3)
+		: pathname === '/de'
+			? '/'
+			: pathname;
+	const isPublicRoute = PUBLIC_PATHS.some((p) => stripped.startsWith(p));
 
 	if (!isPublicRoute && !event.locals.user) {
 		throw redirect(302, '/login');

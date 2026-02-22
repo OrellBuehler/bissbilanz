@@ -8,6 +8,7 @@
 **Git range:** feat(01-01) → feat(05-01)
 
 **Key accomplishments:**
+
 - Preferences infrastructure with widget visibility, widget order, locale persistence, and auto-save settings page
 - Favorites system with image cards ranked by usage, tap-to-log with undo, and dashboard widget
 - Weight tracking with CRUD APIs, trend chart (7-day moving average), history list, and dashboard widget
@@ -15,10 +16,10 @@
 - Dashboard preference wiring — dynamic widget ordering and configurable tap action
 
 **Tech debt carried forward:**
+
 - Breadcrumb: uncertain if "Dashboard" appears as explicit first crumb
 - Silent catch on image upload failure — no user-facing error
 - `supplements_history_missed` i18n key unused
 - `favoriteTapAction` has no settings UI toggle (API-only)
 
 ---
-

@@ -34,7 +34,11 @@
 		const payload = buildRecipePayload(state);
 		if (payload.name && payload.ingredients.length > 0) {
 			await onSave(payload);
-			state = { name: '', totalServings: 1, ingredients: [{ foodId: '', quantity: 1, servingUnit: 'g' }] };
+			state = {
+				name: '',
+				totalServings: 1,
+				ingredients: [{ foodId: '', quantity: 1, servingUnit: 'g' }]
+			};
 		}
 	};
 </script>
@@ -46,13 +50,7 @@
 	</div>
 	<div class="flex items-center gap-2">
 		<Label class="text-sm">{m.recipe_form_servings()}</Label>
-		<Input
-			class="w-20"
-			type="number"
-			min="1"
-			step="1"
-			bind:value={state.totalServings}
-		/>
+		<Input class="w-20" type="number" min="1" step="1" bind:value={state.totalServings} />
 	</div>
 	<div class="space-y-2">
 		<Label class="text-sm font-medium">{m.recipe_form_ingredients()}</Label>

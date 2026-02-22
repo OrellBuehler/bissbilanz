@@ -21,7 +21,16 @@
 
 	type Props = {
 		open?: boolean;
-		foods?: Array<{ id: string; name: string; isFavorite?: boolean; calories?: number; protein?: number; carbs?: number; fat?: number; imageUrl?: string | null }>;
+		foods?: Array<{
+			id: string;
+			name: string;
+			isFavorite?: boolean;
+			calories?: number;
+			protein?: number;
+			carbs?: number;
+			fat?: number;
+			imageUrl?: string | null;
+		}>;
 		recipes?: Array<{ id: string; name: string; isFavorite?: boolean }>;
 		mealType?: string;
 		onClose: () => void;
@@ -57,16 +66,18 @@
 		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
 
 	const favoriteFoods = $derived(
-		onlyFavorites(foods).map((f): FavoriteItem => ({
-			id: f.id,
-			name: f.name,
-			imageUrl: f.imageUrl ?? null,
-			calories: f.calories ?? 0,
-			protein: f.protein ?? 0,
-			carbs: f.carbs ?? 0,
-			fat: f.fat ?? 0,
-			type: 'food'
-		}))
+		onlyFavorites(foods).map(
+			(f): FavoriteItem => ({
+				id: f.id,
+				name: f.name,
+				imageUrl: f.imageUrl ?? null,
+				calories: f.calories ?? 0,
+				protein: f.protein ?? 0,
+				carbs: f.carbs ?? 0,
+				fat: f.fat ?? 0,
+				type: 'food'
+			})
+		)
 	);
 
 	const allFavorites = $derived([...favoriteFoods, ...favoriteRecipes]);
@@ -98,16 +109,18 @@
 			const res = await fetch('/api/favorites?type=recipes');
 			if (res.ok) {
 				const data = await res.json();
-				favoriteRecipes = (data.recipes ?? []).map((r: any): FavoriteItem => ({
-					id: r.id,
-					name: r.name,
-					imageUrl: r.imageUrl ?? null,
-					calories: r.calories ?? 0,
-					protein: r.protein ?? 0,
-					carbs: r.carbs ?? 0,
-					fat: r.fat ?? 0,
-					type: 'recipe'
-				}));
+				favoriteRecipes = (data.recipes ?? []).map(
+					(r: any): FavoriteItem => ({
+						id: r.id,
+						name: r.name,
+						imageUrl: r.imageUrl ?? null,
+						calories: r.calories ?? 0,
+						protein: r.protein ?? 0,
+						carbs: r.carbs ?? 0,
+						fat: r.fat ?? 0,
+						type: 'recipe'
+					})
+				);
 			}
 		} catch {
 			// silently ignore
@@ -143,10 +156,18 @@
 
 		<Tabs.Root value={tab} onValueChange={handleTabChange}>
 			<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
-				<Tabs.Trigger value="search" class="text-xs sm:text-sm">{m.add_food_tab_search()}</Tabs.Trigger>
-				<Tabs.Trigger value="favorites" class="text-xs sm:text-sm">{m.add_food_tab_favorites()}</Tabs.Trigger>
-				<Tabs.Trigger value="recent" class="text-xs sm:text-sm">{m.add_food_tab_recent()}</Tabs.Trigger>
-				<Tabs.Trigger value="recipes" class="text-xs sm:text-sm">{m.add_food_tab_recipes()}</Tabs.Trigger>
+				<Tabs.Trigger value="search" class="text-xs sm:text-sm"
+					>{m.add_food_tab_search()}</Tabs.Trigger
+				>
+				<Tabs.Trigger value="favorites" class="text-xs sm:text-sm"
+					>{m.add_food_tab_favorites()}</Tabs.Trigger
+				>
+				<Tabs.Trigger value="recent" class="text-xs sm:text-sm"
+					>{m.add_food_tab_recent()}</Tabs.Trigger
+				>
+				<Tabs.Trigger value="recipes" class="text-xs sm:text-sm"
+					>{m.add_food_tab_recipes()}</Tabs.Trigger
+				>
 			</Tabs.List>
 
 			<Tabs.Content value="search" class="space-y-4">
@@ -155,7 +176,13 @@
 					{#each filtered() as food}
 						<li class="flex min-w-0 items-start justify-between gap-2">
 							<span class="min-w-0 break-words text-sm">{food.name}</span>
-							<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddFood(food.id)}>
+							<Button
+								variant="outline"
+								size="sm"
+								class="shrink-0"
+								aria-label={m.add_food_add()}
+								onclick={() => handleAddFood(food.id)}
+							>
 								<Plus class="size-4 sm:mr-1" />
 								<span class="hidden sm:inline">{m.add_food_add()}</span>
 							</Button>
@@ -172,7 +199,13 @@
 						{#each allFavorites as item (item.id)}
 							<li class="flex min-w-0 items-start justify-between gap-2">
 								<span class="min-w-0 break-words text-sm">{item.name}</span>
-								<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleFavoriteTap(item)}>
+								<Button
+									variant="outline"
+									size="sm"
+									class="shrink-0"
+									aria-label={m.add_food_add()}
+									onclick={() => handleFavoriteTap(item)}
+								>
 									<Plus class="size-4 sm:mr-1" />
 									<span class="hidden sm:inline">{m.add_food_add()}</span>
 								</Button>
@@ -192,7 +225,13 @@
 						{#each recentFoods as food}
 							<li class="flex min-w-0 items-start justify-between gap-2">
 								<span class="min-w-0 break-words text-sm">{food.name}</span>
-								<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddFood(food.id)}>
+								<Button
+									variant="outline"
+									size="sm"
+									class="shrink-0"
+									aria-label={m.add_food_add()}
+									onclick={() => handleAddFood(food.id)}
+								>
 									<Plus class="size-4 sm:mr-1" />
 									<span class="hidden sm:inline">{m.add_food_add()}</span>
 								</Button>
@@ -210,7 +249,13 @@
 					{#each filteredRecipes() as recipe}
 						<li class="flex min-w-0 items-start justify-between gap-2">
 							<span class="min-w-0 break-words text-sm">{recipe.name}</span>
-							<Button variant="outline" size="sm" class="shrink-0" aria-label={m.add_food_add()} onclick={() => handleAddRecipe(recipe.id)}>
+							<Button
+								variant="outline"
+								size="sm"
+								class="shrink-0"
+								aria-label={m.add_food_add()}
+								onclick={() => handleAddRecipe(recipe.id)}
+							>
 								<Plus class="size-4 sm:mr-1" />
 								<span class="hidden sm:inline">{m.add_food_add()}</span>
 							</Button>

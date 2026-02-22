@@ -16,20 +16,20 @@ What libraries and tools are needed for supplement tracking, weight trend charts
 
 Already in `package.json` and confirmed installed:
 
-| Package | Version | Role |
-|---------|---------|------|
-| SvelteKit | 2.50.1 | Full-stack framework |
-| Svelte | 5.48.2 | Component model (runes) |
-| Drizzle ORM | 0.45.1 | Database ORM |
-| PostgreSQL | — | Database |
-| Tailwind CSS | 4.1.18 | Styling |
-| shadcn-svelte (bits-ui) | 2.15.5 | UI primitives |
-| layerchart | 2.0.0-next.43 | Charts — already installed |
-| svelte-sonner | 1.0.7 | Toast notifications — already installed |
-| Zod | 4.3.6 | Runtime validation |
-| Paraglide JS | 2.10.0 | i18n (en + de) |
-| lucide-svelte | 0.561.0 | Icons |
-| vaul-svelte | 1.0.0-next.7 | Drawer/bottom-sheet |
+| Package                 | Version       | Role                                    |
+| ----------------------- | ------------- | --------------------------------------- |
+| SvelteKit               | 2.50.1        | Full-stack framework                    |
+| Svelte                  | 5.48.2        | Component model (runes)                 |
+| Drizzle ORM             | 0.45.1        | Database ORM                            |
+| PostgreSQL              | —             | Database                                |
+| Tailwind CSS            | 4.1.18        | Styling                                 |
+| shadcn-svelte (bits-ui) | 2.15.5        | UI primitives                           |
+| layerchart              | 2.0.0-next.43 | Charts — already installed              |
+| svelte-sonner           | 1.0.7         | Toast notifications — already installed |
+| Zod                     | 4.3.6         | Runtime validation                      |
+| Paraglide JS            | 2.10.0        | i18n (en + de)                          |
+| lucide-svelte           | 0.561.0       | Icons                                   |
+| vaul-svelte             | 1.0.0-next.7  | Drawer/bottom-sheet                     |
 
 ---
 
@@ -54,6 +54,7 @@ Already in `package.json` and confirmed installed:
 Confidence: HIGH
 
 Rationale:
+
 - Already installed. Adding another chart library would add bundle weight and API inconsistency.
 - layerchart provides `Chart`, `Svg`, `Line`, `Area`, `Axis`, `Tooltip` components that compose directly to a weight trend line chart.
 - Uses D3 scales (`scaleTime`, `scaleLinear`) for x/y axes — already a transitive dependency of layerchart.
@@ -61,18 +62,19 @@ Rationale:
 
 ```svelte
 <Chart {data} x="date" xScale={scaleTime()} y="weight" yScale={scaleLinear()} yNice>
-  <Svg>
-    <Axis placement="bottom" />
-    <Axis placement="left" />
-    <Line stroke="steelblue" strokeWidth={2} curve={curveMonotoneX} />
-  </Svg>
-  <Tooltip.Root>...</Tooltip.Root>
+	<Svg>
+		<Axis placement="bottom" />
+		<Axis placement="left" />
+		<Line stroke="steelblue" strokeWidth={2} curve={curveMonotoneX} />
+	</Svg>
+	<Tooltip.Root>...</Tooltip.Root>
 </Chart>
 ```
 
 - `curveMonotoneX` from `d3-shape` gives smooth trend lines appropriate for body weight data.
 
 **D3 sub-packages needed (transitive, already bundled with layerchart):**
+
 - `d3-scale` (scaleTime, scaleLinear)
 - `d3-shape` (curveMonotoneX)
 - `d3-time` (date axis formatting)
@@ -80,6 +82,7 @@ Rationale:
 No additional D3 packages need to be explicitly installed; layerchart bundles them as peer dependencies.
 
 **NOT recommended:**
+
 - Chart.js / react-chartjs-2: React-specific, not Svelte-native
 - Recharts: React-only
 - ApexCharts: Framework-agnostic but heavier (100+ kB), no Svelte 5 runes integration
@@ -90,17 +93,23 @@ No additional D3 packages need to be explicitly installed; layerchart bundles th
 
 ```typescript
 // weightLogs table — new table needed
-export const weightLogs = pgTable('weight_logs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  weightKg: real('weight_kg').notNull(),
-  loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),  // full timestamp per user request
-  notes: text('notes'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
-}, (table) => [
-  index('idx_weight_logs_user_id').on(table.userId),
-  index('idx_weight_logs_user_logged_at').on(table.userId, table.loggedAt)
-]);
+export const weightLogs = pgTable(
+	'weight_logs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		weightKg: real('weight_kg').notNull(),
+		loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(), // full timestamp per user request
+		notes: text('notes'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_weight_logs_user_id').on(table.userId),
+		index('idx_weight_logs_user_logged_at').on(table.userId, table.loggedAt)
+	]
+);
 ```
 
 Note: The schema uses `loggedAt` (full timestamp) not just `date`, per the project decision that users log weight at any time and store time of logging.
@@ -110,6 +119,7 @@ Note: The schema uses `loggedAt` (full timestamp) not just `date`, per the proje
 ### Feature 3: Favorites with Image Cards
 
 **What's needed:**
+
 1. `isFavorite` flag on `foods` table — already in schema (confirmed: `isFavorite: boolean`)
 2. `isFavorite` + `imageUrl` fields on `recipes` table — NOT yet in schema (needs migration)
 3. `userPreferences` table — NOT yet in schema (needs migration)
@@ -131,18 +141,17 @@ Confidence: HIGH
 
 ```typescript
 import sharp from 'sharp';
-await sharp(buffer)
-  .resize(400, 400, { fit: 'cover' })
-  .webp({ quality: 80 })
-  .toFile(filepath);
+await sharp(buffer).resize(400, 400, { fit: 'cover' }).webp({ quality: 80 }).toFile(filepath);
 ```
 
 **NOT recommended:**
+
 - jimp: Pure JS, slower, worse quality for production use
 - Squoosh (CLI): Not a Node.js library, CLI tool only
 - Canvas API (node-canvas): Much more complex for this simple resize+convert use case
 
 **File storage decision: local filesystem (`static/uploads/`)**
+
 - Per project constraints: "Image storage: Local filesystem, not cloud storage"
 - Files served as static assets by SvelteKit/Bun
 - `.gitignore` must exclude `static/uploads/`
@@ -154,6 +163,7 @@ await sharp(buffer)
 Confidence: HIGH
 
 The `FavoriteCard` component needs:
+
 - Image display with fallback (standard `<img>` + `<div>` fallback)
 - Macro ratio bar (colored `<div>` elements with inline `style` width percentages)
 - Food/Recipe type badge (absolutely positioned `<span>`)
@@ -175,10 +185,12 @@ The favorites tap-to-log flow shows a toast with an "Undo" action button. `svelt
 import { toast } from 'svelte-sonner';
 
 toast.success('Logged to Breakfast', {
-  action: {
-    label: 'Undo',
-    onClick: async () => { await fetch(`/api/entries/${entry.id}`, { method: 'DELETE' }); }
-  }
+	action: {
+		label: 'Undo',
+		onClick: async () => {
+			await fetch(`/api/entries/${entry.id}`, { method: 'DELETE' });
+		}
+	}
 });
 ```
 
@@ -188,10 +200,10 @@ No additional toast library needed.
 
 ## Summary: New Libraries Required
 
-| Library | Version | Feature | Status | Confidence |
-|---------|---------|---------|--------|-----------|
-| sharp | ^0.34.5 | Recipe image resize to WebP on upload | NOT YET INSTALLED — needs `bun add sharp` | HIGH |
-| @types/sharp | ^0.33.x | TypeScript types for sharp | NOT YET INSTALLED — needs `bun add -d @types/sharp` | HIGH |
+| Library      | Version | Feature                               | Status                                              | Confidence |
+| ------------ | ------- | ------------------------------------- | --------------------------------------------------- | ---------- |
+| sharp        | ^0.34.5 | Recipe image resize to WebP on upload | NOT YET INSTALLED — needs `bun add sharp`           | HIGH       |
+| @types/sharp | ^0.33.x | TypeScript types for sharp            | NOT YET INSTALLED — needs `bun add -d @types/sharp` | HIGH       |
 
 **Everything else is already in the project.** No other new libraries are needed for any of the three features.
 
@@ -199,32 +211,32 @@ No additional toast library needed.
 
 ## Libraries Already Present That Cover Each Feature
 
-| Feature | Library | Already Installed |
-|---------|---------|------------------|
-| Supplement checklist UI | shadcn-svelte Checkbox, Switch, Dialog | Yes (bits-ui 2.15.5) |
-| Supplement schedule logic | Pure TypeScript utility (no library) | N/A |
-| Weight line chart | layerchart 2.0.0-next.43 | Yes |
-| Weight time axis | d3-scale, d3-time (via layerchart) | Yes (transitive) |
-| Weight smooth curve | d3-shape curveMonotoneX (via layerchart) | Yes (transitive) |
-| Favorites card UI | Tailwind CSS + shadcn-svelte | Yes |
-| Image display with fallback | Native HTML img element | N/A |
-| Tap-to-log toast with undo | svelte-sonner 1.0.7 | Yes |
-| Bottom sheet (servings picker) | vaul-svelte 1.0.0-next.7 | Yes |
-| Macro ratio bar | Pure Tailwind flex divs | N/A |
+| Feature                        | Library                                  | Already Installed    |
+| ------------------------------ | ---------------------------------------- | -------------------- |
+| Supplement checklist UI        | shadcn-svelte Checkbox, Switch, Dialog   | Yes (bits-ui 2.15.5) |
+| Supplement schedule logic      | Pure TypeScript utility (no library)     | N/A                  |
+| Weight line chart              | layerchart 2.0.0-next.43                 | Yes                  |
+| Weight time axis               | d3-scale, d3-time (via layerchart)       | Yes (transitive)     |
+| Weight smooth curve            | d3-shape curveMonotoneX (via layerchart) | Yes (transitive)     |
+| Favorites card UI              | Tailwind CSS + shadcn-svelte             | Yes                  |
+| Image display with fallback    | Native HTML img element                  | N/A                  |
+| Tap-to-log toast with undo     | svelte-sonner 1.0.7                      | Yes                  |
+| Bottom sheet (servings picker) | vaul-svelte 1.0.0-next.7                 | Yes                  |
+| Macro ratio bar                | Pure Tailwind flex divs                  | N/A                  |
 
 ---
 
 ## What NOT to Add
 
-| Library | Reason Not to Add |
-|---------|------------------|
-| Chart.js | React ecosystem, no Svelte 5 integration |
-| ApexCharts | 100+ kB extra bundle; layerchart already present |
-| Recharts | React-only |
-| Additional icon set | lucide-svelte already covers Pill, Heart, Scale, Weight icons |
-| Cloud storage SDK (S3, Cloudinary) | Project constraint: local filesystem storage only |
-| A second image processing library | sharp is the standard; one library is enough |
-| svelte-dnd-action | Drag-and-drop reordering of supplements not in scope for v1 |
+| Library                            | Reason Not to Add                                             |
+| ---------------------------------- | ------------------------------------------------------------- |
+| Chart.js                           | React ecosystem, no Svelte 5 integration                      |
+| ApexCharts                         | 100+ kB extra bundle; layerchart already present              |
+| Recharts                           | React-only                                                    |
+| Additional icon set                | lucide-svelte already covers Pill, Heart, Scale, Weight icons |
+| Cloud storage SDK (S3, Cloudinary) | Project constraint: local filesystem storage only             |
+| A second image processing library  | sharp is the standard; one library is enough                  |
+| svelte-dnd-action                  | Drag-and-drop reordering of supplements not in scope for v1   |
 
 ---
 
@@ -252,13 +264,13 @@ bun add -d @types/sharp
 
 ## Version Verification
 
-| Package | Version Researched | Source | Date |
-|---------|-------------------|--------|------|
-| sharp | 0.34.5 | npm registry via WebSearch | 2026-02-17 |
-| layerchart | 2.0.0-next.43 | node_modules/layerchart/package.json | 2026-02-17 |
-| svelte-sonner | 1.0.7 | package.json | 2026-02-17 |
-| d3-scale, d3-shape, d3-time | transitive via layerchart | layerchart package.json deps | 2026-02-17 |
+| Package                     | Version Researched        | Source                               | Date       |
+| --------------------------- | ------------------------- | ------------------------------------ | ---------- |
+| sharp                       | 0.34.5                    | npm registry via WebSearch           | 2026-02-17 |
+| layerchart                  | 2.0.0-next.43             | node_modules/layerchart/package.json | 2026-02-17 |
+| svelte-sonner               | 1.0.7                     | package.json                         | 2026-02-17 |
+| d3-scale, d3-shape, d3-time | transitive via layerchart | layerchart package.json deps         | 2026-02-17 |
 
 ---
 
-*Research completed: 2026-02-17*
+_Research completed: 2026-02-17_

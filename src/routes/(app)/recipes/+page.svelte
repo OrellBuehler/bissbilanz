@@ -64,7 +64,12 @@
 	<!-- Header -->
 	<div class="flex flex-wrap items-start justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.recipes_title()}</h1>
-		<Button size="sm" class="shrink-0" aria-label={m.recipes_new()} onclick={() => (showNewRecipe = true)}>
+		<Button
+			size="sm"
+			class="shrink-0"
+			aria-label={m.recipes_new()}
+			onclick={() => (showNewRecipe = true)}
+		>
 			<Plus class="size-4 sm:mr-1.5" />
 			<span class="hidden sm:inline">{m.recipes_new()}</span>
 		</Button>
@@ -111,6 +116,10 @@
 </div>
 
 <!-- New recipe modal -->
-<ResponsiveModal bind:open={showNewRecipe} title={m.recipes_new()} description={m.recipes_new_description()}>
+<ResponsiveModal
+	bind:open={showNewRecipe}
+	title={m.recipes_new()}
+	description={m.recipes_new_description()}
+>
 	<RecipeForm {foods} onSave={createRecipe} />
 </ResponsiveModal>

@@ -17,9 +17,8 @@ mock.module('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listRecipes, createRecipe, getRecipe, updateRecipe, deleteRecipe } = await import(
-	'$lib/server/recipes'
-);
+const { listRecipes, createRecipe, getRecipe, updateRecipe, deleteRecipe } =
+	await import('$lib/server/recipes');
 
 describe('recipes-db', () => {
 	beforeEach(() => {
@@ -118,7 +117,9 @@ describe('recipes-db', () => {
 		test('returns error when missing required fields', async () => {
 			const payloadMissingName = {
 				totalServings: 1,
-				ingredients: [{ foodId: '10000000-0000-4000-8000-000000000010', quantity: 50, servingUnit: 'g' }]
+				ingredients: [
+					{ foodId: '10000000-0000-4000-8000-000000000010', quantity: 50, servingUnit: 'g' }
+				]
 			};
 
 			const result = await createRecipe(TEST_USER.id, payloadMissingName);

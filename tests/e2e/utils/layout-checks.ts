@@ -24,10 +24,10 @@ export async function assertNoElementsOverflowingViewport(page: Page) {
 			if (rect.right > viewportWidth + 2) {
 				const tag = el.tagName.toLowerCase();
 				const cls =
-					el.className && typeof el.className === 'string'
-						? el.className.trim().slice(0, 40)
-						: '';
-				results.push(`${tag}${cls ? '.' + cls.replace(/\s+/g, '.') : ''} (right: ${Math.round(rect.right)}px, viewport: ${viewportWidth}px)`);
+					el.className && typeof el.className === 'string' ? el.className.trim().slice(0, 40) : '';
+				results.push(
+					`${tag}${cls ? '.' + cls.replace(/\s+/g, '.') : ''} (right: ${Math.round(rect.right)}px, viewport: ${viewportWidth}px)`
+				);
 			}
 		});
 		return [...new Set(results)].slice(0, 10);
@@ -42,10 +42,7 @@ export async function assertNoOverlappingInteractiveElements(page: Page) {
 			.map((el) => ({ el, rect: el.getBoundingClientRect() }))
 			.filter(
 				({ rect }) =>
-					rect.width > 0 &&
-					rect.height > 0 &&
-					rect.top < window.innerHeight &&
-					rect.bottom > 0
+					rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0
 			);
 
 		const results: string[] = [];

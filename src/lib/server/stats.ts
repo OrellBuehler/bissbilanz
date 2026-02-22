@@ -1,6 +1,12 @@
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { averageTotals } from '$lib/utils/stats';
-import { emptyTotals, addTotals, calculateEntryMacros, roundTotals, type MacroTotals } from '$lib/utils/nutrition';
+import {
+	emptyTotals,
+	addTotals,
+	calculateEntryMacros,
+	roundTotals,
+	type MacroTotals
+} from '$lib/utils/nutrition';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 

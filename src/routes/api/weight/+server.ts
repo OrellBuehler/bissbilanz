@@ -1,10 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getWeightEntries,
-	getWeightWithTrend,
-	createWeightEntry
-} from '$lib/server/weight';
+import { getWeightEntries, getWeightWithTrend, createWeightEntry } from '$lib/server/weight';
 import { handleApiError, requireAuth, isZodError, validationError } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {

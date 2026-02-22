@@ -12,9 +12,8 @@ mock.module('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listMealTypes, createMealType, updateMealType, deleteMealType } = await import(
-	'$lib/server/meal-types'
-);
+const { listMealTypes, createMealType, updateMealType, deleteMealType } =
+	await import('$lib/server/meal-types');
 
 describe('meal-types-db', () => {
 	beforeEach(() => {

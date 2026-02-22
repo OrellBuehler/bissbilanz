@@ -93,7 +93,9 @@ const ADDITIVES: Record<string, AdditiveInfo> = {
 
 export function getAdditiveInfo(tag: string): AdditiveInfo {
 	const normalized = tag.toLowerCase();
-	return ADDITIVES[normalized] ?? { name: extractAdditiveName(normalized), risk: 'moderate' as const };
+	return (
+		ADDITIVES[normalized] ?? { name: extractAdditiveName(normalized), risk: 'moderate' as const }
+	);
 }
 
 function extractAdditiveName(tag: string): string {

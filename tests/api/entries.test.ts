@@ -19,7 +19,9 @@ const mockValidationError = new ZodError([
 mock.module('$lib/server/entries', () => ({
 	listEntriesByDate: async () => mockListResult,
 	createEntry: async () =>
-		mockCreateResult ? { success: true, data: mockCreateResult } : { success: false, error: mockValidationError },
+		mockCreateResult
+			? { success: true, data: mockCreateResult }
+			: { success: false, error: mockValidationError },
 	updateEntry: async () => ({ success: true, data: null }),
 	deleteEntry: async () => {},
 	listEntriesByDateRange: async () => [],

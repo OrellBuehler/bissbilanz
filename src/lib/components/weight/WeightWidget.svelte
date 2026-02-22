@@ -25,7 +25,9 @@
 	</Card.Header>
 	<Card.Content>
 		{#if weightKg != null}
-			<p class="text-2xl font-semibold">{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}</p>
+			<p class="text-2xl font-semibold">
+				{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}
+			</p>
 		{:else}
 			<p class="text-muted-foreground text-sm">{m.dashboard_weight_no_entries()}</p>
 			<Button variant="link" href="/weight" class="h-auto p-0 text-sm">

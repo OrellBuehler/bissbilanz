@@ -54,9 +54,7 @@ export function createMockDB(): MockDBFactory {
 					? Promise.reject(mockError).catch(reject)
 					: Promise.resolve(mockResult).catch(reject),
 			finally: (fn: () => void) =>
-				mockError
-					? Promise.reject(mockError).finally(fn)
-					: Promise.resolve(mockResult).finally(fn)
+				mockError ? Promise.reject(mockError).finally(fn) : Promise.resolve(mockResult).finally(fn)
 		};
 
 		// Proxy to make any method call continue the chain
@@ -80,20 +78,23 @@ export function createMockDB(): MockDBFactory {
 
 			// Special handling for db.query.* (relational query API)
 			if (propStr === 'query') {
-				return new Proxy({}, {
-					get(_, tableName) {
-						return {
-							findFirst: mock((...args: any[]) => {
-								calls.push({ method: `query.${String(tableName)}.findFirst`, args });
-								return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
-							}),
-							findMany: mock((...args: any[]) => {
-								calls.push({ method: `query.${String(tableName)}.findMany`, args });
-								return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
-							})
-						};
+				return new Proxy(
+					{},
+					{
+						get(_, tableName) {
+							return {
+								findFirst: mock((...args: any[]) => {
+									calls.push({ method: `query.${String(tableName)}.findFirst`, args });
+									return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
+								}),
+								findMany: mock((...args: any[]) => {
+									calls.push({ method: `query.${String(tableName)}.findMany`, args });
+									return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
+								})
+							};
+						}
 					}
-				});
+				);
 			}
 
 			// Special handling for db.transaction(callback)

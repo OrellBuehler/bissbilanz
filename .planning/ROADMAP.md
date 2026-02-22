@@ -21,10 +21,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ## Progress
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1. Foundation | v1.0 | 3/3 | Complete | 2026-02-18 |
-| 2. Favorites | v1.0 | 4/4 | Complete | 2026-02-19 |
-| 3. Weight Tracking | v1.0 | 3/3 | Complete | 2026-02-19 |
-| 4. Supplement Polish | v1.0 | 2/2 | Complete | 2026-02-19 |
-| 5. Dashboard Preference Wiring | v1.0 | 1/1 | Complete | 2026-02-21 |
+| Phase                          | Milestone | Plans Complete | Status   | Completed  |
+| ------------------------------ | --------- | -------------- | -------- | ---------- |
+| 1. Foundation                  | v1.0      | 3/3            | Complete | 2026-02-18 |
+| 2. Favorites                   | v1.0      | 4/4            | Complete | 2026-02-19 |
+| 3. Weight Tracking             | v1.0      | 3/3            | Complete | 2026-02-19 |
+| 4. Supplement Polish           | v1.0      | 2/2            | Complete | 2026-02-19 |
+| 5. Dashboard Preference Wiring | v1.0      | 1/1            | Complete | 2026-02-21 |

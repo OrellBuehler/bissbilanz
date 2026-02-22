@@ -119,9 +119,17 @@
 						<div class="flex-1 min-w-0">
 							<div class="font-medium">{supplement.name}</div>
 							<div class="text-sm text-muted-foreground">
-								{supplement.dosage} {supplement.dosageUnit} &middot; {formatSchedule(supplement.scheduleType as ScheduleType, supplement.scheduleDays)}
+								{supplement.dosage}
+								{supplement.dosageUnit} &middot; {formatSchedule(
+									supplement.scheduleType as ScheduleType,
+									supplement.scheduleDays
+								)}
 								{#if supplement.ingredients?.length > 0}
-									&middot; {supplement.ingredients.length === 1 ? m.supplements_ingredient_count_one() : m.supplements_ingredient_count({ count: String(supplement.ingredients.length) })}
+									&middot; {supplement.ingredients.length === 1
+										? m.supplements_ingredient_count_one()
+										: m.supplements_ingredient_count({
+												count: String(supplement.ingredients.length)
+											})}
 								{/if}
 							</div>
 						</div>
@@ -142,7 +150,10 @@
 	{/if}
 </div>
 
-<ResponsiveModal bind:open={showForm} title={editingSupplement ? m.supplements_edit() : m.supplements_add()}>
+<ResponsiveModal
+	bind:open={showForm}
+	title={editingSupplement ? m.supplements_edit() : m.supplements_add()}
+>
 	<SupplementForm
 		supplement={editingSupplement}
 		onSave={editingSupplement ? updateSupplement : createSupplement}
@@ -157,8 +168,13 @@
 			<AlertDialog.Description>{m.supplements_delete_confirm()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deletingId = null)}>{m.supplements_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action class={buttonVariants({ variant: 'destructive' })} onclick={() => deletingId && deleteSupplement(deletingId)}>
+			<AlertDialog.Cancel onclick={() => (deletingId = null)}
+				>{m.supplements_cancel()}</AlertDialog.Cancel
+			>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={() => deletingId && deleteSupplement(deletingId)}
+			>
 				<Trash2 class="size-4" />
 				{m.supplements_delete()}
 			</AlertDialog.Action>

@@ -138,8 +138,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json(
 			{
 				error: 'invalid_grant',
-				error_description:
-					'Invalid or expired authorization code, or PKCE verification failed'
+				error_description: 'Invalid or expired authorization code, or PKCE verification failed'
 			},
 			{ status: 400 }
 		);

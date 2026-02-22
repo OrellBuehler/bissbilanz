@@ -47,7 +47,10 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.{html,json}'],
+				globPatterns: [
+					'client/**/*.{js,css,ico,png,svg,webp,woff,woff2}',
+					'prerendered/**/*.{html,json}'
+				],
 				navigateFallback: '/',
 				navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/authorize/, /^\/token/],
 				runtimeCaching: [
@@ -63,7 +66,8 @@ export default defineConfig({
 						}
 					},
 					{
-						urlPattern: /\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts)/,
+						urlPattern:
+							/\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts)/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',

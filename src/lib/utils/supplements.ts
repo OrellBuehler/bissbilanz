@@ -17,7 +17,9 @@ export function isSupplementDue(
 			if (!scheduleStartDate) return true;
 			const [sy, sm, sd] = scheduleStartDate.split('-').map(Number);
 			const startDays = Math.floor(new Date(sy, sm - 1, sd).getTime() / 86400000);
-			const dateDays = Math.floor(new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86400000);
+			const dateDays = Math.floor(
+				new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86400000
+			);
 			return (dateDays - startDays) % 2 === 0;
 		}
 
@@ -34,10 +36,7 @@ export function isSupplementDue(
 /**
  * Format a schedule into a human-readable summary.
  */
-export function formatSchedule(
-	scheduleType: ScheduleType,
-	scheduleDays: number[] | null
-): string {
+export function formatSchedule(scheduleType: ScheduleType, scheduleDays: number[] | null): string {
 	const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 	switch (scheduleType) {

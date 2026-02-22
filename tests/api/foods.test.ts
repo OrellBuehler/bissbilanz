@@ -22,7 +22,9 @@ mock.module('$lib/server/foods', () => ({
 	listFoods: async (userId: string, options: any) => mockListResult,
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
 	createFood: async (userId: string, payload: unknown) =>
-		mockCreateResult ? { success: true, data: mockCreateResult } : { success: false, error: mockValidationError },
+		mockCreateResult
+			? { success: true, data: mockCreateResult }
+			: { success: false, error: mockValidationError },
 	listRecentFoods: async (userId: string, limit?: number) => [],
 	updateFood: async () => ({ success: true, data: undefined }),
 	deleteFood: async () => {},

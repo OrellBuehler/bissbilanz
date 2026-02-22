@@ -63,6 +63,7 @@ Shipped v1.0 with ~39k LOC (TypeScript + Svelte). Tech stack: SvelteKit 2.x, Sve
 Features: auth, food CRUD, recipes, entries, goals, MCP, PWA, i18n, favorites with image cards, weight tracking with trend charts, supplement scheduling with adherence tracking, configurable dashboard with reorderable widgets.
 
 Known tech debt from v1.0:
+
 - Breadcrumb may not show "Dashboard" as explicit first crumb
 - Silent catch on image upload failure (no user feedback)
 - `favoriteTapAction` has no settings UI toggle (API-only)
@@ -80,18 +81,19 @@ Known tech debt from v1.0:
 
 <!-- Decisions that constrain future work. Add throughout project lifecycle. -->
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Supplement tracking is schedule-based (not ad-hoc) | Users define what they take daily, then check off — simpler UX | ✓ Good |
-| Weight logging stores timestamp (not just date) | Enables multiple entries per day, precise tracking | ✓ Good |
-| All dashboard widgets hideable via settings | User preference — flexible dashboard | ✓ Good |
-| Favorites ranked by log count | Most-used items surface first — practical for quick logging | ✓ Good |
-| Image upload uses sharp for server-side resize | Consistent 400px webp output regardless of input | ✓ Good |
-| Locale stored on users table (not preferences) | Affects Paraglide server-side rendering | ✓ Good |
-| Recipe nutrition computed at query time via joins | Not denormalized — simpler, always accurate | ✓ Good |
-| Images stored on filesystem with UUID filenames | Simple, no cloud dependency | ✓ Good |
-| Weight trend uses raw SQL (db.execute) | Drizzle ORM lacks DISTINCT ON and window functions | ⚠️ Revisit if Drizzle adds support |
-| Dashboard widget order stored in DB preferences | Not localStorage — syncs across devices | ✓ Good |
+| Decision                                           | Rationale                                                      | Outcome                            |
+| -------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------- |
+| Supplement tracking is schedule-based (not ad-hoc) | Users define what they take daily, then check off — simpler UX | ✓ Good                             |
+| Weight logging stores timestamp (not just date)    | Enables multiple entries per day, precise tracking             | ✓ Good                             |
+| All dashboard widgets hideable via settings        | User preference — flexible dashboard                           | ✓ Good                             |
+| Favorites ranked by log count                      | Most-used items surface first — practical for quick logging    | ✓ Good                             |
+| Image upload uses sharp for server-side resize     | Consistent 400px webp output regardless of input               | ✓ Good                             |
+| Locale stored on users table (not preferences)     | Affects Paraglide server-side rendering                        | ✓ Good                             |
+| Recipe nutrition computed at query time via joins  | Not denormalized — simpler, always accurate                    | ✓ Good                             |
+| Images stored on filesystem with UUID filenames    | Simple, no cloud dependency                                    | ✓ Good                             |
+| Weight trend uses raw SQL (db.execute)             | Drizzle ORM lacks DISTINCT ON and window functions             | ⚠️ Revisit if Drizzle adds support |
+| Dashboard widget order stored in DB preferences    | Not localStorage — syncs across devices                        | ✓ Good                             |
 
 ---
-*Last updated: 2026-02-21 after v1.0 milestone*
+
+_Last updated: 2026-02-21 after v1.0 milestone_

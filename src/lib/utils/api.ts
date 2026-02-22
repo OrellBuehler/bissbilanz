@@ -3,7 +3,8 @@ import { enqueue } from '$lib/stores/offline-queue';
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
 	const method = options.method?.toUpperCase() ?? 'GET';
-	const isWrite = method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
+	const isWrite =
+		method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
 
 	if (browser && !navigator.onLine && isWrite) {
 		const body = typeof options.body === 'string' ? JSON.parse(options.body) : {};

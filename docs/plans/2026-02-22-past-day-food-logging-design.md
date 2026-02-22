@@ -9,6 +9,7 @@ Users can only log food for today. There is no way to add or edit entries for pa
 ## Solution
 
 Make food logging date-aware by:
+
 1. Adding prev/next date navigation to the dashboard (client state, resets to today on fresh load)
 2. Making the history detail page fully editable (currently read-only)
 3. Extracting shared entry CRUD into a `DayLog` component used by both
@@ -24,10 +25,12 @@ Extract all entry CRUD logic into a reusable component so the dashboard and hist
 Owns all entry state and CRUD for a given date.
 
 **Props:**
+
 - `date: string` — YYYY-MM-DD date to log for
 - `onMutation?: () => void` — callback fired after any add/update/delete (dashboard uses this to reload weekly chart)
 
 **Internally owns:**
+
 - `entries`, `foods`, `recipes` state
 - `loadData()`, `addEntry()`, `updateEntry()`, `deleteEntry()`
 - `AddFoodModal`, `EditEntryModal`, `BarcodeScanModal`
@@ -61,15 +64,16 @@ Adds date navigation with client state.
 
 Three new keys in `messages/en.json` and `messages/de.json`:
 
-| Key | en | de |
-|---|---|---|
+| Key                      | en             | de               |
+| ------------------------ | -------------- | ---------------- |
 | `dashboard_previous_day` | "Previous day" | "Vorheriger Tag" |
-| `dashboard_next_day` | "Next day" | "Nächster Tag" |
-| `dashboard_yesterday` | "Yesterday" | "Gestern" |
+| `dashboard_next_day`     | "Next day"     | "Nächster Tag"   |
+| `dashboard_yesterday`    | "Yesterday"    | "Gestern"        |
 
 ## API
 
 No changes. Existing endpoints already support arbitrary dates:
+
 - `GET /api/entries?date=YYYY-MM-DD`
 - `POST /api/entries` (accepts `date` in body)
 - `PATCH /api/entries/:id`
@@ -79,10 +83,10 @@ No schema changes, no migrations.
 
 ## Files changed
 
-| File | Change |
-|---|---|
-| `src/lib/components/entries/DayLog.svelte` | New — entry CRUD + modals + macro summary |
-| `src/routes/(app)/+page.svelte` | Date nav, activeDate state, delegate to DayLog |
-| `src/routes/(app)/history/[date]/+page.svelte` | Replace read-only view with DayLog |
-| `messages/en.json` | 3 new keys |
-| `messages/de.json` | 3 new keys |
+| File                                           | Change                                         |
+| ---------------------------------------------- | ---------------------------------------------- |
+| `src/lib/components/entries/DayLog.svelte`     | New — entry CRUD + modals + macro summary      |
+| `src/routes/(app)/+page.svelte`                | Date nav, activeDate state, delegate to DayLog |
+| `src/routes/(app)/history/[date]/+page.svelte` | Replace read-only view with DayLog             |
+| `messages/en.json`                             | 3 new keys                                     |
+| `messages/de.json`                             | 3 new keys                                     |

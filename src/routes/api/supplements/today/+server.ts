@@ -19,9 +19,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const logMap = new Map(logs.map((l) => [l.supplementId, l]));
 
 		const checklist = allSupplements
-			.filter((s) =>
-				isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, now)
-			)
+			.filter((s) => isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, now))
 			.map((s) => ({
 				supplement: s,
 				taken: logMap.has(s.id),

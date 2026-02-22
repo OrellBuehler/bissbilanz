@@ -50,26 +50,138 @@ describe('stats-db', () => {
 			// Mock 7 days of entries (2 entries per day, same values for consistency)
 			setMockEntries([
 				// Day 1
-				{ date: '2026-02-04', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-04', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-04',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-04',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 2
-				{ date: '2026-02-05', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-05', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-05',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-05',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 3
-				{ date: '2026-02-06', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-06', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-06',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-06',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 4
-				{ date: '2026-02-07', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-07', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-07',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-07',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 5
-				{ date: '2026-02-08', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-08', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-08',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-08',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 6
-				{ date: '2026-02-09', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-09', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
+				{
+					date: '2026-02-09',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-09',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
 				// Day 7
-				{ date: '2026-02-10', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-10', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 }
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				}
 			]);
 
 			const result = await getWeeklyStats(TEST_USER.id);
@@ -98,7 +210,15 @@ describe('stats-db', () => {
 
 		test('handles entries with null values', async () => {
 			setMockEntries([
-				{ date: '2026-02-10', servings: 1, calories: null, protein: null, carbs: null, fat: null, fiber: null }
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: null,
+					protein: null,
+					carbs: null,
+					fat: null,
+					fiber: null
+				}
 			]);
 
 			const result = await getWeeklyStats(TEST_USER.id);
@@ -114,8 +234,24 @@ describe('stats-db', () => {
 		test('handles partial week data', async () => {
 			// Only 2 days of data
 			setMockEntries([
-				{ date: '2026-02-09', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-10', servings: 1, calories: 600, protein: 30, carbs: 60, fat: 25, fiber: 12 }
+				{
+					date: '2026-02-09',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 600,
+					protein: 30,
+					carbs: 60,
+					fat: 25,
+					fiber: 12
+				}
 			]);
 
 			const result = await getWeeklyStats(TEST_USER.id);
@@ -131,9 +267,33 @@ describe('stats-db', () => {
 		test('correctly groups multiple entries per day', async () => {
 			// Single day with 3 entries
 			setMockEntries([
-				{ date: '2026-02-10', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
-				{ date: '2026-02-10', servings: 1, calories: 400, protein: 20, carbs: 40, fat: 15, fiber: 8 },
-				{ date: '2026-02-10', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 }
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 400,
+					protein: 20,
+					carbs: 40,
+					fat: 15,
+					fiber: 8
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				}
 			]);
 
 			const result = await getWeeklyStats(TEST_USER.id);
@@ -192,7 +352,15 @@ describe('stats-db', () => {
 
 		test('handles entries with null values', async () => {
 			setMockEntries([
-				{ date: '2026-02-10', servings: 1, calories: null, protein: null, carbs: null, fat: null, fiber: null }
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: null,
+					protein: null,
+					carbs: null,
+					fat: null,
+					fiber: null
+				}
 			]);
 
 			const result = await getMonthlyStats(TEST_USER.id);
@@ -208,11 +376,51 @@ describe('stats-db', () => {
 		test('handles partial month data', async () => {
 			// Only 5 days of data
 			setMockEntries([
-				{ date: '2026-02-06', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
-				{ date: '2026-02-07', servings: 1, calories: 600, protein: 30, carbs: 60, fat: 25, fiber: 12 },
-				{ date: '2026-02-08', servings: 1, calories: 550, protein: 27, carbs: 55, fat: 22, fiber: 11 },
-				{ date: '2026-02-09', servings: 1, calories: 650, protein: 32, carbs: 65, fat: 27, fiber: 13 },
-				{ date: '2026-02-10', servings: 1, calories: 700, protein: 35, carbs: 70, fat: 30, fiber: 15 }
+				{
+					date: '2026-02-06',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
+				{
+					date: '2026-02-07',
+					servings: 1,
+					calories: 600,
+					protein: 30,
+					carbs: 60,
+					fat: 25,
+					fiber: 12
+				},
+				{
+					date: '2026-02-08',
+					servings: 1,
+					calories: 550,
+					protein: 27,
+					carbs: 55,
+					fat: 22,
+					fiber: 11
+				},
+				{
+					date: '2026-02-09',
+					servings: 1,
+					calories: 650,
+					protein: 32,
+					carbs: 65,
+					fat: 27,
+					fiber: 13
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 700,
+					protein: 35,
+					carbs: 70,
+					fat: 30,
+					fiber: 15
+				}
 			]);
 
 			const result = await getMonthlyStats(TEST_USER.id);
@@ -229,14 +437,62 @@ describe('stats-db', () => {
 			// 3 days with varying number of entries
 			setMockEntries([
 				// Day 1: 2 entries
-				{ date: '2026-02-08', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 10, fiber: 5 },
-				{ date: '2026-02-08', servings: 1, calories: 400, protein: 20, carbs: 40, fat: 15, fiber: 8 },
+				{
+					date: '2026-02-08',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 10,
+					fiber: 5
+				},
+				{
+					date: '2026-02-08',
+					servings: 1,
+					calories: 400,
+					protein: 20,
+					carbs: 40,
+					fat: 15,
+					fiber: 8
+				},
 				// Day 2: 1 entry
-				{ date: '2026-02-09', servings: 1, calories: 500, protein: 25, carbs: 50, fat: 20, fiber: 10 },
+				{
+					date: '2026-02-09',
+					servings: 1,
+					calories: 500,
+					protein: 25,
+					carbs: 50,
+					fat: 20,
+					fiber: 10
+				},
 				// Day 3: 3 entries
-				{ date: '2026-02-10', servings: 1, calories: 200, protein: 10, carbs: 20, fat: 8, fiber: 4 },
-				{ date: '2026-02-10', servings: 1, calories: 300, protein: 15, carbs: 30, fat: 12, fiber: 6 },
-				{ date: '2026-02-10', servings: 1, calories: 400, protein: 20, carbs: 40, fat: 15, fiber: 8 }
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 200,
+					protein: 10,
+					carbs: 20,
+					fat: 8,
+					fiber: 4
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 300,
+					protein: 15,
+					carbs: 30,
+					fat: 12,
+					fiber: 6
+				},
+				{
+					date: '2026-02-10',
+					servings: 1,
+					calories: 400,
+					protein: 20,
+					carbs: 40,
+					fat: 15,
+					fiber: 8
+				}
 			]);
 
 			const result = await getMonthlyStats(TEST_USER.id);

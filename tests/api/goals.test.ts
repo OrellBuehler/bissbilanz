@@ -20,7 +20,9 @@ const mockValidationError = new ZodError([
 mock.module('$lib/server/goals', () => ({
 	getGoals: async (userId: string) => mockGoalsResult,
 	upsertGoals: async (userId: string, payload: unknown) =>
-		mockUpsertResult ? { success: true, data: mockUpsertResult } : { success: false, error: mockValidationError }
+		mockUpsertResult
+			? { success: true, data: mockUpsertResult }
+			: { success: false, error: mockValidationError }
 }));
 
 // Import route handlers after mocking

@@ -53,7 +53,8 @@ mock.module('$lib/server/oidc', () => ({
 	generateNonce: () => 'mock-nonce',
 	generateCodeVerifier: () => 'mock-verifier',
 	createCodeChallenge: () => Promise.resolve('mock-challenge'),
-	buildAuthorizeUrl: (input: any) => `https://login.infomaniak.com/authorize?client_id=${input.clientId}`
+	buildAuthorizeUrl: (input: any) =>
+		`https://login.infomaniak.com/authorize?client_id=${input.clientId}`
 }));
 
 mock.module('$lib/server/oidc-cookies', () => ({

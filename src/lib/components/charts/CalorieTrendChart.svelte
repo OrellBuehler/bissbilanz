@@ -19,15 +19,15 @@
 	const chartData = $derived(
 		data.map((d) => ({
 			...d,
-			dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(undefined, shortLabels
-				? { day: 'numeric', month: 'short' }
-				: { weekday: 'short', day: 'numeric' }
+			dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(
+				undefined,
+				shortLabels ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric' }
 			)
 		}))
 	);
 	const tickStep = $derived(data.length > 14 ? Math.ceil(data.length / 7) : 1);
 	const filteredTicks = $derived(
-		chartData.filter((_, i) => i % tickStep === 0).map(d => d.dateLabel)
+		chartData.filter((_, i) => i % tickStep === 0).map((d) => d.dateLabel)
 	);
 
 	const config: ChartConfig = {
@@ -44,9 +44,7 @@
 
 	const goalInRange = $derived(calorieGoal && maxCalories >= calorieGoal * 0.25);
 	const yMax = $derived(
-		goalInRange
-			? Math.max(maxCalories, calorieGoal!) * 1.15
-			: maxCalories * 1.3 || 100
+		goalInRange ? Math.max(maxCalories, calorieGoal!) * 1.15 : maxCalories * 1.3 || 100
 	);
 	const yDomain = $derived([0, yMax]);
 
@@ -86,7 +84,8 @@
 					tickLabelProps: { class: 'text-[11px] fill-muted-foreground/70 font-medium' }
 				},
 				yAxis: {
-					format: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString(),
+					format: (v: number) =>
+						v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString(),
 					ticks: 4,
 					tickLabelProps: { class: 'text-[11px] fill-muted-foreground/70 font-medium tabular-nums' }
 				},
@@ -98,7 +97,12 @@
 						}
 					},
 					header: { class: 'font-medium text-foreground' },
-					item: { classes: { label: 'text-muted-foreground', value: 'text-foreground font-medium tabular-nums' } }
+					item: {
+						classes: {
+							label: 'text-muted-foreground',
+							value: 'text-foreground font-medium tabular-nums'
+						}
+					}
 				}
 			}}
 		/>

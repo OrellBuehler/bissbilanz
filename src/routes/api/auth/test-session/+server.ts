@@ -11,10 +11,7 @@ export const POST: RequestHandler = async ({ cookies }) => {
 
 	const db = getDB();
 
-	let [user] = await db
-		.select()
-		.from(users)
-		.where(eq(users.infomaniakSub, 'playwright-test'));
+	let [user] = await db.select().from(users).where(eq(users.infomaniakSub, 'playwright-test'));
 
 	if (!user) {
 		[user] = await db

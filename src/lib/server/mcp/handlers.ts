@@ -4,7 +4,12 @@ import { createEntry, listEntriesByDate } from '$lib/server/entries';
 import { getGoals } from '$lib/server/goals';
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { today } from '$lib/utils/dates';
-import { listSupplements, getLogsForDate, logSupplement, getSupplementById } from '$lib/server/supplements';
+import {
+	listSupplements,
+	getLogsForDate,
+	logSupplement,
+	getSupplementById
+} from '$lib/server/supplements';
 import { isSupplementDue } from '$lib/utils/supplements';
 
 export const handleGetDailyStatus = async (userId: string, date?: string) => {
@@ -80,8 +85,8 @@ export const handleLogSupplement = async (
 	// If name provided, search for matching supplement
 	if (!id && args.name) {
 		const allSupplements = await listSupplements(userId, true);
-		const match = allSupplements.find(
-			(s) => s.name.toLowerCase().includes(args.name!.toLowerCase())
+		const match = allSupplements.find((s) =>
+			s.name.toLowerCase().includes(args.name!.toLowerCase())
 		);
 		if (!match) {
 			return { success: false, error: `No supplement found matching "${args.name}"` };

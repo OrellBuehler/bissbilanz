@@ -1,7 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteEntry, updateEntry } from '$lib/server/entries';
-import { handleApiError, isZodError, notFound, requireAuth, validationError } from '$lib/server/errors';
+import {
+	handleApiError,
+	isZodError,
+	notFound,
+	requireAuth,
+	validationError
+} from '$lib/server/errors';
 
 export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	try {

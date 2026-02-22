@@ -32,12 +32,12 @@ key-files:
     - tests/helpers/fixtures.ts
 
 key-decisions:
-  - "Locale stored on users table (not preferences) since it affects server-side rendering via Paraglide"
-  - "Preferences PATCH updates locale on users table separately from widget prefs on userPreferences table"
+  - 'Locale stored on users table (not preferences) since it affects server-side rendering via Paraglide'
+  - 'Preferences PATCH updates locale on users table separately from widget prefs on userPreferences table'
 
 patterns-established:
-  - "Preferences follow same upsert+Result pattern as goals module"
-  - "DEFAULT_PREFERENCES exported for null-coalescing on GET responses"
+  - 'Preferences follow same upsert+Result pattern as goals module'
+  - 'DEFAULT_PREFERENCES exported for null-coalescing on GET responses'
 
 requirements-completed: [LANG-02, LANG-05, PREF-01, PREF-02]
 
@@ -59,6 +59,7 @@ completed: 2026-02-17
 - **Files modified:** 8
 
 ## Accomplishments
+
 - Created userPreferences table with widget toggles, widget order array, and start page
 - Added locale column to users table for language persistence
 - Built GET/PATCH /api/preferences following the goals API upsert pattern
@@ -73,6 +74,7 @@ Each task was committed atomically:
 3. **Task 3: Remove stale fr/it locale checks from route guard** - `bf20edb` (fix)
 
 ## Files Created/Modified
+
 - `src/lib/server/schema.ts` - Added locale column to users, created userPreferences table with type exports
 - `src/lib/server/preferences.ts` - getPreferences, updatePreferences with upsert, DEFAULT_PREFERENCES constant
 - `src/lib/server/validation/preferences.ts` - Zod schema for preferences PATCH validation
@@ -83,6 +85,7 @@ Each task was committed atomically:
 - `tests/helpers/fixtures.ts` - Added locale field to TEST_USER and TEST_USER_2
 
 ## Decisions Made
+
 - Locale stored on users table (not preferences) since it affects server-side rendering via Paraglide middleware
 - Preferences PATCH splits locale update (users table) from widget prefs (userPreferences table) in a single request
 
@@ -91,6 +94,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 3 - Blocking] Fixed test fixtures missing locale field**
+
 - **Found during:** Task 1 (schema changes)
 - **Issue:** Adding locale column to users made TEST_USER and TEST_USER_2 fixtures fail type check (missing required property)
 - **Fix:** Added `locale: 'en'` to both test user fixtures
@@ -104,12 +108,15 @@ Each task was committed atomically:
 **Impact on plan:** Minimal - fixture update was a direct consequence of the schema change. No scope creep.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Preferences API ready for settings page UI (Plan 03) to consume
 - Migration ready to apply via `bun run db:push` or `bun run db:migrate`
 - Route guard cleaned for supported locales only (en, de)
@@ -119,5 +126,6 @@ None - no external service configuration required.
 All 4 created files verified on disk. All 3 task commits verified in git log.
 
 ---
-*Phase: 01-foundation*
-*Completed: 2026-02-17*
+
+_Phase: 01-foundation_
+_Completed: 2026-02-17_

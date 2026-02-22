@@ -212,41 +212,49 @@ bissbilanz/
 ## Directory Purposes
 
 **`src/lib/components/`:**
+
 - Purpose: Reusable Svelte component library
 - Contains: shadcn-svelte wrappers, domain-specific components (food forms, entry loggers, charts)
 - Key files: `ui/*` (primitives), `foods/FoodList.svelte`, `entries/EntryForm.svelte`
 
 **`src/lib/server/`:**
+
 - Purpose: Server-side business logic isolated from HTTP concerns
 - Contains: Database queries, validation, CRUD operations
 - Key files: `db.ts` (Drizzle singleton), `schema.ts` (table definitions), `*.ts` modules for domain logic
 
 **`src/lib/utils/`:**
+
 - Purpose: Client-side helper functions
 - Contains: Macro calculations, date utilities, UI formatting, state transformers
 - Pattern: Pure functions, no side effects, used in components and stores
 
 **`src/routes/app/`:**
+
 - Purpose: Authenticated user pages
 - Contains: Dashboard, food database, recipes, history, goals, settings
 - Pattern: Each directory is a route; `+page.svelte` renders UI, `+layout.svelte` wraps child routes
 
 **`src/routes/api/`:**
+
 - Purpose: REST API endpoints
 - Contains: Request handlers that parse input, call business logic, return JSON
 - Pattern: `+server.ts` files with `GET`/`POST`/`PUT`/`DELETE` functions; each function scoped to one operation
 
 **`src/lib/server/validation/`:**
+
 - Purpose: Single source of truth for input validation
 - Contains: Zod schemas for all data models
 - Pattern: Each domain (foods, entries, recipes) has own file; schemas re-exported via `index.ts`
 
 **`src/lib/server/mcp/`:**
+
 - Purpose: Model Context Protocol server implementation
 - Contains: JSON-RPC server routing, tool definitions, handler implementations
 - Key files: `server.ts` (router), `tools.ts` (tool schemas), `handlers.ts` (logic)
 
 **`tests/`:**
+
 - Purpose: Test organization by layer
 - Pattern: Layer 1 (`server/`) tests database operations directly. Layer 2 (`api/`) tests HTTP handlers with mocked DB. Layer 3 (`integration/`) tests workflows across modules.
 
@@ -348,24 +356,28 @@ bissbilanz/
 ## Special Directories
 
 **`src/lib/server/mcp/`:**
+
 - Purpose: Encapsulates MCP server implementation
 - Generated: No (source code)
 - Committed: Yes
 - Structure: `server.ts` defines routes; `tools.ts` defines tool schemas; `handlers.ts` implements logic
 
 **`drizzle/`:**
+
 - Purpose: Database migrations
 - Generated: Yes (by drizzle-kit from schema.ts)
 - Committed: Yes
 - Workflow: Generate with `bun run db:generate`, review SQL, run with `bun run db:push` or production migration command
 
 **`src/lib/paraglide/`:**
+
 - Purpose: Compiled i18n messages (do NOT edit directly)
 - Generated: Yes (at dev/build time by Paraglide Vite plugin)
 - Committed: No (in .gitignore)
 - Usage: Import messages like `import * as m from '$lib/paraglide/messages'; m.label_email()`
 
 **`src/paraglide/messages/`:**
+
 - Purpose: Source i18n message definitions (readable plaintext files)
 - Generated: No (user-maintained)
 - Committed: Yes
@@ -373,4 +385,4 @@ bissbilanz/
 
 ---
 
-*Structure analysis: 2026-02-17*
+_Structure analysis: 2026-02-17_

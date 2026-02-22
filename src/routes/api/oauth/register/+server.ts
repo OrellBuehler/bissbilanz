@@ -9,9 +9,7 @@ function isValidRedirectUriFormat(uri: string): boolean {
 		if (url.protocol === 'https:') return true;
 		if (url.protocol === 'http:') {
 			return (
-				url.hostname === 'localhost' ||
-				url.hostname === '127.0.0.1' ||
-				url.hostname === '[::1]'
+				url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
 			);
 		}
 		return false;
@@ -103,8 +101,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json(
 			{
 				error: 'invalid_client_metadata',
-				error_description:
-					'token_endpoint_auth_method must be "client_secret_post" or "none"'
+				error_description: 'token_endpoint_auth_method must be "client_secret_post" or "none"'
 			},
 			{ status: 400 }
 		);

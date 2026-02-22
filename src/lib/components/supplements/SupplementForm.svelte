@@ -48,7 +48,11 @@
 	let scheduleStartDate = $state(supplement?.scheduleStartDate ?? today());
 	let timeOfDay = $state<string | null>(supplement?.timeOfDay ?? null);
 	let ingredients = $state<IngredientInput[]>(
-		supplement?.ingredients?.map((i) => ({ name: i.name, dosage: i.dosage, dosageUnit: i.dosageUnit })) ?? []
+		supplement?.ingredients?.map((i) => ({
+			name: i.name,
+			dosage: i.dosage,
+			dosageUnit: i.dosageUnit
+		})) ?? []
 	);
 
 	const hasIngredients = $derived(ingredients.length > 0);
@@ -131,15 +135,17 @@
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<div class="space-y-2">
-			<Label for="dosage">{hasIngredients ? m.supplements_serving_form() : m.supplements_dosage()}</Label>
+			<Label for="dosage"
+				>{hasIngredients ? m.supplements_serving_form() : m.supplements_dosage()}</Label
+			>
 			<Input id="dosage" type="number" step="any" min="0" bind:value={dosage} required />
 		</div>
 		<div class="space-y-2">
 			<Label>{m.supplements_unit()}</Label>
-				<Select.Root type="single" value={dosageUnit} onValueChange={(v) => (dosageUnit = v)}>
-					<Select.Trigger class="w-full">
-						<span>{dosageUnit}</span>
-					</Select.Trigger>
+			<Select.Root type="single" value={dosageUnit} onValueChange={(v) => (dosageUnit = v)}>
+				<Select.Trigger class="w-full">
+					<span>{dosageUnit}</span>
+				</Select.Trigger>
 				<Select.Content>
 					{#each dosageUnits as unit}
 						<Select.Item value={unit}>{unit}</Select.Item>
@@ -152,7 +158,13 @@
 	<div class="space-y-2">
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<Label>{m.supplements_ingredients()}</Label>
-			<Button type="button" variant="ghost" size="sm" aria-label={m.supplements_add_ingredient()} onclick={addIngredient}>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				aria-label={m.supplements_add_ingredient()}
+				onclick={addIngredient}
+			>
 				<Plus class="size-3.5 sm:mr-1" />
 				<span class="hidden sm:inline">{m.supplements_add_ingredient()}</span>
 			</Button>
@@ -160,7 +172,9 @@
 		{#if ingredients.length > 0}
 			<div class="space-y-2">
 				{#each ingredients as ing, i}
-					<div class="flex min-w-0 flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center">
+					<div
+						class="flex min-w-0 flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center"
+					>
 						<Input
 							placeholder={m.supplements_ingredient_name()}
 							bind:value={ing.name}
@@ -175,7 +189,11 @@
 							required
 							class="w-full sm:w-20"
 						/>
-						<Select.Root type="single" value={ing.dosageUnit} onValueChange={(v) => (ing.dosageUnit = v)}>
+						<Select.Root
+							type="single"
+							value={ing.dosageUnit}
+							onValueChange={(v) => (ing.dosageUnit = v)}
+						>
 							<Select.Trigger class="w-full sm:w-20">
 								<span>{ing.dosageUnit}</span>
 							</Select.Trigger>
@@ -185,7 +203,14 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<Button type="button" variant="ghost" size="icon" class="self-end sm:self-auto" aria-label={m.supplements_remove_ingredient()} onclick={() => removeIngredient(i)}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							class="self-end sm:self-auto"
+							aria-label={m.supplements_remove_ingredient()}
+							onclick={() => removeIngredient(i)}
+						>
 							<X class="size-4" />
 						</Button>
 					</div>
@@ -196,7 +221,11 @@
 
 	<div class="space-y-2">
 		<Label>{m.supplements_schedule()}</Label>
-		<Select.Root type="single" value={scheduleType} onValueChange={(v) => (scheduleType = v as ScheduleType)}>
+		<Select.Root
+			type="single"
+			value={scheduleType}
+			onValueChange={(v) => (scheduleType = v as ScheduleType)}
+		>
 			<Select.Trigger class="w-full">
 				<span>{scheduleTypes.find((s) => s.value === scheduleType)?.label() ?? scheduleType}</span>
 			</Select.Trigger>
@@ -236,9 +265,16 @@
 
 	<div class="space-y-2">
 		<Label>{m.supplements_time_of_day()}</Label>
-		<Select.Root type="single" value={timeOfDay ?? ''} onValueChange={(v) => (timeOfDay = v || null)}>
+		<Select.Root
+			type="single"
+			value={timeOfDay ?? ''}
+			onValueChange={(v) => (timeOfDay = v || null)}
+		>
 			<Select.Trigger class="w-full">
-				<span>{timeOfDayOptions.find((o) => o.value === (timeOfDay ?? ''))?.label() ?? m.supplements_time_anytime()}</span>
+				<span
+					>{timeOfDayOptions.find((o) => o.value === (timeOfDay ?? ''))?.label() ??
+						m.supplements_time_anytime()}</span
+				>
 			</Select.Trigger>
 			<Select.Content>
 				{#each timeOfDayOptions as opt}
@@ -249,11 +285,22 @@
 	</div>
 
 	<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-		<Button type="button" variant="outline" class="w-full sm:w-auto" aria-label={m.supplements_cancel()} onclick={onCancel}>
+		<Button
+			type="button"
+			variant="outline"
+			class="w-full sm:w-auto"
+			aria-label={m.supplements_cancel()}
+			onclick={onCancel}
+		>
 			<X class="size-4" />
 			<span class="sm:inline">{m.supplements_cancel()}</span>
 		</Button>
-		<Button type="submit" class="w-full sm:w-auto" aria-label={m.supplements_save()} disabled={!name || dosage <= 0}>
+		<Button
+			type="submit"
+			class="w-full sm:w-auto"
+			aria-label={m.supplements_save()}
+			disabled={!name || dosage <= 0}
+		>
 			<Check class="size-4" />
 			<span>{m.supplements_save()}</span>
 		</Button>

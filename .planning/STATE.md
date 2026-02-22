@@ -16,19 +16,20 @@ Last activity: 2026-02-21 — v1.0 MVP milestone archived
 ## Performance Metrics
 
 **v1.0 Velocity:**
+
 - Total plans completed: 13
 - Average duration: 4min
 - Total execution time: 48min
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-foundation | 3 | 8min | 3min |
-| 02-favorites | 4 | 18min | 5min |
-| 03-weight-tracking | 3 | 9min | 3min |
-| 04-supplement-polish | 2 | 7min | 4min |
-| 05-dashboard-preference-wiring | 1 | 6min | 6min |
+| Phase                          | Plans | Total | Avg/Plan |
+| ------------------------------ | ----- | ----- | -------- |
+| 01-foundation                  | 3     | 8min  | 3min     |
+| 02-favorites                   | 4     | 18min | 5min     |
+| 03-weight-tracking             | 3     | 9min  | 3min     |
+| 04-supplement-polish           | 2     | 7min  | 4min     |
+| 05-dashboard-preference-wiring | 1     | 6min  | 6min     |
 
 ## Accumulated Context
 

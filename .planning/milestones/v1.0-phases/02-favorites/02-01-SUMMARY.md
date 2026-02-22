@@ -35,13 +35,13 @@ key-files:
     - .gitignore
 
 key-decisions:
-  - "Recipe nutrition computed at query time via ingredient joins and division by totalServings"
-  - "Images stored on filesystem with UUID filenames, served publicly without auth (unguessable URLs)"
-  - ".gitignore uploads/ scoped to project root to avoid blocking src/routes/uploads/"
+  - 'Recipe nutrition computed at query time via ingredient joins and division by totalServings'
+  - 'Images stored on filesystem with UUID filenames, served publicly without auth (unguessable URLs)'
+  - '.gitignore uploads/ scoped to project root to avoid blocking src/routes/uploads/'
 
 patterns-established:
-  - "Image upload: multipart form -> sharp resize -> UUID.webp -> filesystem"
-  - "Favorites ranking: LEFT JOIN foodEntries, GROUP BY, ORDER BY count DESC"
+  - 'Image upload: multipart form -> sharp resize -> UUID.webp -> filesystem'
+  - 'Favorites ranking: LEFT JOIN foodEntries, GROUP BY, ORDER BY count DESC'
 
 requirements-completed: [FAV-01, FAV-02, FAV-04, FAV-07]
 
@@ -62,6 +62,7 @@ completed: 2026-02-18
 - **Files modified:** 11
 
 ## Accomplishments
+
 - Schema migration adding isFavorite, imageUrl to recipes and favoriteTapAction to userPreferences
 - Favorites API returning foods and recipes ranked by log frequency with computed per-serving nutrition
 - Image upload endpoint with sharp resize to 400px WebP and immutable cache serving
@@ -75,6 +76,7 @@ Each task was committed atomically:
 3. **Task 3: Image upload API and file serving** - `5521c22` (feat)
 
 ## Files Created/Modified
+
 - `src/lib/server/schema.ts` - Added isFavorite, imageUrl to recipes; favoriteTapAction to userPreferences
 - `src/lib/server/validation/preferences.ts` - Extended preferencesUpdateSchema with favoriteTapAction
 - `src/lib/utils/meals.ts` - Added getCurrentMealByTime utility
@@ -88,6 +90,7 @@ Each task was committed atomically:
 - `.gitignore` - Scoped uploads/ to project root
 
 ## Decisions Made
+
 - Recipe nutrition computed at query time via ingredient joins and division by totalServings (not denormalized)
 - Images stored on filesystem with UUID filenames, served publicly without auth (unguessable URLs)
 - .gitignore uploads/ scoped to project root (`/uploads/`) to avoid blocking `src/routes/uploads/`
@@ -97,6 +100,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 1 - Bug] Updated test fixtures for new recipe columns**
+
 - **Found during:** Task 1 (Schema migration)
 - **Issue:** TEST_RECIPE fixture missing isFavorite and imageUrl fields after schema change
 - **Fix:** Added `isFavorite: false` and `imageUrl: null` to TEST_RECIPE in fixtures.ts
@@ -105,6 +109,7 @@ Each task was committed atomically:
 - **Committed in:** 34d918a (Task 1 commit)
 
 **2. [Rule 3 - Blocking] Fixed .gitignore overly broad uploads/ pattern**
+
 - **Found during:** Task 3 (Image upload)
 - **Issue:** `uploads/` in .gitignore matched `src/routes/uploads/` preventing git add
 - **Fix:** Changed to `/uploads/` (project root only)
@@ -118,16 +123,20 @@ Each task was committed atomically:
 **Impact on plan:** Both auto-fixes necessary for correctness. No scope creep.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - All APIs ready for frontend consumption in plans 02 and 03
 - Schema migration applied; favorites and image upload tested via type checking
 - Pre-existing type errors in foods.ts/recipes.ts (servingUnit enum narrowing) remain unrelated to this plan
 
 ---
-*Phase: 02-favorites*
-*Completed: 2026-02-18*
+
+_Phase: 02-favorites_
+_Completed: 2026-02-18_

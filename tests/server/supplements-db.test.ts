@@ -108,7 +108,9 @@ describe('supplements-db', () => {
 		});
 
 		test('creates supplement with ingredients (validation passes)', async () => {
-			setResult([{ ...TEST_SUPPLEMENT, name: 'Daily Multivitamin', dosage: 1, dosageUnit: 'capsule' }]);
+			setResult([
+				{ ...TEST_SUPPLEMENT, name: 'Daily Multivitamin', dosage: 1, dosageUnit: 'capsule' }
+			]);
 			const result = await createSupplement(TEST_USER.id, VALID_MULTI_SUPPLEMENT_PAYLOAD);
 			expect(result.success).toBe(true);
 			if (result.success) {
@@ -164,7 +166,11 @@ describe('supplements-db', () => {
 				scheduleType: 'weekly',
 				scheduleDays: [1, 3, 5]
 			};
-			const weeklySupplement = { ...TEST_SUPPLEMENT, scheduleType: 'weekly', scheduleDays: [1, 3, 5] };
+			const weeklySupplement = {
+				...TEST_SUPPLEMENT,
+				scheduleType: 'weekly',
+				scheduleDays: [1, 3, 5]
+			};
 			setResult([weeklySupplement]);
 			const result = await createSupplement(TEST_USER.id, weeklyPayload);
 			expect(result.success).toBe(true);

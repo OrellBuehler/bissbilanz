@@ -1,7 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteRecipe, getRecipe, updateRecipe } from '$lib/server/recipes';
-import { handleApiError, isZodError, notFound, requireAuth, validationError } from '$lib/server/errors';
+import {
+	handleApiError,
+	isZodError,
+	notFound,
+	requireAuth,
+	validationError
+} from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {

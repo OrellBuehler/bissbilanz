@@ -17,9 +17,7 @@
 			</Button>
 		</Card.Content>
 		<Card.Footer class="justify-center">
-			<p class="text-muted-foreground text-xs">
-				Powered by Infomaniak OIDC
-			</p>
+			<p class="text-muted-foreground text-xs">Powered by Infomaniak OIDC</p>
 		</Card.Footer>
 	</Card.Root>
 </div>

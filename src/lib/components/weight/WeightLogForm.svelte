@@ -68,7 +68,8 @@
 		<Input id="weight-date" type="date" bind:value={entryDate} max={today()} required />
 	</div>
 	<div class="flex-1 min-w-[140px]">
-		<label for="weight-notes" class="mb-1 block text-sm font-medium">{m.weight_notes_label()}</label>
+		<label for="weight-notes" class="mb-1 block text-sm font-medium">{m.weight_notes_label()}</label
+		>
 		<Input id="weight-notes" type="text" placeholder="" bind:value={notes} />
 	</div>
 	<Button type="submit" disabled={saving} size="sm">

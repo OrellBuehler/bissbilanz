@@ -57,9 +57,7 @@
 	const loadChartData = async (startDate: string, endDate: string) => {
 		chartLoading = true;
 		try {
-			const res = await fetch(
-				`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`
-			);
+			const res = await fetch(`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`);
 			if (!res.ok) return;
 			const json = await res.json();
 			chartData = json.data ?? [];
@@ -74,11 +72,21 @@
 	};
 
 	const prevMonth = () => {
-		if (month === 0) { month = 11; year--; } else { month--; }
+		if (month === 0) {
+			month = 11;
+			year--;
+		} else {
+			month--;
+		}
 	};
 
 	const nextMonth = () => {
-		if (month === 11) { month = 0; year++; } else { month++; }
+		if (month === 11) {
+			month = 0;
+			year++;
+		} else {
+			month++;
+		}
 	};
 
 	const goToDay = (date: string) => {
@@ -102,10 +110,14 @@
 			<!-- Weekly Average -->
 			<Card.Root class="overflow-hidden">
 				<Card.Content class="p-5">
-					<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.history_weekly()}</p>
+					<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
+						{m.history_weekly()}
+					</p>
 					{#if weeklyStats}
 						<div class="mb-4 flex items-baseline gap-1.5">
-							<span class="text-3xl font-bold tabular-nums tracking-tight">{fmt(weeklyStats.calories)}</span>
+							<span class="text-3xl font-bold tabular-nums tracking-tight"
+								>{fmt(weeklyStats.calories)}</span
+							>
 							<span class="text-muted-foreground text-sm font-medium">kcal</span>
 						</div>
 						<div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
@@ -135,10 +147,14 @@
 			<!-- Monthly Average -->
 			<Card.Root class="overflow-hidden">
 				<Card.Content class="p-5">
-					<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">{m.history_monthly()}</p>
+					<p class="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
+						{m.history_monthly()}
+					</p>
 					{#if monthlyStats}
 						<div class="mb-4 flex items-baseline gap-1.5">
-							<span class="text-3xl font-bold tabular-nums tracking-tight">{fmt(monthlyStats.calories)}</span>
+							<span class="text-3xl font-bold tabular-nums tracking-tight"
+								>{fmt(monthlyStats.calories)}</span
+							>
 							<span class="text-muted-foreground text-sm font-medium">kcal</span>
 						</div>
 						<div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
@@ -189,19 +205,27 @@
 			<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
 				<div class="mb-2.5 flex items-center justify-between gap-2">
 					<div class="flex items-center gap-2">
-						<div class="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+						<div
+							class="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
+						>
 							<Flame class="size-4" />
 						</div>
-						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{m.charts_calories_trend()}</p>
+						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+							{m.charts_calories_trend()}
+						</p>
 					</div>
 					{#if calorieGoal}
-						<div class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground">
+						<div
+							class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground"
+						>
 							<Target class="size-3.5" />
 							<span>{Math.round(calorieGoal)} {m.foods_kcal()}</span>
 						</div>
 					{/if}
 				</div>
-				<div class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10">
+				<div
+					class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10"
+				>
 					<div class="h-[228px] sm:h-[236px]">
 						<CalorieTrendChart data={chartData} {calorieGoal} />
 					</div>
@@ -213,10 +237,14 @@
 			<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
 				<div class="mb-2.5 flex flex-wrap items-start justify-between gap-2">
 					<div class="flex items-center gap-2">
-						<div class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+						<div
+							class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+						>
 							<BarChart3 class="size-4" />
 						</div>
-						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{m.charts_macro_breakdown()}</p>
+						<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+							{m.charts_macro_breakdown()}
+						</p>
 					</div>
 					<div class="flex flex-wrap items-center justify-end gap-1.5">
 						{#each macroLegendItems as item (item.key)}
@@ -230,13 +258,17 @@
 								}`}
 								onclick={() => toggleMacro(item.key)}
 							>
-								<span class={`size-1.5 rounded-full ${item.dotClass} ${macroVisibility[item.key] ? '' : 'opacity-35'}`}></span>
+								<span
+									class={`size-1.5 rounded-full ${item.dotClass} ${macroVisibility[item.key] ? '' : 'opacity-35'}`}
+								></span>
 								{item.label()}
 							</button>
 						{/each}
 					</div>
 				</div>
-				<div class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background py-2 pr-2 pl-3 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5">
+				<div
+					class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background py-2 pr-2 pl-3 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5"
+				>
 					<div class="h-[228px] sm:h-[236px]">
 						<MacroBreakdownChart data={chartData} visibleKeys={visibleMacroKeys} />
 					</div>

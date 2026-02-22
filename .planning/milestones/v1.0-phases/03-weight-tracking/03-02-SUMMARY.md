@@ -6,20 +6,20 @@ tags: [svelte, layerchart, weight-tracking, chart, i18n]
 
 requires:
   - phase: 03-weight-tracking
-    provides: "Weight CRUD API routes and trend query"
+    provides: 'Weight CRUD API routes and trend query'
 provides:
-  - "WeightChart component with dual-series line (raw + 7-day avg)"
-  - "WeightHistoryList component with inline edit and delete"
-  - "WeightLogForm component for logging weight entries"
-  - "Extended ChartRangeSelector with configurable ranges prop"
-  - "Weight page at /app/weight composing all components"
-  - "Sidebar navigation entry for Weight"
-  - "i18n messages for weight UI in en and de"
+  - 'WeightChart component with dual-series line (raw + 7-day avg)'
+  - 'WeightHistoryList component with inline edit and delete'
+  - 'WeightLogForm component for logging weight entries'
+  - 'Extended ChartRangeSelector with configurable ranges prop'
+  - 'Weight page at /app/weight composing all components'
+  - 'Sidebar navigation entry for Weight'
+  - 'i18n messages for weight UI in en and de'
 affects: [03-03, dashboard-widget]
 
 tech-stack:
   added: []
-  patterns: ["ChartRangeSelector configurable ranges via prop (backward-compatible)"]
+  patterns: ['ChartRangeSelector configurable ranges via prop (backward-compatible)']
 
 key-files:
   created:
@@ -34,12 +34,12 @@ key-files:
     - messages/de.json
 
 key-decisions:
-  - "LineChart uses spline prop (not line) for curve configuration in layerchart"
-  - "ChartRangeSelector extended with optional ranges prop for backward compatibility"
-  - "Weight nav placed between Supplements and Goals in sidebar"
+  - 'LineChart uses spline prop (not line) for curve configuration in layerchart'
+  - 'ChartRangeSelector extended with optional ranges prop for backward compatibility'
+  - 'Weight nav placed between Supplements and Goals in sidebar'
 
 patterns-established:
-  - "ChartRangeSelector reusable with custom range configs via ranges prop"
+  - 'ChartRangeSelector reusable with custom range configs via ranges prop'
 
 requirements-completed: [WGHT-03, WGHT-04, WGHT-05, WGHT-07]
 
@@ -60,6 +60,7 @@ completed: 2026-02-19
 - **Files modified:** 6
 
 ## Accomplishments
+
 - WeightChart with layerchart LineChart rendering raw weight and 7-day moving average
 - WeightHistoryList with inline editing and AlertDialog delete confirmation
 - WeightLogForm with weight/date/notes inputs posting to API
@@ -75,6 +76,7 @@ Each task was committed atomically:
 2. **Task 2: Weight page and navigation** - `9ebb93b` (feat)
 
 ## Files Created/Modified
+
 - `src/lib/components/weight/WeightChart.svelte` - Dual-series line chart with range selector
 - `src/lib/components/weight/WeightHistoryList.svelte` - Entry list with inline edit and delete
 - `src/lib/components/weight/WeightLogForm.svelte` - Inline form to log weight entries
@@ -85,6 +87,7 @@ Each task was committed atomically:
 - `messages/de.json` - Weight i18n messages (German)
 
 ## Decisions Made
+
 - LineChart uses `spline` prop for curve (not `line`) -- layerchart API difference from AreaChart
 - ChartRangeSelector extended via optional `ranges` prop, defaults to original behavior for backward compatibility
 - Weight nav placed between Supplements and Goals in sidebar order
@@ -94,6 +97,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 1 - Bug] Fixed LineChart props (spline vs line)**
+
 - **Found during:** Task 1 (WeightChart creation)
 - **Issue:** Used `line: { curve: curveMonotoneX }` in props but LineChart uses `spline` not `line`
 - **Fix:** Changed prop key from `line` to `spline`
@@ -107,12 +111,15 @@ Each task was committed atomically:
 **Impact on plan:** Minor API difference. No scope creep.
 
 ## Issues Encountered
+
 - i18n messages were already committed by a prior 03-03 widget commit (9979bdc) -- no duplicate work needed
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Weight page fully functional for user testing
 - Dashboard widget (03-03) can link to /app/weight
 - All components ready for integration
@@ -122,5 +129,6 @@ None - no external service configuration required.
 All 6 files verified present. Both task commits (0145f81, 9ebb93b) found in git log.
 
 ---
-*Phase: 03-weight-tracking*
-*Completed: 2026-02-19*
+
+_Phase: 03-weight-tracking_
+_Completed: 2026-02-19_

@@ -20,6 +20,7 @@ The dominant risk across all three features is schema design errors made before 
 The existing stack is sufficient for this milestone with one addition. All features build on SvelteKit 2.x + Svelte 5 runes, Drizzle ORM, Tailwind CSS 4.x, and shadcn-svelte (bits-ui). The chart library (Layerchart 2.0.0-next.43) is already installed and provides the `Chart`, `Svg`, `Line`, `Axis`, and `Tooltip` components needed for the weight trend chart using D3 scales as transitive dependencies. The `sharp` library (^0.34.5) is the only new install required — for server-side image resizing to 400×400 WebP before storing to `static/uploads/`.
 
 **Core technologies:**
+
 - **SvelteKit 2.x + Svelte 5:** Full-stack framework with server load functions — use for all data fetching in dashboard widgets to avoid client-side fetch-in-component anti-pattern (P-X4)
 - **Layerchart 2.0.0-next.43:** Weight trend line chart via `<Chart>`, `<Line>`, `<Axis>` — already installed, no second chart library needed
 - **sharp ^0.34.5:** Server-side image resize to WebP — the only new dependency; used in `src/lib/server/uploads.ts`
@@ -28,6 +29,7 @@ The existing stack is sufficient for this milestone with one addition. All featu
 - **Drizzle ORM 0.45.1:** All new tables follow existing patterns (`onConflictDoUpdate` for upsert in preferences, matching `userGoals` pattern)
 
 **Installation command (only):**
+
 ```bash
 bun add sharp && bun add -d @types/sharp
 ```
@@ -37,6 +39,7 @@ bun add sharp && bun add -d @types/sharp
 Industry research (MacroFactor, Happy Scale, Human Health, MyFitnessPal) establishes clear conventions for each feature area.
 
 **Must have (table stakes):**
+
 - Daily supplement check-off with automatic reset — schema already done; UI is the remaining work
 - Weight log entry with timestamp (not just date) and line chart over time — the chart is the reason users log weight
 - Mark food or recipe as favorite and view favorites list
@@ -44,6 +47,7 @@ Industry research (MacroFactor, Happy Scale, Human Health, MyFitnessPal) establi
 - Adjustable chart time range (7d / 30d / 90d)
 
 **Should have (competitive):**
+
 - Time-of-day supplement scheduling (morning / evening semantics) — already in schema via `scheduleType` enum
 - Supplement adherence history view — API already done; UI page already done
 - Smoothed weight trend overlay (7-day moving average) — compute server-side to handle data gaps correctly (P-W3)
@@ -52,6 +56,7 @@ Industry research (MacroFactor, Happy Scale, Human Health, MyFitnessPal) establi
 - Image cards for favorites with macro bar and food/recipe badge
 
 **Defer to later milestone:**
+
 - PWA push reminders for supplements and weight logging
 - Supplement adherence streaks and heatmap calendar
 - BMI calculation (requires height in user profile, not in schema)
@@ -67,6 +72,7 @@ The codebase uses a strict four-layer architecture: Data Access (schema.ts) → 
 The `userPreferences` table is the cross-feature linchpin — it must be built first because all three dashboard widgets (supplements, weight, favorites) read `show*OnDashboard` flags from it. The preferences upsert follows the existing `userGoals` pattern (`onConflictDoUpdate` on `userId`). Image uploads share a single server utility (`src/lib/server/uploads.ts`) used by both food and recipe images to avoid divergent caching paths (P-S5).
 
 **Major components:**
+
 1. **`userPreferences` table + `preferences.ts` server module + `/api/preferences`** — shared dependency enabling widget visibility for all three features; must be built in Phase A
 2. **Weight tracking stack** — `weightLogs` schema, `weight.ts` server module, 4 API routes, `WeightChart.svelte` (Layerchart), `WeightWidget.svelte`, `/app/weight` page
 3. **Favorites stack** — `favorites.ts` server module, `uploads.ts` image utility, `FavoriteCard.svelte`, `FavoritesWidget.svelte`, `ServingsPicker.svelte` (vaul-svelte), `/app/favorites` page
@@ -154,21 +160,23 @@ Based on the dependency graph established in architecture research, the followin
 ### Research Flags
 
 **Needs deeper research during planning:**
+
 - **Phase B (image upload):** Confirm whether `sharp` blocking the Bun event loop is a real concern for typical phone photo sizes — benchmark before adding worker thread complexity (P-X3)
 - **Phase C (weight chart):** Confirm Drizzle ORM syntax for SQL window functions in the rolling average query — may need `sql` template literal escape hatch
 
 **Standard patterns (skip research-phase):**
+
 - **Phase A:** Exact duplicate of existing `userGoals` upsert pattern
 - **Phase D:** Pure wiring; all patterns established in supplement milestone
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | All libraries verified against installed versions in package.json and node_modules; sharp version confirmed from npm registry |
-| Features | HIGH | Based on MacroFactor, Happy Scale, Human Health, MyFitnessPal — well-documented domain with established conventions |
-| Architecture | HIGH | Derived directly from the existing codebase (four-layer pattern confirmed, dependency graph established by reading actual schema.ts and server modules) |
-| Pitfalls | HIGH | 20 pitfalls identified with specific file/query references; directly mapped to existing code patterns |
+| Area         | Confidence | Notes                                                                                                                                                   |
+| ------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack        | HIGH       | All libraries verified against installed versions in package.json and node_modules; sharp version confirmed from npm registry                           |
+| Features     | HIGH       | Based on MacroFactor, Happy Scale, Human Health, MyFitnessPal — well-documented domain with established conventions                                     |
+| Architecture | HIGH       | Derived directly from the existing codebase (four-layer pattern confirmed, dependency graph established by reading actual schema.ts and server modules) |
+| Pitfalls     | HIGH       | 20 pitfalls identified with specific file/query references; directly mapped to existing code patterns                                                   |
 
 **Overall confidence:** HIGH
 
@@ -181,12 +189,14 @@ Based on the dependency graph established in architecture research, the followin
 ## Sources
 
 ### Primary (HIGH confidence)
+
 - `package.json` + `node_modules/layerchart/package.json` — version verification for all installed libraries
 - `src/lib/server/schema.ts` — confirmed existing schema (isFavorite on foods, supplement tables, userGoals upsert pattern)
 - `src/lib/server/supplements.ts`, `src/routes/api/supplements/**` — confirmed supplement backend is fully implemented
 - npm registry (WebSearch) — sharp 0.34.5 current version confirmed
 
 ### Secondary (MEDIUM confidence)
+
 - [MacroFactor Favorite Foods](https://macrofactor.com/favorite-foods/) — favorites UX patterns (tap behavior, saved serving size)
 - [MacroFactor weight trend](https://help.macrofactorapp.com/en/articles/21-weight-trend) — smoothed trend line conventions
 - [Happy Scale](https://happyscale.com/) — weight trend chart UX benchmarks
@@ -195,8 +205,10 @@ Based on the dependency graph established in architecture research, the followin
 - [7 best free weight tracking apps 2025](https://bodly.app/blog/the-7-best-free-weight-tracking-apps-in-2025) — weight tracking anti-features
 
 ### Tertiary (LOW confidence)
+
 - MyFitnessPal community threads — weight chart user expectations (referenced in FEATURES.md for the "no interpolation" UX pattern; anecdotal)
 
 ---
-*Research completed: 2026-02-17*
-*Ready for roadmap: yes*
+
+_Research completed: 2026-02-17_
+_Ready for roadmap: yes_

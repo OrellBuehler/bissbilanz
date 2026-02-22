@@ -135,8 +135,8 @@
 				{:else}
 					<div class="rounded-md bg-muted border p-4">
 						<p class="text-sm text-muted-foreground">
-							Your client secret is hidden for security. If you need to view it again, regenerate
-							a new secret below.
+							Your client secret is hidden for security. If you need to view it again, regenerate a
+							new secret below.
 						</p>
 					</div>
 				{/if}
@@ -167,8 +167,8 @@
 		<Card.Header>
 			<Card.Title>Allowed Redirect URIs</Card.Title>
 			<Card.Description>
-				Register the callback URLs that your MCP clients use. The OAuth authorization flow will
-				only redirect to these URIs.
+				Register the callback URLs that your MCP clients use. The OAuth authorization flow will only
+				redirect to these URIs.
 			</Card.Description>
 		</Card.Header>
 
@@ -189,9 +189,7 @@
 					<Label>Registered URIs</Label>
 					<ul class="space-y-2">
 						{#each data.allowedRedirectUris as uri}
-							<li
-								class="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2"
-							>
+							<li class="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2">
 								<code class="text-sm font-mono truncate flex-1">{uri}</code>
 								<form method="POST" action="?/removeRedirectUri" use:enhance class="ml-2">
 									<input type="hidden" name="redirectUri" value={uri} />
@@ -211,8 +209,8 @@
 			{:else}
 				<div class="rounded-md bg-amber-50 border border-amber-200 p-4">
 					<p class="text-sm text-amber-700">
-						No redirect URIs registered. You must add at least one redirect URI before using
-						OAuth. For Claude.ai, add your callback URL (e.g., https://claude.ai/oauth/callback).
+						No redirect URIs registered. You must add at least one redirect URI before using OAuth.
+						For Claude.ai, add your callback URL (e.g., https://claude.ai/oauth/callback).
 					</p>
 				</div>
 			{/if}
@@ -242,21 +240,15 @@
 				<div class="pt-4 border-t">
 					<h4 class="font-medium mb-3">Step 2: Authorize Access</h4>
 					<p class="text-sm text-muted-foreground">
-						When you first use the MCP connection, you'll be prompted to authorize access in
-						your browser. This allows the MCP client to access your Bissbilanz data securely.
+						When you first use the MCP connection, you'll be prompted to authorize access in your
+						browser. This allows the MCP client to access your Bissbilanz data securely.
 					</p>
 				</div>
 
 				<div class="pt-4 border-t">
 					<h4 class="font-medium mb-3">Available Capabilities</h4>
 					<ul class="space-y-2">
-						{#each [
-							"View today's nutrition status and goals",
-							'Search your food database',
-							'Create new foods with full nutritional info',
-							'Create recipes with multiple ingredients',
-							'Log food entries to your daily diary'
-						] as capability}
+						{#each ["View today's nutrition status and goals", 'Search your food database', 'Create new foods with full nutritional info', 'Create recipes with multiple ingredients', 'Log food entries to your daily diary'] as capability}
 							<li class="flex items-start gap-2 text-sm">
 								<svg
 									class="size-5 text-green-600 flex-shrink-0 mt-0.5"

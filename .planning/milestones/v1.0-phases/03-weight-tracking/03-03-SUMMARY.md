@@ -6,12 +6,12 @@ tags: [svelte, widget, weight-tracking, dashboard, i18n]
 
 requires:
   - phase: 03-weight-tracking
-    provides: "Weight API routes including GET /api/weight/latest"
+    provides: 'Weight API routes including GET /api/weight/latest'
   - phase: 01-foundation
-    provides: "userPreferences with showWeightWidget toggle"
+    provides: 'userPreferences with showWeightWidget toggle'
 provides:
-  - "WeightWidget.svelte dashboard component"
-  - "Dashboard integration with preference-gated weight display"
+  - 'WeightWidget.svelte dashboard component'
+  - 'Dashboard integration with preference-gated weight display'
 affects: []
 
 tech-stack:
@@ -27,7 +27,7 @@ key-files:
     - messages/de.json
 
 key-decisions:
-  - "Weight widget placed after supplements widget in dashboard layout order"
+  - 'Weight widget placed after supplements widget in dashboard layout order'
 
 patterns-established: []
 
@@ -50,6 +50,7 @@ completed: 2026-02-19
 - **Files modified:** 4
 
 ## Accomplishments
+
 - WeightWidget.svelte card with weight icon, latest weight formatted to 1 decimal, entry date, and link to /app/weight
 - Empty state with prompt to log first weight
 - Dashboard integration fetching /api/weight/latest on mount, conditionally rendered via showWeightWidget preference
@@ -62,12 +63,14 @@ Each task was committed atomically:
 1. **Task 1: Weight widget and dashboard integration** - `9979bdc` (feat)
 
 ## Files Created/Modified
+
 - `src/lib/components/weight/WeightWidget.svelte` - Dashboard card showing latest weight with empty state
 - `src/routes/app/+page.svelte` - Added WeightWidget import, latestWeight state, loadLatestWeight fetch, conditional render
-- `messages/en.json` - Added dashboard_weight_* i18n keys
-- `messages/de.json` - Added dashboard_weight_* i18n keys (German)
+- `messages/en.json` - Added dashboard*weight*\* i18n keys
+- `messages/de.json` - Added dashboard*weight*\* i18n keys (German)
 
 ## Decisions Made
+
 - Placed weight widget after supplements checklist in dashboard layout, before meal sections
 
 ## Deviations from Plan
@@ -75,12 +78,15 @@ Each task was committed atomically:
 None - plan executed exactly as written.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Phase 3 (weight tracking) fully complete: backend, UI page, and dashboard widget all delivered
 - Weight widget respects existing showWeightWidget preference from settings
 
@@ -89,5 +95,6 @@ None - no external service configuration required.
 All 4 files verified present. Task commit (9979bdc) found in git log.
 
 ---
-*Phase: 03-weight-tracking*
-*Completed: 2026-02-19*
+
+_Phase: 03-weight-tracking_
+_Completed: 2026-02-19_

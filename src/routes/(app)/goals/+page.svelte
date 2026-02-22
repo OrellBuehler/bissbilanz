@@ -55,35 +55,35 @@
 </script>
 
 {#if loaded}
-<div class="mx-auto max-w-xl space-y-6">
-	<Card.Root>
-		<Card.Content class="grid gap-4 pt-6">
-			<div class="grid gap-2">
-				<Label for="calories">{m.goals_calories()}</Label>
-				<Input id="calories" type="number" bind:value={form.calorieGoal} />
-			</div>
-			<div class="grid gap-2">
-				<Label for="protein">{m.goals_protein()}</Label>
-				<Input id="protein" type="number" bind:value={form.proteinGoal} />
-			</div>
-			<div class="grid gap-2">
-				<Label for="carbs">{m.goals_carbs()}</Label>
-				<Input id="carbs" type="number" bind:value={form.carbGoal} />
-			</div>
-			<div class="grid gap-2">
-				<Label for="fat">{m.goals_fat()}</Label>
-				<Input id="fat" type="number" bind:value={form.fatGoal} />
-			</div>
-			<div class="grid gap-2">
-				<Label for="fiber">{m.goals_fiber()}</Label>
-				<Input id="fiber" type="number" bind:value={form.fiberGoal} />
-			</div>
-		</Card.Content>
-		<Card.Footer>
-			<Button onclick={saveGoals} disabled={saving}>
-				{saving ? m.goals_saving() : m.goals_save()}
-			</Button>
-		</Card.Footer>
-	</Card.Root>
-</div>
+	<div class="mx-auto max-w-xl space-y-6">
+		<Card.Root>
+			<Card.Content class="grid gap-4 pt-6">
+				<div class="grid gap-2">
+					<Label for="calories">{m.goals_calories()}</Label>
+					<Input id="calories" type="number" bind:value={form.calorieGoal} />
+				</div>
+				<div class="grid gap-2">
+					<Label for="protein">{m.goals_protein()}</Label>
+					<Input id="protein" type="number" bind:value={form.proteinGoal} />
+				</div>
+				<div class="grid gap-2">
+					<Label for="carbs">{m.goals_carbs()}</Label>
+					<Input id="carbs" type="number" bind:value={form.carbGoal} />
+				</div>
+				<div class="grid gap-2">
+					<Label for="fat">{m.goals_fat()}</Label>
+					<Input id="fat" type="number" bind:value={form.fatGoal} />
+				</div>
+				<div class="grid gap-2">
+					<Label for="fiber">{m.goals_fiber()}</Label>
+					<Input id="fiber" type="number" bind:value={form.fiberGoal} />
+				</div>
+			</Card.Content>
+			<Card.Footer>
+				<Button onclick={saveGoals} disabled={saving}>
+					{saving ? m.goals_saving() : m.goals_save()}
+				</Button>
+			</Card.Footer>
+		</Card.Root>
+	</div>
 {/if}

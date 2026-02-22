@@ -43,10 +43,6 @@ export const decryptToken = async (encrypted: string, secret: string) => {
 	const combined = fromBase64Url(encrypted);
 	const iv = combined.slice(0, 12);
 	const ciphertext = combined.slice(12);
-	const plaintext = await crypto.subtle.decrypt(
-		{ name: 'AES-GCM', iv },
-		key,
-		ciphertext
-	);
+	const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
 	return textDecoder.decode(plaintext);
 };

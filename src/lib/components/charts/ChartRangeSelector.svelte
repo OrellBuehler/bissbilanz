@@ -58,7 +58,8 @@
 	<div class="bg-muted inline-flex rounded-full p-1">
 		{#each ranges as range}
 			<button
-				class="relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 {activeRange === range.key
+				class="relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 {activeRange ===
+				range.key
 					? 'bg-background text-foreground shadow-sm'
 					: 'text-muted-foreground hover:text-foreground'}"
 				onclick={() => selectRange(range.key)}

@@ -119,7 +119,10 @@ export function createSessionCookie(
 		.join('; ');
 }
 
-export function clearSessionCookie(options?: { secure?: boolean; sameSite?: SameSiteValue }): string {
+export function clearSessionCookie(options?: {
+	secure?: boolean;
+	sameSite?: SameSiteValue;
+}): string {
 	const secure = options?.secure ?? config.infomaniak.redirectUri.startsWith('https');
 	const sameSite = formatSameSite(options?.sameSite);
 	return [

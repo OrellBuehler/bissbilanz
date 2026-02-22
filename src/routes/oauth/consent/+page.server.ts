@@ -36,10 +36,7 @@ export const load: PageServerLoad = async ({ url, request }) => {
 
 	const client = await getOAuthClient(clientId);
 	if (!client) {
-		throw redirect(
-			302,
-			`/oauth/error?code=invalid_client&detail=${encodeURIComponent(clientId)}`
-		);
+		throw redirect(302, `/oauth/error?code=invalid_client&detail=${encodeURIComponent(clientId)}`);
 	}
 
 	if (!validateRedirectUri(client, redirectUri)) {

@@ -30,7 +30,8 @@
 	let loading = $state(true);
 	let tapAction: 'instant' | 'picker' = $state('instant');
 	let mealAssignmentMode: 'time_based' | 'ask_meal' = $state('time_based');
-	let favoriteMealTimeframes: Array<{ mealType: string; startMinute: number; endMinute: number }> = $state([]);
+	let favoriteMealTimeframes: Array<{ mealType: string; startMinute: number; endMinute: number }> =
+		$state([]);
 	let mealOptions: string[] = $state([...DEFAULT_MEAL_TYPES]);
 
 	let pickerOpen = $state(false);

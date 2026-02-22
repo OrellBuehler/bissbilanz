@@ -26,11 +26,31 @@ export const listEntriesByDate = async (
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
 			foodName: sql<string | null>`COALESCE(${foods.name}, ${recipes.name})`.as('food_name'),
-			calories: sql<number | null>`COALESCE(${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('calories'),
-			protein: sql<number | null>`COALESCE(${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('protein'),
-			carbs: sql<number | null>`COALESCE(${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('carbs'),
-			fat: sql<number | null>`COALESCE(${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('fat'),
-			fiber: sql<number | null>`COALESCE(${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('fiber'),
+			calories: sql<
+				number | null
+			>`COALESCE(${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'calories'
+			),
+			protein: sql<
+				number | null
+			>`COALESCE(${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'protein'
+			),
+			carbs: sql<
+				number | null
+			>`COALESCE(${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'carbs'
+			),
+			fat: sql<
+				number | null
+			>`COALESCE(${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'fat'
+			),
+			fiber: sql<
+				number | null
+			>`COALESCE(${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'fiber'
+			),
 			createdAt: foodEntries.createdAt
 		})
 		.from(foodEntries)
@@ -124,11 +144,31 @@ export const listEntriesByDateRange = async (
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
 			foodName: sql<string | null>`COALESCE(${foods.name}, ${recipes.name})`.as('food_name'),
-			calories: sql<number | null>`COALESCE(${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('calories'),
-			protein: sql<number | null>`COALESCE(${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('protein'),
-			carbs: sql<number | null>`COALESCE(${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('carbs'),
-			fat: sql<number | null>`COALESCE(${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('fat'),
-			fiber: sql<number | null>`COALESCE(${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as('fiber')
+			calories: sql<
+				number | null
+			>`COALESCE(${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'calories'
+			),
+			protein: sql<
+				number | null
+			>`COALESCE(${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'protein'
+			),
+			carbs: sql<
+				number | null
+			>`COALESCE(${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'carbs'
+			),
+			fat: sql<
+				number | null
+			>`COALESCE(${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'fat'
+			),
+			fiber: sql<
+				number | null
+			>`COALESCE(${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+				'fiber'
+			)
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))

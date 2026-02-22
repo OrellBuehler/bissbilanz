@@ -39,7 +39,7 @@
 			const segment = segments[i];
 			const href = '/' + segments.slice(0, i + 1).join('/');
 			const isId = UUID_RE.test(segment);
-			const label = isId ? '...' : (labelMap[segment]?.() || segment);
+			const label = isId ? '...' : labelMap[segment]?.() || segment;
 			crumbs.push({ label, href, isId });
 		}
 

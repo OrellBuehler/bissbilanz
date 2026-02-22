@@ -234,9 +234,7 @@ describe('Database error handling', () => {
 
 		test('constraint violation error is typed as Error', async () => {
 			setError(
-				new Error(
-					'duplicate key value violates unique constraint "foods_user_id_barcode_unique"'
-				)
+				new Error('duplicate key value violates unique constraint "foods_user_id_barcode_unique"')
 			);
 
 			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);

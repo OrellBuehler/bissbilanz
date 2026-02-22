@@ -38,16 +38,9 @@
 >
 	<div class="aspect-[4/3] relative overflow-hidden">
 		{#if imageUrl}
-			<img
-				src={imageUrl}
-				alt={name}
-				class="h-full w-full object-cover"
-				loading="lazy"
-			/>
+			<img src={imageUrl} alt={name} class="h-full w-full object-cover" loading="lazy" />
 		{:else}
-			<div
-				class="flex h-full w-full items-center justify-center {placeholderColor.bg}"
-			>
+			<div class="flex h-full w-full items-center justify-center {placeholderColor.bg}">
 				<span class="text-4xl font-bold {placeholderColor.text}">{initial}</span>
 			</div>
 		{/if}
@@ -55,10 +48,26 @@
 	<div class="p-2">
 		<p class="truncate text-sm font-medium">{name}</p>
 		<div class="mt-1 flex flex-wrap gap-1">
-			<Badge variant="secondary" class="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0 dark:bg-blue-900/40 dark:text-blue-300">{Math.round(calories)} kcal</Badge>
-			<Badge variant="secondary" class="bg-red-100 text-red-700 text-[10px] px-1.5 py-0 dark:bg-red-900/40 dark:text-red-300">{protein.toFixed(1)}g P</Badge>
-			<Badge variant="secondary" class="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 dark:bg-orange-900/40 dark:text-orange-300">{carbs.toFixed(1)}g C</Badge>
-			<Badge variant="secondary" class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0 dark:bg-yellow-900/40 dark:text-yellow-300">{fat.toFixed(1)}g F</Badge>
+			<Badge
+				variant="secondary"
+				class="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0 dark:bg-blue-900/40 dark:text-blue-300"
+				>{Math.round(calories)} kcal</Badge
+			>
+			<Badge
+				variant="secondary"
+				class="bg-red-100 text-red-700 text-[10px] px-1.5 py-0 dark:bg-red-900/40 dark:text-red-300"
+				>{protein.toFixed(1)}g P</Badge
+			>
+			<Badge
+				variant="secondary"
+				class="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 dark:bg-orange-900/40 dark:text-orange-300"
+				>{carbs.toFixed(1)}g C</Badge
+			>
+			<Badge
+				variant="secondary"
+				class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0 dark:bg-yellow-900/40 dark:text-yellow-300"
+				>{fat.toFixed(1)}g F</Badge
+			>
 		</div>
 	</div>
 </button>

@@ -6,17 +6,17 @@ tags: [drizzle, postgres, zod, weight-tracking, moving-average, window-function]
 
 requires:
   - phase: 01-foundation
-    provides: "session auth, error helpers, validation patterns"
+    provides: 'session auth, error helpers, validation patterns'
 provides:
-  - "weightEntries table with migration"
-  - "Weight CRUD server module with 7-day moving average trend query"
-  - "Zod validation schemas for weight create/update"
-  - "API routes: GET/POST /api/weight, PATCH/DELETE /api/weight/[id], GET /api/weight/latest"
+  - 'weightEntries table with migration'
+  - 'Weight CRUD server module with 7-day moving average trend query'
+  - 'Zod validation schemas for weight create/update'
+  - 'API routes: GET/POST /api/weight, PATCH/DELETE /api/weight/[id], GET /api/weight/latest'
 affects: [03-02, 03-03, dashboard-widget]
 
 tech-stack:
   added: []
-  patterns: ["SQL CTE with DISTINCT ON + window function for trend data"]
+  patterns: ['SQL CTE with DISTINCT ON + window function for trend data']
 
 key-files:
   created:
@@ -31,11 +31,11 @@ key-files:
     - src/lib/server/validation/index.ts
 
 key-decisions:
-  - "Used db.execute with raw SQL CTE for trend query -- Drizzle ORM lacks DISTINCT ON and window function support"
-  - "deleteWeightEntry returns boolean (via .returning()) for 404 detection in API route"
+  - 'Used db.execute with raw SQL CTE for trend query -- Drizzle ORM lacks DISTINCT ON and window function support'
+  - 'deleteWeightEntry returns boolean (via .returning()) for 404 detection in API route'
 
 patterns-established:
-  - "Weight trend query: CTE with DISTINCT ON picks latest entry per day, then AVG window over 7 rows"
+  - 'Weight trend query: CTE with DISTINCT ON picks latest entry per day, then AVG window over 7 rows'
 
 requirements-completed: [WGHT-01, WGHT-02, WGHT-03, WGHT-05]
 
@@ -56,6 +56,7 @@ completed: 2026-02-19
 - **Files modified:** 8
 
 ## Accomplishments
+
 - weightEntries table with indexes on (userId, entryDate) and (userId, loggedAt)
 - Server module with 6 functions: create, list, trend, latest, update, delete
 - Three API route files following existing supplements pattern
@@ -69,6 +70,7 @@ Each task was committed atomically:
 2. **Task 2: API routes for weight CRUD and latest** - `2501a77` (feat)
 
 ## Files Created/Modified
+
 - `src/lib/server/schema.ts` - Added weightEntries table definition and types
 - `src/lib/server/validation/weight.ts` - Zod schemas for create and update
 - `src/lib/server/validation/index.ts` - Re-export weight validation
@@ -79,6 +81,7 @@ Each task was committed atomically:
 - `drizzle/0008_stale_elektra.sql` - Migration for weight_entries table
 
 ## Decisions Made
+
 - Used raw SQL via `db.execute(sql\`...\`)` for trend query since Drizzle ORM lacks DISTINCT ON and window function support
 - `deleteWeightEntry` returns boolean from `.returning()` to enable 404 detection in DELETE route
 - DELETE route returns 204 (no content) on success, matching REST conventions
@@ -88,6 +91,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 1 - Bug] Fixed db.execute return type**
+
 - **Found during:** Task 2 (type checking)
 - **Issue:** `db.execute()` returns rows directly as array, not `{ rows }` object
 - **Fix:** Changed `result.rows` to `result`
@@ -101,12 +105,15 @@ Each task was committed atomically:
 **Impact on plan:** Minor type correction. No scope creep.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Backend API fully operational for Plan 2 (weight page UI) and Plan 3 (dashboard widget)
 - Migration applies cleanly on dev server start
 - All 6 server functions ready for frontend consumption
@@ -116,5 +123,6 @@ None - no external service configuration required.
 All 7 files verified present. Both task commits (36df06a, 2501a77) found in git log.
 
 ---
-*Phase: 03-weight-tracking*
-*Completed: 2026-02-19*
+
+_Phase: 03-weight-tracking_
+_Completed: 2026-02-19_

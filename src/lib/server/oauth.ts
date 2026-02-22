@@ -184,10 +184,7 @@ export function validateRedirectUri(client: OAuthClient, redirectUri: string): b
 export async function hasAuthorization(userId: string, clientId: string): Promise<boolean> {
 	const db = getDB();
 	const authorization = await db.query.oauthAuthorizations.findFirst({
-		where: and(
-			eq(oauthAuthorizations.userId, userId),
-			eq(oauthAuthorizations.clientId, clientId)
-		)
+		where: and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId))
 	});
 	return !!authorization;
 }
@@ -199,10 +196,7 @@ export async function createAuthorization(
 	const db = getDB();
 
 	const existing = await db.query.oauthAuthorizations.findFirst({
-		where: and(
-			eq(oauthAuthorizations.userId, userId),
-			eq(oauthAuthorizations.clientId, clientId)
-		)
+		where: and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId))
 	});
 
 	if (existing) {

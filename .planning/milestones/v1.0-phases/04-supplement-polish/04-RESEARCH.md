@@ -13,52 +13,54 @@ This is a UI polish phase. No new API routes or server modules are needed beyond
 **Primary recommendation:** Add `timeOfDay` text column to supplements schema, fix dashboard widget gating to use `userPrefs?.showSupplementsWidget`, group checklist items by time-of-day, and enhance history to show missed supplements per day.
 
 <phase_requirements>
+
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|-----------------|
-| SUPP-01 | User can view today's supplement checklist and check off each supplement as taken | SupplementChecklist component and `/api/supplements/today` endpoint already exist and work. Dashboard already loads and toggles supplements. Main gap: widget visibility not gated on preferences. |
-| SUPP-02 | Supplements have time-of-day scheduling (morning, noon, evening, or custom) | NOT YET IMPLEMENTED. Schema has no `timeOfDay` column. SupplementForm has no time-of-day selector. Checklist does not group by time. Requires: schema migration, form update, checklist grouping, API response update. |
-| SUPP-03 | User can view supplement adherence history (past days' completion) | History page exists but only shows taken supplements. Does NOT show missed supplements or adherence rates. Need to cross-reference scheduled supplements against logs to show what was missed each day. |
-| SUPP-04 | Dashboard supplement widget shows today's checklist (hideable in settings) | Widget exists (SupplementChecklist component), settings toggle exists (`showSupplementsWidget` in preferences). BUG: Dashboard gates on `supplementChecklist.length > 0` instead of `userPrefs?.showSupplementsWidget`. Fix is a one-line conditional change. |
-| SUPP-05 | Supplement check-off persists to supplement_logs table with timestamp | FULLY IMPLEMENTED. `POST /api/supplements/:id/log` creates a log with `takenAt: new Date()`. `DELETE /api/supplements/:id/log/:date` removes it. Dashboard `toggleSupplement` calls both correctly. |
+| ID      | Description                                                                       | Research Support                                                                                                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SUPP-01 | User can view today's supplement checklist and check off each supplement as taken | SupplementChecklist component and `/api/supplements/today` endpoint already exist and work. Dashboard already loads and toggles supplements. Main gap: widget visibility not gated on preferences.                                                            |
+| SUPP-02 | Supplements have time-of-day scheduling (morning, noon, evening, or custom)       | NOT YET IMPLEMENTED. Schema has no `timeOfDay` column. SupplementForm has no time-of-day selector. Checklist does not group by time. Requires: schema migration, form update, checklist grouping, API response update.                                        |
+| SUPP-03 | User can view supplement adherence history (past days' completion)                | History page exists but only shows taken supplements. Does NOT show missed supplements or adherence rates. Need to cross-reference scheduled supplements against logs to show what was missed each day.                                                       |
+| SUPP-04 | Dashboard supplement widget shows today's checklist (hideable in settings)        | Widget exists (SupplementChecklist component), settings toggle exists (`showSupplementsWidget` in preferences). BUG: Dashboard gates on `supplementChecklist.length > 0` instead of `userPrefs?.showSupplementsWidget`. Fix is a one-line conditional change. |
+| SUPP-05 | Supplement check-off persists to supplement_logs table with timestamp             | FULLY IMPLEMENTED. `POST /api/supplements/:id/log` creates a log with `takenAt: new Date()`. `DELETE /api/supplements/:id/log/:date` removes it. Dashboard `toggleSupplement` calls both correctly.                                                           |
+
 </phase_requirements>
 
 ## Existing Implementation Inventory
 
 ### What Already Works (HIGH confidence — verified from source)
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| DB schema: `supplements` table | `src/lib/server/schema.ts:214-236` | Complete |
-| DB schema: `supplementLogs` table | `src/lib/server/schema.ts:239-258` | Complete |
-| Server module | `src/lib/server/supplements.ts` | Complete (CRUD, log, unlog, range queries) |
-| API: `GET /api/supplements` | `src/routes/api/supplements/+server.ts` | Complete |
-| API: `POST /api/supplements` | `src/routes/api/supplements/+server.ts` | Complete |
-| API: `GET/PUT/DELETE /api/supplements/:id` | `src/routes/api/supplements/[id]/+server.ts` | Complete |
-| API: `POST /api/supplements/:id/log` | `src/routes/api/supplements/[id]/log/+server.ts` | Complete |
-| API: `DELETE /api/supplements/:id/log/:date` | `src/routes/api/supplements/[id]/log/[date]/+server.ts` | Complete |
-| API: `GET /api/supplements/today` | `src/routes/api/supplements/today/+server.ts` | Complete |
-| API: `GET /api/supplements/history` | `src/routes/api/supplements/history/+server.ts` | Complete |
-| Schedule logic | `src/lib/utils/supplements.ts` | Complete (`isSupplementDue`, `formatSchedule`) |
-| Supplement form | `src/lib/components/supplements/SupplementForm.svelte` | Complete |
-| Supplement checklist widget | `src/lib/components/supplements/SupplementChecklist.svelte` | Complete |
-| Supplements management page | `src/routes/app/supplements/+page.svelte` | Complete |
-| Supplements history page | `src/routes/app/supplements/history/+page.svelte` | Partial (only shows taken) |
-| Dashboard supplement loading + toggle | `src/routes/app/+page.svelte:147-170` | Complete |
-| Settings toggle for widget | `src/routes/app/settings/+page.svelte` | Complete |
-| Preferences schema | `src/lib/server/schema.ts:143-157` | Complete (`showSupplementsWidget`) |
-| i18n messages | `messages/en.json`, `messages/de.json` | Complete for current features |
+| Component                                    | Location                                                    | Status                                         |
+| -------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
+| DB schema: `supplements` table               | `src/lib/server/schema.ts:214-236`                          | Complete                                       |
+| DB schema: `supplementLogs` table            | `src/lib/server/schema.ts:239-258`                          | Complete                                       |
+| Server module                                | `src/lib/server/supplements.ts`                             | Complete (CRUD, log, unlog, range queries)     |
+| API: `GET /api/supplements`                  | `src/routes/api/supplements/+server.ts`                     | Complete                                       |
+| API: `POST /api/supplements`                 | `src/routes/api/supplements/+server.ts`                     | Complete                                       |
+| API: `GET/PUT/DELETE /api/supplements/:id`   | `src/routes/api/supplements/[id]/+server.ts`                | Complete                                       |
+| API: `POST /api/supplements/:id/log`         | `src/routes/api/supplements/[id]/log/+server.ts`            | Complete                                       |
+| API: `DELETE /api/supplements/:id/log/:date` | `src/routes/api/supplements/[id]/log/[date]/+server.ts`     | Complete                                       |
+| API: `GET /api/supplements/today`            | `src/routes/api/supplements/today/+server.ts`               | Complete                                       |
+| API: `GET /api/supplements/history`          | `src/routes/api/supplements/history/+server.ts`             | Complete                                       |
+| Schedule logic                               | `src/lib/utils/supplements.ts`                              | Complete (`isSupplementDue`, `formatSchedule`) |
+| Supplement form                              | `src/lib/components/supplements/SupplementForm.svelte`      | Complete                                       |
+| Supplement checklist widget                  | `src/lib/components/supplements/SupplementChecklist.svelte` | Complete                                       |
+| Supplements management page                  | `src/routes/app/supplements/+page.svelte`                   | Complete                                       |
+| Supplements history page                     | `src/routes/app/supplements/history/+page.svelte`           | Partial (only shows taken)                     |
+| Dashboard supplement loading + toggle        | `src/routes/app/+page.svelte:147-170`                       | Complete                                       |
+| Settings toggle for widget                   | `src/routes/app/settings/+page.svelte`                      | Complete                                       |
+| Preferences schema                           | `src/lib/server/schema.ts:143-157`                          | Complete (`showSupplementsWidget`)             |
+| i18n messages                                | `messages/en.json`, `messages/de.json`                      | Complete for current features                  |
 
 ### What Needs Work
 
-| Gap | Requirement | Effort |
-|-----|-------------|--------|
-| No `timeOfDay` column in supplements schema | SUPP-02 | Schema migration + form update + checklist grouping |
-| Dashboard widget not gated on `showSupplementsWidget` preference | SUPP-04 | One-line fix in dashboard |
-| History only shows taken supplements, not missed | SUPP-03 | Need adherence logic: cross-reference scheduled vs logged |
-| Checklist does not display time-of-day grouping | SUPP-02 | UI update to SupplementChecklist component |
-| No i18n keys for time-of-day labels | SUPP-02 | Add message keys for morning/noon/evening/custom |
+| Gap                                                              | Requirement | Effort                                                    |
+| ---------------------------------------------------------------- | ----------- | --------------------------------------------------------- |
+| No `timeOfDay` column in supplements schema                      | SUPP-02     | Schema migration + form update + checklist grouping       |
+| Dashboard widget not gated on `showSupplementsWidget` preference | SUPP-04     | One-line fix in dashboard                                 |
+| History only shows taken supplements, not missed                 | SUPP-03     | Need adherence logic: cross-reference scheduled vs logged |
+| Checklist does not display time-of-day grouping                  | SUPP-02     | UI update to SupplementChecklist component                |
+| No i18n keys for time-of-day labels                              | SUPP-02     | Add message keys for morning/noon/evening/custom          |
 
 ## Architecture Patterns
 
@@ -76,16 +78,18 @@ No pgEnum needed — the existing `scheduleType` uses a pgEnum but time-of-day i
 ### Dashboard Widget Gating Pattern
 
 Other widgets already follow this pattern:
+
 ```svelte
 {#if userPrefs?.showFavoritesWidget}
-  <FavoritesWidget ... />
+	<FavoritesWidget ... />
 {/if}
 ```
 
 The supplement widget should match:
+
 ```svelte
 {#if userPrefs?.showSupplementsWidget}
-  <SupplementChecklist ... />
+	<SupplementChecklist ... />
 {/if}
 ```
 
@@ -121,6 +125,7 @@ The current history endpoint (`GET /api/supplements/history`) only returns logs 
 3. Show taken + missed per day
 
 Two approaches:
+
 - **Frontend approach:** Fetch all active supplements + all logs for range, compute in browser. Simpler, no new API needed. Works for reasonable date ranges (30-90 days).
 - **Backend approach:** New API endpoint that computes adherence server-side. More accurate for historical data if supplements were deleted/deactivated.
 
@@ -130,27 +135,31 @@ Two approaches:
 
 ## Don't Hand-Roll
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| Schedule calculation | Custom date math | `isSupplementDue()` in `src/lib/utils/supplements.ts` | Already handles all schedule types correctly |
-| Toggle log/unlog | Custom state management | Existing `toggleSupplement()` in dashboard | Already handles POST/DELETE correctly |
-| Widget visibility | Custom show/hide logic | `userPrefs?.showSupplementsWidget` pattern from other widgets | Consistent with favorites/weight widgets |
+| Problem              | Don't Build             | Use Instead                                                   | Why                                          |
+| -------------------- | ----------------------- | ------------------------------------------------------------- | -------------------------------------------- |
+| Schedule calculation | Custom date math        | `isSupplementDue()` in `src/lib/utils/supplements.ts`         | Already handles all schedule types correctly |
+| Toggle log/unlog     | Custom state management | Existing `toggleSupplement()` in dashboard                    | Already handles POST/DELETE correctly        |
+| Widget visibility    | Custom show/hide logic  | `userPrefs?.showSupplementsWidget` pattern from other widgets | Consistent with favorites/weight widgets     |
 
 ## Common Pitfalls
 
 ### Pitfall 1: Widget Shows Empty State When All Checked
+
 **What goes wrong:** Current code hides widget when `supplementChecklist.length > 0` is false, meaning it disappears if user has no supplements configured. But it also shows even when user disabled it in settings.
 **How to avoid:** Gate on `userPrefs?.showSupplementsWidget` for visibility. Show the widget even if checklist is empty (with empty state message). The "all taken" state should still show the widget with a success message (already handled by existing component).
 
 ### Pitfall 2: Migration Order for timeOfDay
+
 **What goes wrong:** Adding a NOT NULL column to existing supplements table without a default breaks existing rows.
 **How to avoid:** Make `timeOfDay` nullable. Existing supplements get `null` (meaning "anytime"). New supplements can optionally set a time.
 
 ### Pitfall 3: Adherence Calculation for Variable Schedules
+
 **What goes wrong:** A supplement on an "every other day" schedule changes which days it's due based on start date. Simply counting days without checking `isSupplementDue` gives wrong adherence.
 **How to avoid:** Use the existing `isSupplementDue()` utility for each date in the range. It already handles all schedule types.
 
 ### Pitfall 4: Supplement Data Loads Before Preferences
+
 **What goes wrong:** Dashboard calls `loadSupplements()` in parallel with preference check. If preferences load slowly, widget might flash before being hidden.
 **How to avoid:** The `ready` flag already gates all rendering. Preferences load first in `checkStartPage()`, then data loads only after. No additional fix needed — just use `userPrefs?.showSupplementsWidget` in the template.
 
@@ -159,16 +168,18 @@ Two approaches:
 ### Fix: Dashboard Widget Gating
 
 Current (line 239 of `+page.svelte`):
+
 ```svelte
 {#if supplementChecklist.length > 0}
-  <SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+	<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 {/if}
 ```
 
 Fixed:
+
 ```svelte
 {#if userPrefs?.showSupplementsWidget}
-  <SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+	<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 {/if}
 ```
 
@@ -193,15 +204,15 @@ timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
 ```typescript
 const timeOrder = ['morning', 'noon', 'evening', null];
 const grouped = $derived.by(() => {
-  const groups = new Map<string | null, ChecklistItem[]>();
-  for (const item of checklist) {
-    const key = item.supplement.timeOfDay ?? null;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(item);
-  }
-  return timeOrder
-    .filter(t => groups.has(t))
-    .map(t => ({ timeOfDay: t, items: groups.get(t)! }));
+	const groups = new Map<string | null, ChecklistItem[]>();
+	for (const item of checklist) {
+		const key = item.supplement.timeOfDay ?? null;
+		if (!groups.has(key)) groups.set(key, []);
+		groups.get(key)!.push(item);
+	}
+	return timeOrder
+		.filter((t) => groups.has(t))
+		.map((t) => ({ timeOfDay: t, items: groups.get(t)! }));
 });
 ```
 
@@ -209,22 +220,25 @@ const grouped = $derived.by(() => {
 
 ```typescript
 // For each date in range, check which supplements were due
-function computeAdherence(supplements: Supplement[], logs: HistoryEntry[], from: string, to: string) {
-  const result: Map<string, { due: Supplement[]; taken: string[] }> = new Map();
-  let d = new Date(from);
-  const end = new Date(to);
-  while (d <= end) {
-    const dateStr = d.toISOString().slice(0, 10);
-    const due = supplements.filter(s =>
-      isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, d)
-    );
-    const taken = logs
-      .filter(l => l.log.date === dateStr)
-      .map(l => l.log.supplementId);
-    result.set(dateStr, { due, taken });
-    d.setDate(d.getDate() + 1);
-  }
-  return result;
+function computeAdherence(
+	supplements: Supplement[],
+	logs: HistoryEntry[],
+	from: string,
+	to: string
+) {
+	const result: Map<string, { due: Supplement[]; taken: string[] }> = new Map();
+	let d = new Date(from);
+	const end = new Date(to);
+	while (d <= end) {
+		const dateStr = d.toISOString().slice(0, 10);
+		const due = supplements.filter((s) =>
+			isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, d)
+		);
+		const taken = logs.filter((l) => l.log.date === dateStr).map((l) => l.log.supplementId);
+		result.set(dateStr, { due, taken });
+		d.setDate(d.getDate() + 1);
+	}
+	return result;
 }
 ```
 
@@ -243,6 +257,7 @@ function computeAdherence(supplements: Supplement[], logs: HistoryEntry[], from:
 ## Sources
 
 ### Primary (HIGH confidence)
+
 - Direct source code inspection of all files listed in the inventory table
 - Schema at `src/lib/server/schema.ts` lines 143-258
 - Dashboard at `src/routes/app/+page.svelte`
@@ -254,6 +269,7 @@ function computeAdherence(supplements: Supplement[], logs: HistoryEntry[], from:
 ## Metadata
 
 **Confidence breakdown:**
+
 - Existing implementation: HIGH — verified from source code
 - Widget gating fix: HIGH — other widgets use identical pattern
 - Time-of-day schema change: HIGH — standard nullable column addition

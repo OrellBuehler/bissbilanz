@@ -61,13 +61,7 @@
 		<div class="grid gap-4">
 			<div class="grid gap-2">
 				<Label for="edit-servings">{m.edit_entry_servings()}</Label>
-				<Input
-					id="edit-servings"
-					type="number"
-					bind:value={editServings}
-					min="0.1"
-					step="0.1"
-				/>
+				<Input id="edit-servings" type="number" bind:value={editServings} min="0.1" step="0.1" />
 			</div>
 
 			<div class="grid gap-2">
@@ -85,12 +79,25 @@
 			</div>
 		</div>
 
-		<Dialog.Footer class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<Button variant="ghost" size="icon" class="self-start text-destructive hover:text-destructive sm:self-auto" onclick={handleDelete} aria-label={m.edit_entry_delete()}>
+		<Dialog.Footer
+			class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="self-start text-destructive hover:text-destructive sm:self-auto"
+				onclick={handleDelete}
+				aria-label={m.edit_entry_delete()}
+			>
 				<Trash2 class="size-4" />
 			</Button>
 			<div class="flex w-full gap-2 sm:w-auto">
-				<Button variant="outline" class="flex-1 sm:flex-none" aria-label={m.edit_entry_cancel()} onclick={onClose}>
+				<Button
+					variant="outline"
+					class="flex-1 sm:flex-none"
+					aria-label={m.edit_entry_cancel()}
+					onclick={onClose}
+				>
 					<X class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_cancel()}</span>
 				</Button>

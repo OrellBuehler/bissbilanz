@@ -1,7 +1,12 @@
 import { getDB } from '$lib/server/db';
 import { ApiError } from '$lib/server/errors';
 import { parseTimeToMinutes, validateFavoriteMealTimeframes } from '$lib/utils/meals';
-import { customMealTypes, favoriteMealTimeframes, userPreferences, users } from '$lib/server/schema';
+import {
+	customMealTypes,
+	favoriteMealTimeframes,
+	userPreferences,
+	users
+} from '$lib/server/schema';
 import { preferencesUpdateSchema } from '$lib/server/validation';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { ZodError } from 'zod';
@@ -71,12 +76,18 @@ const serializeFavoriteMealTimeframe = (
 const mapPreferencesPersistenceError = (error: unknown): Error => {
 	const dbError = error as { code?: string; constraint?: string; message?: string };
 
-	if (dbError.code === '23P01' || dbError.constraint === 'favorite_meal_timeframes_no_overlap_per_user') {
+	if (
+		dbError.code === '23P01' ||
+		dbError.constraint === 'favorite_meal_timeframes_no_overlap_per_user'
+	) {
 		return new ApiError(409, 'Favorite meal timeframes overlap');
 	}
 
 	if (dbError.code === '23503') {
-		return new ApiError(409, 'Favorite meal timeframe references a missing or protected custom meal type');
+		return new ApiError(
+			409,
+			'Favorite meal timeframe references a missing or protected custom meal type'
+		);
 	}
 
 	if (dbError.code === '23514') {
@@ -118,7 +129,9 @@ const buildNormalizedTimeframeRows = async (
 		throw new ApiError(400, messageByError[validation.error]);
 	}
 
-	const customIds = [...new Set(inputs.map((input) => input.customMealTypeId).filter(Boolean))] as string[];
+	const customIds = [
+		...new Set(inputs.map((input) => input.customMealTypeId).filter(Boolean))
+	] as string[];
 	const customMealsById = new Map<string, { id: string; name: string }>();
 
 	if (customIds.length > 0) {
@@ -165,10 +178,7 @@ const buildNormalizedTimeframeRows = async (
 
 export const getPreferences = async (userId: string) => {
 	const db = getDB();
-	const [prefs] = await db
-		.select()
-		.from(userPreferences)
-		.where(eq(userPreferences.userId, userId));
+	const [prefs] = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
 
 	const timeframeRows = await db
 		.select()
@@ -179,10 +189,7 @@ export const getPreferences = async (userId: string) => {
 	if (!prefs) return null;
 
 	// Also fetch locale from users table
-	const [user] = await db
-		.select({ locale: users.locale })
-		.from(users)
-		.where(eq(users.id, userId));
+	const [user] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, userId));
 
 	return {
 		...prefs,
@@ -203,7 +210,11 @@ export const updatePreferences = async (
 
 	try {
 		const db = getDB();
-		const { locale, favoriteMealTimeframes: favoriteMealTimeframesInput, ...prefsData } = result.data;
+		const {
+			locale,
+			favoriteMealTimeframes: favoriteMealTimeframesInput,
+			...prefsData
+		} = result.data;
 		const normalizedTimeframes = await buildNormalizedTimeframeRows(
 			db,
 			userId,
@@ -216,9 +227,7 @@ export const updatePreferences = async (
 			}
 
 			if (normalizedTimeframes !== undefined) {
-				await tx
-					.delete(favoriteMealTimeframes)
-					.where(eq(favoriteMealTimeframes.userId, userId));
+				await tx.delete(favoriteMealTimeframes).where(eq(favoriteMealTimeframes.userId, userId));
 
 				if (normalizedTimeframes.length > 0) {
 					await tx.insert(favoriteMealTimeframes).values(normalizedTimeframes);

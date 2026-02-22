@@ -11,7 +11,9 @@ describe('recipeCreateSchema', () => {
 		const result = recipeCreateSchema.safeParse({
 			name: 'Shake',
 			totalServings: 2,
-			ingredients: [{ foodId: '00000000-0000-0000-0000-000000000000', quantity: 1, servingUnit: 'cup' }]
+			ingredients: [
+				{ foodId: '00000000-0000-0000-0000-000000000000', quantity: 1, servingUnit: 'cup' }
+			]
 		});
 		expect(result.success).toBe(true);
 	});

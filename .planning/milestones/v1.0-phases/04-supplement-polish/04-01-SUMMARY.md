@@ -29,11 +29,11 @@ key-files:
     - messages/de.json
 
 key-decisions:
-  - "timeOfDay uses nullable text column (not enum) for flexibility with morning/noon/evening values"
-  - "Anytime option sends null (not a string) to match nullable column semantics"
+  - 'timeOfDay uses nullable text column (not enum) for flexibility with morning/noon/evening values'
+  - 'Anytime option sends null (not a string) to match nullable column semantics'
 
 patterns-established:
-  - "Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length"
+  - 'Dashboard widget visibility: always gate on userPrefs?.showXWidget, never on data length'
 
 requirements-completed: [SUPP-02, SUPP-04, SUPP-05]
 
@@ -54,6 +54,7 @@ completed: 2026-02-19
 - **Files modified:** 9
 
 ## Accomplishments
+
 - Added timeOfDay nullable text column to supplements schema with migration
 - Updated create/update validation schemas to accept timeOfDay field
 - Added time-of-day selector (morning/noon/evening/anytime) to SupplementForm
@@ -68,6 +69,7 @@ Each task was committed atomically:
 2. **Task 2: Add time-of-day selector to form and fix dashboard widget gating** - `8d4fc87` (feat)
 
 ## Files Created/Modified
+
 - `drizzle/0009_worried_thaddeus_ross.sql` - Migration adding time_of_day column
 - `src/lib/server/schema.ts` - timeOfDay column on supplements table
 - `src/lib/server/validation/supplements.ts` - timeOfDay in create/update schemas
@@ -77,6 +79,7 @@ Each task was committed atomically:
 - `messages/de.json` - German time-of-day labels
 
 ## Decisions Made
+
 - timeOfDay uses nullable text column (not pgEnum) for flexibility -- morning/noon/evening as string values, null for anytime
 - Anytime option sends null to match nullable column semantics (not an empty string)
 
@@ -85,15 +88,19 @@ Each task was committed atomically:
 None - plan executed exactly as written.
 
 ## Issues Encountered
+
 None
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - timeOfDay column and form ready for 04-02 to build time-based grouping in checklist
 - Dashboard widget gating fixed, consistent with favorites and weight widget pattern
 
 ---
-*Phase: 04-supplement-polish*
-*Completed: 2026-02-19*
+
+_Phase: 04-supplement-polish_
+_Completed: 2026-02-19_

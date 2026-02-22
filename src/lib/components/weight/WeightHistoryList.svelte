@@ -83,7 +83,12 @@
 							bind:value={editWeight}
 						/>
 						<span class="text-sm text-muted-foreground">kg</span>
-						<Input type="text" class="flex-1" placeholder={m.weight_notes_label()} bind:value={editNotes} />
+						<Input
+							type="text"
+							class="flex-1"
+							placeholder={m.weight_notes_label()}
+							bind:value={editNotes}
+						/>
 					</div>
 					<Button variant="ghost" size="icon" onclick={saveEdit}>
 						<Check class="size-4" />
@@ -121,8 +126,13 @@
 			<AlertDialog.Description>{m.weight_confirm_delete()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deletingId = null)}>{m.supplements_cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action class={buttonVariants({ variant: 'destructive' })} onclick={confirmDelete}>
+			<AlertDialog.Cancel onclick={() => (deletingId = null)}
+				>{m.supplements_cancel()}</AlertDialog.Cancel
+			>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={confirmDelete}
+			>
 				<Trash2 class="size-4" />
 				{m.weight_delete()}
 			</AlertDialog.Action>

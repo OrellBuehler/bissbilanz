@@ -1,10 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getPreferences,
-	updatePreferences,
-	DEFAULT_PREFERENCES
-} from '$lib/server/preferences';
+import { getPreferences, updatePreferences, DEFAULT_PREFERENCES } from '$lib/server/preferences';
 import { handleApiError, isZodError, requireAuth, validationError } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals }) => {

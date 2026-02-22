@@ -94,7 +94,9 @@ export const foods = pgTable(
 	},
 	(table) => [
 		index('idx_foods_user_id').on(table.userId),
-		uniqueIndex('idx_foods_barcode').on(table.barcode).where(sql`barcode IS NOT NULL`),
+		uniqueIndex('idx_foods_barcode')
+			.on(table.barcode)
+			.where(sql`barcode IS NOT NULL`),
 		index('idx_foods_user_name').on(table.userId, table.name)
 	]
 );
@@ -153,9 +155,7 @@ export const userPreferences = pgTable('user_preferences', {
 		.default(sql`ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[]`),
 	startPage: text('start_page').notNull().default('dashboard'),
 	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
-	favoriteMealAssignmentMode: text('favorite_meal_assignment_mode')
-		.notNull()
-		.default('time_based'),
+	favoriteMealAssignmentMode: text('favorite_meal_assignment_mode').notNull().default('time_based'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
@@ -238,10 +238,7 @@ export const favoriteMealTimeframes = pgTable(
 			'favorite_meal_timeframes_minute_bounds',
 			sql`${table.startMinute} >= 0 AND ${table.startMinute} <= 1439 AND ${table.endMinute} >= 1 AND ${table.endMinute} <= 1439`
 		),
-		check(
-			'favorite_meal_timeframes_valid_range',
-			sql`${table.startMinute} < ${table.endMinute}`
-		)
+		check('favorite_meal_timeframes_valid_range', sql`${table.startMinute} < ${table.endMinute}`)
 	]
 );
 

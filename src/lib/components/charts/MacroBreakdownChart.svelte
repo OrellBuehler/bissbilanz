@@ -51,9 +51,7 @@
 				...d,
 				dateLabel: new Date(d.date + 'T00:00:00Z').toLocaleDateString(
 					undefined,
-					shortLabels
-						? { day: 'numeric', month: 'short' }
-						: { weekday: 'short', day: 'numeric' }
+					shortLabels ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric' }
 				),
 				proteinBody: 0,
 				carbsBody: 0,
@@ -88,7 +86,9 @@
 	);
 
 	const tickStep = $derived(data.length > 14 ? Math.ceil(data.length / 7) : 1);
-	const filteredTicks = $derived(chartData.filter((_, i) => i % tickStep === 0).map((d) => d.dateLabel));
+	const filteredTicks = $derived(
+		chartData.filter((_, i) => i % tickStep === 0).map((d) => d.dateLabel)
+	);
 
 	const series = $derived([
 		...activeSeries.map((s) => ({
@@ -106,10 +106,7 @@
 	]);
 
 	const maxMacro = $derived(
-		Math.max(
-			...data.map((d) => activeKeys.reduce((sum, key) => sum + d[key], 0)),
-			0
-		)
+		Math.max(...data.map((d) => activeKeys.reduce((sum, key) => sum + d[key], 0)), 0)
 	);
 	const hasData = $derived(maxMacro > 0);
 	const yDomain = $derived([0, Math.max(maxMacro * 1.15, 50)]);
@@ -149,7 +146,12 @@
 						}
 					},
 					header: { class: 'font-medium text-foreground' },
-					item: { classes: { label: 'text-muted-foreground', value: 'text-foreground font-mono font-medium tabular-nums' } }
+					item: {
+						classes: {
+							label: 'text-muted-foreground',
+							value: 'text-foreground font-mono font-medium tabular-nums'
+						}
+					}
 				}
 			}}
 		/>

@@ -26,7 +26,9 @@
 	let showFavoritesWidget = $state(true);
 	let showSupplementsWidget = $state(true);
 	let showWeightWidget = $state(true);
-	let widgetOrder = $state<Array<{ id: string; name: () => string; desc: () => string; key: string }>>([]);
+	let widgetOrder = $state<
+		Array<{ id: string; name: () => string; desc: () => string; key: string }>
+	>([]);
 	let startPage = $state('dashboard');
 	let prefsLoaded = $state(false);
 	let favoriteMealAssignmentMode = $state<'time_based' | 'ask_meal'>('time_based');
@@ -119,7 +121,8 @@
 
 		const messages = {
 			'invalid-time': 'Use valid times in HH:mm format.',
-			'invalid-range': 'Start time must be before end time. Cross-midnight windows are not supported.',
+			'invalid-range':
+				'Start time must be before end time. Cross-midnight windows are not supported.',
 			overlap: 'Time windows cannot overlap.',
 			'missing-meal-type': 'Each timeframe must have a meal type.'
 		};
@@ -247,7 +250,14 @@
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
 				widgetOrder = buildWidgetOrder(
-					preferences.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']
+					preferences.widgetOrder ?? [
+						'chart',
+						'favorites',
+						'supplements',
+						'weight',
+						'summary',
+						'daylog'
+					]
 				);
 				startPage = preferences.startPage ?? 'dashboard';
 				favoriteMealAssignmentMode = preferences.favoriteMealAssignmentMode ?? 'time_based';
@@ -453,7 +463,8 @@
 
 				{#if favoriteMealTimeframes.length === 0}
 					<p class="text-muted-foreground text-sm">
-						No timeframes configured. Favorites will ask for a meal unless you add a matching window.
+						No timeframes configured. Favorites will ask for a meal unless you add a matching
+						window.
 					</p>
 				{/if}
 
@@ -473,7 +484,8 @@
 								>
 									<Select.Trigger class="w-full">
 										<span>
-											{mealTypeOptions.find((opt) => opt.value === mealTypeSelectValue(row))?.label ?? row.mealType}
+											{mealTypeOptions.find((opt) => opt.value === mealTypeSelectValue(row))
+												?.label ?? row.mealType}
 										</span>
 									</Select.Trigger>
 									<Select.Content>

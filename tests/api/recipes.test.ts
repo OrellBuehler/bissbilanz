@@ -19,7 +19,9 @@ const mockValidationError = new ZodError([
 mock.module('$lib/server/recipes', () => ({
 	listRecipes: async () => mockListResult,
 	createRecipe: async () =>
-		mockCreateResult ? { success: true, data: mockCreateResult } : { success: false, error: mockValidationError },
+		mockCreateResult
+			? { success: true, data: mockCreateResult }
+			: { success: false, error: mockValidationError },
 	getRecipe: async () => null,
 	updateRecipe: async () => ({ success: true, data: null }),
 	deleteRecipe: async () => {}

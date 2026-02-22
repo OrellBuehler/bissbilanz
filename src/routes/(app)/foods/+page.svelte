@@ -66,7 +66,12 @@
 	<!-- Header -->
 	<div class="flex flex-wrap items-start justify-between gap-2">
 		<h1 class="text-2xl font-bold">{m.foods_title()}</h1>
-		<Button size="sm" class="shrink-0" aria-label={m.foods_new()} onclick={() => (showNewFood = true)}>
+		<Button
+			size="sm"
+			class="shrink-0"
+			aria-label={m.foods_new()}
+			onclick={() => (showNewFood = true)}
+		>
 			<Plus class="size-4 sm:mr-1.5" />
 			<span class="hidden sm:inline">{m.foods_new()}</span>
 		</Button>
@@ -74,19 +79,40 @@
 
 	<!-- Search -->
 	<div class="relative">
-		<Search class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-		<Input class="w-full min-w-0 pl-9" placeholder={m.foods_search_placeholder()} bind:value={query} />
+		<Search
+			class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+		/>
+		<Input
+			class="w-full min-w-0 pl-9"
+			placeholder={m.foods_search_placeholder()}
+			bind:value={query}
+		/>
 	</div>
 
 	<!-- Food list -->
 	{#if query && filtered.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
-		<FoodList foods={filtered} onEdit={(id) => goto(`/foods/${id}`)} onDelete={deleteFood} onEnrich={enrichFood} />
+		<FoodList
+			foods={filtered}
+			onEdit={(id) => goto(`/foods/${id}`)}
+			onDelete={deleteFood}
+			onEnrich={enrichFood}
+		/>
 	{/if}
 </div>
 
 <!-- New food modal -->
-<ResponsiveModal bind:open={showNewFood} title={m.foods_new()} description={m.foods_new_description()}>
-	<FoodForm onSave={createFood} onBarcodeScan={(barcode) => { showNewFood = false; goto(`/foods/new?barcode=${barcode}`); }} />
+<ResponsiveModal
+	bind:open={showNewFood}
+	title={m.foods_new()}
+	description={m.foods_new_description()}
+>
+	<FoodForm
+		onSave={createFood}
+		onBarcodeScan={(barcode) => {
+			showNewFood = false;
+			goto(`/foods/new?barcode=${barcode}`);
+		}}
+	/>
 </ResponsiveModal>

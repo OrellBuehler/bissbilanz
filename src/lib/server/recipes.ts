@@ -4,7 +4,12 @@ import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, eq, sql } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
-type RecipeInput = { name: string; totalServings: number; isFavorite?: boolean; imageUrl?: string | null };
+type RecipeInput = {
+	name: string;
+	totalServings: number;
+	isFavorite?: boolean;
+	imageUrl?: string | null;
+};
 
 type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };

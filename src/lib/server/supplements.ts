@@ -65,11 +65,12 @@ const insertIngredients = async (
 	);
 };
 
-const deleteIngredients = async (supplementId: string, tx?: { delete: ReturnType<typeof getDB>['delete'] }) => {
+const deleteIngredients = async (
+	supplementId: string,
+	tx?: { delete: ReturnType<typeof getDB>['delete'] }
+) => {
 	const d = tx ?? getDB();
-	await d
-		.delete(supplementIngredients)
-		.where(eq(supplementIngredients.supplementId, supplementId));
+	await d.delete(supplementIngredients).where(eq(supplementIngredients.supplementId, supplementId));
 };
 
 export const listSupplements = async (userId: string, activeOnly = true) => {
@@ -141,9 +142,7 @@ export const createSupplement = async (
 				await insertIngredients(created.id, ingredientsData, tx);
 			}
 
-			const ingredients = ingredientsData?.length
-				? await getSupplementIngredients(created.id)
-				: [];
+			const ingredients = ingredientsData?.length ? await getSupplementIngredients(created.id) : [];
 
 			return { success: true as const, data: { ...created, ingredients } };
 		});
@@ -156,7 +155,9 @@ export const updateSupplement = async (
 	userId: string,
 	id: string,
 	payload: unknown
-): Promise<Result<(typeof supplements.$inferSelect & { ingredients: IngredientRow[] }) | undefined>> => {
+): Promise<
+	Result<(typeof supplements.$inferSelect & { ingredients: IngredientRow[] }) | undefined>
+> => {
 	const result = supplementUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
@@ -194,9 +195,7 @@ export const updateSupplement = async (
 
 export const deleteSupplement = async (userId: string, id: string) => {
 	const db = getDB();
-	await db
-		.delete(supplements)
-		.where(and(eq(supplements.id, id), eq(supplements.userId, userId)));
+	await db.delete(supplements).where(and(eq(supplements.id, id), eq(supplements.userId, userId)));
 };
 
 export const logSupplement = async (
@@ -229,9 +228,7 @@ export const logSupplement = async (
 			const [existing] = await db
 				.select()
 				.from(supplementLogs)
-				.where(
-					and(eq(supplementLogs.supplementId, supplementId), eq(supplementLogs.date, date))
-				);
+				.where(and(eq(supplementLogs.supplementId, supplementId), eq(supplementLogs.date, date)));
 			if (existing) {
 				return { success: true, data: existing };
 			}

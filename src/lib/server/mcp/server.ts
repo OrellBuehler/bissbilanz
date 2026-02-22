@@ -34,10 +34,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed and daily goals.",
 			inputSchema: {
-				date: z
-					.string()
-					.optional()
-					.describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
 		async ({ date }) => {
@@ -118,15 +115,10 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z
-					.string()
-					.describe('Meal type (e.g., "breakfast", "lunch", "dinner", "snack")'),
+				mealType: z.string().describe('Meal type (e.g., "breakfast", "lunch", "dinner", "snack")'),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
-				date: z
-					.string()
-					.optional()
-					.describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
 		async (args) => {
@@ -156,10 +148,7 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				name: z.string().optional().describe('Supplement name to search for (fuzzy match)'),
 				supplementId: z.string().optional().describe('Exact supplement ID'),
-				date: z
-					.string()
-					.optional()
-					.describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
 		async (args) => {

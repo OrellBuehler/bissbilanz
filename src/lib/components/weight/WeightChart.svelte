@@ -36,9 +36,7 @@
 			movingAvg: d.moving_avg ? Number(d.moving_avg) : null,
 			dateLabel: new Date(d.entry_date).toLocaleDateString(
 				undefined,
-				shortLabels
-					? { day: 'numeric', month: 'short' }
-					: { weekday: 'short', day: 'numeric' }
+				shortLabels ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric' }
 			)
 		}))
 	);
@@ -91,7 +89,9 @@
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="space-y-2">
 			<div class="flex items-center gap-2">
-				<div class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+				<div
+					class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
+				>
 					<Weight class="size-4" />
 				</div>
 				<div>
@@ -104,17 +104,27 @@
 
 			{#if hasData}
 				<div class="flex flex-wrap items-center gap-1.5">
-					<div class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+					<div
+						class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+					>
 						<Weight class="size-3.5 text-blue-600 dark:text-blue-400" />
 						<span>{m.weight_actual()}</span>
-						<span class="font-semibold tabular-nums text-foreground">{formatWeight(latestWeight)}</span>
+						<span class="font-semibold tabular-nums text-foreground"
+							>{formatWeight(latestWeight)}</span
+						>
 					</div>
-					<div class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+					<div
+						class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+					>
 						<Sparkles class="size-3.5 text-emerald-600 dark:text-emerald-400" />
 						<span>{m.weight_trend()}</span>
-						<span class="font-semibold tabular-nums text-foreground">{formatWeight(latestMovingAvg)}</span>
+						<span class="font-semibold tabular-nums text-foreground"
+							>{formatWeight(latestMovingAvg)}</span
+						>
 					</div>
-					<div class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+					<div
+						class="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+					>
 						<History class="size-3.5" />
 						<span>Δ</span>
 						<span
@@ -139,9 +149,13 @@
 	</div>
 
 	{#if hasData}
-		<div class="relative overflow-hidden rounded-xl border border-blue-200/60 bg-gradient-to-b from-blue-50/80 via-blue-50/20 to-background p-1 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10">
+		<div
+			class="relative overflow-hidden rounded-xl border border-blue-200/60 bg-gradient-to-b from-blue-50/80 via-blue-50/20 to-background p-1 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10"
+		>
 			<div class="absolute -top-8 right-8 h-20 w-20 rounded-full bg-blue-500/10 blur-2xl"></div>
-			<div class="absolute -bottom-10 left-10 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl"></div>
+			<div
+				class="absolute -bottom-10 left-10 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl"
+			></div>
 			<div class="relative rounded-[0.8rem] border border-border/60 bg-background/80 p-2 sm:p-3">
 				<div class="h-64 sm:h-[18.5rem]">
 					<ChartContainer {config} class="h-full w-full">
@@ -192,7 +206,9 @@
 			</div>
 		</div>
 	{:else}
-		<div class="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/70 bg-gradient-to-b from-muted/20 to-background px-4 text-center text-sm text-muted-foreground">
+		<div
+			class="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/70 bg-gradient-to-b from-muted/20 to-background px-4 text-center text-sm text-muted-foreground"
+		>
 			<div class="flex items-center gap-2">
 				<Weight class="size-4" />
 				<span>{m.weight_no_entries()}</span>

@@ -38,10 +38,8 @@ export const scaleTotals = (t: MacroTotals, factor: number): MacroTotals => ({
 	fiber: t.fiber * factor
 });
 
-export const calculateEntryTotals = (
-	food: MacroTotals,
-	servings: number
-): MacroTotals => scaleTotals(food, servings);
+export const calculateEntryTotals = (food: MacroTotals, servings: number): MacroTotals =>
+	scaleTotals(food, servings);
 
 export const calculateDailyTotals = (entries: MacroTotals[]): MacroTotals =>
 	entries.reduce(addTotals, emptyTotals());

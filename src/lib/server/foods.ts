@@ -61,13 +61,7 @@ export const listFoods = async (
 		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`))
 		: eq(foods.userId, userId);
 
-	return db
-		.select()
-		.from(foods)
-		.where(whereClause)
-		.orderBy(foods.name)
-		.limit(limit)
-		.offset(offset);
+	return db.select().from(foods).where(whereClause).orderBy(foods.name).limit(limit).offset(offset);
 };
 
 export const createFood = async (

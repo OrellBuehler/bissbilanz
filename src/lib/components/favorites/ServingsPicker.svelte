@@ -38,13 +38,7 @@
 		<div class="grid gap-4 py-4">
 			<div class="grid gap-2">
 				<Label for="servings">{m.favorites_servings()}</Label>
-				<Input
-					id="servings"
-					type="number"
-					bind:value={servings}
-					min={0.25}
-					step={0.25}
-				/>
+				<Input id="servings" type="number" bind:value={servings} min={0.25} step={0.25} />
 			</div>
 		</div>
 		<Dialog.Footer>

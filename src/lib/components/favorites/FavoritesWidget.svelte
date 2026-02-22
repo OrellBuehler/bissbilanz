@@ -53,10 +53,7 @@
 			const res = await fetch('/api/favorites?limit=5');
 			if (!res.ok) return;
 			const data = await res.json();
-			const allItems: FavoriteItem[] = [
-				...(data.foods ?? []),
-				...(data.recipes ?? [])
-			];
+			const allItems: FavoriteItem[] = [...(data.foods ?? []), ...(data.recipes ?? [])];
 			allItems.sort((a, b) => b.logCount - a.logCount);
 			items = allItems.slice(0, 5);
 		} catch {

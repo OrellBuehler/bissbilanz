@@ -5,6 +5,7 @@
 ## APIs & External Services
 
 **Authentication (Infomaniak OIDC):**
+
 - Infomaniak - OAuth 2.0 OIDC provider
   - SDK/Client: jose 6.1.3 (JWT verification), manual OIDC flow
   - Auth: INFOMANIAK_CLIENT_ID, INFOMANIAK_CLIENT_SECRET, INFOMANIAK_REDIRECT_URI
@@ -17,6 +18,7 @@
   - Session: 7-day HttpOnly secure cookies, refresh token stored in DB
 
 **Food Data (Barcode Lookup):**
+
 - Open Food Facts - Free food database by barcode
   - SDK/Client: Native fetch (no SDK)
   - No authentication required
@@ -27,6 +29,7 @@
   - Data includes: NutriScore (A-E), NOVA group (1-4), ingredients, additives, images, nutrition per 100g
 
 **AI Integration (MCP - Model Context Protocol):**
+
 - Model Context Protocol - AI-assisted logging
   - SDK: @modelcontextprotocol/sdk 1.26.0 (TypeScript SDK)
   - Endpoint: `/api/mcp` (cross-origin, CORS enabled)
@@ -38,10 +41,11 @@
     - `create_food` - Add food to database
     - `create_recipe` - Add recipe with ingredients
     - `log_food` - Add food entry to daily log
-  - CORS headers: Access-Control-Allow-Origin: *, Access-Control-Allow-Methods: GET/POST/DELETE, Mcp-Session-Id exposed
+  - CORS headers: Access-Control-Allow-Origin: \*, Access-Control-Allow-Methods: GET/POST/DELETE, Mcp-Session-Id exposed
   - Manifest: Server name="bissbilanz", version="0.1.0"
 
 **Analytics & Tracking:**
+
 - Umami Analytics - Privacy-focused analytics
   - Endpoint: `https://a.orellbuehler.ch/script.js`
   - Website ID: 772a491d-5152-465f-ab1a-ad050ae8b303
@@ -50,6 +54,7 @@
 ## Data Storage
 
 **Primary Database:**
+
 - PostgreSQL
   - Connection: DATABASE_URL (postgres://user:password@host:5432/bissbilanz)
   - Client: Drizzle ORM with Bun SQL driver (`drizzle-orm/bun-sql`)
@@ -69,20 +74,23 @@
   - Indexes: User ID, barcode (unique where not null), date ranges
 
 **File Storage:**
+
 - None configured - Food images sourced from Open Food Facts only
 - PWA offline data: Browser IndexedDB via service worker caching
 
 **Caching:**
+
 - PWA Service Worker (Workbox) - Runtime caching for API responses
   - Cache strategy: NetworkFirst
   - Cached endpoints: `/api/foods`, `/api/recipes`, `/api/entries`
   - Max entries: 50
   - Max age: 1 hour
-  - Globbed assets: **.{js,css,html,ico,png,svg,woff,woff2}
+  - Globbed assets: \*\*.{js,css,html,ico,png,svg,woff,woff2}
 
 ## Authentication & Identity
 
 **Auth Provider:**
+
 - Infomaniak OIDC
   - Implementation: Custom OAuth 2.0 PKCE flow in `src/routes/api/auth/callback/+server.ts`
   - Token management: `src/lib/server/session.ts` - creates sessions, manages refresh tokens
@@ -90,6 +98,7 @@
   - Session storage: PostgreSQL `sessions` table with expiration
 
 **Session Management:**
+
 - HttpOnly secure cookies - Session ID storage
 - Refresh tokens - Stored in DB, rotated on auth callback
 - Middleware: `src/hooks.server.ts` - validates session on every request
@@ -99,28 +108,34 @@
 ## Monitoring & Observability
 
 **Error Tracking:**
+
 - None detected - No Sentry, Rollbar, or similar integration
 
 **Logs:**
+
 - Console logging only (`console.log`, `console.error`)
 - Database migrations: Logged to stdout
 - Rate limiting: Per-endpoint tracking with in-memory store
 - MCP requests: Text output via `McpServer.registerTool()` handlers
 
 **Performance Monitoring:**
+
 - None detected in code
 
 ## CI/CD & Deployment
 
 **Hosting:**
+
 - Docker-ready (svelte-adapter-bun compatible)
 - Bun production build: `bun run build` generates `.svelte-kit/` and optimized output
 
 **CI Pipeline:**
+
 - GitHub Actions configured (indicated by repo structure)
 - Workflow stages: build, push, deploy (referenced in CLAUDE.md)
 
 **Database Migrations:**
+
 - Drizzle Kit managed migrations
 - Development: `bun run db:push` (push schema directly)
 - Production: `bun run db:migrate` (run migration files)
@@ -129,19 +144,23 @@
 ## Webhooks & Callbacks
 
 **Incoming:**
+
 - Infomaniak OAuth callback - `/api/auth/callback?code=...&state=...`
 - Rate limited: 5 requests per 60 seconds per IP
 
 **Outgoing:**
+
 - None detected - No webhook delivery system
 
 **MCP Communication:**
+
 - Bidirectional JSON-RPC over HTTP POST
 - Session validation on every MCP request via HttpOnly cookie
 
 ## Environment Configuration
 
 **Required Environment Variables (Production):**
+
 - `INFOMANIAK_CLIENT_ID` - OAuth client ID from Infomaniak developer console
 - `INFOMANIAK_CLIENT_SECRET` - OAuth client secret (keep secret)
 - `INFOMANIAK_REDIRECT_URI` - Must match developer console (e.g., https://app.example.com/api/auth/callback)
@@ -150,6 +169,7 @@
 - `PUBLIC_APP_URL` - Application URL for redirects (e.g., https://app.example.com)
 
 **Optional Variables:**
+
 - `MCP_ENDPOINT_ENABLED` - Enable `/api/mcp` endpoint (default: false)
 - `DATABASE_POOL_MAX` - Max DB connections (default: 10)
 - `DATABASE_IDLE_TIMEOUT_SECONDS` - Idle timeout (default: 30)
@@ -159,11 +179,13 @@
 - `DATABASE_APPLICATION_NAME` - Identifier in logs (default: "bissbilanz")
 
 **Secrets Location:**
+
 - `.env` file (local development only)
 - Environment variables in deployment platform (Docker secrets, Kubernetes secrets, etc.)
 - Session secret must be cryptographically random and ≥32 bytes
 
 **Secure Cookie Settings (Production):**
+
 - Secure: true (requires HTTPS)
 - HttpOnly: true (prevents JavaScript access)
 - SameSite: Lax (allows cross-site navigation)
@@ -171,4 +193,4 @@
 
 ---
 
-*Integration audit: 2026-02-17*
+_Integration audit: 2026-02-17_
