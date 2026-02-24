@@ -1,8 +1,9 @@
-import { redirect } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { getSessionWithUser } from '$lib/server/session';
 import { securityHeaders } from '$lib/server/security';
+import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations } from '$lib/server/db';
 
@@ -107,6 +108,23 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 
 	if (!isPublicRoute && !event.locals.user) {
 		throw redirect(302, '/login');
+	}
+
+	// Rate limit authenticated API write requests
+	if (event.locals.user && pathname.startsWith('/api/')) {
+		const method = event.request.method;
+		const userId = event.locals.user.id;
+		try {
+			if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+				if (pathname.startsWith('/api/images/upload')) {
+					rateLimitUpload(userId);
+				} else {
+					rateLimitApi(userId);
+				}
+			}
+		} catch {
+			return json({ error: 'Rate limit exceeded' }, { status: 429 });
+		}
 	}
 
 	const response = await resolve(event);
