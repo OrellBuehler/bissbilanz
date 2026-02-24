@@ -8,11 +8,11 @@ function cleanupStale() {
 	}
 }
 
-export const rateLimitApi = (userId: string, max = 60, windowMs = 60_000) => {
+export const rateLimitApi = (userId: string, max = 120, windowMs = 60_000) => {
 	rateLimit(`api:${userId}`, max, windowMs);
 };
 
-export const rateLimitUpload = (userId: string, max = 10, windowMs = 60_000) => {
+export const rateLimitUpload = (userId: string, max = 30, windowMs = 60_000) => {
 	rateLimit(`upload:${userId}`, max, windowMs);
 };
 
