@@ -182,6 +182,7 @@ export const userPreferences = pgTable('user_preferences', {
 	userId: uuid('user_id')
 		.primaryKey()
 		.references(() => users.id, { onDelete: 'cascade' }),
+	showChartWidget: boolean('show_chart_widget').notNull().default(true),
 	showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
 	showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
 	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
