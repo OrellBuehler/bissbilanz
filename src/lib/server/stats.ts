@@ -53,6 +53,31 @@ export const getMonthlyStats = async (userId: string) => {
 	return averageTotals(dailyTotals);
 };
 
+export const getMealBreakdown = async (
+	userId: string,
+	startDate: string,
+	endDate: string
+): Promise<Array<{ mealType: string } & MacroTotals>> => {
+	const entries = await listEntriesByDateRange(userId, startDate, endDate);
+	const groups: Record<string, MacroTotals> = {};
+	for (const entry of entries) {
+		const key = entry.mealType;
+		if (!groups[key]) groups[key] = emptyTotals();
+		groups[key] = addTotals(groups[key], calculateEntryMacros(entry));
+	}
+	const order = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+	return Object.entries(groups)
+		.map(([mealType, totals]) => ({ mealType, ...roundTotals(totals) }))
+		.sort((a, b) => {
+			const ai = order.indexOf(a.mealType);
+			const bi = order.indexOf(b.mealType);
+			if (ai !== -1 && bi !== -1) return ai - bi;
+			if (ai !== -1) return -1;
+			if (bi !== -1) return 1;
+			return a.mealType.localeCompare(b.mealType);
+		});
+};
+
 export const getDailyBreakdown = async (
 	userId: string,
 	startDate: string,

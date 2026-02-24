@@ -350,5 +350,17 @@
 	"weight_latest": "Letztes Gewicht",
 
 	"settings_tab_general": "Allgemein",
-	"settings_tab_mcp": "MCP"
+	"settings_tab_mcp": "MCP",
+
+	"nav_insights": "Einblicke",
+	"insights_title": "Einblicke",
+	"insights_meal_distribution": "Mahlzeitenverteilung",
+	"insights_see_more": "Mehr anzeigen",
+	"insights_today": "Heute",
+	"insights_7d": "7 Tage",
+	"insights_30d": "30 Tage",
+	"insights_no_data": "Keine Daten für diesen Zeitraum",
+	"insights_of_total": "{pct}% des Gesamten",
+	"settings_widget_meal_breakdown": "Mahlzeiten-Aufschlüsselung",
+	"settings_widget_meal_breakdown_desc": "Kalorienverteilung über Mahlzeiten"
 }

@@ -16,8 +16,19 @@ export const preferencesUpdateSchema = z
 		showFavoritesWidget: z.boolean().optional(),
 		showSupplementsWidget: z.boolean().optional(),
 		showWeightWidget: z.boolean().optional(),
+		showMealBreakdownWidget: z.boolean().optional(),
 		widgetOrder: z
-			.array(z.enum(['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']))
+			.array(
+				z.enum([
+					'chart',
+					'favorites',
+					'supplements',
+					'weight',
+					'meal-breakdown',
+					'summary',
+					'daylog'
+				])
+			)
 			.optional(),
 		startPage: z.enum(['dashboard', 'favorites']).optional(),
 		favoriteTapAction: z.enum(['instant', 'picker']).optional(),
