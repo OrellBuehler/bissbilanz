@@ -354,7 +354,8 @@
 	"streaks_title": "Streak",
 	"streaks_days": "{count} days",
 	"streaks_day": "1 day",
-	"streaks_longest": "Longest: {count}",
+	"streaks_days_unit": "days",
+	"streaks_longest": "Longest: {count} days",
 	"streaks_personal_best": "Personal best!",
 	"streaks_no_streak": "Start logging to build a streak"
 }

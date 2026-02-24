@@ -354,7 +354,8 @@
 	"streaks_title": "Serie",
 	"streaks_days": "{count} Tage",
 	"streaks_day": "1 Tag",
-	"streaks_longest": "Längste: {count}",
+	"streaks_days_unit": "Tage",
+	"streaks_longest": "Längste: {count} Tage",
 	"streaks_personal_best": "Persönlicher Rekord!",
 	"streaks_no_streak": "Beginne zu tracken um eine Serie aufzubauen"
 }

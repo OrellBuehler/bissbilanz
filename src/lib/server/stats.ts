@@ -8,8 +8,7 @@ import {
 	type MacroTotals
 } from '$lib/utils/nutrition';
 import { getDB, foodEntries } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -87,11 +86,10 @@ export const getStreaks = async (userId: string) => {
 		.orderBy(sql`${foodEntries.date} desc`);
 
 	if (rows.length === 0) {
-		return { currentStreak: 0, longestStreak: 0, lastLoggedDate: null };
+		return { currentStreak: 0, longestStreak: 0 };
 	}
 
 	const dates = rows.map((r) => r.date);
-	const lastLoggedDate = dates[0];
 
 	const todayStr = formatDate(new Date());
 	const yesterdayStr = getDaysAgo(1);
@@ -124,5 +122,5 @@ export const getStreaks = async (userId: string) => {
 		}
 	}
 
-	return { currentStreak, longestStreak, lastLoggedDate };
+	return { currentStreak, longestStreak };
 };

@@ -12,9 +12,6 @@
 	} = $props();
 
 	const isPersonalBest = $derived(currentStreak === longestStreak && currentStreak > 0);
-	const daysLabel = $derived(
-		currentStreak === 1 ? m.streaks_day() : m.streaks_days({ count: String(currentStreak) })
-	);
 	const longestLabel = $derived(m.streaks_longest({ count: String(longestStreak) }));
 </script>
 
@@ -22,7 +19,7 @@
 	<div class="flex items-baseline gap-2">
 		<span class="text-3xl font-bold tabular-nums">{currentStreak}</span>
 		<span class="text-muted-foreground text-sm">
-			{currentStreak === 1 ? m.streaks_day() : m.streaks_days({ count: '' }).replace(/^\d*\s*/, '')}
+			{currentStreak === 1 ? m.streaks_day() : m.streaks_days_unit()}
 		</span>
 		{#if isPersonalBest}
 			<span
