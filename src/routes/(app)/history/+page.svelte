@@ -14,6 +14,7 @@
 	import * as m from '$lib/paraglide/messages';
 
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
+	type DayStatus = 'on-target' | 'off-target' | 'logged' | 'none';
 
 	const now = new Date();
 	let year = $state(now.getFullYear());
@@ -23,6 +24,8 @@
 	let chartData: Array<{ date: string } & MacroTotals> = $state([]);
 	let calorieGoal: number | undefined = $state(undefined);
 	let chartLoading = $state(false);
+	let dayStatus: Record<string, DayStatus> = $state({});
+	let goalsCalorieGoal: number | null = $state(null);
 	let macroVisibility = $state<Record<MacroKey, boolean>>({
 		protein: true,
 		carbs: true,
@@ -67,6 +70,32 @@
 		}
 	};
 
+	const loadGoals = async () => {
+		const res = await fetch('/api/goals');
+		if (!res.ok) return;
+		const json = await res.json();
+		goalsCalorieGoal = json.goals?.calorieGoal ?? null;
+	};
+
+	const loadCalendarData = async (y: number, m: number) => {
+		const monthStr = `${y}-${String(m + 1).padStart(2, '0')}`;
+		const res = await fetch(`/api/stats/calendar?month=${monthStr}`);
+		if (!res.ok) return;
+		const json = await res.json();
+		const days: Record<string, { calories: number; hasEntries: boolean }> = json.days ?? {};
+		const status: Record<string, DayStatus> = {};
+		for (const [date, day] of Object.entries(days)) {
+			if (!day.hasEntries) continue;
+			if (goalsCalorieGoal && goalsCalorieGoal > 0) {
+				const diff = Math.abs(day.calories - goalsCalorieGoal) / goalsCalorieGoal;
+				status[date] = diff <= 0.1 ? 'on-target' : 'off-target';
+			} else {
+				status[date] = 'logged';
+			}
+		}
+		dayStatus = status;
+	};
+
 	const handleRangeChange = (start: string, end: string) => {
 		loadChartData(start, end);
 	};
@@ -95,8 +124,13 @@
 
 	const fmt = (n: number) => Math.round(n).toLocaleString();
 
+	$effect(() => {
+		loadCalendarData(year, month);
+	});
+
 	onMount(() => {
 		loadStats();
+		loadGoals();
 		loadChartData(daysAgo(7), today());
 	});
 </script>
@@ -104,7 +138,14 @@
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
 	<!-- Calendar & Averages -->
 	<div class="grid gap-6 md:grid-cols-2">
-		<Calendar {year} {month} onDayClick={goToDay} onPrevMonth={prevMonth} onNextMonth={nextMonth} />
+		<Calendar
+			{year}
+			{month}
+			{dayStatus}
+			onDayClick={goToDay}
+			onPrevMonth={prevMonth}
+			onNextMonth={nextMonth}
+		/>
 
 		<div class="grid grid-cols-1 gap-4">
 			<!-- Weekly Average -->

@@ -225,6 +225,9 @@
 	"barcode_error": "Error",
 	"barcode_starting": "Starting camera...",
 
+	"calendar_on_target": "On target",
+	"calendar_off_target": "Off target",
+	"calendar_logged": "Logged",
 	"calendar_mon": "Mon",
 	"calendar_tue": "Tue",
 	"calendar_wed": "Wed",
