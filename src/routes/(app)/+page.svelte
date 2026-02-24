@@ -171,7 +171,7 @@
 		</div>
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
-			{#if sectionKey === 'chart'}
+			{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
 				{#if userGoals}
 					<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
 						<GoalProgressRings totals={daylogTotals} goals={userGoals} />
