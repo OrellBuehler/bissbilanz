@@ -91,7 +91,10 @@
 				method: 'POST',
 				body: formData
 			});
-			if (!uploadRes.ok) return;
+			if (!uploadRes.ok) {
+				toast.error(m.image_upload_failed());
+				return;
+			}
 			const { imageUrl: newUrl } = await uploadRes.json();
 			imageUrl = newUrl;
 
@@ -101,7 +104,7 @@
 				body: JSON.stringify({ imageUrl: newUrl })
 			});
 		} catch {
-			// silently ignore
+			toast.error(m.image_upload_failed());
 		}
 	};
 

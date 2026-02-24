@@ -317,6 +317,7 @@
 	"detail_saving": "Speichern...",
 	"detail_saved": "Änderungen gespeichert",
 	"detail_save_failed": "Speichern fehlgeschlagen",
+	"image_upload_failed": "Bild-Upload fehlgeschlagen",
 	"detail_ingredients": "Zutaten",
 	"detail_servings": "{count} Portionen",
 

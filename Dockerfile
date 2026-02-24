@@ -46,6 +46,8 @@ COPY --from=prod-deps --chown=sveltekit:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=sveltekit:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=sveltekit:nodejs /app/version.txt ./
 
+RUN mkdir -p /app/uploads && chown sveltekit:nodejs /app/uploads
+
 USER sveltekit
 
 EXPOSE 3000

@@ -317,6 +317,7 @@
 	"detail_saving": "Saving...",
 	"detail_saved": "Changes saved",
 	"detail_save_failed": "Failed to save changes",
+	"image_upload_failed": "Image upload failed",
 	"detail_ingredients": "Ingredients",
 	"detail_servings": "{count} servings",
 
