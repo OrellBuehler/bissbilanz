@@ -8,7 +8,7 @@ export const securityHeaders = () => ({
 		"default-src 'self'",
 		"img-src 'self' data: https://images.openfoodfacts.net https://images.openfoodfacts.org https://avatar.storage.infomaniak.com",
 		"style-src 'self' 'unsafe-inline'",
-		"script-src 'self' https://a.orellbuehler.ch",
+		"script-src 'self' 'unsafe-inline' https://a.orellbuehler.ch",
 		"connect-src 'self' https://a.orellbuehler.ch",
 		"base-uri 'self'",
 		"form-action 'self'",
