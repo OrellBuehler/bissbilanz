@@ -12,6 +12,7 @@
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
+	import StreakWidget from '$lib/components/dashboard/StreakWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -32,6 +33,7 @@
 	};
 	let supplementChecklist: ChecklistItem[] = $state([]);
 	let latestWeight: { weightKg: number; entryDate: string } | null = $state(null);
+	let streaks: { currentStreak: number; longestStreak: number } | null = $state(null);
 	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
@@ -53,6 +55,17 @@
 
 	const nextDay = () => {
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
+	};
+
+	const loadStreaks = async () => {
+		try {
+			const res = await fetch('/api/stats/streaks');
+			if (res.ok) {
+				streaks = await res.json();
+			}
+		} catch {
+			// silently ignore
+		}
 	};
 
 	const loadLatestWeight = async () => {
@@ -110,6 +123,7 @@
 
 		loadSupplements();
 		loadLatestWeight();
+		loadStreaks();
 	};
 
 	onMount(() => {
@@ -119,6 +133,7 @@
 			refreshKey++;
 			loadSupplements();
 			loadLatestWeight();
+			loadStreaks();
 		};
 		window.addEventListener('queue-synced', onSynced);
 		return () => window.removeEventListener('queue-synced', onSynced);
@@ -154,13 +169,15 @@
 			</Button>
 		</div>
 
-		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
+		{#each userPrefs?.widgetOrder ?? ['chart', 'streaks', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
 			{#if sectionKey === 'chart'}
 				<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
 					<div class="h-[200px] sm:h-[220px]">
 						<DailyMacroChart totals={daylogTotals} />
 					</div>
 				</DashboardCard>
+			{:else if sectionKey === 'streaks' && streaks}
+				<StreakWidget currentStreak={streaks.currentStreak} longestStreak={streaks.longestStreak} />
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
 					onEntryLogged={() => refreshKey++}

@@ -349,5 +349,12 @@
 	"weight_latest": "Letztes Gewicht",
 
 	"settings_tab_general": "Allgemein",
-	"settings_tab_mcp": "MCP"
+	"settings_tab_mcp": "MCP",
+
+	"streaks_title": "Serie",
+	"streaks_days": "{count} Tage",
+	"streaks_day": "1 Tag",
+	"streaks_longest": "Längste: {count}",
+	"streaks_personal_best": "Persönlicher Rekord!",
+	"streaks_no_streak": "Beginne zu tracken um eine Serie aufzubauen"
 }
