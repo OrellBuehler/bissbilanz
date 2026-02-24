@@ -7,6 +7,7 @@ Three independent features to transform the app from "what did I eat" to "how am
 ## Feature 1: Dashboard Goal Progress Rings
 
 ### Goal
+
 Replace the existing donut chart (macro pie split) with circular progress rings showing consumed vs. goal for each macro + calories. At a glance: "how much is left today."
 
 ### Design
@@ -18,6 +19,7 @@ Five concentric rings (outermost to innermost): Calories (blue), Protein (red), 
 Below the rings: a legend row with 5 compact pills showing `consumed / goal` values and percentage.
 
 **Data flow:**
+
 - The dashboard already has `daylogTotals: MacroTotals` (from DayLog's `onTotalsChange`)
 - Fetch goals via `GET /api/goals` on mount (already available)
 - Pass both `totals` and `goals` to the new component
@@ -31,6 +33,7 @@ Below the rings: a legend row with 5 compact pills showing `consumed / goal` val
 | `messages/de.json` | German translations for the above |
 
 **Implementation notes:**
+
 - Pure SVG — no chart library needed. Each ring is an `<circle>` with `stroke-dasharray` and `stroke-dashoffset` for fill animation
 - If no goals are set, fall back to the existing `DailyMacroChart` donut
 - Use CSS transitions on `stroke-dashoffset` for smooth animation on data change
@@ -41,11 +44,13 @@ Below the rings: a legend row with 5 compact pills showing `consumed / goal` val
 ## Feature 2: Calendar Heatmap
 
 ### Goal
+
 Color-code days on the history calendar by calorie adherence relative to goals. Instantly see consistency patterns across a month.
 
 ### Design
 
 **Color scheme (4 states):**
+
 - **Gray** (`bg-muted`) — no entries logged
 - **Green** (`emerald-500/60`) — within 10% of calorie goal
 - **Orange** (`amber-500/60`) — logged but >10% under or over goal
@@ -70,6 +75,7 @@ This is a lightweight query — just sum calories per day for a month, grouped b
 | `messages/de.json` | German translations |
 
 **Implementation notes:**
+
 - Fetch calendar data when month changes (reactive `$effect`)
 - The Calendar component already accepts `dayColors: Record<string, string>` — use this, but enhance the rendering to use Tailwind classes with opacity for a cleaner look
 - Goals fetched once on page mount (reuse across month navigation)
@@ -79,6 +85,7 @@ This is a lightweight query — just sum calories per day for a month, grouped b
 ## Feature 3: Logging Streaks
 
 ### Goal
+
 Show current consecutive-day logging streak and all-time longest streak on the dashboard. Motivate consistent logging.
 
 ### Design
@@ -92,11 +99,13 @@ Computed server-side: query all distinct dates with entries for the user, ordere
 **New component:** `src/lib/components/dashboard/StreakWidget.svelte`
 
 A compact `DashboardCard` (tone: amber, icon: Flame) showing:
+
 - Current streak as a large number with "days" label
 - Longest streak as smaller secondary text
 - If current streak equals longest: show a "personal best" badge
 
 **Dashboard integration:**
+
 - Add `'streaks'` to the widget order system
 - Show on all days (not just today), since streaks are always relevant
 - Default position: after the chart, before favorites
@@ -113,6 +122,7 @@ A compact `DashboardCard` (tone: amber, icon: Flame) showing:
 | `messages/de.json` | German translations |
 
 **Implementation notes:**
+
 - The streak calculation should handle "today not yet logged" gracefully — if the last logged date is yesterday, the streak is still alive
 - Cache-friendly: streaks don't change often, so a simple fetch on mount is fine
 - No database schema changes needed — computed from existing `food_entries` table

@@ -84,10 +84,7 @@
 
 <div class="flex flex-col items-center gap-3 w-full">
 	<div class="relative h-[180px] w-[180px] sm:h-[220px] sm:w-[220px]">
-		<svg
-			viewBox="0 0 {size} {size}"
-			class="h-full w-full -rotate-90"
-		>
+		<svg viewBox="0 0 {size} {size}" class="h-full w-full -rotate-90">
 			{#each rings as ring, i}
 				{@const r = ringRadius(i)}
 				{@const c = circumference(r)}
@@ -147,13 +144,21 @@
 	</button>
 
 	{#if legendOpen}
-		<div class="grid w-full max-w-xs gap-y-1 text-xs" style="grid-template-columns: auto 1fr auto auto;">
+		<div
+			class="grid w-full max-w-xs gap-y-1 text-xs"
+			style="grid-template-columns: auto 1fr auto auto;"
+		>
 			{#each rings as ring}
 				{@const isOver = ring.consumed > ring.goal && ring.goal > 0}
 				{@const diff = Math.abs(Math.round((ring.consumed - ring.goal) * 10) / 10)}
-				<span class="mr-1.5 inline-block h-2.5 w-2.5 self-center rounded-full" style="background:{ring.color}"></span>
+				<span
+					class="mr-1.5 inline-block h-2.5 w-2.5 self-center rounded-full"
+					style="background:{ring.color}"
+				></span>
 				<span class="self-center text-muted-foreground">{ring.label}</span>
-				<span class="self-center px-2 text-right tabular-nums font-medium">{ring.consumed}/{ring.goal} {ring.unit}</span>
+				<span class="self-center px-2 text-right tabular-nums font-medium"
+					>{ring.consumed}/{ring.goal} {ring.unit}</span
+				>
 				<span class="self-center tabular-nums text-muted-foreground">
 					{#if isOver}
 						{m.dashboard_over({ amount: `${diff} ${ring.unit}` })}

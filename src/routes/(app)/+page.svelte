@@ -38,7 +38,13 @@
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
-	let userGoals: { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number; fiberGoal: number } | null = $state(null);
+	let userGoals: {
+		calorieGoal: number;
+		proteinGoal: number;
+		carbGoal: number;
+		fatGoal: number;
+		fiberGoal: number;
+	} | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
 

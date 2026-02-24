@@ -369,11 +369,11 @@
 									<p class="text-muted-foreground text-xs">{widget.desc()}</p>
 								</div>
 								{#if widget.key === 'chart'}
-								<Switch
-									bind:checked={showChartWidget}
-									onCheckedChange={(v) => savePreference('showChartWidget', v)}
-								/>
-							{:else if widget.key === 'favorites'}
+									<Switch
+										bind:checked={showChartWidget}
+										onCheckedChange={(v) => savePreference('showChartWidget', v)}
+									/>
+								{:else if widget.key === 'favorites'}
 									<Switch
 										bind:checked={showFavoritesWidget}
 										onCheckedChange={(v) => savePreference('showFavoritesWidget', v)}
