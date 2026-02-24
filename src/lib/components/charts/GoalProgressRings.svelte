@@ -60,8 +60,8 @@
 	);
 
 	const size = 220;
-	const strokeWidth = 14;
-	const gap = 4;
+	const strokeWidth = 10;
+	const gap = 3;
 	const center = size / 2;
 
 	function ringRadius(index: number) {
@@ -126,35 +126,28 @@
 		</svg>
 		<div class="absolute inset-0 flex items-center justify-center text-center">
 			<div>
-				<span class="text-2xl font-bold tabular-nums text-foreground"
+				<span class="text-xl font-bold tabular-nums text-foreground"
 					>{Math.round(totals.calories)}</span
 				>
-				<span class="block text-xs text-muted-foreground">{m.foods_kcal()}</span>
+				<span class="block text-[10px] text-muted-foreground">{m.foods_kcal()}</span>
 			</div>
 		</div>
 	</div>
 
-	<div class="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs">
+	<div class="grid w-full max-w-xs gap-y-1 text-xs" style="grid-template-columns: auto 1fr auto auto;">
 		{#each rings as ring}
 			{@const isOver = ring.consumed > ring.goal && ring.goal > 0}
 			{@const diff = Math.abs(Math.round((ring.consumed - ring.goal) * 10) / 10)}
-			<div class="flex items-center gap-1.5">
-				<span class="inline-block h-2.5 w-2.5 rounded-full" style="background:{ring.color}"
-				></span>
-				<span class="text-muted-foreground">
-					{ring.label}
-				</span>
-				<span class="tabular-nums font-medium">
-					{ring.consumed}/{ring.goal} {ring.unit}
-				</span>
-				<span class="tabular-nums text-muted-foreground">
-					{#if isOver}
-						{m.dashboard_over({ amount: `${diff} ${ring.unit}` })}
-					{:else if ring.goal > 0}
-						{m.dashboard_remaining({ amount: `${diff} ${ring.unit}` })}
-					{/if}
-				</span>
-			</div>
+			<span class="mr-1.5 inline-block h-2.5 w-2.5 self-center rounded-full" style="background:{ring.color}"></span>
+			<span class="self-center text-muted-foreground">{ring.label}</span>
+			<span class="self-center px-2 text-right tabular-nums font-medium">{ring.consumed}/{ring.goal} {ring.unit}</span>
+			<span class="self-center tabular-nums text-muted-foreground">
+				{#if isOver}
+					{m.dashboard_over({ amount: `${diff} ${ring.unit}` })}
+				{:else if ring.goal > 0}
+					{m.dashboard_remaining({ amount: `${diff} ${ring.unit}` })}
+				{/if}
+			</span>
 		{/each}
 	</div>
 </div>
