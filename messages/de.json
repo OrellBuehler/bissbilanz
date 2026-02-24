@@ -349,5 +349,9 @@
 	"weight_latest": "Letztes Gewicht",
 
 	"settings_tab_general": "Allgemein",
-	"settings_tab_mcp": "MCP"
+	"settings_tab_mcp": "MCP",
+
+	"dashboard_goal_progress": "Zielfortschritt",
+	"dashboard_remaining": "{amount} verbleibend",
+	"dashboard_over": "{amount} darüber"
 }

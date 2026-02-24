@@ -2,6 +2,7 @@
 	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import MacroSummaryCard from '$lib/components/entries/MacroSummaryCard.svelte';
 	import DailyMacroChart from '$lib/components/charts/DailyMacroChart.svelte';
+	import GoalProgressRings from '$lib/components/charts/GoalProgressRings.svelte';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type MacroTotals } from '$lib/utils/nutrition';
@@ -15,6 +16,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
+	import Target from '@lucide/svelte/icons/target';
 
 	let activeDate = $state(today());
 
@@ -36,6 +38,7 @@
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
+	let userGoals: { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number; fiberGoal: number } | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
 
@@ -92,6 +95,18 @@
 		await loadSupplements();
 	};
 
+	const loadGoals = async () => {
+		try {
+			const res = await fetch('/api/goals');
+			if (res.ok) {
+				const data = await res.json();
+				userGoals = data.goals;
+			}
+		} catch {
+			// silently ignore
+		}
+	};
+
 	const checkStartPage = async () => {
 		try {
 			const res = await fetch('/api/preferences');
@@ -110,6 +125,7 @@
 
 		loadSupplements();
 		loadLatestWeight();
+		loadGoals();
 	};
 
 	onMount(() => {
@@ -156,11 +172,17 @@
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
 			{#if sectionKey === 'chart'}
-				<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
-					<div class="h-[200px] sm:h-[220px]">
-						<DailyMacroChart totals={daylogTotals} />
-					</div>
-				</DashboardCard>
+				{#if userGoals}
+					<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
+						<GoalProgressRings totals={daylogTotals} goals={userGoals} />
+					</DashboardCard>
+				{:else}
+					<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
+						<div class="h-[200px] sm:h-[220px]">
+							<DailyMacroChart totals={daylogTotals} />
+						</div>
+					</DashboardCard>
+				{/if}
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
 					onEntryLogged={() => refreshKey++}
