@@ -24,7 +24,7 @@
 	let chartData: Array<{ date: string } & MacroTotals> = $state([]);
 	let calorieGoal: number | undefined = $state(undefined);
 	let chartLoading = $state(false);
-	let dayStatus: Record<string, DayStatus> = $state({});
+	let calendarDays: Record<string, { calories: number; hasEntries: boolean }> = $state({});
 	let goalsCalorieGoal: number | null = $state(null);
 	let macroVisibility = $state<Record<MacroKey, boolean>>({
 		protein: true,
@@ -39,6 +39,20 @@
 		{ key: 'fat', label: () => m.macro_fat(), dotClass: 'bg-yellow-500' },
 		{ key: 'fiber', label: () => m.macro_fiber(), dotClass: 'bg-green-500' }
 	] as const satisfies Array<{ key: MacroKey; label: () => string; dotClass: string }>;
+
+	const dayStatus: Record<string, DayStatus> = $derived.by(() => {
+		const status: Record<string, DayStatus> = {};
+		for (const [date, day] of Object.entries(calendarDays)) {
+			if (!day.hasEntries) continue;
+			if (goalsCalorieGoal && goalsCalorieGoal > 0) {
+				const diff = Math.abs(day.calories - goalsCalorieGoal) / goalsCalorieGoal;
+				status[date] = diff <= 0.1 ? 'on-target' : 'off-target';
+			} else {
+				status[date] = 'logged';
+			}
+		}
+		return status;
+	});
 
 	const visibleMacroKeys = $derived(
 		(Object.keys(macroVisibility) as MacroKey[]).filter((key) => macroVisibility[key])
@@ -77,23 +91,12 @@
 		goalsCalorieGoal = json.goals?.calorieGoal ?? null;
 	};
 
-	const loadCalendarData = async (y: number, m: number) => {
-		const monthStr = `${y}-${String(m + 1).padStart(2, '0')}`;
+	const loadCalendarData = async (y: number, mo: number) => {
+		const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
 		const res = await fetch(`/api/stats/calendar?month=${monthStr}`);
 		if (!res.ok) return;
 		const json = await res.json();
-		const days: Record<string, { calories: number; hasEntries: boolean }> = json.days ?? {};
-		const status: Record<string, DayStatus> = {};
-		for (const [date, day] of Object.entries(days)) {
-			if (!day.hasEntries) continue;
-			if (goalsCalorieGoal && goalsCalorieGoal > 0) {
-				const diff = Math.abs(day.calories - goalsCalorieGoal) / goalsCalorieGoal;
-				status[date] = diff <= 0.1 ? 'on-target' : 'off-target';
-			} else {
-				status[date] = 'logged';
-			}
-		}
-		dayStatus = status;
+		calendarDays = json.days ?? {};
 	};
 
 	const handleRangeChange = (start: string, end: string) => {
