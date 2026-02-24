@@ -225,6 +225,9 @@
 	"barcode_error": "Fehler",
 	"barcode_starting": "Kamera wird gestartet...",
 
+	"calendar_on_target": "Im Ziel",
+	"calendar_off_target": "Abweichend",
+	"calendar_logged": "Erfasst",
 	"calendar_mon": "Mo",
 	"calendar_tue": "Di",
 	"calendar_wed": "Mi",

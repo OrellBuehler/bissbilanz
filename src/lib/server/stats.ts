@@ -8,6 +8,9 @@ import {
 	type MacroTotals
 } from '$lib/utils/nutrition';
 
+export type CalendarDay = { calories: number; hasEntries: boolean };
+export type CalendarStats = { days: Record<string, CalendarDay> };
+
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
 const getDaysAgo = (days: number) => {
@@ -51,6 +54,29 @@ export const getMonthlyStats = async (userId: string) => {
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
 	const dailyTotals = groupEntriesByDate(entries);
 	return averageTotals(dailyTotals);
+};
+
+export const getCalendarStats = async (
+	userId: string,
+	year: number,
+	month: number
+): Promise<CalendarStats> => {
+	const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+	const lastDay = new Date(year, month + 1, 0).getDate();
+	const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+	const entries = await listEntriesByDateRange(userId, startDate, endDate);
+	const days: Record<string, CalendarDay> = {};
+	for (const entry of entries) {
+		if (!days[entry.date]) {
+			days[entry.date] = { calories: 0, hasEntries: true };
+		}
+		const macros = calculateEntryMacros(entry);
+		days[entry.date].calories += macros.calories;
+	}
+	for (const date of Object.keys(days)) {
+		days[date].calories = Math.round(days[date].calories);
+	}
+	return { days };
 };
 
 export const getDailyBreakdown = async (
