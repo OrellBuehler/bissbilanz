@@ -35,7 +35,16 @@ export const DEFAULT_PREFERENCES = {
 	showFavoritesWidget: true,
 	showSupplementsWidget: true,
 	showWeightWidget: true,
-	widgetOrder: ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog'] as string[],
+	showTopFoodsWidget: true,
+	widgetOrder: [
+		'chart',
+		'favorites',
+		'supplements',
+		'weight',
+		'top-foods',
+		'summary',
+		'daylog'
+	] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
 	favoriteTapAction: 'instant' as const,
@@ -43,7 +52,15 @@ export const DEFAULT_PREFERENCES = {
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 
-const ALL_SECTION_KEYS = ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog'];
+const ALL_SECTION_KEYS = [
+	'chart',
+	'favorites',
+	'supplements',
+	'weight',
+	'top-foods',
+	'summary',
+	'daylog'
+];
 
 const normalizeSectionOrder = (order: string[]): string[] => {
 	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));

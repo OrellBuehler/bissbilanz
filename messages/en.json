@@ -350,5 +350,17 @@
 	"weight_latest": "Latest Weight",
 
 	"settings_tab_general": "General",
-	"settings_tab_mcp": "MCP"
+	"settings_tab_mcp": "MCP",
+
+	"nav_insights": "Insights",
+	"insights_title": "Insights",
+	"insights_top_foods": "Top Foods",
+	"insights_times_logged": "{count} times",
+	"insights_per_serving": "per serving",
+	"insights_see_more": "See more",
+	"insights_7d": "7 days",
+	"insights_30d": "30 days",
+	"insights_no_data": "No data for this period",
+	"settings_widget_top_foods": "Top Foods",
+	"settings_widget_top_foods_desc": "Most frequently logged foods"
 }

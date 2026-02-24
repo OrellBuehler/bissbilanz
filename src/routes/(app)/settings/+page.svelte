@@ -26,6 +26,7 @@
 	let showFavoritesWidget = $state(true);
 	let showSupplementsWidget = $state(true);
 	let showWeightWidget = $state(true);
+	let showTopFoodsWidget = $state(true);
 	let widgetOrder = $state<
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
@@ -58,6 +59,10 @@
 		weight: {
 			name: () => m.settings_widget_weight(),
 			desc: () => m.settings_widget_weight_desc()
+		},
+		'top-foods': {
+			name: () => m.settings_widget_top_foods(),
+			desc: () => m.settings_widget_top_foods_desc()
 		},
 		summary: {
 			name: () => m.settings_section_summary(),
@@ -249,6 +254,7 @@
 				showFavoritesWidget = preferences.showFavoritesWidget ?? true;
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
+				showTopFoodsWidget = preferences.showTopFoodsWidget ?? true;
 				widgetOrder = buildWidgetOrder(
 					preferences.widgetOrder ?? [
 						'chart',
@@ -380,6 +386,11 @@
 									<Switch
 										bind:checked={showWeightWidget}
 										onCheckedChange={(v) => savePreference('showWeightWidget', v)}
+									/>
+								{:else if widget.key === 'top-foods'}
+									<Switch
+										bind:checked={showTopFoodsWidget}
+										onCheckedChange={(v) => savePreference('showTopFoodsWidget', v)}
 									/>
 								{/if}
 							</div>
