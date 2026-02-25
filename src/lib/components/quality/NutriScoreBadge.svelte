@@ -1,9 +1,10 @@
 <script lang="ts">
 	type Props = {
 		score: 'a' | 'b' | 'c' | 'd' | 'e';
+		compact?: boolean;
 	};
 
-	let { score }: Props = $props();
+	let { score, compact = false }: Props = $props();
 
 	const grades = ['a', 'b', 'c', 'd', 'e'] as const;
 
@@ -16,16 +17,24 @@
 	};
 </script>
 
-<div class="flex gap-0.5">
-	{#each grades as grade}
-		{@const isActive = grade === score}
-		<span
-			class="flex items-center justify-center rounded text-xs font-bold uppercase {isActive
-				? `${colors[grade].active} h-7 w-7`
-				: `${colors[grade].inactive} h-5 w-5 text-[10px]`}"
-			class:scale-110={isActive}
-		>
-			{grade}
-		</span>
-	{/each}
-</div>
+{#if compact}
+	<span
+		class="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold uppercase {colors[score].active}"
+	>
+		{score}
+	</span>
+{:else}
+	<div class="flex gap-0.5">
+		{#each grades as grade}
+			{@const isActive = grade === score}
+			<span
+				class="flex items-center justify-center rounded text-xs font-bold uppercase {isActive
+					? `${colors[grade].active} h-7 w-7`
+					: `${colors[grade].inactive} h-5 w-5 text-[10px]`}"
+				class:scale-110={isActive}
+			>
+				{grade}
+			</span>
+		{/each}
+	</div>
+{/if}
