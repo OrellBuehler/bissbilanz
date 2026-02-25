@@ -47,7 +47,9 @@ describe('entries-db', () => {
 					carbs: TEST_FOOD.carbs,
 					fat: TEST_FOOD.fat,
 					fiber: TEST_FOOD.fiber,
-					createdAt: TEST_ENTRY.createdAt
+					createdAt: TEST_ENTRY.createdAt,
+					servingSize: TEST_FOOD.servingSize,
+					servingUnit: TEST_FOOD.servingUnit
 				}
 			];
 			setResult(entriesWithFood);
