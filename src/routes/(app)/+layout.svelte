@@ -10,28 +10,33 @@
 	import type { LayoutData } from './$types';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { useSwipe, type SwipeCustomEvent } from 'svelte-gestures';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
-	const swipeGesture = useSwipe(
-		(e: SwipeCustomEvent) => {
-			if (e.detail.direction === 'right') {
+	function edgeSwipeAction(node: HTMLElement) {
+		let startX = 0;
+		let startY = 0;
+
+		function onTouchStart(e: TouchEvent) {
+			startX = e.touches[0].clientX;
+			startY = e.touches[0].clientY;
+		}
+
+		function onTouchEnd(e: TouchEvent) {
+			const dx = e.changedTouches[0].clientX - startX;
+			const dy = e.changedTouches[0].clientY - startY;
+			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
 				history.back();
 			}
-		},
-		() => ({ timeframe: 300, minSwipeDistance: 80, touchAction: 'pan-y' as const }),
-		undefined,
-		true
-	);
+		}
 
-	function swipeAction(node: HTMLElement) {
-		node.addEventListener('swipe', swipeGesture.onswipe as EventListener);
-		const cleanup = swipeGesture.swipe(node);
+		node.addEventListener('touchstart', onTouchStart, { passive: true });
+		node.addEventListener('touchend', onTouchEnd, { passive: true });
+
 		return {
 			destroy() {
-				node.removeEventListener('swipe', swipeGesture.onswipe as EventListener);
-				cleanup();
+				node.removeEventListener('touchstart', onTouchStart);
+				node.removeEventListener('touchend', onTouchEnd);
 			}
 		};
 	}
@@ -49,7 +54,7 @@
 </script>
 
 <InstallBanner />
-<div use:swipeAction class="contents">
+<div use:edgeSwipeAction class="contents">
 	<Sidebar.Provider
 		style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
 	>

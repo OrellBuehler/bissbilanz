@@ -65,7 +65,7 @@
 
 	<div
 		use:panAction
-		style="transform: translateX({$offsetX}px)"
+		style="transform: translateX({$offsetX}px); will-change: transform"
 		class="relative bg-card"
 		class:transition-transform={!swiping}
 	>

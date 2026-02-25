@@ -25,6 +25,7 @@
 		dashboardStyle?: boolean;
 		onAdd?: () => void;
 		onEdit?: (entry: { id: string; servings: number; mealType: string; foodName?: string }) => void;
+		onDelete?: (id: string) => void;
 	};
 
 	let {
@@ -33,7 +34,8 @@
 		readonly = false,
 		dashboardStyle = false,
 		onAdd,
-		onEdit
+		onEdit,
+		onDelete
 	}: Props = $props();
 
 	const formatTime = (iso: string | null | undefined) => {
@@ -56,15 +58,7 @@
 	<ul class={dashboardStyle ? 'space-y-2' : 'space-y-2'}>
 		{#each entries as entry}
 			{#if !readonly}
-				<SwipeableEntry
-					onDelete={() =>
-						onEdit?.({
-							id: entry.id,
-							servings: entry.servings,
-							mealType: entry.mealType,
-							foodName: entry.foodName ?? undefined
-						})}
-				>
+				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<li
 						class={dashboardStyle
 							? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'

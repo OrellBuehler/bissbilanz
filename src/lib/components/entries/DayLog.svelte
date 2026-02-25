@@ -129,6 +129,7 @@
 					activeMeal = mealType;
 				}}
 				onEdit={openEditModal}
+				onDelete={deleteEntry}
 			/>
 		{/each}
 	</div>
