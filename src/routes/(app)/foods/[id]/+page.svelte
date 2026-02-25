@@ -10,6 +10,7 @@
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import * as m from '$lib/paraglide/messages';
 
 	type Food = {
@@ -39,6 +40,7 @@
 	let food: Food | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
+	let enriching = $state(false);
 
 	// Editable fields
 	let name = $state('');
@@ -173,6 +175,36 @@
 		}
 	};
 
+	const enrichFood = async () => {
+		if (!food?.barcode) return;
+		enriching = true;
+		try {
+			const res = await fetch(`/api/openfoodfacts/${food.barcode}`);
+			if (!res.ok) {
+				toast.error(m.quality_enrich_failed());
+				return;
+			}
+			const { product } = await res.json();
+			await apiFetch(`/api/foods/${food.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					nutriScore: product.nutriScore,
+					novaGroup: product.novaGroup,
+					additives: product.additives,
+					ingredientsText: product.ingredientsText,
+					imageUrl: product.imageUrl
+				})
+			});
+			await loadFood();
+			toast.success(m.quality_enrich_success());
+		} catch {
+			toast.error(m.quality_enrich_failed());
+		} finally {
+			enriching = false;
+		}
+	};
+
 	onMount(() => {
 		loadFood();
 	});
@@ -184,6 +216,12 @@
 			<ArrowLeft class="size-4 sm:mr-1" />
 			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
+		{#if food?.barcode}
+			<Button variant="outline" size="sm" class="ml-auto" onclick={enrichFood} disabled={enriching}>
+				<Sparkles class="size-4 sm:mr-1" />
+				<span class="hidden sm:inline">{enriching ? m.quality_enriching() : m.quality_enrich()}</span>
+			</Button>
+		{/if}
 	</div>
 
 	{#if loading}
