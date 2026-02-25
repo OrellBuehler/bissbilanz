@@ -25,12 +25,12 @@
 			stream = await startCamera(videoEl);
 		} catch (err) {
 			const kind = mapCameraError(err);
-			error =
-				kind === 'permission_denied'
-					? m.barcode_camera_denied()
-					: kind === 'not_found'
-						? m.barcode_camera_not_found()
-						: m.barcode_camera_error();
+			const messages: Record<string, () => string> = {
+				permission_denied: m.barcode_camera_denied,
+				not_found: m.barcode_camera_not_found,
+				overconstrained: m.barcode_camera_overconstrained
+			};
+			error = (messages[kind] ?? m.barcode_camera_error)();
 			onError?.(error);
 			return;
 		}

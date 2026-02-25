@@ -9,7 +9,6 @@
         "@modelcontextprotocol/sdk": "^1.26.0",
         "@rodrigodagostino/svelte-sortable-list": "^2.1.10",
         "@sentry/sveltekit": "^10.40.0",
-        "barcode-detector": "^3.0.2",
         "barcode-detector": "^3.1.0",
         "bcrypt": "^6.0.0",
         "drizzle-orm": "^0.45.1",
