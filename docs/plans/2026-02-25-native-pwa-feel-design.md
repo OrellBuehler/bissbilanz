@@ -11,11 +11,13 @@ Make the Bissbilanz PWA feel native by adding view transitions, gesture handling
 Add the View Transitions API via SvelteKit's `onNavigate` hook.
 
 **Setup:**
+
 - `onNavigate` in root `+layout.svelte` calls `document.startViewTransition()`
 - Graceful degradation: null check on `document.startViewTransition`
 - All transitions controlled via CSS
 
 **Transitions:**
+
 - Default cross-fade on all page navigations
 - Shared element transitions for list→detail flows:
   - Food list → food detail (food name/image)
@@ -24,6 +26,7 @@ Add the View Transitions API via SvelteKit's `onNavigate` hook.
 - `view-transition-name` assigned dynamically (e.g. `food-{id}`)
 
 **CSS animations:**
+
 - `::view-transition-old(root)` / `::view-transition-new(root)` for page-level
 - Keep durations short: 150-200ms
 - Slide direction based on navigation depth (forward = slide left, back = slide right)
@@ -33,6 +36,7 @@ Add the View Transitions API via SvelteKit's `onNavigate` hook.
 Single new dependency: `svelte-gestures` — Svelte 5 native, tree-shakeable.
 
 **Gestures to implement:**
+
 - Swipe-right anywhere to navigate back (global action in app layout)
 - Swipe on meal entry rows for quick actions (delete/edit)
 
@@ -42,16 +46,23 @@ Zero-dependency CSS changes in `app.css`:
 
 ```css
 @media (display-mode: standalone) {
-  html { overscroll-behavior: none; }
-  button, a, nav, [role="button"] {
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  * { -webkit-tap-highlight-color: transparent; }
-  body {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
+	html {
+		overscroll-behavior: none;
+	}
+	button,
+	a,
+	nav,
+	[role='button'] {
+		user-select: none;
+		-webkit-user-select: none;
+	}
+	* {
+		-webkit-tap-highlight-color: transparent;
+	}
+	body {
+		padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+			env(safe-area-inset-left);
+	}
 }
 ```
 

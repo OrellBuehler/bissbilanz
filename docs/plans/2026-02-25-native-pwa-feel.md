@@ -17,6 +17,7 @@
 Add standalone-mode CSS rules for native feel. This is the highest-ROI change — zero JS, immediate effect.
 
 **Files:**
+
 - Modify: `src/app.css`
 
 **Step 1: Add standalone PWA styles to app.css**
@@ -61,6 +62,7 @@ git commit -m "feat: add standalone PWA CSS for native feel"
 Add the View Transitions API to all page navigations via `onNavigate`.
 
 **Files:**
+
 - Modify: `src/routes/+layout.svelte`
 - Modify: `src/app.css`
 
@@ -184,6 +186,7 @@ git commit -m "chore: add svelte-gestures dependency"
 Add a global swipe-right gesture to navigate back.
 
 **Files:**
+
 - Modify: `src/routes/(app)/+layout.svelte`
 
 **Step 1: Add swipe-back gesture to the app layout**
@@ -250,6 +253,7 @@ The swipe handler should only trigger on swipe-right from the left edge of the s
 ```
 
 Key details:
+
 - `minSwipeDistance: 80` — prevents accidental triggers
 - `touchAction: 'pan-y'` — allows vertical scrolling while capturing horizontal swipes
 - `class="contents"` — the wrapper div doesn't affect layout
@@ -259,6 +263,7 @@ Key details:
 
 Run: `bun run dev`
 Test on a mobile device or Chrome DevTools mobile emulation:
+
 - Navigate to a sub-page (e.g. `/foods/[id]`)
 - Swipe right — should go back
 - Swipe left — should do nothing
@@ -294,6 +299,7 @@ git commit -m "feat: add swipe-right to navigate back"
 Add swipe-left on individual meal entries to reveal a delete action.
 
 **Files:**
+
 - Modify: `src/lib/components/entries/MealSection.svelte`
 - Create: `src/lib/components/entries/SwipeableEntry.svelte`
 
@@ -373,10 +379,20 @@ Replace the `{#each entries as entry}` block inside the `mealList` snippet. The 
 ```svelte
 {#each entries as entry}
 	{#if !readonly && onEdit}
-		<SwipeableEntry onDelete={() => onEdit?.({ id: entry.id, servings: entry.servings, mealType: entry.mealType, foodName: entry.foodName ?? undefined })}>
-			<li class={dashboardStyle
-				? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-				: 'flex items-center justify-between text-sm'}>
+		<SwipeableEntry
+			onDelete={() =>
+				onEdit?.({
+					id: entry.id,
+					servings: entry.servings,
+					mealType: entry.mealType,
+					foodName: entry.foodName ?? undefined
+				})}
+		>
+			<li
+				class={dashboardStyle
+					? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+					: 'flex items-center justify-between text-sm'}
+			>
 				<!-- ... existing entry content ... -->
 			</li>
 		</SwipeableEntry>
@@ -421,6 +437,7 @@ Expected: No errors
 Run: `bun run dev`
 
 Checklist:
+
 - [ ] Page navigation shows cross-fade transition
 - [ ] Swipe right navigates back
 - [ ] Swipe left on meal entries reveals delete action

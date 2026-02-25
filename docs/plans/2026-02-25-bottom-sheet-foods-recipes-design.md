@@ -37,14 +37,14 @@ Make foods and recipes use the same bottom sheet (ResponsiveModal) pattern as su
 
 ### Files Changed
 
-| File | Action |
-|------|--------|
-| `src/routes/(app)/foods/+page.svelte` | Major rewrite: add edit state, barcode URL handling, OFF fetch, image upload, update API |
-| `src/routes/(app)/foods/[id]/+page.svelte` | Delete |
-| `src/routes/(app)/foods/new/+page.svelte` | Delete |
-| `src/lib/components/foods/FoodForm.svelte` | Add editing mode with image upload + favorite toggle |
-| `src/routes/(app)/recipes/+page.svelte` | Major rewrite: add edit state, image upload, update API |
-| `src/routes/(app)/recipes/[id]/+page.svelte` | Delete |
+| File                                         | Action                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/routes/(app)/foods/+page.svelte`        | Major rewrite: add edit state, barcode URL handling, OFF fetch, image upload, update API |
+| `src/routes/(app)/foods/[id]/+page.svelte`   | Delete                                                                                   |
+| `src/routes/(app)/foods/new/+page.svelte`    | Delete                                                                                   |
+| `src/lib/components/foods/FoodForm.svelte`   | Add editing mode with image upload + favorite toggle                                     |
+| `src/routes/(app)/recipes/+page.svelte`      | Major rewrite: add edit state, image upload, update API                                  |
+| `src/routes/(app)/recipes/[id]/+page.svelte` | Delete                                                                                   |
 
 ### Pattern (from supplements)
 

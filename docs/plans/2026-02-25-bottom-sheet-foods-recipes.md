@@ -17,6 +17,7 @@
 FoodForm already accepts `initial` for pre-filling. Add support for image upload and favorite toggle when editing.
 
 **Files:**
+
 - Modify: `src/lib/components/foods/FoodForm.svelte`
 
 **Step 1: Add editing props to FoodForm**
@@ -34,6 +35,7 @@ type Props = {
 ```
 
 Add to destructuring:
+
 ```typescript
 let { initial = {}, onSave, onBarcodeScan, imageUrl, onImageUpload }: Props = $props();
 ```
@@ -90,6 +92,7 @@ git commit -m "feat: add image upload support to FoodForm"
 Move the edit flow from `/foods/[id]` into the foods list page as a ResponsiveModal.
 
 **Files:**
+
 - Modify: `src/routes/(app)/foods/+page.svelte` (major rewrite)
 - Delete: `src/routes/(app)/foods/[id]/+page.svelte`
 - Delete: `src/routes/(app)/foods/[id]/` (directory)
@@ -97,6 +100,7 @@ Move the edit flow from `/foods/[id]` into the foods list page as a ResponsiveMo
 **Step 1: Rewrite the foods page**
 
 The new page combines:
+
 - List (existing)
 - Create modal (existing)
 - Edit modal (new — loads food by ID, opens ResponsiveModal with FoodForm pre-filled)
@@ -342,12 +346,7 @@ Here is the complete new `src/routes/(app)/foods/+page.svelte`:
 	{#if query && filtered.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
-		<FoodList
-			foods={filtered}
-			onEdit={openEdit}
-			onDelete={deleteFood}
-			onEnrich={enrichFood}
-		/>
+		<FoodList foods={filtered} onEdit={openEdit} onDelete={deleteFood} onEnrich={enrichFood} />
 	{/if}
 </div>
 
@@ -412,9 +411,11 @@ Run: `bun run check`
 Expected: 0 errors. If there are broken imports or references to the deleted pages, fix them.
 
 Check for any links to `/foods/[id]` or `/foods/new` in other files:
+
 ```bash
 grep -r "foods/new\|/foods/\[" src/ --include="*.svelte" --include="*.ts" -l
 ```
+
 Fix any references to use the new modal pattern.
 
 **Step 5: Commit**
@@ -431,6 +432,7 @@ git commit -m "feat: consolidate food edit/create into bottom sheet"
 Move the edit flow from `/recipes/[id]` into the recipes list page.
 
 **Files:**
+
 - Modify: `src/routes/(app)/recipes/+page.svelte` (major rewrite)
 - Delete: `src/routes/(app)/recipes/[id]/+page.svelte`
 - Delete: `src/routes/(app)/recipes/[id]/` (directory)
@@ -466,7 +468,12 @@ The recipe edit form is different from RecipeForm (create) — it edits name, se
 			imageUrl: string | null;
 			ingredients: Ingredient[];
 		};
-		onSave: (payload: { name: string; totalServings: number; isFavorite: boolean; imageUrl: string | null }) => Promise<void>;
+		onSave: (payload: {
+			name: string;
+			totalServings: number;
+			isFavorite: boolean;
+			imageUrl: string | null;
+		}) => Promise<void>;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
 	};
@@ -496,7 +503,9 @@ The recipe edit form is different from RecipeForm (create) — it edits name, se
 					<img src={imageUrl} alt={name} class="h-full w-full object-cover" />
 				{:else}
 					<div class="flex h-full w-full items-center justify-center bg-muted">
-						<span class="text-4xl font-bold text-muted-foreground">{name.charAt(0).toUpperCase()}</span>
+						<span class="text-4xl font-bold text-muted-foreground"
+							>{name.charAt(0).toUpperCase()}</span
+						>
 					</div>
 				{/if}
 			</div>
@@ -539,7 +548,8 @@ The recipe edit form is different from RecipeForm (create) — it edits name, se
 				<ul class="space-y-1 text-sm">
 					{#each recipe.ingredients as ingredient}
 						<li class="text-muted-foreground">
-							{ingredient.quantity} {ingredient.servingUnit}
+							{ingredient.quantity}
+							{ingredient.servingUnit}
 						</li>
 					{/each}
 				</ul>
@@ -762,6 +772,7 @@ Delete `src/routes/(app)/recipes/[id]/+page.svelte` and the `[id]` directory.
 **Step 4: Fix references**
 
 Search for any remaining references to `/recipes/[id]` or `goto('/recipes/')` patterns:
+
 ```bash
 grep -r "recipes/\[id\]\|goto.*recipes/" src/ --include="*.svelte" --include="*.ts" -l
 ```
@@ -787,6 +798,7 @@ git commit -m "feat: consolidate recipe edit/create into bottom sheet"
 **Step 1: Search for dead references**
 
 Check for any remaining references to the deleted pages:
+
 ```bash
 grep -rn "foods/new\|/foods/\[" src/ --include="*.svelte" --include="*.ts"
 grep -rn "/recipes/\[" src/ --include="*.svelte" --include="*.ts"
@@ -806,6 +818,7 @@ Expected: 0 errors
 Run: `bun run dev`
 
 Checklist:
+
 - [ ] Foods: click food in list → edit modal opens with data pre-filled
 - [ ] Foods: edit food name, save → modal closes, list updates
 - [ ] Foods: upload image in edit modal → image shows
