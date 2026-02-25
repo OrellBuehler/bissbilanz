@@ -8,6 +8,7 @@
 	import Sunrise from '@lucide/svelte/icons/sunrise';
 	import Sunset from '@lucide/svelte/icons/sunset';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
+	import SwipeableEntry from '$lib/components/entries/SwipeableEntry.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -54,44 +55,61 @@
 {#snippet mealList()}
 	<ul class={dashboardStyle ? 'space-y-2' : 'space-y-2'}>
 		{#each entries as entry}
-			<li
-				class={dashboardStyle
-					? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-					: 'flex items-center justify-between text-sm'}
-			>
-				{#if readonly}
+			{#if !readonly}
+				<SwipeableEntry
+					onDelete={() =>
+						onEdit?.({
+							id: entry.id,
+							servings: entry.servings,
+							mealType: entry.mealType,
+							foodName: entry.foodName ?? undefined
+						})}
+				>
+					<li
+						class={dashboardStyle
+							? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+							: 'flex items-center justify-between text-sm'}
+					>
+						<div class="flex items-center gap-2">
+							<Button
+								variant="ghost"
+								class="h-auto p-0 text-left hover:underline"
+								onclick={() =>
+									onEdit?.({
+										id: entry.id,
+										servings: entry.servings,
+										mealType: entry.mealType,
+										foodName: entry.foodName ?? undefined
+									})}
+							>
+								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
+							</Button>
+							{#if entry.createdAt}
+								<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+							{/if}
+						</div>
+						<span class="text-muted-foreground"
+							>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
+						>
+					</li>
+				</SwipeableEntry>
+			{:else}
+				<li
+					class={dashboardStyle
+						? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+						: 'flex items-center justify-between text-sm'}
+				>
 					<div class="flex items-center gap-2">
 						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
 						{#if entry.createdAt}
 							<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
 						{/if}
 					</div>
-				{:else}
-					<div class="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							class={dashboardStyle
-								? 'h-auto p-0 text-left hover:underline'
-								: 'h-auto p-0 text-left hover:underline'}
-							onclick={() =>
-								onEdit?.({
-									id: entry.id,
-									servings: entry.servings,
-									mealType: entry.mealType,
-									foodName: entry.foodName ?? undefined
-								})}
-						>
-							{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
-						</Button>
-						{#if entry.createdAt}
-							<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
-						{/if}
-					</div>
-				{/if}
-				<span class="text-muted-foreground"
-					>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
-				>
-			</li>
+					<span class="text-muted-foreground"
+						>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
+					>
+				</li>
+			{/if}
 		{:else}
 			<li
 				class={dashboardStyle
