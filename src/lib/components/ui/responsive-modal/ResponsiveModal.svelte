@@ -41,10 +41,10 @@
 {:else}
 	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
 		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100vh]">
-			<Drawer.Header class="text-left">
-				<Drawer.Title>{title}</Drawer.Title>
+			<Drawer.Header class="min-w-0 text-left">
+				<Drawer.Title class="truncate">{title}</Drawer.Title>
 				{#if description}
-					<Drawer.Description>{description}</Drawer.Description>
+					<Drawer.Description class="truncate">{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
 			<div class="px-4 pb-4" class:overflow-y-auto={isExpanded} class:overflow-hidden={!isExpanded}>
