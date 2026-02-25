@@ -73,7 +73,7 @@
 
 **Feature-Specific:**
 
-- html5-qrcode 2.3.8 - Barcode scanning (lazy-loaded in components)
+- barcode-detector 3.x - Barcode scanning (native API + WASM polyfill, lazy-loaded)
 
 ## Testing
 

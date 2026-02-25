@@ -224,6 +224,9 @@
 	"barcode_title": "Scan Barcode",
 	"barcode_error": "Error",
 	"barcode_starting": "Starting camera...",
+	"barcode_camera_denied": "Camera access was denied. Please allow camera access in your browser settings.",
+	"barcode_camera_not_found": "No camera found on this device.",
+	"barcode_camera_error": "Could not access the camera. Please try again.",
 
 	"calendar_mon": "Mon",
 	"calendar_tue": "Tue",
