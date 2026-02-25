@@ -154,7 +154,7 @@
 			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
 		</Dialog.Header>
 
-		<Tabs.Root value={tab} onValueChange={handleTabChange}>
+		<Tabs.Root value={tab} onValueChange={handleTabChange} class="min-w-0">
 			<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
 				<Tabs.Trigger value="search" class="text-xs sm:text-sm"
 					>{m.add_food_tab_search()}</Tabs.Trigger
