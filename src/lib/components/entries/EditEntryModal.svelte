@@ -2,8 +2,8 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import AmountInput from '$lib/components/entries/AmountInput.svelte';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
@@ -11,7 +11,7 @@
 
 	type Props = {
 		open?: boolean;
-		entry: { id: string; servings: number; mealType: string; foodName?: string } | null;
+		entry: { id: string; servings: number; mealType: string; foodName?: string; servingSize?: number | null; servingUnit?: string | null; calories?: number | null } | null;
 		onClose: () => void;
 		onSave: (payload: { id: string; servings: number; mealType: string }) => void;
 		onDelete: (id: string) => void;
@@ -59,10 +59,13 @@
 		</Dialog.Header>
 
 		<div class="grid gap-4">
-			<div class="grid gap-2">
-				<Label for="edit-servings">{m.edit_entry_servings()}</Label>
-				<Input id="edit-servings" type="number" bind:value={editServings} min="0.1" step="0.1" />
-			</div>
+			<AmountInput
+				servings={editServings}
+				servingSize={entry?.servingSize}
+				servingUnit={entry?.servingUnit}
+				caloriesPerServing={entry?.calories}
+				onServingsChange={(v) => (editServings = v)}
+			/>
 
 			<div class="grid gap-2">
 				<Label>{m.edit_entry_meal()}</Label>

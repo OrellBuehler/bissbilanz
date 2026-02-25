@@ -20,11 +20,13 @@
 			servings: number;
 			mealType: string;
 			createdAt?: string | null;
+			servingSize?: number | null;
+			servingUnit?: string | null;
 		}>;
 		readonly?: boolean;
 		dashboardStyle?: boolean;
 		onAdd?: () => void;
-		onEdit?: (entry: { id: string; servings: number; mealType: string; foodName?: string }) => void;
+		onEdit?: (entry: { id: string; servings: number; mealType: string; foodName?: string; servingSize?: number | null; servingUnit?: string | null; calories?: number | null }) => void;
 		onDelete?: (id: string) => void;
 	};
 
@@ -73,10 +75,13 @@
 										id: entry.id,
 										servings: entry.servings,
 										mealType: entry.mealType,
-										foodName: entry.foodName ?? undefined
+										foodName: entry.foodName ?? undefined,
+										servingSize: entry.servingSize,
+										servingUnit: entry.servingUnit,
+										calories: entry.calories
 									})}
 							>
-								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
+								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}
 							</Button>
 							{#if entry.createdAt}
 								<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
@@ -94,7 +99,7 @@
 						: 'flex items-center justify-between text-sm'}
 				>
 					<div class="flex items-center gap-2">
-						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
+						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}</span>
 						{#if entry.createdAt}
 							<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
 						{/if}
