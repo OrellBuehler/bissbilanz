@@ -13,6 +13,7 @@
 ### Task 1: Add i18n message keys
 
 **Files:**
+
 - Modify: `messages/en.json`
 - Modify: `messages/de.json`
 
@@ -50,6 +51,7 @@ git commit -m "feat: add i18n keys for amount input with live preview"
 ### Task 2: Add servingSize/servingUnit to entries query
 
 **Files:**
+
 - Modify: `src/lib/server/entries.ts` — `listEntriesByDate` function (lines 11-62)
 
 **Step 1: Add servingSize and servingUnit to the select clause**
@@ -83,6 +85,7 @@ git commit -m "feat: include servingSize and servingUnit in entries query"
 ### Task 3: Create the AmountInput component
 
 **Files:**
+
 - Create: `src/lib/components/entries/AmountInput.svelte`
 
 **Step 1: Create the component**
@@ -108,9 +111,7 @@ git commit -m "feat: include servingSize and servingUnit in entries query"
 	let mode: 'servings' | 'unit' = $state('servings');
 	let inputValue = $state(servings);
 
-	const hasUnitMode = $derived(
-		servingSize != null && servingSize > 0 && servingUnit != null
-	);
+	const hasUnitMode = $derived(servingSize != null && servingSize > 0 && servingUnit != null);
 
 	$effect(() => {
 		if (mode === 'servings') {
@@ -131,7 +132,8 @@ git commit -m "feat: include servingSize and servingUnit in entries query"
 
 	const handleModeChange = (newMode: string) => {
 		if (newMode === 'servings' || newMode === 'unit') {
-			const currentServings = mode === 'servings' ? inputValue : servingSize ? inputValue / servingSize : inputValue;
+			const currentServings =
+				mode === 'servings' ? inputValue : servingSize ? inputValue / servingSize : inputValue;
 			mode = newMode;
 			if (newMode === 'servings') {
 				inputValue = Math.round(currentServings * 10) / 10;
@@ -143,15 +145,23 @@ git commit -m "feat: include servingSize and servingUnit in entries query"
 
 	const previewText = $derived.by(() => {
 		const cal = caloriesPerServing ?? 0;
-		const currentServings = mode === 'servings' ? inputValue : servingSize ? inputValue / servingSize : inputValue;
+		const currentServings =
+			mode === 'servings' ? inputValue : servingSize ? inputValue / servingSize : inputValue;
 		const totalCalories = Math.round(cal * currentServings);
 
 		if (mode === 'servings' && hasUnitMode) {
 			const amount = Math.round(currentServings * (servingSize ?? 0) * 10) / 10;
-			return m.amount_input_preview_weight({ amount: String(amount), unit: servingUnit ?? '', calories: String(totalCalories) });
+			return m.amount_input_preview_weight({
+				amount: String(amount),
+				unit: servingUnit ?? '',
+				calories: String(totalCalories)
+			});
 		} else if (mode === 'unit') {
 			const s = Math.round(currentServings * 10) / 10;
-			return m.amount_input_preview_servings({ servings: String(s), calories: String(totalCalories) });
+			return m.amount_input_preview_servings({
+				servings: String(s),
+				calories: String(totalCalories)
+			});
 		}
 		return null;
 	});
@@ -222,6 +232,7 @@ git commit -m "feat: create AmountInput component with servings/unit toggle and 
 ### Task 4: Thread serving data through DayLog and update AddFoodModal
 
 **Files:**
+
 - Modify: `src/lib/components/entries/DayLog.svelte` (lines 30, 36-37, 84-91)
 - Modify: `src/lib/components/entries/AddFoodModal.svelte`
 
@@ -257,17 +268,15 @@ import AmountInput from '$lib/components/entries/AmountInput.svelte';
 ```typescript
 let selectedFoodId: string | null = $state(null);
 
-const selectedFood = $derived(
-    foods.find((f) => f.id === selectedFoodId) ?? null
-);
+const selectedFood = $derived(foods.find((f) => f.id === selectedFoodId) ?? null);
 ```
 
 4. Update `handleAddFood` to also track the selected food:
 
 ```typescript
 const handleAddFood = (foodId: string) => {
-    selectedFoodId = foodId;
-    onSave({ foodId, mealType, servings });
+	selectedFoodId = foodId;
+	onSave({ foodId, mealType, servings });
 };
 ```
 
@@ -275,11 +284,11 @@ const handleAddFood = (foodId: string) => {
 
 ```svelte
 <AmountInput
-    {servings}
-    servingSize={selectedFood?.servingSize ?? null}
-    servingUnit={selectedFood?.servingUnit ?? null}
-    caloriesPerServing={selectedFood?.calories ?? null}
-    onServingsChange={(s) => (servings = s)}
+	{servings}
+	servingSize={selectedFood?.servingSize ?? null}
+	servingUnit={selectedFood?.servingUnit ?? null}
+	caloriesPerServing={selectedFood?.calories ?? null}
+	onServingsChange={(s) => (servings = s)}
 />
 ```
 
@@ -307,6 +316,7 @@ git commit -m "feat: use AmountInput in AddFoodModal with serving data"
 ### Task 5: Update EditEntryModal with AmountInput
 
 **Files:**
+
 - Modify: `src/lib/components/entries/EditEntryModal.svelte`
 - Modify: `src/lib/components/entries/DayLog.svelte`
 
@@ -316,19 +326,19 @@ In `EditEntryModal.svelte`, update the `entry` type to include serving info:
 
 ```typescript
 type Props = {
-    open?: boolean;
-    entry: {
-        id: string;
-        servings: number;
-        mealType: string;
-        foodName?: string;
-        servingSize?: number | null;
-        servingUnit?: string | null;
-        calories?: number | null;
-    } | null;
-    onClose: () => void;
-    onSave: (payload: { id: string; servings: number; mealType: string }) => void;
-    onDelete: (id: string) => void;
+	open?: boolean;
+	entry: {
+		id: string;
+		servings: number;
+		mealType: string;
+		foodName?: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
+	} | null;
+	onClose: () => void;
+	onSave: (payload: { id: string; servings: number; mealType: string }) => void;
+	onDelete: (id: string) => void;
 };
 ```
 
@@ -344,13 +354,13 @@ import AmountInput from '$lib/components/entries/AmountInput.svelte';
 
 ```svelte
 <div class="grid gap-2">
-    <AmountInput
-        servings={editServings}
-        servingSize={entry?.servingSize ?? null}
-        servingUnit={entry?.servingUnit ?? null}
-        caloriesPerServing={entry?.calories ?? null}
-        onServingsChange={(s) => (editServings = s)}
-    />
+	<AmountInput
+		servings={editServings}
+		servingSize={entry?.servingSize ?? null}
+		servingUnit={entry?.servingUnit ?? null}
+		caloriesPerServing={entry?.calories ?? null}
+		onServingsChange={(s) => (editServings = s)}
+	/>
 </div>
 ```
 
@@ -364,13 +374,13 @@ Update the `editingEntry` type (line 36-37):
 
 ```typescript
 let editingEntry: {
-    id: string;
-    servings: number;
-    mealType: string;
-    foodName?: string;
-    servingSize?: number | null;
-    servingUnit?: string | null;
-    calories?: number | null;
+	id: string;
+	servings: number;
+	mealType: string;
+	foodName?: string;
+	servingSize?: number | null;
+	servingUnit?: string | null;
+	calories?: number | null;
 } | null = $state(null);
 ```
 
@@ -378,16 +388,16 @@ Update `openEditModal` (lines 84-92) to pass the extra fields:
 
 ```typescript
 const openEditModal = (entry: {
-    id: string;
-    servings: number;
-    mealType: string;
-    foodName?: string;
-    servingSize?: number | null;
-    servingUnit?: string | null;
-    calories?: number | null;
+	id: string;
+	servings: number;
+	mealType: string;
+	foodName?: string;
+	servingSize?: number | null;
+	servingUnit?: string | null;
+	calories?: number | null;
 }) => {
-    editingEntry = entry;
-    editModalOpen = true;
+	editingEntry = entry;
+	editModalOpen = true;
 };
 ```
 
@@ -426,14 +436,14 @@ Update the `onEdit` call in MealSection's template (around line 72) to pass the 
 
 ```typescript
 onEdit?.({
-    id: entry.id,
-    servings: entry.servings,
-    mealType: entry.mealType,
-    foodName: entry.foodName ?? undefined,
-    servingSize: entry.servingSize ?? undefined,
-    servingUnit: entry.servingUnit ?? undefined,
-    calories: entry.calories ?? undefined
-})
+	id: entry.id,
+	servings: entry.servings,
+	mealType: entry.mealType,
+	foodName: entry.foodName ?? undefined,
+	servingSize: entry.servingSize ?? undefined,
+	servingUnit: entry.servingUnit ?? undefined,
+	calories: entry.calories ?? undefined
+});
 ```
 
 **Step 4: Verify**

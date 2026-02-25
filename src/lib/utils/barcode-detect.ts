@@ -42,10 +42,7 @@ export async function createBarcodeScanner(
 	const scan = async () => {
 		if (!running) return;
 		const now = Date.now();
-		if (
-			now - lastScanTime >= SCAN_INTERVAL_MS &&
-			video.readyState >= 4
-		) {
+		if (now - lastScanTime >= SCAN_INTERVAL_MS && video.readyState >= 4) {
 			lastScanTime = now;
 			try {
 				const results = await detector.detect(video);
