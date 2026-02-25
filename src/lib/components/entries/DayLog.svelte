@@ -145,7 +145,7 @@
 		onSave={addEntry}
 	/>
 	<EditEntryModal
-		open={editModalOpen}
+		bind:open={editModalOpen}
 		entry={editingEntry}
 		onClose={() => {
 			editModalOpen = false;
@@ -155,7 +155,7 @@
 		onDelete={deleteEntry}
 	/>
 	<BarcodeScanModal
-		open={scanModalOpen}
+		bind:open={scanModalOpen}
 		onClose={() => (scanModalOpen = false)}
 		onBarcode={handleBarcodeScan}
 	/>

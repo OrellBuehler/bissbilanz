@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -13,39 +13,34 @@
 		onClose: () => void;
 	};
 
-	let { open, itemName, onConfirm, onClose }: Props = $props();
+	let { open = $bindable(), itemName, onConfirm, onClose }: Props = $props();
 
 	let servings = $state(1);
+
+	let wasOpen = $state(false);
+	$effect(() => {
+		if (wasOpen && !open) {
+			onClose();
+			servings = 1;
+		}
+		wasOpen = open;
+	});
 
 	const handleConfirm = () => {
 		onConfirm(servings);
 		servings = 1;
 	};
-
-	const handleOpenChange = (value: boolean) => {
-		if (!value) {
-			onClose();
-			servings = 1;
-		}
-	};
 </script>
 
-<Dialog.Root {open} onOpenChange={handleOpenChange}>
-	<Dialog.Content class="sm:max-w-[340px]">
-		<Dialog.Header>
-			<Dialog.Title>{itemName}</Dialog.Title>
-		</Dialog.Header>
-		<div class="grid gap-4 py-4">
-			<div class="grid gap-2">
-				<Label for="servings">{m.favorites_servings()}</Label>
-				<Input id="servings" type="number" bind:value={servings} min={0.25} step={0.25} />
-			</div>
+<ResponsiveModal bind:open title={itemName}>
+	<div class="grid gap-4">
+		<div class="grid gap-2">
+			<Label for="servings">{m.favorites_servings()}</Label>
+			<Input id="servings" type="number" bind:value={servings} min={0.25} step={0.25} />
 		</div>
-		<Dialog.Footer>
-			<Button onclick={handleConfirm}>
-				<Check class="size-4" />
-				{m.favorites_log()}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		<Button onclick={handleConfirm}>
+			<Check class="size-4" />
+			{m.favorites_log()}
+		</Button>
+	</div>
+</ResponsiveModal>

@@ -61,8 +61,8 @@
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<li
 						class={dashboardStyle
-							? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-							: 'flex items-center justify-between text-sm'}
+							? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 					>
 						<div class="flex min-w-0 flex-1 items-center gap-2">
 							<button
@@ -79,7 +79,9 @@
 								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
 							</button>
 							{#if entry.createdAt}
-								<span class="shrink-0 text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+								<span class="shrink-0 text-xs text-muted-foreground/60"
+									>{formatTime(entry.createdAt)}</span
+								>
 							{/if}
 						</div>
 						<span class="shrink-0 text-muted-foreground"
@@ -90,13 +92,17 @@
 			{:else}
 				<li
 					class={dashboardStyle
-						? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-						: 'flex items-center justify-between text-sm'}
+						? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+						: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-2">
-						<span class="truncate">{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span>
+						<span class="truncate"
+							>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}</span
+						>
 						{#if entry.createdAt}
-							<span class="shrink-0 text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+							<span class="shrink-0 text-xs text-muted-foreground/60"
+								>{formatTime(entry.createdAt)}</span
+							>
 						{/if}
 					</div>
 					<span class="shrink-0 text-muted-foreground"
