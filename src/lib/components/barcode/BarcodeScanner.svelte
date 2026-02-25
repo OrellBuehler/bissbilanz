@@ -51,9 +51,6 @@
 </script>
 
 <div class="space-y-4">
-	{#if error}
-		<p class="text-red-500">{error}</p>
-	{/if}
 	<div class="relative mx-auto w-full max-w-md overflow-hidden rounded-lg">
 		<video
 			bind:this={videoEl}
