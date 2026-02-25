@@ -59,9 +59,11 @@
 		initial?: Partial<FoodFormData>;
 		onSave: (payload: FoodFormData) => Promise<void>;
 		onBarcodeScan?: (barcode: string) => void;
+		imageUrl?: string | null;
+		onImageUpload?: (file: File) => Promise<void>;
 	};
 
-	let { initial = {}, onSave, onBarcodeScan }: Props = $props();
+	let { initial = {}, onSave, onBarcodeScan, imageUrl, onImageUpload }: Props = $props();
 
 	let showAdvanced = $state(false);
 	let saving = $state(false);
@@ -119,6 +121,31 @@
 		}
 	}
 </script>
+
+{#if onImageUpload}
+	<div class="mb-4 space-y-2">
+		<div class="aspect-video w-full overflow-hidden rounded-xl border">
+			{#if imageUrl}
+				<img src={imageUrl} alt={form.name} class="h-full w-full object-cover" />
+			{:else}
+				<div class="flex h-full w-full items-center justify-center bg-muted">
+					<span class="text-4xl font-bold text-muted-foreground">{form.name.charAt(0).toUpperCase()}</span>
+				</div>
+			{/if}
+		</div>
+		<Label for="food-image-upload">{m.image_upload_label()}</Label>
+		<input
+			id="food-image-upload"
+			type="file"
+			accept="image/*"
+			onchange={async (e) => {
+				const file = (e.target as HTMLInputElement).files?.[0];
+				if (file) await onImageUpload(file);
+			}}
+			class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+		/>
+	</div>
+{/if}
 
 <div class="grid gap-3">
 	<div class="grid gap-1.5">
