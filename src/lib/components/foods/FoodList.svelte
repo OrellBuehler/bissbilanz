@@ -63,7 +63,7 @@
 		{#each foods as food (food.id)}
 			<button
 				type="button"
-				class="group flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+				class="group flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50"
 				onclick={() => onEdit(food.id)}
 			>
 				<!-- Calorie badge -->
