@@ -271,11 +271,13 @@
 				ingredientsText={offData.ingredientsText}
 			/>
 		{:else if editingFood}
-			<FoodQualityPanel
-				novaGroup={editingFood.novaGroup}
-				additives={editingFood.additives}
-				ingredientsText={editingFood.ingredientsText}
-			/>
+			<div class="mb-3">
+				<FoodQualityPanel
+					novaGroup={editingFood.novaGroup}
+					additives={editingFood.additives}
+					ingredientsText={editingFood.ingredientsText}
+				/>
+			</div>
 		{/if}
 		{#key editingFood?.id ?? offData ?? activeBarcode}
 			<FoodForm
