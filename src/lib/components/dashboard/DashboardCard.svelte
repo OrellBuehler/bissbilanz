@@ -94,7 +94,7 @@
 		{/if}
 	</div>
 
-	<div class={cn('min-w-0 overflow-hidden px-4 pb-3 sm:px-5 sm:pb-3.5', contentClass)}>
+	<div class={cn('px-4 pb-3 sm:px-5 sm:pb-3.5', contentClass)}>
 		{@render children()}
 	</div>
 </Card.Root>
