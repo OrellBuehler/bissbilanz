@@ -18,7 +18,7 @@
 
 {#if isDesktop.current}
 	<Dialog.Root bind:open>
-		<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+		<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
 			<Dialog.Header>
 				<Dialog.Title>{title}</Dialog.Title>
 				{#if description}
