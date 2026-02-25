@@ -82,7 +82,7 @@
 				<!-- Name, brand, macro bars -->
 				<div class="min-w-0 flex-1">
 					<div class="flex min-w-0 items-center gap-2">
-						<span class="truncate font-medium">{food.name}</span>
+						<span class="min-w-0 flex-1 truncate font-medium">{food.name}</span>
 						{#if food.nutriScore}
 							<NutriScoreBadge score={food.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e'} compact />
 						{/if}
