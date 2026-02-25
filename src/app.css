@@ -177,3 +177,22 @@
 	--normal-border: oklch(0.35 0.1 25) !important;
 	--normal-text: oklch(0.85 0.1 25) !important;
 }
+
+/* View transition animations */
+::view-transition-old(root) {
+	animation: vt-fade-out 150ms ease-out;
+}
+::view-transition-new(root) {
+	animation: vt-fade-in 150ms ease-in;
+}
+
+@keyframes vt-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes vt-fade-in {
+	from {
+		opacity: 0;
+	}
+}
