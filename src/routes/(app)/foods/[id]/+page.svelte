@@ -7,6 +7,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
+	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -27,6 +28,9 @@
 		imageUrl: string | null;
 		barcode: string | null;
 		nutriScore: string | null;
+		novaGroup: number | null;
+		additives: string[] | null;
+		ingredientsText: string | null;
 	};
 
 	const VALID_GRADES = ['a', 'b', 'c', 'd', 'e'] as const;
@@ -52,6 +56,9 @@
 	let isFavorite = $state(false);
 	let imageUrl: string | null = $state(null);
 	let nutriScore = $state<Grade | null>(null);
+	let novaGroup = $state<1 | 2 | 3 | 4 | null>(null);
+	let additives = $state<string[] | null>(null);
+	let ingredientsText = $state<string | null>(null);
 
 	const PALETTE = [
 		{ bg: 'bg-rose-200', text: 'text-rose-700' },
@@ -92,6 +99,9 @@
 				isFavorite = food.isFavorite;
 				imageUrl = food.imageUrl;
 				nutriScore = toGrade(food.nutriScore);
+				novaGroup = food.novaGroup as 1 | 2 | 3 | 4 | null;
+				additives = food.additives;
+				ingredientsText = food.ingredientsText;
 			}
 		} catch {
 			goto('/foods');
@@ -215,6 +225,8 @@
 			<Switch checked={isFavorite} onCheckedChange={toggleFavorite} />
 			<Label>{m.mark_as_favorite()}</Label>
 		</div>
+
+		<FoodQualityPanel {nutriScore} {novaGroup} {additives} {ingredientsText} />
 
 		<!-- Editable fields -->
 		<div class="grid gap-4">
