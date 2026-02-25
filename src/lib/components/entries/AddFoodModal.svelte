@@ -211,11 +211,11 @@
 	<div class="min-w-0 space-y-4">
 		{#if selectedFood}
 			<div class="space-y-4">
-				<div class="flex items-center gap-2">
+				<div class="flex min-w-0 items-center gap-2">
 					<Button variant="ghost" size="icon" onclick={goBack} class="shrink-0 size-8">
 						<ArrowLeft class="size-4" />
 					</Button>
-					<span class="text-sm font-medium">{selectedFood.name}</span>
+					<span class="min-w-0 truncate text-sm font-medium">{selectedFood.name}</span>
 				</div>
 
 				<AmountInput
