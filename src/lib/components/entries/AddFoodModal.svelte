@@ -149,7 +149,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
-	<Dialog.Content class="max-w-lg">
+	<Dialog.Content class="max-w-lg overflow-hidden">
 		<Dialog.Header>
 			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
 		</Dialog.Header>
@@ -175,7 +175,7 @@
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filtered() as food}
 						<li class="flex min-w-0 items-start justify-between gap-2">
-							<span class="min-w-0 break-words text-sm">{food.name}</span>
+							<span class="min-w-0 truncate text-sm">{food.name}</span>
 							<Button
 								variant="outline"
 								size="sm"
@@ -198,7 +198,7 @@
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each allFavorites as item (item.id)}
 							<li class="flex min-w-0 items-start justify-between gap-2">
-								<span class="min-w-0 break-words text-sm">{item.name}</span>
+								<span class="min-w-0 truncate text-sm">{item.name}</span>
 								<Button
 									variant="outline"
 									size="sm"
@@ -224,7 +224,7 @@
 					<ul class="max-h-60 space-y-2 overflow-auto">
 						{#each recentFoods as food}
 							<li class="flex min-w-0 items-start justify-between gap-2">
-								<span class="min-w-0 break-words text-sm">{food.name}</span>
+								<span class="min-w-0 truncate text-sm">{food.name}</span>
 								<Button
 									variant="outline"
 									size="sm"
@@ -248,7 +248,7 @@
 				<ul class="max-h-60 space-y-2 overflow-auto">
 					{#each filteredRecipes() as recipe}
 						<li class="flex min-w-0 items-start justify-between gap-2">
-							<span class="min-w-0 break-words text-sm">{recipe.name}</span>
+							<span class="min-w-0 truncate text-sm">{recipe.name}</span>
 							<Button
 								variant="outline"
 								size="sm"
