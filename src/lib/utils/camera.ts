@@ -1,4 +1,9 @@
-export type CameraError = 'permission_denied' | 'not_found' | 'not_readable' | 'unknown';
+export type CameraError =
+	| 'permission_denied'
+	| 'not_found'
+	| 'not_readable'
+	| 'overconstrained'
+	| 'unknown';
 
 export function mapCameraError(err: unknown): CameraError {
 	if (err instanceof DOMException) {
@@ -10,6 +15,8 @@ export function mapCameraError(err: unknown): CameraError {
 			case 'NotReadableError':
 			case 'AbortError':
 				return 'not_readable';
+			case 'OverconstrainedError':
+				return 'overconstrained';
 		}
 	}
 	return 'unknown';

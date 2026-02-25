@@ -8,7 +8,7 @@
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
-		"postinstall": "cp node_modules/zxing-wasm/dist/reader/zxing_reader.wasm static/wasm/ 2>/dev/null || true",
+		"postinstall": "mkdir -p static/wasm && cp node_modules/zxing-wasm/dist/reader/zxing_reader.wasm static/wasm/",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && prettier --write .",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",

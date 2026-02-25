@@ -1,15 +1,21 @@
-const FORMATS: BarcodeFormat[] = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
-const DEBOUNCE_MS = 2000;
+import type { BarcodeDetector as BarcodeDetectorType } from 'barcode-detector/ponyfill';
 
-async function getDetector(): Promise<BarcodeDetector> {
+const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'] as const;
+const DEBOUNCE_MS = 2000;
+const SCAN_INTERVAL_MS = 100;
+
+async function getDetector(): Promise<BarcodeDetectorType> {
 	if ('BarcodeDetector' in globalThis) {
-		const supported = await BarcodeDetector.getSupportedFormats();
+		const NativeDetector = (globalThis as Record<string, unknown>)
+			.BarcodeDetector as typeof BarcodeDetectorType;
+		const supported = await NativeDetector.getSupportedFormats();
 		if (FORMATS.some((f) => supported.includes(f))) {
-			return new BarcodeDetector({ formats: FORMATS });
+			return new NativeDetector({ formats: [...FORMATS] });
 		}
 	}
 
-	const { BarcodeDetector: Polyfill, prepareZXingModule } = await import('barcode-detector/ponyfill');
+	const { BarcodeDetector: Polyfill, prepareZXingModule } =
+		await import('barcode-detector/ponyfill');
 	prepareZXingModule({
 		overrides: {
 			locateFile: (path: string, prefix: string) => {
@@ -20,7 +26,7 @@ async function getDetector(): Promise<BarcodeDetector> {
 			}
 		}
 	});
-	return new Polyfill({ formats: FORMATS }) as unknown as BarcodeDetector;
+	return new Polyfill({ formats: [...FORMATS] });
 }
 
 export async function createBarcodeScanner(
@@ -31,15 +37,20 @@ export async function createBarcodeScanner(
 	let running = true;
 	let lastBarcode = '';
 	let lastTime = 0;
+	let lastScanTime = 0;
 
 	const scan = async () => {
 		if (!running) return;
-		if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+		const now = Date.now();
+		if (
+			now - lastScanTime >= SCAN_INTERVAL_MS &&
+			video.readyState >= 4
+		) {
+			lastScanTime = now;
 			try {
 				const results = await detector.detect(video);
 				if (results.length > 0) {
 					const barcode = results[0].rawValue;
-					const now = Date.now();
 					if (barcode !== lastBarcode || now - lastTime > DEBOUNCE_MS) {
 						lastBarcode = barcode;
 						lastTime = now;

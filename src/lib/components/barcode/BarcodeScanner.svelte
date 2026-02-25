@@ -55,7 +55,14 @@
 		<p class="text-red-500">{error}</p>
 	{/if}
 	<div class="relative mx-auto w-full max-w-md overflow-hidden rounded-lg">
-		<video bind:this={videoEl} class="w-full" muted playsinline></video>
+		<video
+			bind:this={videoEl}
+			class="w-full"
+			muted
+			playsinline
+			autoplay
+			aria-label="Camera viewfinder for barcode scanning"
+		></video>
 		{#if scannerReady}
 			<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
 				<div
