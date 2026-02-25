@@ -26,7 +26,15 @@
 		readonly?: boolean;
 		dashboardStyle?: boolean;
 		onAdd?: () => void;
-		onEdit?: (entry: { id: string; servings: number; mealType: string; foodName?: string; servingSize?: number | null; servingUnit?: string | null; calories?: number | null }) => void;
+		onEdit?: (entry: {
+			id: string;
+			servings: number;
+			mealType: string;
+			foodName?: string;
+			servingSize?: number | null;
+			servingUnit?: string | null;
+			calories?: number | null;
+		}) => void;
 		onDelete?: (id: string) => void;
 	};
 
@@ -81,7 +89,12 @@
 										calories: entry.calories
 									})}
 							>
-								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}
+								{formatEntryLabel(
+									entry.foodName ?? 'Unknown',
+									entry.servings,
+									entry.servingSize,
+									entry.servingUnit
+								)}
 							</button>
 							{#if entry.createdAt}
 								<span class="shrink-0 text-xs text-muted-foreground/60"
@@ -102,7 +115,12 @@
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-2">
 						<span class="truncate"
-							>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}</span
+							>{formatEntryLabel(
+								entry.foodName ?? 'Unknown',
+								entry.servings,
+								entry.servingSize,
+								entry.servingUnit
+							)}</span
 						>
 						{#if entry.createdAt}
 							<span class="shrink-0 text-xs text-muted-foreground/60"

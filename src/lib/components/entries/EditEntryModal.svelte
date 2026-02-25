@@ -11,7 +11,15 @@
 
 	type Props = {
 		open?: boolean;
-		entry: { id: string; servings: number; mealType: string; foodName?: string; servingSize?: number | null; servingUnit?: string | null; calories?: number | null } | null;
+		entry: {
+			id: string;
+			servings: number;
+			mealType: string;
+			foodName?: string;
+			servingSize?: number | null;
+			servingUnit?: string | null;
+			calories?: number | null;
+		} | null;
 		onClose: () => void;
 		onSave: (payload: { id: string; servings: number; mealType: string }) => void;
 		onDelete: (id: string) => void;
