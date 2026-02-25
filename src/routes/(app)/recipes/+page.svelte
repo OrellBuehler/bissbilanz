@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
+	import RecipeEditForm from '$lib/components/recipes/RecipeEditForm.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { apiFetch } from '$lib/utils/api';
+	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 
 	type Recipe = {
@@ -24,7 +25,9 @@
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let recipes: Recipe[] = $state([]);
-	let showNewRecipe = $state(false);
+	let showForm = $state(false);
+	let editingRecipe: any | null = $state(null);
+	let editImageUrl: string | null = $state(null);
 
 	const loadFoods = async () => {
 		const res = await fetch('/api/foods');
@@ -42,7 +45,28 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
 		});
-		showNewRecipe = false;
+		closeForm();
+		await loadRecipes();
+	};
+
+	const updateRecipe = async (payload: {
+		name: string;
+		totalServings: number;
+		isFavorite: boolean;
+		imageUrl: string | null;
+	}) => {
+		if (!editingRecipe) return;
+		const res = await apiFetch(`/api/recipes/${editingRecipe.id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
+		if (res.ok) {
+			toast.success(m.detail_saved());
+		} else {
+			toast.error(m.detail_save_failed());
+		}
+		closeForm();
 		await loadRecipes();
 	};
 
@@ -50,6 +74,46 @@
 		e.stopPropagation();
 		await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
 		await loadRecipes();
+	};
+
+	const openEdit = async (id: string) => {
+		const res = await fetch(`/api/recipes/${id}`);
+		if (!res.ok) return;
+		const data = await res.json();
+		editingRecipe = data.recipe;
+		editImageUrl = data.recipe.imageUrl;
+		showForm = true;
+	};
+
+	const handleImageUpload = async (file: File) => {
+		if (!editingRecipe) return;
+		const formData = new FormData();
+		formData.append('image', file);
+		try {
+			const uploadRes = await fetch('/api/images/upload', {
+				method: 'POST',
+				body: formData
+			});
+			if (!uploadRes.ok) {
+				toast.error(m.image_upload_failed());
+				return;
+			}
+			const { imageUrl: newUrl } = await uploadRes.json();
+			editImageUrl = newUrl;
+			await apiFetch(`/api/recipes/${editingRecipe.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ imageUrl: newUrl })
+			});
+		} catch {
+			toast.error(m.image_upload_failed());
+		}
+	};
+
+	const closeForm = () => {
+		showForm = false;
+		editingRecipe = null;
+		editImageUrl = null;
 	};
 
 	onMount(() => {
@@ -61,7 +125,6 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
-	<!-- Recipe list -->
 	{#if recipes.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.recipes_no_recipes()}</p>
 	{:else}
@@ -69,7 +132,7 @@
 			{#each recipes as recipe}
 				<Card.Root
 					class="cursor-pointer transition-colors hover:bg-accent/50"
-					onclick={() => goto(`/recipes/${recipe.id}`)}
+					onclick={() => openEdit(recipe.id)}
 				>
 					<Card.Content class="flex items-start justify-between gap-2 p-4">
 						<div class="min-w-0 flex-1">
@@ -101,21 +164,34 @@
 	{/if}
 </div>
 
-<!-- FAB -->
 <Button
 	size="icon"
 	class="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
 	aria-label={m.recipes_new()}
-	onclick={() => (showNewRecipe = true)}
+	onclick={() => {
+		editingRecipe = null;
+		editImageUrl = null;
+		showForm = true;
+	}}
 >
 	<Plus class="size-6" />
 </Button>
 
-<!-- New recipe modal -->
 <ResponsiveModal
-	bind:open={showNewRecipe}
-	title={m.recipes_new()}
-	description={m.recipes_new_description()}
+	bind:open={showForm}
+	title={editingRecipe ? editingRecipe.name : m.recipes_new()}
+	description={editingRecipe ? undefined : m.recipes_new_description()}
 >
-	<RecipeForm {foods} onSave={createRecipe} />
+	{#if editingRecipe}
+		{#key editingRecipe.id}
+			<RecipeEditForm
+				recipe={editingRecipe}
+				imageUrl={editImageUrl}
+				onSave={updateRecipe}
+				onImageUpload={handleImageUpload}
+			/>
+		{/key}
+	{:else}
+		<RecipeForm {foods} onSave={createRecipe} />
+	{/if}
 </ResponsiveModal>
