@@ -44,7 +44,7 @@
 
 	"amount_mode_servings": "Portionen",
 	"amount_mode_unit": "Menge",
-	"amount_preview_equals": "= {amount}{unit}",
+	"amount_preview_equals": "= {amount} {unit}",
 	"amount_preview_kcal": "{kcal} kcal",
 
 	"edit_entry_title": "Eintrag bearbeiten",

@@ -44,7 +44,7 @@
 
 	"amount_mode_servings": "Servings",
 	"amount_mode_unit": "Amount",
-	"amount_preview_equals": "= {amount}{unit}",
+	"amount_preview_equals": "= {amount} {unit}",
 	"amount_preview_kcal": "{kcal} kcal",
 
 	"edit_entry_title": "Edit Entry",

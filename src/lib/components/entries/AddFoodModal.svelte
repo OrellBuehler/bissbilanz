@@ -66,7 +66,14 @@
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
-	let selectedFood: { id: string; name: string; type: 'food' | 'recipe'; servingSize?: number | null; servingUnit?: string | null; calories?: number | null } | null = $state(null);
+	let selectedFood: {
+		id: string;
+		name: string;
+		type: 'food' | 'recipe';
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
+	} | null = $state(null);
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
@@ -93,8 +100,21 @@
 
 	const allFavorites = $derived([...favoriteFoods, ...favoriteRecipes]);
 
-	const selectFood = (food: FoodItem) => {
-		selectedFood = { id: food.id, name: food.name, type: 'food', servingSize: food.servingSize, servingUnit: food.servingUnit, calories: food.calories };
+	const selectFood = (food: {
+		id: string;
+		name: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number;
+	}) => {
+		selectedFood = {
+			id: food.id,
+			name: food.name,
+			type: 'food',
+			servingSize: food.servingSize,
+			servingUnit: food.servingUnit,
+			calories: food.calories
+		};
 		servings = 1;
 	};
 
@@ -104,7 +124,14 @@
 	};
 
 	const selectFavorite = (item: FavoriteItem) => {
-		selectedFood = { id: item.id, name: item.name, type: item.type, servingSize: item.servingSize, servingUnit: item.servingUnit, calories: item.calories };
+		selectedFood = {
+			id: item.id,
+			name: item.name,
+			type: item.type,
+			servingSize: item.servingSize,
+			servingUnit: item.servingUnit,
+			calories: item.calories
+		};
 		servings = 1;
 	};
 
@@ -172,7 +199,15 @@
 	};
 </script>
 
-<Dialog.Root bind:open onOpenChange={(o) => { if (!o) { onClose(); selectedFood = null; } }}>
+<Dialog.Root
+	bind:open
+	onOpenChange={(o) => {
+		if (!o) {
+			onClose();
+			selectedFood = null;
+		}
+	}}
+>
 	<Dialog.Content class="max-w-lg overflow-hidden">
 		<Dialog.Header>
 			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
@@ -277,7 +312,14 @@
 										size="sm"
 										class="shrink-0"
 										aria-label={m.add_food_add()}
-										onclick={() => selectFood({ ...food, type: 'food' } as any)}
+										onclick={() => {
+											const fullFood = foods.find((f) => f.id === food.id);
+											if (fullFood) {
+												selectFood(fullFood);
+											} else {
+												selectFood({ id: food.id, name: food.name });
+											}
+										}}
 									>
 										<Plus class="size-4 sm:mr-1" />
 										<span class="hidden sm:inline">{m.add_food_add()}</span>

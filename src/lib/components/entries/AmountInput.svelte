@@ -21,7 +21,7 @@
 	const hasServingInfo = $derived(!!servingSize && !!servingUnit);
 
 	$effect(() => {
-		if (hasServingInfo && servingSize) {
+		if (mode === 'servings' && hasServingInfo && servingSize) {
 			unitAmount = Math.round(servings * servingSize * 10) / 10;
 		}
 	});
@@ -33,7 +33,7 @@
 	});
 
 	const previewKcal = $derived.by(() => {
-		if (!caloriesPerServing) return null;
+		if (caloriesPerServing == null) return null;
 		const kcal = Math.round(servings * caloriesPerServing);
 		return m.amount_preview_kcal({ kcal: String(kcal) });
 	});
@@ -63,10 +63,16 @@
 <div class="grid gap-2">
 	{#if hasServingInfo}
 		<div class="flex items-center gap-2">
-			<Label class="shrink-0">{mode === 'servings' ? m.amount_mode_servings() : m.amount_mode_unit()}</Label>
+			<Label class="shrink-0"
+				>{mode === 'servings' ? m.amount_mode_servings() : m.amount_mode_unit()}</Label
+			>
 			<ToggleGroup.Root type="single" value={mode} onValueChange={handleModeChange} class="ml-auto">
-				<ToggleGroup.Item value="servings" class="h-7 px-2 text-xs">{m.amount_mode_servings()}</ToggleGroup.Item>
-				<ToggleGroup.Item value="unit" class="h-7 px-2 text-xs">{m.amount_mode_unit()}</ToggleGroup.Item>
+				<ToggleGroup.Item value="servings" class="h-7 px-2 text-xs"
+					>{m.amount_mode_servings()}</ToggleGroup.Item
+				>
+				<ToggleGroup.Item value="unit" class="h-7 px-2 text-xs"
+					>{m.amount_mode_unit()}</ToggleGroup.Item
+				>
 			</ToggleGroup.Root>
 		</div>
 	{:else}
@@ -75,7 +81,14 @@
 
 	{#if mode === 'servings'}
 		<div class="flex items-center gap-2">
-			<Input type="number" value={servings} oninput={handleServingsInput} min="0.1" step="0.1" class="flex-1" />
+			<Input
+				type="number"
+				value={servings}
+				oninput={handleServingsInput}
+				min="0.1"
+				step="0.1"
+				class="flex-1"
+			/>
 			{#if previewAmount || previewKcal}
 				<span class="shrink-0 text-xs text-muted-foreground">
 					{#if previewAmount}{previewAmount}{/if}
@@ -86,12 +99,22 @@
 		</div>
 	{:else}
 		<div class="flex items-center gap-2">
-			<Input type="number" value={unitAmount} oninput={handleUnitInput} min="0.1" step="0.1" class="flex-1" />
+			<Input
+				type="number"
+				value={unitAmount}
+				oninput={handleUnitInput}
+				min="0.1"
+				step="0.1"
+				class="flex-1"
+			/>
 			<span class="shrink-0 text-sm text-muted-foreground">{servingUnit}</span>
 		</div>
 		{#if previewKcal}
 			<span class="text-xs text-muted-foreground">
-				{m.amount_preview_equals({ amount: String(Math.round(servings * 100) / 100), unit: ` ${m.amount_mode_servings().toLowerCase()}` })}
+				{m.amount_preview_equals({
+					amount: String(Math.round(servings * 100) / 100),
+					unit: ` ${m.amount_mode_servings().toLowerCase()}`
+				})}
 				({previewKcal})
 			</span>
 		{/if}
