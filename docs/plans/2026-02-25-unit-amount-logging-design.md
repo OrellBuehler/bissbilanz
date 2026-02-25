@@ -45,6 +45,7 @@ Same toggle + preview pattern. The entry prop is extended with `servingSize`, `s
 Extract an `AmountInput` component used by both modals:
 
 Props:
+
 - `servings` (bindable)
 - `servingSize` (number)
 - `servingUnit` (string)
@@ -65,6 +66,7 @@ The `entry` prop needs `servingSize`, `servingUnit`, and `calories` added. DayLo
 ## i18n
 
 New message keys needed:
+
 - `amount_input_servings` — "Servings"
 - `amount_input_unit` — dynamic, uses existing unit labels
 - `amount_input_preview` — "= {amount}{unit} · {calories} kcal" pattern

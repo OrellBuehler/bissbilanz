@@ -63,13 +63,13 @@
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<li
 						class={dashboardStyle
-							? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-							: 'flex items-center justify-between text-sm'}
+							? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 					>
-						<div class="flex items-center gap-2">
-							<Button
-								variant="ghost"
-								class="h-auto p-0 text-left hover:underline"
+						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<button
+								type="button"
+								class="min-w-0 truncate text-left text-sm font-medium hover:underline"
 								onclick={() =>
 									onEdit?.({
 										id: entry.id,
@@ -82,12 +82,14 @@
 									})}
 							>
 								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}
-							</Button>
+							</button>
 							{#if entry.createdAt}
-								<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+								<span class="shrink-0 text-xs text-muted-foreground/60"
+									>{formatTime(entry.createdAt)}</span
+								>
 							{/if}
 						</div>
-						<span class="text-muted-foreground"
+						<span class="shrink-0 text-muted-foreground"
 							>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
 						>
 					</li>
@@ -95,16 +97,20 @@
 			{:else}
 				<li
 					class={dashboardStyle
-						? 'flex items-center justify-between rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-						: 'flex items-center justify-between text-sm'}
+						? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
+						: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 				>
-					<div class="flex items-center gap-2">
-						<span>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}</span>
+					<div class="flex min-w-0 flex-1 items-center gap-2">
+						<span class="truncate"
+							>{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings, entry.servingSize, entry.servingUnit)}</span
+						>
 						{#if entry.createdAt}
-							<span class="text-xs text-muted-foreground/60">{formatTime(entry.createdAt)}</span>
+							<span class="shrink-0 text-xs text-muted-foreground/60"
+								>{formatTime(entry.createdAt)}</span
+							>
 						{/if}
 					</div>
-					<span class="text-muted-foreground"
+					<span class="shrink-0 text-muted-foreground"
 						>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
 					>
 				</li>

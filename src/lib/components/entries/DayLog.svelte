@@ -138,18 +138,17 @@
 	</div>
 
 	<AddFoodModal
-		open={addModalOpen}
+		bind:open={addModalOpen}
 		{foods}
 		{recipes}
 		mealType={activeMeal}
 		onClose={() => {
-			addModalOpen = false;
 			scannedFood = null;
 		}}
 		onSave={addEntry}
 	/>
 	<EditEntryModal
-		open={editModalOpen}
+		bind:open={editModalOpen}
 		entry={editingEntry}
 		onClose={() => {
 			editModalOpen = false;
@@ -159,7 +158,7 @@
 		onDelete={deleteEntry}
 	/>
 	<BarcodeScanModal
-		open={scanModalOpen}
+		bind:open={scanModalOpen}
 		onClose={() => (scanModalOpen = false)}
 		onBarcode={handleBarcodeScan}
 	/>

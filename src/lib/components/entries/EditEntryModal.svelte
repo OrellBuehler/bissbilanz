@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -17,7 +17,15 @@
 		onDelete: (id: string) => void;
 	};
 
-	let { open = false, entry, onClose, onSave, onDelete }: Props = $props();
+	let { open = $bindable(false), entry, onClose, onSave, onDelete }: Props = $props();
+
+	let wasOpen = $state(false);
+	$effect(() => {
+		if (wasOpen && !open) {
+			onClose();
+		}
+		wasOpen = open;
+	});
 
 	let editServings = $state(1);
 	let editMealType = $state('');
@@ -49,42 +57,31 @@
 	]);
 </script>
 
-<Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
-	<Dialog.Content class="max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>{m.edit_entry_title()}</Dialog.Title>
-			{#if entry?.foodName}
-				<Dialog.Description class="break-words">{entry.foodName}</Dialog.Description>
-			{/if}
-		</Dialog.Header>
+<ResponsiveModal bind:open title={m.edit_entry_title()} description={entry?.foodName}>
+	<div class="grid gap-4">
+		<AmountInput
+			servings={editServings}
+			servingSize={entry?.servingSize}
+			servingUnit={entry?.servingUnit}
+			caloriesPerServing={entry?.calories}
+			onServingsChange={(v) => (editServings = v)}
+		/>
 
-		<div class="grid gap-4">
-			<AmountInput
-				servings={editServings}
-				servingSize={entry?.servingSize}
-				servingUnit={entry?.servingUnit}
-				caloriesPerServing={entry?.calories}
-				onServingsChange={(v) => (editServings = v)}
-			/>
-
-			<div class="grid gap-2">
-				<Label>{m.edit_entry_meal()}</Label>
-				<Select.Root type="single" bind:value={editMealType}>
-					<Select.Trigger>
-						{mealOptions.find((o) => o.value === editMealType)?.label || m.edit_entry_select_meal()}
-					</Select.Trigger>
-					<Select.Content>
-						{#each mealOptions as meal}
-							<Select.Item value={meal.value}>{meal.label}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
+		<div class="grid gap-2">
+			<Label>{m.edit_entry_meal()}</Label>
+			<Select.Root type="single" bind:value={editMealType}>
+				<Select.Trigger>
+					{mealOptions.find((o) => o.value === editMealType)?.label || m.edit_entry_select_meal()}
+				</Select.Trigger>
+				<Select.Content>
+					{#each mealOptions as meal}
+						<Select.Item value={meal.value}>{meal.label}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
 
-		<Dialog.Footer
-			class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between"
-		>
+		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<Button
 				variant="ghost"
 				size="icon"
@@ -109,6 +106,6 @@
 					<span class="hidden sm:inline">{m.edit_entry_save()}</span>
 				</Button>
 			</div>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</div>
+	</div>
+</ResponsiveModal>

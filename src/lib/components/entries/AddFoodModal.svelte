@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -51,7 +51,7 @@
 	};
 
 	let {
-		open = false,
+		open = $bindable(false),
 		foods = [],
 		recipes = [],
 		mealType = 'Breakfast',
@@ -74,6 +74,14 @@
 		servingUnit?: string | null;
 		calories?: number | null;
 	} | null = $state(null);
+
+	let wasOpen = $state(false);
+	$effect(() => {
+		if (wasOpen && !open) {
+			onClose();
+		}
+		wasOpen = open;
+	});
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
@@ -199,20 +207,8 @@
 	};
 </script>
 
-<Dialog.Root
-	bind:open
-	onOpenChange={(o) => {
-		if (!o) {
-			onClose();
-			selectedFood = null;
-		}
-	}}
->
-	<Dialog.Content class="max-w-lg overflow-hidden">
-		<Dialog.Header>
-			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
-		</Dialog.Header>
-
+<ResponsiveModal bind:open title={m.add_food_title()}>
+	<div class="min-w-0 space-y-4">
 		{#if selectedFood}
 			<div class="space-y-4">
 				<div class="flex items-center gap-2">
@@ -356,5 +352,5 @@
 				</Tabs.Content>
 			</Tabs.Root>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</div>
+</ResponsiveModal>
