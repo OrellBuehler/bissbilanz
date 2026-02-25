@@ -49,6 +49,10 @@
 		barcode: string;
 		isFavorite: boolean;
 		nutriScore?: 'a' | 'b' | 'c' | 'd' | 'e' | null;
+		novaGroup?: number | null;
+		additives?: string[] | null;
+		ingredientsText?: string | null;
+		imageUrl?: string | null;
 	};
 
 	type Props = {
@@ -86,7 +90,11 @@
 		cholesterol: initial.cholesterol ?? null,
 		barcode: initial.barcode ?? '',
 		isFavorite: initial.isFavorite ?? false,
-		nutriScore: initial.nutriScore ?? null
+		nutriScore: initial.nutriScore ?? null,
+		novaGroup: initial.novaGroup ?? null,
+		additives: initial.additives ?? null,
+		ingredientsText: initial.ingredientsText ?? null,
+		imageUrl: initial.imageUrl ?? null
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);

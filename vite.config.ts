@@ -1,4 +1,5 @@
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import tailwindcss from '@tailwindcss/vite';
@@ -9,6 +10,7 @@ export default defineConfig({
 		port: 4000
 	},
 	plugins: [
+		sentrySvelteKit({ autoUploadSourceMaps: false }),
 		tailwindcss(),
 		paraglideVitePlugin({
 			project: './project.inlang',

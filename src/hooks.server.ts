@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
@@ -6,6 +7,14 @@ import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations } from '$lib/server/db';
+import { env } from '$env/dynamic/public';
+
+if (env.PUBLIC_SENTRY_DSN) {
+	Sentry.init({
+		dsn: env.PUBLIC_SENTRY_DSN,
+		tracesSampleRate: 1.0
+	});
+}
 
 // Run migrations on server startup
 export async function init() {
@@ -148,4 +157,6 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(paraglideHandle, sessionHandle);
+export const handle = sequence(Sentry.sentryHandle(), paraglideHandle, sessionHandle);
+
+export const handleError = Sentry.handleErrorWithSentry();
