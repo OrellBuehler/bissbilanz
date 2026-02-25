@@ -14,6 +14,16 @@
 	let { open = $bindable(false), title, description, children }: Props = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
+	const snapPoints = [0.7, 1];
+	let activeSnapPoint = $state<number | string | null>(snapPoints[0]);
+
+	$effect(() => {
+		if (open) {
+			activeSnapPoint = snapPoints[0];
+		}
+	});
+
+	const isExpanded = $derived(activeSnapPoint === 1);
 </script>
 
 {#if isDesktop.current}
@@ -29,15 +39,15 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {:else}
-	<Drawer.Root bind:open>
-		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[85vh]">
+	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
+		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100vh]">
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
 				{#if description}
 					<Drawer.Description class="truncate">{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="overflow-y-auto px-4 pb-4" style="min-height: 50vh;">
+			<div class="px-4 pb-4" class:overflow-y-auto={isExpanded} class:overflow-hidden={!isExpanded}>
 				{@render children()}
 			</div>
 		</Drawer.Content>
