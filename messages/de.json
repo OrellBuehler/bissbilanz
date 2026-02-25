@@ -261,6 +261,8 @@
 	"quality_ingredients": "Zutaten",
 	"quality_enrich": "Anreichern",
 	"quality_enriching": "Anreichern...",
+	"quality_enrich_success": "Lebensmittel mit Open Food Facts Daten angereichert",
+	"quality_enrich_failed": "Anreicherung fehlgeschlagen",
 	"quality_off_loading": "Produkt wird gesucht...",
 	"quality_off_not_found": "Produkt nicht in Open Food Facts gefunden",
 	"quality_off_prefilled": "Vorausgefüllt aus Open Food Facts",
