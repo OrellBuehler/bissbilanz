@@ -56,7 +56,6 @@
 			body: JSON.stringify({ ...payload, date })
 		});
 		addModalOpen = false;
-		scannedFood = null;
 		await loadData();
 		onMutation?.();
 	};
@@ -140,6 +139,7 @@
 		{recipes}
 		mealType={activeMeal}
 		onClose={() => {
+			addModalOpen = false;
 			scannedFood = null;
 		}}
 		onSave={addEntry}

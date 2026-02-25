@@ -1,60 +1,22 @@
 import { describe, expect, test, mock, beforeEach } from 'bun:test';
-
-const rafCallbacks: (() => void)[] = [];
-
-globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
-	rafCallbacks.push(() => cb(performance.now()));
-	return rafCallbacks.length;
-};
-
-function flushRaf() {
-	const cbs = rafCallbacks.splice(0);
-	for (const cb of cbs) cb();
-}
+import { createBarcodeScanner, _resetDetectorCache } from '../../src/lib/utils/barcode-detect';
 
 function makeVideo(readyState = 4) {
 	return { readyState } as unknown as HTMLVideoElement;
 }
 
-function makeDetector(results: { rawValue: string }[] = []) {
-	return {
-		detect: mock(() => Promise.resolve(results)),
-		getSupportedFormats: mock(() => Promise.resolve([]))
-	};
+function wait(ms: number) {
+	return new Promise((r) => setTimeout(r, ms));
 }
 
 describe('barcode-detect debounce logic', () => {
 	beforeEach(() => {
-		rafCallbacks.length = 0;
+		_resetDetectorCache();
 	});
 
 	test('calls onDetect when barcode is detected', async () => {
 		const onDetect = mock(() => {});
-		const detector = makeDetector([{ rawValue: '1234567890123' }]);
-
-		const { createBarcodeScanner } = await import('../../src/lib/utils/barcode-detect');
-
-		const originalGetDetector = (globalThis as Record<string, unknown>).BarcodeDetector;
-		(globalThis as Record<string, unknown>).BarcodeDetector = class {
-			static getSupportedFormats = () => Promise.resolve(['ean_13']);
-			detect = detector.detect;
-			constructor() {}
-		};
-
-		const scanner = await createBarcodeScanner(makeVideo(), onDetect);
-		flushRaf();
-		await new Promise((r) => setTimeout(r, 10));
-
-		expect(onDetect).toHaveBeenCalledWith('1234567890123');
-
-		scanner.stop();
-		(globalThis as Record<string, unknown>).BarcodeDetector = originalGetDetector;
-	});
-
-	test('debounces same barcode within 2 seconds', async () => {
-		const onDetect = mock(() => {});
-		const results = [{ rawValue: 'ABC123' }];
-		const detectMock = mock(() => Promise.resolve(results));
+		const detectMock = mock(() => Promise.resolve([{ rawValue: '1234567890123' }]));
 
 		(globalThis as Record<string, unknown>).BarcodeDetector = class {
 			static getSupportedFormats = () => Promise.resolve(['ean_13']);
@@ -62,13 +24,27 @@ describe('barcode-detect debounce logic', () => {
 			constructor() {}
 		};
 
-		const { createBarcodeScanner } = await import('../../src/lib/utils/barcode-detect');
 		const scanner = await createBarcodeScanner(makeVideo(), onDetect);
+		await wait(150);
 
-		flushRaf();
-		await new Promise((r) => setTimeout(r, 10));
-		flushRaf();
-		await new Promise((r) => setTimeout(r, 10));
+		expect(onDetect).toHaveBeenCalledWith('1234567890123');
+
+		scanner.stop();
+		delete (globalThis as Record<string, unknown>).BarcodeDetector;
+	});
+
+	test('debounces same barcode within 2 seconds', async () => {
+		const detectMock = mock(() => Promise.resolve([{ rawValue: 'ABC123' }]));
+		const onDetect = mock(() => {});
+
+		(globalThis as Record<string, unknown>).BarcodeDetector = class {
+			static getSupportedFormats = () => Promise.resolve(['ean_13']);
+			detect = detectMock;
+			constructor() {}
+		};
+
+		const scanner = await createBarcodeScanner(makeVideo(), onDetect);
+		await wait(350);
 
 		expect(onDetect).toHaveBeenCalledTimes(1);
 
@@ -85,12 +61,9 @@ describe('barcode-detect debounce logic', () => {
 			constructor() {}
 		};
 
-		const { createBarcodeScanner } = await import('../../src/lib/utils/barcode-detect');
 		const scanner = await createBarcodeScanner(makeVideo(), onDetect);
-
 		scanner.stop();
-		flushRaf();
-		await new Promise((r) => setTimeout(r, 10));
+		await wait(150);
 
 		expect(onDetect).toHaveBeenCalledTimes(0);
 

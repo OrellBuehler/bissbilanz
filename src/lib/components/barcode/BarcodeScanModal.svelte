@@ -25,7 +25,7 @@
 
 	const handleScan = (barcode: string) => {
 		onBarcode(barcode);
-		onClose();
+		open = false;
 	};
 
 	const handleError = (err: string) => {

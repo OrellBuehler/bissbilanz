@@ -93,7 +93,7 @@
 					variant="outline"
 					class="flex-1 sm:flex-none"
 					aria-label={m.edit_entry_cancel()}
-					onclick={onClose}
+					onclick={() => (open = false)}
 				>
 					<X class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_cancel()}</span>

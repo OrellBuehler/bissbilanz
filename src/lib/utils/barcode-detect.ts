@@ -4,13 +4,17 @@ const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'] as const;
 const DEBOUNCE_MS = 2000;
 const SCAN_INTERVAL_MS = 100;
 
+let cachedDetector: BarcodeDetectorType | null = null;
+
 async function getDetector(): Promise<BarcodeDetectorType> {
+	if (cachedDetector) return cachedDetector;
 	if ('BarcodeDetector' in globalThis) {
 		const NativeDetector = (globalThis as Record<string, unknown>)
 			.BarcodeDetector as typeof BarcodeDetectorType;
 		const supported = await NativeDetector.getSupportedFormats();
 		if (FORMATS.some((f) => supported.includes(f))) {
-			return new NativeDetector({ formats: [...FORMATS] });
+			cachedDetector = new NativeDetector({ formats: [...FORMATS] });
+			return cachedDetector;
 		}
 	}
 
@@ -26,7 +30,12 @@ async function getDetector(): Promise<BarcodeDetectorType> {
 			}
 		}
 	});
-	return new Polyfill({ formats: [...FORMATS] });
+	cachedDetector = new Polyfill({ formats: [...FORMATS] });
+	return cachedDetector;
+}
+
+export function _resetDetectorCache() {
+	cachedDetector = null;
 }
 
 export async function createBarcodeScanner(
@@ -37,13 +46,11 @@ export async function createBarcodeScanner(
 	let running = true;
 	let lastBarcode = '';
 	let lastTime = 0;
-	let lastScanTime = 0;
 
 	const scan = async () => {
 		if (!running) return;
-		const now = Date.now();
-		if (now - lastScanTime >= SCAN_INTERVAL_MS && video.readyState >= 4) {
-			lastScanTime = now;
+		if (video.readyState >= 4) {
+			const now = Date.now();
 			try {
 				const results = await detector.detect(video);
 				if (results.length > 0) {
@@ -59,11 +66,11 @@ export async function createBarcodeScanner(
 			}
 		}
 		if (running) {
-			requestAnimationFrame(scan);
+			setTimeout(scan, SCAN_INTERVAL_MS);
 		}
 	};
 
-	requestAnimationFrame(scan);
+	setTimeout(scan, SCAN_INTERVAL_MS);
 
 	return {
 		stop() {

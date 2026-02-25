@@ -65,9 +65,9 @@
 							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 					>
 						<div class="flex min-w-0 flex-1 items-center gap-2">
-							<button
-								type="button"
-								class="min-w-0 truncate text-left text-sm font-medium hover:underline"
+							<Button
+								variant="link"
+								class="h-auto min-w-0 truncate p-0 text-left text-sm font-medium text-foreground"
 								onclick={() =>
 									onEdit?.({
 										id: entry.id,
@@ -77,7 +77,7 @@
 									})}
 							>
 								{formatEntryLabel(entry.foodName ?? 'Unknown', entry.servings)}
-							</button>
+							</Button>
 							{#if entry.createdAt}
 								<span class="shrink-0 text-xs text-muted-foreground/60"
 									>{formatTime(entry.createdAt)}</span
