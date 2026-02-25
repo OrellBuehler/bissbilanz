@@ -135,12 +135,11 @@
 	</div>
 
 	<AddFoodModal
-		open={addModalOpen}
+		bind:open={addModalOpen}
 		{foods}
 		{recipes}
 		mealType={activeMeal}
 		onClose={() => {
-			addModalOpen = false;
 			scannedFood = null;
 		}}
 		onSave={addEntry}

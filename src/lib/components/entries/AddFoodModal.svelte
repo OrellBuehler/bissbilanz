@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -43,7 +43,7 @@
 	};
 
 	let {
-		open = false,
+		open = $bindable(false),
 		foods = [],
 		recipes = [],
 		mealType = 'Breakfast',
@@ -58,6 +58,12 @@
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
+
+	$effect(() => {
+		if (!open) {
+			onClose();
+		}
+	});
 
 	const filtered = () =>
 		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
@@ -148,13 +154,9 @@
 	};
 </script>
 
-<Dialog.Root bind:open onOpenChange={(o) => !o && onClose()}>
-	<Dialog.Content class="max-w-lg overflow-hidden">
-		<Dialog.Header>
-			<Dialog.Title>{m.add_food_title()}</Dialog.Title>
-		</Dialog.Header>
-
-		<Tabs.Root value={tab} onValueChange={handleTabChange} class="min-w-0">
+<ResponsiveModal bind:open title={m.add_food_title()}>
+	<div class="min-w-0 space-y-4">
+		<Tabs.Root value={tab} onValueChange={handleTabChange}>
 			<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
 				<Tabs.Trigger value="search" class="text-xs sm:text-sm"
 					>{m.add_food_tab_search()}</Tabs.Trigger
@@ -271,5 +273,5 @@
 			<Label for="servings">{m.add_food_servings()}</Label>
 			<Input id="servings" type="number" bind:value={servings} min="0.1" step="0.1" />
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</div>
+</ResponsiveModal>
