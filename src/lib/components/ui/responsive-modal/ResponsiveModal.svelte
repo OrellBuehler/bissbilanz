@@ -14,7 +14,7 @@
 	let { open = $bindable(false), title, description, children }: Props = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
-	const snapPoints = [0.55, 1];
+	const snapPoints = [0.7, 1];
 	let activeSnapPoint = $state<number | string | null>(snapPoints[0]);
 
 	$effect(() => {
