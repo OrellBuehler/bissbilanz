@@ -185,7 +185,7 @@
 				return;
 			}
 			const { product } = await res.json();
-			await apiFetch(`/api/foods/${food.id}`, {
+			const patchRes = await apiFetch(`/api/foods/${food.id}`, {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
@@ -196,6 +196,10 @@
 					imageUrl: product.imageUrl
 				})
 			});
+			if (!patchRes.ok) {
+				toast.error(m.quality_enrich_failed());
+				return;
+			}
 			await loadFood();
 			toast.success(m.quality_enrich_success());
 		} catch {
@@ -217,7 +221,7 @@
 			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
 		{#if food?.barcode}
-			<Button variant="outline" size="sm" class="ml-auto" onclick={enrichFood} disabled={enriching}>
+			<Button variant="outline" size="sm" class="ml-auto" onclick={enrichFood} disabled={enriching} aria-label={m.quality_enrich()}>
 				<Sparkles class="size-4 sm:mr-1" />
 				<span class="hidden sm:inline">{enriching ? m.quality_enriching() : m.quality_enrich()}</span>
 			</Button>
