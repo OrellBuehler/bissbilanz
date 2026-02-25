@@ -14,7 +14,7 @@
 	let { open = $bindable(false), title, description, children }: Props = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
-	const snapPoints = [0.55, 0.93];
+	const snapPoints = ['55vh', '93vh'];
 	let activeSnapPoint = $state<number | string | null>(snapPoints[0]);
 
 	$effect(() => {
@@ -51,7 +51,7 @@
 				class="px-4 pb-4"
 				class:overflow-y-auto={isExpanded}
 				class:overflow-hidden={!isExpanded}
-				style="max-height: calc({isExpanded ? '93vh' : '55vh'} - 4rem)"
+				style="max-height: calc({isExpanded ? '93vh' : '55vh'} - 5rem)"
 			>
 				{@render children()}
 			</div>
