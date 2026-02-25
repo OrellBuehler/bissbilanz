@@ -51,7 +51,9 @@ export const listEntriesByDate = async (
 			>`COALESCE(${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
 				'fiber'
 			),
-			createdAt: foodEntries.createdAt
+			createdAt: foodEntries.createdAt,
+			servingSize: foods.servingSize,
+			servingUnit: foods.servingUnit
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
