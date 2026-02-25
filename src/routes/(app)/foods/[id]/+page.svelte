@@ -231,9 +231,18 @@
 			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
 		{#if food?.barcode}
-			<Button variant="outline" size="sm" class="ml-auto" onclick={enrichFood} disabled={enriching} aria-label={m.quality_enrich()}>
+			<Button
+				variant="outline"
+				size="sm"
+				class="ml-auto"
+				onclick={enrichFood}
+				disabled={enriching}
+				aria-label={m.quality_enrich()}
+			>
 				<Sparkles class="size-4 sm:mr-1" />
-				<span class="hidden sm:inline">{enriching ? m.quality_enriching() : m.quality_enrich()}</span>
+				<span class="hidden sm:inline"
+					>{enriching ? m.quality_enriching() : m.quality_enrich()}</span
+				>
 			</Button>
 		{/if}
 	</div>

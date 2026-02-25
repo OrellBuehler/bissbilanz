@@ -19,7 +19,9 @@
 
 {#if compact}
 	<span
-		class="flex size-6 shrink-0 items-center justify-center rounded text-xs font-bold uppercase {colors[score].active}"
+		class="flex size-6 shrink-0 items-center justify-center rounded text-xs font-bold uppercase {colors[
+			score
+		].active}"
 	>
 		{score}
 	</span>
