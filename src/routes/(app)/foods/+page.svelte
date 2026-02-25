@@ -270,6 +270,12 @@
 				additives={offData.additives}
 				ingredientsText={offData.ingredientsText}
 			/>
+		{:else if editingFood}
+			<FoodQualityPanel
+				novaGroup={editingFood.novaGroup}
+				additives={editingFood.additives}
+				ingredientsText={editingFood.ingredientsText}
+			/>
 		{/if}
 		{#key editingFood?.id ?? offData ?? activeBarcode}
 			<FoodForm
