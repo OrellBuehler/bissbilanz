@@ -129,7 +129,9 @@
 				<img src={imageUrl} alt={form.name} class="h-full w-full object-cover" />
 			{:else}
 				<div class="flex h-full w-full items-center justify-center bg-muted">
-					<span class="text-4xl font-bold text-muted-foreground">{form.name.charAt(0).toUpperCase()}</span>
+					<span class="text-4xl font-bold text-muted-foreground"
+						>{form.name.charAt(0).toUpperCase()}</span
+					>
 				</div>
 			{/if}
 		</div>
