@@ -157,7 +157,7 @@
 </script>
 
 <ResponsiveModal bind:open title={m.add_food_title()}>
-	<div class="min-h-[60vh] min-w-0 space-y-4 sm:min-h-0">
+	<div class="min-w-0 space-y-4">
 		<Tabs.Root value={tab} onValueChange={handleTabChange}>
 			<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
 				<Tabs.Trigger value="search" class="text-xs sm:text-sm"
