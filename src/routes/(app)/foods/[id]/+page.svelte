@@ -226,7 +226,7 @@
 			<Label>{m.mark_as_favorite()}</Label>
 		</div>
 
-		<FoodQualityPanel {nutriScore} {novaGroup} {additives} {ingredientsText} />
+		<FoodQualityPanel {novaGroup} {additives} {ingredientsText} />
 
 		<!-- Editable fields -->
 		<div class="grid gap-4">
