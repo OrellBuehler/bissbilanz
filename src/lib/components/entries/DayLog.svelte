@@ -99,7 +99,7 @@
 			scannedBarcode = barcode;
 			addModalOpen = true;
 		} else {
-			goto(`/foods/new?barcode=${encodeURIComponent(barcode)}`);
+			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
 		}
 	};
 
