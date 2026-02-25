@@ -42,6 +42,11 @@
 	"add_food_add": "Hinzufügen",
 	"add_food_servings": "Portionen",
 
+	"amount_mode_servings": "Portionen",
+	"amount_mode_unit": "Menge",
+	"amount_preview_equals": "= {amount}{unit}",
+	"amount_preview_kcal": "{kcal} kcal",
+
 	"edit_entry_title": "Eintrag bearbeiten",
 	"edit_entry_servings": "Portionen",
 	"edit_entry_meal": "Mahlzeit",
