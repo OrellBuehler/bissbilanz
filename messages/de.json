@@ -224,6 +224,10 @@
 	"barcode_title": "Barcode scannen",
 	"barcode_error": "Fehler",
 	"barcode_starting": "Kamera wird gestartet...",
+	"barcode_camera_denied": "Kamerazugriff wurde verweigert. Bitte erlaube den Kamerazugriff in den Browsereinstellungen.",
+	"barcode_camera_not_found": "Keine Kamera auf diesem Gerät gefunden.",
+	"barcode_camera_overconstrained": "Kamera unterstützt die benötigten Einstellungen nicht. Versuche eine andere Kamera.",
+	"barcode_camera_error": "Kamera konnte nicht geöffnet werden. Bitte versuche es erneut.",
 
 	"calendar_mon": "Mo",
 	"calendar_tue": "Di",
