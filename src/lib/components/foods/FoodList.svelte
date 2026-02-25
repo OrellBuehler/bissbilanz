@@ -108,7 +108,7 @@
 								></div>
 							</div>
 							<span class="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-								{food.protein}P {food.carbs}C {food.fat}F
+								{+food.protein.toFixed(1)}P {+food.carbs.toFixed(1)}C {+food.fat.toFixed(1)}F
 							</span>
 						</div>
 					{/if}
