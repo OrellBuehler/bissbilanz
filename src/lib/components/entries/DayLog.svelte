@@ -33,8 +33,15 @@
 	let addModalOpen = $state(false);
 	let editModalOpen = $state(false);
 	let activeMeal = $state('Breakfast');
-	let editingEntry: { id: string; servings: number; mealType: string; foodName?: string } | null =
-		$state(null);
+	let editingEntry: {
+		id: string;
+		servings: number;
+		mealType: string;
+		foodName?: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
+	} | null = $state(null);
 	let scannedFood: any = $state(null);
 	let scannedBarcode = $state('');
 
@@ -85,6 +92,9 @@
 		servings: number;
 		mealType: string;
 		foodName?: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
 	}) => {
 		editingEntry = entry;
 		editModalOpen = true;
