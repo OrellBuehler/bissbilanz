@@ -58,8 +58,8 @@ deletions {
 }
 ```
 
-- Populated on every hard delete
-- Periodically prune records older than 90 days
+- Populated on every hard delete — deletion logging and the delete itself MUST be in the same transaction
+- Periodically prune records older than 90 days (wire up via sync endpoint or startup hook)
 - Existing records backfilled with `updatedAt = now()` in migration
 
 ## Sync API
@@ -67,6 +67,7 @@ deletions {
 ### `POST /api/sync`
 
 **Request:**
+
 ```json
 {
   "lastSyncedAt": "2026-02-25T10:00:00Z",
@@ -81,6 +82,7 @@ deletions {
 ```
 
 **Response:**
+
 ```json
 {
   "serverTime": "2026-02-25T10:05:00Z",
@@ -93,12 +95,19 @@ deletions {
 ```
 
 **Flow:**
+
 1. Server processes client changes — for each record, apply only if client `updatedAt` is newer (last-write-wins)
 2. Server queries records with `updatedAt > lastSyncedAt` + deletions since `lastSyncedAt`
 3. Returns delta to client
 4. First sync: `lastSyncedAt` is null, no client changes, server returns everything
 
-**Validation:** Reuses existing Zod schemas from `src/lib/server/validation/`.
+**Security:**
+
+- All upserts and deletes MUST verify `userId` ownership — never trust client-provided record IDs blindly. For child tables without a direct `userId` column (`recipe_ingredients`, `supplement_ingredients`), verify ownership via the parent record (e.g. join to `recipes.userId` or `supplements.userId`).
+- Deletion logging and the actual delete MUST happen in the same database transaction to prevent sync gaps if the process crashes between the two operations.
+- Enforce a maximum payload size (e.g. 1000 changes per sync call) to prevent abuse from compromised or misbehaving clients.
+
+**Validation:** Reuses existing Zod schemas from `src/lib/server/validation/`. Each table's records MUST be validated against their respective schema — do not accept `z.record(z.unknown())`.
 
 ## Client Data Layer (Dexie.js)
 
@@ -106,29 +115,31 @@ deletions {
 
 ```typescript
 // src/lib/db/index.ts
-const db = new Dexie('bissbilanz')
+const db = new Dexie('bissbilanz');
 
+// Bump version number when schema changes — use Dexie upgrade callbacks for migrations
 db.version(1).stores({
-  foods:                    'id, userId, barcode, name, isFavorite, updatedAt',
-  food_entries:             'id, userId, date, mealType, foodId, recipeId, updatedAt',
-  recipes:                  'id, userId, name, isFavorite, updatedAt',
-  recipe_ingredients:       'id, recipeId, foodId, updatedAt',
-  user_goals:               'userId',
-  user_preferences:         'userId',
-  custom_meal_types:        'id, userId, sortOrder, updatedAt',
-  favorite_meal_timeframes: 'id, userId, updatedAt',
-  supplements:              'id, userId, isActive, updatedAt',
-  supplement_ingredients:   'id, supplementId, updatedAt',
-  supplement_logs:          'id, supplementId, date, updatedAt',
-  weight_entries:           'id, userId, entryDate, updatedAt',
-  _sync_meta:               'key',
-  _pending_changes:         'id, tableName, recordId, updatedAt'
-})
+	foods: 'id, userId, barcode, name, isFavorite, updatedAt',
+	food_entries: 'id, userId, date, mealType, foodId, recipeId, updatedAt',
+	recipes: 'id, userId, name, isFavorite, updatedAt',
+	recipe_ingredients: 'id, recipeId, foodId, updatedAt',
+	user_goals: 'userId',
+	user_preferences: 'userId',
+	custom_meal_types: 'id, userId, sortOrder, updatedAt',
+	favorite_meal_timeframes: 'id, userId, updatedAt',
+	supplements: 'id, userId, isActive, updatedAt',
+	supplement_ingredients: 'id, supplementId, updatedAt',
+	supplement_logs: 'id, supplementId, date, updatedAt',
+	weight_entries: 'id, userId, entryDate, updatedAt',
+	_sync_meta: 'key',
+	_pending_changes: 'id, tableName, recordId, updatedAt'
+});
 ```
 
 ### Reads
 
 All UI reads go through Dexie `liveQuery()`:
+
 - Components subscribe to reactive queries
 - Auto-update when underlying Dexie data changes
 - No more `fetch()` calls for data loading
@@ -140,11 +151,16 @@ All UI reads go through Dexie `liveQuery()`:
 3. UI updates instantly via `liveQuery()` reactivity
 4. Next sync cycle pushes pending changes to server
 
+### Pending Changes Deduplication
+
+Use a unique constraint on `(tableName, recordId)` in `_pending_changes` with upsert semantics — multiple edits to the same record offline should produce a single pending entry, not N entries.
+
 ### Macro Computation
 
 Moves from server-side SQL JOINs to client-side JS:
+
 - Resolve `foodId`/`recipeId` from local Dexie tables
-- Compute calories/protein/carbs/fat/fiber per entry
+- Compute calories/protein/carbs/fat/fiber per entry (all five macros, including fiber)
 - Lightweight — a day has ~10-20 entries
 
 ## Sync Service
@@ -152,21 +168,23 @@ Moves from server-side SQL JOINs to client-side JS:
 ### `src/lib/services/sync.ts`
 
 **Triggers:**
+
 - App load (`+layout.svelte` `onMount`)
 - `online` event (coming back from offline)
 - Every 5 minutes (`setInterval`)
 - Manual "Sync now" button
 
 **Flow:**
+
 1. Check `navigator.onLine` — skip if offline
 2. Read `lastSyncedAt` from `_sync_meta`
 3. Collect pending changes from `_pending_changes`, resolve full records
 4. `POST /api/sync`
-5. Apply server response in a Dexie transaction (upsert if newer, delete as instructed)
-6. Clear synced `_pending_changes` entries
-7. Store `serverTime` as new `lastSyncedAt`
+5. Apply server response AND clear synced `_pending_changes` entries in a single Dexie transaction (upsert if newer, delete as instructed)
+6. Store `serverTime` as new `lastSyncedAt`
 
 **Error handling:**
+
 - Network error: silently skip, retry next trigger
 - Partial failure: don't update `lastSyncedAt`, retry full delta
 - 401: redirect to login
@@ -176,6 +194,7 @@ Moves from server-side SQL JOINs to client-side JS:
 ### Page Refactoring
 
 All pages switch from `fetch()` to `liveQuery()`:
+
 - **DayLog**: `db.food_entries.where('date').equals(date)` + resolve foods/recipes locally
 - **Dashboard**: goals, supplements, weight from Dexie
 - **Foods/Recipes pages**: `db.foods.toArray()` / `db.recipes.toArray()` with client-side filtering
@@ -200,30 +219,37 @@ All pages switch from `fetch()` to `liveQuery()`:
 ## Rollout Phases
 
 ### Phase 1 — Server Prep
+
 - Add `updatedAt` columns + migration (backfill existing records)
 - Add `deletions` table
 - Update mutation functions to set `updatedAt` and log deletions
 - Build `POST /api/sync` endpoint
 
 ### Phase 2 — Client Data Layer
+
 - Add Dexie.js dependency
 - Build Dexie schema and typed helpers
 - Build sync service
 - Build client-side macro computation
 
 ### Phase 3 — Migrate UI Reads
+
 - Refactor pages to `liveQuery()` (DayLog first, then dashboard, foods, recipes, history)
 - Pages can be migrated independently
 
 ### Phase 4 — Migrate UI Writes
+
 - Write to Dexie + `_pending_changes` instead of `apiFetch()`
 - Remove old `offline-queue.ts`, `sync.ts`, `apiFetch()`
 - Remove Workbox runtime API caching rules
 
 ### Phase 5 — Polish
+
 - Pending sync indicators
 - Manual sync in settings
 - Barcode offline fallback
 - MCP offline disable
 - Image pre-warming via service worker
-- Edge case testing (first load offline, expired auth, large datasets)
+- First load offline: show explicit message explaining that initial sync requires connectivity
+- Edge case testing (expired auth, large datasets)
+- All UI strings must use i18n keys (Paraglide) — no hardcoded English
