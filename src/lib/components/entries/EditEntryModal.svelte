@@ -7,6 +7,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -40,7 +41,7 @@
 
 	$effect(() => {
 		if (entry) {
-			editServings = entry.servings;
+			editServings = round2(entry.servings);
 			editMealType = entry.mealType;
 		}
 	});

@@ -5,6 +5,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Check from '@lucide/svelte/icons/check';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Ingredient = {
@@ -37,7 +38,7 @@
 	let { recipe, onSave, imageUrl, onImageUpload }: Props = $props();
 
 	let name = $state(recipe.name);
-	let totalServings = $state(recipe.totalServings);
+	let totalServings = $state(round2(recipe.totalServings));
 	let isFavorite = $state(recipe.isFavorite);
 	let saving = $state(false);
 
