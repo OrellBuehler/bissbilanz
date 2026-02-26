@@ -7,6 +7,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { apiFetch } from '$lib/utils/api';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type WeightEntry = {
@@ -26,7 +27,7 @@
 
 	const startEdit = (entry: WeightEntry) => {
 		editingId = entry.id;
-		editWeight = String(entry.weightKg);
+		editWeight = String(round2(entry.weightKg));
 		editNotes = entry.notes ?? '';
 	};
 

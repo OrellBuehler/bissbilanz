@@ -13,6 +13,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import * as Sentry from '@sentry/sveltekit';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Food = {
@@ -93,12 +94,12 @@
 			if (food) {
 				name = food.name;
 				brand = food.brand ?? '';
-				servingSize = food.servingSize;
-				calories = food.calories;
-				protein = food.protein;
-				carbs = food.carbs;
-				fat = food.fat;
-				fiber = food.fiber;
+				servingSize = round2(food.servingSize);
+				calories = round2(food.calories);
+				protein = round2(food.protein);
+				carbs = round2(food.carbs);
+				fat = round2(food.fat);
+				fiber = round2(food.fiber);
 				isFavorite = food.isFavorite;
 				imageUrl = food.imageUrl;
 				nutriScore = toGrade(food.nutriScore);

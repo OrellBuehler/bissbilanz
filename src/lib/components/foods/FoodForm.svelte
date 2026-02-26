@@ -13,6 +13,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
+	import { round2 } from '$lib/utils/number';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -79,17 +80,17 @@
 	let form = $state<FoodFormData>({
 		name: initial.name ?? '',
 		brand: initial.brand ?? '',
-		servingSize: initial.servingSize ?? 0,
+		servingSize: initial.servingSize ? round2(initial.servingSize) : 0,
 		servingUnit: initial.servingUnit ?? 'g',
-		calories: initial.calories ?? 0,
-		protein: initial.protein ?? 0,
-		carbs: initial.carbs ?? 0,
-		fat: initial.fat ?? 0,
-		fiber: initial.fiber ?? 0,
-		sodium: initial.sodium ?? null,
-		sugar: initial.sugar ?? null,
-		saturatedFat: initial.saturatedFat ?? null,
-		cholesterol: initial.cholesterol ?? null,
+		calories: initial.calories ? round2(initial.calories) : 0,
+		protein: initial.protein ? round2(initial.protein) : 0,
+		carbs: initial.carbs ? round2(initial.carbs) : 0,
+		fat: initial.fat ? round2(initial.fat) : 0,
+		fiber: initial.fiber ? round2(initial.fiber) : 0,
+		sodium: initial.sodium ? round2(initial.sodium) : null,
+		sugar: initial.sugar ? round2(initial.sugar) : null,
+		saturatedFat: initial.saturatedFat ? round2(initial.saturatedFat) : null,
+		cholesterol: initial.cholesterol ? round2(initial.cholesterol) : null,
 		barcode: initial.barcode ?? '',
 		isFavorite: initial.isFavorite ?? false,
 		nutriScore: initial.nutriScore ?? null,
