@@ -18,6 +18,10 @@ ARG BUILD_TIMESTAMP=unknown
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Copy ZXing WASM barcode reader into static/ (postinstall ran in deps stage
+# but static/wasm/ is gitignored, so COPY . . overwrites it)
+RUN mkdir -p static/wasm && cp node_modules/zxing-wasm/dist/reader/zxing_reader.wasm static/wasm/
+
 ENV VITE_APP_VERSION=${APP_VERSION}
 ENV VITE_GIT_HASH=${GIT_HASH}
 ENV VITE_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
