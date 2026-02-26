@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { startCamera, stopCamera, mapCameraError } from '$lib/utils/camera';
@@ -25,6 +26,10 @@
 			stream = await startCamera(videoEl);
 		} catch (err) {
 			const kind = mapCameraError(err);
+			Sentry.captureException(err, {
+				tags: { feature: 'barcode', stage: 'camera' },
+				extra: { errorKind: kind }
+			});
 			const messages: Record<string, () => string> = {
 				permission_denied: m.barcode_camera_denied,
 				not_found: m.barcode_camera_not_found,
@@ -38,7 +43,10 @@
 		try {
 			scanner = await createBarcodeScanner(videoEl, onScan);
 			scannerReady = true;
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, {
+				tags: { feature: 'barcode', stage: 'detector-init' }
+			});
 			error = m.barcode_camera_error();
 			onError?.(error);
 		}

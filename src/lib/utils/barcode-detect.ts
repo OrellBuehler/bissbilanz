@@ -1,10 +1,13 @@
+import * as Sentry from '@sentry/sveltekit';
 import type { BarcodeDetector as BarcodeDetectorType } from 'barcode-detector/ponyfill';
 
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'] as const;
 const DEBOUNCE_MS = 2000;
 const SCAN_INTERVAL_MS = 100;
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 let cachedDetector: BarcodeDetectorType | null = null;
+let detectorType: 'native' | 'polyfill' | null = null;
 
 async function getDetector(): Promise<BarcodeDetectorType> {
 	if (cachedDetector) return cachedDetector;
@@ -14,6 +17,7 @@ async function getDetector(): Promise<BarcodeDetectorType> {
 		const supported = await NativeDetector.getSupportedFormats();
 		if (FORMATS.some((f) => supported.includes(f))) {
 			cachedDetector = new NativeDetector({ formats: [...FORMATS] });
+			detectorType = 'native';
 			return cachedDetector;
 		}
 	}
@@ -31,11 +35,13 @@ async function getDetector(): Promise<BarcodeDetectorType> {
 		}
 	});
 	cachedDetector = new Polyfill({ formats: [...FORMATS] });
+	detectorType = 'polyfill';
 	return cachedDetector;
 }
 
 export function _resetDetectorCache() {
 	cachedDetector = null;
+	detectorType = null;
 }
 
 export async function createBarcodeScanner(
@@ -43,9 +49,17 @@ export async function createBarcodeScanner(
 	onDetect: (barcode: string) => void
 ): Promise<{ stop: () => void }> {
 	const detector = await getDetector();
+
+	Sentry.addBreadcrumb({
+		category: 'barcode',
+		message: `Scanner initialized (${detectorType})`,
+		level: 'info'
+	});
+
 	let running = true;
 	let lastBarcode = '';
 	let lastTime = 0;
+	let consecutiveErrors = 0;
 
 	const scan = async () => {
 		if (!running) return;
@@ -53,6 +67,7 @@ export async function createBarcodeScanner(
 			const now = Date.now();
 			try {
 				const results = await detector.detect(video);
+				consecutiveErrors = 0;
 				if (results.length > 0) {
 					const barcode = results[0].rawValue;
 					if (barcode !== lastBarcode || now - lastTime > DEBOUNCE_MS) {
@@ -61,8 +76,14 @@ export async function createBarcodeScanner(
 						onDetect(barcode);
 					}
 				}
-			} catch {
-				// detection frame failed, continue scanning
+			} catch (err) {
+				consecutiveErrors++;
+				if (consecutiveErrors === MAX_CONSECUTIVE_ERRORS) {
+					Sentry.captureException(err, {
+						tags: { feature: 'barcode', detector: detectorType ?? 'unknown' },
+						extra: { consecutiveErrors, videoReadyState: video.readyState }
+					});
+				}
 			}
 		}
 		if (running) {

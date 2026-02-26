@@ -1,4 +1,10 @@
 import { describe, expect, test, mock, beforeEach } from 'bun:test';
+
+mock.module('@sentry/sveltekit', () => ({
+	addBreadcrumb: () => {},
+	captureException: () => {}
+}));
+
 import { createBarcodeScanner, _resetDetectorCache } from '../../src/lib/utils/barcode-detect';
 
 function makeVideo(readyState = 4) {
