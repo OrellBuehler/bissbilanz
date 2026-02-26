@@ -64,6 +64,10 @@
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
 	};
 
+	$effect(() => {
+		if (ready) loadSupplements(activeDate);
+	});
+
 	const loadLatestWeight = async () => {
 		try {
 			const res = await fetch('/api/weight/latest');
@@ -76,9 +80,9 @@
 		}
 	};
 
-	const loadSupplements = async () => {
+	const loadSupplements = async (date: string = activeDate) => {
 		try {
-			const res = await fetch('/api/supplements/today');
+			const res = await fetch(`/api/supplements/${date}/checklist`);
 			if (res.ok) {
 				supplementChecklist = (await res.json()).checklist;
 			}
@@ -92,11 +96,10 @@
 			await apiFetch(`/api/supplements/${supplementId}/log`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: '{}'
+				body: JSON.stringify({ date: activeDate })
 			});
 		} else {
-			const currentDate = today();
-			await apiFetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
+			await apiFetch(`/api/supplements/${supplementId}/log/${activeDate}`, { method: 'DELETE' });
 		}
 		await loadSupplements();
 	};
@@ -196,7 +199,7 @@
 					favoriteMealAssignmentMode={userPrefs?.favoriteMealAssignmentMode ?? 'time_based'}
 					favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
 				/>
-			{:else if sectionKey === 'supplements' && isToday && userPrefs?.showSupplementsWidget}
+			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
 				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 			{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
 				<WeightWidget

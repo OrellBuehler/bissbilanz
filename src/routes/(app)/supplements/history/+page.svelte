@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { today, daysAgo } from '$lib/utils/dates';
+	import { today, shiftDate, daysAgo } from '$lib/utils/dates';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -58,7 +58,7 @@
 	};
 
 	let from = $state(daysAgo(30));
-	let to = $state(today());
+	let to = $state(shiftDate(today(), 1));
 	let history: HistoryEntry[] = $state([]);
 	let allSupplements: Supplement[] = $state([]);
 	let expandedItems = $state(new Set<string>());
