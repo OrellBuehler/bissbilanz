@@ -68,6 +68,16 @@
 	<ul class={dashboardStyle ? 'space-y-2' : 'space-y-2'}>
 		{#each entries as entry}
 			{#if !readonly}
+				{@const handleEdit = () =>
+					onEdit?.({
+						id: entry.id,
+						servings: entry.servings,
+						mealType: entry.mealType,
+						foodName: entry.foodName ?? undefined,
+						servingSize: entry.servingSize,
+						servingUnit: entry.servingUnit,
+						calories: entry.calories
+					})}
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<li
 						role="button"
@@ -75,28 +85,11 @@
 						class="{dashboardStyle
 							? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
 							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'} cursor-pointer active:opacity-70"
-						onclick={() =>
-							onEdit?.({
-								id: entry.id,
-								servings: entry.servings,
-								mealType: entry.mealType,
-								foodName: entry.foodName ?? undefined,
-								servingSize: entry.servingSize,
-								servingUnit: entry.servingUnit,
-								calories: entry.calories
-							})}
+						onclick={handleEdit}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault();
-								onEdit?.({
-									id: entry.id,
-									servings: entry.servings,
-									mealType: entry.mealType,
-									foodName: entry.foodName ?? undefined,
-									servingSize: entry.servingSize,
-									servingUnit: entry.servingUnit,
-									calories: entry.calories
-								});
+								handleEdit();
 							}
 						}}
 					>
