@@ -37,7 +37,7 @@ Bissbilanz is a food tracking application that allows users to:
 ### Features
 
 - **PWA:** @vite-pwa/sveltekit
-- **Barcode Scanning:** barcode-detector (native API + WASM polyfill)
+- **Barcode Scanning:** @zxing/browser + @zxing/library (pure TypeScript)
 - **AI Integration:** @modelcontextprotocol/sdk (MCP TypeScript SDK)
 - **i18n:** @inlang/paraglide-js (en, de locales)
 - **Charts:** layerchart

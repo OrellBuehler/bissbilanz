@@ -73,7 +73,7 @@
 
 **Feature-Specific:**
 
-- barcode-detector 3.x - Barcode scanning (native API + WASM polyfill, lazy-loaded)
+- @zxing/browser + @zxing/library - Barcode scanning (pure TypeScript ZXing port)
 
 ## Testing
 

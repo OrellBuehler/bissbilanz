@@ -35,9 +35,6 @@ vite.config.ts.timestamp-*
 # Paraglide generated
 src/lib/paraglide/
 
-# WASM binaries (copied by postinstall from node_modules)
-static/wasm/
-
 # Playwright MCP
 .playwright-mcp/
 
