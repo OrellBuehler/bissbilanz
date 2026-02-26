@@ -72,7 +72,13 @@
 	};
 
 	const deleteRecipe = async (id: string) => {
-		await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
+		const res = await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
+		if (res.status === 409) {
+			const { entryCount } = await res.json();
+			const confirmed = confirm(m.recipes_delete_has_entries({ count: entryCount }));
+			if (!confirmed) return;
+			await apiFetch(`/api/recipes/${id}?force=true`, { method: 'DELETE' });
+		}
 		await loadRecipes();
 	};
 

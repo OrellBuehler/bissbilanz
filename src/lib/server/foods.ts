@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, desc, eq, ilike } from 'drizzle-orm';
+import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
@@ -116,9 +116,26 @@ export const updateFood = async (
 	}
 };
 
-export const deleteFood = async (userId: string, id: string) => {
+export const deleteFood = async (userId: string, id: string, force = false) => {
 	const db = getDB();
+	const entries = await db
+		.select({ count: count() })
+		.from(foodEntries)
+		.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
+	const entryCount = entries[0].count;
+
+	if (entryCount > 0 && !force) {
+		return { blocked: true, entryCount };
+	}
+
+	if (entryCount > 0) {
+		await db
+			.delete(foodEntries)
+			.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
+	}
+
 	await db.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
+	return { blocked: false };
 };
 
 export const findFoodByBarcode = async (userId: string, barcode: string) => {

@@ -70,7 +70,13 @@
 	};
 
 	const deleteFood = async (id: string) => {
-		await apiFetch(`/api/foods/${id}`, { method: 'DELETE' });
+		const res = await apiFetch(`/api/foods/${id}`, { method: 'DELETE' });
+		if (res.status === 409) {
+			const { entryCount } = await res.json();
+			const confirmed = confirm(m.foods_delete_has_entries({ count: entryCount }));
+			if (!confirmed) return;
+			await apiFetch(`/api/foods/${id}?force=true`, { method: 'DELETE' });
+		}
 		await loadFoods();
 	};
 

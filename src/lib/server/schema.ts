@@ -127,8 +127,8 @@ export const foodEntries = pgTable(
 		userId: uuid('user_id')
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
-		foodId: uuid('food_id').references(() => foods.id, { onDelete: 'set null' }),
-		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+		foodId: uuid('food_id').references(() => foods.id, { onDelete: 'restrict' }),
+		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'restrict' }),
 		date: date('date').notNull(),
 		mealType: text('meal_type').notNull(),
 		servings: real('servings').notNull(),

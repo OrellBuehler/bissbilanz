@@ -69,6 +69,7 @@
 	"foods_kcal": "kcal",
 	"foods_empty": "No foods yet. Add your first food!",
 	"foods_no_results": "No foods match your search.",
+	"foods_delete_has_entries": "This food is used in {count} food log entries. Delete them too?",
 
 	"food_form_name": "Name",
 	"food_form_brand": "Brand",
@@ -106,6 +107,7 @@
 	"recipes_new_description": "Create a new recipe with ingredients",
 	"recipes_servings": "({count} servings)",
 	"recipes_no_recipes": "No recipes yet",
+	"recipes_delete_has_entries": "This recipe is used in {count} food log entries. Delete them too?",
 
 	"recipe_form_title": "New Recipe",
 	"recipe_form_name": "Recipe name",
