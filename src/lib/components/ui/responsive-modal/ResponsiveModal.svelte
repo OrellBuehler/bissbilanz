@@ -40,7 +40,9 @@
 	</Dialog.Root>
 {:else}
 	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
-		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100vh]">
+		<Drawer.Content
+			class="data-[vaul-drawer-direction=bottom]:max-h-[100vh] {isExpanded ? 'mt-0!' : ''}"
+		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
 				{#if description}
