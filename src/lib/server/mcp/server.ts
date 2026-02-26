@@ -130,7 +130,7 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z.string().describe('Meal type (e.g., "breakfast", "lunch", "dinner", "snack")'),
+				mealType: z.string().describe('Meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
@@ -182,7 +182,10 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to update'),
 				servings: z.number().optional().describe('New number of servings'),
-				mealType: z.string().optional().describe('New meal type'),
+				mealType: z
+					.string()
+					.optional()
+					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				notes: z.string().optional().describe('New notes')
 			}
 		},
