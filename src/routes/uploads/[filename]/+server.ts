@@ -24,22 +24,20 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const imageUrl = `/uploads/${filename}`;
 	const userId = locals.user.id;
 
-	const [food] = await db
+	const [owner] = await db
 		.select({ id: foods.id })
 		.from(foods)
 		.where(and(eq(foods.imageUrl, imageUrl), eq(foods.userId, userId)))
+		.union(
+			db
+				.select({ id: recipes.id })
+				.from(recipes)
+				.where(and(eq(recipes.imageUrl, imageUrl), eq(recipes.userId, userId)))
+		)
 		.limit(1);
 
-	if (!food) {
-		const [recipe] = await db
-			.select({ id: recipes.id })
-			.from(recipes)
-			.where(and(eq(recipes.imageUrl, imageUrl), eq(recipes.userId, userId)))
-			.limit(1);
-
-		if (!recipe) {
-			error(403, 'Access denied');
-		}
+	if (!owner) {
+		error(403, 'Access denied');
 	}
 
 	try {

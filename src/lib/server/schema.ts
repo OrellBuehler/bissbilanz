@@ -98,6 +98,7 @@ export const foods = pgTable(
 			.on(table.userId, table.barcode)
 			.where(sql`barcode IS NOT NULL`),
 		index('idx_foods_user_name').on(table.userId, table.name),
+		index('idx_foods_image_url').on(table.imageUrl),
 		check('foods_serving_positive', sql`${table.servingSize} > 0`),
 		check(
 			'foods_nutrition_nonnegative',
@@ -214,6 +215,7 @@ export const recipes = pgTable(
 	(table) => [
 		index('idx_recipes_user_id').on(table.userId),
 		index('idx_recipes_created_at').on(table.createdAt),
+		index('idx_recipes_image_url').on(table.imageUrl),
 		check('recipes_servings_positive', sql`${table.totalServings} > 0`)
 	]
 );
