@@ -290,11 +290,11 @@
 			type="button"
 			variant="outline"
 			class="w-full sm:w-auto"
-			aria-label={m.supplements_cancel()}
+			aria-label={m.cancel()}
 			onclick={onCancel}
 		>
 			<X class="size-4" />
-			<span class="sm:inline">{m.supplements_cancel()}</span>
+			<span class="sm:inline">{m.cancel()}</span>
 		</Button>
 		<Button
 			type="submit"

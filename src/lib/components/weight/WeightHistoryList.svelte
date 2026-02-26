@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { apiFetch } from '$lib/utils/api';
@@ -23,8 +22,6 @@
 	let editingId: string | null = $state(null);
 	let editWeight = $state('');
 	let editNotes = $state('');
-	let deletingId: string | null = $state(null);
-
 	const startEdit = (entry: WeightEntry) => {
 		editingId = entry.id;
 		editWeight = String(round2(entry.weightKg));
@@ -49,10 +46,8 @@
 		onChanged();
 	};
 
-	const confirmDelete = async () => {
-		if (!deletingId) return;
-		await apiFetch(`/api/weight/${deletingId}`, { method: 'DELETE' });
-		deletingId = null;
+	const deleteEntry = async (id: string) => {
+		await apiFetch(`/api/weight/${id}`, { method: 'DELETE' });
 		onChanged();
 	};
 
@@ -111,32 +106,13 @@
 					<Button variant="ghost" size="icon" onclick={() => startEdit(entry)}>
 						<Pencil class="size-4" />
 					</Button>
-					<Button variant="ghost" size="icon" onclick={() => (deletingId = entry.id)}>
-						<Trash2 class="size-4" />
-					</Button>
+					<DeleteButton
+						onDelete={() => deleteEntry(entry.id)}
+						title={m.weight_delete()}
+						description={m.weight_confirm_delete()}
+					/>
 				{/if}
 			</div>
 		{/each}
 	{/if}
 </div>
-
-<AlertDialog.Root open={deletingId !== null}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>{m.weight_delete()}</AlertDialog.Title>
-			<AlertDialog.Description>{m.weight_confirm_delete()}</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deletingId = null)}
-				>{m.supplements_cancel()}</AlertDialog.Cancel
-			>
-			<AlertDialog.Action
-				class={buttonVariants({ variant: 'destructive' })}
-				onclick={confirmDelete}
-			>
-				<Trash2 class="size-4" />
-				{m.weight_delete()}
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>

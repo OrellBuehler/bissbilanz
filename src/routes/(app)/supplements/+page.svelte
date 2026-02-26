@@ -5,12 +5,10 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Pencil from '@lucide/svelte/icons/pencil';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import History from '@lucide/svelte/icons/history';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { apiFetch } from '$lib/utils/api';
@@ -35,8 +33,6 @@
 	let supplements: SupplementWithIngredients[] = $state([]);
 	let showForm = $state(false);
 	let editingSupplement: SupplementWithIngredients | null = $state(null);
-	let deletingId: string | null = $state(null);
-
 	const loadSupplements = async () => {
 		const res = await fetch('/api/supplements?all=true');
 		if (res.ok) {
@@ -68,7 +64,6 @@
 
 	const deleteSupplement = async (id: string) => {
 		await apiFetch(`/api/supplements/${id}`, { method: 'DELETE' });
-		deletingId = null;
 		await loadSupplements();
 	};
 
@@ -139,9 +134,11 @@
 						<Button variant="ghost" size="icon" onclick={() => openEdit(supplement)}>
 							<Pencil class="size-4" />
 						</Button>
-						<Button variant="ghost" size="icon" onclick={() => (deletingId = supplement.id)}>
-							<Trash2 class="size-4" />
-						</Button>
+						<DeleteButton
+							onDelete={() => deleteSupplement(supplement.id)}
+							title={m.supplements_delete()}
+							description={m.supplements_delete_confirm()}
+						/>
 					</Card.Content>
 				</Card.Root>
 			{/each}
@@ -159,24 +156,3 @@
 		onCancel={closeForm}
 	/>
 </ResponsiveModal>
-
-<AlertDialog.Root open={deletingId !== null}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>{m.supplements_delete()}</AlertDialog.Title>
-			<AlertDialog.Description>{m.supplements_delete_confirm()}</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deletingId = null)}
-				>{m.supplements_cancel()}</AlertDialog.Cancel
-			>
-			<AlertDialog.Action
-				class={buttonVariants({ variant: 'destructive' })}
-				onclick={() => deletingId && deleteSupplement(deletingId)}
-			>
-				<Trash2 class="size-4" />
-				{m.supplements_delete()}
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
