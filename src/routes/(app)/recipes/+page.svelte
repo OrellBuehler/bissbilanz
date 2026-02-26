@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import RecipeEditForm from '$lib/components/recipes/RecipeEditForm.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
@@ -29,6 +31,8 @@
 	let showForm = $state(false);
 	let editingRecipe: any | null = $state(null);
 	let editImageUrl: string | null = $state(null);
+	let forceDeleteId: string | null = $state(null);
+	let forceDeleteCount = $state(0);
 
 	const loadFoods = async () => {
 		const res = await fetch('/api/foods');
@@ -75,10 +79,17 @@
 		const res = await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
 		if (res.status === 409) {
 			const { entryCount } = await res.json();
-			const confirmed = confirm(m.recipes_delete_has_entries({ count: entryCount }));
-			if (!confirmed) return;
-			await apiFetch(`/api/recipes/${id}?force=true`, { method: 'DELETE' });
+			forceDeleteId = id;
+			forceDeleteCount = entryCount;
+			return;
 		}
+		await loadRecipes();
+	};
+
+	const confirmForceDelete = async () => {
+		if (!forceDeleteId) return;
+		await apiFetch(`/api/recipes/${forceDeleteId}?force=true`, { method: 'DELETE' });
+		forceDeleteId = null;
 		await loadRecipes();
 	};
 
@@ -203,3 +214,31 @@
 		<RecipeForm {foods} onSave={createRecipe} />
 	{/if}
 </ResponsiveModal>
+
+<AlertDialog.Root
+	open={forceDeleteId !== null}
+	onOpenChange={(open) => {
+		if (!open) forceDeleteId = null;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.confirm_delete_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.recipes_delete_has_entries({ count: forceDeleteCount })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (forceDeleteId = null)}>
+				{m.cancel()}
+			</AlertDialog.Cancel>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={confirmForceDelete}
+			>
+				<Trash2 class="size-4" />
+				{m.confirm_delete_title()}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

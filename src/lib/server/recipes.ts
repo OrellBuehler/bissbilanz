@@ -15,6 +15,8 @@ type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
 type Result<T> = SuccessResult<T> | ErrorResult;
 
+export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
+
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
 	name: input.name,
@@ -136,7 +138,11 @@ export const updateRecipe = async (
 	}
 };
 
-export const deleteRecipe = async (userId: string, id: string, force = false) => {
+export const deleteRecipe = async (
+	userId: string,
+	id: string,
+	force = false
+): Promise<DeleteResult> => {
 	const db = getDB();
 	const entries = await db
 		.select({ count: count() })
@@ -148,12 +154,14 @@ export const deleteRecipe = async (userId: string, id: string, force = false) =>
 		return { blocked: true, entryCount };
 	}
 
-	if (entryCount > 0) {
-		await db
-			.delete(foodEntries)
-			.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
-	}
+	await db.transaction(async (tx) => {
+		if (entryCount > 0) {
+			await tx
+				.delete(foodEntries)
+				.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
+		}
+		await tx.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
+	});
 
-	await db.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
 	return { blocked: false };
 };

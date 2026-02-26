@@ -6,8 +6,10 @@
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { apiFetch } from '$lib/utils/api';
@@ -27,6 +29,8 @@
 	let offLoading = $state(false);
 	let offNotFound = $state(false);
 	let activeBarcode = $state('');
+	let forceDeleteId: string | null = $state(null);
+	let forceDeleteCount = $state(0);
 
 	const loadFoods = async () => {
 		const res = await fetch('/api/foods');
@@ -73,10 +77,17 @@
 		const res = await apiFetch(`/api/foods/${id}`, { method: 'DELETE' });
 		if (res.status === 409) {
 			const { entryCount } = await res.json();
-			const confirmed = confirm(m.foods_delete_has_entries({ count: entryCount }));
-			if (!confirmed) return;
-			await apiFetch(`/api/foods/${id}?force=true`, { method: 'DELETE' });
+			forceDeleteId = id;
+			forceDeleteCount = entryCount;
+			return;
 		}
+		await loadFoods();
+	};
+
+	const confirmForceDelete = async () => {
+		if (!forceDeleteId) return;
+		await apiFetch(`/api/foods/${forceDeleteId}?force=true`, { method: 'DELETE' });
+		forceDeleteId = null;
 		await loadFoods();
 	};
 
@@ -312,3 +323,31 @@
 		{/key}
 	{/if}
 </ResponsiveModal>
+
+<AlertDialog.Root
+	open={forceDeleteId !== null}
+	onOpenChange={(open) => {
+		if (!open) forceDeleteId = null;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{m.confirm_delete_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.foods_delete_has_entries({ count: forceDeleteCount })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (forceDeleteId = null)}>
+				{m.cancel()}
+			</AlertDialog.Cancel>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={confirmForceDelete}
+			>
+				<Trash2 class="size-4" />
+				{m.confirm_delete_title()}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

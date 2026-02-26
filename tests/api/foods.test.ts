@@ -27,7 +27,7 @@ mock.module('$lib/server/foods', () => ({
 			: { success: false, error: mockValidationError },
 	listRecentFoods: async (userId: string, limit?: number) => [],
 	updateFood: async () => ({ success: true, data: undefined }),
-	deleteFood: async () => {},
+	deleteFood: async () => ({ blocked: false }),
 	toFoodInsert: () => ({}),
 	toFoodUpdate: () => ({})
 }));
