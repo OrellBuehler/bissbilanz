@@ -332,7 +332,7 @@
 >
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>{m.confirm_delete_title()}</AlertDialog.Title>
+			<AlertDialog.Title class="text-left">{m.delete_related_entries()}</AlertDialog.Title>
 			<AlertDialog.Description>
 				{@html m.foods_delete_has_entries({ count: forceDeleteCount })}
 			</AlertDialog.Description>
@@ -346,7 +346,7 @@
 				onclick={confirmForceDelete}
 			>
 				<Trash2 class="size-4" />
-				{m.confirm_delete_title()}
+				{m.delete_related_entries()}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

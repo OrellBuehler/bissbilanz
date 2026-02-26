@@ -371,5 +371,8 @@
 
 	"dashboard_goal_progress": "Goal Progress",
 	"dashboard_remaining": "{amount} remaining",
-	"dashboard_over": "{amount} over"
+	"dashboard_over": "{amount} over",
+
+	"delete_related_entries": "Delete related entries",
+	"recipes_delete": "Delete recipe"
 }

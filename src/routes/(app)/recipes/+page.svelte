@@ -175,7 +175,11 @@
 								<span class="text-yellow-600">{fmt(recipe.fat)}g F</span>
 							</div>
 						</div>
-						<DeleteButton onDelete={() => deleteRecipe(recipe.id)} class="mt-0.5" />
+						<DeleteButton
+							onDelete={() => deleteRecipe(recipe.id)}
+							title={m.recipes_delete()}
+							class="mt-0.5"
+						/>
 					</Card.Content>
 				</Card.Root>
 			{/each}
@@ -223,7 +227,7 @@
 >
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>{m.confirm_delete_title()}</AlertDialog.Title>
+			<AlertDialog.Title class="text-left">{m.delete_related_entries()}</AlertDialog.Title>
 			<AlertDialog.Description>
 				{@html m.recipes_delete_has_entries({ count: forceDeleteCount })}
 			</AlertDialog.Description>
@@ -237,7 +241,7 @@
 				onclick={confirmForceDelete}
 			>
 				<Trash2 class="size-4" />
-				{m.confirm_delete_title()}
+				{m.delete_related_entries()}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

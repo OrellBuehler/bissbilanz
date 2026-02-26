@@ -371,5 +371,8 @@
 
 	"dashboard_goal_progress": "Zielfortschritt",
 	"dashboard_remaining": "{amount} verbleibend",
-	"dashboard_over": "{amount} darüber"
+	"dashboard_over": "{amount} darüber",
+
+	"delete_related_entries": "Verknüpfte Einträge löschen",
+	"recipes_delete": "Rezept löschen"
 }
