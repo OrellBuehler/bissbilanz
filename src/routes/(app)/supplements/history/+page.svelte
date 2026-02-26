@@ -11,6 +11,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { isSupplementDue } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type IngredientInfo = {
@@ -192,14 +193,16 @@
 										{/if}
 										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
 											<span class="min-w-0 wrap-break-word">{item.name}</span>
-											<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+											<span class="text-muted-foreground"
+												>{round2(item.dosage)} {item.dosageUnit}</span
+											>
 										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
 												<div class="wrap-break-word text-xs text-muted-foreground">
-													{ing.name} — {ing.dosage}
+													{ing.name} — {round2(ing.dosage)}
 													{ing.dosageUnit}
 												</div>
 											{/each}
@@ -229,14 +232,16 @@
 										{/if}
 										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
 											<span class="min-w-0 wrap-break-word text-muted-foreground">{item.name}</span>
-											<span class="text-muted-foreground">{item.dosage} {item.dosageUnit}</span>
+											<span class="text-muted-foreground"
+												>{round2(item.dosage)} {item.dosageUnit}</span
+											>
 										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
 												<div class="wrap-break-word text-xs text-muted-foreground">
-													{ing.name} — {ing.dosage}
+													{ing.name} — {round2(ing.dosage)}
 													{ing.dosageUnit}
 												</div>
 											{/each}
