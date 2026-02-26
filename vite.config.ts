@@ -10,7 +10,7 @@ export default defineConfig({
 		port: 4000
 	},
 	plugins: [
-		sentrySvelteKit({ autoUploadSourceMaps: false }),
+		sentrySvelteKit({ autoUploadSourceMaps: false, autoInstrument: false }),
 		tailwindcss(),
 		paraglideVitePlugin({
 			project: './project.inlang',
