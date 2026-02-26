@@ -101,7 +101,7 @@
 		} else {
 			await apiFetch(`/api/supplements/${supplementId}/log/${activeDate}`, { method: 'DELETE' });
 		}
-		await loadSupplements();
+		await loadSupplements(activeDate);
 	};
 
 	const loadGoals = async () => {
@@ -132,7 +132,6 @@
 		}
 		ready = true;
 
-		loadSupplements();
 		loadLatestWeight();
 		loadGoals();
 	};
@@ -142,7 +141,7 @@
 
 		const onSynced = () => {
 			refreshKey++;
-			loadSupplements();
+			loadSupplements(activeDate);
 			loadLatestWeight();
 		};
 		window.addEventListener('queue-synced', onSynced);

@@ -8,6 +8,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
 		const date = params.date;
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return json({ error: 'Invalid date format' }, { status: 400 });
+		}
 		const dateObj = new Date(date + 'T00:00:00');
 
 		const [allSupplements, logs] = await Promise.all([
