@@ -13,17 +13,25 @@ Add calorie-per-gram constants and conversion helpers to the existing nutrition 
 ```ts
 export const KCAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9 } as const;
 
-export function gramsFromPct(calories: number, pct: number, macro: keyof typeof KCAL_PER_GRAM): number {
-  return Math.round((calories * pct / 100) / KCAL_PER_GRAM[macro]);
+export function gramsFromPct(
+	calories: number,
+	pct: number,
+	macro: keyof typeof KCAL_PER_GRAM
+): number {
+	return Math.round((calories * pct) / 100 / KCAL_PER_GRAM[macro]);
 }
 
-export function pctFromGrams(calories: number, grams: number, macro: keyof typeof KCAL_PER_GRAM): number {
-  if (calories <= 0) return 0;
-  return Math.round((grams * KCAL_PER_GRAM[macro] / calories) * 100 / 5) * 5; // snap to 5% increments
+export function pctFromGrams(
+	calories: number,
+	grams: number,
+	macro: keyof typeof KCAL_PER_GRAM
+): number {
+	if (calories <= 0) return 0;
+	return Math.round((((grams * KCAL_PER_GRAM[macro]) / calories) * 100) / 5) * 5; // snap to 5% increments
 }
 
 export function kcalFromPct(calories: number, pct: number): number {
-  return Math.round(calories * pct / 100);
+	return Math.round((calories * pct) / 100);
 }
 ```
 
@@ -66,6 +74,7 @@ export function kcalFromPct(calories: number, pct: number): number {
 ### i18n
 
 New message keys needed:
+
 - `goals_macro_total` — "Total: {pct}%"
 - `goals_macro_must_equal_100` — "Must equal 100%"
 - `goals_macro_balanced` — "Balanced"

@@ -13,6 +13,7 @@
 ### Task 1: Add macro conversion utilities
 
 **Files:**
+
 - Modify: `src/lib/utils/nutrition.ts`
 - Test: `tests/utils/nutrition.test.ts`
 
@@ -110,6 +111,7 @@ feat: add macro percentage/gram conversion utilities
 ### Task 2: Add i18n messages
 
 **Files:**
+
 - Modify: `messages/en.json`
 - Modify: `messages/de.json`
 
@@ -126,6 +128,7 @@ Add these keys to `messages/en.json`:
 ```
 
 Update existing keys — remove "(g)" suffix:
+
 - `"goals_protein": "Protein"`
 - `"goals_carbs": "Carbs"`
 - `"goals_fat": "Fat"`
@@ -143,6 +146,7 @@ Add these keys to `messages/de.json`:
 ```
 
 Update existing keys:
+
 - `"goals_protein": "Protein"`
 - `"goals_carbs": "Kohlenhydrate"`
 - `"goals_fat": "Fett"`
@@ -163,6 +167,7 @@ feat: add i18n messages for goals slider redesign
 ### Task 3: Redesign the goals page
 
 **Files:**
+
 - Modify: `src/routes/(app)/goals/+page.svelte`
 
 **Step 1: Rewrite the goals page**
@@ -320,10 +325,14 @@ Replace the entire content of `src/routes/(app)/goals/+page.svelte` with:
 				>
 					{#if isBalanced}
 						<CircleCheck class="size-4" />
-						<span>{m.goals_macro_total({ pct: String(totalPct) })} — {m.goals_macro_balanced()}</span>
+						<span
+							>{m.goals_macro_total({ pct: String(totalPct) })} — {m.goals_macro_balanced()}</span
+						>
 					{:else}
 						<TriangleAlert class="size-4" />
-						<span>{m.goals_macro_total({ pct: String(totalPct) })} — {m.goals_macro_must_equal_100()}</span>
+						<span
+							>{m.goals_macro_total({ pct: String(totalPct) })} — {m.goals_macro_must_equal_100()}</span
+						>
 					{/if}
 				</div>
 
@@ -349,6 +358,7 @@ Replace the entire content of `src/routes/(app)/goals/+page.svelte` with:
 **Step 2: Start dev server and verify**
 
 Run: `bun run dev`
+
 - Navigate to `/goals`
 - Verify sliders render with correct colors
 - Verify dragging sliders updates grams/kcal display in real time
