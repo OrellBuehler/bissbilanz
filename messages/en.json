@@ -2,6 +2,10 @@
 	"app_title": "Bissbilanz",
 	"app_tagline": "Track your nutrition with ease",
 
+	"confirm_delete_title": "Delete",
+	"confirm_delete_description": "Are you sure? This cannot be undone.",
+	"cancel": "Cancel",
+
 	"auth_login": "Login with Infomaniak",
 	"auth_logout": "Logout",
 

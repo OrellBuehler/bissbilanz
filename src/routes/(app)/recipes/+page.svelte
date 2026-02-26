@@ -5,8 +5,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
+	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
@@ -71,8 +71,7 @@
 		await loadRecipes();
 	};
 
-	const deleteRecipe = async (e: Event, id: string) => {
-		e.stopPropagation();
+	const deleteRecipe = async (id: string) => {
 		await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
 		await loadRecipes();
 	};
@@ -159,14 +158,7 @@
 								<span class="text-yellow-600">{fmt(recipe.fat)}g F</span>
 							</div>
 						</div>
-						<Button
-							variant="ghost"
-							size="icon"
-							class="mt-0.5 shrink-0 text-muted-foreground hover:text-destructive"
-							onclick={(e) => deleteRecipe(e, recipe.id)}
-						>
-							<Trash2 class="size-4" />
-						</Button>
+						<DeleteButton onDelete={() => deleteRecipe(recipe.id)} class="mt-0.5" />
 					</Card.Content>
 				</Card.Root>
 			{/each}

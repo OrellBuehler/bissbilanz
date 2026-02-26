@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import AmountInput from '$lib/components/entries/AmountInput.svelte';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
@@ -91,15 +91,11 @@
 		</div>
 
 		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<Button
-				variant="ghost"
-				size="icon"
-				class="self-start text-destructive hover:text-destructive sm:self-auto"
-				onclick={handleDelete}
-				aria-label={m.edit_entry_delete()}
-			>
-				<Trash2 class="size-4" />
-			</Button>
+			<DeleteButton
+				onDelete={handleDelete}
+				title={m.edit_entry_delete()}
+				class="self-start sm:self-auto"
+			/>
 			<div class="flex w-full gap-2 sm:w-auto">
 				<Button
 					variant="outline"

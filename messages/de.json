@@ -2,6 +2,10 @@
 	"app_title": "Bissbilanz",
 	"app_tagline": "Verfolge deine Ernährung mit Leichtigkeit",
 
+	"confirm_delete_title": "Löschen",
+	"confirm_delete_description": "Bist du sicher? Dies kann nicht rückgängig gemacht werden.",
+	"cancel": "Abbrechen",
+
 	"auth_login": "Mit Infomaniak anmelden",
 	"auth_logout": "Abmelden",
 
