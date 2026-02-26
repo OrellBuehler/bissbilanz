@@ -1,10 +1,36 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	mergeMealTypes,
+	normalizeMealType,
 	parseTimeToMinutes,
 	resolveMealTypeForMinute,
 	validateFavoriteMealTimeframes
 } from '../../src/lib/utils/meals';
+
+describe('normalizeMealType', () => {
+	test('normalizes lowercase defaults', () => {
+		expect(normalizeMealType('breakfast')).toBe('Breakfast');
+		expect(normalizeMealType('lunch')).toBe('Lunch');
+		expect(normalizeMealType('dinner')).toBe('Dinner');
+		expect(normalizeMealType('snack')).toBe('Snacks');
+		expect(normalizeMealType('snacks')).toBe('Snacks');
+	});
+
+	test('handles mixed casing', () => {
+		expect(normalizeMealType('BREAKFAST')).toBe('Breakfast');
+		expect(normalizeMealType('Snack')).toBe('Snacks');
+	});
+
+	test('preserves already-correct casing', () => {
+		expect(normalizeMealType('Breakfast')).toBe('Breakfast');
+		expect(normalizeMealType('Snacks')).toBe('Snacks');
+	});
+
+	test('passes through custom meal types', () => {
+		expect(normalizeMealType('Brunch')).toBe('Brunch');
+		expect(normalizeMealType('Late Night')).toBe('Late Night');
+	});
+});
 
 describe('mergeMealTypes', () => {
 	test('appends custom meal types after defaults', () => {
