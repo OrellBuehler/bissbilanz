@@ -97,9 +97,12 @@
 			});
 			if (!uploadRes.ok) {
 				const body = await uploadRes.text().catch(() => '');
-				Sentry.captureMessage('Image upload failed', {
-					level: 'error',
-					extra: { status: uploadRes.status, body, fileSize: file.size, fileType: file.type }
+				Sentry.logger.error('Image upload failed', {
+					status: uploadRes.status,
+					body,
+					fileSize: file.size,
+					fileType: file.type,
+					context: 'recipe-edit'
 				});
 				toast.error(m.image_upload_failed());
 				return;

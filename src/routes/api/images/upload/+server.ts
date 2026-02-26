@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { processImage } from '$lib/server/images';
 import { handleApiError, requireAuth } from '$lib/server/errors';
@@ -15,27 +16,32 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const file = formData.get('image');
 
 		if (!file || !(file instanceof File)) {
-			console.log('[image-upload] rejected: no file in form data');
+			Sentry.logger.warn('Image upload rejected: no file in form data');
 			return json({ error: 'Missing image file' }, { status: 400 });
 		}
 
-		console.log(`[image-upload] received: ${file.name} (${file.type}, ${file.size} bytes)`);
-
 		if (!file.type.startsWith('image/')) {
-			console.log(`[image-upload] rejected: invalid type ${file.type}`);
+			Sentry.logger.warn('Image upload rejected: invalid type', {
+				fileType: file.type,
+				fileName: file.name
+			});
 			return json({ error: 'File must be an image' }, { status: 400 });
 		}
 
 		if (file.size > MAX_FILE_SIZE) {
-			console.log(`[image-upload] rejected: size ${file.size} exceeds limit`);
+			Sentry.logger.warn('Image upload rejected: file too large', {
+				fileSize: file.size,
+				fileName: file.name
+			});
 			return json({ error: 'File must be 10MB or smaller' }, { status: 400 });
 		}
 
 		const imageUrl = await processImage(file);
-		console.log(`[image-upload] success: ${imageUrl}`);
 		return json({ imageUrl }, { status: 201 });
 	} catch (error) {
-		console.error('[image-upload] error:', error);
+		Sentry.logger.error('Image upload failed', {
+			error: error instanceof Error ? error.message : String(error)
+		});
 		return handleApiError(error);
 	}
 };
