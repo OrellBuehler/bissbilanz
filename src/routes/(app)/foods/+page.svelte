@@ -21,6 +21,7 @@
 	let showForm = $state(false);
 	let editingFood: any | null = $state(null);
 	let editImageUrl: string | null = $state(null);
+	let uploading = $state(false);
 
 	let offData = $state<any>(null);
 	let offLoading = $state(false);
@@ -104,6 +105,7 @@
 
 	const handleImageUpload = async (file: File) => {
 		if (!editingFood) return;
+		uploading = true;
 		const formData = new FormData();
 		formData.append('image', file);
 		try {
@@ -127,9 +129,12 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ imageUrl: newUrl })
 			});
+			toast.success(m.image_uploaded());
 		} catch (err) {
 			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
 			toast.error(m.image_upload_failed());
+		} finally {
+			uploading = false;
 		}
 	};
 
@@ -293,6 +298,7 @@
 				onBarcodeScan={!editingFood ? handleBarcodeScan : undefined}
 				imageUrl={editingFood ? editImageUrl : undefined}
 				onImageUpload={editingFood ? handleImageUpload : undefined}
+				{uploading}
 			/>
 		{/key}
 	{/if}

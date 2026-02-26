@@ -13,6 +13,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import * as Sentry from '@sentry/sveltekit';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
@@ -46,6 +47,7 @@
 	let food: Food | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
+	let uploading = $state(false);
 	let enriching = $state(false);
 
 	// Editable fields
@@ -119,6 +121,7 @@
 		const file = input.files?.[0];
 		if (!file || !food) return;
 
+		uploading = true;
 		const formData = new FormData();
 		formData.append('image', file);
 
@@ -144,9 +147,12 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ imageUrl: newUrl })
 			});
+			toast.success(m.image_uploaded());
 		} catch (err) {
 			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
 			toast.error(m.image_upload_failed());
+		} finally {
+			uploading = false;
 		}
 	};
 
@@ -259,12 +265,17 @@
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if food}
 		<!-- Image section -->
-		<div class="aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
+		<div class="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
 			{#if imageUrl}
 				<img src={imageUrl} alt={name} class="h-full w-full object-cover" />
 			{:else}
 				<div class="flex h-full w-full items-center justify-center {placeholderColor.bg}">
 					<span class="text-6xl font-bold {placeholderColor.text}">{initial}</span>
+				</div>
+			{/if}
+			{#if uploading}
+				<div class="absolute inset-0 flex items-center justify-center bg-background/60">
+					<Spinner class="size-8" />
 				</div>
 			{/if}
 		</div>
@@ -274,8 +285,9 @@
 				id="image-upload"
 				type="file"
 				accept="image/*"
+				disabled={uploading}
 				onchange={handleImageUpload}
-				class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+				class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
 			/>
 		</div>
 
@@ -329,7 +341,7 @@
 			</div>
 		</div>
 
-		<Button class="w-full sm:w-auto" onclick={saveChanges} disabled={saving}>
+		<Button class="w-full sm:w-auto" onclick={saveChanges} disabled={saving || uploading}>
 			{saving ? m.detail_saving() : m.save_changes()}
 		</Button>
 	{/if}
