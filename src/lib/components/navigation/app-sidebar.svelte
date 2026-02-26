@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { beforeNavigate } from '$app/navigation';
 	import { getNavItems } from '$lib/config/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
@@ -14,6 +15,12 @@
 
 	const navItems = getNavItems();
 	const sidebar = useSidebar();
+
+	beforeNavigate(() => {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	});
 
 	function isActive(href: string, pathname: string): boolean {
 		if (href === '/') return pathname === '/';
