@@ -3,7 +3,7 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
-	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
+	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/utils/api';
@@ -112,7 +112,7 @@
 		}
 	};
 
-	const totals = $derived(calculateDailyTotals(entries));
+	const totals = $derived(sumEntries(entries));
 
 	$effect(() => {
 		onTotalsChange?.(totals);
