@@ -69,7 +69,7 @@
 	"foods_kcal": "kcal",
 	"foods_empty": "Noch keine Lebensmittel. Füge dein erstes hinzu!",
 	"foods_no_results": "Keine Lebensmittel gefunden.",
-	"foods_delete_has_entries": "Dieses Lebensmittel wird in {count} Einträgen verwendet. Diese auch löschen?",
+	"foods_delete_has_entries": "Dieses Lebensmittel wird in <strong>{count} Einträgen</strong> verwendet. Diese auch löschen?",
 
 	"food_form_name": "Name",
 	"food_form_brand": "Marke",
@@ -107,7 +107,7 @@
 	"recipes_new_description": "Neues Rezept mit Zutaten erstellen",
 	"recipes_servings": "({count} Portionen)",
 	"recipes_no_recipes": "Noch keine Rezepte",
-	"recipes_delete_has_entries": "Dieses Rezept wird in {count} Einträgen verwendet. Diese auch löschen?",
+	"recipes_delete_has_entries": "Dieses Rezept wird in <strong>{count} Einträgen</strong> verwendet. Diese auch löschen?",
 
 	"recipe_form_title": "Neues Rezept",
 	"recipe_form_name": "Rezeptname",

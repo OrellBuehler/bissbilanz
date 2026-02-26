@@ -225,7 +225,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{m.confirm_delete_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				{m.recipes_delete_has_entries({ count: forceDeleteCount })}
+				{@html m.recipes_delete_has_entries({ count: forceDeleteCount })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
