@@ -64,9 +64,9 @@ export function handleApiError(error: unknown): Response {
 
 	Sentry.captureException(error);
 	Sentry.logger.error('Unhandled API error', {
-		error: error instanceof Error ? error.message : String(error),
-		stack: error instanceof Error ? error.stack : undefined
+		error: error instanceof Error ? error.message : String(error)
 	});
+	console.error('Unhandled error:', error);
 
 	return json({ error: 'Internal server error' }, { status: 500 });
 }

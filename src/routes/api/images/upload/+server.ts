@@ -39,9 +39,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const imageUrl = await processImage(file);
 		return json({ imageUrl }, { status: 201 });
 	} catch (error) {
-		Sentry.logger.error('Image upload failed', {
-			error: error instanceof Error ? error.message : String(error)
-		});
 		return handleApiError(error);
 	}
 };

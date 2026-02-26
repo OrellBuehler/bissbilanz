@@ -117,7 +117,7 @@
 				const body = await uploadRes.text().catch(() => '');
 				Sentry.logger.error('Image upload failed', {
 					status: uploadRes.status,
-					body,
+					body: body.slice(0, 500),
 					fileSize: file.size,
 					fileType: file.type,
 					context: 'food-edit'
