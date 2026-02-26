@@ -13,6 +13,7 @@
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	let foods: Array<any> = $state([]);
@@ -111,6 +112,11 @@
 				body: formData
 			});
 			if (!uploadRes.ok) {
+				const body = await uploadRes.text().catch(() => '');
+				Sentry.captureMessage('Image upload failed', {
+					level: 'error',
+					extra: { status: uploadRes.status, body, fileSize: file.size, fileType: file.type }
+				});
 				toast.error(m.image_upload_failed());
 				return;
 			}
@@ -121,7 +127,8 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ imageUrl: newUrl })
 			});
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
 			toast.error(m.image_upload_failed());
 		}
 	};

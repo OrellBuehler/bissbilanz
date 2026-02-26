@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { ZodError } from 'zod';
 
 /**
@@ -61,7 +62,7 @@ export function handleApiError(error: unknown): Response {
 		);
 	}
 
-	// Log unexpected errors
+	Sentry.captureException(error);
 	console.error('Unhandled error:', error);
 
 	return json({ error: 'Internal server error' }, { status: 500 });
