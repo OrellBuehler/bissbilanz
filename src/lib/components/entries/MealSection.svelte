@@ -70,32 +70,45 @@
 			{#if !readonly}
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<li
-						class={dashboardStyle
+						role="button"
+						tabindex="0"
+						class="{dashboardStyle
 							? 'flex min-w-0 items-center justify-between overflow-hidden rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm'
-							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
+							: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'} cursor-pointer active:opacity-70"
+						onclick={() =>
+							onEdit?.({
+								id: entry.id,
+								servings: entry.servings,
+								mealType: entry.mealType,
+								foodName: entry.foodName ?? undefined,
+								servingSize: entry.servingSize,
+								servingUnit: entry.servingUnit,
+								calories: entry.calories
+							})}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								onEdit?.({
+									id: entry.id,
+									servings: entry.servings,
+									mealType: entry.mealType,
+									foodName: entry.foodName ?? undefined,
+									servingSize: entry.servingSize,
+									servingUnit: entry.servingUnit,
+									calories: entry.calories
+								});
+							}
+						}}
 					>
 						<div class="flex min-w-0 flex-1 items-center gap-2">
-							<Button
-								variant="link"
-								class="h-auto min-w-0 truncate p-0 text-left text-sm font-medium text-foreground"
-								onclick={() =>
-									onEdit?.({
-										id: entry.id,
-										servings: entry.servings,
-										mealType: entry.mealType,
-										foodName: entry.foodName ?? undefined,
-										servingSize: entry.servingSize,
-										servingUnit: entry.servingUnit,
-										calories: entry.calories
-									})}
-							>
+							<span class="min-w-0 truncate font-medium">
 								{formatEntryLabel(
 									entry.foodName ?? 'Unknown',
 									entry.servings,
 									entry.servingSize,
 									entry.servingUnit
 								)}
-							</Button>
+							</span>
 							{#if entry.createdAt}
 								<span class="shrink-0 text-xs text-muted-foreground/60"
 									>{formatTime(entry.createdAt)}</span
