@@ -119,7 +119,7 @@
 	const handleImageUpload = async (e: Event) => {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
-		if (!file || !food) return;
+		if (!file || !food || uploading) return;
 
 		uploading = true;
 		const formData = new FormData();

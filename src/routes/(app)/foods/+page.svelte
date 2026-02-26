@@ -104,7 +104,7 @@
 	};
 
 	const handleImageUpload = async (file: File) => {
-		if (!editingFood) return;
+		if (!editingFood || uploading) return;
 		uploading = true;
 		const formData = new FormData();
 		formData.append('image', file);
