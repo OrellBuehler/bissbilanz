@@ -237,5 +237,5 @@ export const getTopFoods = async (
 				fat: g.totalMacros.fat / g.count,
 				fiber: g.totalMacros.fiber / g.count
 			})
-		}))
+		}));
 };

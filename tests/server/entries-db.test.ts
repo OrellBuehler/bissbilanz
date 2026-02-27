@@ -11,9 +11,13 @@ import {
 // Create mock DB
 const { db, setResult, reset } = createMockDB();
 
+// Import schema for re-export in mock
+const schema = await import('$lib/server/schema');
+
 // Mock modules
 mock.module('$lib/server/db', () => ({
-	getDB: () => db
+	getDB: () => db,
+	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
 // Import after mocking

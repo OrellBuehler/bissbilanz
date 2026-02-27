@@ -320,9 +320,13 @@
 						<span class="text-sm font-medium">{m.maintenance_total_energy()}</span>
 						<span class="font-mono text-sm font-bold">
 							{#if result.totalEnergyBalance > 0}
-								{m.maintenance_energy_balance_deficit({ value: formatKcal(result.totalEnergyBalance) })}
+								{m.maintenance_energy_balance_deficit({
+									value: formatKcal(result.totalEnergyBalance)
+								})}
 							{:else if result.totalEnergyBalance < 0}
-								{m.maintenance_energy_balance_surplus({ value: formatKcal(result.totalEnergyBalance) })}
+								{m.maintenance_energy_balance_surplus({
+									value: formatKcal(result.totalEnergyBalance)
+								})}
 							{:else}
 								{formatKcal(result.totalEnergyBalance)} kcal
 							{/if}

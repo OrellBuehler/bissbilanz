@@ -66,9 +66,7 @@ describe('fetchProduct', () => {
 	});
 
 	test('returns null when status !== 1 (product not found)', async () => {
-		fetchSpy.mockResolvedValueOnce(
-			new Response(JSON.stringify({ status: 0 }))
-		);
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: 0 })));
 
 		const result = await fetchProduct(VALID_BARCODE);
 		expect(result).toBeNull();
@@ -88,9 +86,7 @@ describe('fetchProduct', () => {
 	});
 
 	test('returns null when response has unexpected shape', async () => {
-		fetchSpy.mockResolvedValueOnce(
-			new Response(JSON.stringify({ unexpected: true }))
-		);
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ unexpected: true })));
 
 		const result = await fetchProduct(VALID_BARCODE);
 		expect(result).toBeNull();

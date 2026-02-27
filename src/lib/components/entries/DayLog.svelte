@@ -47,10 +47,7 @@
 
 	const loadFoodsAndRecipes = async () => {
 		if (foodsLoaded) return;
-		const [foodsRes, recipesRes] = await Promise.all([
-			fetch('/api/foods'),
-			fetch('/api/recipes')
-		]);
+		const [foodsRes, recipesRes] = await Promise.all([fetch('/api/foods'), fetch('/api/recipes')]);
 		foods = (await foodsRes.json()).foods ?? [];
 		recipes = (await recipesRes.json()).recipes ?? [];
 		foodsLoaded = true;

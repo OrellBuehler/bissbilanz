@@ -13,14 +13,19 @@ import {
 // Create mock DB
 const { db, setResult, reset } = createMockDB();
 
+// Import schema for re-export in mock
+const schema = await import('$lib/server/schema');
+
 // Mock modules
 mock.module('$lib/server/db', () => ({
-	getDB: () => db
+	getDB: () => db,
+	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
+const realDates = await import('$lib/utils/dates');
 mock.module('$lib/utils/dates', () => ({
+	...Object.fromEntries(Object.entries(realDates).map(([key, value]) => [key, value])),
 	today: () => '2026-02-17',
-	shiftDate: (isoDate: string, days: number) => isoDate,
 	yesterday: () => '2026-02-16'
 }));
 

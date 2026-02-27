@@ -5,8 +5,11 @@ import { TEST_USER } from '../helpers/fixtures';
 
 const { db, setError, reset } = createMockDB();
 
+const schema = await import('$lib/server/schema');
+
 mock.module('$lib/server/db', () => ({
-	getDB: () => db
+	getDB: () => db,
+	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
 const { updatePreferences } = await import('$lib/server/preferences');

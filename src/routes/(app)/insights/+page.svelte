@@ -251,7 +251,11 @@
 			<div class="flex items-center justify-between">
 				<Card.Title>{m.insights_top_foods()}</Card.Title>
 				<div class="flex gap-1">
-					<Button variant={topFoodsDays === 7 ? 'default' : 'outline'} size="sm" onclick={() => (topFoodsDays = 7)}>
+					<Button
+						variant={topFoodsDays === 7 ? 'default' : 'outline'}
+						size="sm"
+						onclick={() => (topFoodsDays = 7)}
+					>
 						{m.insights_7d()}
 					</Button>
 					<Button
