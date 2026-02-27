@@ -24,7 +24,7 @@ mock.module('$lib/server/recipes', () => ({
 			: { success: false, error: mockValidationError },
 	getRecipe: async () => null,
 	updateRecipe: async () => ({ success: true, data: null }),
-	deleteRecipe: async () => {}
+	deleteRecipe: async () => ({ blocked: false })
 }));
 
 const { GET, POST } = await import('../../src/routes/api/recipes/+server');

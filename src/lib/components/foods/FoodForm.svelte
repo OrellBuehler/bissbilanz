@@ -11,8 +11,10 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Check from '@lucide/svelte/icons/check';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
+	import { round2 } from '$lib/utils/number';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -49,15 +51,29 @@
 		barcode: string;
 		isFavorite: boolean;
 		nutriScore?: 'a' | 'b' | 'c' | 'd' | 'e' | null;
+		novaGroup?: number | null;
+		additives?: string[] | null;
+		ingredientsText?: string | null;
+		imageUrl?: string | null;
 	};
 
 	type Props = {
 		initial?: Partial<FoodFormData>;
 		onSave: (payload: FoodFormData) => Promise<void>;
 		onBarcodeScan?: (barcode: string) => void;
+		imageUrl?: string | null;
+		onImageUpload?: (file: File) => Promise<void>;
+		uploading?: boolean;
 	};
 
-	let { initial = {}, onSave, onBarcodeScan }: Props = $props();
+	let {
+		initial = {},
+		onSave,
+		onBarcodeScan,
+		imageUrl,
+		onImageUpload,
+		uploading = false
+	}: Props = $props();
 
 	let showAdvanced = $state(false);
 	let saving = $state(false);
@@ -73,20 +89,24 @@
 	let form = $state<FoodFormData>({
 		name: initial.name ?? '',
 		brand: initial.brand ?? '',
-		servingSize: initial.servingSize ?? 0,
+		servingSize: initial.servingSize != null ? round2(initial.servingSize) : 0,
 		servingUnit: initial.servingUnit ?? 'g',
-		calories: initial.calories ?? 0,
-		protein: initial.protein ?? 0,
-		carbs: initial.carbs ?? 0,
-		fat: initial.fat ?? 0,
-		fiber: initial.fiber ?? 0,
-		sodium: initial.sodium ?? null,
-		sugar: initial.sugar ?? null,
-		saturatedFat: initial.saturatedFat ?? null,
-		cholesterol: initial.cholesterol ?? null,
+		calories: initial.calories != null ? round2(initial.calories) : 0,
+		protein: initial.protein != null ? round2(initial.protein) : 0,
+		carbs: initial.carbs != null ? round2(initial.carbs) : 0,
+		fat: initial.fat != null ? round2(initial.fat) : 0,
+		fiber: initial.fiber != null ? round2(initial.fiber) : 0,
+		sodium: initial.sodium != null ? round2(initial.sodium) : null,
+		sugar: initial.sugar != null ? round2(initial.sugar) : null,
+		saturatedFat: initial.saturatedFat != null ? round2(initial.saturatedFat) : null,
+		cholesterol: initial.cholesterol != null ? round2(initial.cholesterol) : null,
 		barcode: initial.barcode ?? '',
 		isFavorite: initial.isFavorite ?? false,
-		nutriScore: initial.nutriScore ?? null
+		nutriScore: initial.nutriScore ?? null,
+		novaGroup: initial.novaGroup ?? null,
+		additives: initial.additives ?? null,
+		ingredientsText: initial.ingredientsText ?? null,
+		imageUrl: initial.imageUrl ?? null
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -111,6 +131,39 @@
 		}
 	}
 </script>
+
+{#if onImageUpload}
+	<div class="mb-4 space-y-2">
+		<div class="relative aspect-video w-full overflow-hidden rounded-xl border">
+			{#if imageUrl}
+				<img src={imageUrl} alt={form.name} class="h-full w-full object-cover" />
+			{:else}
+				<div class="flex h-full w-full items-center justify-center bg-muted">
+					<span class="text-4xl font-bold text-muted-foreground"
+						>{form.name.charAt(0).toUpperCase()}</span
+					>
+				</div>
+			{/if}
+			{#if uploading}
+				<div class="absolute inset-0 flex items-center justify-center bg-background/60">
+					<Spinner class="size-8" />
+				</div>
+			{/if}
+		</div>
+		<Label for="food-image-upload">{m.image_upload_label()}</Label>
+		<input
+			id="food-image-upload"
+			type="file"
+			accept="image/*"
+			disabled={uploading}
+			onchange={async (e) => {
+				const file = (e.target as HTMLInputElement).files?.[0];
+				if (file) await onImageUpload(file);
+			}}
+			class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
+		/>
+	</div>
+{/if}
 
 <div class="grid gap-3">
 	<div class="grid gap-1.5">
@@ -227,7 +280,7 @@
 		<Checkbox id="favorite" bind:checked={form.isFavorite} />
 		<Label for="favorite">{m.food_form_favorite()}</Label>
 	</div>
-	<Button class="w-full sm:w-auto" disabled={!isValid || saving} onclick={handleSave}>
+	<Button class="w-full sm:w-auto" disabled={!isValid || saving || uploading} onclick={handleSave}>
 		<Check class="size-4" />
 		{m.food_form_save()}
 	</Button>

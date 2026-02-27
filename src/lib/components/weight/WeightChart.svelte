@@ -164,6 +164,7 @@
 							x="dateLabel"
 							{series}
 							{yDomain}
+							padding={{ left: 16, bottom: 4 }}
 							tooltip={true}
 							axis={true}
 							grid={true}

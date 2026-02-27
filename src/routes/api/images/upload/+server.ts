@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { processImage } from '$lib/server/images';
 import { handleApiError, requireAuth } from '$lib/server/errors';
@@ -15,14 +16,23 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const file = formData.get('image');
 
 		if (!file || !(file instanceof File)) {
+			Sentry.logger.warn('Image upload rejected: no file in form data');
 			return json({ error: 'Missing image file' }, { status: 400 });
 		}
 
 		if (!file.type.startsWith('image/')) {
+			Sentry.logger.warn('Image upload rejected: invalid type', {
+				fileType: file.type,
+				fileName: file.name
+			});
 			return json({ error: 'File must be an image' }, { status: 400 });
 		}
 
 		if (file.size > MAX_FILE_SIZE) {
+			Sentry.logger.warn('Image upload rejected: file too large', {
+				fileSize: file.size,
+				fileName: file.name
+			});
 			return json({ error: 'File must be 10MB or smaller' }, { status: 400 });
 		}
 

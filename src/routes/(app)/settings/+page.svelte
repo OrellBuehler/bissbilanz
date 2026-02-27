@@ -23,9 +23,12 @@
 	let newName = $state('');
 
 	// Preferences state
+	let showChartWidget = $state(true);
 	let showFavoritesWidget = $state(true);
 	let showSupplementsWidget = $state(true);
 	let showWeightWidget = $state(true);
+	let showMealBreakdownWidget = $state(true);
+	let showTopFoodsWidget = $state(true);
 	let widgetOrder = $state<
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
@@ -58,6 +61,14 @@
 		weight: {
 			name: () => m.settings_widget_weight(),
 			desc: () => m.settings_widget_weight_desc()
+		},
+		'meal-breakdown': {
+			name: () => m.settings_widget_meal_breakdown(),
+			desc: () => m.settings_widget_meal_breakdown_desc()
+		},
+		'top-foods': {
+			name: () => m.settings_widget_top_foods(),
+			desc: () => m.settings_widget_top_foods_desc()
 		},
 		summary: {
 			name: () => m.settings_section_summary(),
@@ -246,9 +257,12 @@
 			const res = await fetch('/api/preferences');
 			if (res.ok) {
 				const { preferences } = await res.json();
+				showChartWidget = preferences.showChartWidget ?? true;
 				showFavoritesWidget = preferences.showFavoritesWidget ?? true;
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
+				showMealBreakdownWidget = preferences.showMealBreakdownWidget ?? true;
+				showTopFoodsWidget = preferences.showTopFoodsWidget ?? true;
 				widgetOrder = buildWidgetOrder(
 					preferences.widgetOrder ?? [
 						'chart',
@@ -366,7 +380,12 @@
 									<p class="text-sm font-medium">{widget.name()}</p>
 									<p class="text-muted-foreground text-xs">{widget.desc()}</p>
 								</div>
-								{#if widget.key === 'favorites'}
+								{#if widget.key === 'chart'}
+									<Switch
+										bind:checked={showChartWidget}
+										onCheckedChange={(v) => savePreference('showChartWidget', v)}
+									/>
+								{:else if widget.key === 'favorites'}
 									<Switch
 										bind:checked={showFavoritesWidget}
 										onCheckedChange={(v) => savePreference('showFavoritesWidget', v)}
@@ -380,6 +399,16 @@
 									<Switch
 										bind:checked={showWeightWidget}
 										onCheckedChange={(v) => savePreference('showWeightWidget', v)}
+									/>
+								{:else if widget.key === 'meal-breakdown'}
+									<Switch
+										bind:checked={showMealBreakdownWidget}
+										onCheckedChange={(v) => savePreference('showMealBreakdownWidget', v)}
+									/>
+								{:else if widget.key === 'top-foods'}
+									<Switch
+										bind:checked={showTopFoodsWidget}
+										onCheckedChange={(v) => savePreference('showTopFoodsWidget', v)}
 									/>
 								{/if}
 							</div>
