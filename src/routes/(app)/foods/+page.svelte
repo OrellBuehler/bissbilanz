@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
@@ -55,7 +54,7 @@
 			body: JSON.stringify(body)
 		});
 		closeForm();
-		await loadFoods();
+		await loadFoods(query);
 	};
 
 	const updateFood = async (payload: any) => {
@@ -71,7 +70,7 @@
 			toast.error(m.detail_save_failed());
 		}
 		closeForm();
-		await loadFoods();
+		await loadFoods(query);
 	};
 
 	const deleteFood = async (id: string) => {
@@ -82,14 +81,14 @@
 			forceDeleteCount = entryCount;
 			return;
 		}
-		await loadFoods();
+		await loadFoods(query);
 	};
 
 	const confirmForceDelete = async () => {
 		if (!forceDeleteId) return;
 		await apiFetch(`/api/foods/${forceDeleteId}?force=true`, { method: 'DELETE' });
 		forceDeleteId = null;
-		await loadFoods();
+		await loadFoods(query);
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
@@ -107,7 +106,7 @@
 				imageUrl: product.imageUrl
 			})
 		});
-		await loadFoods();
+		await loadFoods(query);
 	};
 
 	const resetFormState = () => {
@@ -206,10 +205,6 @@
 	});
 
 	let debounceTimer: ReturnType<typeof setTimeout>;
-
-	onMount(() => {
-		loadFoods();
-	});
 
 	$effect(() => {
 		const q = query;
