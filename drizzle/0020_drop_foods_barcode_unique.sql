@@ -1,0 +1,1 @@
+ALTER TABLE "foods" DROP CONSTRAINT IF EXISTS "foods_barcode_unique";

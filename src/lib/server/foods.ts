@@ -6,6 +6,12 @@ import type { ZodError } from 'zod';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
+function isDuplicateBarcodeError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	const msg = error.message;
+	return msg.includes('unique constraint') && msg.includes('barcode');
+}
+
 type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
 type Result<T> = SuccessResult<T> | ErrorResult;
@@ -84,6 +90,15 @@ export const createFood = async (
 		}
 		return { success: true, data: created };
 	} catch (error) {
+		if (isDuplicateBarcodeError(error)) {
+			const barcode = result.data.barcode!;
+			const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
+			const name = existing?.name ?? 'unknown';
+			return {
+				success: false,
+				error: new Error(`A food with barcode ${barcode} already exists: "${name}"`)
+			};
+		}
 		return { success: false, error: error as Error };
 	}
 };
