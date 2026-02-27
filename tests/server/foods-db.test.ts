@@ -162,15 +162,15 @@ describe('foods-db', () => {
 
 	describe('deleteFood', () => {
 		test('deletes food', async () => {
-			setResult(undefined);
-			await deleteFood(TEST_USER.id, TEST_FOOD.id);
-			// No assertion needed - just verifies it doesn't throw
+			setResult([{ count: 0 }]);
+			const result = await deleteFood(TEST_USER.id, TEST_FOOD.id);
+			expect(result.blocked).toBe(false);
 		});
 
 		test('does not throw when deleting nonexistent food', async () => {
-			setResult(undefined);
-			await deleteFood(TEST_USER.id, 'nonexistent-id');
-			// No assertion needed
+			setResult([{ count: 0 }]);
+			const result = await deleteFood(TEST_USER.id, 'nonexistent-id');
+			expect(result.blocked).toBe(false);
 		});
 	});
 

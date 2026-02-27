@@ -1,5 +1,5 @@
 {
-  "id": "a8ef2eb8-739f-4019-8d5c-cca1fb64a161",
+  "id": "bc60ccbd-528b-46d4-b9a7-a04874a93c05",
   "prevId": "64737ea6-8b06-4755-99f0-97f7207554bf",
   "version": "7",
   "dialect": "postgresql",
@@ -2013,6 +2013,13 @@
           "primaryKey": true,
           "notNull": true
         },
+        "show_chart_widget": {
+          "name": "show_chart_widget",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "show_favorites_widget": {
           "name": "show_favorites_widget",
           "type": "boolean",
@@ -2029,13 +2036,6 @@
         },
         "show_weight_widget": {
           "name": "show_weight_widget",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "show_meal_breakdown_widget": {
-          "name": "show_meal_breakdown_widget",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

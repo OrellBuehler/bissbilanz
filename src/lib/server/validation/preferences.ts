@@ -13,6 +13,7 @@ export const favoriteMealTimeframeInputSchema = z
 
 export const preferencesUpdateSchema = z
 	.object({
+		showChartWidget: z.boolean().optional(),
 		showFavoritesWidget: z.boolean().optional(),
 		showSupplementsWidget: z.boolean().optional(),
 		showWeightWidget: z.boolean().optional(),

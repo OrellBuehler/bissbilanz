@@ -63,7 +63,7 @@
 		{#each foods as food (food.id)}
 			<button
 				type="button"
-				class="group flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+				class="group flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50"
 				onclick={() => onEdit(food.id)}
 			>
 				<!-- Calorie badge -->
@@ -81,10 +81,10 @@
 
 				<!-- Name, brand, macro bars -->
 				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2">
-						<span class="truncate font-medium">{food.name}</span>
+					<div class="flex min-w-0 items-center gap-2">
+						<span class="min-w-0 flex-1 truncate font-medium">{food.name}</span>
 						{#if food.nutriScore}
-							<NutriScoreBadge score={food.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e'} />
+							<NutriScoreBadge score={food.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e'} compact />
 						{/if}
 					</div>
 					{#if food.brand}
@@ -108,7 +108,7 @@
 								></div>
 							</div>
 							<span class="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-								{food.protein}P {food.carbs}C {food.fat}F
+								{+food.protein.toFixed(1)}P {+food.carbs.toFixed(1)}C {+food.fat.toFixed(1)}F
 							</span>
 						</div>
 					{/if}
@@ -120,12 +120,7 @@
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
-								<Button
-									{...props}
-									variant="ghost"
-									size="icon"
-									class="size-8 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
-								>
+								<Button {...props} variant="ghost" size="icon" class="size-8 shrink-0">
 									<MoreVertical class="size-4" />
 								</Button>
 							{/snippet}

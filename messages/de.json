@@ -2,6 +2,10 @@
 	"app_title": "Bissbilanz",
 	"app_tagline": "Verfolge deine Ernährung mit Leichtigkeit",
 
+	"confirm_delete_title": "Löschen",
+	"confirm_delete_description": "Bist du sicher? Dies kann nicht rückgängig gemacht werden.",
+	"cancel": "Abbrechen",
+
 	"auth_login": "Mit Infomaniak anmelden",
 	"auth_logout": "Abmelden",
 
@@ -42,6 +46,11 @@
 	"add_food_add": "Hinzufügen",
 	"add_food_servings": "Portionen",
 
+	"amount_mode_servings": "Portionen",
+	"amount_mode_unit": "Menge",
+	"amount_preview_equals": "= {amount} {unit}",
+	"amount_preview_kcal": "{kcal} kcal",
+
 	"edit_entry_title": "Eintrag bearbeiten",
 	"edit_entry_servings": "Portionen",
 	"edit_entry_meal": "Mahlzeit",
@@ -60,6 +69,7 @@
 	"foods_kcal": "kcal",
 	"foods_empty": "Noch keine Lebensmittel. Füge dein erstes hinzu!",
 	"foods_no_results": "Keine Lebensmittel gefunden.",
+	"foods_delete_has_entries": "Dieses Lebensmittel wird in <strong>{count} Einträgen</strong> verwendet. Diese auch löschen?",
 
 	"food_form_name": "Name",
 	"food_form_brand": "Marke",
@@ -97,6 +107,7 @@
 	"recipes_new_description": "Neues Rezept mit Zutaten erstellen",
 	"recipes_servings": "({count} Portionen)",
 	"recipes_no_recipes": "Noch keine Rezepte",
+	"recipes_delete_has_entries": "Dieses Rezept wird in <strong>{count} Einträgen</strong> verwendet. Diese auch löschen?",
 
 	"recipe_form_title": "Neues Rezept",
 	"recipe_form_name": "Rezeptname",
@@ -127,7 +138,6 @@
 	"supplements_active": "Aktiv",
 	"supplements_inactive": "Inaktiv",
 	"supplements_save": "Speichern",
-	"supplements_cancel": "Abbrechen",
 	"supplements_delete": "Löschen",
 	"supplements_delete_confirm": "Dieses Supplement löschen? Der Verlauf geht verloren.",
 	"supplements_edit": "Supplement bearbeiten",
@@ -194,8 +204,8 @@
 	"settings_account": "Konto",
 	"settings_dashboard_widgets": "Dashboard-Widgets",
 	"settings_dashboard_sections": "Dashboard-Bereiche",
-	"settings_section_chart": "Kalorien-Diagramm",
-	"settings_section_chart_desc": "Wöchentlicher Kalorientrend (ausgeblendet wenn keine Daten)",
+	"settings_section_chart": "Zielfortschritt",
+	"settings_section_chart_desc": "Makro-Ringe oder Kaloriendiagramm",
 	"settings_section_daylog": "Tagesprotokoll",
 	"settings_section_daylog_desc": "Heutige Lebensmitteleinträge nach Mahlzeit",
 	"settings_section_summary": "Makro-Zusammenfassung",
@@ -224,6 +234,10 @@
 	"barcode_title": "Barcode scannen",
 	"barcode_error": "Fehler",
 	"barcode_starting": "Kamera wird gestartet...",
+	"barcode_camera_denied": "Kamerazugriff wurde verweigert. Bitte erlaube den Kamerazugriff in den Browsereinstellungen.",
+	"barcode_camera_not_found": "Keine Kamera auf diesem Gerät gefunden.",
+	"barcode_camera_overconstrained": "Kamera unterstützt die benötigten Einstellungen nicht. Versuche eine andere Kamera.",
+	"barcode_camera_error": "Kamera konnte nicht geöffnet werden. Bitte versuche es erneut.",
 
 	"calendar_mon": "Mo",
 	"calendar_tue": "Di",
@@ -261,6 +275,8 @@
 	"quality_ingredients": "Zutaten",
 	"quality_enrich": "Anreichern",
 	"quality_enriching": "Anreichern...",
+	"quality_enrich_success": "Lebensmittel mit Open Food Facts Daten angereichert",
+	"quality_enrich_failed": "Anreicherung fehlgeschlagen",
 	"quality_off_loading": "Produkt wird gesucht...",
 	"quality_off_not_found": "Produkt nicht in Open Food Facts gefunden",
 	"quality_off_prefilled": "Vorausgefüllt aus Open Food Facts",
@@ -317,6 +333,7 @@
 	"detail_saving": "Speichern...",
 	"detail_saved": "Änderungen gespeichert",
 	"detail_save_failed": "Speichern fehlgeschlagen",
+	"image_uploaded": "Bild hochgeladen",
 	"image_upload_failed": "Bild-Upload fehlgeschlagen",
 	"detail_ingredients": "Zutaten",
 	"detail_servings": "{count} Portionen",
@@ -362,5 +379,12 @@
 	"insights_no_data": "Keine Daten für diesen Zeitraum",
 	"insights_of_total": "{pct}% des Gesamten",
 	"settings_widget_meal_breakdown": "Mahlzeiten-Aufschlüsselung",
-	"settings_widget_meal_breakdown_desc": "Kalorienverteilung über Mahlzeiten"
+	"settings_widget_meal_breakdown_desc": "Kalorienverteilung über Mahlzeiten",
+
+	"dashboard_goal_progress": "Zielfortschritt",
+	"dashboard_remaining": "{amount} verbleibend",
+	"dashboard_over": "{amount} darüber",
+
+	"delete_related_entries": "Verknüpfte Einträge löschen",
+	"recipes_delete": "Rezept löschen"
 }

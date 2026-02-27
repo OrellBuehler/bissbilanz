@@ -46,10 +46,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
+export const DELETE: RequestHandler = async ({ locals, params, url }) => {
 	try {
 		const userId = requireAuth(locals);
-		await deleteRecipe(userId, params.id);
+		const force = url.searchParams.get('force') === 'true';
+		const result = await deleteRecipe(userId, params.id, force);
+		if (result.blocked) {
+			return json({ error: 'has_entries', entryCount: result.entryCount }, { status: 409 });
+		}
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

@@ -32,6 +32,7 @@ type PreferencesResponse = typeof userPreferences.$inferSelect & {
 };
 
 export const DEFAULT_PREFERENCES = {
+	showChartWidget: true,
 	showFavoritesWidget: true,
 	showSupplementsWidget: true,
 	showWeightWidget: true,
