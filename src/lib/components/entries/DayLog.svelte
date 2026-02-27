@@ -42,8 +42,6 @@
 		servingUnit?: string | null;
 		calories?: number | null;
 	} | null = $state(null);
-	let scannedFood: any = $state(null);
-	let scannedBarcode = $state('');
 
 	let foodsLoaded = false;
 
@@ -111,8 +109,6 @@
 		const res = await fetch(`/api/foods?barcode=${encodeURIComponent(barcode)}`);
 		const data = await res.json();
 		if (data.food) {
-			scannedFood = data.food;
-			scannedBarcode = barcode;
 			addModalOpen = true;
 		} else {
 			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
@@ -159,7 +155,6 @@
 		mealType={activeMeal}
 		onClose={() => {
 			addModalOpen = false;
-			scannedFood = null;
 		}}
 		onSave={addEntry}
 	/>
