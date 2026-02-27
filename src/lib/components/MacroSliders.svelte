@@ -36,14 +36,14 @@
 		return Math.round((pct / 100) * calories / KCAL_PER_GRAM[macro]);
 	}
 
-	let initial = gramsToPct(proteinGoal, carbGoal, fatGoal);
-	let proteinPct = $state(initial.protein);
-	let carbsPct = $state(initial.carbs);
-	let fatPct = $state(100 - initial.protein - initial.carbs);
-
 	function clamp(val: number) {
 		return Math.max(MIN_PCT, Math.min(MAX_PCT, val));
 	}
+
+	let initial = gramsToPct(proteinGoal, carbGoal, fatGoal);
+	let proteinPct = $state(clamp(initial.protein));
+	let carbsPct = $state(clamp(initial.carbs));
+	let fatPct = $state(clamp(100 - clamp(initial.protein) - clamp(initial.carbs)));
 
 	function rebalance(changed: 'protein' | 'carbs' | 'fat', newVal: number) {
 		newVal = clamp(newVal);
@@ -115,7 +115,7 @@
 				max={MAX_PCT}
 				step={1}
 				class={macro.trackColor}
-				onValueChange={(v) => rebalance(macro.key, v[0])}
+				onValueChange={(v: number[]) => rebalance(macro.key, v[0])}
 			/>
 		</div>
 	{/each}
