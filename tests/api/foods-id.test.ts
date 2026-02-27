@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
-import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
+import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
 let mockUpdateResult: any = null;
@@ -23,13 +24,121 @@ mock.module('$lib/server/foods', () => ({
 	toFoodUpdate: () => ({})
 }));
 
-const { DELETE } = await import('../../src/routes/api/foods/[id]/+server');
+const mockValidationError = new ZodError([
+	{
+		code: 'invalid_type',
+		expected: 'number',
+		received: 'string',
+		path: ['calories'],
+		message: 'Expected number, received string'
+	}
+]);
+
+const { GET, PATCH, DELETE } = await import('../../src/routes/api/foods/[id]/+server');
 
 describe('api/foods/[id]', () => {
 	beforeEach(() => {
 		mockGetResult = null;
 		mockUpdateResult = null;
 		mockDeleteResult = { blocked: false };
+	});
+
+	describe('GET /api/foods/[id]', () => {
+		test('returns 401 when not authenticated', async () => {
+			const event = createMockEvent({ user: null, params: { id: TEST_FOOD.id } });
+			const response = await GET(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(401);
+			expect(data.error).toBe('Unauthorized');
+		});
+
+		test('returns 200 with food data', async () => {
+			mockGetResult = TEST_FOOD;
+			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
+			const response = await GET(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.food).toBeDefined();
+			expect(data.food.id).toBe(TEST_FOOD.id);
+			expect(data.food.name).toBe(TEST_FOOD.name);
+			expect(data.food.calories).toBe(TEST_FOOD.calories);
+			expect(data.food.protein).toBe(TEST_FOOD.protein);
+			expect(data.food.carbs).toBe(TEST_FOOD.carbs);
+			expect(data.food.fat).toBe(TEST_FOOD.fat);
+		});
+
+		test('returns 404 for nonexistent food', async () => {
+			mockGetResult = null;
+			const event = createMockEvent({ user: TEST_USER, params: { id: 'nonexistent-id' } });
+			const response = await GET(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toBe('Food not found');
+		});
+	});
+
+	describe('PATCH /api/foods/[id]', () => {
+		test('returns 401 when not authenticated', async () => {
+			const event = createMockEvent({
+				user: null,
+				params: { id: TEST_FOOD.id },
+				body: { name: 'Updated Oats' }
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(401);
+			expect(data.error).toBe('Unauthorized');
+		});
+
+		test('returns 200 with updated food on valid partial update', async () => {
+			const updatedFood = { ...TEST_FOOD, name: 'Updated Oats', calories: 400 };
+			mockUpdateResult = { success: true, data: updatedFood };
+			const event = createMockEvent({
+				user: TEST_USER,
+				params: { id: TEST_FOOD.id },
+				body: { name: 'Updated Oats', calories: 400 }
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.food).toBeDefined();
+			expect(data.food.name).toBe('Updated Oats');
+			expect(data.food.calories).toBe(400);
+		});
+
+		test('returns 400 on validation error', async () => {
+			mockUpdateResult = { success: false, error: mockValidationError };
+			const event = createMockEvent({
+				user: TEST_USER,
+				params: { id: TEST_FOOD.id },
+				body: { calories: 'not-a-number' }
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(400);
+			expect(data.error).toBe('Validation failed');
+			expect(data.details).toBeDefined();
+		});
+
+		test('returns 404 for nonexistent food', async () => {
+			mockUpdateResult = { success: true, data: undefined };
+			const event = createMockEvent({
+				user: TEST_USER,
+				params: { id: 'nonexistent-id' },
+				body: { name: 'Updated' }
+			});
+			const response = await PATCH(event);
+			const data = await response.json();
+
+			expect(response.status).toBe(404);
+			expect(data.error).toBe('Food not found');
+		});
 	});
 
 	describe('DELETE /api/foods/[id]', () => {
