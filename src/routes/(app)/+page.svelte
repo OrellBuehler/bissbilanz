@@ -4,9 +4,10 @@
 	import DailyMacroChart from '$lib/components/charts/DailyMacroChart.svelte';
 	import GoalProgressRings from '$lib/components/charts/GoalProgressRings.svelte';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
+	import DateNavigator from '$lib/components/entries/DateNavigator.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type MacroTotals } from '$lib/utils/nutrition';
-	import { today, yesterday, shiftDate } from '$lib/utils/dates';
+	import { today } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/utils/api';
@@ -16,11 +17,12 @@
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
+	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 	import Target from '@lucide/svelte/icons/target';
 
-	let activeDate = $state(today());
+	let { data } = $props();
+	const activeDate = $derived(data.date);
 
 	let refreshKey = $state(0);
 	type ChecklistItem = {
@@ -49,22 +51,6 @@
 	} | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
-
-	const dateLabel = $derived(
-		activeDate === today()
-			? m.dashboard_today()
-			: activeDate === yesterday()
-				? m.dashboard_yesterday()
-				: activeDate
-	);
-
-	const prevDay = () => {
-		activeDate = shiftDate(activeDate, -1);
-	};
-
-	const nextDay = () => {
-		if (!isToday) activeDate = shiftDate(activeDate, 1);
-	};
 
 	$effect(() => {
 		if (ready) loadSupplements(activeDate);
@@ -154,26 +140,7 @@
 {#if ready}
 	<div class="mx-auto max-w-4xl space-y-6">
 		<div class="flex items-center justify-between gap-2">
-			<div class="flex items-center gap-2">
-				<Button
-					variant="ghost"
-					size="icon"
-					onclick={prevDay}
-					aria-label={m.dashboard_previous_day()}
-				>
-					<ChevronLeft class="h-4 w-4" />
-				</Button>
-				<h2 class="text-2xl font-semibold">{dateLabel}</h2>
-				<Button
-					variant="ghost"
-					size="icon"
-					onclick={nextDay}
-					disabled={isToday}
-					aria-label={m.dashboard_next_day()}
-				>
-					<ChevronRight class="h-4 w-4" />
-				</Button>
-			</div>
+			<DateNavigator date={activeDate} />
 			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
 				<ScanBarcode class="h-4 w-4" />
 				{m.dashboard_scan()}
