@@ -13,19 +13,25 @@ export const yesterday = () => shiftDate(today(), -1);
 export const tomorrow = () => shiftDate(today(), 1);
 
 export const formatDateLabel = (isoDate: string): string => {
-	if (isoDate === today()) return m.dashboard_today();
-	if (isoDate === yesterday()) return m.dashboard_yesterday();
-	if (isoDate === tomorrow()) return m.dashboard_tomorrow();
-	const date = new Date(isoDate + 'T00:00:00Z');
+	const t = today();
+	if (isoDate === t) return m.dashboard_today();
+	if (isoDate === shiftDate(t, -1)) return m.dashboard_yesterday();
+	if (isoDate === shiftDate(t, 1)) return m.dashboard_tomorrow();
+	const [year, month, day] = isoDate.split('-').map(Number);
+	const date = new Date(Date.UTC(year, month - 1, day));
 	return date.toLocaleDateString(undefined, {
 		weekday: 'short',
 		month: 'short',
-		day: 'numeric'
+		day: 'numeric',
+		timeZone: 'UTC'
 	});
 };
 
-export const isValidIsoDate = (s: string): boolean =>
-	/^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime());
+export const isValidIsoDate = (s: string): boolean => {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+	const d = new Date(s + 'T00:00:00Z');
+	return d.toISOString().startsWith(s);
+};
 
 export const getMonthDays = (year: number, month: number) => {
 	const firstDay = new Date(year, month, 1);
