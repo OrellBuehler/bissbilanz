@@ -109,14 +109,22 @@
 		await loadFoods();
 	};
 
+	const resetFormState = () => {
+		showForm = false;
+		editingFood = null;
+		editImageUrl = null;
+		offData = null;
+		offNotFound = false;
+		activeBarcode = '';
+	};
+
 	const openEdit = async (id: string) => {
 		const res = await fetch(`/api/foods/${id}`);
 		if (!res.ok) return;
 		const data = await res.json();
+		resetFormState();
 		editingFood = data.food;
 		editImageUrl = data.food.imageUrl;
-		offData = null;
-		activeBarcode = '';
 		showForm = true;
 	};
 
@@ -159,12 +167,7 @@
 	};
 
 	const closeForm = () => {
-		showForm = false;
-		editingFood = null;
-		editImageUrl = null;
-		offData = null;
-		offNotFound = false;
-		activeBarcode = '';
+		resetFormState();
 	};
 
 	const handleBarcodeScan = (barcode: string) => {
@@ -274,10 +277,7 @@
 	class="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
 	aria-label={m.foods_new()}
 	onclick={() => {
-		editingFood = null;
-		editImageUrl = null;
-		offData = null;
-		activeBarcode = '';
+		resetFormState();
 		showForm = true;
 	}}
 >
