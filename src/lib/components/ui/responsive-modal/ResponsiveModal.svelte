@@ -28,7 +28,7 @@
 
 {#if isDesktop.current}
 	<Dialog.Root bind:open>
-		<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+		<Dialog.Content class="max-h-[85dvh] overflow-y-auto sm:max-w-4xl">
 			<Dialog.Header>
 				<Dialog.Title>{title}</Dialog.Title>
 				{#if description}
@@ -41,7 +41,7 @@
 {:else}
 	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
 		<Drawer.Content
-			class="data-[vaul-drawer-direction=bottom]:max-h-[100vh] {isExpanded ? 'mt-0!' : ''}"
+			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] {isExpanded ? 'mt-0!' : ''}"
 		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
@@ -50,7 +50,7 @@
 				{/if}
 			</Drawer.Header>
 			<div
-				class="min-h-[60vh] px-4 pb-4"
+				class="min-h-[60dvh] px-4 pb-4"
 				class:overflow-y-auto={isExpanded}
 				class:overflow-hidden={!isExpanded}
 			>
