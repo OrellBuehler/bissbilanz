@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import MacroSliders from '$lib/components/MacroSliders.svelte';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch } from '$lib/utils/api';
 	import { round2 } from '$lib/utils/number';
@@ -58,23 +59,19 @@
 {#if loaded}
 	<div class="mx-auto max-w-xl space-y-6">
 		<Card.Root>
-			<Card.Content class="grid gap-4 pt-6">
+			<Card.Content class="grid gap-6 pt-6">
 				<div class="grid gap-2">
 					<Label for="calories">{m.goals_calories()}</Label>
 					<Input id="calories" type="number" bind:value={form.calorieGoal} />
 				</div>
-				<div class="grid gap-2">
-					<Label for="protein">{m.goals_protein()}</Label>
-					<Input id="protein" type="number" bind:value={form.proteinGoal} />
-				</div>
-				<div class="grid gap-2">
-					<Label for="carbs">{m.goals_carbs()}</Label>
-					<Input id="carbs" type="number" bind:value={form.carbGoal} />
-				</div>
-				<div class="grid gap-2">
-					<Label for="fat">{m.goals_fat()}</Label>
-					<Input id="fat" type="number" bind:value={form.fatGoal} />
-				</div>
+
+				<MacroSliders
+					calorieGoal={form.calorieGoal}
+					bind:proteinGoal={form.proteinGoal}
+					bind:carbGoal={form.carbGoal}
+					bind:fatGoal={form.fatGoal}
+				/>
+
 				<div class="grid gap-2">
 					<Label for="fiber">{m.goals_fiber()}</Label>
 					<Input id="fiber" type="number" bind:value={form.fiberGoal} />
