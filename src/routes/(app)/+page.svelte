@@ -14,6 +14,7 @@
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
+	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -208,6 +209,8 @@
 				/>
 			{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
 				<MealBreakdownWidget date={activeDate} />
+			{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
+				<TopFoodsWidget />
 			{:else if sectionKey === 'summary'}
 				<MacroSummaryCard totals={daylogTotals} />
 			{:else if sectionKey === 'daylog'}

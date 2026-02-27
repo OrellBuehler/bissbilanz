@@ -1,6 +1,6 @@
 {
-  "id": "ce9fe613-4b84-4998-bd5b-57cdefee1542",
-  "prevId": "e6b2e701-5ba3-4699-ab46-327324bdda91",
+  "id": "4b1a6104-171b-448d-bd56-903a3bdce070",
+  "prevId": "ce9fe613-4b84-4998-bd5b-57cdefee1542",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2066,6 +2066,13 @@
         },
         "show_weight_widget": {
           "name": "show_weight_widget",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "show_meal_breakdown_widget": {
+          "name": "show_meal_breakdown_widget",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

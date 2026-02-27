@@ -18,6 +18,7 @@ export const preferencesUpdateSchema = z
 		showSupplementsWidget: z.boolean().optional(),
 		showWeightWidget: z.boolean().optional(),
 		showMealBreakdownWidget: z.boolean().optional(),
+		showTopFoodsWidget: z.boolean().optional(),
 		widgetOrder: z
 			.array(
 				z.enum([
@@ -26,6 +27,7 @@ export const preferencesUpdateSchema = z
 					'supplements',
 					'weight',
 					'meal-breakdown',
+					'top-foods',
 					'summary',
 					'daylog'
 				])
