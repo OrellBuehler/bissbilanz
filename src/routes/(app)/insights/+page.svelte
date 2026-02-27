@@ -131,7 +131,7 @@
 
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<Card.Title>{m.insights_meal_distribution()}</Card.Title>
 				<div class="flex gap-1">
 					{#each ['today', '7d', '30d'] as r (r)}
@@ -148,12 +148,14 @@
 		</Card.Header>
 		<Card.Content>
 			{#if mealLoading}
-				<div class="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+				<div
+					class="text-muted-foreground flex h-[250px] items-center justify-center text-sm sm:h-[300px]"
+				>
 					{m.add_food_loading()}
 				</div>
 			{:else if hasData}
 				<div class="flex flex-col gap-6 md:flex-row md:items-start">
-					<div class="h-[300px] w-full md:w-1/2">
+					<div class="h-[250px] w-full sm:h-[300px] md:w-1/2">
 						<ChartContainer {config} class="h-full w-full aspect-auto">
 							<div class="relative h-full w-full">
 								<PieChart
@@ -198,7 +200,38 @@
 					</div>
 
 					<div class="w-full md:w-1/2">
-						<div class="overflow-x-auto">
+						<!-- Mobile: card layout -->
+						<div class="space-y-3 sm:hidden">
+							{#each data.filter((d) => d.calories > 0) as row (row.mealType)}
+								{@const pct =
+									totalCalories > 0 ? Math.round((row.calories / totalCalories) * 100) : 0}
+								<div class="rounded-lg border p-3">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<div
+												class="h-3 w-3 rounded-full"
+												style="background-color: {getMealColor(row.mealType)}"
+											></div>
+											<span class="text-sm font-medium">{row.mealType}</span>
+										</div>
+										<span class="text-muted-foreground text-xs tabular-nums">{pct}%</span>
+									</div>
+									<div class="mt-2 flex items-baseline gap-2">
+										<span class="text-sm font-semibold tabular-nums"
+											>{Math.round(row.calories)} kcal</span
+										>
+									</div>
+									<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
+										<span style="color: #EF4444">{Math.round(row.protein)}g P</span>
+										<span style="color: #F97316">{Math.round(row.carbs)}g C</span>
+										<span style="color: #EAB308">{Math.round(row.fat)}g F</span>
+										<span style="color: #22C55E">{Math.round(row.fiber)}g Fi</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+						<!-- Desktop: table layout -->
+						<div class="hidden sm:block">
 							<table class="w-full text-sm">
 								<thead>
 									<tr class="text-muted-foreground border-b text-left">
@@ -239,7 +272,9 @@
 					</div>
 				</div>
 			{:else}
-				<div class="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+				<div
+					class="text-muted-foreground flex h-[250px] items-center justify-center text-sm sm:h-[300px]"
+				>
 					{m.insights_no_data()}
 				</div>
 			{/if}
@@ -248,7 +283,7 @@
 
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<Card.Title>{m.insights_top_foods()}</Card.Title>
 				<div class="flex gap-1">
 					<Button
@@ -287,26 +322,23 @@
 								{i + 1}
 							</span>
 							<div class="min-w-0 flex-1">
-								<p class="truncate text-sm font-medium">{food.foodName}</p>
-								<div class="mt-0.5 flex flex-wrap gap-2 text-xs">
-									<span class="text-muted-foreground"
-										>{m.insights_times_logged({ count: food.count.toString() })}</span
-									>
-									<span class="text-muted-foreground">-</span>
-									<span class="text-muted-foreground"
-										>{food.calories} kcal {m.insights_per_serving()}</span
-									>
+								<div class="flex items-baseline justify-between gap-2">
+									<p class="truncate text-sm font-medium">{food.foodName}</p>
+									<span class="shrink-0 text-sm font-semibold tabular-nums">
+										{food.calories} kcal
+									</span>
 								</div>
-								<div class="mt-1 flex gap-3 text-xs">
+								<div class="mt-0.5 text-xs text-muted-foreground">
+									{m.insights_times_logged({ count: food.count.toString() })} &middot; {food.calories}
+									kcal {m.insights_per_serving()}
+								</div>
+								<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
 									<span style="color: #EF4444">{food.protein}g P</span>
 									<span style="color: #F97316">{food.carbs}g C</span>
 									<span style="color: #EAB308">{food.fat}g F</span>
 									<span style="color: #22C55E">{food.fiber}g Fi</span>
 								</div>
 							</div>
-							<span class="shrink-0 text-right text-sm font-semibold tabular-nums">
-								{food.calories} kcal
-							</span>
 						</div>
 					{/each}
 				</div>
