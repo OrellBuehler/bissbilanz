@@ -24,6 +24,8 @@
 	"dashboard_previous_day": "Previous day",
 	"dashboard_next_day": "Next day",
 	"dashboard_yesterday": "Yesterday",
+	"dashboard_tomorrow": "Tomorrow",
+	"dashboard_go_to_today": "Today",
 
 	"meal_breakfast": "Breakfast",
 	"meal_lunch": "Lunch",
