@@ -41,6 +41,7 @@
 	};
 
 	let endDate = $state(today());
+	// svelte-ignore state_referenced_locally
 	let startDate = $state(shiftDate(endDate, -27));
 	let muscleRatio = $state(DEFAULT_MUSCLE_RATIO * 100);
 

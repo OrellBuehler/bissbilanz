@@ -21,6 +21,7 @@
 	];
 
 	const ranges = $derived(customRanges ?? defaultRanges);
+	// svelte-ignore state_referenced_locally
 	let activeRange = $state(initialRange ?? ranges[0]?.key ?? '7d');
 
 	let customStart = $state('');

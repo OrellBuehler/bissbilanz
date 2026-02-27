@@ -41,13 +41,21 @@
 		onCancel: () => void;
 	} = $props();
 
+	// svelte-ignore state_referenced_locally
 	let name = $state(supplement?.name ?? '');
+	// svelte-ignore state_referenced_locally
 	let dosage = $state(supplement?.dosage ? round2(supplement.dosage) : 0);
+	// svelte-ignore state_referenced_locally
 	let dosageUnit = $state(supplement?.dosageUnit ?? 'mg');
+	// svelte-ignore state_referenced_locally
 	let scheduleType: ScheduleType = $state((supplement?.scheduleType as ScheduleType) ?? 'daily');
+	// svelte-ignore state_referenced_locally
 	let scheduleDays = $state<number[]>(supplement?.scheduleDays ?? []);
+	// svelte-ignore state_referenced_locally
 	let scheduleStartDate = $state(supplement?.scheduleStartDate ?? today());
+	// svelte-ignore state_referenced_locally
 	let timeOfDay = $state<string | null>(supplement?.timeOfDay ?? null);
+	// svelte-ignore state_referenced_locally
 	let ingredients = $state<IngredientInput[]>(
 		supplement?.ingredients?.map((i) => ({
 			name: i.name,

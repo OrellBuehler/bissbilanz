@@ -37,8 +37,11 @@
 
 	let { recipe, onSave, imageUrl, onImageUpload }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	let name = $state(recipe.name);
+	// svelte-ignore state_referenced_locally
 	let totalServings = $state(round2(recipe.totalServings));
+	// svelte-ignore state_referenced_locally
 	let isFavorite = $state(recipe.isFavorite);
 	let saving = $state(false);
 

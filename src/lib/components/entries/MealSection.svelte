@@ -79,7 +79,7 @@
 						calories: entry.calories
 					})}
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
-					<li
+					<div
 						role="button"
 						tabindex="0"
 						class="{dashboardStyle
@@ -111,7 +111,7 @@
 						<span class="shrink-0 text-muted-foreground"
 							>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
 						>
-					</li>
+					</div>
 				</SwipeableEntry>
 			{:else}
 				<li
