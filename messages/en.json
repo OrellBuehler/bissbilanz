@@ -239,6 +239,9 @@
 	"barcode_camera_overconstrained": "Camera does not support the required settings. Try a different camera.",
 	"barcode_camera_error": "Could not access the camera. Please try again.",
 
+	"calendar_on_target": "On target",
+	"calendar_off_target": "Off target",
+	"calendar_logged": "Logged",
 	"calendar_mon": "Mon",
 	"calendar_tue": "Tue",
 	"calendar_wed": "Wed",

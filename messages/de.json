@@ -239,6 +239,9 @@
 	"barcode_camera_overconstrained": "Kamera unterstützt die benötigten Einstellungen nicht. Versuche eine andere Kamera.",
 	"barcode_camera_error": "Kamera konnte nicht geöffnet werden. Bitte versuche es erneut.",
 
+	"calendar_on_target": "Im Ziel",
+	"calendar_off_target": "Abweichend",
+	"calendar_logged": "Erfasst",
 	"calendar_mon": "Mo",
 	"calendar_tue": "Di",
 	"calendar_wed": "Mi",
