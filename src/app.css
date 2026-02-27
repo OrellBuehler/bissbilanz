@@ -129,6 +129,20 @@
 			user-select: text;
 		}
 	}
+	@media (display-mode: standalone) {
+		html {
+			overscroll-behavior: none;
+		}
+		* {
+			-webkit-tap-highlight-color: transparent;
+		}
+		body {
+			padding-top: env(safe-area-inset-top);
+			padding-right: env(safe-area-inset-right);
+			padding-bottom: env(safe-area-inset-bottom);
+			padding-left: env(safe-area-inset-left);
+		}
+	}
 }
 
 /* Toast color variants */
@@ -162,4 +176,30 @@
 	--normal-bg: oklch(0.25 0.06 25) !important;
 	--normal-border: oklch(0.35 0.1 25) !important;
 	--normal-text: oklch(0.85 0.1 25) !important;
+}
+
+/* View transition animations */
+::view-transition-old(root) {
+	animation: vt-fade-out 150ms ease-out;
+}
+::view-transition-new(root) {
+	animation: vt-fade-in 150ms ease-in;
+}
+
+@keyframes vt-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes vt-fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
+	}
 }

@@ -7,9 +7,14 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
+	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import * as Sentry from '@sentry/sveltekit';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Food = {
@@ -27,6 +32,9 @@
 		imageUrl: string | null;
 		barcode: string | null;
 		nutriScore: string | null;
+		novaGroup: number | null;
+		additives: string[] | null;
+		ingredientsText: string | null;
 	};
 
 	const VALID_GRADES = ['a', 'b', 'c', 'd', 'e'] as const;
@@ -39,6 +47,8 @@
 	let food: Food | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
+	let uploading = $state(false);
+	let enriching = $state(false);
 
 	// Editable fields
 	let name = $state('');
@@ -52,6 +62,9 @@
 	let isFavorite = $state(false);
 	let imageUrl: string | null = $state(null);
 	let nutriScore = $state<Grade | null>(null);
+	let novaGroup = $state<1 | 2 | 3 | 4 | null>(null);
+	let additives = $state<string[] | null>(null);
+	let ingredientsText = $state<string | null>(null);
 
 	const PALETTE = [
 		{ bg: 'bg-rose-200', text: 'text-rose-700' },
@@ -83,15 +96,18 @@
 			if (food) {
 				name = food.name;
 				brand = food.brand ?? '';
-				servingSize = food.servingSize;
-				calories = food.calories;
-				protein = food.protein;
-				carbs = food.carbs;
-				fat = food.fat;
-				fiber = food.fiber;
+				servingSize = round2(food.servingSize);
+				calories = round2(food.calories);
+				protein = round2(food.protein);
+				carbs = round2(food.carbs);
+				fat = round2(food.fat);
+				fiber = round2(food.fiber);
 				isFavorite = food.isFavorite;
 				imageUrl = food.imageUrl;
 				nutriScore = toGrade(food.nutriScore);
+				novaGroup = food.novaGroup as 1 | 2 | 3 | 4 | null;
+				additives = food.additives;
+				ingredientsText = food.ingredientsText;
 			}
 		} catch {
 			goto('/foods');
@@ -103,8 +119,9 @@
 	const handleImageUpload = async (e: Event) => {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
-		if (!file || !food) return;
+		if (!file || !food || uploading) return;
 
+		uploading = true;
 		const formData = new FormData();
 		formData.append('image', file);
 
@@ -113,7 +130,18 @@
 				method: 'POST',
 				body: formData
 			});
-			if (!uploadRes.ok) return;
+			if (!uploadRes.ok) {
+				const body = await uploadRes.text().catch(() => '');
+				Sentry.logger.error('Image upload failed', {
+					status: uploadRes.status,
+					body: body.slice(0, 500),
+					fileSize: file.size,
+					fileType: file.type,
+					context: 'food-detail'
+				});
+				toast.error(m.image_upload_failed());
+				return;
+			}
 			const { imageUrl: newUrl } = await uploadRes.json();
 			imageUrl = newUrl;
 
@@ -122,8 +150,12 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ imageUrl: newUrl })
 			});
-		} catch {
-			// silently ignore
+			toast.success(m.image_uploaded());
+		} catch (err) {
+			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
+			toast.error(m.image_upload_failed());
+		} finally {
+			uploading = false;
 		}
 	};
 
@@ -170,6 +202,40 @@
 		}
 	};
 
+	const enrichFood = async () => {
+		if (!food?.barcode) return;
+		enriching = true;
+		try {
+			const res = await fetch(`/api/openfoodfacts/${food.barcode}`);
+			if (!res.ok) {
+				toast.error(m.quality_enrich_failed());
+				return;
+			}
+			const { product } = await res.json();
+			const patchRes = await apiFetch(`/api/foods/${food.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					nutriScore: product.nutriScore,
+					novaGroup: product.novaGroup,
+					additives: product.additives,
+					ingredientsText: product.ingredientsText,
+					imageUrl: product.imageUrl
+				})
+			});
+			if (!patchRes.ok) {
+				toast.error(m.quality_enrich_failed());
+				return;
+			}
+			await loadFood();
+			toast.success(m.quality_enrich_success());
+		} catch {
+			toast.error(m.quality_enrich_failed());
+		} finally {
+			enriching = false;
+		}
+	};
+
 	onMount(() => {
 		loadFood();
 	});
@@ -181,18 +247,38 @@
 			<ArrowLeft class="size-4 sm:mr-1" />
 			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
+		{#if food?.barcode}
+			<Button
+				variant="outline"
+				size="sm"
+				class="ml-auto"
+				onclick={enrichFood}
+				disabled={enriching}
+				aria-label={m.quality_enrich()}
+			>
+				<Sparkles class="size-4 sm:mr-1" />
+				<span class="hidden sm:inline"
+					>{enriching ? m.quality_enriching() : m.quality_enrich()}</span
+				>
+			</Button>
+		{/if}
 	</div>
 
 	{#if loading}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if food}
 		<!-- Image section -->
-		<div class="aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
+		<div class="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
 			{#if imageUrl}
 				<img src={imageUrl} alt={name} class="h-full w-full object-cover" />
 			{:else}
 				<div class="flex h-full w-full items-center justify-center {placeholderColor.bg}">
 					<span class="text-6xl font-bold {placeholderColor.text}">{initial}</span>
+				</div>
+			{/if}
+			{#if uploading}
+				<div class="absolute inset-0 flex items-center justify-center bg-background/60">
+					<Spinner class="size-8" />
 				</div>
 			{/if}
 		</div>
@@ -202,8 +288,9 @@
 				id="image-upload"
 				type="file"
 				accept="image/*"
+				disabled={uploading}
 				onchange={handleImageUpload}
-				class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+				class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
 			/>
 		</div>
 
@@ -212,6 +299,8 @@
 			<Switch checked={isFavorite} onCheckedChange={toggleFavorite} />
 			<Label>{m.mark_as_favorite()}</Label>
 		</div>
+
+		<FoodQualityPanel {novaGroup} {additives} {ingredientsText} />
 
 		<!-- Editable fields -->
 		<div class="grid gap-4">
@@ -255,7 +344,7 @@
 			</div>
 		</div>
 
-		<Button class="w-full sm:w-auto" onclick={saveChanges} disabled={saving}>
+		<Button class="w-full sm:w-auto" onclick={saveChanges} disabled={saving || uploading}>
 			{saving ? m.detail_saving() : m.save_changes()}
 		</Button>
 	{/if}

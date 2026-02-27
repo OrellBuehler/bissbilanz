@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { beforeNavigate } from '$app/navigation';
 	import { getNavItems } from '$lib/config/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
@@ -15,6 +16,12 @@
 	const navItems = getNavItems();
 	const sidebar = useSidebar();
 
+	beforeNavigate(() => {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	});
+
 	function isActive(href: string, pathname: string): boolean {
 		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
@@ -22,7 +29,7 @@
 
 	function menuButtonClass(item: NavItem, pathname: string): string {
 		const base =
-			'h-12 rounded-xl px-3 text-base transition-colors md:h-8 md:rounded-md md:px-2 md:text-sm data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent';
+			'h-12 rounded-xl px-3 text-base transition-colors md:h-9 md:rounded-lg md:px-2 md:text-sm data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground hover:bg-sidebar-accent';
 		return isActive(item.href, pathname) ? `${base} ${item.activeRing}` : base;
 	}
 
@@ -97,7 +104,7 @@
 	<Sidebar.Content class="gap-3 px-1 pb-1 md:gap-2 md:px-0 md:pb-0">
 		<Sidebar.Group class="p-0 md:p-2">
 			<Sidebar.GroupContent>
-				<Sidebar.Menu class="gap-1.5 md:gap-1">
+				<Sidebar.Menu class="gap-1.5 md:gap-1.5">
 					{#each navItems as item (item.href)}
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton

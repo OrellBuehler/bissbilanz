@@ -73,7 +73,7 @@
 
 **Feature-Specific:**
 
-- html5-qrcode 2.3.8 - Barcode scanning (lazy-loaded in components)
+- @zxing/browser + @zxing/library - Barcode scanning (pure TypeScript ZXing port)
 
 ## Testing
 

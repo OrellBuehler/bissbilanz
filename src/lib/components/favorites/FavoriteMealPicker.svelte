@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -14,7 +14,7 @@
 		onClose: () => void;
 	};
 
-	let { open, itemName, mealOptions, onConfirm, onClose }: Props = $props();
+	let { open = $bindable(), itemName, mealOptions, onConfirm, onClose }: Props = $props();
 
 	let selectedMeal = $state('');
 
@@ -24,44 +24,39 @@
 		}
 	});
 
+	let wasOpen = $state(false);
+	$effect(() => {
+		if (wasOpen && !open) {
+			onClose();
+			selectedMeal = '';
+		}
+		wasOpen = open;
+	});
+
 	const handleConfirm = () => {
 		if (!selectedMeal) return;
 		onConfirm(selectedMeal);
 	};
-
-	const handleOpenChange = (value: boolean) => {
-		if (!value) {
-			onClose();
-			selectedMeal = '';
-		}
-	};
 </script>
 
-<Dialog.Root {open} onOpenChange={handleOpenChange}>
-	<Dialog.Content class="sm:max-w-[360px]">
-		<Dialog.Header>
-			<Dialog.Title>{itemName}</Dialog.Title>
-		</Dialog.Header>
-		<div class="grid gap-4 py-4">
-			<div class="grid gap-2">
-				<Label>{m.edit_entry_meal()}</Label>
-				<Select.Root type="single" bind:value={selectedMeal}>
-					<Select.Trigger>
-						{selectedMeal || m.edit_entry_select_meal()}
-					</Select.Trigger>
-					<Select.Content>
-						{#each mealOptions as meal}
-							<Select.Item value={meal}>{meal}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
+<ResponsiveModal bind:open title={itemName}>
+	<div class="grid gap-4">
+		<div class="grid gap-2">
+			<Label>{m.edit_entry_meal()}</Label>
+			<Select.Root type="single" bind:value={selectedMeal}>
+				<Select.Trigger>
+					{selectedMeal || m.edit_entry_select_meal()}
+				</Select.Trigger>
+				<Select.Content>
+					{#each mealOptions as meal}
+						<Select.Item value={meal}>{meal}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
-		<Dialog.Footer>
-			<Button onclick={handleConfirm} disabled={!selectedMeal}>
-				<Check class="size-4" />
-				{m.favorites_log()}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		<Button onclick={handleConfirm} disabled={!selectedMeal}>
+			<Check class="size-4" />
+			{m.favorites_log()}
+		</Button>
+	</div>
+</ResponsiveModal>

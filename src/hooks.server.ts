@@ -1,10 +1,21 @@
-import { redirect } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
+import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { getSessionWithUser } from '$lib/server/session';
 import { securityHeaders } from '$lib/server/security';
+import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations } from '$lib/server/db';
+import { env } from '$env/dynamic/public';
+
+if (env.PUBLIC_SENTRY_DSN) {
+	Sentry.init({
+		dsn: env.PUBLIC_SENTRY_DSN,
+		tracesSampleRate: 1.0,
+		enableLogs: true
+	});
+}
 
 // Run migrations on server startup
 export async function init() {
@@ -109,6 +120,23 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
+	// Rate limit authenticated API write requests
+	if (event.locals.user && pathname.startsWith('/api/')) {
+		const method = event.request.method;
+		const userId = event.locals.user.id;
+		try {
+			if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+				if (pathname.startsWith('/api/images/upload')) {
+					rateLimitUpload(userId);
+				} else {
+					rateLimitApi(userId);
+				}
+			}
+		} catch {
+			return json({ error: 'Rate limit exceeded' }, { status: 429 });
+		}
+	}
+
 	const response = await resolve(event);
 
 	// Add CORS headers to MCP-related responses
@@ -130,4 +158,6 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(paraglideHandle, sessionHandle);
+export const handle = sequence(Sentry.sentryHandle(), paraglideHandle, sessionHandle);
+
+export const handleError = Sentry.handleErrorWithSentry();

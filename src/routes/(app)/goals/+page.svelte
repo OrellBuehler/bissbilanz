@@ -6,6 +6,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch } from '$lib/utils/api';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	let form = $state({
@@ -23,11 +24,11 @@
 		if (res.ok) {
 			const data = await res.json();
 			if (data.goals) {
-				form.calorieGoal = data.goals.calorieGoal ?? 2000;
-				form.proteinGoal = data.goals.proteinGoal ?? 150;
-				form.carbGoal = data.goals.carbGoal ?? 220;
-				form.fatGoal = data.goals.fatGoal ?? 60;
-				form.fiberGoal = data.goals.fiberGoal ?? 30;
+				form.calorieGoal = round2(data.goals.calorieGoal ?? 2000);
+				form.proteinGoal = round2(data.goals.proteinGoal ?? 150);
+				form.carbGoal = round2(data.goals.carbGoal ?? 220);
+				form.fatGoal = round2(data.goals.fatGoal ?? 60);
+				form.fiberGoal = round2(data.goals.fiberGoal ?? 30);
 			}
 		}
 		loaded = true;

@@ -224,7 +224,7 @@
 </div>
 
 <ServingsPicker
-	open={pickerOpen}
+	bind:open={pickerOpen}
 	itemName={pickerItem?.name ?? ''}
 	onConfirm={handlePickerConfirm}
 	onClose={() => {
@@ -235,7 +235,7 @@
 />
 
 <FavoriteMealPicker
-	open={mealPickerOpen}
+	bind:open={mealPickerOpen}
 	itemName={pendingLog?.item.name ?? ''}
 	{mealOptions}
 	onConfirm={handleMealConfirm}

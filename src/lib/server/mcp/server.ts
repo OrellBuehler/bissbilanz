@@ -24,6 +24,7 @@ import {
 	handleCopyEntries,
 	handleFindFoodByBarcode
 } from './handlers';
+import { today } from '$lib/utils/dates';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
@@ -125,17 +126,17 @@ export function createMcpServer(userId: string): McpServer {
 		'log_food',
 		{
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId or recipeId.",
+				"Log a food entry to the user's daily diary. Specify either a foodId or recipeId. If no date is provided, the entry is logged for today.",
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z.string().describe('Meal type (e.g., "breakfast", "lunch", "dinner", "snack")'),
+				mealType: z.string().describe('Meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
 			}
 		},
-		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? undefined }))
+		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
 	);
 
 	server.registerTool(
@@ -181,7 +182,10 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to update'),
 				servings: z.number().optional().describe('New number of servings'),
-				mealType: z.string().optional().describe('New meal type'),
+				mealType: z
+					.string()
+					.optional()
+					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				notes: z.string().optional().describe('New notes')
 			}
 		},

@@ -8,6 +8,14 @@ function cleanupStale() {
 	}
 }
 
+export const rateLimitApi = (userId: string, max = 120, windowMs = 60_000) => {
+	rateLimit(`api:${userId}`, max, windowMs);
+};
+
+export const rateLimitUpload = (userId: string, max = 30, windowMs = 60_000) => {
+	rateLimit(`upload:${userId}`, max, windowMs);
+};
+
 export const rateLimit = (key: string, max: number, windowMs: number) => {
 	// Periodic cleanup every 100 calls
 	if (++callsSinceCleanup >= 100) {

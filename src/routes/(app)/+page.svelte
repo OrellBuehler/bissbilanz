@@ -38,7 +38,13 @@
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
-	let userGoals: { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number; fiberGoal: number } | null = $state(null);
+	let userGoals: {
+		calorieGoal: number;
+		proteinGoal: number;
+		carbGoal: number;
+		fatGoal: number;
+		fiberGoal: number;
+	} | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
 
@@ -58,6 +64,10 @@
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
 	};
 
+	$effect(() => {
+		if (ready) loadSupplements(activeDate);
+	});
+
 	const loadLatestWeight = async () => {
 		try {
 			const res = await fetch('/api/weight/latest');
@@ -70,9 +80,9 @@
 		}
 	};
 
-	const loadSupplements = async () => {
+	const loadSupplements = async (date: string = activeDate) => {
 		try {
-			const res = await fetch('/api/supplements/today');
+			const res = await fetch(`/api/supplements/${date}/checklist`);
 			if (res.ok) {
 				supplementChecklist = (await res.json()).checklist;
 			}
@@ -86,13 +96,12 @@
 			await apiFetch(`/api/supplements/${supplementId}/log`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: '{}'
+				body: JSON.stringify({ date: activeDate })
 			});
 		} else {
-			const currentDate = today();
-			await apiFetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
+			await apiFetch(`/api/supplements/${supplementId}/log/${activeDate}`, { method: 'DELETE' });
 		}
-		await loadSupplements();
+		await loadSupplements(activeDate);
 	};
 
 	const loadGoals = async () => {
@@ -123,7 +132,6 @@
 		}
 		ready = true;
 
-		loadSupplements();
 		loadLatestWeight();
 		loadGoals();
 	};
@@ -133,7 +141,7 @@
 
 		const onSynced = () => {
 			refreshKey++;
-			loadSupplements();
+			loadSupplements(activeDate);
 			loadLatestWeight();
 		};
 		window.addEventListener('queue-synced', onSynced);
@@ -171,7 +179,7 @@
 		</div>
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
-			{#if sectionKey === 'chart'}
+			{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
 				{#if userGoals}
 					<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
 						<GoalProgressRings totals={daylogTotals} goals={userGoals} />
@@ -190,7 +198,7 @@
 					favoriteMealAssignmentMode={userPrefs?.favoriteMealAssignmentMode ?? 'time_based'}
 					favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
 				/>
-			{:else if sectionKey === 'supplements' && isToday && userPrefs?.showSupplementsWidget}
+			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
 				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 			{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
 				<WeightWidget

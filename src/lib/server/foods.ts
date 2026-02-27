@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, desc, eq, ilike } from 'drizzle-orm';
+import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
@@ -9,6 +9,8 @@ type FoodCreateInput = typeof foodCreateSchema._output;
 type SuccessResult<T> = { success: true; data: T };
 type ErrorResult = { success: false; error: ZodError | Error };
 type Result<T> = SuccessResult<T> | ErrorResult;
+
+export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
 
 export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
 	userId,
@@ -116,9 +118,32 @@ export const updateFood = async (
 	}
 };
 
-export const deleteFood = async (userId: string, id: string) => {
+export const deleteFood = async (
+	userId: string,
+	id: string,
+	force = false
+): Promise<DeleteResult> => {
 	const db = getDB();
-	await db.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
+	const entries = await db
+		.select({ count: count() })
+		.from(foodEntries)
+		.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
+	const entryCount = entries[0].count;
+
+	if (entryCount > 0 && !force) {
+		return { blocked: true, entryCount };
+	}
+
+	await db.transaction(async (tx) => {
+		if (entryCount > 0) {
+			await tx
+				.delete(foodEntries)
+				.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
+		}
+		await tx.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
+	});
+
+	return { blocked: false };
 };
 
 export const findFoodByBarcode = async (userId: string, barcode: string) => {

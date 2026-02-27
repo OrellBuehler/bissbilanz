@@ -1,6 +1,9 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
+	import { startCamera, stopCamera, mapCameraError } from '$lib/utils/camera';
+	import { createBarcodeScanner } from '$lib/utils/barcode-detect';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -10,44 +13,69 @@
 
 	let { onScan, onError }: Props = $props();
 
-	let scanner: any = null;
+	let videoEl: HTMLVideoElement | undefined = $state();
+	let stream: MediaStream | null = $state(null);
+	let scanner: { stop: () => void } | null = null;
 	let scannerReady = $state(false);
 	let error = $state('');
 
 	onMount(async () => {
-		if (!browser) return;
+		if (!browser || !videoEl) return;
 
 		try {
-			const { Html5Qrcode } = await import('html5-qrcode');
-			scanner = new Html5Qrcode('barcode-reader');
+			stream = await startCamera(videoEl);
+		} catch (err) {
+			const kind = mapCameraError(err);
+			Sentry.captureException(err, {
+				tags: { feature: 'barcode', stage: 'camera' },
+				extra: { errorKind: kind }
+			});
+			const messages: Record<string, () => string> = {
+				permission_denied: m.barcode_camera_denied,
+				not_found: m.barcode_camera_not_found,
+				overconstrained: m.barcode_camera_overconstrained
+			};
+			error = (messages[kind] ?? m.barcode_camera_error)();
+			onError?.(error);
+			return;
+		}
 
-			await scanner.start(
-				{ facingMode: 'environment' },
-				{ fps: 10, qrbox: { width: 250, height: 100 } },
-				(decodedText: string) => {
-					onScan(decodedText);
-				},
-				() => {}
-			);
+		try {
+			scanner = await createBarcodeScanner(videoEl, onScan);
 			scannerReady = true;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Camera access denied';
+			Sentry.captureException(err, {
+				tags: { feature: 'barcode', stage: 'detector-init' }
+			});
+			error = m.barcode_camera_error();
 			onError?.(error);
 		}
 	});
 
 	onDestroy(() => {
-		if (scanner && scannerReady) {
-			scanner.stop().catch(() => {});
-		}
+		scanner?.stop();
+		stopCamera(stream);
 	});
 </script>
 
 <div class="space-y-4">
-	{#if error}
-		<p class="text-red-500">{error}</p>
-	{/if}
-	<div id="barcode-reader" class="mx-auto w-full max-w-md"></div>
+	<div class="relative mx-auto w-full max-w-md overflow-hidden rounded-lg">
+		<video
+			bind:this={videoEl}
+			class="w-full"
+			muted
+			playsinline
+			autoplay
+			aria-label="Camera viewfinder for barcode scanning"
+		></video>
+		{#if scannerReady}
+			<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+				<div
+					class="border-primary h-24 w-64 rounded-lg border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+				></div>
+			</div>
+		{/if}
+	</div>
 	{#if !scannerReady && !error}
 		<p class="text-center text-neutral-500">{m.barcode_starting()}</p>
 	{/if}

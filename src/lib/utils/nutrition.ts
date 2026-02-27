@@ -41,9 +41,6 @@ export const scaleTotals = (t: MacroTotals, factor: number): MacroTotals => ({
 export const calculateEntryTotals = (food: MacroTotals, servings: number): MacroTotals =>
 	scaleTotals(food, servings);
 
-export const calculateDailyTotals = (entries: MacroTotals[]): MacroTotals =>
-	entries.reduce(addTotals, emptyTotals());
-
 type NutritionEntry = {
 	calories: number | null;
 	protein: number | null;

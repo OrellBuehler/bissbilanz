@@ -99,6 +99,34 @@
       "when": 1771797876145,
       "tag": "0013_rare_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1771974382020,
+      "tag": "0014_cloudy_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1772064000000,
+      "tag": "0015_normalize_meal_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1772144371342,
+      "tag": "0016_good_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1772145498934,
+      "tag": "0017_thin_mongu",
+      "breakpoints": true
     }
   ]
 }

@@ -242,35 +242,48 @@ describe('recipes-db', () => {
 
 	describe('deleteRecipe', () => {
 		test('deletes recipe successfully', async () => {
-			setResult([]);
+			setResult([{ count: 0 }]);
 
-			await deleteRecipe(TEST_USER.id, TEST_RECIPE.id);
-			// No error means success (void function)
-			expect(true).toBe(true);
+			const result = await deleteRecipe(TEST_USER.id, TEST_RECIPE.id);
+			expect(result.blocked).toBe(false);
 		});
 
 		test('deletes recipe and cascades to ingredients', async () => {
-			setResult([]);
+			setResult([{ count: 0 }]);
 
-			// Should delete recipe and cascade to ingredients via foreign key
-			await deleteRecipe(TEST_USER.id, TEST_RECIPE.id);
-			expect(true).toBe(true);
+			const result = await deleteRecipe(TEST_USER.id, TEST_RECIPE.id);
+			expect(result.blocked).toBe(false);
 		});
 
 		test('does not throw when recipe not found', async () => {
-			setResult([]);
+			setResult([{ count: 0 }]);
 
-			// Drizzle delete doesn't throw if nothing is deleted
-			await deleteRecipe(TEST_USER.id, 'non-existent-id');
-			expect(true).toBe(true);
+			const result = await deleteRecipe(TEST_USER.id, 'non-existent-id');
+			expect(result.blocked).toBe(false);
 		});
 
 		test('does not delete recipe belonging to different user', async () => {
-			setResult([]);
+			setResult([{ count: 0 }]);
 
-			// Where clause prevents deletion when userId doesn't match
-			await deleteRecipe('different-user-id', TEST_RECIPE.id);
-			expect(true).toBe(true);
+			const result = await deleteRecipe('different-user-id', TEST_RECIPE.id);
+			expect(result.blocked).toBe(false);
+		});
+
+		test('returns blocked when entries exist and force is false', async () => {
+			setResult([{ count: 3 }]);
+
+			const result = await deleteRecipe(TEST_USER.id, TEST_RECIPE.id);
+			expect(result.blocked).toBe(true);
+			if (result.blocked) {
+				expect(result.entryCount).toBe(3);
+			}
+		});
+
+		test('deletes when entries exist and force is true', async () => {
+			setResult([{ count: 3 }]);
+
+			const result = await deleteRecipe(TEST_USER.id, TEST_RECIPE.id, true);
+			expect(result.blocked).toBe(false);
 		});
 	});
 });
