@@ -7,6 +7,8 @@ import {
 	roundTotals,
 	type MacroTotals
 } from '$lib/utils/nutrition';
+import { getDB, foodEntries } from '$lib/server/db';
+import { eq, sql } from 'drizzle-orm';
 
 export type CalendarDay = { calories: number; hasEntries: boolean };
 export type CalendarStats = { days: Record<string, CalendarDay> };
@@ -126,6 +128,54 @@ export const getDailyBreakdown = async (
 	return result;
 };
 
+export const getStreaks = async (userId: string) => {
+	const db = getDB();
+	const rows = await db
+		.selectDistinct({ date: foodEntries.date })
+		.from(foodEntries)
+		.where(eq(foodEntries.userId, userId))
+		.orderBy(sql`${foodEntries.date} desc`);
+
+	if (rows.length === 0) {
+		return { currentStreak: 0, longestStreak: 0 };
+	}
+
+	const dates = rows.map((r) => r.date);
+
+	const todayStr = formatDate(new Date());
+	const yesterdayStr = getDaysAgo(1);
+
+	let currentStreak = 0;
+	if (dates[0] === todayStr || dates[0] === yesterdayStr) {
+		let expected = dates[0] === todayStr ? todayStr : yesterdayStr;
+		for (const d of dates) {
+			if (d === expected) {
+				currentStreak++;
+				const prev = new Date(expected + 'T00:00:00Z');
+				prev.setUTCDate(prev.getUTCDate() - 1);
+				expected = prev.toISOString().split('T')[0];
+			} else if (d < expected) {
+				break;
+			}
+		}
+	}
+
+	let longestStreak = 1;
+	let run = 1;
+	for (let i = 1; i < dates.length; i++) {
+		const prev = new Date(dates[i - 1] + 'T00:00:00Z');
+		prev.setUTCDate(prev.getUTCDate() - 1);
+		if (dates[i] === prev.toISOString().split('T')[0]) {
+			run++;
+			if (run > longestStreak) longestStreak = run;
+		} else {
+			run = 1;
+		}
+	}
+
+	return { currentStreak, longestStreak };
+};
+
 export const getTopFoods = async (
 	userId: string,
 	days: number,
@@ -187,5 +237,5 @@ export const getTopFoods = async (
 				fat: g.totalMacros.fat / g.count,
 				fiber: g.totalMacros.fiber / g.count
 			})
-		}));
+		}))
 };
