@@ -13,6 +13,7 @@
 ### Task 1: Create Nutrient Catalog
 
 **Files:**
+
 - Create: `src/lib/nutrients.ts`
 
 **Step 1: Create the nutrient catalog file**
@@ -42,59 +43,406 @@ export const NUTRIENT_CATEGORIES: { key: NutrientCategory; i18nKey: string }[] =
 
 export const NUTRIENTS: NutrientDef[] = [
 	// Fat Breakdown
-	{ key: 'saturatedFat', dbColumn: 'saturated_fat', unit: 'g', category: 'fat_breakdown', offKey: 'saturated-fat_100g', i18nKey: 'nutrient_saturated_fat' },
-	{ key: 'monounsaturatedFat', dbColumn: 'monounsaturated_fat', unit: 'g', category: 'fat_breakdown', offKey: 'monounsaturated-fat_100g', i18nKey: 'nutrient_monounsaturated_fat' },
-	{ key: 'polyunsaturatedFat', dbColumn: 'polyunsaturated_fat', unit: 'g', category: 'fat_breakdown', offKey: 'polyunsaturated-fat_100g', i18nKey: 'nutrient_polyunsaturated_fat' },
-	{ key: 'transFat', dbColumn: 'trans_fat', unit: 'g', category: 'fat_breakdown', offKey: 'trans-fat_100g', i18nKey: 'nutrient_trans_fat' },
-	{ key: 'omega3', dbColumn: 'omega3', unit: 'g', category: 'fat_breakdown', offKey: 'omega-3-fat_100g', i18nKey: 'nutrient_omega3' },
-	{ key: 'omega6', dbColumn: 'omega6', unit: 'g', category: 'fat_breakdown', offKey: 'omega-6-fat_100g', i18nKey: 'nutrient_omega6' },
-	{ key: 'cholesterol', dbColumn: 'cholesterol', unit: 'mg', category: 'fat_breakdown', offKey: 'cholesterol_100g', offConversion: 1000, i18nKey: 'nutrient_cholesterol' },
+	{
+		key: 'saturatedFat',
+		dbColumn: 'saturated_fat',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'saturated-fat_100g',
+		i18nKey: 'nutrient_saturated_fat'
+	},
+	{
+		key: 'monounsaturatedFat',
+		dbColumn: 'monounsaturated_fat',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'monounsaturated-fat_100g',
+		i18nKey: 'nutrient_monounsaturated_fat'
+	},
+	{
+		key: 'polyunsaturatedFat',
+		dbColumn: 'polyunsaturated_fat',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'polyunsaturated-fat_100g',
+		i18nKey: 'nutrient_polyunsaturated_fat'
+	},
+	{
+		key: 'transFat',
+		dbColumn: 'trans_fat',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'trans-fat_100g',
+		i18nKey: 'nutrient_trans_fat'
+	},
+	{
+		key: 'omega3',
+		dbColumn: 'omega3',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'omega-3-fat_100g',
+		i18nKey: 'nutrient_omega3'
+	},
+	{
+		key: 'omega6',
+		dbColumn: 'omega6',
+		unit: 'g',
+		category: 'fat_breakdown',
+		offKey: 'omega-6-fat_100g',
+		i18nKey: 'nutrient_omega6'
+	},
+	{
+		key: 'cholesterol',
+		dbColumn: 'cholesterol',
+		unit: 'mg',
+		category: 'fat_breakdown',
+		offKey: 'cholesterol_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_cholesterol'
+	},
 
 	// Sugar & Carb Details
-	{ key: 'sugar', dbColumn: 'sugar', unit: 'g', category: 'sugar_carb', offKey: 'sugars_100g', i18nKey: 'nutrient_sugar' },
-	{ key: 'addedSugars', dbColumn: 'added_sugars', unit: 'g', category: 'sugar_carb', offKey: 'added-sugars_100g', i18nKey: 'nutrient_added_sugars' },
-	{ key: 'sugarAlcohols', dbColumn: 'sugar_alcohols', unit: 'g', category: 'sugar_carb', offKey: 'polyols_100g', i18nKey: 'nutrient_sugar_alcohols' },
-	{ key: 'starch', dbColumn: 'starch', unit: 'g', category: 'sugar_carb', offKey: 'starch_100g', i18nKey: 'nutrient_starch' },
+	{
+		key: 'sugar',
+		dbColumn: 'sugar',
+		unit: 'g',
+		category: 'sugar_carb',
+		offKey: 'sugars_100g',
+		i18nKey: 'nutrient_sugar'
+	},
+	{
+		key: 'addedSugars',
+		dbColumn: 'added_sugars',
+		unit: 'g',
+		category: 'sugar_carb',
+		offKey: 'added-sugars_100g',
+		i18nKey: 'nutrient_added_sugars'
+	},
+	{
+		key: 'sugarAlcohols',
+		dbColumn: 'sugar_alcohols',
+		unit: 'g',
+		category: 'sugar_carb',
+		offKey: 'polyols_100g',
+		i18nKey: 'nutrient_sugar_alcohols'
+	},
+	{
+		key: 'starch',
+		dbColumn: 'starch',
+		unit: 'g',
+		category: 'sugar_carb',
+		offKey: 'starch_100g',
+		i18nKey: 'nutrient_starch'
+	},
 
 	// Minerals
-	{ key: 'sodium', dbColumn: 'sodium', unit: 'mg', category: 'mineral', offKey: 'sodium_100g', offConversion: 1000, i18nKey: 'nutrient_sodium' },
-	{ key: 'potassium', dbColumn: 'potassium', unit: 'mg', category: 'mineral', offKey: 'potassium_100g', offConversion: 1000, i18nKey: 'nutrient_potassium' },
-	{ key: 'calcium', dbColumn: 'calcium', unit: 'mg', category: 'mineral', offKey: 'calcium_100g', offConversion: 1000, i18nKey: 'nutrient_calcium' },
-	{ key: 'iron', dbColumn: 'iron', unit: 'mg', category: 'mineral', offKey: 'iron_100g', offConversion: 1000, i18nKey: 'nutrient_iron' },
-	{ key: 'magnesium', dbColumn: 'magnesium', unit: 'mg', category: 'mineral', offKey: 'magnesium_100g', offConversion: 1000, i18nKey: 'nutrient_magnesium' },
-	{ key: 'phosphorus', dbColumn: 'phosphorus', unit: 'mg', category: 'mineral', offKey: 'phosphorus_100g', offConversion: 1000, i18nKey: 'nutrient_phosphorus' },
-	{ key: 'zinc', dbColumn: 'zinc', unit: 'mg', category: 'mineral', offKey: 'zinc_100g', offConversion: 1000, i18nKey: 'nutrient_zinc' },
-	{ key: 'copper', dbColumn: 'copper', unit: 'mg', category: 'mineral', offKey: 'copper_100g', offConversion: 1000, i18nKey: 'nutrient_copper' },
-	{ key: 'manganese', dbColumn: 'manganese', unit: 'mg', category: 'mineral', offKey: 'manganese_100g', offConversion: 1000, i18nKey: 'nutrient_manganese' },
-	{ key: 'selenium', dbColumn: 'selenium', unit: 'µg', category: 'mineral', offKey: 'selenium_100g', offConversion: 1e6, i18nKey: 'nutrient_selenium' },
-	{ key: 'iodine', dbColumn: 'iodine', unit: 'µg', category: 'mineral', offKey: 'iodine_100g', offConversion: 1e6, i18nKey: 'nutrient_iodine' },
-	{ key: 'fluoride', dbColumn: 'fluoride', unit: 'mg', category: 'mineral', offKey: 'fluoride_100g', offConversion: 1000, i18nKey: 'nutrient_fluoride' },
-	{ key: 'chromium', dbColumn: 'chromium', unit: 'µg', category: 'mineral', offKey: 'chromium_100g', offConversion: 1e6, i18nKey: 'nutrient_chromium' },
-	{ key: 'molybdenum', dbColumn: 'molybdenum', unit: 'µg', category: 'mineral', offKey: 'molybdenum_100g', offConversion: 1e6, i18nKey: 'nutrient_molybdenum' },
-	{ key: 'chloride', dbColumn: 'chloride', unit: 'mg', category: 'mineral', offKey: 'chloride_100g', offConversion: 1000, i18nKey: 'nutrient_chloride' },
+	{
+		key: 'sodium',
+		dbColumn: 'sodium',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'sodium_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_sodium'
+	},
+	{
+		key: 'potassium',
+		dbColumn: 'potassium',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'potassium_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_potassium'
+	},
+	{
+		key: 'calcium',
+		dbColumn: 'calcium',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'calcium_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_calcium'
+	},
+	{
+		key: 'iron',
+		dbColumn: 'iron',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'iron_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_iron'
+	},
+	{
+		key: 'magnesium',
+		dbColumn: 'magnesium',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'magnesium_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_magnesium'
+	},
+	{
+		key: 'phosphorus',
+		dbColumn: 'phosphorus',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'phosphorus_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_phosphorus'
+	},
+	{
+		key: 'zinc',
+		dbColumn: 'zinc',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'zinc_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_zinc'
+	},
+	{
+		key: 'copper',
+		dbColumn: 'copper',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'copper_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_copper'
+	},
+	{
+		key: 'manganese',
+		dbColumn: 'manganese',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'manganese_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_manganese'
+	},
+	{
+		key: 'selenium',
+		dbColumn: 'selenium',
+		unit: 'µg',
+		category: 'mineral',
+		offKey: 'selenium_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_selenium'
+	},
+	{
+		key: 'iodine',
+		dbColumn: 'iodine',
+		unit: 'µg',
+		category: 'mineral',
+		offKey: 'iodine_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_iodine'
+	},
+	{
+		key: 'fluoride',
+		dbColumn: 'fluoride',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'fluoride_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_fluoride'
+	},
+	{
+		key: 'chromium',
+		dbColumn: 'chromium',
+		unit: 'µg',
+		category: 'mineral',
+		offKey: 'chromium_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_chromium'
+	},
+	{
+		key: 'molybdenum',
+		dbColumn: 'molybdenum',
+		unit: 'µg',
+		category: 'mineral',
+		offKey: 'molybdenum_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_molybdenum'
+	},
+	{
+		key: 'chloride',
+		dbColumn: 'chloride',
+		unit: 'mg',
+		category: 'mineral',
+		offKey: 'chloride_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_chloride'
+	},
 
 	// Vitamins
-	{ key: 'vitaminA', dbColumn: 'vitamin_a', unit: 'µg', category: 'vitamin', offKey: 'vitamin-a_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_a' },
-	{ key: 'vitaminC', dbColumn: 'vitamin_c', unit: 'mg', category: 'vitamin', offKey: 'vitamin-c_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_c' },
-	{ key: 'vitaminD', dbColumn: 'vitamin_d', unit: 'µg', category: 'vitamin', offKey: 'vitamin-d_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_d' },
-	{ key: 'vitaminE', dbColumn: 'vitamin_e', unit: 'mg', category: 'vitamin', offKey: 'vitamin-e_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_e' },
-	{ key: 'vitaminK', dbColumn: 'vitamin_k', unit: 'µg', category: 'vitamin', offKey: 'vitamin-k_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_k' },
-	{ key: 'vitaminB1', dbColumn: 'vitamin_b1', unit: 'mg', category: 'vitamin', offKey: 'vitamin-b1_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_b1' },
-	{ key: 'vitaminB2', dbColumn: 'vitamin_b2', unit: 'mg', category: 'vitamin', offKey: 'vitamin-b2_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_b2' },
-	{ key: 'vitaminB3', dbColumn: 'vitamin_b3', unit: 'mg', category: 'vitamin', offKey: 'vitamin-b3_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_b3' },
-	{ key: 'vitaminB5', dbColumn: 'vitamin_b5', unit: 'mg', category: 'vitamin', offKey: 'vitamin-b5_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_b5' },
-	{ key: 'vitaminB6', dbColumn: 'vitamin_b6', unit: 'mg', category: 'vitamin', offKey: 'vitamin-b6_100g', offConversion: 1000, i18nKey: 'nutrient_vitamin_b6' },
-	{ key: 'vitaminB7', dbColumn: 'vitamin_b7', unit: 'µg', category: 'vitamin', offKey: 'biotin_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_b7' },
-	{ key: 'vitaminB9', dbColumn: 'vitamin_b9', unit: 'µg', category: 'vitamin', offKey: 'vitamin-b9_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_b9' },
-	{ key: 'vitaminB12', dbColumn: 'vitamin_b12', unit: 'µg', category: 'vitamin', offKey: 'vitamin-b12_100g', offConversion: 1e6, i18nKey: 'nutrient_vitamin_b12' },
+	{
+		key: 'vitaminA',
+		dbColumn: 'vitamin_a',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'vitamin-a_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_a'
+	},
+	{
+		key: 'vitaminC',
+		dbColumn: 'vitamin_c',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-c_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_c'
+	},
+	{
+		key: 'vitaminD',
+		dbColumn: 'vitamin_d',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'vitamin-d_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_d'
+	},
+	{
+		key: 'vitaminE',
+		dbColumn: 'vitamin_e',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-e_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_e'
+	},
+	{
+		key: 'vitaminK',
+		dbColumn: 'vitamin_k',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'vitamin-k_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_k'
+	},
+	{
+		key: 'vitaminB1',
+		dbColumn: 'vitamin_b1',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-b1_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_b1'
+	},
+	{
+		key: 'vitaminB2',
+		dbColumn: 'vitamin_b2',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-b2_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_b2'
+	},
+	{
+		key: 'vitaminB3',
+		dbColumn: 'vitamin_b3',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-b3_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_b3'
+	},
+	{
+		key: 'vitaminB5',
+		dbColumn: 'vitamin_b5',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-b5_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_b5'
+	},
+	{
+		key: 'vitaminB6',
+		dbColumn: 'vitamin_b6',
+		unit: 'mg',
+		category: 'vitamin',
+		offKey: 'vitamin-b6_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_vitamin_b6'
+	},
+	{
+		key: 'vitaminB7',
+		dbColumn: 'vitamin_b7',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'biotin_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_b7'
+	},
+	{
+		key: 'vitaminB9',
+		dbColumn: 'vitamin_b9',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'vitamin-b9_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_b9'
+	},
+	{
+		key: 'vitaminB12',
+		dbColumn: 'vitamin_b12',
+		unit: 'µg',
+		category: 'vitamin',
+		offKey: 'vitamin-b12_100g',
+		offConversion: 1e6,
+		i18nKey: 'nutrient_vitamin_b12'
+	},
 
 	// Other
-	{ key: 'caffeine', dbColumn: 'caffeine', unit: 'mg', category: 'other', offKey: 'caffeine_100g', offConversion: 1000, i18nKey: 'nutrient_caffeine' },
-	{ key: 'alcohol', dbColumn: 'alcohol', unit: 'g', category: 'other', offKey: 'alcohol_100g', i18nKey: 'nutrient_alcohol' },
-	{ key: 'water', dbColumn: 'water', unit: 'g', category: 'other', offKey: 'water_100g', i18nKey: 'nutrient_water' },
-	{ key: 'taurine', dbColumn: 'taurine', unit: 'mg', category: 'other', offKey: 'taurine_100g', offConversion: 1000, i18nKey: 'nutrient_taurine' },
-	{ key: 'choline', dbColumn: 'choline', unit: 'mg', category: 'other', offKey: 'choline_100g', offConversion: 1000, i18nKey: 'nutrient_choline' },
-	{ key: 'salt', dbColumn: 'salt', unit: 'g', category: 'other', offKey: 'salt_100g', i18nKey: 'nutrient_salt' }
+	{
+		key: 'caffeine',
+		dbColumn: 'caffeine',
+		unit: 'mg',
+		category: 'other',
+		offKey: 'caffeine_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_caffeine'
+	},
+	{
+		key: 'alcohol',
+		dbColumn: 'alcohol',
+		unit: 'g',
+		category: 'other',
+		offKey: 'alcohol_100g',
+		i18nKey: 'nutrient_alcohol'
+	},
+	{
+		key: 'water',
+		dbColumn: 'water',
+		unit: 'g',
+		category: 'other',
+		offKey: 'water_100g',
+		i18nKey: 'nutrient_water'
+	},
+	{
+		key: 'taurine',
+		dbColumn: 'taurine',
+		unit: 'mg',
+		category: 'other',
+		offKey: 'taurine_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_taurine'
+	},
+	{
+		key: 'choline',
+		dbColumn: 'choline',
+		unit: 'mg',
+		category: 'other',
+		offKey: 'choline_100g',
+		offConversion: 1000,
+		i18nKey: 'nutrient_choline'
+	},
+	{
+		key: 'salt',
+		dbColumn: 'salt',
+		unit: 'g',
+		category: 'other',
+		offKey: 'salt_100g',
+		i18nKey: 'nutrient_salt'
+	}
 ];
 
 export const NUTRIENT_KEYS = NUTRIENTS.map((n) => n.key);
@@ -120,6 +468,7 @@ git commit -m "feat: add nutrient catalog as single source of truth"
 ### Task 2: Add i18n Messages
 
 **Files:**
+
 - Modify: `messages/en.json`
 - Modify: `messages/de.json`
 
@@ -275,6 +624,7 @@ git commit -m "feat: add i18n messages for 45 nutrients and categories"
 ### Task 3: Update Database Schema
 
 **Files:**
+
 - Modify: `src/lib/server/schema.ts` (lines 75-109)
 
 **Step 1: Add new columns to foods table**
@@ -282,6 +632,7 @@ git commit -m "feat: add i18n messages for 45 nutrients and categories"
 After the existing 8 optional nutrient columns (line 83, after `iron`), add the 37 new columns. All `real()` and nullable. Keep existing columns in place — only add new ones.
 
 New columns to add (in category order):
+
 ```ts
 // Fat breakdown (new)
 monounsaturatedFat: real('monounsaturated_fat'),
@@ -332,6 +683,7 @@ salt: real('salt'),
 Replace the existing check constraint (lines 107-109) with per-category constraints. Each constraint covers `(field IS NULL OR field >= 0)` for all fields in that category. Use the same pattern as the existing constraint.
 
 Split into:
+
 - `foods_fat_breakdown_nonneg` — saturatedFat, monounsaturatedFat, polyunsaturatedFat, transFat, omega3, omega6, cholesterol
 - `foods_sugar_carb_nonneg` — sugar, addedSugars, sugarAlcohols, starch
 - `foods_minerals_nonneg` — sodium, potassium, calcium, iron, magnesium, phosphorus, zinc, copper, manganese, selenium, iodine, fluoride, chromium, molybdenum, chloride
@@ -341,6 +693,7 @@ Split into:
 **Step 3: Add goal columns to userGoals table**
 
 Add after `sugarGoal` (line 166):
+
 ```ts
 potassiumGoal: real('potassium_goal'),
 calciumGoal: real('calcium_goal'),
@@ -373,6 +726,7 @@ git commit -m "feat: add 37 nutrient columns and 5 goal columns to schema"
 ### Task 4: Update Validation Schemas
 
 **Files:**
+
 - Modify: `src/lib/server/validation/foods.ts`
 - Modify: `src/lib/server/validation/goals.ts`
 
@@ -449,6 +803,7 @@ git commit -m "feat: update validation schemas for expanded nutrients and goals"
 ### Task 5: Update Food Service Layer
 
 **Files:**
+
 - Modify: `src/lib/server/foods.ts` (lines 13-41)
 
 **Step 1: Update `toFoodInsert` to use catalog**
@@ -499,6 +854,7 @@ git commit -m "feat: update food service to use nutrient catalog"
 ### Task 6: Update Open Food Facts Integration
 
 **Files:**
+
 - Modify: `src/lib/server/openfoodfacts.ts`
 
 **Step 1: Expand OFF schema and mapping**
@@ -510,9 +866,7 @@ import { NUTRIENTS } from '$lib/nutrients';
 
 // Build OFF nutriments schema from catalog
 const offNutrimentFields = Object.fromEntries(
-	NUTRIENTS
-		.filter((n) => n.offKey)
-		.map((n) => [n.offKey!, z.number().optional()])
+	NUTRIENTS.filter((n) => n.offKey).map((n) => [n.offKey!, z.number().optional()])
 );
 
 const offProductSchema = z.object({
@@ -557,6 +911,7 @@ git commit -m "feat: expand OFF integration to map all catalog nutrients"
 ### Task 7: Update Food Form UI
 
 **Files:**
+
 - Modify: `src/lib/components/foods/FoodForm.svelte`
 
 **Step 1: Update FoodFormData type and form initialization**
@@ -564,7 +919,12 @@ git commit -m "feat: expand OFF integration to map all catalog nutrients"
 Import the catalog and message functions. Add all nutrient keys to `FoodFormData` type and form state. Use the catalog to generate initial values:
 
 ```ts
-import { NUTRIENTS, NUTRIENT_CATEGORIES, getNutrientsByCategory, type NutrientCategory } from '$lib/nutrients';
+import {
+	NUTRIENTS,
+	NUTRIENT_CATEGORIES,
+	getNutrientsByCategory,
+	type NutrientCategory
+} from '$lib/nutrients';
 ```
 
 Replace the hardcoded `FoodFormData` type. Add all nutrient keys as `number | null | undefined`. In the form initialization, loop over `NUTRIENTS` to set initial values using `round2`.
@@ -572,18 +932,22 @@ Replace the hardcoded `FoodFormData` type. Add all nutrient keys as `number | nu
 **Step 2: Replace the existing Advanced section**
 
 Replace the single collapsible with multiple collapsible sections, one per category. Each section:
+
 - Uses `Collapsible.Root` and `Collapsible.Trigger`
 - Shows category name with chevron icon
 - Auto-expands if any field in the category has a non-null value
 - Contains a responsive grid of Input fields with labels showing nutrient name and unit
 
 Pattern for each category section:
+
 ```svelte
 {#each NUTRIENT_CATEGORIES as cat}
 	{@const catNutrients = getNutrientsByCategory(cat.key)}
 	{@const hasData = catNutrients.some((n) => form[n.key] != null && form[n.key] !== 0)}
 	<Collapsible.Root open={hasData}>
-		<Collapsible.Trigger class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+		<Collapsible.Trigger
+			class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+		>
 			<!-- chevron + category label from i18n -->
 		</Collapsible.Trigger>
 		<Collapsible.Content>
@@ -603,6 +967,7 @@ Pattern for each category section:
 Keep the NutriScore selector in a separate section after the nutrient categories.
 
 **Important UX details:**
+
 - All sections collapsed by default UNLESS they have data
 - Unit shown in label: "Sodium (mg)", "Vitamin A (µg)"
 - Responsive 2-column grid on sm+
@@ -617,12 +982,12 @@ import * as m from '$lib/paraglide/messages';
 
 const nutrientLabels: Record<string, () => string> = {
 	nutrient_saturated_fat: m.nutrient_saturated_fat,
-	nutrient_sodium: m.nutrient_sodium,
+	nutrient_sodium: m.nutrient_sodium
 	// ... all 45 entries
 };
 
 const categoryLabels: Record<string, () => string> = {
-	nutrient_category_fat_breakdown: m.nutrient_category_fat_breakdown,
+	nutrient_category_fat_breakdown: m.nutrient_category_fat_breakdown
 	// ... all 5
 };
 ```
@@ -643,6 +1008,7 @@ git commit -m "feat: add collapsible nutrient sections to food form"
 ### Task 8: Update Food Detail Page
 
 **Files:**
+
 - Modify: `src/routes/(app)/foods/[id]/+page.svelte`
 
 **Step 1: Add nutrient state variables and load them from API**
@@ -674,10 +1040,16 @@ body: JSON.stringify({
 	name,
 	brand: brand || null,
 	servingSize,
-	calories, protein, carbs, fat, fiber,
-	isFavorite, imageUrl, nutriScore,
+	calories,
+	protein,
+	carbs,
+	fat,
+	fiber,
+	isFavorite,
+	imageUrl,
+	nutriScore,
 	...nutrientValues
-})
+});
 ```
 
 **Step 4: Update enrichFood to patch nutrient values**
@@ -685,9 +1057,7 @@ body: JSON.stringify({
 When enriching from OFF, include all nutrient fields in the PATCH:
 
 ```ts
-const nutrientPatch = Object.fromEntries(
-	NUTRIENTS.map((n) => [n.key, product[n.key] ?? null])
-);
+const nutrientPatch = Object.fromEntries(NUTRIENTS.map((n) => [n.key, product[n.key] ?? null]));
 body: JSON.stringify({
 	nutriScore: product.nutriScore,
 	novaGroup: product.novaGroup,
@@ -695,7 +1065,7 @@ body: JSON.stringify({
 	ingredientsText: product.ingredientsText,
 	imageUrl: product.imageUrl,
 	...nutrientPatch
-})
+});
 ```
 
 **Step 5: Commit**
@@ -710,11 +1080,13 @@ git commit -m "feat: add full nutrient editing to food detail page"
 ### Task 9: Update Goals UI
 
 **Files:**
+
 - Modify: `src/routes/(app)/goals/+page.svelte`
 
 **Step 1: Add advanced goal fields**
 
 After the existing 5 core goal inputs, add a collapsible "Advanced Nutrient Goals" section with inputs for:
+
 - sodiumGoal, sugarGoal (already in schema, now add to UI)
 - potassiumGoal, calciumGoal, ironGoal, vitaminDGoal, vitaminCGoal (new)
 
@@ -736,6 +1108,7 @@ git commit -m "feat: add advanced nutrient goals to goals page"
 ### Task 10: Update MCP Server
 
 **Files:**
+
 - Modify: `src/lib/server/mcp/server.ts`
 
 **Step 1: Update `create_food` tool schema**
@@ -770,6 +1143,7 @@ git commit -m "feat: expose all nutrients in MCP create_food tool"
 ### Task 11: Update Tests
 
 **Files:**
+
 - Modify: `tests/server/foods-db.test.ts`
 - Modify: `tests/server/validation.test.ts`
 - Modify: `tests/api/foods.test.ts`
@@ -780,16 +1154,18 @@ In `tests/server/foods-db.test.ts`, add a test that creates a food with several 
 
 ```ts
 test('createFood with expanded nutrients', () => {
-	setResult([{
-		id: 'test-id',
-		name: 'Enriched Food',
-		potassium: 350,
-		vitaminD: 5,
-		omega3: 1.2,
-		caffeine: 80,
-		salt: 1.5,
-		// ... other required fields
-	}]);
+	setResult([
+		{
+			id: 'test-id',
+			name: 'Enriched Food',
+			potassium: 350,
+			vitaminD: 5,
+			omega3: 1.2,
+			caffeine: 80,
+			salt: 1.5
+			// ... other required fields
+		}
+	]);
 	const result = await createFood('user-1', {
 		name: 'Enriched Food',
 		servingSize: 100,
@@ -812,6 +1188,7 @@ test('createFood with expanded nutrients', () => {
 **Step 2: Add validation tests for new nutrients**
 
 In `tests/server/validation.test.ts`, test that:
+
 - New nutrient fields accept valid values
 - Negative values are rejected
 - Null/undefined are accepted
@@ -848,6 +1225,7 @@ Expected: No type errors.
 Run: `bun run dev`
 
 Verify:
+
 - Migration applies cleanly
 - Food form shows collapsible nutrient sections
 - Creating a food with nutrients works

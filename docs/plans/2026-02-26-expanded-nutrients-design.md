@@ -15,34 +15,39 @@ Central definition file at `src/lib/nutrients.ts`:
 type NutrientCategory = 'fat_breakdown' | 'sugar_carb' | 'mineral' | 'vitamin' | 'other';
 
 type NutrientDef = {
-  key: string;           // camelCase (used as TS property name)
-  dbColumn: string;      // snake_case (DB column name)
-  unit: 'g' | 'mg' | 'µg';
-  category: NutrientCategory;
-  offKey?: string;       // Open Food Facts nutriments key
-  offConversion?: number; // multiply OFF value (in grams) by this to get our unit
+	key: string; // camelCase (used as TS property name)
+	dbColumn: string; // snake_case (DB column name)
+	unit: 'g' | 'mg' | 'µg';
+	category: NutrientCategory;
+	offKey?: string; // Open Food Facts nutriments key
+	offConversion?: number; // multiply OFF value (in grams) by this to get our unit
 };
 ```
 
 ### Nutrients by Category
 
 **Fat Breakdown** (8 fields — 2 existing + 6 new):
+
 - saturatedFat (g), monounsaturatedFat (g), polyunsaturatedFat (g), transFat (g), omega3 (g), omega6 (g)
 - Existing: saturatedFat, cholesterol (mg)
 
 **Sugar & Carb Details** (4 fields — 1 existing + 3 new):
+
 - Existing: sugar (g)
 - New: addedSugars (g), sugarAlcohols (g), starch (g)
 
 **Minerals** (15 fields — 3 existing + 12 new):
+
 - Existing: sodium (mg), calcium (mg), iron (mg)
 - New: potassium (mg), magnesium (mg), phosphorus (mg), zinc (mg), copper (mg), manganese (mg), selenium (µg), iodine (µg), fluoride (mg), chromium (µg), molybdenum (µg), chloride (mg)
 
 **Vitamins** (13 fields — 2 existing + 11 new):
+
 - Existing: vitaminA (µg), vitaminC (mg)
 - New: vitaminD (µg), vitaminE (mg), vitaminK (µg), vitaminB1 (mg), vitaminB2 (mg), vitaminB3 (mg), vitaminB5 (mg), vitaminB6 (mg), vitaminB7 (µg), vitaminB9 (µg), vitaminB12 (µg)
 
 **Other** (5 new fields):
+
 - caffeine (mg), alcohol (g), water (g), taurine (mg), choline (mg), salt (g)
 
 **Total: 45 nutrient fields (8 existing + 37 new)**
@@ -66,6 +71,7 @@ Add 37 new `real()` nullable columns. Replace the single `foods_optional_nutriti
 ### Goals table
 
 Add optional goal columns for commonly tracked nutrients:
+
 - sodiumGoal, sugarGoal (already exist)
 - New: potassiumGoal, calciumGoal, ironGoal, vitaminDGoal, vitaminCGoal, fiberGoal (already tracked as core)
 
@@ -81,7 +87,7 @@ Generate Zod fields from the catalog:
 
 ```ts
 const nutrientFields = Object.fromEntries(
-  NUTRIENTS.map(n => [n.key, z.coerce.number().nonnegative().optional().nullable()])
+	NUTRIENTS.map((n) => [n.key, z.coerce.number().nonnegative().optional().nullable()])
 );
 ```
 
@@ -95,6 +101,7 @@ Spread into `foodCreateSchema`. Same pattern for goals.
 ## Open Food Facts
 
 Expand `offProductSchema.nutriments` with all OFF keys from catalog. Map with unit conversions:
+
 - OFF stores everything per 100g in grams
 - Minerals in mg: multiply by 1000
 - Trace minerals in µg: multiply by 1,000,000
@@ -132,6 +139,7 @@ Expand `create_food` tool schema with all nutrient fields (optional). `get_food`
 ## i18n
 
 Add to `messages/en.json` and `messages/de.json`:
+
 - 5 category headers
 - 37 new nutrient labels
 - Unit abbreviations if not already present
