@@ -25,11 +25,27 @@ describe('toolNames', () => {
 			'get_weekly_stats',
 			'get_monthly_stats',
 			'copy_entries',
-			'find_food_by_barcode'
+			'find_food_by_barcode',
+			'update_food',
+			'delete_food',
+			'list_recent_foods',
+			'update_recipe',
+			'delete_recipe',
+			'create_supplement',
+			'list_supplements',
+			'update_supplement',
+			'delete_supplement',
+			'unlog_supplement',
+			'update_weight',
+			'delete_weight',
+			'get_daily_breakdown',
+			'get_meal_breakdown',
+			'get_top_foods',
+			'get_streaks'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(22);
+		expect(toolNames).toHaveLength(38);
 	});
 });
