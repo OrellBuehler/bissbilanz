@@ -23,6 +23,7 @@
 	let newName = $state('');
 
 	// Preferences state
+	let showChartWidget = $state(true);
 	let showFavoritesWidget = $state(true);
 	let showSupplementsWidget = $state(true);
 	let showWeightWidget = $state(true);
@@ -251,6 +252,7 @@
 			const res = await fetch('/api/preferences');
 			if (res.ok) {
 				const { preferences } = await res.json();
+				showChartWidget = preferences.showChartWidget ?? true;
 				showFavoritesWidget = preferences.showFavoritesWidget ?? true;
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
 				showWeightWidget = preferences.showWeightWidget ?? true;
@@ -372,7 +374,12 @@
 									<p class="text-sm font-medium">{widget.name()}</p>
 									<p class="text-muted-foreground text-xs">{widget.desc()}</p>
 								</div>
-								{#if widget.key === 'favorites'}
+								{#if widget.key === 'chart'}
+									<Switch
+										bind:checked={showChartWidget}
+										onCheckedChange={(v) => savePreference('showChartWidget', v)}
+									/>
+								{:else if widget.key === 'favorites'}
 									<Switch
 										bind:checked={showFavoritesWidget}
 										onCheckedChange={(v) => savePreference('showFavoritesWidget', v)}

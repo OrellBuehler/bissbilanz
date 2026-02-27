@@ -8,6 +8,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
 	import Check from '@lucide/svelte/icons/check';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	import type { ScheduleType } from '$lib/supplement-units';
@@ -41,7 +42,7 @@
 	} = $props();
 
 	let name = $state(supplement?.name ?? '');
-	let dosage = $state(supplement?.dosage ?? 0);
+	let dosage = $state(supplement?.dosage ? round2(supplement.dosage) : 0);
 	let dosageUnit = $state(supplement?.dosageUnit ?? 'mg');
 	let scheduleType: ScheduleType = $state((supplement?.scheduleType as ScheduleType) ?? 'daily');
 	let scheduleDays = $state<number[]>(supplement?.scheduleDays ?? []);
@@ -50,7 +51,7 @@
 	let ingredients = $state<IngredientInput[]>(
 		supplement?.ingredients?.map((i) => ({
 			name: i.name,
-			dosage: i.dosage,
+			dosage: round2(i.dosage),
 			dosageUnit: i.dosageUnit
 		})) ?? []
 	);
@@ -289,11 +290,11 @@
 			type="button"
 			variant="outline"
 			class="w-full sm:w-auto"
-			aria-label={m.supplements_cancel()}
+			aria-label={m.cancel()}
 			onclick={onCancel}
 		>
 			<X class="size-4" />
-			<span class="sm:inline">{m.supplements_cancel()}</span>
+			<span class="sm:inline">{m.cancel()}</span>
 		</Button>
 		<Button
 			type="submit"

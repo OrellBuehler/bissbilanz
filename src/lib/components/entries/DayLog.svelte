@@ -3,7 +3,7 @@
 	import AddFoodModal from '$lib/components/entries/AddFoodModal.svelte';
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
-	import { calculateDailyTotals, type MacroTotals } from '$lib/utils/nutrition';
+	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/utils/api';
@@ -33,8 +33,15 @@
 	let addModalOpen = $state(false);
 	let editModalOpen = $state(false);
 	let activeMeal = $state('Breakfast');
-	let editingEntry: { id: string; servings: number; mealType: string; foodName?: string } | null =
-		$state(null);
+	let editingEntry: {
+		id: string;
+		servings: number;
+		mealType: string;
+		foodName?: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
+	} | null = $state(null);
 	let scannedFood: any = $state(null);
 	let scannedBarcode = $state('');
 
@@ -56,7 +63,6 @@
 			body: JSON.stringify({ ...payload, date })
 		});
 		addModalOpen = false;
-		scannedFood = null;
 		await loadData();
 		onMutation?.();
 	};
@@ -86,6 +92,9 @@
 		servings: number;
 		mealType: string;
 		foodName?: string;
+		servingSize?: number | null;
+		servingUnit?: string | null;
+		calories?: number | null;
 	}) => {
 		editingEntry = entry;
 		editModalOpen = true;
@@ -99,11 +108,11 @@
 			scannedBarcode = barcode;
 			addModalOpen = true;
 		} else {
-			goto(`/foods/new?barcode=${encodeURIComponent(barcode)}`);
+			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
 		}
 	};
 
-	const totals = $derived(calculateDailyTotals(entries));
+	const totals = $derived(sumEntries(entries));
 
 	$effect(() => {
 		onTotalsChange?.(totals);
@@ -129,12 +138,13 @@
 					activeMeal = mealType;
 				}}
 				onEdit={openEditModal}
+				onDelete={deleteEntry}
 			/>
 		{/each}
 	</div>
 
 	<AddFoodModal
-		open={addModalOpen}
+		bind:open={addModalOpen}
 		{foods}
 		{recipes}
 		mealType={activeMeal}
@@ -145,7 +155,7 @@
 		onSave={addEntry}
 	/>
 	<EditEntryModal
-		open={editModalOpen}
+		bind:open={editModalOpen}
 		entry={editingEntry}
 		onClose={() => {
 			editModalOpen = false;
@@ -155,7 +165,7 @@
 		onDelete={deleteEntry}
 	/>
 	<BarcodeScanModal
-		open={scanModalOpen}
+		bind:open={scanModalOpen}
 		onClose={() => (scanModalOpen = false)}
 		onBarcode={handleBarcodeScan}
 	/>

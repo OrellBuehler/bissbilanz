@@ -13,6 +13,34 @@
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
+	function edgeSwipeAction(node: HTMLElement) {
+		let startX = 0;
+		let startY = 0;
+
+		function onTouchStart(e: TouchEvent) {
+			startX = e.touches[0].clientX;
+			startY = e.touches[0].clientY;
+		}
+
+		function onTouchEnd(e: TouchEvent) {
+			const dx = e.changedTouches[0].clientX - startX;
+			const dy = e.changedTouches[0].clientY - startY;
+			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
+				history.back();
+			}
+		}
+
+		node.addEventListener('touchstart', onTouchStart, { passive: true });
+		node.addEventListener('touchend', onTouchEnd, { passive: true });
+
+		return {
+			destroy() {
+				node.removeEventListener('touchstart', onTouchStart);
+				node.removeEventListener('touchend', onTouchEnd);
+			}
+		};
+	}
+
 	$effect(() => {
 		setUser(data.user);
 	});
@@ -26,18 +54,20 @@
 </script>
 
 <InstallBanner />
-<Sidebar.Provider
-	style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
->
-	<AppSidebar variant="inset" />
-	<Sidebar.Inset>
-		<SiteHeader />
-		<OfflineIndicator />
-		<div class="flex flex-1 flex-col">
-			<main class="flex-1 px-3 py-4 sm:p-4 lg:p-6">
-				{@render children()}
-			</main>
-		</div>
-	</Sidebar.Inset>
-</Sidebar.Provider>
+<div use:edgeSwipeAction class="contents">
+	<Sidebar.Provider
+		style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
+	>
+		<AppSidebar variant="inset" />
+		<Sidebar.Inset>
+			<SiteHeader />
+			<OfflineIndicator />
+			<div class="flex flex-1 flex-col">
+				<main class="flex-1 px-3 py-4 sm:p-4 lg:p-6">
+					{@render children()}
+				</main>
+			</div>
+		</Sidebar.Inset>
+	</Sidebar.Provider>
+</div>
 <UpdateToast />

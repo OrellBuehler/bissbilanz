@@ -2,6 +2,7 @@
 	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import MacroSummaryCard from '$lib/components/entries/MacroSummaryCard.svelte';
 	import DailyMacroChart from '$lib/components/charts/DailyMacroChart.svelte';
+	import GoalProgressRings from '$lib/components/charts/GoalProgressRings.svelte';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type MacroTotals } from '$lib/utils/nutrition';
@@ -16,6 +17,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { ChevronLeft, ChevronRight, ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
+	import Target from '@lucide/svelte/icons/target';
 
 	let activeDate = $state(today());
 
@@ -37,6 +39,13 @@
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
+	let userGoals: {
+		calorieGoal: number;
+		proteinGoal: number;
+		carbGoal: number;
+		fatGoal: number;
+		fiberGoal: number;
+	} | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
 
@@ -56,6 +65,10 @@
 		if (!isToday) activeDate = shiftDate(activeDate, 1);
 	};
 
+	$effect(() => {
+		if (ready) loadSupplements(activeDate);
+	});
+
 	const loadLatestWeight = async () => {
 		try {
 			const res = await fetch('/api/weight/latest');
@@ -68,9 +81,9 @@
 		}
 	};
 
-	const loadSupplements = async () => {
+	const loadSupplements = async (date: string = activeDate) => {
 		try {
-			const res = await fetch('/api/supplements/today');
+			const res = await fetch(`/api/supplements/${date}/checklist`);
 			if (res.ok) {
 				supplementChecklist = (await res.json()).checklist;
 			}
@@ -84,13 +97,24 @@
 			await apiFetch(`/api/supplements/${supplementId}/log`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: '{}'
+				body: JSON.stringify({ date: activeDate })
 			});
 		} else {
-			const currentDate = today();
-			await apiFetch(`/api/supplements/${supplementId}/log/${currentDate}`, { method: 'DELETE' });
+			await apiFetch(`/api/supplements/${supplementId}/log/${activeDate}`, { method: 'DELETE' });
 		}
-		await loadSupplements();
+		await loadSupplements(activeDate);
+	};
+
+	const loadGoals = async () => {
+		try {
+			const res = await fetch('/api/goals');
+			if (res.ok) {
+				const data = await res.json();
+				userGoals = data.goals;
+			}
+		} catch {
+			// silently ignore
+		}
 	};
 
 	const checkStartPage = async () => {
@@ -109,8 +133,8 @@
 		}
 		ready = true;
 
-		loadSupplements();
 		loadLatestWeight();
+		loadGoals();
 	};
 
 	onMount(() => {
@@ -118,7 +142,7 @@
 
 		const onSynced = () => {
 			refreshKey++;
-			loadSupplements();
+			loadSupplements(activeDate);
 			loadLatestWeight();
 		};
 		window.addEventListener('queue-synced', onSynced);
@@ -156,12 +180,18 @@
 		</div>
 
 		{#each userPrefs?.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'daylog'] as sectionKey (sectionKey)}
-			{#if sectionKey === 'chart'}
-				<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
-					<div class="h-[200px] sm:h-[220px]">
-						<DailyMacroChart totals={daylogTotals} />
-					</div>
-				</DashboardCard>
+			{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
+				{#if userGoals}
+					<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
+						<GoalProgressRings totals={daylogTotals} goals={userGoals} />
+					</DashboardCard>
+				{:else}
+					<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
+						<div class="h-[200px] sm:h-[220px]">
+							<DailyMacroChart totals={daylogTotals} />
+						</div>
+					</DashboardCard>
+				{/if}
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
 					onEntryLogged={() => refreshKey++}
@@ -169,7 +199,7 @@
 					favoriteMealAssignmentMode={userPrefs?.favoriteMealAssignmentMode ?? 'time_based'}
 					favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
 				/>
-			{:else if sectionKey === 'supplements' && isToday && userPrefs?.showSupplementsWidget}
+			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
 				<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 			{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
 				<WeightWidget

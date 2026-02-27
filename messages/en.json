@@ -2,6 +2,10 @@
 	"app_title": "Bissbilanz",
 	"app_tagline": "Track your nutrition with ease",
 
+	"confirm_delete_title": "Delete",
+	"confirm_delete_description": "Are you sure? This cannot be undone.",
+	"cancel": "Cancel",
+
 	"auth_login": "Login with Infomaniak",
 	"auth_logout": "Logout",
 
@@ -42,6 +46,11 @@
 	"add_food_add": "Add",
 	"add_food_servings": "Servings",
 
+	"amount_mode_servings": "Servings",
+	"amount_mode_unit": "Amount",
+	"amount_preview_equals": "= {amount} {unit}",
+	"amount_preview_kcal": "{kcal} kcal",
+
 	"edit_entry_title": "Edit Entry",
 	"edit_entry_servings": "Servings",
 	"edit_entry_meal": "Meal",
@@ -60,6 +69,7 @@
 	"foods_kcal": "kcal",
 	"foods_empty": "No foods yet. Add your first food!",
 	"foods_no_results": "No foods match your search.",
+	"foods_delete_has_entries": "This food is used in <strong>{count} food log entries</strong>. Delete them too?",
 
 	"food_form_name": "Name",
 	"food_form_brand": "Brand",
@@ -97,6 +107,7 @@
 	"recipes_new_description": "Create a new recipe with ingredients",
 	"recipes_servings": "({count} servings)",
 	"recipes_no_recipes": "No recipes yet",
+	"recipes_delete_has_entries": "This recipe is used in <strong>{count} food log entries</strong>. Delete them too?",
 
 	"recipe_form_title": "New Recipe",
 	"recipe_form_name": "Recipe name",
@@ -127,7 +138,6 @@
 	"supplements_active": "Active",
 	"supplements_inactive": "Inactive",
 	"supplements_save": "Save",
-	"supplements_cancel": "Cancel",
 	"supplements_delete": "Delete",
 	"supplements_delete_confirm": "Delete this supplement? History will be lost.",
 	"supplements_edit": "Edit Supplement",
@@ -194,8 +204,8 @@
 	"settings_account": "Account",
 	"settings_dashboard_widgets": "Dashboard Widgets",
 	"settings_dashboard_sections": "Dashboard Sections",
-	"settings_section_chart": "Calorie Chart",
-	"settings_section_chart_desc": "Weekly calorie trend (hidden when no data)",
+	"settings_section_chart": "Goal Progress",
+	"settings_section_chart_desc": "Macro rings or calorie chart",
 	"settings_section_daylog": "Day Log",
 	"settings_section_daylog_desc": "Today's food entries by meal",
 	"settings_section_summary": "Macro Summary",
@@ -224,6 +234,10 @@
 	"barcode_title": "Scan Barcode",
 	"barcode_error": "Error",
 	"barcode_starting": "Starting camera...",
+	"barcode_camera_denied": "Camera access was denied. Please allow camera access in your browser settings.",
+	"barcode_camera_not_found": "No camera found on this device.",
+	"barcode_camera_overconstrained": "Camera does not support the required settings. Try a different camera.",
+	"barcode_camera_error": "Could not access the camera. Please try again.",
 
 	"calendar_mon": "Mon",
 	"calendar_tue": "Tue",
@@ -261,6 +275,8 @@
 	"quality_ingredients": "Ingredients",
 	"quality_enrich": "Enrich",
 	"quality_enriching": "Enriching...",
+	"quality_enrich_success": "Food enriched with Open Food Facts data",
+	"quality_enrich_failed": "Failed to enrich food",
 	"quality_off_loading": "Looking up product...",
 	"quality_off_not_found": "Product not found in Open Food Facts",
 	"quality_off_prefilled": "Pre-filled from Open Food Facts",
@@ -317,6 +333,7 @@
 	"detail_saving": "Saving...",
 	"detail_saved": "Changes saved",
 	"detail_save_failed": "Failed to save changes",
+	"image_uploaded": "Image uploaded",
 	"image_upload_failed": "Image upload failed",
 	"detail_ingredients": "Ingredients",
 	"detail_servings": "{count} servings",
@@ -362,5 +379,12 @@
 	"insights_30d": "30 days",
 	"insights_no_data": "No data for this period",
 	"settings_widget_top_foods": "Top Foods",
-	"settings_widget_top_foods_desc": "Most frequently logged foods"
+	"settings_widget_top_foods_desc": "Most frequently logged foods",
+
+	"dashboard_goal_progress": "Goal Progress",
+	"dashboard_remaining": "{amount} remaining",
+	"dashboard_over": "{amount} over",
+
+	"delete_related_entries": "Delete related entries",
+	"recipes_delete": "Delete recipe"
 }

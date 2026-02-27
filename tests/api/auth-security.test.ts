@@ -27,7 +27,7 @@ mock.module('$lib/server/foods', () => ({
 		}
 		return { success: true, data: undefined };
 	},
-	deleteFood: async () => {},
+	deleteFood: async () => ({ blocked: false }),
 	listRecentFoods: async () => [],
 	toFoodInsert: () => ({}),
 	toFoodUpdate: () => ({})
@@ -65,7 +65,7 @@ mock.module('$lib/server/recipes', () => ({
 		}
 		return { success: true, data: undefined };
 	},
-	deleteRecipe: async () => {}
+	deleteRecipe: async () => ({ blocked: false })
 }));
 
 mock.module('$lib/server/meal-types', () => ({

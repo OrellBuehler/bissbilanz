@@ -98,6 +98,7 @@ export const foods = pgTable(
 			.on(table.userId, table.barcode)
 			.where(sql`barcode IS NOT NULL`),
 		index('idx_foods_user_name').on(table.userId, table.name),
+		index('idx_foods_image_url').on(table.imageUrl),
 		check('foods_serving_positive', sql`${table.servingSize} > 0`),
 		check(
 			'foods_nutrition_nonnegative',
@@ -126,8 +127,8 @@ export const foodEntries = pgTable(
 		userId: uuid('user_id')
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
-		foodId: uuid('food_id').references(() => foods.id, { onDelete: 'set null' }),
-		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+		foodId: uuid('food_id').references(() => foods.id, { onDelete: 'restrict' }),
+		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'restrict' }),
 		date: date('date').notNull(),
 		mealType: text('meal_type').notNull(),
 		servings: real('servings').notNull(),
@@ -182,6 +183,7 @@ export const userPreferences = pgTable('user_preferences', {
 	userId: uuid('user_id')
 		.primaryKey()
 		.references(() => users.id, { onDelete: 'cascade' }),
+	showChartWidget: boolean('show_chart_widget').notNull().default(true),
 	showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
 	showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
 	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
@@ -214,6 +216,7 @@ export const recipes = pgTable(
 	(table) => [
 		index('idx_recipes_user_id').on(table.userId),
 		index('idx_recipes_created_at').on(table.createdAt),
+		index('idx_recipes_image_url').on(table.imageUrl),
 		check('recipes_servings_positive', sql`${table.totalServings} > 0`)
 	]
 );
