@@ -374,5 +374,34 @@
 	"dashboard_over": "{amount} over",
 
 	"delete_related_entries": "Delete related entries",
-	"recipes_delete": "Delete recipe"
+	"recipes_delete": "Delete recipe",
+
+	"nav_maintenance": "Maintenance",
+
+	"maintenance_title": "Maintenance Calculator",
+	"maintenance_description": "Estimate your maintenance calories based on weight change and calorie intake over a period.",
+	"maintenance_date_range": "Date Range",
+	"maintenance_start": "Start",
+	"maintenance_end": "End",
+	"maintenance_2_weeks": "2 weeks",
+	"maintenance_4_weeks": "4 weeks",
+	"maintenance_8_weeks": "8 weeks",
+	"maintenance_12_weeks": "12 weeks",
+	"maintenance_body_composition": "Body Composition",
+	"maintenance_muscle": "Muscle",
+	"maintenance_fat": "Fat",
+	"maintenance_ratio_hint": "Default 30/70 — adjust based on training status and protein intake.",
+	"maintenance_calculate": "Calculate",
+	"maintenance_estimated": "Estimated Maintenance",
+	"maintenance_kcal_day": "kcal / day",
+	"maintenance_avg_intake": "Avg Intake",
+	"maintenance_deficit": "Deficit",
+	"maintenance_surplus": "Surplus",
+	"maintenance_weight_change": "Weight Change",
+	"maintenance_breakdown": "Energy Breakdown",
+	"maintenance_fat_loss": "Fat",
+	"maintenance_muscle_loss": "Muscle",
+	"maintenance_total_energy": "Total Energy",
+	"maintenance_data_note": "Based on {weightEntries} weight entries, {foodDays} days with food logs, over {days} days.",
+	"maintenance_weight_range": "Weight: {first} kg → {last} kg"
 }

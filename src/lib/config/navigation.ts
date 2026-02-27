@@ -5,6 +5,7 @@ import CookingPot from '@lucide/svelte/icons/cooking-pot';
 import Pill from '@lucide/svelte/icons/pill';
 import Weight from '@lucide/svelte/icons/weight';
 import Target from '@lucide/svelte/icons/target';
+import Calculator from '@lucide/svelte/icons/calculator';
 import Calendar from '@lucide/svelte/icons/calendar';
 import Settings from '@lucide/svelte/icons/settings';
 import * as m from '$lib/paraglide/messages';
@@ -68,6 +69,13 @@ export function getNavItems(): NavItem[] {
 			icon: Target,
 			badgeColor: 'bg-amber-100 text-amber-600',
 			activeRing: 'ring-2 ring-inset ring-amber-300/80 dark:ring-amber-700/80'
+		},
+		{
+			title: () => m.nav_maintenance(),
+			href: '/maintenance',
+			icon: Calculator,
+			badgeColor: 'bg-cyan-100 text-cyan-600',
+			activeRing: 'ring-2 ring-inset ring-cyan-300/80 dark:ring-cyan-700/80'
 		},
 		{
 			title: () => m.nav_history(),
