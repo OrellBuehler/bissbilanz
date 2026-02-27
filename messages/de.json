@@ -189,6 +189,9 @@
 	"goals_saving": "Speichern...",
 	"goals_saved": "Ziele gespeichert",
 	"goals_save_failed": "Ziele konnten nicht gespeichert werden",
+	"goals_macro_split": "Makro-Verteilung",
+	"goals_percentage": "{percentage}%",
+	"goals_grams": "{grams}g",
 
 	"history_title": "Verlauf",
 	"history_weekly": "Wochendurchschnitt (7 Tage)",
