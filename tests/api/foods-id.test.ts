@@ -28,10 +28,9 @@ const mockValidationError = new ZodError([
 	{
 		code: 'invalid_type',
 		expected: 'number',
-		received: 'string',
 		path: ['calories'],
 		message: 'Expected number, received string'
-	}
+	} as any
 ]);
 
 const { GET, PATCH, DELETE } = await import('../../src/routes/api/foods/[id]/+server');
