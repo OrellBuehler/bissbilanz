@@ -45,15 +45,22 @@
 	let scannedFood: any = $state(null);
 	let scannedBarcode = $state('');
 
-	const loadData = async () => {
-		const [foodsRes, recipesRes, entriesRes] = await Promise.all([
+	let foodsLoaded = false;
+
+	const loadFoodsAndRecipes = async () => {
+		if (foodsLoaded) return;
+		const [foodsRes, recipesRes] = await Promise.all([
 			fetch('/api/foods'),
-			fetch('/api/recipes'),
-			fetch(`/api/entries?date=${date}`)
+			fetch('/api/recipes')
 		]);
 		foods = (await foodsRes.json()).foods ?? [];
 		recipes = (await recipesRes.json()).recipes ?? [];
-		entries = (await entriesRes.json()).entries ?? [];
+		foodsLoaded = true;
+	};
+
+	const loadEntries = async () => {
+		const res = await fetch(`/api/entries?date=${date}`);
+		entries = (await res.json()).entries ?? [];
 	};
 
 	const addEntry = async (payload: any) => {
@@ -63,7 +70,7 @@
 			body: JSON.stringify({ ...payload, date })
 		});
 		addModalOpen = false;
-		await loadData();
+		await loadEntries();
 		onMutation?.();
 	};
 
@@ -75,7 +82,7 @@
 		});
 		editModalOpen = false;
 		editingEntry = null;
-		await loadData();
+		await loadEntries();
 		onMutation?.();
 	};
 
@@ -83,7 +90,7 @@
 		await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
 		editModalOpen = false;
 		editingEntry = null;
-		await loadData();
+		await loadEntries();
 		onMutation?.();
 	};
 
@@ -118,11 +125,13 @@
 		onTotalsChange?.(totals);
 	});
 
+	loadFoodsAndRecipes();
+
 	$effect(() => {
 		if (date) {
-			loadData();
+			loadEntries();
 		}
-		refreshKey; // track refreshKey to re-run on increment
+		refreshKey;
 	});
 </script>
 
