@@ -49,7 +49,7 @@
 			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="w-auto p-0" align="center">
-			<Calendar value={calendarValue} onValueChange={onCalendarChange} />
+			<Calendar type="single" value={calendarValue} onValueChange={onCalendarChange} />
 		</Popover.Content>
 	</Popover.Root>
 
