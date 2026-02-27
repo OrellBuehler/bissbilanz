@@ -399,9 +399,13 @@
 	"maintenance_surplus": "Überschuss",
 	"maintenance_weight_change": "Gewichtsänderung",
 	"maintenance_breakdown": "Energieaufschlüsselung",
-	"maintenance_fat_loss": "Fett",
-	"maintenance_muscle_loss": "Muskel",
+	"maintenance_fat_component": "Fett",
+	"maintenance_muscle_component": "Muskel",
 	"maintenance_total_energy": "Gesamtenergie",
+	"maintenance_energy_balance_deficit": "Defizit: {value} kcal",
+	"maintenance_energy_balance_surplus": "Überschuss: {value} kcal",
+	"maintenance_calculate_error": "Berechnung der Erhaltungskalorien fehlgeschlagen",
+	"maintenance_low_coverage_warning": "Nur {days} von {total} Tagen haben Ernährungseinträge. Ergebnisse können ungenau sein.",
 	"maintenance_data_note": "Basierend auf {weightEntries} Gewichtseinträgen, {foodDays} Tagen mit Ernährungsprotokoll, über {days} Tage.",
 	"maintenance_weight_range": "Gewicht: {first} kg → {last} kg"
 }

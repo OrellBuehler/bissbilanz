@@ -71,18 +71,18 @@ export function getNavItems(): NavItem[] {
 			activeRing: 'ring-2 ring-inset ring-amber-300/80 dark:ring-amber-700/80'
 		},
 		{
-			title: () => m.nav_maintenance(),
-			href: '/maintenance',
-			icon: Calculator,
-			badgeColor: 'bg-cyan-100 text-cyan-600',
-			activeRing: 'ring-2 ring-inset ring-cyan-300/80 dark:ring-cyan-700/80'
-		},
-		{
 			title: () => m.nav_history(),
 			href: '/history',
 			icon: Calendar,
 			badgeColor: 'bg-indigo-100 text-indigo-600',
 			activeRing: 'ring-2 ring-inset ring-indigo-300/80 dark:ring-indigo-700/80'
+		},
+		{
+			title: () => m.nav_maintenance(),
+			href: '/maintenance',
+			icon: Calculator,
+			badgeColor: 'bg-cyan-100 text-cyan-600',
+			activeRing: 'ring-2 ring-inset ring-cyan-300/80 dark:ring-cyan-700/80'
 		},
 		{
 			title: () => m.nav_settings(),

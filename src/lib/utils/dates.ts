@@ -36,6 +36,12 @@ export const getMonthName = (month: number) =>
 		m.month_december
 	][month]();
 
+export const daysBetween = (startDate: string, endDate: string): number => {
+	const start = new Date(startDate + 'T00:00:00Z');
+	const end = new Date(endDate + 'T00:00:00Z');
+	return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+};
+
 export const getDayOfWeek = (isoDate: string) => new Date(isoDate + 'T00:00:00Z').getUTCDay();
 
 export const daysAgo = (days: number) => shiftDate(today(), -(days - 1));

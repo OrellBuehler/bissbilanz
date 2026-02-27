@@ -12,7 +12,7 @@ export type MaintenanceInput = {
 export type MaintenanceResult = {
 	maintenanceCalories: number;
 	dailyDeficit: number;
-	totalDeficit: number;
+	totalEnergyBalance: number;
 	fatMassKg: number;
 	muscleMassKg: number;
 	fatCalories: number;
@@ -37,15 +37,15 @@ export function calculateMaintenance(input: MaintenanceInput): MaintenanceResult
 	const totalEnergy = fatCalories + muscleCalories;
 
 	const sign = weightChangeKg < 0 ? 1 : weightChangeKg > 0 ? -1 : 0;
-	const totalDeficit = totalEnergy * sign;
-	const dailyDeficit = days > 0 ? totalDeficit / days : 0;
+	const totalEnergyBalance = totalEnergy * sign;
+	const dailyDeficit = days > 0 ? totalEnergyBalance / days : 0;
 
 	const maintenanceCalories = Math.round(avgDailyCalories + dailyDeficit);
 
 	return {
 		maintenanceCalories,
 		dailyDeficit: Math.round(dailyDeficit),
-		totalDeficit: Math.round(totalDeficit),
+		totalEnergyBalance: Math.round(totalEnergyBalance),
 		fatMassKg: Math.round(fatMassKg * 100) / 100,
 		muscleMassKg: Math.round(muscleMassKg * 100) / 100,
 		fatCalories: Math.round(fatCalories),

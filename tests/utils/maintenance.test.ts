@@ -19,7 +19,7 @@ describe('calculateMaintenance', () => {
 		expect(result!.muscleMassKg).toBe(0.6);
 		expect(result!.fatCalories).toBe(10780);
 		expect(result!.muscleCalories).toBe(1080);
-		expect(result!.totalDeficit).toBe(11860);
+		expect(result!.totalEnergyBalance).toBe(11860);
 		expect(result!.dailyDeficit).toBe(424);
 		expect(result!.maintenanceCalories).toBe(2224);
 	});
@@ -33,7 +33,7 @@ describe('calculateMaintenance', () => {
 		});
 
 		expect(result).not.toBeNull();
-		expect(result!.totalDeficit).toBeLessThan(0);
+		expect(result!.totalEnergyBalance).toBeLessThan(0);
 		expect(result!.maintenanceCalories).toBeLessThan(2500);
 	});
 

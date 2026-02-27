@@ -7,22 +7,43 @@ import { weightEntries } from '$lib/server/schema';
 import { and, eq, gte, lte, asc } from 'drizzle-orm';
 import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
 import { calculateEntryMacros } from '$lib/utils/nutrition';
+import { daysBetween } from '$lib/utils/dates';
+import { z } from 'zod';
+
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const muscleRatioSchema = z.coerce.number().min(0).max(1);
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const userId = requireAuth(locals);
-		const startDate = url.searchParams.get('startDate');
-		const endDate = url.searchParams.get('endDate');
+		const startDateRaw = url.searchParams.get('startDate');
+		const endDateRaw = url.searchParams.get('endDate');
 		const muscleRatioParam = url.searchParams.get('muscleRatio');
 
-		if (!startDate || !endDate) {
+		if (!startDateRaw || !endDateRaw) {
 			throw new ApiError(400, 'startDate and endDate parameters are required');
 		}
 
-		const muscleRatio = muscleRatioParam ? parseFloat(muscleRatioParam) : DEFAULT_MUSCLE_RATIO;
+		const startDateResult = dateSchema.safeParse(startDateRaw);
+		if (!startDateResult.success) {
+			throw new ApiError(400, 'startDate must be in YYYY-MM-DD format');
+		}
 
-		if (isNaN(muscleRatio) || muscleRatio < 0 || muscleRatio > 1) {
-			throw new ApiError(400, 'muscleRatio must be between 0 and 1');
+		const endDateResult = dateSchema.safeParse(endDateRaw);
+		if (!endDateResult.success) {
+			throw new ApiError(400, 'endDate must be in YYYY-MM-DD format');
+		}
+
+		const startDate = startDateResult.data;
+		const endDate = endDateResult.data;
+
+		let muscleRatio = DEFAULT_MUSCLE_RATIO;
+		if (muscleRatioParam) {
+			const ratioResult = muscleRatioSchema.safeParse(muscleRatioParam);
+			if (!ratioResult.success) {
+				throw new ApiError(400, 'muscleRatio must be a number between 0 and 1');
+			}
+			muscleRatio = ratioResult.data;
 		}
 
 		const db = getDB();
@@ -72,20 +93,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			);
 		}
 
-		const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
-		const avgDailyCalories = totalCalories / daysWithEntries.length;
-
-		const firstWeight = weights[0];
-		const lastWeight = weights[weights.length - 1];
-		const weightChangeKg = lastWeight.weightKg - firstWeight.weightKg;
-
-		const start = new Date(startDate + 'T00:00:00Z');
-		const end = new Date(endDate + 'T00:00:00Z');
-		const days = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+		const days = daysBetween(startDate, endDate);
 
 		if (days <= 0) {
 			throw new ApiError(400, 'End date must be after start date');
 		}
+
+		const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
+		const avgDailyCalories = totalCalories / days;
+		const coverage = daysWithEntries.length / days;
+
+		const firstWeight = weights[0];
+		const lastWeight = weights[weights.length - 1];
+		const weightChangeKg = lastWeight.weightKg - firstWeight.weightKg;
 
 		const result = calculateMaintenance({
 			weightChangeKg,
@@ -103,6 +123,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			meta: {
 				weightEntries: weights.length,
 				foodEntryDays: daysWithEntries.length,
+				totalDays: days,
+				coverage,
 				firstWeight: firstWeight.weightKg,
 				lastWeight: lastWeight.weightKg,
 				startDate,

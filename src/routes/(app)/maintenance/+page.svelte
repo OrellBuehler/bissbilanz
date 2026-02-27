@@ -11,13 +11,14 @@
 	import TrendingUp from '@lucide/svelte/icons/trending-up';
 	import Scale from '@lucide/svelte/icons/scale';
 	import Info from '@lucide/svelte/icons/info';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Loader from '@lucide/svelte/icons/loader';
 	import * as m from '$lib/paraglide/messages';
 
 	type MaintenanceResult = {
 		maintenanceCalories: number;
 		dailyDeficit: number;
-		totalDeficit: number;
+		totalEnergyBalance: number;
 		fatMassKg: number;
 		muscleMassKg: number;
 		fatCalories: number;
@@ -31,6 +32,8 @@
 	type Meta = {
 		weightEntries: number;
 		foodEntryDays: number;
+		totalDays: number;
+		coverage: number;
 		firstWeight: number;
 		lastWeight: number;
 		startDate: string;
@@ -50,6 +53,7 @@
 	const dailyDeficit = $derived(result?.dailyDeficit ?? 0);
 	const isDeficit = $derived(dailyDeficit > 0);
 	const isGain = $derived(dailyDeficit < 0);
+	const lowCoverage = $derived(meta != null && meta.coverage < 0.7);
 
 	const presets = [
 		{ label: () => m.maintenance_2_weeks(), days: 13 },
@@ -84,7 +88,7 @@
 			result = data.result;
 			meta = data.meta;
 		} catch {
-			error = 'Failed to calculate';
+			error = m.maintenance_calculate_error();
 		} finally {
 			loading = false;
 		}
@@ -199,6 +203,20 @@
 	{/if}
 
 	{#if result && meta}
+		{#if lowCoverage}
+			<Card.Root class="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/10">
+				<Card.Content class="flex items-start gap-3 p-4">
+					<TriangleAlert class="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+					<p class="text-sm text-amber-700 dark:text-amber-300">
+						{m.maintenance_low_coverage_warning({
+							days: meta.foodEntryDays,
+							total: meta.totalDays
+						})}
+					</p>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
 		<Card.Root
 			class="overflow-hidden border-border/60 bg-linear-to-br from-blue-50/80 via-background to-emerald-50/60 dark:from-blue-950/20 dark:via-background dark:to-emerald-950/10"
 		>
@@ -285,13 +303,13 @@
 			<Card.Content class="space-y-3 p-4 pt-0 sm:p-5 sm:pt-0">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-						<span class="text-sm">{m.maintenance_fat_loss()}</span>
+						<span class="text-sm">{m.maintenance_fat_component()}</span>
 						<span class="font-mono text-sm font-semibold">
 							{formatKg(result.fatMassKg)} kg = {formatKcal(result.fatCalories)} kcal
 						</span>
 					</div>
 					<div class="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-						<span class="text-sm">{m.maintenance_muscle_loss()}</span>
+						<span class="text-sm">{m.maintenance_muscle_component()}</span>
 						<span class="font-mono text-sm font-semibold">
 							{formatKg(result.muscleMassKg)} kg = {formatKcal(result.muscleCalories)} kcal
 						</span>
@@ -301,7 +319,13 @@
 					>
 						<span class="text-sm font-medium">{m.maintenance_total_energy()}</span>
 						<span class="font-mono text-sm font-bold">
-							{formatKcal(result.totalDeficit)} kcal
+							{#if result.totalEnergyBalance > 0}
+								{m.maintenance_energy_balance_deficit({ value: formatKcal(result.totalEnergyBalance) })}
+							{:else if result.totalEnergyBalance < 0}
+								{m.maintenance_energy_balance_surplus({ value: formatKcal(result.totalEnergyBalance) })}
+							{:else}
+								{formatKcal(result.totalEnergyBalance)} kcal
+							{/if}
 						</span>
 					</div>
 				</div>
@@ -311,7 +335,7 @@
 						{m.maintenance_data_note({
 							weightEntries: meta.weightEntries,
 							foodDays: meta.foodEntryDays,
-							days: result.days
+							days: meta.totalDays
 						})}
 					</p>
 					<p>
