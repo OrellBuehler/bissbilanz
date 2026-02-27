@@ -15,8 +15,13 @@ mock.module('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { createWeightEntry, getWeightEntries, getLatestWeight, updateWeightEntry, deleteWeightEntry } =
-	await import('$lib/server/weight');
+const {
+	createWeightEntry,
+	getWeightEntries,
+	getLatestWeight,
+	updateWeightEntry,
+	deleteWeightEntry
+} = await import('$lib/server/weight');
 
 const TEST_WEIGHT_ENTRY = {
 	id: '10000000-0000-4000-8000-000000000080',
@@ -25,6 +30,7 @@ const TEST_WEIGHT_ENTRY = {
 	entryDate: '2026-02-10',
 	loggedAt: new Date('2026-02-10T08:00:00Z'),
 	notes: null,
+	createdAt: new Date('2026-02-10T08:00:00Z'),
 	updatedAt: null
 };
 

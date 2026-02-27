@@ -1,5 +1,12 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
-import { TEST_USER, TEST_FOOD, TEST_RECIPE, TEST_ENTRY, TEST_GOALS, TEST_SUPPLEMENT } from '../helpers/fixtures';
+import {
+	TEST_USER,
+	TEST_FOOD,
+	TEST_RECIPE,
+	TEST_ENTRY,
+	TEST_GOALS,
+	TEST_SUPPLEMENT
+} from '../helpers/fixtures';
 
 // Mock paraglide (generated at build time, not available in tests)
 mock.module('$lib/paraglide/messages', () => new Proxy({}, { get: () => () => '' }));
@@ -38,7 +45,10 @@ mock.module('$lib/server/foods', () => ({
 			? { success: true, data: mockCreateFoodResult }
 			: { success: false, error: new Error('Validation failed') },
 	getFood: async () => mockFood,
-	findFoodByBarcode: async () => mockBarcodeFood
+	findFoodByBarcode: async () => mockBarcodeFood,
+	updateFood: async () => ({ success: true, data: {} }),
+	deleteFood: async () => ({ blocked: false }),
+	listRecentFoods: async () => []
 }));
 
 mock.module('$lib/server/recipes', () => ({
@@ -47,7 +57,9 @@ mock.module('$lib/server/recipes', () => ({
 		mockCreateRecipeResult
 			? { success: true, data: mockCreateRecipeResult }
 			: { success: false, error: new Error('Validation failed') },
-	getRecipe: async () => mockRecipe
+	getRecipe: async () => mockRecipe,
+	updateRecipe: async () => ({ success: true, data: {} }),
+	deleteRecipe: async () => ({ blocked: false })
 }));
 
 mock.module('$lib/server/entries', () => ({
@@ -83,12 +95,18 @@ mock.module('$lib/server/weight', () => ({
 			? { success: true, data: mockCreateWeightResult }
 			: { success: false, error: new Error('Validation failed') },
 	getLatestWeight: async () => mockLatestWeight,
-	getWeightWithTrend: async () => mockWeightTrend
+	getWeightWithTrend: async () => mockWeightTrend,
+	updateWeightEntry: async () => ({ success: true, data: {} }),
+	deleteWeightEntry: async () => true
 }));
 
 mock.module('$lib/server/stats', () => ({
 	getWeeklyStats: async () => mockWeeklyStats,
-	getMonthlyStats: async () => mockMonthlyStats
+	getMonthlyStats: async () => mockMonthlyStats,
+	getDailyBreakdown: async () => [],
+	getMealBreakdown: async () => [],
+	getTopFoods: async () => [],
+	getStreaks: async () => ({ current: 0, longest: 0 })
 }));
 
 mock.module('$lib/server/supplements', () => ({
@@ -98,7 +116,11 @@ mock.module('$lib/server/supplements', () => ({
 		mockLogSupplementResult
 			? { success: true, data: mockLogSupplementResult }
 			: { success: false, error: new Error('Supplement not found') },
-	getSupplementById: async () => mockSupplementById
+	getSupplementById: async () => mockSupplementById,
+	createSupplement: async () => ({ success: true, data: { id: 'new-supp' } }),
+	updateSupplement: async () => ({ success: true, data: {} }),
+	deleteSupplement: async () => true,
+	unlogSupplement: async () => true
 }));
 
 mock.module('$lib/utils/supplements', () => ({
@@ -344,13 +366,13 @@ describe('MCP handlers', () => {
 	describe('handleGetRecipe', () => {
 		test('returns recipe when found', async () => {
 			mockRecipe = TEST_RECIPE;
-			const result = await handleGetRecipe(TEST_USER.id, TEST_RECIPE.id);
+			const result = (await handleGetRecipe(TEST_USER.id, TEST_RECIPE.id)) as any;
 			expect(result.name).toBe('Oatmeal Bowl');
 		});
 
 		test('returns error when not found', async () => {
 			mockRecipe = null;
-			const result = await handleGetRecipe(TEST_USER.id, 'nonexistent');
+			const result = (await handleGetRecipe(TEST_USER.id, 'nonexistent')) as any;
 			expect(result.error).toBe('Recipe not found');
 		});
 	});
@@ -358,13 +380,13 @@ describe('MCP handlers', () => {
 	describe('handleGetFood', () => {
 		test('returns food when found', async () => {
 			mockFood = TEST_FOOD;
-			const result = await handleGetFood(TEST_USER.id, TEST_FOOD.id);
+			const result = (await handleGetFood(TEST_USER.id, TEST_FOOD.id)) as any;
 			expect(result.name).toBe('Oats');
 		});
 
 		test('returns error when not found', async () => {
 			mockFood = null;
-			const result = await handleGetFood(TEST_USER.id, 'nonexistent');
+			const result = (await handleGetFood(TEST_USER.id, 'nonexistent')) as any;
 			expect(result.error).toBe('Food not found');
 		});
 	});
@@ -403,23 +425,23 @@ describe('MCP handlers', () => {
 	describe('handleGetWeight', () => {
 		test('returns latest weight when no date range', async () => {
 			mockLatestWeight = { weightKg: 75.5, entryDate: '2026-02-10' };
-			const result = await handleGetWeight(TEST_USER.id, {});
+			const result = (await handleGetWeight(TEST_USER.id, {})) as any;
 			expect(result.weightKg).toBe(75.5);
 		});
 
 		test('returns error when no entries and no range', async () => {
 			mockLatestWeight = null;
-			const result = await handleGetWeight(TEST_USER.id, {});
+			const result = (await handleGetWeight(TEST_USER.id, {})) as any;
 			expect(result.error).toBe('No weight entries found');
 		});
 
 		test('returns error when only from provided', async () => {
-			const result = await handleGetWeight(TEST_USER.id, { from: '2026-02-01' });
+			const result = (await handleGetWeight(TEST_USER.id, { from: '2026-02-01' })) as any;
 			expect(result.error).toContain('Provide both');
 		});
 
 		test('returns error when only to provided', async () => {
-			const result = await handleGetWeight(TEST_USER.id, { to: '2026-02-10' });
+			const result = (await handleGetWeight(TEST_USER.id, { to: '2026-02-10' })) as any;
 			expect(result.error).toContain('Provide both');
 		});
 
@@ -473,14 +495,14 @@ describe('MCP handlers', () => {
 	describe('handleFindFoodByBarcode', () => {
 		test('returns food when found', async () => {
 			mockBarcodeFood = TEST_FOOD;
-			const result = await handleFindFoodByBarcode(TEST_USER.id, '1234567890123');
+			const result = (await handleFindFoodByBarcode(TEST_USER.id, '1234567890123')) as any;
 			expect(result.found).toBe(true);
 			expect(result.name).toBe('Oats');
 		});
 
 		test('returns not found when no match', async () => {
 			mockBarcodeFood = null;
-			const result = await handleFindFoodByBarcode(TEST_USER.id, '0000000000000');
+			const result = (await handleFindFoodByBarcode(TEST_USER.id, '0000000000000')) as any;
 			expect(result.found).toBe(false);
 		});
 	});
