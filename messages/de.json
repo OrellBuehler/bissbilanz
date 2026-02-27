@@ -374,13 +374,18 @@
 
 	"nav_insights": "Einblicke",
 	"insights_title": "Einblicke",
+	"insights_meal_distribution": "Mahlzeitenverteilung",
 	"insights_top_foods": "Top-Lebensmittel",
 	"insights_times_logged": "{count} mal",
 	"insights_per_serving": "pro Portion",
 	"insights_see_more": "Mehr anzeigen",
+	"insights_today": "Heute",
 	"insights_7d": "7 Tage",
 	"insights_30d": "30 Tage",
 	"insights_no_data": "Keine Daten für diesen Zeitraum",
+	"insights_of_total": "{pct}% des Gesamten",
+	"settings_widget_meal_breakdown": "Mahlzeiten-Aufschlüsselung",
+	"settings_widget_meal_breakdown_desc": "Kalorienverteilung über Mahlzeiten",
 	"settings_widget_top_foods": "Top-Lebensmittel",
 	"settings_widget_top_foods_desc": "Am häufigsten protokollierte Lebensmittel",
 

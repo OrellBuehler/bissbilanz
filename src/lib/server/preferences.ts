@@ -36,12 +36,14 @@ export const DEFAULT_PREFERENCES = {
 	showFavoritesWidget: true,
 	showSupplementsWidget: true,
 	showWeightWidget: true,
+	showMealBreakdownWidget: true,
 	showTopFoodsWidget: true,
 	widgetOrder: [
 		'chart',
 		'favorites',
 		'supplements',
 		'weight',
+		'meal-breakdown',
 		'top-foods',
 		'summary',
 		'daylog'
@@ -58,6 +60,7 @@ const ALL_SECTION_KEYS = [
 	'favorites',
 	'supplements',
 	'weight',
+	'meal-breakdown',
 	'top-foods',
 	'summary',
 	'daylog'
