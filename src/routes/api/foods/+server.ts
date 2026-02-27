@@ -27,7 +27,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const query = url.searchParams.get('q') ?? undefined;
-		const { limit, offset } = paginationResult.data;
+		const { offset } = paginationResult.data;
+		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
 		const foods = await listFoods(userId, { query, limit, offset });
 		return json({ foods });
 	} catch (error) {

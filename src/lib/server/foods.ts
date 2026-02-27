@@ -56,14 +56,15 @@ export const listFoods = async (
 	options?: { query?: string; limit?: number; offset?: number }
 ) => {
 	const db = getDB();
-	const limit = options?.limit ?? 100;
 	const offset = options?.offset ?? 0;
 	const escapedQuery = options?.query?.replace(/%/g, '\\%').replace(/_/g, '\\_');
 	const whereClause = escapedQuery
 		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`))
 		: eq(foods.userId, userId);
 
-	return db.select().from(foods).where(whereClause).orderBy(foods.name).limit(limit).offset(offset);
+	const q = db.select().from(foods).where(whereClause).orderBy(foods.name);
+	if (options?.limit !== undefined) q.limit(options.limit);
+	return q.offset(offset);
 };
 
 export const createFood = async (

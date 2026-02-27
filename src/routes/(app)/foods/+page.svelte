@@ -4,7 +4,6 @@
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
-	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -32,8 +31,10 @@
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
 
-	const loadFoods = async () => {
-		const res = await fetch('/api/foods');
+	const loadFoods = async (q?: string) => {
+		const params = new URLSearchParams();
+		if (q) params.set('q', q);
+		const res = await fetch(`/api/foods?${params}`);
 		const data = await res.json();
 		foods = data.foods;
 	};
@@ -204,11 +205,19 @@
 		}
 	});
 
+	let debounceTimer: ReturnType<typeof setTimeout>;
+
 	onMount(() => {
 		loadFoods();
 	});
 
-	const filtered = $derived(filterFoods(foods, query));
+	$effect(() => {
+		const q = query;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			loadFoods(q);
+		}, 300);
+	});
 
 	const formInitial = $derived(
 		editingFood
@@ -265,10 +274,10 @@
 		/>
 	</div>
 
-	{#if query && filtered.length === 0}
+	{#if query && foods.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
-		<FoodList foods={filtered} onEdit={openEdit} onDelete={deleteFood} onEnrich={enrichFood} />
+		<FoodList {foods} onEdit={openEdit} onDelete={deleteFood} onEnrich={enrichFood} />
 	{/if}
 </div>
 
