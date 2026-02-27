@@ -2,12 +2,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
 	handleCreateFood,
+	handleUpdateFood,
+	handleDeleteFood,
+	handleListRecentFoods,
 	handleCreateRecipe,
+	handleUpdateRecipe,
+	handleDeleteRecipe,
 	handleGetDailyStatus,
 	handleLogFood,
 	handleSearchFoods,
 	handleGetSupplementStatus,
 	handleLogSupplement,
+	handleCreateSupplement,
+	handleListSupplements,
+	handleUpdateSupplement,
+	handleDeleteSupplement,
+	handleUnlogSupplement,
 	handleListEntries,
 	handleUpdateEntry,
 	handleDeleteEntry,
@@ -18,9 +28,15 @@ import {
 	handleGetFood,
 	handleListFavorites,
 	handleLogWeight,
+	handleUpdateWeight,
+	handleDeleteWeight,
 	handleGetWeight,
 	handleGetWeeklyStats,
 	handleGetMonthlyStats,
+	handleGetDailyBreakdown,
+	handleGetMealBreakdown,
+	handleGetTopFoods,
+	handleGetStreaks,
 	handleCopyEntries,
 	handleFindFoodByBarcode
 } from './handlers';
@@ -336,6 +352,247 @@ export function createMcpServer(userId: string): McpServer {
 			}
 		},
 		safe(({ barcode }) => handleFindFoodByBarcode(userId, barcode))
+	);
+
+	server.registerTool(
+		'update_food',
+		{
+			description: 'Update an existing food item in the database.',
+			inputSchema: {
+				foodId: z.string().describe('The food ID to update'),
+				name: z.string().optional().describe('New name'),
+				servingSize: z.number().optional().describe('New serving size'),
+				servingUnit: z.string().optional().describe('New serving unit'),
+				calories: z.number().optional().describe('New calories per serving'),
+				protein: z.number().optional().describe('New protein in grams per serving'),
+				carbs: z.number().optional().describe('New carbs in grams per serving'),
+				fat: z.number().optional().describe('New fat in grams per serving'),
+				fiber: z.number().optional().describe('New fiber in grams per serving'),
+				brand: z.string().optional().describe('New brand name'),
+				barcode: z.string().optional().describe('New barcode number')
+			}
+		},
+		safe(({ foodId, ...rest }) => handleUpdateFood(userId, { foodId, ...rest }))
+	);
+
+	server.registerTool(
+		'delete_food',
+		{
+			description: 'Delete a food from the database. If the food has diary entries, returns blocked status unless force=true.',
+			inputSchema: {
+				foodId: z.string().describe('The food ID to delete'),
+				force: z.boolean().optional().describe('Force delete even if food has diary entries')
+			}
+		},
+		safe((args) => handleDeleteFood(userId, args))
+	);
+
+	server.registerTool(
+		'list_recent_foods',
+		{
+			description: 'List recently logged foods, ordered by most recent.',
+			inputSchema: {
+				limit: z.number().optional().describe('Max number of foods to return. Defaults to 25.')
+			}
+		},
+		safe((args) => handleListRecentFoods(userId, args))
+	);
+
+	server.registerTool(
+		'update_recipe',
+		{
+			description: 'Update an existing recipe. Can change name, servings, or replace all ingredients.',
+			inputSchema: {
+				recipeId: z.string().describe('The recipe ID to update'),
+				name: z.string().optional().describe('New recipe name'),
+				totalServings: z.number().optional().describe('New number of servings'),
+				ingredients: z
+					.array(
+						z.object({
+							foodId: z.string().describe('Food ID from the database'),
+							quantity: z.number().describe('Quantity of the food'),
+							servingUnit: z.string().describe('Unit for the quantity')
+						})
+					)
+					.optional()
+					.describe('New list of ingredients (replaces all existing)')
+			}
+		},
+		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))
+	);
+
+	server.registerTool(
+		'delete_recipe',
+		{
+			description: 'Delete a recipe. If the recipe has diary entries, returns blocked status unless force=true.',
+			inputSchema: {
+				recipeId: z.string().describe('The recipe ID to delete'),
+				force: z.boolean().optional().describe('Force delete even if recipe has diary entries')
+			}
+		},
+		safe((args) => handleDeleteRecipe(userId, args))
+	);
+
+	server.registerTool(
+		'create_supplement',
+		{
+			description: 'Create a new supplement with schedule and optional ingredients.',
+			inputSchema: {
+				name: z.string().describe('Supplement name'),
+				dosage: z.number().describe('Dosage amount'),
+				dosageUnit: z.string().describe('Dosage unit (e.g., "mg", "mcg", "IU", "capsules")'),
+				scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']).describe('Schedule type'),
+				scheduleDays: z.array(z.number()).optional().describe('Days of week (0=Sun..6=Sat) for weekly/specific_days'),
+				scheduleStartDate: z.string().optional().describe('Start date in YYYY-MM-DD format'),
+				timeOfDay: z.enum(['morning', 'noon', 'evening']).optional().describe('Preferred time of day'),
+				ingredients: z
+					.array(
+						z.object({
+							name: z.string().describe('Ingredient name'),
+							dosage: z.number().describe('Ingredient dosage'),
+							dosageUnit: z.string().describe('Ingredient dosage unit')
+						})
+					)
+					.optional()
+					.describe('List of ingredients in the supplement'),
+				isActive: z.boolean().optional().describe('Whether the supplement is active. Defaults to true.')
+			}
+		},
+		safe((args) => handleCreateSupplement(userId, args))
+	);
+
+	server.registerTool(
+		'list_supplements',
+		{
+			description: "List the user's supplements.",
+			inputSchema: {
+				activeOnly: z.boolean().optional().describe('Only show active supplements. Defaults to true.')
+			}
+		},
+		safe((args) => handleListSupplements(userId, args))
+	);
+
+	server.registerTool(
+		'update_supplement',
+		{
+			description: 'Update an existing supplement.',
+			inputSchema: {
+				supplementId: z.string().describe('The supplement ID to update'),
+				name: z.string().optional().describe('New name'),
+				dosage: z.number().optional().describe('New dosage amount'),
+				dosageUnit: z.string().optional().describe('New dosage unit'),
+				scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']).optional().describe('New schedule type'),
+				scheduleDays: z.array(z.number()).optional().describe('New days of week'),
+				scheduleStartDate: z.string().optional().describe('New start date'),
+				timeOfDay: z.enum(['morning', 'noon', 'evening']).optional().nullable().describe('New time of day'),
+				isActive: z.boolean().optional().describe('Active status'),
+				ingredients: z
+					.array(
+						z.object({
+							name: z.string().describe('Ingredient name'),
+							dosage: z.number().describe('Ingredient dosage'),
+							dosageUnit: z.string().describe('Ingredient dosage unit')
+						})
+					)
+					.optional()
+					.nullable()
+					.describe('New ingredients (replaces all; null to clear)')
+			}
+		},
+		safe(({ supplementId, ...rest }) => handleUpdateSupplement(userId, { supplementId, ...rest }))
+	);
+
+	server.registerTool(
+		'delete_supplement',
+		{
+			description: 'Delete a supplement.',
+			inputSchema: {
+				supplementId: z.string().describe('The supplement ID to delete')
+			}
+		},
+		safe((args) => handleDeleteSupplement(userId, args))
+	);
+
+	server.registerTool(
+		'unlog_supplement',
+		{
+			description: 'Remove a supplement log entry (mark as not taken).',
+			inputSchema: {
+				supplementId: z.string().describe('The supplement ID to unlog'),
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+			}
+		},
+		safe((args) => handleUnlogSupplement(userId, args))
+	);
+
+	server.registerTool(
+		'update_weight',
+		{
+			description: 'Update an existing weight entry.',
+			inputSchema: {
+				weightId: z.string().describe('The weight entry ID to update'),
+				weightKg: z.number().optional().describe('New weight in kilograms'),
+				entryDate: z.string().optional().describe('New date in YYYY-MM-DD format'),
+				notes: z.string().optional().nullable().describe('New notes')
+			}
+		},
+		safe(({ weightId, ...rest }) => handleUpdateWeight(userId, { weightId, ...rest }))
+	);
+
+	server.registerTool(
+		'delete_weight',
+		{
+			description: 'Delete a weight entry.',
+			inputSchema: {
+				weightId: z.string().describe('The weight entry ID to delete')
+			}
+		},
+		safe((args) => handleDeleteWeight(userId, args))
+	);
+
+	server.registerTool(
+		'get_daily_breakdown',
+		{
+			description: 'Get daily nutrition totals for a date range, with one row per day.',
+			inputSchema: {
+				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
+				endDate: z.string().describe('End date in YYYY-MM-DD format')
+			}
+		},
+		safe((args) => handleGetDailyBreakdown(userId, args))
+	);
+
+	server.registerTool(
+		'get_meal_breakdown',
+		{
+			description: 'Get nutrition totals broken down by meal type for a date range.',
+			inputSchema: {
+				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
+				endDate: z.string().describe('End date in YYYY-MM-DD format')
+			}
+		},
+		safe((args) => handleGetMealBreakdown(userId, args))
+	);
+
+	server.registerTool(
+		'get_top_foods',
+		{
+			description: 'Get the most frequently logged foods over a period.',
+			inputSchema: {
+				days: z.number().optional().describe('Number of days to look back. Defaults to 7.'),
+				limit: z.number().optional().describe('Max number of foods to return. Defaults to 10.')
+			}
+		},
+		safe((args) => handleGetTopFoods(userId, args))
+	);
+
+	server.registerTool(
+		'get_streaks',
+		{
+			description: 'Get current and longest logging streaks (consecutive days with entries).',
+			inputSchema: {}
+		},
+		safe(() => handleGetStreaks(userId))
 	);
 
 	return server;

@@ -1,5 +1,13 @@
-import { createFood, listFoods, getFood, findFoodByBarcode } from '$lib/server/foods';
-import { createRecipe, listRecipes, getRecipe } from '$lib/server/recipes';
+import {
+	createFood,
+	updateFood,
+	deleteFood,
+	listFoods,
+	listRecentFoods,
+	getFood,
+	findFoodByBarcode
+} from '$lib/server/foods';
+import { createRecipe, updateRecipe, deleteRecipe, listRecipes, getRecipe } from '$lib/server/recipes';
 import {
 	createEntry,
 	listEntriesByDate,
@@ -9,12 +17,29 @@ import {
 } from '$lib/server/entries';
 import { getGoals, upsertGoals } from '$lib/server/goals';
 import { listFavoriteFoods, listFavoriteRecipes } from '$lib/server/favorites';
-import { createWeightEntry, getLatestWeight, getWeightWithTrend } from '$lib/server/weight';
-import { getWeeklyStats, getMonthlyStats } from '$lib/server/stats';
+import {
+	createWeightEntry,
+	updateWeightEntry,
+	deleteWeightEntry,
+	getLatestWeight,
+	getWeightWithTrend
+} from '$lib/server/weight';
+import {
+	getWeeklyStats,
+	getMonthlyStats,
+	getDailyBreakdown,
+	getMealBreakdown,
+	getTopFoods,
+	getStreaks
+} from '$lib/server/stats';
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { today } from '$lib/utils/dates';
 import {
+	createSupplement,
 	listSupplements,
+	updateSupplement,
+	deleteSupplement,
+	unlogSupplement,
 	getLogsForDate,
 	logSupplement,
 	getSupplementById
@@ -228,4 +253,123 @@ export const handleFindFoodByBarcode = async (userId: string, barcode: string) =
 	const food = await findFoodByBarcode(userId, barcode);
 	if (!food) return { found: false };
 	return { found: true, ...food };
+};
+
+export const handleUpdateFood = async (
+	userId: string,
+	args: { foodId: string; [key: string]: unknown }
+) => {
+	const { foodId, ...rest } = args;
+	const result = await updateFood(userId, foodId, rest);
+	if (!result.success) return { error: result.error.message };
+	return { success: true, foodId };
+};
+
+export const handleDeleteFood = async (
+	userId: string,
+	args: { foodId: string; force?: boolean }
+) => {
+	const result = await deleteFood(userId, args.foodId, args.force ?? false);
+	if (result.blocked) return { blocked: true, entryCount: result.entryCount, hint: 'Use force=true to delete with all entries' };
+	return { success: true };
+};
+
+export const handleListRecentFoods = async (userId: string, args: { limit?: number }) => {
+	return listRecentFoods(userId, args.limit ?? 25);
+};
+
+export const handleUpdateRecipe = async (
+	userId: string,
+	args: { recipeId: string; [key: string]: unknown }
+) => {
+	const { recipeId, ...rest } = args;
+	const result = await updateRecipe(userId, recipeId, rest);
+	if (!result.success) return { error: result.error.message };
+	return { success: true, recipeId };
+};
+
+export const handleDeleteRecipe = async (
+	userId: string,
+	args: { recipeId: string; force?: boolean }
+) => {
+	const result = await deleteRecipe(userId, args.recipeId, args.force ?? false);
+	if (result.blocked) return { blocked: true, entryCount: result.entryCount, hint: 'Use force=true to delete with all entries' };
+	return { success: true };
+};
+
+export const handleCreateSupplement = async (userId: string, args: unknown) => {
+	const result = await createSupplement(userId, args);
+	if (!result.success) return { error: result.error.message };
+	return { success: true, supplementId: result.data.id };
+};
+
+export const handleListSupplements = async (userId: string, args: { activeOnly?: boolean }) => {
+	return { supplements: await listSupplements(userId, args.activeOnly ?? true) };
+};
+
+export const handleUpdateSupplement = async (
+	userId: string,
+	args: { supplementId: string; [key: string]: unknown }
+) => {
+	const { supplementId, ...rest } = args;
+	const result = await updateSupplement(userId, supplementId, rest);
+	if (!result.success) return { error: result.error.message };
+	return { success: true, supplementId };
+};
+
+export const handleDeleteSupplement = async (
+	userId: string,
+	args: { supplementId: string }
+) => {
+	await deleteSupplement(userId, args.supplementId);
+	return { success: true };
+};
+
+export const handleUnlogSupplement = async (
+	userId: string,
+	args: { supplementId: string; date?: string }
+) => {
+	await unlogSupplement(userId, args.supplementId, args.date ?? today());
+	return { success: true };
+};
+
+export const handleUpdateWeight = async (
+	userId: string,
+	args: { weightId: string; [key: string]: unknown }
+) => {
+	const { weightId, ...rest } = args;
+	const result = await updateWeightEntry(userId, weightId, rest);
+	if (!result.success) return { error: result.error.message };
+	return { success: true, weightId };
+};
+
+export const handleDeleteWeight = async (userId: string, args: { weightId: string }) => {
+	const deleted = await deleteWeightEntry(userId, args.weightId);
+	if (!deleted) return { error: 'Weight entry not found' };
+	return { success: true };
+};
+
+export const handleGetDailyBreakdown = async (
+	userId: string,
+	args: { startDate: string; endDate: string }
+) => {
+	return getDailyBreakdown(userId, args.startDate, args.endDate);
+};
+
+export const handleGetMealBreakdown = async (
+	userId: string,
+	args: { startDate: string; endDate: string }
+) => {
+	return getMealBreakdown(userId, args.startDate, args.endDate);
+};
+
+export const handleGetTopFoods = async (
+	userId: string,
+	args: { days?: number; limit?: number }
+) => {
+	return getTopFoods(userId, args.days ?? 7, args.limit ?? 10);
+};
+
+export const handleGetStreaks = async (userId: string) => {
+	return getStreaks(userId);
 };
