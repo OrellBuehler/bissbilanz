@@ -82,6 +82,12 @@
 		fatGoal = pctToGrams(fatPct, 'fat', calorieGoal);
 	}
 
+	$effect(() => {
+		proteinGoal = pctToGrams(proteinPct, 'protein', calorieGoal);
+		carbGoal = pctToGrams(carbsPct, 'carbs', calorieGoal);
+		fatGoal = pctToGrams(fatPct, 'fat', calorieGoal);
+	});
+
 	const macros = [
 		{ key: 'protein' as const, label: () => m.goals_protein(), color: 'text-red-500' , trackColor: '[&_[data-slot=slider-range]]:bg-red-500 [&_[data-slot=slider-thumb]]:border-red-500' },
 		{ key: 'carbs' as const, label: () => m.goals_carbs(), color: 'text-orange-500', trackColor: '[&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:border-orange-500' },
