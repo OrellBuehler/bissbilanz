@@ -3,6 +3,7 @@ import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import type { ZodError } from 'zod';
+import { ApiError } from '$lib/server/errors';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -96,7 +97,7 @@ export const createFood = async (
 			const name = existing?.name ?? 'unknown';
 			return {
 				success: false,
-				error: new Error(`A food with barcode ${barcode} already exists: "${name}"`)
+				error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
 			};
 		}
 		return { success: false, error: error as Error };
@@ -130,6 +131,15 @@ export const updateFood = async (
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {
+		if (isDuplicateBarcodeError(error)) {
+			const barcode = result.data.barcode!;
+			const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
+			const name = existing?.name ?? 'unknown';
+			return {
+				success: false,
+				error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
+			};
+		}
 		return { success: false, error: error as Error };
 	}
 };
