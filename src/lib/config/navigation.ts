@@ -4,6 +4,7 @@ import Utensils from '@lucide/svelte/icons/utensils';
 import CookingPot from '@lucide/svelte/icons/cooking-pot';
 import Pill from '@lucide/svelte/icons/pill';
 import Weight from '@lucide/svelte/icons/weight';
+import ChartBar from '@lucide/svelte/icons/chart-bar';
 import Target from '@lucide/svelte/icons/target';
 import Calendar from '@lucide/svelte/icons/calendar';
 import Settings from '@lucide/svelte/icons/settings';
@@ -61,6 +62,13 @@ export function getNavItems(): NavItem[] {
 			icon: Weight,
 			badgeColor: 'bg-teal-100 text-teal-600',
 			activeRing: 'ring-2 ring-inset ring-teal-300/80 dark:ring-teal-700/80'
+		},
+		{
+			title: () => m.nav_insights(),
+			href: '/insights',
+			icon: ChartBar,
+			badgeColor: 'bg-pink-100 text-pink-600',
+			activeRing: 'ring-2 ring-inset ring-pink-300/80 dark:ring-pink-700/80'
 		},
 		{
 			title: () => m.nav_goals(),

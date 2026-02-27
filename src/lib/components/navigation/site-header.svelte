@@ -24,6 +24,7 @@
 		favorites: () => m.nav_favorites(),
 		supplements: () => m.nav_supplements(),
 		weight: () => m.nav_weight(),
+		insights: () => m.nav_insights(),
 		new: () => m.foods_new(),
 		mcp: () => 'MCP'
 	};

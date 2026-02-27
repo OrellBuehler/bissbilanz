@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "show_top_foods_widget" boolean DEFAULT true NOT NULL;
