@@ -10,6 +10,23 @@ export const today = () => new Date().toISOString().slice(0, 10);
 
 export const yesterday = () => shiftDate(today(), -1);
 
+export const tomorrow = () => shiftDate(today(), 1);
+
+export const formatDateLabel = (isoDate: string): string => {
+	if (isoDate === today()) return m.dashboard_today();
+	if (isoDate === yesterday()) return m.dashboard_yesterday();
+	if (isoDate === tomorrow()) return m.dashboard_tomorrow();
+	const date = new Date(isoDate + 'T00:00:00Z');
+	return date.toLocaleDateString(undefined, {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric'
+	});
+};
+
+export const isValidIsoDate = (s: string): boolean =>
+	/^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime());
+
 export const getMonthDays = (year: number, month: number) => {
 	const firstDay = new Date(year, month, 1);
 	const lastDay = new Date(year, month + 1, 0);
