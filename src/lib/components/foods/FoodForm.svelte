@@ -115,7 +115,7 @@
 		Math.round(form.protein * 4 + form.carbs * 4 + form.fat * 9 + form.fiber * 2)
 	);
 
-	let calorieMismatch = $derived(() => {
+	let calorieMismatch = $derived.by(() => {
 		if (form.calories === 0 && expectedCalories === 0) return false;
 		if (form.calories === 0 || expectedCalories === 0) return true;
 		const diff = Math.abs(form.calories - expectedCalories);
@@ -265,7 +265,7 @@
 		</Collapsible.Content>
 	</Collapsible.Root>
 
-	{#if calorieMismatch()}
+	{#if calorieMismatch}
 		<p
 			class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300"
 		>
