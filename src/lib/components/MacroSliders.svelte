@@ -26,14 +26,14 @@
 		const totalCal = gramsToCalories(protein, carbs, fat);
 		if (totalCal === 0) return { protein: 34, carbs: 33, fat: 33 };
 		return {
-			protein: Math.round((protein * KCAL_PER_GRAM.protein / totalCal) * 100),
-			carbs: Math.round((carbs * KCAL_PER_GRAM.carbs / totalCal) * 100),
-			fat: Math.round((fat * KCAL_PER_GRAM.fat / totalCal) * 100)
+			protein: Math.round(((protein * KCAL_PER_GRAM.protein) / totalCal) * 100),
+			carbs: Math.round(((carbs * KCAL_PER_GRAM.carbs) / totalCal) * 100),
+			fat: Math.round(((fat * KCAL_PER_GRAM.fat) / totalCal) * 100)
 		};
 	}
 
 	function pctToGrams(pct: number, macro: keyof typeof KCAL_PER_GRAM, calories: number) {
-		return Math.round((pct / 100) * calories / KCAL_PER_GRAM[macro]);
+		return Math.round(((pct / 100) * calories) / KCAL_PER_GRAM[macro]);
 	}
 
 	function clamp(val: number) {
@@ -89,9 +89,27 @@
 	});
 
 	const macros = [
-		{ key: 'protein' as const, label: () => m.goals_protein(), color: 'text-red-500' , trackColor: '[&_[data-slot=slider-range]]:bg-red-500 [&_[data-slot=slider-thumb]]:border-red-500' },
-		{ key: 'carbs' as const, label: () => m.goals_carbs(), color: 'text-orange-500', trackColor: '[&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:border-orange-500' },
-		{ key: 'fat' as const, label: () => m.goals_fat(), color: 'text-yellow-500', trackColor: '[&_[data-slot=slider-range]]:bg-yellow-500 [&_[data-slot=slider-thumb]]:border-yellow-500' }
+		{
+			key: 'protein' as const,
+			label: () => m.goals_protein(),
+			color: 'text-red-500',
+			trackColor:
+				'[&_[data-slot=slider-range]]:bg-red-500 [&_[data-slot=slider-thumb]]:border-red-500'
+		},
+		{
+			key: 'carbs' as const,
+			label: () => m.goals_carbs(),
+			color: 'text-orange-500',
+			trackColor:
+				'[&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:border-orange-500'
+		},
+		{
+			key: 'fat' as const,
+			label: () => m.goals_fat(),
+			color: 'text-yellow-500',
+			trackColor:
+				'[&_[data-slot=slider-range]]:bg-yellow-500 [&_[data-slot=slider-thumb]]:border-yellow-500'
+		}
 	] as const;
 
 	function getPct(key: 'protein' | 'carbs' | 'fat') {
@@ -116,12 +134,13 @@
 				<span class="text-muted-foreground">{pct}% &middot; {grams}g</span>
 			</div>
 			<Slider
-				value={[pct]}
+				type="single"
+				value={pct}
 				min={MIN_PCT}
 				max={MAX_PCT}
 				step={1}
 				class={macro.trackColor}
-				onValueChange={(v: number[]) => rebalance(macro.key, v[0])}
+				onValueChange={(v: number) => rebalance(macro.key, v)}
 			/>
 		</div>
 	{/each}
