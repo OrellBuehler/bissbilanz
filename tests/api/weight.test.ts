@@ -29,7 +29,12 @@ mock.module('$lib/server/weight', () => ({
 			: {
 					success: false,
 					error: new ZodError([
-						{ code: 'invalid_type', expected: 'number', path: ['weightKg'], message: 'Required' } as any
+						{
+							code: 'invalid_type',
+							expected: 'number',
+							path: ['weightKg'],
+							message: 'Required'
+						} as any
 					])
 				},
 	getLatestWeight: async () => mockLatestResult,
@@ -39,7 +44,12 @@ mock.module('$lib/server/weight', () => ({
 			: {
 					success: false,
 					error: new ZodError([
-						{ code: 'invalid_type', expected: 'number', path: ['weightKg'], message: 'Required' } as any
+						{
+							code: 'invalid_type',
+							expected: 'number',
+							path: ['weightKg'],
+							message: 'Required'
+						} as any
 					])
 				},
 	deleteWeightEntry: async () => mockDeleteResult

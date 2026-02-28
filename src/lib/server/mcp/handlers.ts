@@ -7,7 +7,13 @@ import {
 	getFood,
 	findFoodByBarcode
 } from '$lib/server/foods';
-import { createRecipe, updateRecipe, deleteRecipe, listRecipes, getRecipe } from '$lib/server/recipes';
+import {
+	createRecipe,
+	updateRecipe,
+	deleteRecipe,
+	listRecipes,
+	getRecipe
+} from '$lib/server/recipes';
 import {
 	createEntry,
 	listEntriesByDate,
@@ -270,7 +276,12 @@ export const handleDeleteFood = async (
 	args: { foodId: string; force?: boolean }
 ) => {
 	const result = await deleteFood(userId, args.foodId, args.force ?? false);
-	if (result.blocked) return { blocked: true, entryCount: result.entryCount, hint: 'Use force=true to delete with all entries' };
+	if (result.blocked)
+		return {
+			blocked: true,
+			entryCount: result.entryCount,
+			hint: 'Use force=true to delete with all entries'
+		};
 	return { success: true };
 };
 
@@ -293,7 +304,12 @@ export const handleDeleteRecipe = async (
 	args: { recipeId: string; force?: boolean }
 ) => {
 	const result = await deleteRecipe(userId, args.recipeId, args.force ?? false);
-	if (result.blocked) return { blocked: true, entryCount: result.entryCount, hint: 'Use force=true to delete with all entries' };
+	if (result.blocked)
+		return {
+			blocked: true,
+			entryCount: result.entryCount,
+			hint: 'Use force=true to delete with all entries'
+		};
 	return { success: true };
 };
 
@@ -317,10 +333,7 @@ export const handleUpdateSupplement = async (
 	return { success: true, supplementId };
 };
 
-export const handleDeleteSupplement = async (
-	userId: string,
-	args: { supplementId: string }
-) => {
+export const handleDeleteSupplement = async (userId: string, args: { supplementId: string }) => {
 	await deleteSupplement(userId, args.supplementId);
 	return { success: true };
 };

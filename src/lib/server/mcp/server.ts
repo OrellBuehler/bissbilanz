@@ -378,7 +378,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_food',
 		{
-			description: 'Delete a food from the database. If the food has diary entries, returns blocked status unless force=true.',
+			description:
+				'Delete a food from the database. If the food has diary entries, returns blocked status unless force=true.',
 			inputSchema: {
 				foodId: z.string().describe('The food ID to delete'),
 				force: z.boolean().optional().describe('Force delete even if food has diary entries')
@@ -401,7 +402,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_recipe',
 		{
-			description: 'Update an existing recipe. Can change name, servings, or replace all ingredients.',
+			description:
+				'Update an existing recipe. Can change name, servings, or replace all ingredients.',
 			inputSchema: {
 				recipeId: z.string().describe('The recipe ID to update'),
 				name: z.string().optional().describe('New recipe name'),
@@ -424,7 +426,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_recipe',
 		{
-			description: 'Delete a recipe. If the recipe has diary entries, returns blocked status unless force=true.',
+			description:
+				'Delete a recipe. If the recipe has diary entries, returns blocked status unless force=true.',
 			inputSchema: {
 				recipeId: z.string().describe('The recipe ID to delete'),
 				force: z.boolean().optional().describe('Force delete even if recipe has diary entries')
@@ -441,10 +444,18 @@ export function createMcpServer(userId: string): McpServer {
 				name: z.string().describe('Supplement name'),
 				dosage: z.number().describe('Dosage amount'),
 				dosageUnit: z.string().describe('Dosage unit (e.g., "mg", "mcg", "IU", "capsules")'),
-				scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']).describe('Schedule type'),
-				scheduleDays: z.array(z.number()).optional().describe('Days of week (0=Sun..6=Sat) for weekly/specific_days'),
+				scheduleType: z
+					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
+					.describe('Schedule type'),
+				scheduleDays: z
+					.array(z.number())
+					.optional()
+					.describe('Days of week (0=Sun..6=Sat) for weekly/specific_days'),
 				scheduleStartDate: z.string().optional().describe('Start date in YYYY-MM-DD format'),
-				timeOfDay: z.enum(['morning', 'noon', 'evening']).optional().describe('Preferred time of day'),
+				timeOfDay: z
+					.enum(['morning', 'noon', 'evening'])
+					.optional()
+					.describe('Preferred time of day'),
 				ingredients: z
 					.array(
 						z.object({
@@ -455,7 +466,10 @@ export function createMcpServer(userId: string): McpServer {
 					)
 					.optional()
 					.describe('List of ingredients in the supplement'),
-				isActive: z.boolean().optional().describe('Whether the supplement is active. Defaults to true.')
+				isActive: z
+					.boolean()
+					.optional()
+					.describe('Whether the supplement is active. Defaults to true.')
 			}
 		},
 		safe((args) => handleCreateSupplement(userId, args))
@@ -466,7 +480,10 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: "List the user's supplements.",
 			inputSchema: {
-				activeOnly: z.boolean().optional().describe('Only show active supplements. Defaults to true.')
+				activeOnly: z
+					.boolean()
+					.optional()
+					.describe('Only show active supplements. Defaults to true.')
 			}
 		},
 		safe((args) => handleListSupplements(userId, args))
@@ -481,10 +498,17 @@ export function createMcpServer(userId: string): McpServer {
 				name: z.string().optional().describe('New name'),
 				dosage: z.number().optional().describe('New dosage amount'),
 				dosageUnit: z.string().optional().describe('New dosage unit'),
-				scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']).optional().describe('New schedule type'),
+				scheduleType: z
+					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
+					.optional()
+					.describe('New schedule type'),
 				scheduleDays: z.array(z.number()).optional().describe('New days of week'),
 				scheduleStartDate: z.string().optional().describe('New start date'),
-				timeOfDay: z.enum(['morning', 'noon', 'evening']).optional().nullable().describe('New time of day'),
+				timeOfDay: z
+					.enum(['morning', 'noon', 'evening'])
+					.optional()
+					.nullable()
+					.describe('New time of day'),
 				isActive: z.boolean().optional().describe('Active status'),
 				ingredients: z
 					.array(

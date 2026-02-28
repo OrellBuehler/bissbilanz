@@ -1,8 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import {
-	supplementCreateSchema,
-	supplementUpdateSchema
-} from '../../src/lib/server/validation';
+import { supplementCreateSchema, supplementUpdateSchema } from '../../src/lib/server/validation';
 
 describe('supplementCreateSchema', () => {
 	test('validates minimal daily supplement', () => {

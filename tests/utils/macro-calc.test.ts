@@ -54,9 +54,9 @@ describe('gramsToPct', () => {
 	test('typical balanced diet split', () => {
 		const result = gramsToPct(150, 250, 67);
 		const totalCal = 150 * 4 + 250 * 4 + 67 * 9;
-		expect(result.protein).toBe(Math.round((150 * 4 / totalCal) * 100));
-		expect(result.carbs).toBe(Math.round((250 * 4 / totalCal) * 100));
-		expect(result.fat).toBe(Math.round((67 * 9 / totalCal) * 100));
+		expect(result.protein).toBe(Math.round(((150 * 4) / totalCal) * 100));
+		expect(result.carbs).toBe(Math.round(((250 * 4) / totalCal) * 100));
+		expect(result.fat).toBe(Math.round(((67 * 9) / totalCal) * 100));
 	});
 });
 
