@@ -157,12 +157,12 @@ async function handleCreate(
 			if (Array.isArray(body.ingredients)) {
 				for (const ing of body.ingredients) {
 					await db.recipeIngredients.put({
-						id: (ing as Record<string, unknown>).id as string ?? crypto.randomUUID(),
+						id: ((ing as Record<string, unknown>).id as string) ?? crypto.randomUUID(),
 						recipeId: id,
 						foodId: (ing as Record<string, unknown>).foodId as string,
 						quantity: (ing as Record<string, unknown>).quantity as number,
 						servingUnit: (ing as Record<string, unknown>).servingUnit as string,
-						sortOrder: (ing as Record<string, unknown>).sortOrder as number ?? 0
+						sortOrder: ((ing as Record<string, unknown>).sortOrder as number) ?? 0
 					});
 				}
 			}
@@ -188,8 +188,7 @@ async function handleCreate(
 			// POST to /api/supplements/:id/log — log a supplement
 			if (subResource && subResource !== '') {
 				const supplementId = subResource;
-				const date =
-					(body.date as string) ?? new Date().toISOString().slice(0, 10);
+				const date = (body.date as string) ?? new Date().toISOString().slice(0, 10);
 				await db.supplementLogs.put({
 					id: `${supplementId}-${date}`,
 					supplementId,
@@ -274,12 +273,12 @@ async function handleUpdate(
 				await db.recipeIngredients.where('recipeId').equals(entityId).delete();
 				for (const ing of body.ingredients) {
 					await db.recipeIngredients.put({
-						id: (ing as Record<string, unknown>).id as string ?? crypto.randomUUID(),
+						id: ((ing as Record<string, unknown>).id as string) ?? crypto.randomUUID(),
 						recipeId: entityId,
 						foodId: (ing as Record<string, unknown>).foodId as string,
 						quantity: (ing as Record<string, unknown>).quantity as number,
 						servingUnit: (ing as Record<string, unknown>).servingUnit as string,
-						sortOrder: (ing as Record<string, unknown>).sortOrder as number ?? 0
+						sortOrder: ((ing as Record<string, unknown>).sortOrder as number) ?? 0
 					});
 				}
 			}
@@ -327,10 +326,7 @@ async function handleDelete(
 			if (parts.length >= 5 && parts[3] === 'log') {
 				const supplementId = entityId;
 				const date = parts[4];
-				await db.supplementLogs
-					.where('[supplementId+date]')
-					.equals([supplementId, date])
-					.delete();
+				await db.supplementLogs.where('[supplementId+date]').equals([supplementId, date]).delete();
 			} else {
 				await db.supplements.delete(entityId);
 			}

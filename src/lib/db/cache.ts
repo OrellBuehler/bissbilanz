@@ -68,10 +68,7 @@ const cacheHandlers: [pattern: string, handler: CacheHandler][] = [
 				await db.recipes.put(recipe);
 				if (Array.isArray(recipe.ingredients)) {
 					// Replace ingredients for this recipe
-					await db.recipeIngredients
-						.where('recipeId')
-						.equals(recipe.id)
-						.delete();
+					await db.recipeIngredients.where('recipeId').equals(recipe.id).delete();
 					await db.recipeIngredients.bulkPut(recipe.ingredients);
 				}
 			}

@@ -116,7 +116,9 @@ export async function migrateOldOfflineQueue(): Promise<void> {
 		}
 
 		// Read all pending items
-		const items = await new Promise<Array<{ method: string; url: string; body: string; createdAt: number }>>((resolve, reject) => {
+		const items = await new Promise<
+			Array<{ method: string; url: string; body: string; createdAt: number }>
+		>((resolve, reject) => {
 			const tx = oldDb.transaction(OLD_STORE_NAME, 'readonly');
 			const store = tx.objectStore(OLD_STORE_NAME);
 			const req = store.getAll();

@@ -86,12 +86,13 @@ beforeEach(async () => {
 describe('sync queue HTTP status handling', () => {
 	test('200 OK removes item from queue', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{"name":"Apple"}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{"name":"Apple"}',
+			createdAt: 1000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 200 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 200 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -102,15 +103,19 @@ describe('sync queue HTTP status handling', () => {
 
 	test('401 stops syncing and keeps items in queue', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/entries', body: '{}', createdAt: 2000
+			method: 'POST',
+			url: '/api/entries',
+			body: '{}',
+			createdAt: 2000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 401 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 401 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -125,12 +130,13 @@ describe('sync queue HTTP status handling', () => {
 
 	test('403 stops syncing and keeps items in queue', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 403 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 403 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -141,12 +147,13 @@ describe('sync queue HTTP status handling', () => {
 
 	test('4xx client error removes item from queue (unrecoverable)', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 422 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 422 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -157,12 +164,13 @@ describe('sync queue HTTP status handling', () => {
 
 	test('404 removes item from queue', async () => {
 		await db.syncQueue.add({
-			method: 'DELETE', url: '/api/foods/f1', body: '{}', createdAt: 1000
+			method: 'DELETE',
+			url: '/api/foods/f1',
+			body: '{}',
+			createdAt: 1000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 404 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 404 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -172,15 +180,19 @@ describe('sync queue HTTP status handling', () => {
 
 	test('5xx stops syncing on first occurrence', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/entries', body: '{}', createdAt: 2000
+			method: 'POST',
+			url: '/api/entries',
+			body: '{}',
+			createdAt: 2000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 500 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 500 })));
 		const retryCounts = new Map<number, number>();
 
 		const result = await processSyncQueue(fetchFn, retryCounts);
@@ -196,12 +208,13 @@ describe('sync queue HTTP status handling', () => {
 
 	test('5xx discards item after MAX_RETRIES attempts', async () => {
 		const id = await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 
-		const fetchFn = mock(() =>
-			Promise.resolve(new Response('{}', { status: 500 }))
-		);
+		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 500 })));
 
 		// Simulate already having retried MAX_RETRIES - 1 times
 		const retryCounts = new Map<number, number>();
@@ -218,7 +231,10 @@ describe('sync queue HTTP status handling', () => {
 
 	test('network error stops syncing and keeps items', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 
 		const fetchFn = mock(() => Promise.reject(new Error('Network failure')));
@@ -232,13 +248,22 @@ describe('sync queue HTTP status handling', () => {
 
 	test('processes multiple items in order — success then 401 stops', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/entries', body: '{}', createdAt: 2000
+			method: 'POST',
+			url: '/api/entries',
+			body: '{}',
+			createdAt: 2000
 		});
 		await db.syncQueue.add({
-			method: 'DELETE', url: '/api/entries/e1', body: '{}', createdAt: 3000
+			method: 'DELETE',
+			url: '/api/entries/e1',
+			body: '{}',
+			createdAt: 3000
 		});
 
 		let callCount = 0;
@@ -259,13 +284,22 @@ describe('sync queue HTTP status handling', () => {
 
 	test('mixed statuses: 200, 422, 200 processes all', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: 1000
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: 1000
 		});
 		await db.syncQueue.add({
-			method: 'PATCH', url: '/api/foods/f1', body: '{}', createdAt: 2000
+			method: 'PATCH',
+			url: '/api/foods/f1',
+			body: '{}',
+			createdAt: 2000
 		});
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/entries', body: '{}', createdAt: 3000
+			method: 'POST',
+			url: '/api/entries',
+			body: '{}',
+			createdAt: 3000
 		});
 
 		let callCount = 0;
@@ -284,7 +318,10 @@ describe('sync queue HTTP status handling', () => {
 
 	test('DELETE request does not send body', async () => {
 		await db.syncQueue.add({
-			method: 'DELETE', url: '/api/foods/f1', body: '{}', createdAt: 1000
+			method: 'DELETE',
+			url: '/api/foods/f1',
+			body: '{}',
+			createdAt: 1000
 		});
 
 		const fetchFn = mock((_url: string, init: RequestInit) => {

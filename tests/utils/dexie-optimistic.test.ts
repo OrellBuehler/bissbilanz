@@ -30,13 +30,34 @@ describe('applyOptimisticWrite - CREATE', () => {
 	test('creates a food entry with denormalized data', async () => {
 		// Pre-populate a food
 		await db.foods.put({
-			id: 'f1', userId: 'u1', name: 'Chicken', brand: null,
-			servingSize: 100, servingUnit: 'g', calories: 165, protein: 31,
-			carbs: 0, fat: 3.6, fiber: 0, sodium: null, sugar: null,
-			saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
-			calcium: null, iron: null, barcode: null, isFavorite: false,
-			nutriScore: null, novaGroup: null, additives: null,
-			ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+			id: 'f1',
+			userId: 'u1',
+			name: 'Chicken',
+			brand: null,
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 165,
+			protein: 31,
+			carbs: 0,
+			fat: 3.6,
+			fiber: 0,
+			sodium: null,
+			sugar: null,
+			saturatedFat: null,
+			cholesterol: null,
+			vitaminA: null,
+			vitaminC: null,
+			calcium: null,
+			iron: null,
+			barcode: null,
+			isFavorite: false,
+			nutriScore: null,
+			novaGroup: null,
+			additives: null,
+			ingredientsText: null,
+			imageUrl: null,
+			createdAt: null,
+			updatedAt: null
 		});
 
 		await applyOptimisticWrite('POST', '/api/entries', {
@@ -111,13 +132,34 @@ describe('applyOptimisticWrite - CREATE', () => {
 describe('applyOptimisticWrite - UPDATE', () => {
 	test('updates a food', async () => {
 		await db.foods.put({
-			id: 'f1', userId: 'u1', name: 'Banana', brand: null,
-			servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
-			carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
-			saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
-			calcium: null, iron: null, barcode: null, isFavorite: false,
-			nutriScore: null, novaGroup: null, additives: null,
-			ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+			id: 'f1',
+			userId: 'u1',
+			name: 'Banana',
+			brand: null,
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 89,
+			protein: 1.1,
+			carbs: 23,
+			fat: 0.3,
+			fiber: 2.6,
+			sodium: null,
+			sugar: null,
+			saturatedFat: null,
+			cholesterol: null,
+			vitaminA: null,
+			vitaminC: null,
+			calcium: null,
+			iron: null,
+			barcode: null,
+			isFavorite: false,
+			nutriScore: null,
+			novaGroup: null,
+			additives: null,
+			ingredientsText: null,
+			imageUrl: null,
+			createdAt: null,
+			updatedAt: null
 		});
 
 		await applyOptimisticWrite('PATCH', '/api/foods/f1', {
@@ -133,10 +175,22 @@ describe('applyOptimisticWrite - UPDATE', () => {
 
 	test('updates an entry', async () => {
 		await db.foodEntries.put({
-			id: 'e1', foodId: 'f1', recipeId: null, date: '2026-02-28',
-			mealType: 'Breakfast', servings: 1, notes: null, foodName: 'Oats',
-			calories: 68, protein: 2.4, carbs: 12, fat: 1.4, fiber: 1.7,
-			servingSize: 100, servingUnit: 'g', createdAt: '2026-02-28T08:00:00Z'
+			id: 'e1',
+			foodId: 'f1',
+			recipeId: null,
+			date: '2026-02-28',
+			mealType: 'Breakfast',
+			servings: 1,
+			notes: null,
+			foodName: 'Oats',
+			calories: 68,
+			protein: 2.4,
+			carbs: 12,
+			fat: 1.4,
+			fiber: 1.7,
+			servingSize: 100,
+			servingUnit: 'g',
+			createdAt: '2026-02-28T08:00:00Z'
 		});
 
 		await applyOptimisticWrite('PATCH', '/api/entries/e1', {
@@ -153,13 +207,34 @@ describe('applyOptimisticWrite - UPDATE', () => {
 describe('applyOptimisticWrite - DELETE', () => {
 	test('deletes a food', async () => {
 		await db.foods.put({
-			id: 'f1', userId: 'u1', name: 'Banana', brand: null,
-			servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
-			carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
-			saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
-			calcium: null, iron: null, barcode: null, isFavorite: false,
-			nutriScore: null, novaGroup: null, additives: null,
-			ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+			id: 'f1',
+			userId: 'u1',
+			name: 'Banana',
+			brand: null,
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 89,
+			protein: 1.1,
+			carbs: 23,
+			fat: 0.3,
+			fiber: 2.6,
+			sodium: null,
+			sugar: null,
+			saturatedFat: null,
+			cholesterol: null,
+			vitaminA: null,
+			vitaminC: null,
+			calcium: null,
+			iron: null,
+			barcode: null,
+			isFavorite: false,
+			nutriScore: null,
+			novaGroup: null,
+			additives: null,
+			ingredientsText: null,
+			imageUrl: null,
+			createdAt: null,
+			updatedAt: null
 		});
 
 		await applyOptimisticWrite('DELETE', '/api/foods/f1', {});
@@ -170,10 +245,22 @@ describe('applyOptimisticWrite - DELETE', () => {
 
 	test('deletes an entry', async () => {
 		await db.foodEntries.put({
-			id: 'e1', foodId: 'f1', recipeId: null, date: '2026-02-28',
-			mealType: 'Breakfast', servings: 1, notes: null, foodName: 'Oats',
-			calories: 68, protein: 2.4, carbs: 12, fat: 1.4, fiber: 1.7,
-			servingSize: 100, servingUnit: 'g', createdAt: '2026-02-28T08:00:00Z'
+			id: 'e1',
+			foodId: 'f1',
+			recipeId: null,
+			date: '2026-02-28',
+			mealType: 'Breakfast',
+			servings: 1,
+			notes: null,
+			foodName: 'Oats',
+			calories: 68,
+			protein: 2.4,
+			carbs: 12,
+			fat: 1.4,
+			fiber: 1.7,
+			servingSize: 100,
+			servingUnit: 'g',
+			createdAt: '2026-02-28T08:00:00Z'
 		});
 
 		await applyOptimisticWrite('DELETE', '/api/entries/e1', {});
@@ -183,7 +270,20 @@ describe('applyOptimisticWrite - DELETE', () => {
 	});
 
 	test('deletes a recipe and its ingredients', async () => {
-		await db.recipes.put({ id: 'r1', userId: 'u1', name: 'Salad', totalServings: 1, isFavorite: false, imageUrl: null, calories: null, protein: null, carbs: null, fat: null, createdAt: null, updatedAt: null });
+		await db.recipes.put({
+			id: 'r1',
+			userId: 'u1',
+			name: 'Salad',
+			totalServings: 1,
+			isFavorite: false,
+			imageUrl: null,
+			calories: null,
+			protein: null,
+			carbs: null,
+			fat: null,
+			createdAt: null,
+			updatedAt: null
+		});
 		await db.recipeIngredients.bulkPut([
 			{ id: 'ri1', recipeId: 'r1', foodId: 'f1', quantity: 100, servingUnit: 'g', sortOrder: 0 },
 			{ id: 'ri2', recipeId: 'r1', foodId: 'f2', quantity: 50, servingUnit: 'g', sortOrder: 1 }
@@ -196,7 +296,16 @@ describe('applyOptimisticWrite - DELETE', () => {
 	});
 
 	test('deletes a weight entry', async () => {
-		await db.weightEntries.put({ id: 'w1', userId: 'u1', weightKg: 75.5, entryDate: '2026-02-28', loggedAt: '2026-02-28T08:00:00Z', notes: null, createdAt: null, updatedAt: null });
+		await db.weightEntries.put({
+			id: 'w1',
+			userId: 'u1',
+			weightKg: 75.5,
+			entryDate: '2026-02-28',
+			loggedAt: '2026-02-28T08:00:00Z',
+			notes: null,
+			createdAt: null,
+			updatedAt: null
+		});
 
 		await applyOptimisticWrite('DELETE', '/api/weight/w1', {});
 

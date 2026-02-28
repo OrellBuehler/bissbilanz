@@ -74,20 +74,51 @@ describe('Dexie sync queue', () => {
 describe('clearAllData', () => {
 	test('clears all tables', async () => {
 		await db.foods.put({
-			id: 'f1', userId: 'u1', name: 'Banana', brand: null,
-			servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
-			carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
-			saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
-			calcium: null, iron: null, barcode: null, isFavorite: false,
-			nutriScore: null, novaGroup: null, additives: null,
-			ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+			id: 'f1',
+			userId: 'u1',
+			name: 'Banana',
+			brand: null,
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 89,
+			protein: 1.1,
+			carbs: 23,
+			fat: 0.3,
+			fiber: 2.6,
+			sodium: null,
+			sugar: null,
+			saturatedFat: null,
+			cholesterol: null,
+			vitaminA: null,
+			vitaminC: null,
+			calcium: null,
+			iron: null,
+			barcode: null,
+			isFavorite: false,
+			nutriScore: null,
+			novaGroup: null,
+			additives: null,
+			ingredientsText: null,
+			imageUrl: null,
+			createdAt: null,
+			updatedAt: null
 		});
 		await db.userGoals.put({
-			userId: 'u1', calorieGoal: 2000, proteinGoal: 150, carbGoal: 250,
-			fatGoal: 67, fiberGoal: 30, sodiumGoal: null, sugarGoal: null, updatedAt: null
+			userId: 'u1',
+			calorieGoal: 2000,
+			proteinGoal: 150,
+			carbGoal: 250,
+			fatGoal: 67,
+			fiberGoal: 30,
+			sodiumGoal: null,
+			sugarGoal: null,
+			updatedAt: null
 		});
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: Date.now()
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: Date.now()
 		});
 
 		await clearAllData();
@@ -122,13 +153,34 @@ describe('sync metadata', () => {
 
 describe('ensureUserScope', () => {
 	const FOOD = {
-		id: 'f1', userId: 'u1', name: 'Banana', brand: null,
-		servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
-		carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
-		saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
-		calcium: null, iron: null, barcode: null, isFavorite: false,
-		nutriScore: null, novaGroup: null, additives: null,
-		ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+		id: 'f1',
+		userId: 'u1',
+		name: 'Banana',
+		brand: null,
+		servingSize: 100,
+		servingUnit: 'g',
+		calories: 89,
+		protein: 1.1,
+		carbs: 23,
+		fat: 0.3,
+		fiber: 2.6,
+		sodium: null,
+		sugar: null,
+		saturatedFat: null,
+		cholesterol: null,
+		vitaminA: null,
+		vitaminC: null,
+		calcium: null,
+		iron: null,
+		barcode: null,
+		isFavorite: false,
+		nutriScore: null,
+		novaGroup: null,
+		additives: null,
+		ingredientsText: null,
+		imageUrl: null,
+		createdAt: null,
+		updatedAt: null
 	};
 
 	test('first-time login stores user sentinel', async () => {
@@ -154,8 +206,15 @@ describe('ensureUserScope', () => {
 	test('different user login clears all data', async () => {
 		await db.foods.put(FOOD);
 		await db.userGoals.put({
-			userId: 'u1', calorieGoal: 2000, proteinGoal: 150, carbGoal: 250,
-			fatGoal: 67, fiberGoal: 30, sodiumGoal: null, sugarGoal: null, updatedAt: null
+			userId: 'u1',
+			calorieGoal: 2000,
+			proteinGoal: 150,
+			carbGoal: 250,
+			fatGoal: 67,
+			fiberGoal: 30,
+			sodiumGoal: null,
+			sugarGoal: null,
+			updatedAt: null
 		});
 		await ensureUserScope('user-abc');
 
@@ -172,7 +231,10 @@ describe('ensureUserScope', () => {
 
 	test('clears sync queue on user switch', async () => {
 		await db.syncQueue.add({
-			method: 'POST', url: '/api/foods', body: '{}', createdAt: Date.now()
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: Date.now()
 		});
 		await ensureUserScope('user-abc');
 
