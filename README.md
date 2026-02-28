@@ -1,42 +1,52 @@
-# sv
+# Bissbilanz
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A calorie and macro tracking application with AI-assisted food logging.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Macro Tracking** — Track calories, protein, carbs, fat, and fiber for every meal
+- **Food Database** — Create and manage a personal food database
+- **Recipes** — Build recipes with multiple ingredients and automatic macro calculation
+- **Daily Log** — Log food entries organized by meals with daily macro goals
+- **Barcode Scanning** — Quickly add foods by scanning barcodes (via Open Food Facts)
+- **AI-Assisted Logging** — Use AI agents via MCP to help log meals
+- **Offline Support** — Full PWA support for offline access
+- **Multilingual** — Available in English and German
 
-```sh
-# create a new project
-npx sv create my-app
+## Tech Stack
+
+- **Frontend:** SvelteKit 2.x with Svelte 5
+- **Runtime:** Bun
+- **Database:** PostgreSQL with Drizzle ORM
+- **Auth:** Infomaniak OIDC
+- **UI:** shadcn-svelte + Tailwind CSS 4
+- **AI Integration:** Model Context Protocol (MCP) SDK
+
+## Getting Started
+
+```bash
+# Install dependencies
+bun install
+
+# Start the dev server
+bun run dev
 ```
 
-To recreate this project with the same configuration:
+## Development
 
-```sh
-# recreate this project
-npx sv create --template minimal --types ts --no-install .
+```bash
+# Type checking
+bun run check
+
+# Generate DB migrations after schema changes
+bun run db:generate
+
+# Run migrations
+bun run db:migrate
+
+# Run tests
+bun test
+
+# Security scan
+bun run security
 ```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
