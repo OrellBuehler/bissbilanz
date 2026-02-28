@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Slider } from '$lib/components/ui/slider/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import MacroSliders from '$lib/components/MacroSliders.svelte';
 	import { toast } from 'svelte-sonner';
@@ -19,6 +20,12 @@
 	});
 	let saving = $state(false);
 	let loaded = $state(false);
+
+	$effect(() => {
+		if (form.fiberGoal > form.carbGoal) {
+			form.fiberGoal = form.carbGoal;
+		}
+	});
 
 	onMount(async () => {
 		const res = await fetch('/api/goals');
@@ -72,9 +79,20 @@
 					bind:fatGoal={form.fatGoal}
 				/>
 
-				<div class="grid gap-2">
-					<Label for="fiber">{m.goals_fiber()}</Label>
-					<Input id="fiber" type="number" bind:value={form.fiberGoal} />
+				<div class="space-y-2">
+					<div class="flex items-center justify-between text-sm">
+						<span class="text-green-500">{m.goals_fiber()}</span>
+						<span class="text-muted-foreground">{form.fiberGoal}g</span>
+					</div>
+					<Slider
+						type="single"
+						value={form.fiberGoal}
+						min={0}
+						max={form.carbGoal}
+						step={1}
+						class="[&_[data-slot=slider-range]]:bg-green-500 [&_[data-slot=slider-thumb]]:border-green-500"
+						onValueChange={(v: number) => (form.fiberGoal = v)}
+					/>
 				</div>
 			</Card.Content>
 			<Card.Footer>
