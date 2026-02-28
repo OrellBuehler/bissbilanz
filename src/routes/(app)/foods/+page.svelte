@@ -33,7 +33,7 @@
 	const loadFoods = async (q?: string) => {
 		const params = new URLSearchParams();
 		if (q) params.set('q', q);
-		const res = await fetch(`/api/foods?${params}`);
+		const res = await apiFetch(`/api/foods?${params}`);
 		const data = await res.json();
 		foods = data.foods;
 	};
@@ -92,7 +92,7 @@
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
-		const res = await fetch(`/api/openfoodfacts/${barcode}`);
+		const res = await apiFetch(`/api/openfoodfacts/${barcode}`);
 		if (!res.ok) return;
 		const { product } = await res.json();
 		await apiFetch(`/api/foods/${id}`, {
@@ -119,7 +119,7 @@
 	};
 
 	const openEdit = async (id: string) => {
-		const res = await fetch(`/api/foods/${id}`);
+		const res = await apiFetch(`/api/foods/${id}`);
 		if (!res.ok) return;
 		const data = await res.json();
 		resetFormState();
@@ -134,7 +134,7 @@
 		const formData = new FormData();
 		formData.append('image', file);
 		try {
-			const uploadRes = await fetch('/api/images/upload', {
+			const uploadRes = await apiFetch('/api/images/upload', {
 				method: 'POST',
 				body: formData
 			});
@@ -180,7 +180,7 @@
 		offLoading = true;
 		offNotFound = false;
 		try {
-			const res = await fetch(`/api/openfoodfacts/${code}`);
+			const res = await apiFetch(`/api/openfoodfacts/${code}`);
 			if (res.ok) {
 				offData = (await res.json()).product;
 			} else {

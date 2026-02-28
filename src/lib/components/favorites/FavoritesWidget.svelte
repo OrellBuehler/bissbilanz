@@ -51,7 +51,7 @@
 
 	const loadFavorites = async () => {
 		try {
-			const res = await fetch('/api/favorites?limit=5');
+			const res = await apiFetch('/api/favorites?limit=5');
 			if (!res.ok) return;
 			const data = await res.json();
 			const allItems: FavoriteItem[] = [...(data.foods ?? []), ...(data.recipes ?? [])];
@@ -64,7 +64,7 @@
 
 	const loadMealOptions = async () => {
 		try {
-			const res = await fetch('/api/meal-types');
+			const res = await apiFetch('/api/meal-types');
 			if (!res.ok) return;
 			const data = await res.json();
 			mealOptions = mergeMealTypes(

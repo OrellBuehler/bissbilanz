@@ -28,7 +28,7 @@
 	});
 
 	onMount(async () => {
-		const res = await fetch('/api/goals');
+		const res = await apiFetch('/api/goals');
 		if (res.ok) {
 			const data = await res.json();
 			if (data.goals) {

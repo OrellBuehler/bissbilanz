@@ -35,12 +35,12 @@
 	let forceDeleteCount = $state(0);
 
 	const loadFoods = async () => {
-		const res = await fetch('/api/foods');
+		const res = await apiFetch('/api/foods');
 		foods = (await res.json()).foods;
 	};
 
 	const loadRecipes = async () => {
-		const res = await fetch('/api/recipes');
+		const res = await apiFetch('/api/recipes');
 		recipes = (await res.json()).recipes;
 	};
 
@@ -94,7 +94,7 @@
 	};
 
 	const openEdit = async (id: string) => {
-		const res = await fetch(`/api/recipes/${id}`);
+		const res = await apiFetch(`/api/recipes/${id}`);
 		if (!res.ok) return;
 		const data = await res.json();
 		editingRecipe = data.recipe;
@@ -107,7 +107,7 @@
 		const formData = new FormData();
 		formData.append('image', file);
 		try {
-			const uploadRes = await fetch('/api/images/upload', {
+			const uploadRes = await apiFetch('/api/images/upload', {
 				method: 'POST',
 				body: formData
 			});

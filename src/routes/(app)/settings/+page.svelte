@@ -254,7 +254,7 @@
 
 	const loadPreferences = async () => {
 		try {
-			const res = await fetch('/api/preferences');
+			const res = await apiFetch('/api/preferences');
 			if (res.ok) {
 				const { preferences } = await res.json();
 				showChartWidget = preferences.showChartWidget ?? true;
@@ -291,7 +291,7 @@
 
 	// Meal type helpers (preserved)
 	const loadMealTypes = async () => {
-		const res = await fetch('/api/meal-types');
+		const res = await apiFetch('/api/meal-types');
 		mealTypes = (await res.json()).mealTypes;
 	};
 

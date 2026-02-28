@@ -4,6 +4,7 @@
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type MealData = {
@@ -34,7 +35,7 @@
 	const fetchData = async (d: string) => {
 		loading = true;
 		try {
-			const res = await fetch(`/api/stats/meal-breakdown?date=${d}`);
+			const res = await apiFetch(`/api/stats/meal-breakdown?date=${d}`);
 			if (res.ok) {
 				const json = await res.json();
 				data = json.data;

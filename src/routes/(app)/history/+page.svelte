@@ -11,6 +11,7 @@
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { today, daysAgo } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
@@ -74,7 +75,7 @@
 	const loadChartData = async (startDate: string, endDate: string) => {
 		chartLoading = true;
 		try {
-			const res = await fetch(`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`);
+			const res = await apiFetch(`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`);
 			if (!res.ok) return;
 			const json = await res.json();
 			chartData = json.data ?? [];
@@ -85,7 +86,7 @@
 	};
 
 	const loadGoals = async () => {
-		const res = await fetch('/api/goals');
+		const res = await apiFetch('/api/goals');
 		if (!res.ok) return;
 		const json = await res.json();
 		goalsCalorieGoal = json.goals?.calorieGoal ?? null;
@@ -93,7 +94,7 @@
 
 	const loadCalendarData = async (y: number, mo: number) => {
 		const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
-		const res = await fetch(`/api/stats/calendar?month=${monthStr}`);
+		const res = await apiFetch(`/api/stats/calendar?month=${monthStr}`);
 		if (!res.ok) return;
 		const json = await res.json();
 		calendarDays = json.days ?? {};

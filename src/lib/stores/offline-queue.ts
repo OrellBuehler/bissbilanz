@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { db } from '$lib/db';
 
 export type QueuedRequest = {
 	id?: number;
@@ -6,57 +7,38 @@ export type QueuedRequest = {
 	url: string;
 	body: string;
 	createdAt: number;
+	affectedTable?: string;
+	affectedId?: string;
 };
 
-const DB_NAME = 'bissbilanz-offline';
-const STORE_NAME = 'requests';
-
-function openDB(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, 1);
-		req.onupgradeneeded = () => {
-			req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-		};
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
-}
-
-export async function enqueue(method: string, url: string, body: object): Promise<void> {
+export async function enqueue(
+	method: string,
+	url: string,
+	body: object,
+	meta?: { affectedTable?: string; affectedId?: string }
+): Promise<void> {
 	if (!browser) return;
-	const db = await openDB();
-	const tx = db.transaction(STORE_NAME, 'readwrite');
-	tx.objectStore(STORE_NAME).add({
+	await db.syncQueue.add({
 		method,
 		url,
 		body: JSON.stringify(body),
-		createdAt: Date.now()
-	});
-	await new Promise((resolve, reject) => {
-		tx.oncomplete = resolve;
-		tx.onerror = reject;
+		createdAt: Date.now(),
+		affectedTable: meta?.affectedTable,
+		affectedId: meta?.affectedId
 	});
 }
 
 export async function drainQueue(): Promise<QueuedRequest[]> {
 	if (!browser) return [];
-	const db = await openDB();
-	const tx = db.transaction(STORE_NAME, 'readonly');
-	const store = tx.objectStore(STORE_NAME);
-	return new Promise((resolve, reject) => {
-		const req = store.getAll();
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
+	return db.syncQueue.orderBy('createdAt').toArray();
 }
 
 export async function removeFromQueue(id: number): Promise<void> {
 	if (!browser) return;
-	const db = await openDB();
-	const tx = db.transaction(STORE_NAME, 'readwrite');
-	tx.objectStore(STORE_NAME).delete(id);
-	await new Promise((resolve, reject) => {
-		tx.oncomplete = resolve;
-		tx.onerror = reject;
-	});
+	await db.syncQueue.delete(id);
+}
+
+export async function clearQueue(): Promise<void> {
+	if (!browser) return;
+	await db.syncQueue.clear();
 }

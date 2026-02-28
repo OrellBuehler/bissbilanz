@@ -1,0 +1,121 @@
+import 'fake-indexeddb/auto';
+import { describe, expect, test, beforeEach } from 'bun:test';
+import { db, clearAllData } from '../../src/lib/db/index';
+
+beforeEach(async () => {
+	await Promise.all(db.tables.map((t) => t.clear()));
+});
+
+describe('Dexie sync queue', () => {
+	test('can enqueue items', async () => {
+		await db.syncQueue.add({
+			method: 'POST',
+			url: '/api/entries',
+			body: JSON.stringify({ foodId: 'f1', date: '2026-02-28', servings: 1 }),
+			createdAt: Date.now(),
+			affectedTable: 'foodEntries'
+		});
+
+		const items = await db.syncQueue.toArray();
+		expect(items).toHaveLength(1);
+		expect(items[0].method).toBe('POST');
+		expect(items[0].affectedTable).toBe('foodEntries');
+		expect(items[0].id).toBeTruthy();
+	});
+
+	test('drains queue in order', async () => {
+		await db.syncQueue.add({
+			method: 'POST',
+			url: '/api/entries',
+			body: '{}',
+			createdAt: 1000
+		});
+		await db.syncQueue.add({
+			method: 'DELETE',
+			url: '/api/entries/e1',
+			body: '{}',
+			createdAt: 2000
+		});
+
+		const items = await db.syncQueue.orderBy('createdAt').toArray();
+		expect(items).toHaveLength(2);
+		expect(items[0].method).toBe('POST');
+		expect(items[1].method).toBe('DELETE');
+	});
+
+	test('removes individual items', async () => {
+		const id = await db.syncQueue.add({
+			method: 'POST',
+			url: '/api/foods',
+			body: '{}',
+			createdAt: Date.now()
+		});
+
+		await db.syncQueue.delete(id);
+
+		const items = await db.syncQueue.toArray();
+		expect(items).toHaveLength(0);
+	});
+
+	test('clears all items', async () => {
+		await db.syncQueue.bulkAdd([
+			{ method: 'POST', url: '/api/foods', body: '{}', createdAt: 1 },
+			{ method: 'POST', url: '/api/entries', body: '{}', createdAt: 2 },
+			{ method: 'DELETE', url: '/api/foods/f1', body: '{}', createdAt: 3 }
+		]);
+
+		await db.syncQueue.clear();
+
+		const items = await db.syncQueue.toArray();
+		expect(items).toHaveLength(0);
+	});
+});
+
+describe('clearAllData', () => {
+	test('clears all tables', async () => {
+		await db.foods.put({
+			id: 'f1', userId: 'u1', name: 'Banana', brand: null,
+			servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
+			carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
+			saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
+			calcium: null, iron: null, barcode: null, isFavorite: false,
+			nutriScore: null, novaGroup: null, additives: null,
+			ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+		});
+		await db.userGoals.put({
+			userId: 'u1', calorieGoal: 2000, proteinGoal: 150, carbGoal: 250,
+			fatGoal: 67, fiberGoal: 30, sodiumGoal: null, sugarGoal: null, updatedAt: null
+		});
+		await db.syncQueue.add({
+			method: 'POST', url: '/api/foods', body: '{}', createdAt: Date.now()
+		});
+
+		await clearAllData();
+
+		expect(await db.foods.count()).toBe(0);
+		expect(await db.userGoals.count()).toBe(0);
+		expect(await db.syncQueue.count()).toBe(0);
+	});
+});
+
+describe('sync metadata', () => {
+	test('tracks last synced time per table', async () => {
+		const now = Date.now();
+		await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: now });
+		await db.syncMeta.put({ tableName: 'foodEntries', lastSyncedAt: now - 1000 });
+
+		const foodsMeta = await db.syncMeta.get('foods');
+		expect(foodsMeta?.lastSyncedAt).toBe(now);
+
+		const entriesMeta = await db.syncMeta.get('foodEntries');
+		expect(entriesMeta?.lastSyncedAt).toBe(now - 1000);
+	});
+
+	test('updates existing metadata', async () => {
+		await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: 1000 });
+		await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: 2000 });
+
+		const meta = await db.syncMeta.get('foods');
+		expect(meta?.lastSyncedAt).toBe(2000);
+	});
+});

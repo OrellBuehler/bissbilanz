@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { setUser } from '$lib/stores/auth.svelte';
-	import { startSyncListener } from '$lib/stores/sync';
+	import { startSyncListener, refreshPendingCount } from '$lib/stores/sync';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
@@ -50,6 +50,8 @@
 			invalidateAll();
 			window.dispatchEvent(new CustomEvent('queue-synced'));
 		});
+		// Show any pending offline changes count in the UI
+		refreshPendingCount();
 	});
 </script>
 
