@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, test, beforeEach } from 'bun:test';
-import { db, clearAllData } from '../../src/lib/db/index';
+import { db, clearAllData, ensureUserScope } from '../../src/lib/db/index';
 
 beforeEach(async () => {
 	await Promise.all(db.tables.map((t) => t.clear()));
@@ -117,5 +117,67 @@ describe('sync metadata', () => {
 
 		const meta = await db.syncMeta.get('foods');
 		expect(meta?.lastSyncedAt).toBe(2000);
+	});
+});
+
+describe('ensureUserScope', () => {
+	const FOOD = {
+		id: 'f1', userId: 'u1', name: 'Banana', brand: null,
+		servingSize: 100, servingUnit: 'g', calories: 89, protein: 1.1,
+		carbs: 23, fat: 0.3, fiber: 2.6, sodium: null, sugar: null,
+		saturatedFat: null, cholesterol: null, vitaminA: null, vitaminC: null,
+		calcium: null, iron: null, barcode: null, isFavorite: false,
+		nutriScore: null, novaGroup: null, additives: null,
+		ingredientsText: null, imageUrl: null, createdAt: null, updatedAt: null
+	};
+
+	test('first-time login stores user sentinel', async () => {
+		await ensureUserScope('user-abc');
+
+		const sentinel = await db.syncMeta.get('__userId');
+		expect(sentinel).toBeTruthy();
+		expect(sentinel!.lastSyncedAt).toBeTypeOf('number');
+	});
+
+	test('same user login preserves data', async () => {
+		await db.foods.put(FOOD);
+		await ensureUserScope('user-abc');
+
+		// Same user again
+		await ensureUserScope('user-abc');
+
+		const foods = await db.foods.toArray();
+		expect(foods).toHaveLength(1);
+		expect(foods[0].name).toBe('Banana');
+	});
+
+	test('different user login clears all data', async () => {
+		await db.foods.put(FOOD);
+		await db.userGoals.put({
+			userId: 'u1', calorieGoal: 2000, proteinGoal: 150, carbGoal: 250,
+			fatGoal: 67, fiberGoal: 30, sodiumGoal: null, sugarGoal: null, updatedAt: null
+		});
+		await ensureUserScope('user-abc');
+
+		// Different user
+		await ensureUserScope('user-xyz');
+
+		expect(await db.foods.count()).toBe(0);
+		expect(await db.userGoals.count()).toBe(0);
+
+		// Sentinel should now belong to the new user
+		const sentinel = await db.syncMeta.get('__userId');
+		expect(sentinel).toBeTruthy();
+	});
+
+	test('clears sync queue on user switch', async () => {
+		await db.syncQueue.add({
+			method: 'POST', url: '/api/foods', body: '{}', createdAt: Date.now()
+		});
+		await ensureUserScope('user-abc');
+
+		await ensureUserScope('user-xyz');
+
+		expect(await db.syncQueue.count()).toBe(0);
 	});
 });

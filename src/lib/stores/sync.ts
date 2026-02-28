@@ -15,6 +15,9 @@ let listenerStarted = false;
 /** Max times a single queue item will be retried before being discarded. */
 const MAX_RETRIES = 3;
 
+/** Track per-item retry counts in memory (reset on page reload, which is fine). */
+const retryCounts = new Map<number, number>();
+
 export async function syncQueue(): Promise<number> {
 	if (!browser || syncing || !navigator.onLine) return 0;
 	syncing = true;
@@ -38,6 +41,7 @@ export async function syncQueue(): Promise<number> {
 				if (response.ok) {
 					// Success — remove from queue
 					await removeFromQueue(req.id!);
+					retryCounts.delete(req.id!);
 					if (req.affectedTable) affectedTables.add(req.affectedTable);
 					synced++;
 				} else if (response.status === 401 || response.status === 403) {
@@ -49,14 +53,29 @@ export async function syncQueue(): Promise<number> {
 					// Client error (400, 404, 409, 422, etc.) — item is unrecoverable.
 					// Remove it from queue to prevent infinite retries.
 					await removeFromQueue(req.id!);
+					retryCounts.delete(req.id!);
 					synced++;
 					const data = await response.json().catch(() => ({}));
 					addSyncError(
 						`Failed to sync ${req.method} ${req.url}: ${(data as Record<string, string>).error ?? `HTTP ${response.status}`}`
 					);
 				} else {
-					// Server error (5xx) — transient; stop and retry later
-					break;
+					// Server error (5xx) — transient; track retries
+					const count = (retryCounts.get(req.id!) ?? 0) + 1;
+					retryCounts.set(req.id!, count);
+
+					if (count >= MAX_RETRIES) {
+						// Too many retries — discard this poisoned item and continue
+						await removeFromQueue(req.id!);
+						retryCounts.delete(req.id!);
+						synced++;
+						addSyncError(
+							`Gave up syncing ${req.method} ${req.url} after ${MAX_RETRIES} retries (server error).`
+						);
+					} else {
+						// Stop processing and retry later
+						break;
+					}
 				}
 
 				setPendingCount(queued.length - synced);
@@ -87,8 +106,8 @@ export async function syncQueue(): Promise<number> {
 /** Update the pending count from the current queue size (for UI display). */
 export async function refreshPendingCount(): Promise<void> {
 	if (!browser) return;
-	const queued = await drainQueue();
-	setPendingCount(queued.length);
+	const count = await db.syncQueue.count();
+	setPendingCount(count);
 }
 
 export function startSyncListener(onSynced?: () => void): void {

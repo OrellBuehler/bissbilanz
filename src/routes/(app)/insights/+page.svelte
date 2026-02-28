@@ -60,7 +60,7 @@
 				const startDate = shiftDate(todayStr, -days);
 				url = `/api/stats/meal-breakdown?startDate=${startDate}&endDate=${todayStr}`;
 			}
-			const res = await fetch(url);
+			const res = await apiFetch(url);
 			if (res.ok) {
 				const json = await res.json();
 				data = json.data;
