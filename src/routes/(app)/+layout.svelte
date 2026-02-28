@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { setUser } from '$lib/stores/auth.svelte';
 	import { startSyncListener, refreshPendingCount } from '$lib/stores/sync';
+	import { migrateOldOfflineQueue, ensureUserScope } from '$lib/db';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
@@ -46,12 +47,16 @@
 	});
 
 	onMount(() => {
+		// Ensure Dexie data belongs to the current user (clears on user switch)
+		if (data.user?.id) {
+			ensureUserScope(data.user.id).catch(() => {});
+		}
+		// Migrate any pending items from the old bissbilanz-offline IndexedDB
+		migrateOldOfflineQueue().then(() => refreshPendingCount());
 		startSyncListener(() => {
 			invalidateAll();
 			window.dispatchEvent(new CustomEvent('queue-synced'));
 		});
-		// Show any pending offline changes count in the UI
-		refreshPendingCount();
 	});
 </script>
 

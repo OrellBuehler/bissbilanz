@@ -48,22 +48,97 @@ db.version(1).stores({
 
 export { db };
 
-/** Clear all user data from Dexie (e.g. on logout). Preserves the DB structure. */
+/** Clear all user data from Dexie (e.g. on logout). Uses a transaction for atomicity. */
 export async function clearAllData(): Promise<void> {
-	await Promise.all(
-		[
-			db.foods,
-			db.foodEntries,
-			db.recipes,
-			db.recipeIngredients,
-			db.userGoals,
-			db.userPreferences,
-			db.customMealTypes,
-			db.supplements,
-			db.supplementLogs,
-			db.weightEntries,
-			db.syncQueue,
-			db.syncMeta
-		].map((table) => table.clear())
-	);
+	await db.transaction('rw', db.tables, async () => {
+		await Promise.all(db.tables.map((table) => table.clear()));
+	});
+}
+
+/**
+ * Ensure cached data belongs to the current user.
+ * If a different user logs in on the same device, clear all stale data.
+ */
+export async function ensureUserScope(userId: string): Promise<void> {
+	const USER_KEY = '__userId';
+	const stored = await db.syncMeta.get(USER_KEY);
+	const hash = simpleHash(userId);
+
+	if (stored && stored.lastSyncedAt !== hash) {
+		// Different user — clear all cached data to prevent leaks
+		await clearAllData();
+	}
+	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: hash });
+}
+
+function simpleHash(str: string): number {
+	let h = 0;
+	for (let i = 0; i < str.length; i++) {
+		h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+	}
+	return h;
+}
+
+/**
+ * Migrate pending items from the old `bissbilanz-offline` IndexedDB to Dexie's syncQueue.
+ * Call once at app startup. Deletes the old database after migration.
+ */
+export async function migrateOldOfflineQueue(): Promise<void> {
+	if (typeof indexedDB === 'undefined') return;
+
+	const OLD_DB_NAME = 'bissbilanz-offline';
+	const OLD_STORE_NAME = 'requests';
+
+	try {
+		// Try to open the old database
+		const oldDb = await new Promise<IDBDatabase | null>((resolve) => {
+			const req = indexedDB.open(OLD_DB_NAME, 1);
+			req.onupgradeneeded = () => {
+				// If we're creating it for the first time, it doesn't exist — close and delete
+				req.transaction?.abort();
+				resolve(null);
+			};
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => resolve(null);
+		});
+
+		if (!oldDb) {
+			// Old database doesn't exist — clean up any partial creation
+			indexedDB.deleteDatabase(OLD_DB_NAME);
+			return;
+		}
+
+		// Check if the store exists
+		if (!oldDb.objectStoreNames.contains(OLD_STORE_NAME)) {
+			oldDb.close();
+			indexedDB.deleteDatabase(OLD_DB_NAME);
+			return;
+		}
+
+		// Read all pending items
+		const items = await new Promise<Array<{ method: string; url: string; body: string; createdAt: number }>>((resolve, reject) => {
+			const tx = oldDb.transaction(OLD_STORE_NAME, 'readonly');
+			const store = tx.objectStore(OLD_STORE_NAME);
+			const req = store.getAll();
+			req.onsuccess = () => resolve(req.result ?? []);
+			req.onerror = () => reject(req.error);
+		});
+
+		// Migrate items to new Dexie syncQueue
+		if (items.length > 0) {
+			await db.syncQueue.bulkAdd(
+				items.map((item) => ({
+					method: item.method,
+					url: item.url,
+					body: item.body,
+					createdAt: item.createdAt
+				}))
+			);
+		}
+
+		oldDb.close();
+		indexedDB.deleteDatabase(OLD_DB_NAME);
+	} catch {
+		// Best-effort migration — don't crash the app
+	}
 }

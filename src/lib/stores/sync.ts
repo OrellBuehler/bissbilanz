@@ -12,6 +12,9 @@ import {
 let syncing = false;
 let listenerStarted = false;
 
+/** Max times a single queue item will be retried before being discarded. */
+const MAX_RETRIES = 3;
+
 export async function syncQueue(): Promise<number> {
 	if (!browser || syncing || !navigator.onLine) return 0;
 	syncing = true;
@@ -31,21 +34,34 @@ export async function syncQueue(): Promise<number> {
 					headers: { 'content-type': 'application/json' },
 					body: req.method !== 'DELETE' ? req.body : undefined
 				});
-				if (response.ok || response.status === 400) {
+
+				if (response.ok) {
+					// Success — remove from queue
 					await removeFromQueue(req.id!);
 					if (req.affectedTable) affectedTables.add(req.affectedTable);
 					synced++;
-					setPendingCount(queued.length - synced);
-
-					// If the server rejected (400), note the error but still remove from queue
-					if (response.status === 400) {
-						const data = await response.json().catch(() => ({}));
-						addSyncError(
-							`Failed to sync ${req.method} ${req.url}: ${data.error ?? 'validation error'}`
-						);
-					}
+				} else if (response.status === 401 || response.status === 403) {
+					// Auth expired — stop syncing; user needs to re-authenticate.
+					// Don't remove items from queue so they can be retried after re-login.
+					addSyncError('Session expired. Please log in again to sync pending changes.');
+					break;
+				} else if (response.status >= 400 && response.status < 500) {
+					// Client error (400, 404, 409, 422, etc.) — item is unrecoverable.
+					// Remove it from queue to prevent infinite retries.
+					await removeFromQueue(req.id!);
+					synced++;
+					const data = await response.json().catch(() => ({}));
+					addSyncError(
+						`Failed to sync ${req.method} ${req.url}: ${(data as Record<string, string>).error ?? `HTTP ${response.status}`}`
+					);
+				} else {
+					// Server error (5xx) — transient; stop and retry later
+					break;
 				}
+
+				setPendingCount(queued.length - synced);
 			} catch {
+				// Network error — stop syncing, will retry on next online event
 				break;
 			}
 		}

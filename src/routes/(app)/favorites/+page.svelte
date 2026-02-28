@@ -42,9 +42,9 @@
 	const loadData = async () => {
 		try {
 			const [favRes, prefRes, mealTypesRes] = await Promise.all([
-				fetch('/api/favorites'),
-				fetch('/api/preferences'),
-				fetch('/api/meal-types')
+				apiFetch('/api/favorites'),
+				apiFetch('/api/preferences'),
+				apiFetch('/api/meal-types')
 			]);
 			if (favRes.ok) {
 				const data = await favRes.json();

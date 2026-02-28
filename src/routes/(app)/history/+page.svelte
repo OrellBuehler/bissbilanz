@@ -65,8 +65,8 @@
 
 	const loadStats = async () => {
 		const [weeklyRes, monthlyRes] = await Promise.all([
-			fetch('/api/stats/weekly'),
-			fetch('/api/stats/monthly')
+			apiFetch('/api/stats/weekly'),
+			apiFetch('/api/stats/monthly')
 		]);
 		weeklyStats = (await weeklyRes.json()).stats;
 		monthlyStats = (await monthlyRes.json()).stats;

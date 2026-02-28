@@ -1,22 +1,60 @@
 /**
  * Offline read handlers: serve cached data from Dexie when the network is unavailable.
  * Each handler produces the same JSON shape the server API would return.
+ *
+ * Route matching uses an explicit function-based approach to avoid
+ * fragile prefix/order-dependent pattern matching.
  */
 import { db } from '$lib/db';
 
 type OfflineHandler = (url: URL) => Promise<unknown | null>;
 
-const handlers: [pattern: string, handler: OfflineHandler][] = [
-	// ── Foods list ──────────────────────────────────────────────
-	[
-		'/api/foods',
-		async (url) => {
+/**
+ * Parse a URL path into segments: '/api/foods/abc' => ['api', 'foods', 'abc']
+ */
+function segments(path: string): string[] {
+	return path.split('/').filter(Boolean);
+}
+
+/**
+ * Route table. Each entry has a `match` function that checks the path,
+ * ensuring there is no ambiguity or order dependence between similar routes.
+ */
+const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHandler }[] = [
+	// ── Foods: /api/foods/recent ──────────────────────────────
+	{
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'foods' && s[2] === 'recent',
+		handler: async () => {
+			const entries = await db.foodEntries
+				.orderBy('createdAt')
+				.reverse()
+				.limit(50)
+				.toArray();
+			const foodIds = [...new Set(entries.map((e) => e.foodId).filter(Boolean))] as string[];
+			const foods = await db.foods.bulkGet(foodIds);
+			return { foods: foods.filter(Boolean) };
+		}
+	},
+
+	// ── Foods: /api/foods/:id ────────────────────────────────
+	{
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'foods' && s[2] !== 'recent',
+		handler: async (url) => {
+			const id = segments(url.pathname)[2];
+			const food = await db.foods.get(id);
+			return food ? { food } : null;
+		}
+	},
+
+	// ── Foods list: /api/foods ────────────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'foods',
+		handler: async (url) => {
 			const barcode = url.searchParams.get('barcode');
 			if (barcode) {
 				const food = (await db.foods.where('barcode').equals(barcode).first()) ?? null;
 				return { food };
 			}
-
 			const q = url.searchParams.get('q');
 			const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
 			const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
@@ -32,96 +70,90 @@ const handlers: [pattern: string, handler: OfflineHandler][] = [
 			}
 			return { foods: foods.slice(offset, offset + limit) };
 		}
-	],
+	},
 
-	// ── Single food ────────────────────────────────────────────
-	[
-		'/api/foods/',
-		async (url) => {
-			const id = extractId(url.pathname, '/api/foods/');
-			if (!id) return null;
-			const food = await db.foods.get(id);
-			return food ? { food } : null;
-		}
-	],
-
-	// ── Entries by date ────────────────────────────────────────
-	[
-		'/api/entries',
-		async (url) => {
+	// ── Entries: /api/entries ─────────────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'entries',
+		handler: async (url) => {
 			const date = url.searchParams.get('date');
 			if (!date) return null;
 			const entries = await db.foodEntries.where('date').equals(date).toArray();
-			// Sort by createdAt to match server order
 			entries.sort(
 				(a, b) =>
 					new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
 			);
 			return { entries };
 		}
-	],
+	},
 
-	// ── Recipes list ───────────────────────────────────────────
-	[
-		'/api/recipes',
-		async (url) => {
-			const pathParts = url.pathname.split('/').filter(Boolean);
-			// Single recipe: /api/recipes/:id
-			if (pathParts.length >= 3 && pathParts[2] !== '') {
-				const id = pathParts[2];
-				const recipe = await db.recipes.get(id);
-				if (!recipe) return null;
-				const ingredients = await db.recipeIngredients
-					.where('recipeId')
-					.equals(id)
-					.toArray();
-				return { recipe: { ...recipe, ingredients } };
-			}
-			// List
+	// ── Recipes: /api/recipes/:id ────────────────────────────
+	{
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'recipes',
+		handler: async (url) => {
+			const id = segments(url.pathname)[2];
+			const recipe = await db.recipes.get(id);
+			if (!recipe) return null;
+			const ingredients = await db.recipeIngredients
+				.where('recipeId')
+				.equals(id)
+				.toArray();
+			return { recipe: { ...recipe, ingredients } };
+		}
+	},
+
+	// ── Recipes list: /api/recipes ───────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'recipes',
+		handler: async () => {
 			const recipes = await db.recipes.toArray();
 			return { recipes };
 		}
-	],
+	},
 
-	// ── Goals ──────────────────────────────────────────────────
-	[
-		'/api/goals',
-		async () => {
+	// ── Goals: /api/goals ────────────────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'goals',
+		handler: async () => {
 			const goals = await db.userGoals.toArray();
 			return { goals: goals[0] ?? null };
 		}
-	],
+	},
 
-	// ── Preferences ────────────────────────────────────────────
-	[
-		'/api/preferences',
-		async () => {
+	// ── Preferences: /api/preferences ────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'preferences',
+		handler: async () => {
 			const prefs = await db.userPreferences.toArray();
 			return { preferences: prefs[0] ?? null };
 		}
-	],
+	},
 
-	// ── Meal Types ─────────────────────────────────────────────
-	[
-		'/api/meal-types',
-		async () => {
+	// ── Meal Types: /api/meal-types ──────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'meal-types',
+		handler: async () => {
 			const mealTypes = await db.customMealTypes.orderBy('sortOrder').toArray();
 			return { mealTypes };
 		}
-	],
+	},
 
-	// ── Supplements list ───────────────────────────────────────
-	[
-		'/api/supplements/today',
-		async () => {
-			// Build checklist from cached supplements + logs
+	// ── Supplements today: /api/supplements/today OR /api/supplements/:date/checklist ──
+	{
+		match: (s) =>
+			(s.length === 3 && s[0] === 'api' && s[1] === 'supplements' && s[2] === 'today') ||
+			(s.length === 4 && s[0] === 'api' && s[1] === 'supplements' && s[3] === 'checklist'),
+		handler: async (url) => {
+			const segs = segments(url.pathname);
 			const supplements = await db.supplements.filter((s) => s.isActive === true).toArray();
-			const today = new Date().toISOString().slice(0, 10);
+			// Extract date: either from /api/supplements/:date/checklist or use today
+			const date =
+				segs.length === 4 ? segs[2] : new Date().toISOString().slice(0, 10);
 			const checklist = await Promise.all(
 				supplements.map(async (s) => {
 					const log = await db.supplementLogs
 						.where('[supplementId+date]')
-						.equals([s.id, today])
+						.equals([s.id, date])
 						.first();
 					return {
 						supplement: s,
@@ -130,56 +162,71 @@ const handlers: [pattern: string, handler: OfflineHandler][] = [
 					};
 				})
 			);
-			return { checklist, date: today };
+			return { checklist, date };
 		}
-	],
-	[
-		'/api/supplements',
-		async (url) => {
-			const pathParts = url.pathname.split('/').filter(Boolean);
-			// Single supplement: /api/supplements/:id
-			if (pathParts.length >= 3 && !['today', 'history'].includes(pathParts[2])) {
-				const id = pathParts[2];
-				const supplement = await db.supplements.get(id);
-				return supplement ? { supplement } : null;
-			}
+	},
+
+	// ── Supplements: /api/supplements/:id ────────────────────
+	{
+		match: (s) =>
+			s.length === 3 &&
+			s[0] === 'api' &&
+			s[1] === 'supplements' &&
+			!['today', 'history'].includes(s[2]),
+		handler: async (url) => {
+			const id = segments(url.pathname)[2];
+			const supplement = await db.supplements.get(id);
+			return supplement ? { supplement } : null;
+		}
+	},
+
+	// ── Supplements list: /api/supplements ───────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'supplements',
+		handler: async (url) => {
 			const showAll = url.searchParams.get('all') === 'true';
-			let supplements;
-			if (showAll) {
-				supplements = await db.supplements.toArray();
-			} else {
-				supplements = await db.supplements.filter((s) => s.isActive === true).toArray();
-			}
+			const supplements = showAll
+				? await db.supplements.toArray()
+				: await db.supplements.filter((s) => s.isActive === true).toArray();
 			return { supplements };
 		}
-	],
+	},
 
-	// ── Weight ─────────────────────────────────────────────────
-	[
-		'/api/weight/latest',
-		async () => {
-			const entries = await db.weightEntries.orderBy('entryDate').reverse().limit(1).toArray();
+	// ── Weight latest: /api/weight/latest ────────────────────
+	{
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'weight' && s[2] === 'latest',
+		handler: async () => {
+			const entries = await db.weightEntries
+				.orderBy('entryDate')
+				.reverse()
+				.limit(1)
+				.toArray();
 			return { entry: entries[0] ?? null };
 		}
-	],
-	[
-		'/api/weight',
-		async () => {
+	},
+
+	// ── Weight list: /api/weight ─────────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'weight',
+		handler: async () => {
 			const entries = await db.weightEntries.orderBy('entryDate').toArray();
 			return { entries };
 		}
-	],
+	},
 
-	// ── Favorites ──────────────────────────────────────────────
-	[
-		'/api/favorites',
-		async (url) => {
+	// ── Favorites: /api/favorites ────────────────────────────
+	{
+		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'favorites',
+		handler: async (url) => {
 			const type = url.searchParams.get('type');
 			const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
 			const result: Record<string, unknown> = {};
 
 			if (!type || type === 'foods') {
-				const foods = await db.foods.filter((f) => f.isFavorite === true).limit(limit).toArray();
+				const foods = await db.foods
+					.filter((f) => f.isFavorite === true)
+					.limit(limit)
+					.toArray();
 				result.foods = foods.map((f) => ({
 					id: f.id,
 					name: f.name,
@@ -212,32 +259,7 @@ const handlers: [pattern: string, handler: OfflineHandler][] = [
 			}
 			return result;
 		}
-	],
-
-	// ── Auth (serve from cache so layout load doesn't break) ───
-	[
-		'/api/auth/me',
-		async () => {
-			// Auth is cached by Workbox; this is a last-resort fallback
-			return null;
-		}
-	],
-
-	// ── Foods recent ───────────────────────────────────────────
-	[
-		'/api/foods/recent',
-		async () => {
-			// Return recently-used foods from cached entries
-			const entries = await db.foodEntries
-				.orderBy('createdAt')
-				.reverse()
-				.limit(50)
-				.toArray();
-			const foodIds = [...new Set(entries.map((e) => e.foodId).filter(Boolean))] as string[];
-			const foods = await db.foods.bulkGet(foodIds);
-			return { foods: foods.filter(Boolean) };
-		}
-	]
+	}
 ];
 
 /**
@@ -246,23 +268,13 @@ const handlers: [pattern: string, handler: OfflineHandler][] = [
  */
 export async function getOfflineData(url: string): Promise<unknown | null> {
 	const parsed = new URL(url, 'http://localhost');
-	const path = parsed.pathname;
+	const segs = segments(parsed.pathname);
 
-	for (const [pattern, handler] of handlers) {
-		if (path === pattern || (pattern.endsWith('/') && path.startsWith(pattern))) {
-			return handler(parsed);
-		}
-		// Exact subpath match (e.g. /api/supplements/today)
-		if (path.startsWith(pattern.replace(/\/$/, '') + '/') || path === pattern) {
-			return handler(parsed);
+	for (const route of routes) {
+		if (route.match(segs, parsed)) {
+			return route.handler(parsed);
 		}
 	}
 
 	return null;
-}
-
-function extractId(pathname: string, prefix: string): string | null {
-	const rest = pathname.slice(prefix.length);
-	const id = rest.split('/')[0];
-	return id || null;
 }

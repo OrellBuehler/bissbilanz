@@ -12,6 +12,7 @@
 	import { isSupplementDue } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { round2 } from '$lib/utils/number';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type IngredientInfo = {
@@ -73,8 +74,8 @@
 
 	const loadHistory = async () => {
 		const [histRes, suppRes] = await Promise.all([
-			fetch(`/api/supplements/history?from=${from}&to=${to}`),
-			fetch('/api/supplements?all=true')
+			apiFetch(`/api/supplements/history?from=${from}&to=${to}`),
+			apiFetch('/api/supplements?all=true')
 		]);
 		if (histRes.ok) {
 			history = (await histRes.json()).history;
