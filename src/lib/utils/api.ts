@@ -11,6 +11,12 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
 	// Offline writes → queue for later sync + apply optimistically to Dexie
 	if (browser && !navigator.onLine && isWrite) {
+		// FormData cannot be serialized for offline queue — let the network error propagate
+		if (options.body instanceof FormData) {
+			const error = new TypeError('Failed to fetch');
+			throw error;
+		}
+
 		const body = typeof options.body === 'string' ? JSON.parse(options.body) : {};
 		const meta = urlToMeta(url);
 		await enqueue(method, url, body, meta);

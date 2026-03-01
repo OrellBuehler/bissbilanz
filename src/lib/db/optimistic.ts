@@ -54,6 +54,9 @@ async function handleCreate(
 	body: Record<string, unknown>,
 	subResource?: string
 ): Promise<void> {
+	// Skip optimistic writes for sub-resource actions like /api/entries/copy
+	if (resource === 'entries' && subResource === 'copy') return;
+
 	const now = new Date().toISOString();
 
 	switch (resource) {
@@ -263,39 +266,48 @@ async function handleUpdate(
 ): Promise<void> {
 	if (!entityId) return;
 	const now = new Date().toISOString();
-	const updatesWithTimestamp = { ...body, updatedAt: now };
 
 	switch (resource) {
-		case 'foods':
-			await db.foods.update(entityId, updatesWithTimestamp);
+		case 'foods': {
+			const { ...foodUpdates } = body;
+			await db.foods.update(entityId, { ...foodUpdates, updatedAt: now });
 			break;
-		case 'entries':
-			// foodEntries doesn't have updatedAt
-			await db.foodEntries.update(entityId, body);
+		}
+		case 'entries': {
+			// foodEntries doesn't have updatedAt; strip non-column fields
+			const { ...entryUpdates } = body;
+			await db.foodEntries.update(entityId, entryUpdates);
 			break;
-		case 'recipes':
-			await db.recipes.update(entityId, updatesWithTimestamp);
-			// If ingredients are included, replace them
-			if (Array.isArray(body.ingredients)) {
+		}
+		case 'recipes': {
+			// Destructure to remove `ingredients` (not a column on the recipes table)
+			const { ingredients, ...recipeUpdates } = body;
+			await db.recipes.update(entityId, { ...recipeUpdates, updatedAt: now });
+			// If ingredients are included, replace them separately
+			if (Array.isArray(ingredients)) {
 				await db.recipeIngredients.where('recipeId').equals(entityId).delete();
-				await putRecipeIngredients(body.ingredients, entityId);
+				await putRecipeIngredients(ingredients as unknown[], entityId);
 			}
 			break;
-		case 'supplements':
-			await db.supplements.update(entityId, updatesWithTimestamp);
+		}
+		case 'supplements': {
+			// Strip `ingredients` from supplement body (stored separately on server)
+			const { ingredients: _suppIngredients, ...supplementUpdates } = body;
+			await db.supplements.update(entityId, { ...supplementUpdates, updatedAt: now });
 			break;
+		}
 		case 'weight':
-			await db.weightEntries.update(entityId, updatesWithTimestamp);
+			await db.weightEntries.update(entityId, { ...body, updatedAt: now });
 			break;
 		case 'meal-types':
 			// customMealTypes doesn't have updatedAt
 			await db.customMealTypes.update(entityId, body);
 			break;
 		case 'preferences':
-			await db.userPreferences.toCollection().modify(updatesWithTimestamp);
+			await db.userPreferences.toCollection().modify({ ...body, updatedAt: now });
 			break;
 		case 'goals':
-			await db.userGoals.toCollection().modify(updatesWithTimestamp);
+			await db.userGoals.toCollection().modify({ ...body, updatedAt: now });
 			break;
 	}
 }
