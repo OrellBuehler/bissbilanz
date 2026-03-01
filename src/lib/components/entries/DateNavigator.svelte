@@ -35,31 +35,35 @@
 	};
 </script>
 
-<div class="flex min-w-0 items-center gap-1 sm:gap-2">
-	<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
-		<ChevronLeft class="h-4 w-4" />
-	</Button>
+<div class="min-w-0">
+	<div class="flex items-center gap-1 sm:gap-2">
+		<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
+			<ChevronLeft class="h-4 w-4" />
+		</Button>
 
-	<Popover.Root bind:open={calendarOpen}>
-		<Popover.Trigger>
-			{#snippet child({ props })}
-				<Button variant="ghost" {...props} class="text-lg font-semibold sm:text-2xl">
-					{formatDateLabel(date)}
-				</Button>
-			{/snippet}
-		</Popover.Trigger>
-		<Popover.Content class="w-auto p-0" align="center">
-			<Calendar type="single" value={calendarValue} onValueChange={onCalendarChange} />
-		</Popover.Content>
-	</Popover.Root>
+		<Popover.Root bind:open={calendarOpen}>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button variant="ghost" {...props} class="text-lg font-semibold sm:text-2xl">
+						{formatDateLabel(date)}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content class="w-auto p-0" align="center">
+				<Calendar type="single" value={calendarValue} onValueChange={onCalendarChange} />
+			</Popover.Content>
+		</Popover.Root>
 
-	<Button variant="ghost" size="icon" onclick={nextDay} aria-label={m.dashboard_next_day()}>
-		<ChevronRight class="h-4 w-4" />
-	</Button>
+		<Button variant="ghost" size="icon" onclick={nextDay} aria-label={m.dashboard_next_day()}>
+			<ChevronRight class="h-4 w-4" />
+		</Button>
+	</div>
 
 	{#if !isToday}
-		<Button variant="outline" size="sm" onclick={goToday}>
-			{m.dashboard_go_to_today()}
-		</Button>
+		<div class="ml-1">
+			<Button variant="link" size="sm" class="text-muted-foreground h-auto p-0 text-xs" onclick={goToday}>
+				{m.dashboard_go_to_today()}
+			</Button>
+		</div>
 	{/if}
 </div>
