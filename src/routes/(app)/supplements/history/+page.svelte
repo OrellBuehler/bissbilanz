@@ -73,15 +73,19 @@
 	};
 
 	const loadHistory = async () => {
-		const [histRes, suppRes] = await Promise.all([
-			apiFetch(`/api/supplements/history?from=${from}&to=${to}`),
-			apiFetch('/api/supplements?all=true')
-		]);
-		if (histRes.ok) {
-			history = (await histRes.json()).history;
-		}
-		if (suppRes.ok) {
-			allSupplements = (await suppRes.json()).supplements;
+		try {
+			const [histRes, suppRes] = await Promise.all([
+				apiFetch(`/api/supplements/history?from=${from}&to=${to}`),
+				apiFetch('/api/supplements?all=true')
+			]);
+			if (histRes.ok) {
+				history = (await histRes.json()).history;
+			}
+			if (suppRes.ok) {
+				allSupplements = (await suppRes.json()).supplements;
+			}
+		} catch {
+			// Silently ignore — history data may be unavailable offline
 		}
 	};
 
