@@ -3,6 +3,7 @@
  * so the UI reflects changes while offline, before the sync queue drains.
  */
 import { db } from '$lib/db';
+import type { DexieRecipeIngredient } from '$lib/db/types';
 
 /**
  * Apply an offline write optimistically to the local Dexie cache.
@@ -31,6 +32,21 @@ export async function applyOptimisticWrite(
 	} catch {
 		// Optimistic writes are best-effort — don't break the offline flow
 	}
+}
+
+async function putRecipeIngredients(ingredients: unknown[], recipeId: string): Promise<void> {
+	const items: DexieRecipeIngredient[] = ingredients.map((ing) => {
+		const item = ing as Partial<DexieRecipeIngredient>;
+		return {
+			id: item.id ?? crypto.randomUUID(),
+			recipeId,
+			foodId: item.foodId ?? '',
+			quantity: item.quantity ?? 0,
+			servingUnit: item.servingUnit ?? 'g',
+			sortOrder: item.sortOrder ?? 0
+		};
+	});
+	await db.recipeIngredients.bulkPut(items);
 }
 
 async function handleCreate(
@@ -155,16 +171,7 @@ async function handleCreate(
 			});
 			// Also store ingredients
 			if (Array.isArray(body.ingredients)) {
-				for (const ing of body.ingredients) {
-					await db.recipeIngredients.put({
-						id: ((ing as Record<string, unknown>).id as string) ?? crypto.randomUUID(),
-						recipeId: id,
-						foodId: (ing as Record<string, unknown>).foodId as string,
-						quantity: (ing as Record<string, unknown>).quantity as number,
-						servingUnit: (ing as Record<string, unknown>).servingUnit as string,
-						sortOrder: ((ing as Record<string, unknown>).sortOrder as number) ?? 0
-					});
-				}
+				await putRecipeIngredients(body.ingredients, id);
 			}
 			break;
 		}
@@ -271,16 +278,7 @@ async function handleUpdate(
 			// If ingredients are included, replace them
 			if (Array.isArray(body.ingredients)) {
 				await db.recipeIngredients.where('recipeId').equals(entityId).delete();
-				for (const ing of body.ingredients) {
-					await db.recipeIngredients.put({
-						id: ((ing as Record<string, unknown>).id as string) ?? crypto.randomUUID(),
-						recipeId: entityId,
-						foodId: (ing as Record<string, unknown>).foodId as string,
-						quantity: (ing as Record<string, unknown>).quantity as number,
-						servingUnit: (ing as Record<string, unknown>).servingUnit as string,
-						sortOrder: ((ing as Record<string, unknown>).sortOrder as number) ?? 0
-					});
-				}
+				await putRecipeIngredients(body.ingredients, entityId);
 			}
 			break;
 		case 'supplements':
