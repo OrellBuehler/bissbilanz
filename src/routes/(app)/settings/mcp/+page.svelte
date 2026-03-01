@@ -248,7 +248,7 @@
 				<div class="pt-4 border-t">
 					<h4 class="font-medium mb-3">Available Capabilities</h4>
 					<ul class="space-y-2">
-						{#each ["View today's nutrition status and goals", 'Search your food database', 'Create new foods with full nutritional info', 'Create recipes with multiple ingredients', 'Log food entries to your daily diary'] as capability}
+						{#each ["View today's nutrition status and goals", 'Search your food database and scan barcodes', 'Create, update and delete foods and recipes', 'Log food entries and copy meals between days', 'Track supplements and daily supplement status', 'Log and review body weight over time', 'View weekly/monthly stats, streaks and top foods', 'Manage entries, favorites and macro goals'] as capability}
 							<li class="flex items-start gap-2 text-sm">
 								<svg
 									class="size-5 text-green-600 flex-shrink-0 mt-0.5"
