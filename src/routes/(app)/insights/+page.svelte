@@ -5,6 +5,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { onMount } from 'svelte';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type MealData = {
@@ -59,7 +60,7 @@
 				const startDate = shiftDate(todayStr, -days);
 				url = `/api/stats/meal-breakdown?startDate=${startDate}&endDate=${todayStr}`;
 			}
-			const res = await fetch(url);
+			const res = await apiFetch(url);
 			if (res.ok) {
 				const json = await res.json();
 				data = json.data;
@@ -74,7 +75,7 @@
 	const loadTopFoods = async () => {
 		topFoodsLoading = true;
 		try {
-			const res = await fetch(`/api/stats/top-foods?days=${topFoodsDays}&limit=10`);
+			const res = await apiFetch(`/api/stats/top-foods?days=${topFoodsDays}&limit=10`);
 			if (res.ok) {
 				const json = await res.json();
 				foods = json.data;

@@ -86,7 +86,7 @@
 	const loadFood = async () => {
 		const id = $page.params.id;
 		try {
-			const res = await fetch(`/api/foods/${id}`);
+			const res = await apiFetch(`/api/foods/${id}`);
 			if (!res.ok) {
 				goto('/foods');
 				return;
@@ -126,7 +126,7 @@
 		formData.append('image', file);
 
 		try {
-			const uploadRes = await fetch('/api/images/upload', {
+			const uploadRes = await apiFetch('/api/images/upload', {
 				method: 'POST',
 				body: formData
 			});
@@ -206,7 +206,7 @@
 		if (!food?.barcode) return;
 		enriching = true;
 		try {
-			const res = await fetch(`/api/openfoodfacts/${food.barcode}`);
+			const res = await apiFetch(`/api/openfoodfacts/${food.barcode}`);
 			if (!res.ok) {
 				toast.error(m.quality_enrich_failed());
 				return;

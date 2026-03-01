@@ -47,14 +47,17 @@
 
 	const loadFoodsAndRecipes = async () => {
 		if (foodsLoaded) return;
-		const [foodsRes, recipesRes] = await Promise.all([fetch('/api/foods'), fetch('/api/recipes')]);
+		const [foodsRes, recipesRes] = await Promise.all([
+			apiFetch('/api/foods'),
+			apiFetch('/api/recipes')
+		]);
 		foods = (await foodsRes.json()).foods ?? [];
 		recipes = (await recipesRes.json()).recipes ?? [];
 		foodsLoaded = true;
 	};
 
 	const loadEntries = async () => {
-		const res = await fetch(`/api/entries?date=${date}`);
+		const res = await apiFetch(`/api/entries?date=${date}`);
 		entries = (await res.json()).entries ?? [];
 	};
 
@@ -103,7 +106,7 @@
 	};
 
 	const handleBarcodeScan = async (barcode: string) => {
-		const res = await fetch(`/api/foods?barcode=${encodeURIComponent(barcode)}`);
+		const res = await apiFetch(`/api/foods?barcode=${encodeURIComponent(barcode)}`);
 		const data = await res.json();
 		if (data.food) {
 			addModalOpen = true;

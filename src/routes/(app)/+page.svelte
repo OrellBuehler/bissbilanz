@@ -60,7 +60,7 @@
 
 	const loadLatestWeight = async () => {
 		try {
-			const res = await fetch('/api/weight/latest');
+			const res = await apiFetch('/api/weight/latest');
 			if (res.ok) {
 				const data = await res.json();
 				latestWeight = data.entry;
@@ -72,7 +72,7 @@
 
 	const loadSupplements = async (date: string = activeDate) => {
 		try {
-			const res = await fetch(`/api/supplements/${date}/checklist`);
+			const res = await apiFetch(`/api/supplements/${date}/checklist`);
 			if (res.ok) {
 				supplementChecklist = (await res.json()).checklist;
 			}
@@ -96,7 +96,7 @@
 
 	const loadStreaks = async () => {
 		try {
-			const res = await fetch('/api/stats/streaks');
+			const res = await apiFetch('/api/stats/streaks');
 			if (res.ok) {
 				streaks = await res.json();
 			}
@@ -107,7 +107,7 @@
 
 	const loadGoals = async () => {
 		try {
-			const res = await fetch('/api/goals');
+			const res = await apiFetch('/api/goals');
 			if (res.ok) {
 				const data = await res.json();
 				userGoals = data.goals;
@@ -119,7 +119,7 @@
 
 	const checkStartPage = async () => {
 		try {
-			const res = await fetch('/api/preferences');
+			const res = await apiFetch('/api/preferences');
 			if (res.ok) {
 				const { preferences } = await res.json();
 				userPrefs = preferences;

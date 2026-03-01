@@ -34,7 +34,7 @@
 	let showForm = $state(false);
 	let editingSupplement: SupplementWithIngredients | null = $state(null);
 	const loadSupplements = async () => {
-		const res = await fetch('/api/supplements?all=true');
+		const res = await apiFetch('/api/supplements?all=true');
 		if (res.ok) {
 			supplements = (await res.json()).supplements;
 		}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { setUser } from '$lib/stores/auth.svelte';
-	import { startSyncListener } from '$lib/stores/sync';
+	import { startSyncListener, refreshPendingCount } from '$lib/stores/sync';
+	import { migrateOldOfflineQueue, ensureUserScope } from '$lib/db';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
@@ -45,7 +46,14 @@
 		setUser(data.user);
 	});
 
-	onMount(() => {
+	onMount(async () => {
+		// Ensure Dexie data belongs to the current user (clears on user switch).
+		// Awaited so no component reads stale data from a previous user.
+		if (data.user?.id) {
+			await ensureUserScope(data.user.id).catch(() => {});
+		}
+		// Migrate any pending items from the old bissbilanz-offline IndexedDB
+		migrateOldOfflineQueue().then(() => refreshPendingCount());
 		startSyncListener(() => {
 			invalidateAll();
 			window.dispatchEvent(new CustomEvent('queue-synced'));

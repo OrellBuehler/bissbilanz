@@ -8,6 +8,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type FoodItem = {
@@ -161,9 +162,12 @@
 		if (recentFoods.length > 0) return;
 		loadingRecent = true;
 		try {
-			const res = await fetch('/api/foods/recent');
+			const res = await apiFetch('/api/foods/recent');
+			if (!res.ok) return;
 			const data = await res.json();
-			recentFoods = data.foods;
+			recentFoods = data.foods ?? [];
+		} catch {
+			// Silently ignore — recent foods unavailable offline
 		} finally {
 			loadingRecent = false;
 		}
@@ -173,7 +177,7 @@
 		if (favoriteRecipes.length > 0) return;
 		loadingFavorites = true;
 		try {
-			const res = await fetch('/api/favorites?type=recipes');
+			const res = await apiFetch('/api/favorites?type=recipes');
 			if (res.ok) {
 				const data = await res.json();
 				favoriteRecipes = (data.recipes ?? []).map(

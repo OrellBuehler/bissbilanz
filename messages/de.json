@@ -311,6 +311,7 @@
 	"pwa_offline": "Du bist offline — Änderungen werden bei Verbindung synchronisiert",
 	"pwa_update_available": "Eine neue Version ist verfügbar",
 	"pwa_update_refresh": "Aktualisieren",
+	"pwa_syncing": "Änderungen werden synchronisiert…",
 	"pwa_ios_install_prompt": "App installieren: Tippe auf {shareIcon} und dann \"Zum Home-Bildschirm\"",
 
 	"nav_favorites": "Favoriten",

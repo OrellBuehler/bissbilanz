@@ -1,0 +1,202 @@
+/**
+ * Dexie (IndexedDB) types for offline cache.
+ * These mirror the server API response shapes — not the raw DB schema —
+ * so cached data can be served directly without transformation.
+ */
+
+// ── Foods ──────────────────────────────────────────────────────────
+export type DexieFood = {
+	id: string;
+	userId: string;
+	name: string;
+	brand: string | null;
+	servingSize: number;
+	servingUnit: string;
+	calories: number;
+	protein: number;
+	carbs: number;
+	fat: number;
+	fiber: number;
+	sodium: number | null;
+	sugar: number | null;
+	saturatedFat: number | null;
+	cholesterol: number | null;
+	vitaminA: number | null;
+	vitaminC: number | null;
+	calcium: number | null;
+	iron: number | null;
+	barcode: string | null;
+	isFavorite: boolean;
+	nutriScore: string | null;
+	novaGroup: number | null;
+	additives: string[] | null;
+	ingredientsText: string | null;
+	imageUrl: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
+// ── Food Entries (denormalized from server JOINs) ──────────────────
+export type DexieFoodEntry = {
+	id: string;
+	foodId: string | null;
+	recipeId: string | null;
+	date: string;
+	mealType: string;
+	servings: number;
+	notes: string | null;
+	// Denormalized fields from server JOIN
+	foodName: string | null;
+	calories: number | null;
+	protein: number | null;
+	carbs: number | null;
+	fat: number | null;
+	fiber: number | null;
+	servingSize: number | null;
+	servingUnit: string | null;
+	createdAt: string | null;
+};
+
+// ── Recipes ────────────────────────────────────────────────────────
+export type DexieRecipe = {
+	id: string;
+	userId: string;
+	name: string;
+	totalServings: number;
+	isFavorite: boolean;
+	imageUrl: string | null;
+	// Computed macros (from server aggregation)
+	calories: number | null;
+	protein: number | null;
+	carbs: number | null;
+	fat: number | null;
+	fiber: number | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
+export type DexieRecipeIngredient = {
+	id: string;
+	recipeId: string;
+	foodId: string;
+	quantity: number;
+	servingUnit: string;
+	sortOrder: number;
+};
+
+// ── Goals ──────────────────────────────────────────────────────────
+export type DexieUserGoals = {
+	userId: string;
+	calorieGoal: number;
+	proteinGoal: number;
+	carbGoal: number;
+	fatGoal: number;
+	fiberGoal: number;
+	sodiumGoal: number | null;
+	sugarGoal: number | null;
+	updatedAt: string | null;
+};
+
+// ── Preferences ────────────────────────────────────────────────────
+export type DexieFavoriteMealTimeframe = {
+	id: string;
+	userId: string;
+	mealType: string;
+	customMealTypeId: string | null;
+	startMinute: number;
+	endMinute: number;
+	sortOrder: number;
+};
+
+export type DexieUserPreferences = {
+	userId: string;
+	showChartWidget: boolean;
+	showFavoritesWidget: boolean;
+	showSupplementsWidget: boolean;
+	showWeightWidget: boolean;
+	showMealBreakdownWidget: boolean;
+	showTopFoodsWidget: boolean;
+	widgetOrder: string[];
+	startPage: string;
+	favoriteTapAction: string;
+	favoriteMealAssignmentMode: string;
+	updatedAt: string | null;
+	locale: string | null;
+	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
+};
+
+// ── Custom Meal Types ──────────────────────────────────────────────
+export type DexieCustomMealType = {
+	id: string;
+	userId: string;
+	name: string;
+	sortOrder: number;
+	createdAt: string | null;
+};
+
+// ── Supplements ────────────────────────────────────────────────────
+export type DexieSupplementIngredient = {
+	id: string;
+	supplementId: string;
+	name: string;
+	dosage: number;
+	dosageUnit: string;
+	sortOrder: number;
+};
+
+export type DexieSupplement = {
+	id: string;
+	userId: string;
+	name: string;
+	dosage: number;
+	dosageUnit: string;
+	scheduleType: string;
+	scheduleDays: number[] | null;
+	scheduleStartDate: string | null;
+	isActive: boolean;
+	sortOrder: number;
+	timeOfDay: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	ingredients: DexieSupplementIngredient[];
+};
+
+export type DexieSupplementLog = {
+	id: string;
+	supplementId: string;
+	userId: string;
+	date: string;
+	takenAt: string;
+	createdAt: string | null;
+};
+
+// ── Weight ─────────────────────────────────────────────────────────
+export type DexieWeightEntry = {
+	id: string;
+	userId: string;
+	weightKg: number;
+	entryDate: string;
+	loggedAt: string;
+	notes: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
+// ── Sync Queue (replaces bissbilanz-offline IndexedDB) ─────────────
+export type DexieSyncQueueItem = {
+	id?: number;
+	method: string;
+	url: string;
+	body: string;
+	createdAt: number;
+	affectedTable?: string;
+	affectedId?: string;
+};
+
+// ── Sync Metadata ──────────────────────────────────────────────────
+export type DexieSyncMeta = {
+	tableName: string;
+	lastSyncedAt: number;
+	/** Stores the full userId string for the __userId sentinel row. */
+	userId?: string;
+};

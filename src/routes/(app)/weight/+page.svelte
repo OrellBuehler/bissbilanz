@@ -7,6 +7,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
+	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
 	type WeightEntry = {
@@ -37,7 +38,7 @@
 	const formatKg = (value: number | null) => (value == null ? '—' : `${value.toFixed(1)} kg`);
 
 	const loadEntries = async () => {
-		const res = await fetch('/api/weight');
+		const res = await apiFetch('/api/weight');
 		if (res.ok) {
 			const data = await res.json();
 			entries = data.entries;
@@ -45,7 +46,7 @@
 	};
 
 	const loadChart = async () => {
-		const res = await fetch(`/api/weight?from=${chartFrom}&to=${chartTo}`);
+		const res = await apiFetch(`/api/weight?from=${chartFrom}&to=${chartTo}`);
 		if (res.ok) {
 			const data = await res.json();
 			chartData = data.data;
