@@ -89,7 +89,7 @@
 	{#each macros as macro}
 		{@const pct = getPct(macro.key)}
 		{@const grams = getGrams(macro.key)}
-		<div class="space-y-2">
+		<div class="touch-none space-y-2">
 			<div class="flex items-center justify-between text-sm">
 				<span class={macro.color}>{macro.label()}</span>
 				<span class="text-muted-foreground">{pct}% &middot; {grams}g</span>
