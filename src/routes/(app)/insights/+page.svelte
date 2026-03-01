@@ -127,8 +127,6 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
-	<h2 class="text-2xl font-semibold">{m.insights_title()}</h2>
-
 	<Card.Root>
 		<Card.Header>
 			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
