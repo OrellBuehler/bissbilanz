@@ -166,7 +166,7 @@
 				<Label class="text-sm font-medium">
 					{m.maintenance_body_composition()}
 				</Label>
-				<div class="space-y-2">
+				<div class="touch-none space-y-2">
 					<div class="flex justify-between text-xs text-muted-foreground">
 						<span>{m.maintenance_muscle()}: {muscleRatio}%</span>
 						<span>{m.maintenance_fat()}: {fatRatio}%</span>
