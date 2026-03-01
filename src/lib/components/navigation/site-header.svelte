@@ -26,6 +26,7 @@
 		weight: () => m.nav_weight(),
 		insights: () => m.nav_insights(),
 		new: () => m.foods_new(),
+		maintenance: () => m.nav_maintenance(),
 		mcp: () => 'MCP'
 	};
 
