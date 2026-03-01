@@ -151,6 +151,10 @@ const cacheHandlers: [pattern: string, handler: CacheHandler][] = [
 	[
 		'/api/favorites',
 		async (_url, data) => {
+			// Reset all isFavorite flags first, then set true for items in the response
+			await db.foods.toCollection().modify({ isFavorite: false });
+			await db.recipes.toCollection().modify({ isFavorite: false });
+
 			if (Array.isArray(data.foods)) {
 				for (const fav of data.foods) {
 					await db.foods.update(fav.id, { isFavorite: true }).catch(() => {});
@@ -197,6 +201,7 @@ function pathnameToTable(path: string): string | null {
 	if (path.startsWith('/api/meal-types')) return 'customMealTypes';
 	if (path.startsWith('/api/supplements')) return 'supplements';
 	if (path.startsWith('/api/weight')) return 'weightEntries';
-	if (path.startsWith('/api/favorites')) return 'favorites';
+	// Favorites are derived from foods/recipes — no dedicated Dexie table
+	if (path.startsWith('/api/favorites')) return null;
 	return null;
 }

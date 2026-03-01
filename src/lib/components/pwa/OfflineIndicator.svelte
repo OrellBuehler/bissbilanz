@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import { getSyncState } from '$lib/stores/sync-state.svelte';
 	import WifiOff from '@lucide/svelte/icons/wifi-off';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -8,10 +9,16 @@
 	let online = $state(browser ? navigator.onLine : true);
 	const sync = getSyncState();
 
-	if (browser) {
-		window.addEventListener('online', () => (online = true));
-		window.addEventListener('offline', () => (online = false));
-	}
+	onMount(() => {
+		const goOnline = () => (online = true);
+		const goOffline = () => (online = false);
+		window.addEventListener('online', goOnline);
+		window.addEventListener('offline', goOffline);
+		return () => {
+			window.removeEventListener('online', goOnline);
+			window.removeEventListener('offline', goOffline);
+		};
+	});
 </script>
 
 {#if !online}

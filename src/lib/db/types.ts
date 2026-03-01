@@ -70,6 +70,7 @@ export type DexieRecipe = {
 	protein: number | null;
 	carbs: number | null;
 	fat: number | null;
+	fiber: number | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 };
@@ -196,4 +197,6 @@ export type DexieSyncQueueItem = {
 export type DexieSyncMeta = {
 	tableName: string;
 	lastSyncedAt: number;
+	/** Stores the full userId string for the __userId sentinel row. */
+	userId?: string;
 };

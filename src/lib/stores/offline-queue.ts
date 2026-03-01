@@ -30,7 +30,7 @@ export async function enqueue(
 
 export async function drainQueue(): Promise<QueuedRequest[]> {
 	if (!browser) return [];
-	return db.syncQueue.orderBy('createdAt').toArray();
+	return db.syncQueue.orderBy('createdAt').limit(50).toArray();
 }
 
 export async function removeFromQueue(id: number): Promise<void> {

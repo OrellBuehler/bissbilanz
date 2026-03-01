@@ -132,6 +132,7 @@ async function handleCreate(
 					protein = (recipe.protein ?? 0) * servings;
 					carbs = (recipe.carbs ?? 0) * servings;
 					fat = (recipe.fat ?? 0) * servings;
+					fiber = (recipe.fiber ?? 0) * servings;
 				}
 			}
 
@@ -169,6 +170,7 @@ async function handleCreate(
 				protein: null,
 				carbs: null,
 				fat: null,
+				fiber: null,
 				createdAt: now,
 				updatedAt: now
 			});
@@ -200,7 +202,7 @@ async function handleCreate(
 				const supplementId = subResource;
 				const date = (body.date as string) ?? new Date().toISOString().slice(0, 10);
 				await db.supplementLogs.put({
-					id: `${supplementId}-${date}`,
+					id: crypto.randomUUID(),
 					supplementId,
 					userId: '',
 					date,
@@ -304,9 +306,13 @@ async function handleUpdate(
 			await db.customMealTypes.update(entityId, body);
 			break;
 		case 'preferences':
+			// Uses toCollection().modify() because preferences is a single-record table
+			// keyed by userId, and we don't have the userId available here.
 			await db.userPreferences.toCollection().modify({ ...body, updatedAt: now });
 			break;
 		case 'goals':
+			// Uses toCollection().modify() because goals is a single-record table
+			// keyed by userId, and we don't have the userId available here.
 			await db.userGoals.toCollection().modify({ ...body, updatedAt: now });
 			break;
 	}

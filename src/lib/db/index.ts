@@ -62,21 +62,12 @@ export async function clearAllData(): Promise<void> {
 export async function ensureUserScope(userId: string): Promise<void> {
 	const USER_KEY = '__userId';
 	const stored = await db.syncMeta.get(USER_KEY);
-	const hash = simpleHash(userId);
 
-	if (stored && stored.lastSyncedAt !== hash) {
+	if (stored && stored.userId !== userId) {
 		// Different user — clear all cached data to prevent leaks
 		await clearAllData();
 	}
-	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: hash });
-}
-
-function simpleHash(str: string): number {
-	let h = 0;
-	for (let i = 0; i < str.length; i++) {
-		h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-	}
-	return h;
+	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: 0, userId });
 }
 
 /**

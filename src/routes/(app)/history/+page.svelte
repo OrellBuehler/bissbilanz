@@ -64,12 +64,16 @@
 	};
 
 	const loadStats = async () => {
-		const [weeklyRes, monthlyRes] = await Promise.all([
-			apiFetch('/api/stats/weekly'),
-			apiFetch('/api/stats/monthly')
-		]);
-		weeklyStats = (await weeklyRes.json()).stats;
-		monthlyStats = (await monthlyRes.json()).stats;
+		try {
+			const [weeklyRes, monthlyRes] = await Promise.all([
+				apiFetch('/api/stats/weekly'),
+				apiFetch('/api/stats/monthly')
+			]);
+			if (weeklyRes.ok) weeklyStats = (await weeklyRes.json()).stats;
+			if (monthlyRes.ok) monthlyStats = (await monthlyRes.json()).stats;
+		} catch {
+			// Silently ignore — stats are unavailable offline
+		}
 	};
 
 	const loadChartData = async (startDate: string, endDate: string) => {
@@ -80,24 +84,34 @@
 			const json = await res.json();
 			chartData = json.data ?? [];
 			calorieGoal = json.goals?.calorieGoal ?? undefined;
+		} catch {
+			// Silently ignore — chart data is unavailable offline
 		} finally {
 			chartLoading = false;
 		}
 	};
 
 	const loadGoals = async () => {
-		const res = await apiFetch('/api/goals');
-		if (!res.ok) return;
-		const json = await res.json();
-		goalsCalorieGoal = json.goals?.calorieGoal ?? null;
+		try {
+			const res = await apiFetch('/api/goals');
+			if (!res.ok) return;
+			const json = await res.json();
+			goalsCalorieGoal = json.goals?.calorieGoal ?? null;
+		} catch {
+			// Silently ignore — goals may be unavailable offline
+		}
 	};
 
 	const loadCalendarData = async (y: number, mo: number) => {
-		const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
-		const res = await apiFetch(`/api/stats/calendar?month=${monthStr}`);
-		if (!res.ok) return;
-		const json = await res.json();
-		calendarDays = json.days ?? {};
+		try {
+			const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
+			const res = await apiFetch(`/api/stats/calendar?month=${monthStr}`);
+			if (!res.ok) return;
+			const json = await res.json();
+			calendarDays = json.days ?? {};
+		} catch {
+			// Silently ignore — calendar data is unavailable offline
+		}
 	};
 
 	const handleRangeChange = (start: string, end: string) => {

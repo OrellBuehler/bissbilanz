@@ -76,6 +76,9 @@
 
 		try {
 			const ratio = muscleRatio / 100;
+			// Uses bare fetch instead of apiFetch intentionally: maintenance calculation
+			// requires server-side computation across weight + food entry data and is not
+			// suitable for offline use.
 			const res = await fetch(
 				`/api/maintenance?startDate=${startDate}&endDate=${endDate}&muscleRatio=${ratio}`
 			);

@@ -55,14 +55,33 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 			const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
 			const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
 
-			let foods = await db.foods.toArray();
+			let collection = db.foods.toCollection();
 			if (q) {
 				const lower = q.toLowerCase();
-				foods = foods.filter(
+				collection = collection.filter(
 					(f) => f.name.toLowerCase().includes(lower) || f.brand?.toLowerCase().includes(lower)
 				);
 			}
-			return { foods: foods.slice(offset, offset + limit) };
+			const foods = await collection.offset(offset).limit(limit).toArray();
+			return { foods };
+		}
+	},
+
+	// ── Entries range: /api/entries/range ────────────────────
+	{
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'entries' && s[2] === 'range',
+		handler: async (url) => {
+			const startDate = url.searchParams.get('startDate');
+			const endDate = url.searchParams.get('endDate');
+			if (!startDate || !endDate) return null;
+			const entries = await db.foodEntries
+				.where('date')
+				.between(startDate, endDate, true, true)
+				.toArray();
+			entries.sort(
+				(a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+			);
+			return { entries };
 		}
 	},
 
@@ -155,6 +174,28 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 		}
 	},
 
+	// ── Supplements history: /api/supplements/history ────────
+	{
+		match: (s) =>
+			s.length === 3 && s[0] === 'api' && s[1] === 'supplements' && s[2] === 'history',
+		handler: async (url) => {
+			const from = url.searchParams.get('from');
+			const to = url.searchParams.get('to');
+			if (!from || !to) return null;
+			const logs = await db.supplementLogs
+				.where('date')
+				.between(from, to, true, true)
+				.toArray();
+			const supplements = await db.supplements.toArray();
+			const supplementMap = new Map(supplements.map((s) => [s.id, s]));
+			const history = logs.map((log) => ({
+				...log,
+				supplement: supplementMap.get(log.supplementId) ?? null
+			}));
+			return { history };
+		}
+	},
+
 	// ── Supplements: /api/supplements/:id ────────────────────
 	{
 		match: (s) =>
@@ -193,10 +234,29 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 	// ── Weight list: /api/weight ─────────────────────────────
 	{
 		match: (s) => s.length === 2 && s[0] === 'api' && s[1] === 'weight',
-		handler: async () => {
+		handler: async (url) => {
+			const from = url.searchParams.get('from');
+			const to = url.searchParams.get('to');
+			if (from && to) {
+				// Chart query — return { data } shape expected by weight page's loadChart
+				const entries = await db.weightEntries
+					.where('entryDate')
+					.between(from, to, true, true)
+					.toArray();
+				entries.sort((a, b) => a.entryDate.localeCompare(b.entryDate));
+				return { data: entries.map((e) => ({ date: e.entryDate, weight: e.weightKg })) };
+			}
 			const entries = await db.weightEntries.orderBy('entryDate').toArray();
 			return { entries };
 		}
+	},
+
+	// ── Stats: /api/stats/* ─────────────────────────────────
+	// Stats routes require server-side aggregation and cannot be meaningfully
+	// served offline. Return null so callers fall through gracefully.
+	{
+		match: (s) => s.length >= 2 && s[0] === 'api' && s[1] === 'stats',
+		handler: async () => null
 	},
 
 	// ── Favorites: /api/favorites ────────────────────────────

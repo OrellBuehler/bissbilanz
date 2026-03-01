@@ -22,7 +22,6 @@ export async function syncQueue(): Promise<number> {
 	if (!browser || syncing || !navigator.onLine) return 0;
 	syncing = true;
 	setSyncing(true);
-	clearSyncErrors();
 	let synced = 0;
 	const affectedTables = new Set<string>();
 
@@ -32,6 +31,8 @@ export async function syncQueue(): Promise<number> {
 
 		for (const req of queued) {
 			try {
+				// All queued bodies are JSON-stringified strings (FormData is excluded
+				// from queuing — see apiFetch), so application/json is always correct.
 				const response = await fetch(req.url, {
 					method: req.method,
 					headers: { 'content-type': 'application/json' },
@@ -84,20 +85,27 @@ export async function syncQueue(): Promise<number> {
 				break;
 			}
 		}
+
+		// Update sync metadata for affected tables (inside try, before syncing = false)
+		if (affectedTables.size > 0) {
+			const now = Date.now();
+			await Promise.all(
+				[...affectedTables].map((tableName) =>
+					db.syncMeta.put({ tableName, lastSyncedAt: now })
+				)
+			);
+		}
+
+		// Only clear previous errors after a successful sync run
+		if (synced > 0) {
+			clearSyncErrors();
+		}
 	} finally {
 		syncing = false;
 		setSyncing(false);
 		if (synced > 0) {
 			setLastSyncedAt(Date.now());
 		}
-	}
-
-	// Update sync metadata for affected tables
-	if (affectedTables.size > 0) {
-		const now = Date.now();
-		await Promise.all(
-			[...affectedTables].map((tableName) => db.syncMeta.put({ tableName, lastSyncedAt: now }))
-		);
 	}
 
 	return synced;
