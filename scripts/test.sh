@@ -12,6 +12,12 @@
 
 set -euo pipefail
 
+# Forward arguments directly to bun test for single-suite runs
+if [ "$#" -gt 0 ]; then
+  bun test "$@"
+  exit $?
+fi
+
 failed=0
 
 run_suite() {

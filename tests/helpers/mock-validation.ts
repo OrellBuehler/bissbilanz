@@ -5,6 +5,12 @@
  * because Bun's mock.module is process-global. If a mock is missing an export,
  * other test files that import it will fail with "Export named X not found".
  *
+ * LIMITATION: These stubs only implement `safeParse` and `parse`. Other Zod
+ * schema methods (e.g., `.optional()`, `.array()`, `.transform()`) are NOT
+ * mocked. If a route handler calls a method beyond `safeParse`/`parse`, the
+ * test will fail with "is not a function". In that case, either add the
+ * method here or use a real Zod schema with `.passthrough()`.
+ *
  * Usage in test files:
  *   import { allValidationSchemas } from '../helpers/mock-validation';
  *   mock.module('$lib/server/validation', () => ({
@@ -15,7 +21,10 @@
 
 const passthrough = {
 	safeParse: (data: any) => ({ success: true, data: data ?? {} }),
-	parse: (data: any) => data ?? {}
+	parse: (data: any) => {
+		if (data === undefined) throw new Error('Mock schema received undefined input — likely missing request body');
+		return data;
+	}
 };
 
 export const allValidationSchemas = {

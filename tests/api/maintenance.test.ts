@@ -38,7 +38,7 @@ mock.module('$lib/server/db', () => {
 			})
 		}),
 		runMigrations: async () => {},
-		...Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, v]))
+		...schema
 	};
 });
 

@@ -1,71 +1,78 @@
 /**
  * Pure factory for MCP handler functions.
  *
- * This module has NO imports from service modules ($lib/server/*) so it can be
- * imported in tests without triggering database connections or requiring
- * mock.module — eliminating cross-file mock pollution in Bun's test runner.
+ * Type-only imports from service modules are erased at compile time, so this
+ * module can be imported in tests without triggering database connections or
+ * requiring mock.module — eliminating cross-file mock pollution in Bun's test runner.
  *
  * Production code uses handlers.ts which creates a default instance with real deps.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AsyncFn = (...args: any[]) => Promise<any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SyncFn = (...args: any[]) => any;
+import type { listFoods, createFood, updateFood, deleteFood, getFood, findFoodByBarcode, listRecentFoods } from '$lib/server/foods';
+import type { createRecipe, updateRecipe, deleteRecipe, listRecipes, getRecipe } from '$lib/server/recipes';
+import type { createEntry, listEntriesByDate, updateEntry, deleteEntry, copyEntries } from '$lib/server/entries';
+import type { getGoals, upsertGoals } from '$lib/server/goals';
+import type { listFavoriteFoods, listFavoriteRecipes } from '$lib/server/favorites';
+import type { createWeightEntry, updateWeightEntry, deleteWeightEntry, getLatestWeight, getWeightWithTrend } from '$lib/server/weight';
+import type { getWeeklyStats, getMonthlyStats, getDailyBreakdown, getMealBreakdown, getTopFoods, getStreaks } from '$lib/server/stats';
+import type { createSupplement, listSupplements, updateSupplement, deleteSupplement, unlogSupplement, getLogsForDate, logSupplement, getSupplementById } from '$lib/server/supplements';
+import type { formatDailyStatus } from '$lib/server/mcp/format';
+import type { today } from '$lib/utils/dates';
+import type { isSupplementDue } from '$lib/utils/supplements';
 
 export type HandlerDeps = {
 	// Foods
-	listFoods: AsyncFn;
-	createFood: AsyncFn;
-	updateFood: AsyncFn;
-	deleteFood: AsyncFn;
-	getFood: AsyncFn;
-	findFoodByBarcode: AsyncFn;
-	listRecentFoods: AsyncFn;
+	listFoods: typeof listFoods;
+	createFood: typeof createFood;
+	updateFood: typeof updateFood;
+	deleteFood: typeof deleteFood;
+	getFood: typeof getFood;
+	findFoodByBarcode: typeof findFoodByBarcode;
+	listRecentFoods: typeof listRecentFoods;
 	// Recipes
-	createRecipe: AsyncFn;
-	updateRecipe: AsyncFn;
-	deleteRecipe: AsyncFn;
-	listRecipes: AsyncFn;
-	getRecipe: AsyncFn;
+	createRecipe: typeof createRecipe;
+	updateRecipe: typeof updateRecipe;
+	deleteRecipe: typeof deleteRecipe;
+	listRecipes: typeof listRecipes;
+	getRecipe: typeof getRecipe;
 	// Entries
-	createEntry: AsyncFn;
-	listEntriesByDate: AsyncFn;
-	updateEntry: AsyncFn;
-	deleteEntry: AsyncFn;
-	copyEntries: AsyncFn;
+	createEntry: typeof createEntry;
+	listEntriesByDate: typeof listEntriesByDate;
+	updateEntry: typeof updateEntry;
+	deleteEntry: typeof deleteEntry;
+	copyEntries: typeof copyEntries;
 	// Goals
-	getGoals: AsyncFn;
-	upsertGoals: AsyncFn;
+	getGoals: typeof getGoals;
+	upsertGoals: typeof upsertGoals;
 	// Favorites
-	listFavoriteFoods: AsyncFn;
-	listFavoriteRecipes: AsyncFn;
+	listFavoriteFoods: typeof listFavoriteFoods;
+	listFavoriteRecipes: typeof listFavoriteRecipes;
 	// Weight
-	createWeightEntry: AsyncFn;
-	updateWeightEntry: AsyncFn;
-	deleteWeightEntry: AsyncFn;
-	getLatestWeight: AsyncFn;
-	getWeightWithTrend: AsyncFn;
+	createWeightEntry: typeof createWeightEntry;
+	updateWeightEntry: typeof updateWeightEntry;
+	deleteWeightEntry: typeof deleteWeightEntry;
+	getLatestWeight: typeof getLatestWeight;
+	getWeightWithTrend: typeof getWeightWithTrend;
 	// Stats
-	getWeeklyStats: AsyncFn;
-	getMonthlyStats: AsyncFn;
-	getDailyBreakdown: AsyncFn;
-	getMealBreakdown: AsyncFn;
-	getTopFoods: AsyncFn;
-	getStreaks: AsyncFn;
+	getWeeklyStats: typeof getWeeklyStats;
+	getMonthlyStats: typeof getMonthlyStats;
+	getDailyBreakdown: typeof getDailyBreakdown;
+	getMealBreakdown: typeof getMealBreakdown;
+	getTopFoods: typeof getTopFoods;
+	getStreaks: typeof getStreaks;
 	// Supplements
-	createSupplement: AsyncFn;
-	listSupplements: AsyncFn;
-	updateSupplement: AsyncFn;
-	deleteSupplement: AsyncFn;
-	unlogSupplement: AsyncFn;
-	getLogsForDate: AsyncFn;
-	logSupplement: AsyncFn;
-	getSupplementById: AsyncFn;
+	createSupplement: typeof createSupplement;
+	listSupplements: typeof listSupplements;
+	updateSupplement: typeof updateSupplement;
+	deleteSupplement: typeof deleteSupplement;
+	unlogSupplement: typeof unlogSupplement;
+	getLogsForDate: typeof getLogsForDate;
+	logSupplement: typeof logSupplement;
+	getSupplementById: typeof getSupplementById;
 	// Utils
-	formatDailyStatus: SyncFn;
-	today: SyncFn;
-	isSupplementDue: SyncFn;
+	formatDailyStatus: typeof formatDailyStatus;
+	today: typeof today;
+	isSupplementDue: typeof isSupplementDue;
 };
 
 export function createHandlers(d: HandlerDeps) {
@@ -108,33 +115,21 @@ export function createHandlers(d: HandlerDeps) {
 			d.getLogsForDate(userId, targetDate)
 		]);
 
-		const logMap = new Map(
-			logs.map((l: { supplementId: string; takenAt: Date }) => [l.supplementId, l])
-		);
+		const logMap = new Map(logs.map((l) => [l.supplementId, l] as const));
 
 		const checklist = allSupplements
-			.filter((s: { scheduleType: string; scheduleDays: number[]; scheduleStartDate: string }) =>
-				d.isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, now)
-			)
-			.map(
-				(s: {
-					id: string;
-					name: string;
-					dosage: number;
-					dosageUnit: string;
-					ingredients?: unknown[];
-				}) => ({
-					id: s.id,
-					name: s.name,
-					dosage: s.dosage,
-					dosageUnit: s.dosageUnit,
-					ingredients: s.ingredients ?? [],
-					taken: logMap.has(s.id),
-					takenAt: logMap.get(s.id)?.takenAt ?? null
-				})
-			);
+			.filter((s) => d.isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, now))
+			.map((s) => ({
+				id: s.id,
+				name: s.name,
+				dosage: s.dosage,
+				dosageUnit: s.dosageUnit,
+				ingredients: s.ingredients ?? [],
+				taken: logMap.has(s.id),
+				takenAt: logMap.get(s.id)?.takenAt ?? null
+			}));
 
-		const taken = checklist.filter((c: { taken: boolean }) => c.taken).length;
+		const taken = checklist.filter((c) => c.taken).length;
 		return {
 			date: targetDate,
 			total: checklist.length,
@@ -153,7 +148,7 @@ export function createHandlers(d: HandlerDeps) {
 
 		if (!id && args.name) {
 			const allSupplements = await d.listSupplements(userId, true);
-			const match = allSupplements.find((s: { name: string }) =>
+			const match = allSupplements.find((s) =>
 				s.name.toLowerCase().includes(args.name!.toLowerCase())
 			);
 			if (!match) {

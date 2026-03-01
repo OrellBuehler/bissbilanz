@@ -49,7 +49,7 @@ mock.module('$lib/utils/supplements', () => ({
 mock.module('$lib/utils/dates', () => {
 	const real = require('$lib/utils/dates');
 	return {
-		...Object.fromEntries(Object.entries(real).map(([k, v]) => [k, v])),
+		...real,
 		today: () => '2026-02-27'
 	};
 });
