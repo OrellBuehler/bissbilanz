@@ -1,0 +1,4 @@
+[test]
+# Preload fake-indexeddb so Dexie finds the IndexedDB API at module init time.
+# Without this, Dexie tests fail with "MissingAPIError: IndexedDB API missing".
+preload = ["./tests/utils/dexie-preload.ts"]

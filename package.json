@@ -16,6 +16,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
+		"test": "./scripts/test.sh",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"security": "./scripts/security/scan-all.sh"
 	},

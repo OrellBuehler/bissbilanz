@@ -34,18 +34,29 @@ mock.module('$lib/server/supplements', () => ({
 		mockLogResult
 			? { success: true, data: mockLogResult }
 			: { success: false, error: new Error('Supplement not found') },
-	getLogsForDate: async () => []
+	getLogsForDate: async () => [],
+	getSupplementIngredients: async () => [],
+	getIngredientsForSupplements: async () => [],
+	unlogSupplement: async () => {},
+	getLogsForRange: async () => []
 }));
 
 mock.module('$lib/utils/supplements', () => ({
-	isSupplementDue: () => true
+	isSupplementDue: () => true,
+	formatSchedule: () => ''
 }));
 
-mock.module('$lib/utils/dates', () => ({
-	today: () => '2026-02-27'
-}));
+mock.module('$lib/utils/dates', () => {
+	const real = require('$lib/utils/dates');
+	return {
+		...Object.fromEntries(Object.entries(real).map(([k, v]) => [k, v])),
+		today: () => '2026-02-27'
+	};
+});
 
+import { allValidationSchemas } from '../helpers/mock-validation';
 mock.module('$lib/server/validation', () => ({
+	...allValidationSchemas,
 	supplementLogSchema: {
 		safeParse: (data: any) => ({ success: true, data: data ?? {} })
 	}

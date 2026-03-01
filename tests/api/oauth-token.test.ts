@@ -14,7 +14,28 @@ mock.module('$lib/server/oauth', () => ({
 	createAccessToken: async () => mockCreateTokenResult,
 	refreshAccessToken: async () => mockRefreshResult,
 	ACCESS_TOKEN_LIFETIME_MS: 3600000,
-	isValidCodeVerifier: (v: string) => /^[A-Za-z0-9._~-]{43,128}$/.test(v)
+	REFRESH_TOKEN_LIFETIME_MS: 2592000000,
+	AUTH_CODE_LIFETIME_MS: 600000,
+	SALT_ROUNDS: 10,
+	isValidCodeVerifier: (v: string) => /^[A-Za-z0-9._~-]{43,128}$/.test(v),
+	isValidCodeChallengeS256: () => true,
+	generateToken: () => 'mock-token',
+	generateClientId: () => 'mock-client-id',
+	generateClientSecret: () => 'mock-client-secret',
+	hashToken: (t: string) => `hashed-${t}`,
+	verifyToken: () => false,
+	verifyPKCE: () => true,
+	getOrCreateOAuthClient: async () => null,
+	getOAuthClient: async () => null,
+	regenerateClientSecret: async () => null,
+	addAllowedRedirectUri: async () => null,
+	validateRedirectUri: () => false,
+	hasAuthorization: async () => false,
+	createAuthorization: async () => null,
+	createAuthorizationCode: async () => null,
+	validateAccessToken: async () => null,
+	revokeClientTokens: async () => {},
+	cleanupExpiredOAuthData: async () => {}
 }));
 
 const { POST } = await import('../../src/routes/api/oauth/token/+server');

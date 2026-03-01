@@ -22,7 +22,10 @@ mock.module('$lib/server/meal-types', () => ({
 	createMealType: async (userId: string, payload: unknown) =>
 		mockCreateResult
 			? { success: true, data: mockCreateResult }
-			: { success: false, error: mockValidationError }
+			: { success: false, error: mockValidationError },
+	updateMealType: async () => ({ success: true, data: undefined }),
+	deleteMealType: async () => {},
+	toMealTypeInsert: () => ({})
 }));
 
 // Import route handlers after mocking

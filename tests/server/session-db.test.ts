@@ -5,10 +5,10 @@ import { TEST_USER, TEST_SESSION, TEST_SESSION_WITH_USER } from '../helpers/fixt
 // Create mock DB
 const { db, setResult, reset } = createMockDB();
 
-// Mock token-crypto first (no dependencies)
-mock.module('$lib/server/token-crypto', () => ({
-	encryptToken: async (token: string, secret: string) => `encrypted-${token}`
-}));
+// NOTE: Do NOT mock $lib/server/token-crypto here.
+// The real encryptToken/decryptToken work fine in tests (pure crypto, no DB),
+// and mocking them pollutes session.test.ts which tests the real implementations.
+// The mock DB returns whatever setResult() provides regardless of encrypted values.
 
 // Mock env next (no dependencies)
 mock.module('$lib/server/env', () => {

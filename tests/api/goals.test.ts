@@ -22,7 +22,8 @@ mock.module('$lib/server/goals', () => ({
 	upsertGoals: async (userId: string, payload: unknown) =>
 		mockUpsertResult
 			? { success: true, data: mockUpsertResult }
-			: { success: false, error: mockValidationError }
+			: { success: false, error: mockValidationError },
+	toGoalsUpsert: () => ({})
 }));
 
 // Import route handlers after mocking

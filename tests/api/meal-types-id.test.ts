@@ -6,10 +6,13 @@ import { TEST_MEAL_TYPE, TEST_USER } from '../helpers/fixtures';
 let deleteError: Error | null = null;
 
 mock.module('$lib/server/meal-types', () => ({
+	listMealTypes: async () => [],
+	createMealType: async () => ({ success: false, error: new Error('not implemented') }),
 	updateMealType: async () => ({ success: true, data: TEST_MEAL_TYPE }),
 	deleteMealType: async () => {
 		if (deleteError) throw deleteError;
-	}
+	},
+	toMealTypeInsert: () => ({})
 }));
 
 const { DELETE } = await import('../../src/routes/api/meal-types/[id]/+server');

@@ -5,8 +5,9 @@ import { TEST_USER, TEST_SESSION } from '../helpers/fixtures';
 // Create mock DB
 const { db, setResult, reset } = createMockDB();
 
-// Mock env
+// Mock env — must include all exports
 mock.module('$lib/server/env', () => ({
+	parseDatabaseConfig: () => ({ host: 'localhost', port: 5432, database: 'test', user: 'test' }),
 	config: {
 		infomaniak: {
 			clientId: 'test-client-id',
@@ -18,11 +19,12 @@ mock.module('$lib/server/env', () => ({
 	}
 }));
 
-// Mock db
+// Mock db — spread all schema exports
 mock.module('$lib/server/db', () => {
 	const schema = require('$lib/server/schema');
 	return {
 		getDB: () => db,
+		runMigrations: async () => {},
 		...Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, v]))
 	};
 });
@@ -32,19 +34,30 @@ mock.module('$lib/server/rate-limit', () => ({
 	rateLimit: mock(() => {})
 }));
 
-// Mock session functions
+// Mock session — must export all names to avoid polluting other test files via mock.module.
 const mockDeleteSession = mock(() => Promise.resolve());
 const mockGetSessionWithUser = mock(() =>
 	Promise.resolve({ session: TEST_SESSION, user: TEST_USER })
 );
 mock.module('$lib/server/session', () => ({
+	generateSessionId: () => 'mock-session-id',
+	createSession: mock(() => Promise.resolve({ id: 'mock', userId: TEST_USER.id })),
+	getSession: mock(() => Promise.resolve(null)),
+	getSessionWithUser: mockGetSessionWithUser,
 	deleteSession: mockDeleteSession,
-	getSessionWithUser: mockGetSessionWithUser
+	deleteUserSessions: mock(() => Promise.resolve()),
+	cleanExpiredSessions: mock(() => Promise.resolve(0)),
+	createSessionCookie: mock(
+		() => 'session=mock; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=604800'
+	),
+	clearSessionCookie: mock(() => 'session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'),
+	parseSessionCookie: mock(() => null)
 }));
 
-// Mock security
+// Mock security — must include all exports
 mock.module('$lib/server/security', () => ({
-	assertSameOrigin: mock(() => {})
+	assertSameOrigin: mock(() => {}),
+	securityHeaders: () => ({})
 }));
 
 // Mock OIDC

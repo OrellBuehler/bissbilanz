@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach } from 'bun:test';
 import {
 	TEST_USER,
 	TEST_FOOD,
@@ -7,11 +7,10 @@ import {
 	TEST_GOALS,
 	TEST_SUPPLEMENT
 } from '../helpers/fixtures';
+import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
 
-// Mock paraglide (generated at build time, not available in tests)
-mock.module('$lib/paraglide/messages', () => new Proxy({}, { get: () => () => '' }));
-
-// Mock state
+// Mock state — each variable is referenced by the mock deps via closure,
+// so resetting them in beforeEach changes what handlers see.
 let mockFoods: any[] = [];
 let mockCreateFoodResult: any = null;
 let mockRecipes: any[] = [];
@@ -37,10 +36,10 @@ let mockSupplementLogs: any[] = [];
 let mockLogSupplementResult: any = null;
 let mockSupplementById: any = null;
 
-// Mock all service modules
-mock.module('$lib/server/foods', () => ({
+// Create handlers with mock deps — no mock.module needed!
+const mockDeps: HandlerDeps = {
 	listFoods: async () => mockFoods,
-	createFood: async (_userId: string, payload: unknown) =>
+	createFood: async () =>
 		mockCreateFoodResult
 			? { success: true, data: mockCreateFoodResult }
 			: { success: false, error: new Error('Validation failed') },
@@ -48,10 +47,7 @@ mock.module('$lib/server/foods', () => ({
 	findFoodByBarcode: async () => mockBarcodeFood,
 	updateFood: async () => ({ success: true, data: {} }),
 	deleteFood: async () => ({ blocked: false }),
-	listRecentFoods: async () => []
-}));
-
-mock.module('$lib/server/recipes', () => ({
+	listRecentFoods: async () => [],
 	listRecipes: async () => mockRecipes,
 	createRecipe: async () =>
 		mockCreateRecipeResult
@@ -59,10 +55,7 @@ mock.module('$lib/server/recipes', () => ({
 			: { success: false, error: new Error('Validation failed') },
 	getRecipe: async () => mockRecipe,
 	updateRecipe: async () => ({ success: true, data: {} }),
-	deleteRecipe: async () => ({ blocked: false })
-}));
-
-mock.module('$lib/server/entries', () => ({
+	deleteRecipe: async () => ({ blocked: false }),
 	createEntry: async () =>
 		mockCreateEntryResult
 			? { success: true, data: mockCreateEntryResult }
@@ -73,43 +66,28 @@ mock.module('$lib/server/entries', () => ({
 			? { success: true, data: mockUpdateEntryResult }
 			: { success: false, error: new Error('Update failed') },
 	deleteEntry: async () => true,
-	copyEntries: async () => mockCopyResult
-}));
-
-mock.module('$lib/server/goals', () => ({
+	copyEntries: async () => mockCopyResult,
 	getGoals: async () => mockGoals,
 	upsertGoals: async () =>
 		mockUpsertGoalsResult
 			? { success: true, data: mockUpsertGoalsResult }
-			: { success: false, error: new Error('Validation failed') }
-}));
-
-mock.module('$lib/server/favorites', () => ({
+			: { success: false, error: new Error('Validation failed') },
 	listFavoriteFoods: async () => mockFavFoods,
-	listFavoriteRecipes: async () => mockFavRecipes
-}));
-
-mock.module('$lib/server/weight', () => ({
+	listFavoriteRecipes: async () => mockFavRecipes,
 	createWeightEntry: async () =>
 		mockCreateWeightResult
 			? { success: true, data: mockCreateWeightResult }
 			: { success: false, error: new Error('Validation failed') },
+	updateWeightEntry: async () => ({ success: true, data: {} }),
+	deleteWeightEntry: async () => true,
 	getLatestWeight: async () => mockLatestWeight,
 	getWeightWithTrend: async () => mockWeightTrend,
-	updateWeightEntry: async () => ({ success: true, data: {} }),
-	deleteWeightEntry: async () => true
-}));
-
-mock.module('$lib/server/stats', () => ({
 	getWeeklyStats: async () => mockWeeklyStats,
 	getMonthlyStats: async () => mockMonthlyStats,
 	getDailyBreakdown: async () => [],
 	getMealBreakdown: async () => [],
 	getTopFoods: async () => [],
-	getStreaks: async () => ({ current: 0, longest: 0 })
-}));
-
-mock.module('$lib/server/supplements', () => ({
+	getStreaks: async () => ({ current: 0, longest: 0 }),
 	listSupplements: async () => mockSupplements,
 	getLogsForDate: async () => mockSupplementLogs,
 	logSupplement: async () =>
@@ -120,14 +98,21 @@ mock.module('$lib/server/supplements', () => ({
 	createSupplement: async () => ({ success: true, data: { id: 'new-supp' } }),
 	updateSupplement: async () => ({ success: true, data: {} }),
 	deleteSupplement: async () => true,
-	unlogSupplement: async () => true
-}));
-
-mock.module('$lib/utils/supplements', () => ({
+	unlogSupplement: async () => true,
+	formatDailyStatus: ({ entries, goals }: { entries: unknown[]; goals: unknown }) => ({
+		totals: {
+			calories: 0,
+			protein: 0,
+			carbs: 0,
+			fat: 0,
+			fiber: 0
+		},
+		goals
+	}),
+	today: () => '2026-02-10',
 	isSupplementDue: () => true
-}));
+};
 
-// Import handlers after mocking
 const {
 	handleSearchFoods,
 	handleCreateFood,
@@ -151,7 +136,7 @@ const {
 	handleFindFoodByBarcode,
 	handleGetSupplementStatus,
 	handleLogSupplement
-} = await import('$lib/server/mcp/handlers');
+} = createHandlers(mockDeps);
 
 describe('MCP handlers', () => {
 	beforeEach(() => {
