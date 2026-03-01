@@ -773,9 +773,10 @@ describe('MCP handlers', () => {
 			expect(result.success).toBe(true);
 		});
 
-		test('uses today when no date provided', async () => {
+		test('accepts explicit date', async () => {
 			const result = await handleUnlogSupplement(TEST_USER.id, {
-				supplementId: TEST_SUPPLEMENT.id
+				supplementId: TEST_SUPPLEMENT.id,
+				date: '2026-02-09'
 			});
 			expect(result.success).toBe(true);
 		});
@@ -849,6 +850,15 @@ describe('MCP handlers', () => {
 			});
 			expect(result).toHaveLength(1);
 			expect(result[0].mealType).toBe('breakfast');
+		});
+
+		test('returns empty array for no data', async () => {
+			mockMealBreakdown = [];
+			const result = await handleGetMealBreakdown(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-07'
+			});
+			expect(result).toEqual([]);
 		});
 	});
 
