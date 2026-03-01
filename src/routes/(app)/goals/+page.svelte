@@ -79,7 +79,7 @@
 					bind:fatGoal={form.fatGoal}
 				/>
 
-				<div class="space-y-2">
+				<div class="touch-none space-y-2">
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-green-500">{m.goals_fiber()}</span>
 						<span class="text-muted-foreground">{form.fiberGoal}g</span>
