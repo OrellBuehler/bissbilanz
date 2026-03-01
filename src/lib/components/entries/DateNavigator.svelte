@@ -35,7 +35,7 @@
 	};
 </script>
 
-<div class="flex items-center gap-2">
+<div class="flex min-w-0 items-center gap-1 sm:gap-2">
 	<Button variant="ghost" size="icon" onclick={prevDay} aria-label={m.dashboard_previous_day()}>
 		<ChevronLeft class="h-4 w-4" />
 	</Button>
@@ -43,7 +43,7 @@
 	<Popover.Root bind:open={calendarOpen}>
 		<Popover.Trigger>
 			{#snippet child({ props })}
-				<Button variant="ghost" {...props} class="text-2xl font-semibold">
+				<Button variant="ghost" {...props} class="text-lg font-semibold sm:text-2xl">
 					{formatDateLabel(date)}
 				</Button>
 			{/snippet}
