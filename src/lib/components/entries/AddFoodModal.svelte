@@ -163,8 +163,11 @@
 		loadingRecent = true;
 		try {
 			const res = await apiFetch('/api/foods/recent');
+			if (!res.ok) return;
 			const data = await res.json();
-			recentFoods = data.foods;
+			recentFoods = data.foods ?? [];
+		} catch {
+			// Silently ignore — recent foods unavailable offline
 		} finally {
 			loadingRecent = false;
 		}

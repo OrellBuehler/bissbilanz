@@ -96,16 +96,14 @@ export async function syncQueue(): Promise<number> {
 			);
 		}
 
-		// Only clear previous errors after a successful sync run
-		if (synced > 0) {
-			clearSyncErrors();
-		}
 	} finally {
 		syncing = false;
 		setSyncing(false);
 		if (synced > 0) {
 			setLastSyncedAt(Date.now());
 		}
+		// Refresh from DB to account for items added during sync
+		await refreshPendingCount();
 	}
 
 	return synced;

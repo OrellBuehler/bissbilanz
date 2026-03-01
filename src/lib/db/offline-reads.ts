@@ -188,10 +188,22 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 				.toArray();
 			const supplements = await db.supplements.toArray();
 			const supplementMap = new Map(supplements.map((s) => [s.id, s]));
-			const history = logs.map((log) => ({
-				...log,
-				supplement: supplementMap.get(log.supplementId) ?? null
-			}));
+			// Match server response shape: { log: {...}, supplementName, dosage, dosageUnit }
+			const history = logs.map((log) => {
+				const supplement = supplementMap.get(log.supplementId);
+				return {
+					log: {
+						id: log.id,
+						supplementId: log.supplementId,
+						userId: log.userId,
+						date: log.date,
+						takenAt: log.takenAt
+					},
+					supplementName: supplement?.name ?? '',
+					dosage: supplement?.dosage ?? 0,
+					dosageUnit: supplement?.dosageUnit ?? ''
+				};
+			});
 			return { history };
 		}
 	},
@@ -238,15 +250,22 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 			const from = url.searchParams.get('from');
 			const to = url.searchParams.get('to');
 			if (from && to) {
-				// Chart query — return { data } shape expected by weight page's loadChart
+				// Chart query — return { data } shape matching server's snake_case columns
 				const entries = await db.weightEntries
 					.where('entryDate')
 					.between(from, to, true, true)
 					.toArray();
 				entries.sort((a, b) => a.entryDate.localeCompare(b.entryDate));
-				return { data: entries.map((e) => ({ date: e.entryDate, weight: e.weightKg })) };
+				return {
+					data: entries.map((e) => ({
+						entry_date: e.entryDate,
+						weight_kg: e.weightKg,
+						moving_avg: null
+					}))
+				};
 			}
-			const entries = await db.weightEntries.orderBy('entryDate').toArray();
+			// List query — server orders by desc(loggedAt)
+			const entries = await db.weightEntries.orderBy('loggedAt').reverse().toArray();
 			return { entries };
 		}
 	},

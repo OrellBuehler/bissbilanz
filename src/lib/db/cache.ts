@@ -21,9 +21,22 @@ const cacheHandlers: [pattern: string, handler: CacheHandler][] = [
 	// ── Foods ───────────────────────────────────────────────────
 	[
 		'/api/foods',
-		async (_url, data) => {
+		async (url, data) => {
+			const path = url.pathname;
 			if (Array.isArray(data.foods)) {
-				await db.foods.bulkPut(data.foods as DexieFood[]);
+				if (path === '/api/foods/recent') {
+					// /api/foods/recent returns partial records (id, name, brand, isFavorite).
+					// Only update the fields present — never bulkPut partial data over full records.
+					for (const partial of data.foods) {
+						await db.foods.update(partial.id, {
+							name: partial.name,
+							brand: partial.brand,
+							isFavorite: partial.isFavorite
+						}).catch(() => {});
+					}
+				} else {
+					await db.foods.bulkPut(data.foods as DexieFood[]);
+				}
 			}
 			// Single food lookup by barcode or foods list with food key
 			if (data.food && typeof data.food === 'object') {
@@ -150,10 +163,15 @@ const cacheHandlers: [pattern: string, handler: CacheHandler][] = [
 	// ── Favorites (updates isFavorite flags) ────────────────────
 	[
 		'/api/favorites',
-		async (_url, data) => {
-			// Reset all isFavorite flags first, then set true for items in the response
-			await db.foods.toCollection().modify({ isFavorite: false });
-			await db.recipes.toCollection().modify({ isFavorite: false });
+		async (url, data) => {
+			// Only reset all flags when fetching the full favorites list (no limit param).
+			// Paginated requests (e.g. widget with ?limit=5) should not clear flags for
+			// items outside the current page.
+			const hasLimit = url.searchParams.has('limit');
+			if (!hasLimit) {
+				await db.foods.toCollection().modify({ isFavorite: false });
+				await db.recipes.toCollection().modify({ isFavorite: false });
+			}
 
 			if (Array.isArray(data.foods)) {
 				for (const fav of data.foods) {
