@@ -46,10 +46,11 @@
 		setUser(data.user);
 	});
 
-	onMount(() => {
-		// Ensure Dexie data belongs to the current user (clears on user switch)
+	onMount(async () => {
+		// Ensure Dexie data belongs to the current user (clears on user switch).
+		// Awaited so no component reads stale data from a previous user.
 		if (data.user?.id) {
-			ensureUserScope(data.user.id).catch(() => {});
+			await ensureUserScope(data.user.id).catch(() => {});
 		}
 		// Migrate any pending items from the old bissbilanz-offline IndexedDB
 		migrateOldOfflineQueue().then(() => refreshPendingCount());
