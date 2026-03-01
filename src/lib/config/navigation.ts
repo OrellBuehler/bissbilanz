@@ -20,6 +20,22 @@ export type NavItem = {
 	activeRing: string;
 };
 
+export const breadcrumbLabelKeys = [
+	'app',
+	'foods',
+	'recipes',
+	'goals',
+	'history',
+	'settings',
+	'favorites',
+	'supplements',
+	'weight',
+	'insights',
+	'new',
+	'maintenance',
+	'mcp'
+] as const;
+
 export function getNavItems(): NavItem[] {
 	return [
 		{
