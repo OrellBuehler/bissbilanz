@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { assertNonce, assertState } from '../../src/lib/server/oidc-validate';
 
 describe('oidc validate', () => {

@@ -1,5 +1,5 @@
 /**
- * Complete OAuth module stubs for mock.module('$lib/server/oauth').
+ * Complete OAuth module stubs for vi.mock('$lib/server/oauth').
  *
  * Every test file that mocks the OAuth module MUST include all exports,
  * because Bun's mock.module is process-global. If a mock is missing an export,
@@ -7,7 +7,7 @@
  *
  * Usage in test files:
  *   import { allOAuthExports } from '../helpers/mock-oauth';
- *   mock.module('$lib/server/oauth', () => ({
+ *   vi.mock('$lib/server/oauth', () => ({
  *       ...allOAuthExports,
  *       // override specific functions as needed
  *   }));

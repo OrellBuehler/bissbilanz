@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
@@ -7,7 +7,7 @@ let mockGetResult: any = null;
 let mockUpdateResult: any = null;
 let mockDeleteResult: any = { blocked: false };
 
-mock.module('$lib/server/foods', () => ({
+vi.mock('$lib/server/foods', () => ({
 	getFood: async () => mockGetResult,
 	updateFood: async () => mockUpdateResult,
 	deleteFood: async (_userId: string, _id: string, force: boolean) => {

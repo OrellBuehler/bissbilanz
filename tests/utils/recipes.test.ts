@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { calculateRecipeTotals } from '../../src/lib/utils/recipes';
 
 describe('calculateRecipeTotals', () => {

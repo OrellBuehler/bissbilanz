@@ -1,5 +1,5 @@
 /**
- * Complete validation schema stubs for mock.module('$lib/server/validation').
+ * Complete validation schema stubs for vi.mock('$lib/server/validation').
  *
  * Every test file that mocks the validation module MUST include all exports,
  * because Bun's mock.module is process-global. If a mock is missing an export,
@@ -13,7 +13,7 @@
  *
  * Usage in test files:
  *   import { allValidationSchemas } from '../helpers/mock-validation';
- *   mock.module('$lib/server/validation', () => ({
+ *   vi.mock('$lib/server/validation', () => ({
  *       ...allValidationSchemas,
  *       // override specific schemas as needed
  *   }));

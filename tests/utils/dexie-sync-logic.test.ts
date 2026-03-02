@@ -6,7 +6,7 @@
  * rather than importing the module.
  */
 import 'fake-indexeddb/auto';
-import { describe, expect, test, beforeEach, mock } from 'bun:test';
+import { describe, expect, test, beforeEach, vi } from 'vitest';
 import { db } from '../../src/lib/db/index';
 
 const MAX_RETRIES = 3;
@@ -92,7 +92,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 200 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -115,7 +115,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 2000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 401 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 401 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -136,7 +136,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 403 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 403 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -153,7 +153,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 422 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 422 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -170,7 +170,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 404 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -192,7 +192,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 2000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 500 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 500 })));
 		const retryCounts = new Map<number, number>();
 
 		const result = await processSyncQueue(fetchFn, retryCounts);
@@ -214,7 +214,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.resolve(new Response('{}', { status: 500 })));
+		const fetchFn = vi.fn(() => Promise.resolve(new Response('{}', { status: 500 })));
 
 		// Simulate already having retried MAX_RETRIES - 1 times
 		const retryCounts = new Map<number, number>();
@@ -237,7 +237,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock(() => Promise.reject(new Error('Network failure')));
+		const fetchFn = vi.fn(() => Promise.reject(new Error('Network failure')));
 
 		const result = await processSyncQueue(fetchFn, new Map());
 
@@ -267,7 +267,7 @@ describe('sync queue HTTP status handling', () => {
 		});
 
 		let callCount = 0;
-		const fetchFn = mock(() => {
+		const fetchFn = vi.fn(() => {
 			callCount++;
 			if (callCount === 1) return Promise.resolve(new Response('{}', { status: 200 }));
 			return Promise.resolve(new Response('{}', { status: 401 }));
@@ -303,7 +303,7 @@ describe('sync queue HTTP status handling', () => {
 		});
 
 		let callCount = 0;
-		const fetchFn = mock(() => {
+		const fetchFn = vi.fn(() => {
 			callCount++;
 			if (callCount === 2) return Promise.resolve(new Response('{}', { status: 422 }));
 			return Promise.resolve(new Response('{}', { status: 200 }));
@@ -324,7 +324,7 @@ describe('sync queue HTTP status handling', () => {
 			createdAt: 1000
 		});
 
-		const fetchFn = mock((_url: string, init: RequestInit) => {
+		const fetchFn = vi.fn((_url: string, init: RequestInit) => {
 			expect(init.body).toBeUndefined();
 			return Promise.resolve(new Response('{}', { status: 200 }));
 		});

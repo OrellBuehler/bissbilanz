@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fetchProduct } from '../../src/lib/server/openfoodfacts';
 
 const VALID_BARCODE = '3017620422003';
@@ -30,7 +30,7 @@ const fullOFFResponse = {
 let fetchSpy: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
-	fetchSpy = spyOn(globalThis, 'fetch');
+	fetchSpy = vi.spyOn(globalThis, 'fetch');
 });
 
 afterEach(() => {

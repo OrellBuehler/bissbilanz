@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { formatEntryLabel } from '../../src/lib/utils/entries-ui';
 
 describe('formatEntryLabel', () => {

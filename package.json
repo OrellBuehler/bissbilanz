@@ -16,7 +16,8 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"test": "./scripts/test.sh",
+		"test": "bun --bun vitest run",
+		"test:watch": "bunx vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"security": "./scripts/security/scan-all.sh"
 	},
@@ -55,7 +56,8 @@
 		"tailwindcss": "^4.1.18",
 		"typescript": "^5.9.3",
 		"vaul-svelte": "^1.0.0-next.7",
-		"vite": "^7.3.1"
+		"vite": "^7.3.1",
+		"vitest": "^4.0.18"
 	},
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.10.0",

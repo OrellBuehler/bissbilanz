@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_MEAL_TYPE, VALID_MEAL_TYPE_PAYLOAD } from '../helpers/fixtures';
@@ -17,7 +17,7 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
-mock.module('$lib/server/meal-types', () => ({
+vi.mock('$lib/server/meal-types', () => ({
 	listMealTypes: async (userId: string) => mockListResult,
 	createMealType: async (userId: string, payload: unknown) =>
 		mockCreateResult

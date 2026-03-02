@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ApiError } from '../../src/lib/server/errors';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_MEAL_TYPE, TEST_USER } from '../helpers/fixtures';
 
 let deleteError: Error | null = null;
 
-mock.module('$lib/server/meal-types', () => ({
+vi.mock('$lib/server/meal-types', () => ({
 	listMealTypes: async () => [],
 	createMealType: async () => ({ success: false, error: new Error('not implemented') }),
 	updateMealType: async () => ({ success: true, data: TEST_MEAL_TYPE }),

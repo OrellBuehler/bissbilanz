@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { toRecipeEntryPayload } from '../../src/lib/utils/recipe-entry';
 
 describe('toRecipeEntryPayload', () => {

@@ -1,10 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-
-// Inline pure function to avoid mock.module pollution from other test files
-const toEntryUpdate = (input: Record<string, unknown>) => ({
-	...input,
-	notes: (input.notes as string | undefined | null) ?? null
-});
+import { describe, expect, test } from 'vitest';
+import { toEntryUpdate } from '$lib/server/entries';
 
 describe('toEntryUpdate', () => {
 	test('maps partial update fields', () => {

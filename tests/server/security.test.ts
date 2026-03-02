@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { assertSameOrigin } from '../../src/lib/server/security';
 
 describe('assertSameOrigin', () => {

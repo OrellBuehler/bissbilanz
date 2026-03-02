@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
@@ -18,7 +18,7 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
-mock.module('$lib/server/foods', () => ({
+vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
 	listFoods: async (userId: string, options: any) => mockListResult,
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
@@ -35,7 +35,7 @@ mock.module('$lib/server/foods', () => ({
 
 // Mock validation — must include ALL exports to avoid polluting other test files
 import { allValidationSchemas } from '../helpers/mock-validation';
-mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
+vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const { GET, POST } = await import('../../src/routes/api/foods/+server');

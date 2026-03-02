@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { toFoodInsert, toFoodUpdate } from '../../src/lib/server/foods';
 
 describe('toFoodInsert', () => {

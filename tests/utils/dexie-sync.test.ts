@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach } from 'vitest';
 import { db, clearAllData, ensureUserScope } from '../../src/lib/db/index';
 
 beforeEach(async () => {
