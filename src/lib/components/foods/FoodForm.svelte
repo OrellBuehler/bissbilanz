@@ -19,10 +19,12 @@
 		ALL_NUTRIENTS,
 		CATEGORY_ORDER,
 		NUTRIENTS_BY_CATEGORY,
-		CATEGORY_I18N_KEYS,
 		DEFAULT_VISIBLE_NUTRIENTS,
-		type NutrientDef
+		getNutrientLabel,
+		getCategoryLabel,
+		type NutrientCategory
 	} from '$lib/nutrients';
+	import { untrack } from 'svelte';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -91,17 +93,8 @@
 		onBarcodeScan?.(barcode);
 	}
 
-	// i18n message lookup for nutrient labels
-	const msgs = m as unknown as Record<string, () => string>;
-	function nutrientLabel(nutrient: NutrientDef): string {
-		const fn = msgs[nutrient.i18nKey];
-		return fn ? fn() : nutrient.key;
-	}
-	function categoryLabel(category: string): string {
-		const key = CATEGORY_I18N_KEYS[category as keyof typeof CATEGORY_I18N_KEYS];
-		const fn = msgs[key];
-		return fn ? fn() : category;
-	}
+	// i18n message lookup via shared helpers
+	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	// Build initial form values (intentionally captures initial prop once — form state is independent)
 	// svelte-ignore state_referenced_locally
@@ -143,18 +136,20 @@
 		)
 	);
 
-	// Auto-expand a category if it has any filled values
+	// Auto-expand categories that have pre-filled data (one-time on mount)
 	$effect(() => {
-		for (const cat of CATEGORY_ORDER) {
-			const nutrients = NUTRIENTS_BY_CATEGORY[cat];
-			const hasData = nutrients.some((n) => {
-				const val = form[n.key];
-				return val != null && val !== 0;
-			});
-			if (hasData && openCategories[cat] === undefined) {
-				openCategories[cat] = true;
+		untrack(() => {
+			for (const cat of CATEGORY_ORDER) {
+				const nutrients = NUTRIENTS_BY_CATEGORY[cat];
+				const hasData = nutrients.some((n) => {
+					const val = form[n.key];
+					return val != null && val !== 0;
+				});
+				if (hasData && openCategories[cat] === undefined) {
+					openCategories[cat] = true;
+				}
 			}
-		}
+		});
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -301,13 +296,13 @@
 								{:else}
 									<ChevronRight class="size-3.5" />
 								{/if}
-								{categoryLabel(category)}
+								{getCategoryLabel(msgs, category)}
 							</Collapsible.Trigger>
 							<Collapsible.Content>
 								<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
 									{#each nutrients as nutrient}
 										<div class="grid gap-1.5">
-											<Label for={nutrient.key}>{nutrientLabel(nutrient)}</Label>
+											<Label for={nutrient.key}>{getNutrientLabel(msgs, nutrient)}</Label>
 											<Input
 												id={nutrient.key}
 												type="number"

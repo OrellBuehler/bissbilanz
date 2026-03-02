@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
@@ -15,7 +16,7 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
-	import { ALL_NUTRIENT_KEYS, DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
+	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients } from '$lib/nutrients';
 
 	let foods: Array<any> = $state([]);
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
@@ -105,7 +106,8 @@
 				novaGroup: product.novaGroup,
 				additives: product.additives,
 				ingredientsText: product.ingredientsText,
-				imageUrl: product.imageUrl
+				imageUrl: product.imageUrl,
+				...pickNutrients(product)
 			})
 		});
 		await loadFoods(query);
@@ -195,8 +197,8 @@
 		}
 	}
 
-	// Load visible nutrients preference
-	async function loadVisibleNutrients() {
+	// Load visible nutrients preference (once on mount)
+	onMount(async () => {
 		try {
 			const res = await apiFetch('/api/preferences');
 			if (res.ok) {
@@ -208,11 +210,10 @@
 		} catch {
 			// Use defaults
 		}
-	}
+	});
 
 	$effect(() => {
 		if (browser) {
-			loadVisibleNutrients();
 			const urlBarcode = $page.url.searchParams.get('barcode');
 			if (urlBarcode && !showForm) {
 				activeBarcode = urlBarcode;
@@ -231,10 +232,6 @@
 			loadFoods(q);
 		}, 300);
 	});
-
-	/** Pick all nutrient keys from a source object */
-	const pickNutrients = (src: Record<string, unknown>) =>
-		Object.fromEntries(ALL_NUTRIENT_KEYS.map((k) => [k, src[k] ?? null]));
 
 	const formInitial = $derived(
 		editingFood

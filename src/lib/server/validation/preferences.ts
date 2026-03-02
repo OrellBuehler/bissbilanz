@@ -39,7 +39,7 @@ export const preferencesUpdateSchema = z
 		favoriteMealAssignmentMode: z.enum(['time_based', 'ask_meal']).optional(),
 		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).optional(),
 		visibleNutrients: z
-			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v)))
+			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))
 			.optional(),
 		locale: z.enum(['en', 'de']).optional()
 	})

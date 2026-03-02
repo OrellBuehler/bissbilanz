@@ -4,7 +4,7 @@ import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 import { ApiError } from '$lib/server/errors';
-import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+import { pickNutrients } from '$lib/nutrients';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -21,11 +21,6 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
 
 export const toFoodInsert = (userId: string, input: FoodCreateInput) => {
-	// Build nutrient fields from catalog
-	const nutrientFields = Object.fromEntries(
-		ALL_NUTRIENT_KEYS.map((key) => [key, (input as Record<string, unknown>)[key] ?? null])
-	);
-
 	return {
 		userId,
 		name: input.name,
@@ -45,8 +40,8 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => {
 		additives: input.additives ?? null,
 		ingredientsText: input.ingredientsText ?? null,
 		imageUrl: input.imageUrl ?? null,
-		// All extended nutrients
-		...nutrientFields
+		// All extended nutrients (keys derived from catalog)
+		...pickNutrients(input as Record<string, unknown>)
 	} as typeof foods.$inferInsert;
 };
 

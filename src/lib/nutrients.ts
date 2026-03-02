@@ -465,3 +465,31 @@ export const DEFAULT_VISIBLE_NUTRIENTS: string[] = [
 	'saturatedFat',
 	'cholesterol'
 ];
+
+/** Pick all nutrient keys from a source object, defaulting missing values to null. */
+export function pickNutrients(src: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(ALL_NUTRIENT_KEYS.map((k) => [k, src[k] ?? null]));
+}
+
+/**
+ * Resolve a nutrient's i18n label using the Paraglide messages module.
+ * Pass `import * as m from '$lib/paraglide/messages'` as the first arg.
+ */
+export function getNutrientLabel(
+	messages: Record<string, (() => string) | undefined>,
+	nutrient: NutrientDef
+): string {
+	const fn = messages[nutrient.i18nKey];
+	return fn ? fn() : nutrient.key;
+}
+
+/**
+ * Resolve a category's i18n label using the Paraglide messages module.
+ */
+export function getCategoryLabel(
+	messages: Record<string, (() => string) | undefined>,
+	category: NutrientCategory
+): string {
+	const fn = messages[CATEGORY_I18N_KEYS[category]];
+	return fn ? fn() : category;
+}

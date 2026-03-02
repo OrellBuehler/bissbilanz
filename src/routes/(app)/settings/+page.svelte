@@ -21,9 +21,10 @@
 		ALL_NUTRIENTS,
 		CATEGORY_ORDER,
 		NUTRIENTS_BY_CATEGORY,
-		CATEGORY_I18N_KEYS,
 		DEFAULT_VISIBLE_NUTRIENTS,
-		type NutrientDef
+		getNutrientLabel,
+		getCategoryLabel,
+		type NutrientCategory
 	} from '$lib/nutrients';
 	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
 
@@ -56,17 +57,8 @@
 	let visibleNutrients = $state<Set<string>>(new Set(DEFAULT_VISIBLE_NUTRIENTS));
 	let savingNutrients = $state(false);
 
-	// i18n helper for nutrient & category labels
-	const msgs = m as unknown as Record<string, () => string>;
-	function nutrientLabel(nutrient: NutrientDef): string {
-		const fn = msgs[nutrient.i18nKey];
-		return fn ? fn() : nutrient.key;
-	}
-	function categoryLabel(category: string): string {
-		const key = CATEGORY_I18N_KEYS[category as keyof typeof CATEGORY_I18N_KEYS];
-		const fn = msgs[key];
-		return fn ? fn() : category;
-	}
+	// i18n helpers via shared nutrient utilities
+	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	function toggleNutrient(key: string) {
 		const next = new Set(visibleNutrients);
@@ -660,7 +652,7 @@
 			{#each CATEGORY_ORDER as category}
 				{@const nutrients = NUTRIENTS_BY_CATEGORY[category]}
 				<div>
-					<p class="mb-2 text-sm font-medium">{categoryLabel(category)}</p>
+					<p class="mb-2 text-sm font-medium">{getCategoryLabel(msgs, category)}</p>
 					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{#each nutrients as nutrient}
 							<div class="flex items-center gap-2">
@@ -670,7 +662,7 @@
 									onCheckedChange={() => toggleNutrient(nutrient.key)}
 								/>
 								<Label for={`nutrient-${nutrient.key}`} class="text-sm">
-									{nutrientLabel(nutrient)}
+									{getNutrientLabel(msgs, nutrient)}
 								</Label>
 							</div>
 						{/each}
