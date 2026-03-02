@@ -28,13 +28,71 @@ describe('entryCreateSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	test('rejects entry with neither foodId nor recipeId', () => {
+	test('rejects entry with neither foodId, recipeId, nor quickCalories', () => {
 		const result = entryCreateSchema.safeParse({
 			mealType: 'breakfast',
 			servings: 1,
 			date: '2026-02-10'
 		});
 		expect(result.success).toBe(false);
+	});
+
+	test('validates quick log entry with quickCalories only', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'lunch',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: 800
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('validates quick log entry with all quick fields', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'dinner',
+			servings: 1,
+			date: '2026-02-10',
+			quickName: 'Restaurant meal',
+			quickCalories: 900,
+			quickProtein: 40,
+			quickCarbs: 80,
+			quickFat: 30,
+			quickFiber: 5
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('rejects negative quickCalories', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'lunch',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: -100
+		});
+		expect(result.success).toBe(false);
+	});
+
+	test('accepts quickCalories of zero', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'lunch',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: 0
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('coerces string quickCalories to number', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'lunch',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: '500'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.quickCalories).toBe(500);
+		}
 	});
 
 	test('accepts entry with both foodId and recipeId (schema level)', () => {
@@ -202,6 +260,28 @@ describe('entryUpdateSchema', () => {
 
 	test('rejects invalid date format in update', () => {
 		const result = entryUpdateSchema.safeParse({ date: 'bad' });
+		expect(result.success).toBe(false);
+	});
+
+	test('allows updating quick fields', () => {
+		const result = entryUpdateSchema.safeParse({
+			quickName: 'Updated meal',
+			quickCalories: 600,
+			quickProtein: 30
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('allows null quick fields in update', () => {
+		const result = entryUpdateSchema.safeParse({
+			quickCalories: null,
+			quickProtein: null
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('rejects negative quickProtein in update', () => {
+		const result = entryUpdateSchema.safeParse({ quickProtein: -5 });
 		expect(result.success).toBe(false);
 	});
 });
