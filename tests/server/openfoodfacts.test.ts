@@ -27,7 +27,7 @@ const fullOFFResponse = {
 	}
 };
 
-let fetchSpy: ReturnType<typeof spyOn>;
+let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
 	fetchSpy = vi.spyOn(globalThis, 'fetch');

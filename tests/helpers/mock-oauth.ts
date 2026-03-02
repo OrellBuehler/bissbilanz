@@ -2,8 +2,8 @@
  * Complete OAuth module stubs for vi.mock('$lib/server/oauth').
  *
  * Every test file that mocks the OAuth module MUST include all exports,
- * because Bun's mock.module is process-global. If a mock is missing an export,
- * other test files that import it will fail with "Export named X not found".
+ * because vi.mock hoists to the top of the file and replaces the entire module.
+ * If a mock is missing an export, other imports will fail with "Export named X not found".
  *
  * Usage in test files:
  *   import { allOAuthExports } from '../helpers/mock-oauth';

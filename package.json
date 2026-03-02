@@ -17,7 +17,7 @@
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
 		"test": "bun --bun vitest run",
-		"test:watch": "bunx vitest",
+		"test:watch": "bun --bun vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"security": "./scripts/security/scan-all.sh"
 	},

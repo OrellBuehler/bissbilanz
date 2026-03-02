@@ -67,10 +67,9 @@ bun run db:generate    # Generate migrations from schema
 bun run db:migrate     # Run migrations (applied automatically on dev server start too)
 # NOTE: Do NOT use db:push — see "Migration Safety" in Database section
 
-# Testing (Bun's built-in test runner, no package.json script)
-bun test                    # Run all tests
-bun test tests/server/      # Run server DB tests
-bun test tests/api/         # Run API route tests
+# Testing (vitest)
+bun run test                    # Run all tests
+bun run test:watch              # Watch mode
 ```
 
 ## Code Conventions
