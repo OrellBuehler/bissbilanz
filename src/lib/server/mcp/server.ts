@@ -103,6 +103,7 @@ export function createMcpServer(userId: string): McpServer {
 		nutrientInputSchema[n.key] = z
 			.number()
 			.nonnegative()
+			.nullable()
 			.optional()
 			.describe(`${n.key} in ${n.unit} per serving`);
 	}
@@ -124,11 +125,11 @@ export function createMcpServer(userId: string): McpServer {
 				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
 				barcode: z.string().optional().describe('Barcode number'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().describe('Nutri-Score grade'),
-				novaGroup: z.number().int().min(1).max(4).optional().describe('NOVA food processing group (1-4)'),
-				additives: z.array(z.string()).optional().describe('List of additives'),
-				ingredientsText: z.string().optional().describe('Full ingredients text'),
-				imageUrl: z.string().url().optional().describe('Image URL'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
+				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
 			}
 		},
@@ -148,12 +149,12 @@ export function createMcpServer(userId: string): McpServer {
 						z.object({
 							foodId: z.string().describe('Food ID from the database'),
 							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.string().describe('Unit for the quantity')
+							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
 						})
 					)
 					.describe('List of ingredients'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z.string().url().optional().describe('Image URL')
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -255,13 +256,13 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Set or update daily nutrition goals.',
 			inputSchema: {
-				calorieGoal: z.number().describe('Daily calorie goal'),
-				proteinGoal: z.number().describe('Daily protein goal in grams'),
-				carbGoal: z.number().describe('Daily carbohydrate goal in grams'),
-				fatGoal: z.number().describe('Daily fat goal in grams'),
-				fiberGoal: z.number().describe('Daily fiber goal in grams'),
-				sodiumGoal: z.number().nonnegative().optional().describe('Daily sodium goal in mg'),
-				sugarGoal: z.number().nonnegative().optional().describe('Daily sugar goal in g')
+				calorieGoal: z.number().positive().describe('Daily calorie goal'),
+				proteinGoal: z.number().nonnegative().describe('Daily protein goal in grams'),
+				carbGoal: z.number().nonnegative().describe('Daily carbohydrate goal in grams'),
+				fatGoal: z.number().nonnegative().describe('Daily fat goal in grams'),
+				fiberGoal: z.number().nonnegative().describe('Daily fiber goal in grams'),
+				sodiumGoal: z.number().nonnegative().nullable().optional().describe('Daily sodium goal in mg'),
+				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
 			}
 		},
 		safe((args) => handleUpdateGoals(userId, args))
@@ -395,11 +396,11 @@ export function createMcpServer(userId: string): McpServer {
 				brand: z.string().optional().describe('New brand name'),
 				barcode: z.string().optional().describe('New barcode number'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().describe('Nutri-Score grade'),
-				novaGroup: z.number().int().min(1).max(4).optional().describe('NOVA food processing group (1-4)'),
-				additives: z.array(z.string()).optional().describe('List of additives'),
-				ingredientsText: z.string().optional().describe('Full ingredients text'),
-				imageUrl: z.string().url().optional().describe('Image URL'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
+				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
 			}
 		},
@@ -444,13 +445,13 @@ export function createMcpServer(userId: string): McpServer {
 						z.object({
 							foodId: z.string().describe('Food ID from the database'),
 							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.string().describe('Unit for the quantity')
+							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
 						})
 					)
 					.optional()
 					.describe('New list of ingredients (replaces all existing)'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z.string().url().optional().describe('Image URL')
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))
