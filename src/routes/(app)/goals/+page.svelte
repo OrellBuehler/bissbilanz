@@ -20,6 +20,7 @@
 	});
 	let saving = $state(false);
 	let loaded = $state(false);
+	let macroTotalPct = $state(100);
 
 	$effect(() => {
 		if (form.fiberGoal > form.carbGoal) {
@@ -77,6 +78,7 @@
 					bind:proteinGoal={form.proteinGoal}
 					bind:carbGoal={form.carbGoal}
 					bind:fatGoal={form.fatGoal}
+					bind:totalPct={macroTotalPct}
 				/>
 
 				<div class="touch-none space-y-2">
@@ -96,7 +98,7 @@
 				</div>
 			</Card.Content>
 			<Card.Footer>
-				<Button onclick={saveGoals} disabled={saving}>
+				<Button onclick={saveGoals} disabled={saving || macroTotalPct !== 100}>
 					{saving ? m.goals_saving() : m.goals_save()}
 				</Button>
 			</Card.Footer>

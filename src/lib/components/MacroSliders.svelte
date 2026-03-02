@@ -1,47 +1,36 @@
 <script lang="ts">
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import * as m from '$lib/paraglide/messages';
-	import {
-		gramsToPct,
-		pctToGrams,
-		clamp,
-		rebalance as rebalancePcts,
-		MIN_PCT,
-		MAX_PCT
-	} from '$lib/utils/macro-calc';
+	import { gramsToPct, pctToGrams, MIN_PCT, MAX_PCT } from '$lib/utils/macro-calc';
 
 	let {
 		calorieGoal,
 		proteinGoal = $bindable(),
 		carbGoal = $bindable(),
-		fatGoal = $bindable()
+		fatGoal = $bindable(),
+		totalPct = $bindable(100)
 	}: {
 		calorieGoal: number;
 		proteinGoal: number;
 		carbGoal: number;
 		fatGoal: number;
+		totalPct?: number;
 	} = $props();
 
 	let initial = gramsToPct(proteinGoal, carbGoal, fatGoal);
-	let proteinPct = $state(clamp(initial.protein));
-	let carbsPct = $state(clamp(initial.carbs));
-	let fatPct = $state(clamp(100 - clamp(initial.protein) - clamp(initial.carbs)));
+	let proteinPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.protein)));
+	let carbsPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.carbs)));
+	let fatPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.fat)));
 
-	function rebalance(changed: 'protein' | 'carbs' | 'fat', newVal: number) {
-		const result = rebalancePcts(changed, newVal, {
-			protein: proteinPct,
-			carbs: carbsPct,
-			fat: fatPct
-		});
-
-		proteinPct = result.protein;
-		carbsPct = result.carbs;
-		fatPct = result.fat;
-
-		proteinGoal = pctToGrams(proteinPct, 'protein', calorieGoal);
-		carbGoal = pctToGrams(carbsPct, 'carbs', calorieGoal);
-		fatGoal = pctToGrams(fatPct, 'fat', calorieGoal);
+	function setPct(key: 'protein' | 'carbs' | 'fat', val: number) {
+		if (key === 'protein') proteinPct = val;
+		else if (key === 'carbs') carbsPct = val;
+		else fatPct = val;
 	}
+
+	$effect(() => {
+		totalPct = proteinPct + carbsPct + fatPct;
+	});
 
 	$effect(() => {
 		proteinGoal = pctToGrams(proteinPct, 'protein', calorieGoal);
@@ -85,7 +74,16 @@
 </script>
 
 <div class="space-y-5">
-	<h3 class="text-sm font-medium">{m.goals_macro_split()}</h3>
+	<div class="flex items-center justify-between">
+		<h3 class="text-sm font-medium">{m.goals_macro_split()}</h3>
+		<span
+			class="text-sm font-medium {totalPct === 100
+				? 'text-green-500'
+				: 'text-destructive'}"
+		>
+			{m.goals_total()}: {totalPct}%
+		</span>
+	</div>
 	{#each macros as macro}
 		{@const pct = getPct(macro.key)}
 		{@const grams = getGrams(macro.key)}
@@ -101,7 +99,7 @@
 				max={MAX_PCT}
 				step={1}
 				class={macro.trackColor}
-				onValueChange={(v: number) => rebalance(macro.key, v)}
+				onValueChange={(v: number) => setPct(macro.key, v)}
 			/>
 		</div>
 	{/each}
