@@ -17,8 +17,8 @@ const entryBaseSchema = z.object({
 });
 
 export const entryCreateSchema = entryBaseSchema.refine(
-	(val) => val.foodId || val.recipeId || val.quickCalories != null,
-	{ message: 'foodId, recipeId, or quickCalories is required' }
+	(val) => val.foodId || val.recipeId || (val.quickCalories != null && val.quickCalories > 0),
+	{ message: 'foodId, recipeId, or quickCalories (> 0) is required' }
 );
 
 export const entryUpdateSchema = entryBaseSchema.partial();

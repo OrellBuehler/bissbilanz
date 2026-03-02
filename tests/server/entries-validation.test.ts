@@ -72,14 +72,14 @@ describe('entryCreateSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	test('accepts quickCalories of zero', () => {
+	test('rejects quickCalories of zero as sole source', () => {
 		const result = entryCreateSchema.safeParse({
 			mealType: 'lunch',
 			servings: 1,
 			date: '2026-02-10',
 			quickCalories: 0
 		});
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
 	});
 
 	test('coerces string quickCalories to number', () => {

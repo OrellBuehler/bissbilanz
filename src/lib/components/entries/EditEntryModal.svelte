@@ -186,7 +186,7 @@
 					<X class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_cancel()}</span>
 				</Button>
-				<Button class="flex-1 sm:flex-none" aria-label={m.edit_entry_save()} onclick={handleSave}>
+				<Button class="flex-1 sm:flex-none" aria-label={m.edit_entry_save()} disabled={isQuickEntry && (!editQuickCalories || Number(editQuickCalories) <= 0)} onclick={handleSave}>
 					<Check class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_save()}</span>
 				</Button>
