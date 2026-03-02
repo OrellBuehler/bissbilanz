@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import * as m from '$lib/paraglide/messages';
-	import { gramsToPct, pctToGrams, clamp, MIN_PCT, MAX_PCT } from '$lib/utils/macro-calc';
+	import {
+		type Macro,
+		gramsToPct,
+		pctToGrams,
+		clamp,
+		MIN_PCT,
+		MAX_PCT
+	} from '$lib/utils/macro-calc';
 
 	let {
 		calorieGoal,
@@ -18,45 +25,46 @@
 	} = $props();
 
 	let initial = gramsToPct(proteinGoal, carbGoal, fatGoal);
-	let proteinPct = $state(clamp(initial.protein));
-	let carbsPct = $state(clamp(initial.carbs));
-	let fatPct = $state(clamp(initial.fat));
+	let pcts = $state({
+		protein: clamp(initial.protein),
+		carbs: clamp(initial.carbs),
+		fat: clamp(initial.fat)
+	});
 
-	let totalPct = $derived(proteinPct + carbsPct + fatPct);
+	let totalPct = $derived(pcts.protein + pcts.carbs + pcts.fat);
 
-	function setPct(key: 'protein' | 'carbs' | 'fat', val: number) {
-		if (key === 'protein') proteinPct = val;
-		else if (key === 'carbs') carbsPct = val;
-		else fatPct = val;
-	}
-
+	let prevValid: boolean | undefined;
 	$effect(() => {
-		onValidChange?.(totalPct === 100);
+		const valid = totalPct === 100;
+		if (valid !== prevValid) {
+			prevValid = valid;
+			onValidChange?.(valid);
+		}
 	});
 
 	$effect(() => {
-		proteinGoal = pctToGrams(proteinPct, 'protein', calorieGoal);
-		carbGoal = pctToGrams(carbsPct, 'carbs', calorieGoal);
-		fatGoal = pctToGrams(fatPct, 'fat', calorieGoal);
+		proteinGoal = pctToGrams(pcts.protein, 'protein', calorieGoal);
+		carbGoal = pctToGrams(pcts.carbs, 'carbs', calorieGoal);
+		fatGoal = pctToGrams(pcts.fat, 'fat', calorieGoal);
 	});
 
 	const macros = [
 		{
-			key: 'protein' as const,
+			key: 'protein' as Macro,
 			label: () => m.goals_protein(),
 			color: 'text-red-500',
 			trackColor:
 				'[&_[data-slot=slider-range]]:bg-red-500 [&_[data-slot=slider-thumb]]:border-red-500'
 		},
 		{
-			key: 'carbs' as const,
+			key: 'carbs' as Macro,
 			label: () => m.goals_carbs(),
 			color: 'text-orange-500',
 			trackColor:
 				'[&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:border-orange-500'
 		},
 		{
-			key: 'fat' as const,
+			key: 'fat' as Macro,
 			label: () => m.goals_fat(),
 			color: 'text-yellow-500',
 			trackColor:
@@ -64,17 +72,7 @@
 		}
 	] as const;
 
-	function getPct(key: 'protein' | 'carbs' | 'fat') {
-		if (key === 'protein') return proteinPct;
-		if (key === 'carbs') return carbsPct;
-		return fatPct;
-	}
-
-	function getGrams(key: 'protein' | 'carbs' | 'fat') {
-		if (key === 'protein') return proteinGoal;
-		if (key === 'carbs') return carbGoal;
-		return fatGoal;
-	}
+	const goals = { protein: () => proteinGoal, carbs: () => carbGoal, fat: () => fatGoal };
 </script>
 
 <div class="space-y-5">
@@ -89,21 +87,19 @@
 		</span>
 	</div>
 	{#each macros as macro}
-		{@const pct = getPct(macro.key)}
-		{@const grams = getGrams(macro.key)}
 		<div class="touch-none space-y-2">
 			<div class="flex items-center justify-between text-sm">
 				<span class={macro.color}>{macro.label()}</span>
-				<span class="text-muted-foreground">{pct}% &middot; {grams}g</span>
+				<span class="text-muted-foreground">{pcts[macro.key]}% &middot; {goals[macro.key]()}g</span>
 			</div>
 			<Slider
 				type="single"
-				value={pct}
+				value={pcts[macro.key]}
 				min={MIN_PCT}
 				max={MAX_PCT}
 				step={1}
 				class={macro.trackColor}
-				onValueChange={(v: number) => setPct(macro.key, v)}
+				onValueChange={(v: number) => (pcts[macro.key] = v)}
 			/>
 		</div>
 	{/each}
