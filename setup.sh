@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Bissbilanz Development Setup ==="
+echo "=== Bissbilanz Devcontainer Setup ==="
 echo ""
 
 # Colors
@@ -12,72 +12,80 @@ NC='\033[0m'
 
 ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
 warn() { echo -e "  ${YELLOW}!${NC} $1"; }
-fail() { echo -e "  ${RED}✗${NC} $1"; }
+
+export DEBIAN_FRONTEND=noninteractive
+
+# --- System packages ---
+echo "Installing system packages..."
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends \
+    curl unzip ca-certificates gnupg lsb-release \
+    postgresql postgresql-client \
+    > /dev/null
+ok "system packages installed"
 
 # --- Bun ---
-echo "Checking bun..."
+echo "Installing bun..."
 if command -v bun &>/dev/null; then
     ok "bun $(bun --version) already installed"
 else
-    echo "Installing bun..."
     curl -fsSL https://bun.sh/install | bash
     export BUN_INSTALL="$HOME/.bun"
     export PATH="$BUN_INSTALL/bin:$PATH"
+    # Make bun available in future shells
+    if ! grep -q 'BUN_INSTALL' "$HOME/.bashrc" 2>/dev/null; then
+        echo 'export BUN_INSTALL="$HOME/.bun"' >> "$HOME/.bashrc"
+        echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> "$HOME/.bashrc"
+    fi
     ok "bun installed"
 fi
 
-# --- PostgreSQL client ---
-echo "Checking PostgreSQL..."
-if command -v psql &>/dev/null; then
-    ok "psql already installed"
-else
-    warn "psql not found — install PostgreSQL client:"
-    echo "    sudo apt install postgresql-client"
-fi
+# --- PostgreSQL setup ---
+echo "Setting up PostgreSQL..."
+pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start 2>/dev/null || true
 
-# --- Check PostgreSQL connection ---
-echo "Checking database connectivity..."
-if [ -f .env ]; then
-    DB_URL=$(grep -E '^DATABASE_URL=' .env | cut -d= -f2-)
-    if [ -n "$DB_URL" ]; then
-        if psql "$DB_URL" -c "SELECT 1" &>/dev/null 2>&1; then
-            ok "database reachable"
-        else
-            warn "database not reachable at configured DATABASE_URL"
-        fi
-    fi
-else
-    warn "no .env file found (will create from template below)"
-fi
+DB_USER="bissbilanz"
+DB_PASS="bissbilanz"
+DB_NAME="bissbilanz"
+
+su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'\" | grep -q 1 || psql -c \"CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';\"" 2>/dev/null
+su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='$DB_NAME'\" | grep -q 1 || psql -c \"CREATE DATABASE $DB_NAME OWNER $DB_USER;\"" 2>/dev/null
+ok "PostgreSQL running — database '$DB_NAME' ready"
 
 # --- .env file ---
-echo "Checking .env..."
+echo "Setting up .env..."
 if [ -f .env ]; then
-    ok ".env exists"
+    ok ".env already exists"
 else
     cp .env.example .env
-    ok ".env created from .env.example — edit it with your credentials"
+    sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME|" .env
+    sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -base64 32)|" .env
+    ok ".env created with local database config"
 fi
 
 # --- Install dependencies ---
-echo "Installing dependencies..."
+echo "Installing project dependencies..."
 bun install
 ok "dependencies installed"
 
-# --- Generate Drizzle migrations (if schema exists but no migrations) ---
-echo "Checking database migrations..."
-if [ -d drizzle ]; then
-    ok "drizzle migrations directory exists"
-else
-    warn "no drizzle directory — run 'bun run db:generate' after configuring your database"
-fi
+# --- Playwright ---
+echo "Installing Playwright browsers..."
+bunx playwright install --with-deps chromium
+ok "Playwright chromium installed"
+
+# --- Database migrations ---
+echo "Running database migrations..."
+bun run db:migrate
+ok "migrations applied"
 
 # --- Summary ---
 echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "Next steps:"
-echo "  1. Edit .env with your database URL and OIDC credentials"
-echo "  2. Start a PostgreSQL instance (or use an existing one)"
-echo "  3. Run 'bun run dev' — migrations apply automatically on startup"
+echo "Ready to go:"
+echo "  bun run dev        # start dev server"
+echo "  bun test           # run tests"
+echo "  bun run check      # type check"
+echo ""
+echo "Edit .env to add your Infomaniak OIDC credentials for auth."
 echo ""
