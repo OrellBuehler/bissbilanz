@@ -1,26 +1,28 @@
 <script lang="ts">
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import * as m from '$lib/paraglide/messages';
-	import { gramsToPct, pctToGrams, MIN_PCT, MAX_PCT } from '$lib/utils/macro-calc';
+	import { gramsToPct, pctToGrams, clamp, MIN_PCT, MAX_PCT } from '$lib/utils/macro-calc';
 
 	let {
 		calorieGoal,
 		proteinGoal = $bindable(),
 		carbGoal = $bindable(),
 		fatGoal = $bindable(),
-		totalPct = $bindable(100)
+		onValidChange
 	}: {
 		calorieGoal: number;
 		proteinGoal: number;
 		carbGoal: number;
 		fatGoal: number;
-		totalPct?: number;
+		onValidChange?: (valid: boolean) => void;
 	} = $props();
 
 	let initial = gramsToPct(proteinGoal, carbGoal, fatGoal);
-	let proteinPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.protein)));
-	let carbsPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.carbs)));
-	let fatPct = $state(Math.max(MIN_PCT, Math.min(MAX_PCT, initial.fat)));
+	let proteinPct = $state(clamp(initial.protein));
+	let carbsPct = $state(clamp(initial.carbs));
+	let fatPct = $state(clamp(initial.fat));
+
+	let totalPct = $derived(proteinPct + carbsPct + fatPct);
 
 	function setPct(key: 'protein' | 'carbs' | 'fat', val: number) {
 		if (key === 'protein') proteinPct = val;
@@ -29,7 +31,7 @@
 	}
 
 	$effect(() => {
-		totalPct = proteinPct + carbsPct + fatPct;
+		onValidChange?.(totalPct === 100);
 	});
 
 	$effect(() => {
@@ -69,7 +71,9 @@
 	}
 
 	function getGrams(key: 'protein' | 'carbs' | 'fat') {
-		return pctToGrams(getPct(key), key, calorieGoal);
+		if (key === 'protein') return proteinGoal;
+		if (key === 'carbs') return carbGoal;
+		return fatGoal;
 	}
 </script>
 
