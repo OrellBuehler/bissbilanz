@@ -56,7 +56,7 @@ describe('fetchProduct', () => {
 		expect(result!.sodium).toBe(41); // 0.041 * 1000 rounded
 		expect(result!.sugar).toBe(56.3);
 		expect(result!.saturatedFat).toBe(10.6);
-		expect(result!.cholesterol).toBe(0.005);
+		expect(result!.cholesterol).toBe(5); // 0.005g * 1000 (offConversion g→mg)
 		expect(result!.nutriScore).toBe('e');
 		expect(result!.novaGroup).toBe(4);
 		expect(result!.additives).toEqual(['en:e322', 'en:e476']);

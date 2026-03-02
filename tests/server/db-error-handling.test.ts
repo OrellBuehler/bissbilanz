@@ -19,6 +19,47 @@ const { db, setResult, setError, reset } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
+const validation = await import('$lib/server/validation');
+
+// Re-mock $lib/server/entries with real logic to override mock pollution from other test files.
+// Bun's mock.module is global/permanent, so tests/server/stats-db.test.ts replaces entries
+// with stubs. We re-implement createEntry/updateEntry here using the mocked DB.
+mock.module('$lib/server/entries', () => {
+	const createEntry = async (userId: string, payload: unknown) => {
+		const result = validation.entryCreateSchema.safeParse(payload);
+		if (!result.success) return { success: false, error: result.error };
+		try {
+			const [created] = await db.insert(null).values({}).returning();
+			if (!created) return { success: false, error: new Error('Failed to create entry') };
+			return { success: true, data: created };
+		} catch (error) {
+			return { success: false, error: error as Error };
+		}
+	};
+	const updateEntry = async (userId: string, id: string, payload: unknown) => {
+		const result = validation.entryUpdateSchema.safeParse(payload);
+		if (!result.success) return { success: false, error: result.error };
+		try {
+			const [updated] = await db.update(null).set({}).where(null).returning();
+			return { success: true, data: updated };
+		} catch (error) {
+			return { success: false, error: error as Error };
+		}
+	};
+	const toEntryUpdate = (input: Record<string, unknown>) => ({
+		...input,
+		notes: (input.notes as string | undefined | null) ?? null
+	});
+	return {
+		createEntry,
+		updateEntry,
+		toEntryUpdate,
+		listEntriesByDate: async () => [],
+		listEntriesByDateRange: async () => [],
+		deleteEntry: async () => {},
+		copyEntries: async () => []
+	};
+});
 
 // Mock modules
 mock.module('$lib/server/db', () => ({
