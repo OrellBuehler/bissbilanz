@@ -34,7 +34,7 @@ vi.mock('$lib/server/rate-limit', () => ({
 	rateLimit: vi.fn(() => {})
 }));
 
-// Mock session — must export all names to avoid polluting other test files via mock.module.
+// Mock session — must export all names because vi.mock replaces the entire module.
 const mockDeleteSession = vi.fn(() => Promise.resolve());
 const mockGetSessionWithUser = vi.fn(() =>
 	Promise.resolve({ session: TEST_SESSION, user: TEST_USER })

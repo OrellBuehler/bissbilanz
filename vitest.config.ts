@@ -11,6 +11,7 @@ export default defineConfig({
 		]
 	},
 	test: {
+		exclude: ['**/node_modules/**', '.claude/**'],
 		setupFiles: ['./tests/utils/dexie-preload.ts'],
 		server: {
 			deps: {

@@ -29,7 +29,7 @@ vi.mock('$lib/server/db', async () => {
 	};
 });
 
-// Mock session — must export all names to avoid polluting other test files via mock.module.
+// Mock session — must export all names because vi.mock replaces the entire module.
 const mockSession = { id: 'session-123', userId: TEST_USER.id, expiresAt: new Date() };
 vi.mock('$lib/server/session', () => ({
 	generateSessionId: () => 'mock-session-id',

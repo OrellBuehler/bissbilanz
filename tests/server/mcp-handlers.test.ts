@@ -49,7 +49,7 @@ let mockSupplementById: any = null;
 let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
 
-// Create handlers with mock deps — no mock.module needed!
+// Create handlers with mock deps — no vi.mock needed!
 // Uses type assertion because mock functions return `any`-typed test state variables.
 const mockDeps = {
 	listFoods: async () => mockFoods,

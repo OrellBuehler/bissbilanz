@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { servingUnitValues } from '$lib/units';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -101,6 +102,7 @@ export function createMcpServer(userId: string): McpServer {
 	for (const n of ALL_NUTRIENTS) {
 		nutrientInputSchema[n.key] = z
 			.number()
+			.nonnegative()
 			.optional()
 			.describe(`${n.key} in ${n.unit} per serving`);
 	}
@@ -114,13 +116,19 @@ export function createMcpServer(userId: string): McpServer {
 				name: z.string().describe('Food name'),
 				brand: z.string().optional().describe('Brand name'),
 				servingSize: z.number().describe('Serving size amount'),
-				servingUnit: z.string().describe('Serving unit (e.g., "g", "ml", "piece")'),
-				calories: z.number().describe('Calories per serving'),
-				protein: z.number().describe('Protein in grams per serving'),
-				carbs: z.number().describe('Carbohydrates in grams per serving'),
-				fat: z.number().describe('Fat in grams per serving'),
-				fiber: z.number().describe('Fiber in grams per serving'),
+				servingUnit: z.enum(servingUnitValues).describe('Serving unit (e.g., "g", "ml", "oz")'),
+				calories: z.number().nonnegative().describe('Calories per serving'),
+				protein: z.number().nonnegative().describe('Protein in grams per serving'),
+				carbs: z.number().nonnegative().describe('Carbohydrates in grams per serving'),
+				fat: z.number().nonnegative().describe('Fat in grams per serving'),
+				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
 				barcode: z.string().optional().describe('Barcode number'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().describe('Nutri-Score grade'),
+				novaGroup: z.number().int().min(1).max(4).optional().describe('NOVA food processing group (1-4)'),
+				additives: z.array(z.string()).optional().describe('List of additives'),
+				ingredientsText: z.string().optional().describe('Full ingredients text'),
+				imageUrl: z.string().url().optional().describe('Image URL'),
 				...nutrientInputSchema
 			}
 		},
@@ -143,7 +151,9 @@ export function createMcpServer(userId: string): McpServer {
 							servingUnit: z.string().describe('Unit for the quantity')
 						})
 					)
-					.describe('List of ingredients')
+					.describe('List of ingredients'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				imageUrl: z.string().url().optional().describe('Image URL')
 			}
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -249,7 +259,9 @@ export function createMcpServer(userId: string): McpServer {
 				proteinGoal: z.number().describe('Daily protein goal in grams'),
 				carbGoal: z.number().describe('Daily carbohydrate goal in grams'),
 				fatGoal: z.number().describe('Daily fat goal in grams'),
-				fiberGoal: z.number().describe('Daily fiber goal in grams')
+				fiberGoal: z.number().describe('Daily fiber goal in grams'),
+				sodiumGoal: z.number().nonnegative().optional().describe('Daily sodium goal in mg'),
+				sugarGoal: z.number().nonnegative().optional().describe('Daily sugar goal in g')
 			}
 		},
 		safe((args) => handleUpdateGoals(userId, args))
@@ -374,14 +386,20 @@ export function createMcpServer(userId: string): McpServer {
 				foodId: z.string().describe('The food ID to update'),
 				name: z.string().optional().describe('New name'),
 				servingSize: z.number().optional().describe('New serving size'),
-				servingUnit: z.string().optional().describe('New serving unit'),
-				calories: z.number().optional().describe('New calories per serving'),
-				protein: z.number().optional().describe('New protein in grams per serving'),
-				carbs: z.number().optional().describe('New carbs in grams per serving'),
-				fat: z.number().optional().describe('New fat in grams per serving'),
-				fiber: z.number().optional().describe('New fiber in grams per serving'),
+				servingUnit: z.enum(servingUnitValues).optional().describe('New serving unit'),
+				calories: z.number().nonnegative().optional().describe('New calories per serving'),
+				protein: z.number().nonnegative().optional().describe('New protein in grams per serving'),
+				carbs: z.number().nonnegative().optional().describe('New carbs in grams per serving'),
+				fat: z.number().nonnegative().optional().describe('New fat in grams per serving'),
+				fiber: z.number().nonnegative().optional().describe('New fiber in grams per serving'),
 				brand: z.string().optional().describe('New brand name'),
 				barcode: z.string().optional().describe('New barcode number'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().describe('Nutri-Score grade'),
+				novaGroup: z.number().int().min(1).max(4).optional().describe('NOVA food processing group (1-4)'),
+				additives: z.array(z.string()).optional().describe('List of additives'),
+				ingredientsText: z.string().optional().describe('Full ingredients text'),
+				imageUrl: z.string().url().optional().describe('Image URL'),
 				...nutrientInputSchema
 			}
 		},
@@ -430,7 +448,9 @@ export function createMcpServer(userId: string): McpServer {
 						})
 					)
 					.optional()
-					.describe('New list of ingredients (replaces all existing)')
+					.describe('New list of ingredients (replaces all existing)'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				imageUrl: z.string().url().optional().describe('Image URL')
 			}
 		},
 		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))

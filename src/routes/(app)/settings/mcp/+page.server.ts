@@ -39,8 +39,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 };
 
+function ensureMcpEnabled() {
+	if (!config.mcp.enabled) {
+		throw error(404, 'Not Found');
+	}
+}
+
 export const actions = {
 	regenerate: async ({ request, url }) => {
+		ensureMcpEnabled();
 		const sessionId = parseSessionCookie(request.headers.get('cookie'));
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });
@@ -71,6 +78,7 @@ export const actions = {
 	},
 
 	addRedirectUri: async ({ request }) => {
+		ensureMcpEnabled();
 		const sessionId = parseSessionCookie(request.headers.get('cookie'));
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });
@@ -124,6 +132,7 @@ export const actions = {
 	},
 
 	revokeClient: async ({ request }) => {
+		ensureMcpEnabled();
 		const sessionId = parseSessionCookie(request.headers.get('cookie'));
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });
@@ -151,6 +160,7 @@ export const actions = {
 	},
 
 	removeRedirectUri: async ({ request }) => {
+		ensureMcpEnabled();
 		const sessionId = parseSessionCookie(request.headers.get('cookie'));
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });

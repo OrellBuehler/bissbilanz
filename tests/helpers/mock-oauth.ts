@@ -43,6 +43,8 @@ export const allOAuthExports = {
 	createAccessToken: async () => null,
 	refreshAccessToken: async () => null,
 	validateAccessToken: async () => null,
+	listAuthorizedClients: async () => [],
+	revokeAuthorization: async () => {},
 	revokeClientTokens: async () => {},
 	cleanupExpiredOAuthData: async () => {}
 };

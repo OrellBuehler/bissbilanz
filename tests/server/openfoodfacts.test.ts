@@ -82,7 +82,7 @@ describe('fetchProduct', () => {
 	test('throws on malformed JSON response', async () => {
 		fetchSpy.mockResolvedValueOnce(new Response('not json'));
 
-		expect(fetchProduct(VALID_BARCODE)).rejects.toThrow();
+		await expect(fetchProduct(VALID_BARCODE)).rejects.toThrow();
 	});
 
 	test('returns null when response has unexpected shape', async () => {
