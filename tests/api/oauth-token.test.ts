@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import { TEST_USER } from '../helpers/fixtures';
+import { allOAuthExports } from '../helpers/mock-oauth';
 
 let mockVerifyClientResult: any = null;
 let mockPublicClientResult: any = null;
@@ -8,12 +9,12 @@ let mockCreateTokenResult: any = null;
 let mockRefreshResult: any = null;
 
 mock.module('$lib/server/oauth', () => ({
+	...allOAuthExports,
 	verifyOAuthClient: async () => mockVerifyClientResult,
 	getPublicOAuthClient: async () => mockPublicClientResult,
 	consumeAuthorizationCode: async () => mockConsumeCodeResult,
 	createAccessToken: async () => mockCreateTokenResult,
 	refreshAccessToken: async () => mockRefreshResult,
-	ACCESS_TOKEN_LIFETIME_MS: 3600000,
 	isValidCodeVerifier: (v: string) => /^[A-Za-z0-9._~-]{43,128}$/.test(v)
 }));
 

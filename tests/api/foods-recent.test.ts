@@ -6,6 +6,7 @@ import { TEST_USER, TEST_FOOD, TEST_FOOD_2 } from '../helpers/fixtures';
 let mockRecentResult: any = [];
 
 mock.module('$lib/server/foods', () => ({
+	getFood: async () => null,
 	listRecentFoods: async (userId: string) => mockRecentResult,
 	listFoods: async () => [],
 	findFoodByBarcode: async () => null,

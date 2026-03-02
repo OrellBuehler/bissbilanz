@@ -34,7 +34,13 @@ const resetMockEntries = () => {
 mock.module('$lib/server/entries', () => ({
 	listEntriesByDateRange: async (userId: string, startDate: string, endDate: string) => {
 		return mockEntriesResult;
-	}
+	},
+	listEntriesByDate: async () => [],
+	createEntry: async () => ({ success: false, error: new Error('not implemented') }),
+	updateEntry: async () => ({ success: false, error: new Error('not implemented') }),
+	deleteEntry: async () => {},
+	copyEntries: async () => [],
+	toEntryUpdate: () => ({})
 }));
 
 // Import after mocking

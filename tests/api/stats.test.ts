@@ -15,7 +15,12 @@ let mockMonthlyResult: any = null;
 
 mock.module('$lib/server/stats', () => ({
 	getWeeklyStats: async () => mockWeeklyResult,
-	getMonthlyStats: async () => mockMonthlyResult
+	getMonthlyStats: async () => mockMonthlyResult,
+	getCalendarStats: async () => null,
+	getDailyBreakdown: async () => [],
+	getMealBreakdown: async () => [],
+	getTopFoods: async () => [],
+	getStreaks: async () => null
 }));
 
 const weeklyModule = await import('../../src/routes/api/stats/weekly/+server');

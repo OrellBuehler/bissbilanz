@@ -19,6 +19,7 @@ const mockValidationError = new ZodError([
 ]);
 
 mock.module('$lib/server/foods', () => ({
+	getFood: async () => null,
 	listFoods: async (userId: string, options: any) => mockListResult,
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
 	createFood: async (userId: string, payload: unknown) =>
@@ -32,18 +33,9 @@ mock.module('$lib/server/foods', () => ({
 	toFoodUpdate: () => ({})
 }));
 
-// Mock validation schema
-mock.module('$lib/server/validation', () => ({
-	paginationSchema: {
-		safeParse: (data: any) => ({
-			success: true,
-			data: {
-				limit: Number(data.limit) || 50,
-				offset: Number(data.offset) || 0
-			}
-		})
-	}
-}));
+// Mock validation — must include ALL exports to avoid polluting other test files
+import { allValidationSchemas } from '../helpers/mock-validation';
+mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const { GET, POST } = await import('../../src/routes/api/foods/+server');

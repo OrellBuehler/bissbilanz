@@ -14,11 +14,15 @@ mock.module('$lib/server/stats', () => ({
 	getDailyBreakdown: async () => mockDailyBreakdownResult,
 	getMealBreakdown: async () => mockMealBreakdownResult,
 	getTopFoods: async () => mockTopFoodsResult,
-	getStreaks: async () => mockStreaksResult
+	getStreaks: async () => mockStreaksResult,
+	getWeeklyStats: async () => null,
+	getMonthlyStats: async () => null
 }));
 
 mock.module('$lib/server/goals', () => ({
-	getGoals: async () => mockGoalsResult
+	getGoals: async () => mockGoalsResult,
+	upsertGoals: async () => ({ success: false, error: new Error('not implemented') }),
+	toGoalsUpsert: () => ({})
 }));
 
 const calendarModule = await import('../../src/routes/api/stats/calendar/+server');

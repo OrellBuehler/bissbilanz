@@ -16,20 +16,31 @@ const mockEntries = [
 ];
 
 mock.module('$lib/server/entries', () => ({
-	listEntriesByDateRange: async () => mockEntries
+	listEntriesByDateRange: async () => mockEntries,
+	listEntriesByDate: async () => [],
+	createEntry: async () => ({ success: false, error: new Error('not implemented') }),
+	updateEntry: async () => ({ success: false, error: new Error('not implemented') }),
+	deleteEntry: async () => {},
+	copyEntries: async () => [],
+	toEntryUpdate: () => ({})
 }));
 
-mock.module('$lib/server/db', () => ({
-	getDB: () => ({
-		select: () => ({
-			from: () => ({
-				where: () => ({
-					orderBy: async () => mockWeights
+mock.module('$lib/server/db', () => {
+	const schema = require('$lib/server/schema');
+	return {
+		getDB: () => ({
+			select: () => ({
+				from: () => ({
+					where: () => ({
+						orderBy: async () => mockWeights
+					})
 				})
 			})
-		})
-	})
-}));
+		}),
+		runMigrations: async () => {},
+		...schema
+	};
+});
 
 const { GET } = await import('../../src/routes/api/maintenance/+server');
 

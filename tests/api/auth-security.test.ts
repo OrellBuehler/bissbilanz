@@ -17,6 +17,12 @@ let mockRecipeResult: any = null;
 let mockMealTypeResult: any = null;
 
 mock.module('$lib/server/foods', () => ({
+	getFood: async (userId: string, id: string) => {
+		if (mockFoodResult && mockFoodResult.userId === userId) {
+			return mockFoodResult;
+		}
+		return null;
+	},
 	listFoods: async () => [],
 	findFoodByBarcode: async () => null,
 	createFood: async () => ({ success: true, data: null }),
@@ -45,7 +51,8 @@ mock.module('$lib/server/entries', () => ({
 	},
 	deleteEntry: async () => {},
 	listEntriesByDateRange: async () => [],
-	copyEntries: async () => []
+	copyEntries: async () => [],
+	toEntryUpdate: () => ({})
 }));
 
 mock.module('$lib/server/recipes', () => ({
@@ -65,7 +72,8 @@ mock.module('$lib/server/recipes', () => ({
 		}
 		return { success: true, data: undefined };
 	},
-	deleteRecipe: async () => ({ blocked: false })
+	deleteRecipe: async () => ({ blocked: false }),
+	toRecipeInsert: () => ({})
 }));
 
 mock.module('$lib/server/meal-types', () => ({
@@ -78,20 +86,12 @@ mock.module('$lib/server/meal-types', () => ({
 		}
 		return { success: true, data: undefined };
 	},
-	deleteMealType: async () => {}
+	deleteMealType: async () => {},
+	toMealTypeInsert: () => ({})
 }));
 
-mock.module('$lib/server/validation', () => ({
-	paginationSchema: {
-		safeParse: (data: any) => ({
-			success: true,
-			data: {
-				limit: Number(data.limit) || 50,
-				offset: Number(data.offset) || 0
-			}
-		})
-	}
-}));
+import { allValidationSchemas } from '../helpers/mock-validation';
+mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const foodsRoute = await import('../../src/routes/api/foods/[id]/+server');

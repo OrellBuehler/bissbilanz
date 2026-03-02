@@ -25,20 +25,12 @@ mock.module('$lib/server/entries', () => ({
 	updateEntry: async () => ({ success: true, data: null }),
 	deleteEntry: async () => {},
 	listEntriesByDateRange: async () => [],
-	copyEntries: async () => 0
+	copyEntries: async () => 0,
+	toEntryUpdate: () => ({})
 }));
 
-mock.module('$lib/server/validation', () => ({
-	paginationSchema: {
-		safeParse: (data: any) => ({
-			success: true,
-			data: {
-				limit: Number(data.limit) || 50,
-				offset: Number(data.offset) || 0
-			}
-		})
-	}
-}));
+import { allValidationSchemas } from '../helpers/mock-validation';
+mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 const { GET, POST } = await import('../../src/routes/api/entries/+server');
 

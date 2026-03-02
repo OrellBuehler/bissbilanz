@@ -7,6 +7,7 @@ const { db, setResult, setError, reset } = createMockDB();
 
 // Mock env
 mock.module('$lib/server/env', () => ({
+	parseDatabaseConfig: () => ({ host: 'localhost', port: 5432, database: 'test', user: 'test' }),
 	config: {
 		infomaniak: {
 			clientId: 'test-client-id',
@@ -18,30 +19,44 @@ mock.module('$lib/server/env', () => ({
 	}
 }));
 
-// Mock db module
+// Mock db module — spread all schema exports to avoid polluting other test files
 mock.module('$lib/server/db', () => {
-	const { users, sessions } = require('$lib/server/schema');
+	const schema = require('$lib/server/schema');
 	return {
 		getDB: () => db,
-		users,
-		sessions
+		runMigrations: async () => {},
+		...schema
 	};
 });
 
-// Mock session creation
+// Mock session — must export all names to avoid polluting other test files via mock.module.
 const mockSession = { id: 'session-123', userId: TEST_USER.id, expiresAt: new Date() };
 mock.module('$lib/server/session', () => ({
-	createSession: mock(() => Promise.resolve(mockSession))
+	generateSessionId: () => 'mock-session-id',
+	createSession: mock(() => Promise.resolve(mockSession)),
+	getSession: mock(() => Promise.resolve(null)),
+	getSessionWithUser: mock(() => Promise.resolve(null)),
+	deleteSession: mock(() => Promise.resolve()),
+	deleteUserSessions: mock(() => Promise.resolve()),
+	cleanExpiredSessions: mock(() => Promise.resolve(0)),
+	createSessionCookie: mock(
+		() => 'session=mock; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=604800'
+	),
+	clearSessionCookie: mock(() => 'session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'),
+	parseSessionCookie: mock(() => null)
 }));
 
-// Mock OIDC validation
+// Mock OIDC validation — must include all exports
 mock.module('$lib/server/oidc-validate', () => ({
-	assertState: mock(() => {})
+	assertState: mock(() => {}),
+	assertNonce: mock(() => {}),
+	decodeIdToken: mock(() => ({}))
 }));
 
-// Mock JWT verification
+// Mock JWT verification — must include all exports
 mock.module('$lib/server/oidc-jwt', () => ({
-	verifyIdToken: mock(() => Promise.resolve({ sub: '12345', email: 'test@example.com' }))
+	verifyIdToken: mock(() => Promise.resolve({ sub: '12345', email: 'test@example.com' })),
+	assertClaims: mock(() => {})
 }));
 
 // Mock rate limiting

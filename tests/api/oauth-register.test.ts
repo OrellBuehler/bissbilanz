@@ -1,4 +1,5 @@
 import { describe, test, expect, mock } from 'bun:test';
+import { allOAuthExports } from '../helpers/mock-oauth';
 
 // Mock DB
 const mockInsert = { values: async () => ({}) };
@@ -10,6 +11,7 @@ mock.module('$lib/server/db', () => ({
 }));
 
 mock.module('$lib/server/oauth', () => ({
+	...allOAuthExports,
 	generateClientId: () => 'generated-client-id',
 	generateClientSecret: () => 'generated-client-secret',
 	hashToken: (t: string) => `hashed-${t}`

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach } from 'bun:test';
 import {
 	TEST_USER,
 	TEST_FOOD,
@@ -7,15 +7,18 @@ import {
 	TEST_GOALS,
 	TEST_SUPPLEMENT
 } from '../helpers/fixtures';
+import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
 
-// Mock paraglide (generated at build time, not available in tests)
-mock.module('$lib/paraglide/messages', () => new Proxy({}, { get: () => () => '' }));
-
-// Mock state
+// Mock state — each variable is referenced by the mock deps via closure,
+// so resetting them in beforeEach changes what handlers see.
 let mockFoods: any[] = [];
 let mockCreateFoodResult: any = null;
+let mockUpdateFoodResult: any = null;
+let mockDeleteFoodResult: any = { blocked: false };
 let mockRecipes: any[] = [];
 let mockCreateRecipeResult: any = null;
+let mockUpdateRecipeResult: any = null;
+let mockDeleteRecipeResult: any = { blocked: false };
 let mockCreateEntryResult: any = null;
 let mockEntries: any[] = [];
 let mockUpdateEntryResult: any = null;
@@ -26,43 +29,53 @@ let mockRecipe: any = null;
 let mockFavFoods: any[] = [];
 let mockFavRecipes: any[] = [];
 let mockCreateWeightResult: any = null;
+let mockUpdateWeightResult: any = null;
+let mockDeleteWeightResult: any = true;
 let mockLatestWeight: any = null;
 let mockWeightTrend: any = [];
 let mockWeeklyStats: any = null;
 let mockMonthlyStats: any = null;
+let mockDailyBreakdown: any[] = [];
+let mockMealBreakdown: any[] = [];
+let mockTopFoods: any[] = [];
+let mockStreaks: any = { currentStreak: 0, longestStreak: 0 };
 let mockCopyResult: any[] = [];
 let mockBarcodeFood: any = null;
+let mockRecentFoods: any[] = [];
 let mockSupplements: any[] = [];
 let mockSupplementLogs: any[] = [];
 let mockLogSupplementResult: any = null;
 let mockSupplementById: any = null;
+let mockCreateSupplementResult: any = null;
+let mockUpdateSupplementResult: any = null;
 
-// Mock all service modules
-mock.module('$lib/server/foods', () => ({
+// Create handlers with mock deps — no mock.module needed!
+// Uses type assertion because mock functions return `any`-typed test state variables.
+const mockDeps = {
 	listFoods: async () => mockFoods,
-	createFood: async (_userId: string, payload: unknown) =>
+	createFood: async () =>
 		mockCreateFoodResult
 			? { success: true, data: mockCreateFoodResult }
 			: { success: false, error: new Error('Validation failed') },
 	getFood: async () => mockFood,
 	findFoodByBarcode: async () => mockBarcodeFood,
-	updateFood: async () => ({ success: true, data: {} }),
-	deleteFood: async () => ({ blocked: false }),
-	listRecentFoods: async () => []
-}));
-
-mock.module('$lib/server/recipes', () => ({
+	updateFood: async () =>
+		mockUpdateFoodResult
+			? { success: true, data: mockUpdateFoodResult }
+			: { success: false, error: new Error('Validation failed') },
+	deleteFood: async () => mockDeleteFoodResult,
+	listRecentFoods: async () => mockRecentFoods,
 	listRecipes: async () => mockRecipes,
 	createRecipe: async () =>
 		mockCreateRecipeResult
 			? { success: true, data: mockCreateRecipeResult }
 			: { success: false, error: new Error('Validation failed') },
 	getRecipe: async () => mockRecipe,
-	updateRecipe: async () => ({ success: true, data: {} }),
-	deleteRecipe: async () => ({ blocked: false })
-}));
-
-mock.module('$lib/server/entries', () => ({
+	updateRecipe: async () =>
+		mockUpdateRecipeResult
+			? { success: true, data: mockUpdateRecipeResult }
+			: { success: false, error: new Error('Validation failed') },
+	deleteRecipe: async () => mockDeleteRecipeResult,
 	createEntry: async () =>
 		mockCreateEntryResult
 			? { success: true, data: mockCreateEntryResult }
@@ -72,44 +85,32 @@ mock.module('$lib/server/entries', () => ({
 		mockUpdateEntryResult
 			? { success: true, data: mockUpdateEntryResult }
 			: { success: false, error: new Error('Update failed') },
-	deleteEntry: async () => true,
-	copyEntries: async () => mockCopyResult
-}));
-
-mock.module('$lib/server/goals', () => ({
+	deleteEntry: async () => {},
+	copyEntries: async () => mockCopyResult,
 	getGoals: async () => mockGoals,
 	upsertGoals: async () =>
 		mockUpsertGoalsResult
 			? { success: true, data: mockUpsertGoalsResult }
-			: { success: false, error: new Error('Validation failed') }
-}));
-
-mock.module('$lib/server/favorites', () => ({
+			: { success: false, error: new Error('Validation failed') },
 	listFavoriteFoods: async () => mockFavFoods,
-	listFavoriteRecipes: async () => mockFavRecipes
-}));
-
-mock.module('$lib/server/weight', () => ({
+	listFavoriteRecipes: async () => mockFavRecipes,
 	createWeightEntry: async () =>
 		mockCreateWeightResult
 			? { success: true, data: mockCreateWeightResult }
 			: { success: false, error: new Error('Validation failed') },
+	updateWeightEntry: async () =>
+		mockUpdateWeightResult
+			? { success: true, data: mockUpdateWeightResult }
+			: { success: false, error: new Error('Validation failed') },
+	deleteWeightEntry: async () => mockDeleteWeightResult,
 	getLatestWeight: async () => mockLatestWeight,
 	getWeightWithTrend: async () => mockWeightTrend,
-	updateWeightEntry: async () => ({ success: true, data: {} }),
-	deleteWeightEntry: async () => true
-}));
-
-mock.module('$lib/server/stats', () => ({
 	getWeeklyStats: async () => mockWeeklyStats,
 	getMonthlyStats: async () => mockMonthlyStats,
-	getDailyBreakdown: async () => [],
-	getMealBreakdown: async () => [],
-	getTopFoods: async () => [],
-	getStreaks: async () => ({ current: 0, longest: 0 })
-}));
-
-mock.module('$lib/server/supplements', () => ({
+	getDailyBreakdown: async () => mockDailyBreakdown,
+	getMealBreakdown: async () => mockMealBreakdown,
+	getTopFoods: async () => mockTopFoods,
+	getStreaks: async () => mockStreaks,
 	listSupplements: async () => mockSupplements,
 	getLogsForDate: async () => mockSupplementLogs,
 	logSupplement: async () =>
@@ -117,21 +118,39 @@ mock.module('$lib/server/supplements', () => ({
 			? { success: true, data: mockLogSupplementResult }
 			: { success: false, error: new Error('Supplement not found') },
 	getSupplementById: async () => mockSupplementById,
-	createSupplement: async () => ({ success: true, data: { id: 'new-supp' } }),
-	updateSupplement: async () => ({ success: true, data: {} }),
-	deleteSupplement: async () => true,
-	unlogSupplement: async () => true
-}));
-
-mock.module('$lib/utils/supplements', () => ({
+	createSupplement: async () =>
+		mockCreateSupplementResult
+			? { success: true, data: mockCreateSupplementResult }
+			: { success: false, error: new Error('Validation failed') },
+	updateSupplement: async () =>
+		mockUpdateSupplementResult
+			? { success: true, data: mockUpdateSupplementResult }
+			: { success: false, error: new Error('Validation failed') },
+	deleteSupplement: async () => {},
+	unlogSupplement: async () => {},
+	formatDailyStatus: ({ entries, goals }: { entries: unknown[]; goals: unknown }) => ({
+		totals: {
+			calories: 0,
+			protein: 0,
+			carbs: 0,
+			fat: 0,
+			fiber: 0
+		},
+		goals
+	}),
+	today: () => '2026-02-10',
 	isSupplementDue: () => true
-}));
+} satisfies Record<string, Function> as unknown as HandlerDeps;
 
-// Import handlers after mocking
 const {
 	handleSearchFoods,
 	handleCreateFood,
+	handleUpdateFood,
+	handleDeleteFood,
+	handleListRecentFoods,
 	handleCreateRecipe,
+	handleUpdateRecipe,
+	handleDeleteRecipe,
 	handleLogFood,
 	handleGetDailyStatus,
 	handleListEntries,
@@ -145,20 +164,35 @@ const {
 	handleListFavorites,
 	handleLogWeight,
 	handleGetWeight,
+	handleUpdateWeight,
+	handleDeleteWeight,
 	handleGetWeeklyStats,
 	handleGetMonthlyStats,
+	handleGetDailyBreakdown,
+	handleGetMealBreakdown,
+	handleGetTopFoods,
+	handleGetStreaks,
 	handleCopyEntries,
 	handleFindFoodByBarcode,
 	handleGetSupplementStatus,
-	handleLogSupplement
-} = await import('$lib/server/mcp/handlers');
+	handleLogSupplement,
+	handleCreateSupplement,
+	handleListSupplements,
+	handleUpdateSupplement,
+	handleDeleteSupplement,
+	handleUnlogSupplement
+} = createHandlers(mockDeps);
 
 describe('MCP handlers', () => {
 	beforeEach(() => {
 		mockFoods = [];
 		mockCreateFoodResult = null;
+		mockUpdateFoodResult = null;
+		mockDeleteFoodResult = { blocked: false };
 		mockRecipes = [];
 		mockCreateRecipeResult = null;
+		mockUpdateRecipeResult = null;
+		mockDeleteRecipeResult = { blocked: false };
 		mockCreateEntryResult = null;
 		mockEntries = [];
 		mockUpdateEntryResult = null;
@@ -169,16 +203,25 @@ describe('MCP handlers', () => {
 		mockFavFoods = [];
 		mockFavRecipes = [];
 		mockCreateWeightResult = null;
+		mockUpdateWeightResult = null;
+		mockDeleteWeightResult = true;
 		mockLatestWeight = null;
 		mockWeightTrend = [];
 		mockWeeklyStats = null;
 		mockMonthlyStats = null;
+		mockDailyBreakdown = [];
+		mockMealBreakdown = [];
+		mockTopFoods = [];
+		mockStreaks = { currentStreak: 0, longestStreak: 0 };
 		mockCopyResult = [];
 		mockBarcodeFood = null;
+		mockRecentFoods = [];
 		mockSupplements = [];
 		mockSupplementLogs = [];
 		mockLogSupplementResult = null;
 		mockSupplementById = null;
+		mockCreateSupplementResult = null;
+		mockUpdateSupplementResult = null;
 	});
 
 	describe('handleSearchFoods', () => {
@@ -570,6 +613,285 @@ describe('MCP handlers', () => {
 			const result = await handleLogSupplement(TEST_USER.id, {});
 			expect(result.success).toBe(false);
 			expect(result.error).toContain('Provide either');
+		});
+	});
+
+	describe('handleUpdateFood', () => {
+		test('returns success on valid update', async () => {
+			mockUpdateFoodResult = { ...TEST_FOOD, name: 'Updated Oats' };
+			const result = await handleUpdateFood(TEST_USER.id, {
+				foodId: TEST_FOOD.id,
+				name: 'Updated Oats'
+			});
+			expect(result.success).toBe(true);
+			expect(result.foodId).toBe(TEST_FOOD.id);
+		});
+
+		test('returns error on failure', async () => {
+			mockUpdateFoodResult = null;
+			const result = await handleUpdateFood(TEST_USER.id, {
+				foodId: 'nonexistent'
+			});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleDeleteFood', () => {
+		test('returns success when not blocked', async () => {
+			mockDeleteFoodResult = { blocked: false };
+			const result = await handleDeleteFood(TEST_USER.id, { foodId: TEST_FOOD.id });
+			expect(result.success).toBe(true);
+		});
+
+		test('returns blocked when food has entries', async () => {
+			mockDeleteFoodResult = { blocked: true, entryCount: 3 };
+			const result = await handleDeleteFood(TEST_USER.id, { foodId: TEST_FOOD.id });
+			expect(result.blocked).toBe(true);
+			expect(result.entryCount).toBe(3);
+			expect(result.hint).toContain('force=true');
+		});
+	});
+
+	describe('handleListRecentFoods', () => {
+		test('returns recent foods with default limit', async () => {
+			mockRecentFoods = [TEST_FOOD];
+			const result = await handleListRecentFoods(TEST_USER.id, {});
+			expect(result).toHaveLength(1);
+		});
+
+		test('returns empty array when no recent foods', async () => {
+			mockRecentFoods = [];
+			const result = await handleListRecentFoods(TEST_USER.id, { limit: 10 });
+			expect(result).toHaveLength(0);
+		});
+	});
+
+	describe('handleUpdateRecipe', () => {
+		test('returns success on valid update', async () => {
+			mockUpdateRecipeResult = { ...TEST_RECIPE, name: 'Updated Bowl' };
+			const result = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				name: 'Updated Bowl'
+			});
+			expect(result.success).toBe(true);
+			expect(result.recipeId).toBe(TEST_RECIPE.id);
+		});
+
+		test('returns error on failure', async () => {
+			mockUpdateRecipeResult = null;
+			const result = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: 'nonexistent'
+			});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleDeleteRecipe', () => {
+		test('returns success when not blocked', async () => {
+			mockDeleteRecipeResult = { blocked: false };
+			const result = await handleDeleteRecipe(TEST_USER.id, { recipeId: TEST_RECIPE.id });
+			expect(result.success).toBe(true);
+		});
+
+		test('returns blocked when recipe has entries', async () => {
+			mockDeleteRecipeResult = { blocked: true, entryCount: 2 };
+			const result = await handleDeleteRecipe(TEST_USER.id, { recipeId: TEST_RECIPE.id });
+			expect(result.blocked).toBe(true);
+			expect(result.entryCount).toBe(2);
+			expect(result.hint).toContain('force=true');
+		});
+	});
+
+	describe('handleCreateSupplement', () => {
+		test('returns supplementId on success', async () => {
+			mockCreateSupplementResult = { ...TEST_SUPPLEMENT, id: 'new-supp' };
+			const result = await handleCreateSupplement(TEST_USER.id, {
+				name: 'Vitamin D3',
+				dosage: 1000,
+				dosageUnit: 'IU',
+				scheduleType: 'daily'
+			});
+			expect(result.success).toBe(true);
+			expect(result.supplementId).toBe('new-supp');
+		});
+
+		test('returns error on failure', async () => {
+			mockCreateSupplementResult = null;
+			const result = await handleCreateSupplement(TEST_USER.id, {});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleListSupplements', () => {
+		test('returns supplements', async () => {
+			mockSupplements = [TEST_SUPPLEMENT];
+			const result = await handleListSupplements(TEST_USER.id, {});
+			expect(result.supplements).toHaveLength(1);
+		});
+
+		test('returns empty array when no supplements', async () => {
+			mockSupplements = [];
+			const result = await handleListSupplements(TEST_USER.id, { activeOnly: true });
+			expect(result.supplements).toEqual([]);
+		});
+	});
+
+	describe('handleUpdateSupplement', () => {
+		test('returns success on valid update', async () => {
+			mockUpdateSupplementResult = { ...TEST_SUPPLEMENT, name: 'Updated D3' };
+			const result = await handleUpdateSupplement(TEST_USER.id, {
+				supplementId: TEST_SUPPLEMENT.id,
+				name: 'Updated D3'
+			});
+			expect(result.success).toBe(true);
+			expect(result.supplementId).toBe(TEST_SUPPLEMENT.id);
+		});
+
+		test('returns error on failure', async () => {
+			mockUpdateSupplementResult = null;
+			const result = await handleUpdateSupplement(TEST_USER.id, {
+				supplementId: 'nonexistent'
+			});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleDeleteSupplement', () => {
+		test('returns success', async () => {
+			const result = await handleDeleteSupplement(TEST_USER.id, {
+				supplementId: TEST_SUPPLEMENT.id
+			});
+			expect(result.success).toBe(true);
+		});
+	});
+
+	describe('handleUnlogSupplement', () => {
+		test('returns success', async () => {
+			const result = await handleUnlogSupplement(TEST_USER.id, {
+				supplementId: TEST_SUPPLEMENT.id
+			});
+			expect(result.success).toBe(true);
+		});
+
+		test('accepts explicit date', async () => {
+			const result = await handleUnlogSupplement(TEST_USER.id, {
+				supplementId: TEST_SUPPLEMENT.id,
+				date: '2026-02-09'
+			});
+			expect(result.success).toBe(true);
+		});
+	});
+
+	describe('handleUpdateWeight', () => {
+		test('returns success on valid update', async () => {
+			mockUpdateWeightResult = { id: 'weight-1', weightKg: 76.0 };
+			const result = await handleUpdateWeight(TEST_USER.id, {
+				weightId: 'weight-1',
+				weightKg: 76.0
+			});
+			expect(result.success).toBe(true);
+			expect(result.weightId).toBe('weight-1');
+		});
+
+		test('returns error on failure', async () => {
+			mockUpdateWeightResult = null;
+			const result = await handleUpdateWeight(TEST_USER.id, {
+				weightId: 'nonexistent'
+			});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleDeleteWeight', () => {
+		test('returns success when found', async () => {
+			mockDeleteWeightResult = true;
+			const result = await handleDeleteWeight(TEST_USER.id, { weightId: 'weight-1' });
+			expect(result.success).toBe(true);
+		});
+
+		test('returns error when not found', async () => {
+			mockDeleteWeightResult = null;
+			const result = await handleDeleteWeight(TEST_USER.id, { weightId: 'nonexistent' });
+			expect(result.error).toBe('Weight entry not found');
+		});
+	});
+
+	describe('handleGetDailyBreakdown', () => {
+		test('returns daily breakdown data', async () => {
+			mockDailyBreakdown = [
+				{ date: '2026-02-10', calories: 2000, protein: 150, carbs: 200, fat: 67, fiber: 30 }
+			];
+			const result = await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-10',
+				endDate: '2026-02-10'
+			});
+			expect(result).toHaveLength(1);
+			expect(result[0].calories).toBe(2000);
+		});
+
+		test('returns empty array for no data', async () => {
+			mockDailyBreakdown = [];
+			const result = await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-07'
+			});
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe('handleGetMealBreakdown', () => {
+		test('returns meal breakdown data', async () => {
+			mockMealBreakdown = [
+				{ mealType: 'breakfast', calories: 500, protein: 30, carbs: 60, fat: 15, fiber: 8 }
+			];
+			const result = await handleGetMealBreakdown(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-07'
+			});
+			expect(result).toHaveLength(1);
+			expect(result[0].mealType).toBe('breakfast');
+		});
+
+		test('returns empty array for no data', async () => {
+			mockMealBreakdown = [];
+			const result = await handleGetMealBreakdown(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-07'
+			});
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe('handleGetTopFoods', () => {
+		test('returns top foods with defaults', async () => {
+			mockTopFoods = [
+				{ foodId: TEST_FOOD.id, recipeId: null, foodName: 'Oats', count: 5, calories: 389, protein: 13, carbs: 66, fat: 7, fiber: 11 }
+			];
+			const result = await handleGetTopFoods(TEST_USER.id, {});
+			expect(result).toHaveLength(1);
+			expect(result[0].foodName).toBe('Oats');
+		});
+
+		test('returns empty array when no data', async () => {
+			mockTopFoods = [];
+			const result = await handleGetTopFoods(TEST_USER.id, { days: 30, limit: 5 });
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe('handleGetStreaks', () => {
+		test('returns streak data', async () => {
+			mockStreaks = { currentStreak: 5, longestStreak: 10 };
+			const result = await handleGetStreaks(TEST_USER.id);
+			expect(result.currentStreak).toBe(5);
+			expect(result.longestStreak).toBe(10);
+		});
+
+		test('returns zero streaks when no data', async () => {
+			mockStreaks = { currentStreak: 0, longestStreak: 0 };
+			const result = await handleGetStreaks(TEST_USER.id);
+			expect(result.currentStreak).toBe(0);
+			expect(result.longestStreak).toBe(0);
 		});
 	});
 });
