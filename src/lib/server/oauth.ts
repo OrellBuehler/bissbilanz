@@ -372,7 +372,9 @@ export async function revokeAuthorization(userId: string, clientId: string): Pro
 		.where(
 			and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId))
 		);
-	await revokeClientTokens(clientId);
+	await db
+		.delete(oauthTokens)
+		.where(and(eq(oauthTokens.clientId, clientId), eq(oauthTokens.userId, userId)));
 }
 
 export async function revokeClientTokens(clientId: string): Promise<void> {

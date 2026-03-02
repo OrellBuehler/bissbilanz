@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
@@ -13,6 +13,10 @@ import { eq } from 'drizzle-orm';
 import { config } from '$lib/server/env';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+	if (!config.mcp.enabled) {
+		throw error(404, 'Not Found');
+	}
+
 	const userId = locals.user!.id;
 
 	try {
