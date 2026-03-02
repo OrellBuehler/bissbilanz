@@ -16,7 +16,7 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
-	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients } from '$lib/nutrients';
+	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
 
 	let foods: Array<any> = $state([]);
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
@@ -107,7 +107,7 @@
 				additives: product.additives,
 				ingredientsText: product.ingredientsText,
 				imageUrl: product.imageUrl,
-				...pickNutrients(product)
+				...pickNonNullNutrients(product)
 			})
 		});
 		await loadFoods(query);

@@ -471,6 +471,13 @@ export function pickNutrients(src: Record<string, unknown>): Record<string, unkn
 	return Object.fromEntries(ALL_NUTRIENT_KEYS.map((k) => [k, src[k] ?? null]));
 }
 
+/** Pick only nutrient keys that have non-null values (won't overwrite existing data with null). */
+export function pickNonNullNutrients(src: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(
+		ALL_NUTRIENT_KEYS.filter((k) => src[k] != null).map((k) => [k, src[k]])
+	);
+}
+
 /**
  * Resolve a nutrient's i18n label using the Paraglide messages module.
  * Pass `import * as m from '$lib/paraglide/messages'` as the first arg.
