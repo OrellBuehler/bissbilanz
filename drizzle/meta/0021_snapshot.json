@@ -1,6 +1,6 @@
 {
-  "id": "b7d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
-  "prevId": "4b1a6104-171b-448d-bd56-903a3bdce070",
+  "id": "f36510c4-de72-41b3-94d0-08cab239cc84",
+  "prevId": "b7d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -481,8 +481,44 @@
           "primaryKey": false,
           "notNull": true
         },
-        "sodium": {
-          "name": "sodium",
+        "saturated_fat": {
+          "name": "saturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monounsaturated_fat": {
+          "name": "monounsaturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "polyunsaturated_fat": {
+          "name": "polyunsaturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trans_fat": {
+          "name": "trans_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cholesterol": {
+          "name": "cholesterol",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "omega3": {
+          "name": "omega3",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "omega6": {
+          "name": "omega6",
           "type": "real",
           "primaryKey": false,
           "notNull": false
@@ -493,14 +529,110 @@
           "primaryKey": false,
           "notNull": false
         },
-        "saturated_fat": {
-          "name": "saturated_fat",
+        "added_sugars": {
+          "name": "added_sugars",
           "type": "real",
           "primaryKey": false,
           "notNull": false
         },
-        "cholesterol": {
-          "name": "cholesterol",
+        "sugar_alcohols": {
+          "name": "sugar_alcohols",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "starch": {
+          "name": "starch",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sodium": {
+          "name": "sodium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "potassium": {
+          "name": "potassium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calcium": {
+          "name": "calcium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iron": {
+          "name": "iron",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "magnesium": {
+          "name": "magnesium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phosphorus": {
+          "name": "phosphorus",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zinc": {
+          "name": "zinc",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "copper": {
+          "name": "copper",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manganese": {
+          "name": "manganese",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selenium": {
+          "name": "selenium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iodine": {
+          "name": "iodine",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fluoride": {
+          "name": "fluoride",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chromium": {
+          "name": "chromium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "molybdenum": {
+          "name": "molybdenum",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chloride": {
+          "name": "chloride",
           "type": "real",
           "primaryKey": false,
           "notNull": false
@@ -517,14 +649,92 @@
           "primaryKey": false,
           "notNull": false
         },
-        "calcium": {
-          "name": "calcium",
+        "vitamin_d": {
+          "name": "vitamin_d",
           "type": "real",
           "primaryKey": false,
           "notNull": false
         },
-        "iron": {
-          "name": "iron",
+        "vitamin_e": {
+          "name": "vitamin_e",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_k": {
+          "name": "vitamin_k",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b1": {
+          "name": "vitamin_b1",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b2": {
+          "name": "vitamin_b2",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b3": {
+          "name": "vitamin_b3",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b5": {
+          "name": "vitamin_b5",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b6": {
+          "name": "vitamin_b6",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b7": {
+          "name": "vitamin_b7",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b9": {
+          "name": "vitamin_b9",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b12": {
+          "name": "vitamin_b12",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caffeine": {
+          "name": "caffeine",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alcohol": {
+          "name": "alcohol",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "water": {
+          "name": "water",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "salt": {
+          "name": "salt",
           "type": "real",
           "primaryKey": false,
           "notNull": false
@@ -689,9 +899,25 @@
           "name": "foods_nutrition_nonnegative",
           "value": "\"foods\".\"calories\" >= 0 AND \"foods\".\"protein\" >= 0 AND \"foods\".\"carbs\" >= 0 AND \"foods\".\"fat\" >= 0 AND \"foods\".\"fiber\" >= 0"
         },
-        "foods_optional_nutrition_nonnegative": {
-          "name": "foods_optional_nutrition_nonnegative",
-          "value": "(\"foods\".\"sodium\" IS NULL OR \"foods\".\"sodium\" >= 0) AND (\"foods\".\"sugar\" IS NULL OR \"foods\".\"sugar\" >= 0) AND (\"foods\".\"saturated_fat\" IS NULL OR \"foods\".\"saturated_fat\" >= 0) AND (\"foods\".\"cholesterol\" IS NULL OR \"foods\".\"cholesterol\" >= 0) AND (\"foods\".\"vitamin_a\" IS NULL OR \"foods\".\"vitamin_a\" >= 0) AND (\"foods\".\"vitamin_c\" IS NULL OR \"foods\".\"vitamin_c\" >= 0) AND (\"foods\".\"calcium\" IS NULL OR \"foods\".\"calcium\" >= 0) AND (\"foods\".\"iron\" IS NULL OR \"foods\".\"iron\" >= 0)"
+        "foods_fat_breakdown_nonneg": {
+          "name": "foods_fat_breakdown_nonneg",
+          "value": "(\"foods\".\"saturated_fat\" IS NULL OR \"foods\".\"saturated_fat\" >= 0) AND (\"foods\".\"monounsaturated_fat\" IS NULL OR \"foods\".\"monounsaturated_fat\" >= 0) AND (\"foods\".\"polyunsaturated_fat\" IS NULL OR \"foods\".\"polyunsaturated_fat\" >= 0) AND (\"foods\".\"trans_fat\" IS NULL OR \"foods\".\"trans_fat\" >= 0) AND (\"foods\".\"cholesterol\" IS NULL OR \"foods\".\"cholesterol\" >= 0) AND (\"foods\".\"omega3\" IS NULL OR \"foods\".\"omega3\" >= 0) AND (\"foods\".\"omega6\" IS NULL OR \"foods\".\"omega6\" >= 0)"
+        },
+        "foods_sugar_carb_nonneg": {
+          "name": "foods_sugar_carb_nonneg",
+          "value": "(\"foods\".\"sugar\" IS NULL OR \"foods\".\"sugar\" >= 0) AND (\"foods\".\"added_sugars\" IS NULL OR \"foods\".\"added_sugars\" >= 0) AND (\"foods\".\"sugar_alcohols\" IS NULL OR \"foods\".\"sugar_alcohols\" >= 0) AND (\"foods\".\"starch\" IS NULL OR \"foods\".\"starch\" >= 0)"
+        },
+        "foods_minerals_nonneg": {
+          "name": "foods_minerals_nonneg",
+          "value": "(\"foods\".\"sodium\" IS NULL OR \"foods\".\"sodium\" >= 0) AND (\"foods\".\"potassium\" IS NULL OR \"foods\".\"potassium\" >= 0) AND (\"foods\".\"calcium\" IS NULL OR \"foods\".\"calcium\" >= 0) AND (\"foods\".\"iron\" IS NULL OR \"foods\".\"iron\" >= 0) AND (\"foods\".\"magnesium\" IS NULL OR \"foods\".\"magnesium\" >= 0) AND (\"foods\".\"phosphorus\" IS NULL OR \"foods\".\"phosphorus\" >= 0) AND (\"foods\".\"zinc\" IS NULL OR \"foods\".\"zinc\" >= 0) AND (\"foods\".\"copper\" IS NULL OR \"foods\".\"copper\" >= 0) AND (\"foods\".\"manganese\" IS NULL OR \"foods\".\"manganese\" >= 0) AND (\"foods\".\"selenium\" IS NULL OR \"foods\".\"selenium\" >= 0) AND (\"foods\".\"iodine\" IS NULL OR \"foods\".\"iodine\" >= 0) AND (\"foods\".\"fluoride\" IS NULL OR \"foods\".\"fluoride\" >= 0) AND (\"foods\".\"chromium\" IS NULL OR \"foods\".\"chromium\" >= 0) AND (\"foods\".\"molybdenum\" IS NULL OR \"foods\".\"molybdenum\" >= 0) AND (\"foods\".\"chloride\" IS NULL OR \"foods\".\"chloride\" >= 0)"
+        },
+        "foods_vitamins_nonneg": {
+          "name": "foods_vitamins_nonneg",
+          "value": "(\"foods\".\"vitamin_a\" IS NULL OR \"foods\".\"vitamin_a\" >= 0) AND (\"foods\".\"vitamin_c\" IS NULL OR \"foods\".\"vitamin_c\" >= 0) AND (\"foods\".\"vitamin_d\" IS NULL OR \"foods\".\"vitamin_d\" >= 0) AND (\"foods\".\"vitamin_e\" IS NULL OR \"foods\".\"vitamin_e\" >= 0) AND (\"foods\".\"vitamin_k\" IS NULL OR \"foods\".\"vitamin_k\" >= 0) AND (\"foods\".\"vitamin_b1\" IS NULL OR \"foods\".\"vitamin_b1\" >= 0) AND (\"foods\".\"vitamin_b2\" IS NULL OR \"foods\".\"vitamin_b2\" >= 0) AND (\"foods\".\"vitamin_b3\" IS NULL OR \"foods\".\"vitamin_b3\" >= 0) AND (\"foods\".\"vitamin_b5\" IS NULL OR \"foods\".\"vitamin_b5\" >= 0) AND (\"foods\".\"vitamin_b6\" IS NULL OR \"foods\".\"vitamin_b6\" >= 0) AND (\"foods\".\"vitamin_b7\" IS NULL OR \"foods\".\"vitamin_b7\" >= 0) AND (\"foods\".\"vitamin_b9\" IS NULL OR \"foods\".\"vitamin_b9\" >= 0) AND (\"foods\".\"vitamin_b12\" IS NULL OR \"foods\".\"vitamin_b12\" >= 0)"
+        },
+        "foods_other_nutrients_nonneg": {
+          "name": "foods_other_nutrients_nonneg",
+          "value": "(\"foods\".\"caffeine\" IS NULL OR \"foods\".\"caffeine\" >= 0) AND (\"foods\".\"alcohol\" IS NULL OR \"foods\".\"alcohol\" >= 0) AND (\"foods\".\"water\" IS NULL OR \"foods\".\"water\" >= 0) AND (\"foods\".\"salt\" IS NULL OR \"foods\".\"salt\" >= 0)"
         },
         "foods_nutri_score_valid": {
           "name": "foods_nutri_score_valid",
@@ -2112,6 +2338,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'time_based'"
+        },
+        "visible_nutrients": {
+          "name": "visible_nutrients",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]"
         },
         "updated_at": {
           "name": "updated_at",

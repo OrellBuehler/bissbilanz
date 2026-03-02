@@ -17,6 +17,15 @@
 	import { apiFetch } from '$lib/utils/api';
 	import { DEFAULT_MEAL_TYPES, validateFavoriteMealTimeframes } from '$lib/utils/meals';
 	import * as m from '$lib/paraglide/messages';
+	import {
+		ALL_NUTRIENTS,
+		CATEGORY_ORDER,
+		NUTRIENTS_BY_CATEGORY,
+		CATEGORY_I18N_KEYS,
+		DEFAULT_VISIBLE_NUTRIENTS,
+		type NutrientDef
+	} from '$lib/nutrients';
+	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
 
 	// Meal types state (preserved from existing page)
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
@@ -44,6 +53,58 @@
 	};
 	let favoriteMealTimeframes = $state<TimeframeDraft[]>([]);
 	let savingFavoriteLogging = $state(false);
+	let visibleNutrients = $state<Set<string>>(new Set(DEFAULT_VISIBLE_NUTRIENTS));
+	let savingNutrients = $state(false);
+
+	// i18n helper for nutrient & category labels
+	const msgs = m as unknown as Record<string, () => string>;
+	function nutrientLabel(nutrient: NutrientDef): string {
+		const fn = msgs[nutrient.i18nKey];
+		return fn ? fn() : nutrient.key;
+	}
+	function categoryLabel(category: string): string {
+		const key = CATEGORY_I18N_KEYS[category as keyof typeof CATEGORY_I18N_KEYS];
+		const fn = msgs[key];
+		return fn ? fn() : category;
+	}
+
+	function toggleNutrient(key: string) {
+		const next = new Set(visibleNutrients);
+		if (next.has(key)) {
+			next.delete(key);
+		} else {
+			next.add(key);
+		}
+		visibleNutrients = next;
+	}
+
+	function selectAllNutrients() {
+		visibleNutrients = new Set(ALL_NUTRIENTS.map((n) => n.key));
+	}
+
+	function deselectAllNutrients() {
+		visibleNutrients = new Set();
+	}
+
+	async function saveVisibleNutrients() {
+		savingNutrients = true;
+		try {
+			const res = await apiFetch('/api/preferences', {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ visibleNutrients: [...visibleNutrients] })
+			});
+			if (res.ok) {
+				toast.success(m.settings_saved(), { duration: 1500 });
+			} else {
+				toast.error(m.settings_save_failed());
+			}
+		} catch {
+			toast.error(m.settings_save_failed());
+		} finally {
+			savingNutrients = false;
+		}
+	}
 
 	const WIDGET_DEFS: Record<string, { name: () => string; desc: () => string }> = {
 		chart: {
@@ -282,6 +343,9 @@
 					startTime: row.startTime,
 					endTime: row.endTime
 				}));
+				if (preferences.visibleNutrients) {
+					visibleNutrients = new Set(preferences.visibleNutrients);
+				}
 			}
 		} catch {
 			// Use defaults
@@ -578,7 +642,50 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 6. About Section -->
+	<!-- 6. Visible Nutrients Section -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_visible_nutrients()}</Card.Title>
+			<Card.Description>{m.settings_visible_nutrients_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			<div class="flex gap-2">
+				<Button variant="outline" size="sm" onclick={selectAllNutrients}>
+					{m.settings_select_all()}
+				</Button>
+				<Button variant="outline" size="sm" onclick={deselectAllNutrients}>
+					{m.settings_deselect_all()}
+				</Button>
+			</div>
+			{#each CATEGORY_ORDER as category}
+				{@const nutrients = NUTRIENTS_BY_CATEGORY[category]}
+				<div>
+					<p class="mb-2 text-sm font-medium">{categoryLabel(category)}</p>
+					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+						{#each nutrients as nutrient}
+							<div class="flex items-center gap-2">
+								<NutrientCheckbox
+									id={`nutrient-${nutrient.key}`}
+									checked={visibleNutrients.has(nutrient.key)}
+									onCheckedChange={() => toggleNutrient(nutrient.key)}
+								/>
+								<Label for={`nutrient-${nutrient.key}`} class="text-sm">
+									{nutrientLabel(nutrient)}
+								</Label>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/each}
+			<div class="flex justify-end">
+				<Button onclick={saveVisibleNutrients} disabled={savingNutrients}>
+					{savingNutrients ? m.goals_saving() : m.goals_save()}
+				</Button>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- 7. About Section -->
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>{m.settings_about()}</Card.Title>

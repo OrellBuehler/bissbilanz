@@ -41,6 +41,7 @@ import {
 	handleFindFoodByBarcode
 } from './handlers';
 import { today } from '$lib/utils/dates';
+import { ALL_NUTRIENTS } from '$lib/nutrients';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
@@ -95,11 +96,20 @@ export function createMcpServer(userId: string): McpServer {
 		safe(({ query }) => handleSearchFoods(userId, query))
 	);
 
+	// Build nutrient schema fields for MCP tools
+	const nutrientInputSchema: Record<string, z.ZodType> = {};
+	for (const n of ALL_NUTRIENTS) {
+		nutrientInputSchema[n.key] = z
+			.number()
+			.optional()
+			.describe(`${n.key} in ${n.unit} per serving`);
+	}
+
 	server.registerTool(
 		'create_food',
 		{
 			description:
-				"Create a new food item in the user's food database with nutritional information per serving.",
+				"Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
 			inputSchema: {
 				name: z.string().describe('Food name'),
 				brand: z.string().optional().describe('Brand name'),
@@ -110,7 +120,8 @@ export function createMcpServer(userId: string): McpServer {
 				carbs: z.number().describe('Carbohydrates in grams per serving'),
 				fat: z.number().describe('Fat in grams per serving'),
 				fiber: z.number().describe('Fiber in grams per serving'),
-				barcode: z.string().optional().describe('Barcode number')
+				barcode: z.string().optional().describe('Barcode number'),
+				...nutrientInputSchema
 			}
 		},
 		safe((args) => handleCreateFood(userId, args))
@@ -357,7 +368,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_food',
 		{
-			description: 'Update an existing food item in the database.',
+			description:
+				'Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).',
 			inputSchema: {
 				foodId: z.string().describe('The food ID to update'),
 				name: z.string().optional().describe('New name'),
@@ -369,7 +381,8 @@ export function createMcpServer(userId: string): McpServer {
 				fat: z.number().optional().describe('New fat in grams per serving'),
 				fiber: z.number().optional().describe('New fiber in grams per serving'),
 				brand: z.string().optional().describe('New brand name'),
-				barcode: z.string().optional().describe('New barcode number')
+				barcode: z.string().optional().describe('New barcode number'),
+				...nutrientInputSchema
 			}
 		},
 		safe(({ foodId, ...rest }) => handleUpdateFood(userId, { foodId, ...rest }))

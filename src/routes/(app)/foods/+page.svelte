@@ -15,8 +15,10 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
+	import { ALL_NUTRIENT_KEYS, DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
 	let foods: Array<any> = $state([]);
+	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
 	let showForm = $state(false);
 	let editingFood: any | null = $state(null);
@@ -193,8 +195,24 @@
 		}
 	}
 
+	// Load visible nutrients preference
+	async function loadVisibleNutrients() {
+		try {
+			const res = await apiFetch('/api/preferences');
+			if (res.ok) {
+				const { preferences } = await res.json();
+				if (preferences?.visibleNutrients?.length) {
+					visibleNutrients = preferences.visibleNutrients;
+				}
+			}
+		} catch {
+			// Use defaults
+		}
+	}
+
 	$effect(() => {
 		if (browser) {
+			loadVisibleNutrients();
 			const urlBarcode = $page.url.searchParams.get('barcode');
 			if (urlBarcode && !showForm) {
 				activeBarcode = urlBarcode;
@@ -214,6 +232,10 @@
 		}, 300);
 	});
 
+	/** Pick all nutrient keys from a source object */
+	const pickNutrients = (src: Record<string, unknown>) =>
+		Object.fromEntries(ALL_NUTRIENT_KEYS.map((k) => [k, src[k] ?? null]));
+
 	const formInitial = $derived(
 		editingFood
 			? {
@@ -229,10 +251,7 @@
 					barcode: editingFood.barcode ?? '',
 					isFavorite: editingFood.isFavorite,
 					nutriScore: editingFood.nutriScore,
-					sodium: editingFood.sodium,
-					sugar: editingFood.sugar,
-					saturatedFat: editingFood.saturatedFat,
-					cholesterol: editingFood.cholesterol
+					...pickNutrients(editingFood)
 				}
 			: offData
 				? {
@@ -245,13 +264,10 @@
 						carbs: offData.carbs,
 						fat: offData.fat,
 						fiber: offData.fiber,
-						sodium: offData.sodium,
-						sugar: offData.sugar,
-						saturatedFat: offData.saturatedFat,
-						cholesterol: offData.cholesterol,
 						nutriScore: offData.nutriScore,
 						barcode: activeBarcode,
-						isFavorite: false
+						isFavorite: false,
+						...pickNutrients(offData)
 					}
 				: { barcode: activeBarcode }
 	);
@@ -323,6 +339,7 @@
 				imageUrl={editingFood ? editImageUrl : undefined}
 				onImageUpload={editingFood ? handleImageUpload : undefined}
 				{uploading}
+				{visibleNutrients}
 			/>
 		{/key}
 	{/if}

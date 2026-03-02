@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 
 const timeStringSchema = z.string().regex(/^\d{2}:\d{2}$/);
 
@@ -37,6 +38,9 @@ export const preferencesUpdateSchema = z
 		favoriteTapAction: z.enum(['instant', 'picker']).optional(),
 		favoriteMealAssignmentMode: z.enum(['time_based', 'ask_meal']).optional(),
 		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).optional(),
+		visibleNutrients: z
+			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v)))
+			.optional(),
 		locale: z.enum(['en', 'de']).optional()
 	})
 	.strict();
