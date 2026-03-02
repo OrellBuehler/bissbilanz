@@ -188,6 +188,12 @@ export const foodEntries = pgTable(
 		mealType: text('meal_type').notNull(),
 		servings: real('servings').notNull(),
 		notes: text('notes'),
+		quickName: text('quick_name'),
+		quickCalories: real('quick_calories'),
+		quickProtein: real('quick_protein'),
+		quickCarbs: real('quick_carbs'),
+		quickFat: real('quick_fat'),
+		quickFiber: real('quick_fiber'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -198,8 +204,8 @@ export const foodEntries = pgTable(
 		index('idx_food_entries_created_at').on(table.createdAt),
 		check('food_entries_servings_positive', sql`${table.servings} > 0`),
 		check(
-			'food_entries_has_food_or_recipe',
-			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL`
+			'food_entries_has_source',
+			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL OR ${table.quickCalories} IS NOT NULL`
 		)
 	]
 );

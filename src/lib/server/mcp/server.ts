@@ -164,14 +164,20 @@ export function createMcpServer(userId: string): McpServer {
 		'log_food',
 		{
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId or recipeId. If no date is provided, the entry is logged for today.",
+				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today.",
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
 				mealType: z.string().describe('Meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				quickName: z.string().optional().describe('Label for quick log entry (e.g., "Restaurant lunch")'),
+				quickCalories: z.number().nonnegative().optional().describe('Calories for quick log (use instead of foodId/recipeId)'),
+				quickProtein: z.number().nonnegative().optional().describe('Protein in grams for quick log'),
+				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
+				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
+				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log')
 			}
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -216,7 +222,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_entry',
 		{
-			description: 'Update an existing food entry. Can change servings, meal type, or notes.',
+			description: 'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to update'),
 				servings: z.number().optional().describe('New number of servings'),
@@ -224,7 +230,13 @@ export function createMcpServer(userId: string): McpServer {
 					.string()
 					.optional()
 					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
-				notes: z.string().optional().describe('New notes')
+				notes: z.string().optional().describe('New notes'),
+				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
+				quickCalories: z.number().nonnegative().optional().nullable().describe('New calories for quick log'),
+				quickProtein: z.number().nonnegative().optional().nullable().describe('New protein for quick log'),
+				quickCarbs: z.number().nonnegative().optional().nullable().describe('New carbs for quick log'),
+				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
+				quickFiber: z.number().nonnegative().optional().nullable().describe('New fiber for quick log')
 			}
 		},
 		safe((args) => handleUpdateEntry(userId, args))

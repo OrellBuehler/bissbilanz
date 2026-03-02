@@ -22,6 +22,12 @@
 			createdAt?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
+			quickCalories?: number | null;
+			quickProtein?: number | null;
+			quickCarbs?: number | null;
+			quickFat?: number | null;
+			quickFiber?: number | null;
+			quickName?: string | null;
 		}>;
 		readonly?: boolean;
 		dashboardStyle?: boolean;
@@ -34,6 +40,12 @@
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
+			quickCalories?: number | null;
+			quickProtein?: number | null;
+			quickCarbs?: number | null;
+			quickFat?: number | null;
+			quickFiber?: number | null;
+			quickName?: string | null;
 		}) => void;
 		onDelete?: (id: string) => void;
 	};
@@ -76,7 +88,13 @@
 						foodName: entry.foodName ?? undefined,
 						servingSize: entry.servingSize,
 						servingUnit: entry.servingUnit,
-						calories: entry.calories
+						calories: entry.calories,
+						quickCalories: entry.quickCalories,
+						quickProtein: entry.quickProtein,
+						quickCarbs: entry.quickCarbs,
+						quickFat: entry.quickFat,
+						quickFiber: entry.quickFiber,
+						quickName: entry.quickName
 					})}
 				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
 					<div
