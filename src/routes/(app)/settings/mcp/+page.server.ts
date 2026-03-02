@@ -4,7 +4,9 @@ import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
 	getOrCreateOAuthClient,
 	regenerateClientSecret,
-	addAllowedRedirectUri
+	addAllowedRedirectUri,
+	listAuthorizedClients,
+	revokeAuthorization
 } from '$lib/server/oauth';
 import { getDB, oauthClients } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
@@ -18,11 +20,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		const serverUrl = config.app.url ? `${config.app.url}/api/mcp` : `${url.origin}/api/mcp`;
 
+		const authorizedClients = await listAuthorizedClients(userId);
+
 		return {
 			clientId: client.clientId,
 			clientSecret: secret,
 			serverUrl,
-			allowedRedirectUris: client.allowedRedirectUris
+			allowedRedirectUris: client.allowedRedirectUris,
+			authorizedClients
 		};
 	} catch (error) {
 		console.error('Failed to load MCP settings:', error);
@@ -111,6 +116,33 @@ export const actions = {
 		} catch (error) {
 			console.error('Failed to add redirect URI:', error);
 			return fail(500, { error: 'Failed to add redirect URI' });
+		}
+	},
+
+	revokeClient: async ({ request }) => {
+		const sessionId = parseSessionCookie(request.headers.get('cookie'));
+		if (!sessionId) {
+			return fail(401, { error: 'Not authenticated' });
+		}
+
+		const sessionData = await getSessionWithUser(sessionId);
+		if (!sessionData) {
+			return fail(401, { error: 'Invalid session' });
+		}
+
+		const formData = await request.formData();
+		const clientId = formData.get('clientId')?.toString();
+
+		if (!clientId) {
+			return fail(400, { error: 'Client ID is required' });
+		}
+
+		try {
+			await revokeAuthorization(sessionData.user.id, clientId);
+			return { success: true, action: 'revokeClient' };
+		} catch (error) {
+			console.error('Failed to revoke client:', error);
+			return fail(500, { error: 'Failed to revoke client' });
 		}
 	},
 

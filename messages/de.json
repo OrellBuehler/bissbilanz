@@ -437,6 +437,14 @@
 	"settings_tab_general": "Allgemein",
 	"settings_tab_mcp": "MCP",
 
+	"mcp_connected_apps": "Verbundene Anwendungen",
+	"mcp_connected_apps_desc": "Anwendungen, die über MCP auf dein Konto zugreifen dürfen",
+	"mcp_no_connected_apps": "Keine Anwendungen sind derzeit verbunden.",
+	"mcp_revoke": "Widerrufen",
+	"mcp_client_name_fallback": "Unbekannte Anwendung",
+	"mcp_approved_at": "Genehmigt am {date}",
+	"mcp_revoke_confirm": "Zugriff für diese Anwendung widerrufen? Sie muss erneut autorisiert werden.",
+
 	"streaks_title": "Serie",
 	"streaks_days": "{count} Tage",
 	"streaks_day": "1 Tag",

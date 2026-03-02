@@ -7,6 +7,7 @@ import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations } from '$lib/server/db';
+import { config } from '$lib/server/env';
 import { env } from '$env/dynamic/public';
 
 if (env.PUBLIC_SENTRY_DSN) {
@@ -75,8 +76,21 @@ const CORS_HEADERS = {
 	'Access-Control-Expose-Headers': 'Mcp-Session-Id'
 } as const;
 
+function isMcpRoute(pathname: string): boolean {
+	return (
+		pathname.startsWith('/api/mcp') ||
+		pathname.startsWith('/api/oauth/') ||
+		pathname.startsWith('/.well-known/oauth-authorization-server')
+	);
+}
+
 const sessionHandle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
+
+	if (!config.mcp.enabled && isMcpRoute(pathname)) {
+		return new Response('Not Found', { status: 404 });
+	}
+
 	const isCrossOrigin = isCrossOriginEndpoint(pathname);
 
 	// Handle CORS preflight for MCP-related endpoints

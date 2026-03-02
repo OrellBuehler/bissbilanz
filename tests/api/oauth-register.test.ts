@@ -10,6 +10,10 @@ vi.mock('$lib/server/db', () => ({
 	oauthClients: {}
 }));
 
+vi.mock('$lib/server/rate-limit', () => ({
+	rateLimitRegistration: () => {}
+}));
+
 vi.mock('$lib/server/oauth', () => ({
 	...allOAuthExports,
 	generateClientId: () => 'generated-client-id',

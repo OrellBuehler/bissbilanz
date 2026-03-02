@@ -437,6 +437,14 @@
 	"settings_tab_general": "General",
 	"settings_tab_mcp": "MCP",
 
+	"mcp_connected_apps": "Connected Applications",
+	"mcp_connected_apps_desc": "Applications that have been authorized to access your account via MCP",
+	"mcp_no_connected_apps": "No applications are currently connected.",
+	"mcp_revoke": "Revoke",
+	"mcp_client_name_fallback": "Unknown Application",
+	"mcp_approved_at": "Approved {date}",
+	"mcp_revoke_confirm": "Revoke access for this application? It will need to be re-authorized.",
+
 	"streaks_title": "Streak",
 	"streaks_days": "{count} days",
 	"streaks_day": "1 day",

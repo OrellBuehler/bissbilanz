@@ -89,7 +89,14 @@ async function authenticateRequest(
 	}
 
 	const token = authHeader.slice(7);
-	return (await validateAccessToken(token)) ?? null;
+	const result = await validateAccessToken(token);
+	if (!result) return null;
+
+	if (!result.scopes.includes(REQUIRED_SCOPE)) {
+		return null;
+	}
+
+	return { userId: result.userId, clientId: result.clientId };
 }
 
 async function createSessionTransport(

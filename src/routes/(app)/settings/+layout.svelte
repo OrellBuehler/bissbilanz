@@ -4,15 +4,18 @@
 	import Plug from '@lucide/svelte/icons/plug';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
+	import type { LayoutData } from './$types';
 
-	let { children } = $props();
+	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
-	const tabs = [
+	const allTabs = [
 		{ href: '/settings', label: () => m.settings_tab_general(), icon: Settings, exact: true },
 		{ href: '/settings/mcp', label: () => m.settings_tab_mcp(), icon: Plug, exact: false }
 	];
 
-	const isActive = (tab: (typeof tabs)[number]) =>
+	const tabs = $derived(allTabs.filter((tab) => tab.href !== '/settings/mcp' || data.mcpEnabled));
+
+	const isActive = (tab: (typeof allTabs)[number]) =>
 		tab.exact ? $page.url.pathname === tab.href : $page.url.pathname.startsWith(tab.href);
 </script>
 
