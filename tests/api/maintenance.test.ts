@@ -1,8 +1,9 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
 
-mock.module('$lib/paraglide/messages', () => new Proxy({}, { get: () => () => '' }));
+vi.mock('$lib/paraglide/messages', () => ({ default: {} }));
+vi.mock('@sentry/sveltekit', () => ({ captureException: vi.fn() }));
 
 const mockWeights = [
 	{ entryDate: '2026-02-01', weightKg: 80.0 },
@@ -15,7 +16,7 @@ const mockEntries = [
 	{ date: '2026-02-03', calories: 2100, protein: 110, carbs: 210, fat: 85, fiber: 28, servings: 1 }
 ];
 
-mock.module('$lib/server/entries', () => ({
+vi.mock('$lib/server/entries', () => ({
 	listEntriesByDateRange: async () => mockEntries,
 	listEntriesByDate: async () => [],
 	createEntry: async () => ({ success: false, error: new Error('not implemented') }),
@@ -25,8 +26,8 @@ mock.module('$lib/server/entries', () => ({
 	toEntryUpdate: () => ({})
 }));
 
-mock.module('$lib/server/db', () => {
-	const schema = require('$lib/server/schema');
+vi.mock('$lib/server/db', async () => {
+	const schema = await vi.importActual<typeof import('$lib/server/schema')>('$lib/server/schema');
 	return {
 		getDB: () => ({
 			select: () => ({

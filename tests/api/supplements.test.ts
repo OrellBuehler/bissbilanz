@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import {
@@ -18,7 +18,7 @@ const mockValidationError = new ZodError([
 	{ code: 'invalid_type', expected: 'string', path: ['name'], message: 'Required' } as any
 ]);
 
-mock.module('$lib/server/supplements', () => ({
+vi.mock('$lib/server/supplements', () => ({
 	listSupplements: async () => mockListResult,
 	createSupplement: async () =>
 		mockCreateResult
@@ -41,13 +41,13 @@ mock.module('$lib/server/supplements', () => ({
 	getLogsForRange: async () => []
 }));
 
-mock.module('$lib/utils/supplements', () => ({
+vi.mock('$lib/utils/supplements', () => ({
 	isSupplementDue: () => true,
 	formatSchedule: () => ''
 }));
 
-mock.module('$lib/utils/dates', () => {
-	const real = require('$lib/utils/dates');
+vi.mock('$lib/utils/dates', async () => {
+	const real = await vi.importActual<typeof import('$lib/utils/dates')>('$lib/utils/dates');
 	return {
 		...real,
 		today: () => '2026-02-27'
@@ -55,7 +55,7 @@ mock.module('$lib/utils/dates', () => {
 });
 
 import { allValidationSchemas } from '../helpers/mock-validation';
-mock.module('$lib/server/validation', () => ({
+vi.mock('$lib/server/validation', () => ({
 	...allValidationSchemas,
 	supplementLogSchema: {
 		safeParse: (data: any) => ({ success: true, data: data ?? {} })

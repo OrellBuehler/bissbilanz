@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach } from 'vitest';
 import { db } from '../../src/lib/db/index';
 import { cacheApiResponse } from '../../src/lib/db/cache';
 

@@ -148,6 +148,20 @@
       "when": 1772236800000,
       "tag": "0020_drop_foods_barcode_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1772475828149,
+      "tag": "0021_bumpy_ghost_rider",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1772495433595,
+      "tag": "0022_harsh_mariko_yashida",
+      "breakpoints": true
     }
   ]
 }

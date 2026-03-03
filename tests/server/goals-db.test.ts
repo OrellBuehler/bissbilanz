@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_GOALS, VALID_GOALS_PAYLOAD } from '../helpers/fixtures';
 
@@ -9,7 +9,7 @@ const { db, setResult, reset } = createMockDB();
 const schema = await import('$lib/server/schema');
 
 // Mock modules
-mock.module('$lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));

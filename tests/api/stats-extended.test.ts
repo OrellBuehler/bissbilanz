@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_GOALS } from '../helpers/fixtures';
 
@@ -9,7 +9,7 @@ let mockTopFoodsResult: any = null;
 let mockStreaksResult: any = null;
 let mockGoalsResult: any = null;
 
-mock.module('$lib/server/stats', () => ({
+vi.mock('$lib/server/stats', () => ({
 	getCalendarStats: async () => mockCalendarResult,
 	getDailyBreakdown: async () => mockDailyBreakdownResult,
 	getMealBreakdown: async () => mockMealBreakdownResult,
@@ -19,7 +19,7 @@ mock.module('$lib/server/stats', () => ({
 	getMonthlyStats: async () => null
 }));
 
-mock.module('$lib/server/goals', () => ({
+vi.mock('$lib/server/goals', () => ({
 	getGoals: async () => mockGoalsResult,
 	upsertGoals: async () => ({ success: false, error: new Error('not implemented') }),
 	toGoalsUpsert: () => ({})

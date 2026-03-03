@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, mock } from 'bun:test';
+import { describe, expect, test, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
 
@@ -13,7 +13,7 @@ const mockStats = {
 let mockWeeklyResult: any = null;
 let mockMonthlyResult: any = null;
 
-mock.module('$lib/server/stats', () => ({
+vi.mock('$lib/server/stats', () => ({
 	getWeeklyStats: async () => mockWeeklyResult,
 	getMonthlyStats: async () => mockMonthlyResult,
 	getCalendarStats: async () => null,

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { filterFoods } from '../../src/lib/components/foods/foodFilters';
 
 describe('filterFoods', () => {

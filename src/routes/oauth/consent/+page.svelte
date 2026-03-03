@@ -57,7 +57,8 @@
 					<div class="pt-4 border-t">
 						<p class="text-xs text-slate-500">
 							By approving, you allow this application to access your Bissbilanz data on your
-							behalf. You can revoke access at any time from your account settings.
+							behalf. You can revoke access at any time from your
+							<a href="/settings/mcp" class="underline hover:text-slate-700">MCP settings</a>.
 						</p>
 					</div>
 				</div>

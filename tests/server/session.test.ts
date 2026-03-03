@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { decryptToken, encryptToken } from '../../src/lib/server/token-crypto';
 
 describe('token crypto', () => {

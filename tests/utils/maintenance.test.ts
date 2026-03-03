@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import {
 	calculateMaintenance,
 	KCAL_PER_KG_FAT,

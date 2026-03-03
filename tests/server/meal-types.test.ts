@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { toMealTypeInsert } from '../../src/lib/server/meal-types';
 
 describe('toMealTypeInsert', () => {

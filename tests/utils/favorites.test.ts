@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { onlyFavorites } from '../../src/lib/utils/favorites';
 
 describe('onlyFavorites', () => {

@@ -1,25 +1,24 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-03-03
 
 ## Test Framework
 
 **Runner:**
 
-- Bun built-in test runner (`bun:test`)
-- Config: None (uses defaults)
-- Supports TypeScript natively with no transpilation step
+- Vitest (`vitest`)
+- Config: `vitest.config.ts`
+- Runs via Bun runtime: `bun --bun vitest run`
 
 **Assertion Library:**
 
-- Bun's built-in `expect` (Jest-compatible assertions)
+- Vitest's built-in `expect` (Jest-compatible assertions)
 
 **Run Commands:**
 
 ```bash
-bun test                    # Run all tests
-bun test tests/server/*     # Run tests in specific directory
-bun test tests/api/*.test.ts # Run specific test file
+bun run test                # Run all tests
+bun run test:watch          # Watch mode
 ```
 
 **Coverage:**
@@ -74,7 +73,7 @@ tests/
 **Suite Organization:**
 
 ```typescript
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_SESSION } from '../helpers/fixtures';
 
@@ -82,7 +81,7 @@ import { TEST_USER, TEST_SESSION } from '../helpers/fixtures';
 const { db, setResult, reset } = createMockDB();
 
 // Mock dependencies FIRST (before importing the module under test)
-mock.module('$lib/server/env', () => ({
+vi.mock('$lib/server/env', () => ({
 	config: {
 		/* mock config */
 	}
@@ -127,7 +126,7 @@ describe('session-db', () => {
 
 ## Mocking
 
-**Framework:** Bun's `mock` API (`mock.module()`)
+**Framework:** Vitest's `vi.mock()` API
 
 **Drizzle DB Mock** (`tests/helpers/mock-db.ts`):
 
@@ -148,7 +147,7 @@ getCalls(); // Get call history for verification
 const { db, setResult, reset } = createMockDB();
 
 // Mock BEFORE importing the module that uses it
-mock.module('$lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
@@ -166,7 +165,7 @@ expect(result.userId).toBe(userId);
 
 ```typescript
 // Mock server functions
-mock.module('$lib/server/meal-types', () => ({
+vi.mock('$lib/server/meal-types', () => ({
 	listMealTypes: async (userId: string) => mockListResult,
 	createMealType: async (userId: string, payload: unknown) =>
 		mockCreateResult
@@ -413,36 +412,20 @@ test('prevents users from accessing other users data', async () => {
 });
 ```
 
-## Known Issues
-
-**Bun Test Runner Cleanup:**
-
-- "Unhandled error between tests" message for `session-db.test.ts` and `oauth-db.test.ts`
-- Cause: Module mock persistence across test files
-- Impact: None - all tests pass when run individually
-- Workaround: Tests work correctly despite the warning
-- Command: `bun test tests/server/session-db.test.ts` runs cleanly
-
-**No Impact on:**
-
-- Test functionality
-- CI/CD pipelines
-- Code correctness
-
 ## API Route Testing Checklist
 
 When writing tests for new API routes, verify:
 
-- ✅ Successful operation returns correct status (200/201) and data
-- ✅ Missing authentication returns 401 with "Unauthorized" error
-- ✅ Invalid input validation returns 400 with Zod error details
-- ✅ Not found scenarios return 404 with resource name
-- ✅ Cross-user access prevention (return 404, not leak existence)
-- ✅ Error handling (catch block returns 500)
-- ✅ Proper HTTP methods (GET, POST, PATCH, DELETE)
-- ✅ Request body parsing and validation
-- ✅ Query parameter parsing (with mock `url` option)
-- ✅ URL parameters from `params` object
+- Successful operation returns correct status (200/201) and data
+- Missing authentication returns 401 with "Unauthorized" error
+- Invalid input validation returns 400 with Zod error details
+- Not found scenarios return 404 with resource name
+- Cross-user access prevention (return 404, not leak existence)
+- Error handling (catch block returns 500)
+- Proper HTTP methods (GET, POST, PATCH, DELETE)
+- Request body parsing and validation
+- Query parameter parsing (with mock `url` option)
+- URL parameters from `params` object
 
 ## Multi-Table Operations
 
@@ -474,4 +457,4 @@ test('creates recipe with ingredients', async () => {
 
 ---
 
-_Testing analysis: 2026-02-17_
+_Testing analysis: 2026-03-03_

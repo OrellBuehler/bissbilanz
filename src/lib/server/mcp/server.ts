@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { servingUnitValues } from '$lib/units';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -41,6 +42,7 @@ import {
 	handleFindFoodByBarcode
 } from './handlers';
 import { today } from '$lib/utils/dates';
+import { ALL_NUTRIENTS } from '$lib/nutrients';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
@@ -95,22 +97,40 @@ export function createMcpServer(userId: string): McpServer {
 		safe(({ query }) => handleSearchFoods(userId, query))
 	);
 
+	// Build nutrient schema fields for MCP tools
+	const nutrientInputSchema: Record<string, z.ZodType> = {};
+	for (const n of ALL_NUTRIENTS) {
+		nutrientInputSchema[n.key] = z
+			.number()
+			.nonnegative()
+			.nullable()
+			.optional()
+			.describe(`${n.key} in ${n.unit} per serving`);
+	}
+
 	server.registerTool(
 		'create_food',
 		{
 			description:
-				"Create a new food item in the user's food database with nutritional information per serving.",
+				"Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
 			inputSchema: {
 				name: z.string().describe('Food name'),
 				brand: z.string().optional().describe('Brand name'),
 				servingSize: z.number().describe('Serving size amount'),
-				servingUnit: z.string().describe('Serving unit (e.g., "g", "ml", "piece")'),
-				calories: z.number().describe('Calories per serving'),
-				protein: z.number().describe('Protein in grams per serving'),
-				carbs: z.number().describe('Carbohydrates in grams per serving'),
-				fat: z.number().describe('Fat in grams per serving'),
-				fiber: z.number().describe('Fiber in grams per serving'),
-				barcode: z.string().optional().describe('Barcode number')
+				servingUnit: z.enum(servingUnitValues).describe('Serving unit (e.g., "g", "ml", "oz")'),
+				calories: z.number().nonnegative().describe('Calories per serving'),
+				protein: z.number().nonnegative().describe('Protein in grams per serving'),
+				carbs: z.number().nonnegative().describe('Carbohydrates in grams per serving'),
+				fat: z.number().nonnegative().describe('Fat in grams per serving'),
+				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
+				barcode: z.string().optional().describe('Barcode number'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
+				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
+				...nutrientInputSchema
 			}
 		},
 		safe((args) => handleCreateFood(userId, args))
@@ -129,10 +149,12 @@ export function createMcpServer(userId: string): McpServer {
 						z.object({
 							foodId: z.string().describe('Food ID from the database'),
 							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.string().describe('Unit for the quantity')
+							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
 						})
 					)
-					.describe('List of ingredients')
+					.describe('List of ingredients'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -142,14 +164,20 @@ export function createMcpServer(userId: string): McpServer {
 		'log_food',
 		{
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId or recipeId. If no date is provided, the entry is logged for today.",
+				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today.",
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
 				mealType: z.string().describe('Meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				quickName: z.string().optional().describe('Label for quick log entry (e.g., "Restaurant lunch")'),
+				quickCalories: z.number().nonnegative().optional().describe('Calories for quick log (use instead of foodId/recipeId)'),
+				quickProtein: z.number().nonnegative().optional().describe('Protein in grams for quick log'),
+				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
+				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
+				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log')
 			}
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -194,7 +222,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_entry',
 		{
-			description: 'Update an existing food entry. Can change servings, meal type, or notes.',
+			description: 'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to update'),
 				servings: z.number().optional().describe('New number of servings'),
@@ -202,7 +230,13 @@ export function createMcpServer(userId: string): McpServer {
 					.string()
 					.optional()
 					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
-				notes: z.string().optional().describe('New notes')
+				notes: z.string().optional().describe('New notes'),
+				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
+				quickCalories: z.number().nonnegative().optional().nullable().describe('New calories for quick log'),
+				quickProtein: z.number().nonnegative().optional().nullable().describe('New protein for quick log'),
+				quickCarbs: z.number().nonnegative().optional().nullable().describe('New carbs for quick log'),
+				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
+				quickFiber: z.number().nonnegative().optional().nullable().describe('New fiber for quick log')
 			}
 		},
 		safe((args) => handleUpdateEntry(userId, args))
@@ -234,11 +268,13 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Set or update daily nutrition goals.',
 			inputSchema: {
-				calorieGoal: z.number().describe('Daily calorie goal'),
-				proteinGoal: z.number().describe('Daily protein goal in grams'),
-				carbGoal: z.number().describe('Daily carbohydrate goal in grams'),
-				fatGoal: z.number().describe('Daily fat goal in grams'),
-				fiberGoal: z.number().describe('Daily fiber goal in grams')
+				calorieGoal: z.number().positive().describe('Daily calorie goal'),
+				proteinGoal: z.number().nonnegative().describe('Daily protein goal in grams'),
+				carbGoal: z.number().nonnegative().describe('Daily carbohydrate goal in grams'),
+				fatGoal: z.number().nonnegative().describe('Daily fat goal in grams'),
+				fiberGoal: z.number().nonnegative().describe('Daily fiber goal in grams'),
+				sodiumGoal: z.number().nonnegative().nullable().optional().describe('Daily sodium goal in mg'),
+				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
 			}
 		},
 		safe((args) => handleUpdateGoals(userId, args))
@@ -357,19 +393,27 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_food',
 		{
-			description: 'Update an existing food item in the database.',
+			description:
+				'Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).',
 			inputSchema: {
 				foodId: z.string().describe('The food ID to update'),
 				name: z.string().optional().describe('New name'),
 				servingSize: z.number().optional().describe('New serving size'),
-				servingUnit: z.string().optional().describe('New serving unit'),
-				calories: z.number().optional().describe('New calories per serving'),
-				protein: z.number().optional().describe('New protein in grams per serving'),
-				carbs: z.number().optional().describe('New carbs in grams per serving'),
-				fat: z.number().optional().describe('New fat in grams per serving'),
-				fiber: z.number().optional().describe('New fiber in grams per serving'),
+				servingUnit: z.enum(servingUnitValues).optional().describe('New serving unit'),
+				calories: z.number().nonnegative().optional().describe('New calories per serving'),
+				protein: z.number().nonnegative().optional().describe('New protein in grams per serving'),
+				carbs: z.number().nonnegative().optional().describe('New carbs in grams per serving'),
+				fat: z.number().nonnegative().optional().describe('New fat in grams per serving'),
+				fiber: z.number().nonnegative().optional().describe('New fiber in grams per serving'),
 				brand: z.string().optional().describe('New brand name'),
-				barcode: z.string().optional().describe('New barcode number')
+				barcode: z.string().optional().describe('New barcode number'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
+				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
+				...nutrientInputSchema
 			}
 		},
 		safe(({ foodId, ...rest }) => handleUpdateFood(userId, { foodId, ...rest }))
@@ -413,11 +457,13 @@ export function createMcpServer(userId: string): McpServer {
 						z.object({
 							foodId: z.string().describe('Food ID from the database'),
 							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.string().describe('Unit for the quantity')
+							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
 						})
 					)
 					.optional()
-					.describe('New list of ingredients (replaces all existing)')
+					.describe('New list of ingredients (replaces all existing)'),
+				isFavorite: z.boolean().optional().describe('Mark as favorite'),
+				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))

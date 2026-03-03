@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { servingUnitValues } from '$lib/units';
+import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+
+const optNutrient = z.coerce.number().nonnegative().optional().nullable();
+
+/** Build the nutrient fields object from the catalog */
+const nutrientFields = Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, optNutrient]));
 
 export const foodCreateSchema = z.object({
 	name: z.string().min(1),
@@ -11,15 +17,8 @@ export const foodCreateSchema = z.object({
 	carbs: z.coerce.number().nonnegative(),
 	fat: z.coerce.number().nonnegative(),
 	fiber: z.coerce.number().nonnegative(),
-	// Advanced nutrients (optional)
-	sodium: z.coerce.number().nonnegative().optional().nullable(),
-	sugar: z.coerce.number().nonnegative().optional().nullable(),
-	saturatedFat: z.coerce.number().nonnegative().optional().nullable(),
-	cholesterol: z.coerce.number().nonnegative().optional().nullable(),
-	vitaminA: z.coerce.number().nonnegative().optional().nullable(),
-	vitaminC: z.coerce.number().nonnegative().optional().nullable(),
-	calcium: z.coerce.number().nonnegative().optional().nullable(),
-	iron: z.coerce.number().nonnegative().optional().nullable(),
+	// All extended nutrients (derived from catalog)
+	...nutrientFields,
 	barcode: z.string().optional().nullable(),
 	isFavorite: z.coerce.boolean().optional(),
 	// Open Food Facts quality data

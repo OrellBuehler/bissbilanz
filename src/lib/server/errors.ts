@@ -62,6 +62,18 @@ export function handleApiError(error: unknown): Response {
 		);
 	}
 
+	const cause = error instanceof Error && 'cause' in error ? (error as any).cause : error;
+	if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'ERR_POSTGRES_SERVER_ERROR') {
+		const pg = cause as any;
+		if (pg.errno === '23505') {
+			const constraint = pg.constraint ?? '';
+			if (constraint.includes('barcode')) {
+				return json({ error: 'duplicate_barcode' }, { status: 409 });
+			}
+			return json({ error: 'duplicate_entry' }, { status: 409 });
+		}
+	}
+
 	Sentry.captureException(error);
 	Sentry.logger.error('Unhandled API error', {
 		error: error instanceof Error ? error.message : String(error)

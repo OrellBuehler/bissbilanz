@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { assertClaims } from '../../src/lib/server/oidc-jwt';
 
 describe('assertClaims', () => {

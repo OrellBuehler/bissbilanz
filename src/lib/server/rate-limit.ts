@@ -16,6 +16,10 @@ export const rateLimitUpload = (userId: string, max = 30, windowMs = 60_000) => 
 	rateLimit(`upload:${userId}`, max, windowMs);
 };
 
+export const rateLimitRegistration = (ip: string, max = 5, windowMs = 3_600_000) => {
+	rateLimit(`register:${ip}`, max, windowMs);
+};
+
 export const rateLimit = (key: string, max: number, windowMs: number) => {
 	// Periodic cleanup every 100 calls
 	if (++callsSinceCleanup >= 100) {

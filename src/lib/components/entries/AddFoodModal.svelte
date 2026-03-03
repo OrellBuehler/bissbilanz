@@ -8,6 +8,9 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import { apiFetch } from '$lib/utils/api';
 	import * as m from '$lib/paraglide/messages';
 
@@ -48,6 +51,12 @@
 			recipeId?: string;
 			mealType: string;
 			servings: number;
+			quickName?: string;
+			quickCalories?: number;
+			quickProtein?: number;
+			quickCarbs?: number;
+			quickFat?: number;
+			quickFiber?: number;
 		}) => void;
 	};
 
@@ -62,8 +71,16 @@
 
 	let query = $state('');
 	let servings = $state(1);
-	let tab: 'search' | 'favorites' | 'recent' | 'recipes' = $state('search');
+	let tab: 'search' | 'favorites' | 'recent' | 'recipes' | 'quick' = $state('search');
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
+
+	let quickName = $state('');
+	let quickCalories = $state('');
+	let quickProtein = $state('');
+	let quickCarbs = $state('');
+	let quickFat = $state('');
+	let quickFiber = $state('');
+	let quickMacrosOpen = $state(false);
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
@@ -154,6 +171,27 @@
 		selectedFood = null;
 	};
 
+	const confirmQuickLog = () => {
+		const cal = Number(quickCalories);
+		if (!cal || cal < 0) return;
+		onSave({
+			mealType,
+			servings: 1,
+			quickName: quickName.trim() || undefined,
+			quickCalories: cal,
+			quickProtein: quickProtein ? Number(quickProtein) : undefined,
+			quickCarbs: quickCarbs ? Number(quickCarbs) : undefined,
+			quickFat: quickFat ? Number(quickFat) : undefined,
+			quickFiber: quickFiber ? Number(quickFiber) : undefined
+		});
+		quickName = '';
+		quickCalories = '';
+		quickProtein = '';
+		quickCarbs = '';
+		quickFat = '';
+		quickFiber = '';
+	};
+
 	const goBack = () => {
 		selectedFood = null;
 	};
@@ -237,7 +275,7 @@
 			</div>
 		{:else}
 			<Tabs.Root value={tab} onValueChange={handleTabChange}>
-				<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:h-9 sm:grid-cols-4">
+				<Tabs.List class="grid h-auto w-full grid-cols-3 gap-1 sm:h-9 sm:grid-cols-5">
 					<Tabs.Trigger value="search" class="text-xs sm:text-sm"
 						>{m.add_food_tab_search()}</Tabs.Trigger
 					>
@@ -249,6 +287,9 @@
 					>
 					<Tabs.Trigger value="recipes" class="text-xs sm:text-sm"
 						>{m.add_food_tab_recipes()}</Tabs.Trigger
+					>
+					<Tabs.Trigger value="quick" class="text-xs sm:text-sm"
+						>{m.add_food_tab_quick()}</Tabs.Trigger
 					>
 				</Tabs.List>
 
@@ -353,6 +394,67 @@
 							<li class="text-muted-foreground">{m.add_food_no_recipes()}</li>
 						{/each}
 					</ul>
+				</Tabs.Content>
+
+				<Tabs.Content value="quick" class="space-y-4">
+					<div class="grid gap-3">
+						<Input placeholder={m.quick_log_name_placeholder()} bind:value={quickName} />
+						<div class="grid gap-1.5">
+							<Label>{m.quick_log_calories()}</Label>
+							<Input type="number" inputmode="decimal" min="0" bind:value={quickCalories} />
+						</div>
+						<button
+							type="button"
+							class="flex items-center gap-1 text-sm text-muted-foreground"
+							onclick={() => (quickMacrosOpen = !quickMacrosOpen)}
+						>
+							{#if quickMacrosOpen}
+								<ChevronUp class="size-4" />
+							{:else}
+								<ChevronDown class="size-4" />
+							{/if}
+							{m.quick_log_macros()}
+						</button>
+						{#if quickMacrosOpen}
+							<div class="grid grid-cols-2 gap-3">
+								<div class="grid gap-1.5">
+									<Label class="text-xs">{m.quick_log_protein()}</Label>
+									<Input
+										type="number"
+										inputmode="decimal"
+										min="0"
+										bind:value={quickProtein}
+									/>
+								</div>
+								<div class="grid gap-1.5">
+									<Label class="text-xs">{m.quick_log_carbs()}</Label>
+									<Input
+										type="number"
+										inputmode="decimal"
+										min="0"
+										bind:value={quickCarbs}
+									/>
+								</div>
+								<div class="grid gap-1.5">
+									<Label class="text-xs">{m.quick_log_fat()}</Label>
+									<Input type="number" inputmode="decimal" min="0" bind:value={quickFat} />
+								</div>
+								<div class="grid gap-1.5">
+									<Label class="text-xs">{m.quick_log_fiber()}</Label>
+									<Input
+										type="number"
+										inputmode="decimal"
+										min="0"
+										bind:value={quickFiber}
+									/>
+								</div>
+							</div>
+						{/if}
+						<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={confirmQuickLog}>
+							<Check class="mr-1 size-4" />
+							{m.quick_log_add()}
+						</Button>
+					</div>
 				</Tabs.Content>
 			</Tabs.Root>
 		{/if}

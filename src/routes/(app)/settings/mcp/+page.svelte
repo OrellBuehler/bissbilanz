@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as m from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -213,6 +214,58 @@
 						For Claude.ai, add your callback URL (e.g., https://claude.ai/oauth/callback).
 					</p>
 				</div>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Connected Applications Card -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.mcp_connected_apps()}</Card.Title>
+			<Card.Description>{m.mcp_connected_apps_desc()}</Card.Description>
+		</Card.Header>
+
+		<Card.Content>
+			{#if data.authorizedClients && data.authorizedClients.length > 0}
+				<ul class="space-y-2">
+					{#each data.authorizedClients as client}
+						<li class="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2">
+							<div class="flex-1 min-w-0">
+								<p class="text-sm font-medium truncate">
+									{client.clientName ?? m.mcp_client_name_fallback()}
+								</p>
+								{#if client.approvedAt}
+									<p class="text-xs text-muted-foreground">
+										{m.mcp_approved_at({
+											date: new Date(client.approvedAt).toLocaleDateString()
+										})}
+									</p>
+								{/if}
+							</div>
+							<form
+								method="POST"
+								action="?/revokeClient"
+								use:enhance
+								class="ml-2"
+								onsubmit={(e) => {
+									if (!confirm(m.mcp_revoke_confirm())) e.preventDefault();
+								}}
+							>
+								<input type="hidden" name="clientId" value={client.clientId} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="sm"
+									class="text-red-600 hover:text-red-700 hover:bg-red-50"
+								>
+									{m.mcp_revoke()}
+								</Button>
+							</form>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="text-sm text-muted-foreground">{m.mcp_no_connected_apps()}</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>

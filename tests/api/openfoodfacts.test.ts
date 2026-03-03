@@ -1,14 +1,14 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
 
 let mockFetchProductResult: any = null;
 
-mock.module('$lib/server/openfoodfacts', () => ({
+vi.mock('$lib/server/openfoodfacts', () => ({
 	fetchProduct: async () => mockFetchProductResult
 }));
 
-mock.module('$lib/server/rate-limit', () => ({
+vi.mock('$lib/server/rate-limit', () => ({
 	rateLimit: () => {}
 }));
 

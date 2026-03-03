@@ -72,15 +72,54 @@ export const foods = pgTable(
 		carbs: real('carbs').notNull(),
 		fat: real('fat').notNull(),
 		fiber: real('fiber').notNull(),
-		// Advanced nutrients (optional)
-		sodium: real('sodium'),
-		sugar: real('sugar'),
+		// Advanced nutrients — fat breakdown
 		saturatedFat: real('saturated_fat'),
+		monounsaturatedFat: real('monounsaturated_fat'),
+		polyunsaturatedFat: real('polyunsaturated_fat'),
+		transFat: real('trans_fat'),
 		cholesterol: real('cholesterol'),
-		vitaminA: real('vitamin_a'),
-		vitaminC: real('vitamin_c'),
+		omega3: real('omega3'),
+		omega6: real('omega6'),
+		// Sugar & carb details
+		sugar: real('sugar'),
+		addedSugars: real('added_sugars'),
+		sugarAlcohols: real('sugar_alcohols'),
+		starch: real('starch'),
+		// Minerals
+		sodium: real('sodium'),
+		potassium: real('potassium'),
 		calcium: real('calcium'),
 		iron: real('iron'),
+		magnesium: real('magnesium'),
+		phosphorus: real('phosphorus'),
+		zinc: real('zinc'),
+		copper: real('copper'),
+		manganese: real('manganese'),
+		selenium: real('selenium'),
+		iodine: real('iodine'),
+		fluoride: real('fluoride'),
+		chromium: real('chromium'),
+		molybdenum: real('molybdenum'),
+		chloride: real('chloride'),
+		// Vitamins
+		vitaminA: real('vitamin_a'),
+		vitaminC: real('vitamin_c'),
+		vitaminD: real('vitamin_d'),
+		vitaminE: real('vitamin_e'),
+		vitaminK: real('vitamin_k'),
+		vitaminB1: real('vitamin_b1'),
+		vitaminB2: real('vitamin_b2'),
+		vitaminB3: real('vitamin_b3'),
+		vitaminB5: real('vitamin_b5'),
+		vitaminB6: real('vitamin_b6'),
+		vitaminB7: real('vitamin_b7'),
+		vitaminB9: real('vitamin_b9'),
+		vitaminB12: real('vitamin_b12'),
+		// Other
+		caffeine: real('caffeine'),
+		alcohol: real('alcohol'),
+		water: real('water'),
+		salt: real('salt'),
 		barcode: text('barcode'),
 		isFavorite: boolean('is_favorite').notNull().default(false),
 		// Open Food Facts quality data
@@ -105,8 +144,24 @@ export const foods = pgTable(
 			sql`${table.calories} >= 0 AND ${table.protein} >= 0 AND ${table.carbs} >= 0 AND ${table.fat} >= 0 AND ${table.fiber} >= 0`
 		),
 		check(
-			'foods_optional_nutrition_nonnegative',
-			sql`(${table.sodium} IS NULL OR ${table.sodium} >= 0) AND (${table.sugar} IS NULL OR ${table.sugar} >= 0) AND (${table.saturatedFat} IS NULL OR ${table.saturatedFat} >= 0) AND (${table.cholesterol} IS NULL OR ${table.cholesterol} >= 0) AND (${table.vitaminA} IS NULL OR ${table.vitaminA} >= 0) AND (${table.vitaminC} IS NULL OR ${table.vitaminC} >= 0) AND (${table.calcium} IS NULL OR ${table.calcium} >= 0) AND (${table.iron} IS NULL OR ${table.iron} >= 0)`
+			'foods_fat_breakdown_nonneg',
+			sql`(${table.saturatedFat} IS NULL OR ${table.saturatedFat} >= 0) AND (${table.monounsaturatedFat} IS NULL OR ${table.monounsaturatedFat} >= 0) AND (${table.polyunsaturatedFat} IS NULL OR ${table.polyunsaturatedFat} >= 0) AND (${table.transFat} IS NULL OR ${table.transFat} >= 0) AND (${table.cholesterol} IS NULL OR ${table.cholesterol} >= 0) AND (${table.omega3} IS NULL OR ${table.omega3} >= 0) AND (${table.omega6} IS NULL OR ${table.omega6} >= 0)`
+		),
+		check(
+			'foods_sugar_carb_nonneg',
+			sql`(${table.sugar} IS NULL OR ${table.sugar} >= 0) AND (${table.addedSugars} IS NULL OR ${table.addedSugars} >= 0) AND (${table.sugarAlcohols} IS NULL OR ${table.sugarAlcohols} >= 0) AND (${table.starch} IS NULL OR ${table.starch} >= 0)`
+		),
+		check(
+			'foods_minerals_nonneg',
+			sql`(${table.sodium} IS NULL OR ${table.sodium} >= 0) AND (${table.potassium} IS NULL OR ${table.potassium} >= 0) AND (${table.calcium} IS NULL OR ${table.calcium} >= 0) AND (${table.iron} IS NULL OR ${table.iron} >= 0) AND (${table.magnesium} IS NULL OR ${table.magnesium} >= 0) AND (${table.phosphorus} IS NULL OR ${table.phosphorus} >= 0) AND (${table.zinc} IS NULL OR ${table.zinc} >= 0) AND (${table.copper} IS NULL OR ${table.copper} >= 0) AND (${table.manganese} IS NULL OR ${table.manganese} >= 0) AND (${table.selenium} IS NULL OR ${table.selenium} >= 0) AND (${table.iodine} IS NULL OR ${table.iodine} >= 0) AND (${table.fluoride} IS NULL OR ${table.fluoride} >= 0) AND (${table.chromium} IS NULL OR ${table.chromium} >= 0) AND (${table.molybdenum} IS NULL OR ${table.molybdenum} >= 0) AND (${table.chloride} IS NULL OR ${table.chloride} >= 0)`
+		),
+		check(
+			'foods_vitamins_nonneg',
+			sql`(${table.vitaminA} IS NULL OR ${table.vitaminA} >= 0) AND (${table.vitaminC} IS NULL OR ${table.vitaminC} >= 0) AND (${table.vitaminD} IS NULL OR ${table.vitaminD} >= 0) AND (${table.vitaminE} IS NULL OR ${table.vitaminE} >= 0) AND (${table.vitaminK} IS NULL OR ${table.vitaminK} >= 0) AND (${table.vitaminB1} IS NULL OR ${table.vitaminB1} >= 0) AND (${table.vitaminB2} IS NULL OR ${table.vitaminB2} >= 0) AND (${table.vitaminB3} IS NULL OR ${table.vitaminB3} >= 0) AND (${table.vitaminB5} IS NULL OR ${table.vitaminB5} >= 0) AND (${table.vitaminB6} IS NULL OR ${table.vitaminB6} >= 0) AND (${table.vitaminB7} IS NULL OR ${table.vitaminB7} >= 0) AND (${table.vitaminB9} IS NULL OR ${table.vitaminB9} >= 0) AND (${table.vitaminB12} IS NULL OR ${table.vitaminB12} >= 0)`
+		),
+		check(
+			'foods_other_nutrients_nonneg',
+			sql`(${table.caffeine} IS NULL OR ${table.caffeine} >= 0) AND (${table.alcohol} IS NULL OR ${table.alcohol} >= 0) AND (${table.water} IS NULL OR ${table.water} >= 0) AND (${table.salt} IS NULL OR ${table.salt} >= 0)`
 		),
 		check(
 			'foods_nutri_score_valid',
@@ -133,6 +188,12 @@ export const foodEntries = pgTable(
 		mealType: text('meal_type').notNull(),
 		servings: real('servings').notNull(),
 		notes: text('notes'),
+		quickName: text('quick_name'),
+		quickCalories: real('quick_calories'),
+		quickProtein: real('quick_protein'),
+		quickCarbs: real('quick_carbs'),
+		quickFat: real('quick_fat'),
+		quickFiber: real('quick_fiber'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -143,8 +204,8 @@ export const foodEntries = pgTable(
 		index('idx_food_entries_created_at').on(table.createdAt),
 		check('food_entries_servings_positive', sql`${table.servings} > 0`),
 		check(
-			'food_entries_has_food_or_recipe',
-			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL`
+			'food_entries_has_source',
+			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL OR ${table.quickCalories} IS NOT NULL`
 		)
 	]
 );
@@ -196,6 +257,10 @@ export const userPreferences = pgTable('user_preferences', {
 	startPage: text('start_page').notNull().default('dashboard'),
 	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
 	favoriteMealAssignmentMode: text('favorite_meal_assignment_mode').notNull().default('time_based'),
+	visibleNutrients: text('visible_nutrients')
+		.array()
+		.notNull()
+		.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 

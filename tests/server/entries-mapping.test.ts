@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-import { toEntryUpdate } from '../../src/lib/server/entries';
+import { describe, expect, test } from 'vitest';
+import { toEntryUpdate } from '$lib/server/entries';
 
 describe('toEntryUpdate', () => {
 	test('maps partial update fields', () => {

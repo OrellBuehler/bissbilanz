@@ -15,6 +15,16 @@
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
 	import { round2 } from '$lib/utils/number';
+	import {
+		ALL_NUTRIENTS,
+		CATEGORY_ORDER,
+		NUTRIENTS_BY_CATEGORY,
+		DEFAULT_VISIBLE_NUTRIENTS,
+		getNutrientLabel,
+		getCategoryLabel,
+		type NutrientCategory
+	} from '$lib/nutrients';
+	import { untrack } from 'svelte';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -44,10 +54,6 @@
 		carbs: number;
 		fat: number;
 		fiber: number;
-		sodium?: number | null;
-		sugar?: number | null;
-		saturatedFat?: number | null;
-		cholesterol?: number | null;
 		barcode: string;
 		isFavorite: boolean;
 		nutriScore?: 'a' | 'b' | 'c' | 'd' | 'e' | null;
@@ -55,6 +61,7 @@
 		additives?: string[] | null;
 		ingredientsText?: string | null;
 		imageUrl?: string | null;
+		[key: string]: unknown;
 	};
 
 	type Props = {
@@ -64,6 +71,7 @@
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
 		uploading?: boolean;
+		visibleNutrients?: string[];
 	};
 
 	let {
@@ -72,7 +80,8 @@
 		onBarcodeScan,
 		imageUrl,
 		onImageUpload,
-		uploading = false
+		uploading = false,
+		visibleNutrients = DEFAULT_VISIBLE_NUTRIENTS
 	}: Props = $props();
 
 	let showAdvanced = $state(false);
@@ -83,6 +92,9 @@
 		form.barcode = barcode;
 		onBarcodeScan?.(barcode);
 	}
+
+	// i18n message lookup via shared helpers
+	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	// Build initial form values (intentionally captures initial prop once — form state is independent)
 	// svelte-ignore state_referenced_locally
@@ -96,10 +108,13 @@
 		carbs: initial.carbs != null ? round2(initial.carbs) : 0,
 		fat: initial.fat != null ? round2(initial.fat) : 0,
 		fiber: initial.fiber != null ? round2(initial.fiber) : 0,
-		sodium: initial.sodium != null ? round2(initial.sodium) : null,
-		sugar: initial.sugar != null ? round2(initial.sugar) : null,
-		saturatedFat: initial.saturatedFat != null ? round2(initial.saturatedFat) : null,
-		cholesterol: initial.cholesterol != null ? round2(initial.cholesterol) : null,
+		// Initialize all nutrients from catalog
+		...Object.fromEntries(
+			ALL_NUTRIENTS.map((n) => {
+				const val = (initial as Record<string, unknown>)[n.key];
+				return [n.key, val != null ? round2(val as number) : null];
+			})
+		),
 		barcode: initial.barcode ?? '',
 		isFavorite: initial.isFavorite ?? false,
 		nutriScore: initial.nutriScore ?? null,
@@ -107,6 +122,36 @@
 		additives: initial.additives ?? null,
 		ingredientsText: initial.ingredientsText ?? null,
 		imageUrl: initial.imageUrl ?? null
+	});
+
+	// Track which category collapsibles are open
+	let openCategories = $state<Record<string, boolean>>(
+		Object.fromEntries(CATEGORY_ORDER.map((cat) => [cat, false]))
+	);
+
+	// Filter nutrients by visibility and compute which categories have visible nutrients
+	let visibleSet = $derived(new Set(visibleNutrients));
+
+	let visibleCategories = $derived(
+		CATEGORY_ORDER.filter((cat) =>
+			NUTRIENTS_BY_CATEGORY[cat].some((n) => visibleSet.has(n.key))
+		)
+	);
+
+	// Auto-expand categories that have pre-filled data (one-time on mount)
+	$effect(() => {
+		untrack(() => {
+			for (const cat of CATEGORY_ORDER) {
+				const nutrients = NUTRIENTS_BY_CATEGORY[cat];
+				const hasData = nutrients.some((n) => {
+					const val = form[n.key];
+					return val != null && val !== 0;
+				});
+				if (hasData && !openCategories[cat]) {
+					openCategories[cat] = true;
+				}
+			}
+		});
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -225,6 +270,7 @@
 		</div>
 	</div>
 
+	<!-- Advanced Nutrients (organized by category) -->
 	<Collapsible.Root bind:open={showAdvanced}>
 		<Collapsible.Trigger
 			class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
@@ -237,24 +283,47 @@
 			{m.food_form_advanced()}
 		</Collapsible.Trigger>
 		<Collapsible.Content>
-			<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
-				<div class="grid gap-1.5">
-					<Label for="sodium">{m.food_form_sodium()}</Label>
-					<Input id="sodium" type="number" bind:value={form.sodium} />
-				</div>
-				<div class="grid gap-1.5">
-					<Label for="sugar">{m.food_form_sugar()}</Label>
-					<Input id="sugar" type="number" bind:value={form.sugar} />
-				</div>
-				<div class="grid gap-1.5">
-					<Label for="saturatedFat">{m.food_form_saturated_fat()}</Label>
-					<Input id="saturatedFat" type="number" bind:value={form.saturatedFat} />
-				</div>
-				<div class="grid gap-1.5">
-					<Label for="cholesterol">{m.food_form_cholesterol()}</Label>
-					<Input id="cholesterol" type="number" bind:value={form.cholesterol} />
-				</div>
-				<div class="col-span-full grid gap-1.5">
+			<div class="space-y-3">
+				{#each visibleCategories as category}
+					{@const nutrients = NUTRIENTS_BY_CATEGORY[category].filter((n) =>
+						visibleSet.has(n.key)
+					)}
+					{#if nutrients.length > 0}
+						<Collapsible.Root bind:open={openCategories[category]}>
+							<Collapsible.Trigger
+								class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent"
+							>
+								{#if openCategories[category]}
+									<ChevronDown class="size-3.5" />
+								{:else}
+									<ChevronRight class="size-3.5" />
+								{/if}
+								{getCategoryLabel(msgs, category)}
+							</Collapsible.Trigger>
+							<Collapsible.Content>
+								<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
+									{#each nutrients as nutrient}
+										<div class="grid gap-1.5">
+											<Label for={nutrient.key}>{getNutrientLabel(msgs, nutrient)}</Label>
+											<Input
+												id={nutrient.key}
+												type="number"
+												value={form[nutrient.key] as number | null}
+												oninput={(e) => {
+													const val = (e.currentTarget as HTMLInputElement).value;
+													form[nutrient.key] = val === '' ? null : Number(val);
+												}}
+											/>
+										</div>
+									{/each}
+								</div>
+							</Collapsible.Content>
+						</Collapsible.Root>
+					{/if}
+				{/each}
+
+				<!-- Nutri-Score -->
+				<div class="rounded-md border p-3 space-y-2">
 					<Label>{m.quality_nutriscore()}</Label>
 					<NutriScoreSelector
 						value={form.nutriScore ?? null}

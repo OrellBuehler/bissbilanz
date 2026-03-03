@@ -8,6 +8,8 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
+	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { apiFetch } from '$lib/utils/api';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -49,6 +51,7 @@
 	let saving = $state(false);
 	let uploading = $state(false);
 	let enriching = $state(false);
+	let qualityOpen = $state(false);
 
 	// Editable fields
 	let name = $state('');
@@ -300,7 +303,17 @@
 			<Label>{m.mark_as_favorite()}</Label>
 		</div>
 
-		<FoodQualityPanel {novaGroup} {additives} {ingredientsText} />
+		<Collapsible.Root bind:open={qualityOpen}>
+			<Collapsible.Trigger
+				class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+			>
+				<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+				{m.quality_title()}
+			</Collapsible.Trigger>
+			<Collapsible.Content>
+				<FoodQualityPanel {novaGroup} {additives} {ingredientsText} />
+			</Collapsible.Content>
+		</Collapsible.Root>
 
 		<!-- Editable fields -->
 		<div class="grid gap-4">
