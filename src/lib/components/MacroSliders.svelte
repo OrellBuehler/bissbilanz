@@ -28,7 +28,7 @@
 	let pcts = $state({
 		protein: clamp(initial.protein),
 		carbs: clamp(initial.carbs),
-		fat: clamp(initial.fat)
+		fat: clamp(100 - clamp(initial.protein) - clamp(initial.carbs))
 	});
 
 	let totalPct = $derived(pcts.protein + pcts.carbs + pcts.fat);

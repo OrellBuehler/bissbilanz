@@ -6,7 +6,7 @@
  * PromiseLike so `await` resolves to a configurable result.
  */
 
-import { mock } from 'bun:test';
+import { vi } from 'vitest';
 
 type AnyFunction = (...args: any[]) => any;
 
@@ -83,11 +83,11 @@ export function createMockDB(): MockDBFactory {
 					{
 						get(_, tableName) {
 							return {
-								findFirst: mock((...args: any[]) => {
+								findFirst: vi.fn((...args: any[]) => {
 									calls.push({ method: `query.${String(tableName)}.findFirst`, args });
 									return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
 								}),
-								findMany: mock((...args: any[]) => {
+								findMany: vi.fn((...args: any[]) => {
 									calls.push({ method: `query.${String(tableName)}.findMany`, args });
 									return mockError ? Promise.reject(mockError) : Promise.resolve(mockResult);
 								})

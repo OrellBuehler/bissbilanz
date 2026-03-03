@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_GOALS, VALID_GOALS_PAYLOAD } from '../helpers/fixtures';
@@ -17,7 +17,7 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
-mock.module('$lib/server/goals', () => ({
+vi.mock('$lib/server/goals', () => ({
 	getGoals: async (userId: string) => mockGoalsResult,
 	upsertGoals: async (userId: string, payload: unknown) =>
 		mockUpsertResult

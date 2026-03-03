@@ -8,6 +8,7 @@ import {
 	users
 } from '$lib/server/schema';
 import { preferencesUpdateSchema } from '$lib/server/validation';
+import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 
@@ -52,6 +53,7 @@ export const DEFAULT_PREFERENCES = {
 	locale: 'en' as const,
 	favoriteTapAction: 'instant' as const,
 	favoriteMealAssignmentMode: 'time_based' as const,
+	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

@@ -41,6 +41,12 @@
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;
+		quickCalories?: number | null;
+		quickProtein?: number | null;
+		quickCarbs?: number | null;
+		quickFat?: number | null;
+		quickFiber?: number | null;
+		quickName?: string | null;
 	} | null = $state(null);
 
 	let foodsLoaded = false;
@@ -72,11 +78,22 @@
 		onMutation?.();
 	};
 
-	const updateEntry = async (payload: { id: string; servings: number; mealType: string }) => {
-		await apiFetch(`/api/entries/${payload.id}`, {
+	const updateEntry = async (payload: {
+		id: string;
+		servings: number;
+		mealType: string;
+		quickName?: string | null;
+		quickCalories?: number | null;
+		quickProtein?: number | null;
+		quickCarbs?: number | null;
+		quickFat?: number | null;
+		quickFiber?: number | null;
+	}) => {
+		const { id, ...body } = payload;
+		await apiFetch(`/api/entries/${id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ servings: payload.servings, mealType: payload.mealType })
+			body: JSON.stringify(body)
 		});
 		editModalOpen = false;
 		editingEntry = null;
@@ -100,6 +117,12 @@
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;
+		quickCalories?: number | null;
+		quickProtein?: number | null;
+		quickCarbs?: number | null;
+		quickFat?: number | null;
+		quickFiber?: number | null;
+		quickName?: string | null;
 	}) => {
 		editingEntry = entry;
 		editModalOpen = true;

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, oauthClients } from '$lib/server/db';
 import { generateClientId, generateClientSecret, hashToken } from '$lib/server/oauth';
+import { rateLimitRegistration } from '$lib/server/rate-limit';
 
 function isValidRedirectUriFormat(uri: string): boolean {
 	try {
@@ -21,7 +22,16 @@ function isValidRedirectUriFormat(uri: string): boolean {
 /**
  * RFC 7591 — OAuth 2.0 Dynamic Client Registration
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	try {
+		rateLimitRegistration(getClientAddress());
+	} catch {
+		return json(
+			{ error: 'too_many_requests', error_description: 'Rate limit exceeded' },
+			{ status: 429 }
+		);
+	}
+
 	let body: unknown;
 	try {
 		body = await request.json();

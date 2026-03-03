@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { breadcrumbLabelKeys } from '../../src/lib/config/navigation';
 
 describe('breadcrumb label keys', () => {

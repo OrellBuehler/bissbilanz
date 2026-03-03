@@ -27,5 +27,8 @@ export const config = {
 	},
 	app: {
 		url: process.env.PUBLIC_APP_URL!
+	},
+	mcp: {
+		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'
 	}
 };

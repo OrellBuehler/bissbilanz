@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_ENTRY, VALID_ENTRY_PAYLOAD } from '../helpers/fixtures';
@@ -16,7 +16,7 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
-mock.module('$lib/server/entries', () => ({
+vi.mock('$lib/server/entries', () => ({
 	listEntriesByDate: async () => mockListResult,
 	createEntry: async () =>
 		mockCreateResult
@@ -30,7 +30,7 @@ mock.module('$lib/server/entries', () => ({
 }));
 
 import { allValidationSchemas } from '../helpers/mock-validation';
-mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
+vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 const { GET, POST } = await import('../../src/routes/api/entries/+server');
 

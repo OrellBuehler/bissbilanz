@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER } from '../helpers/fixtures';
 
@@ -6,7 +6,7 @@ import { TEST_USER } from '../helpers/fixtures';
 const { db, setResult, setError, reset } = createMockDB();
 
 // Mock env
-mock.module('$lib/server/env', () => ({
+vi.mock('$lib/server/env', () => ({
 	parseDatabaseConfig: () => ({ host: 'localhost', port: 5432, database: 'test', user: 'test' }),
 	config: {
 		infomaniak: {
@@ -20,8 +20,8 @@ mock.module('$lib/server/env', () => ({
 }));
 
 // Mock db module — spread all schema exports to avoid polluting other test files
-mock.module('$lib/server/db', () => {
-	const schema = require('$lib/server/schema');
+vi.mock('$lib/server/db', async () => {
+	const schema = await vi.importActual<typeof import('$lib/server/schema')>('$lib/server/schema');
 	return {
 		getDB: () => db,
 		runMigrations: async () => {},
@@ -29,39 +29,39 @@ mock.module('$lib/server/db', () => {
 	};
 });
 
-// Mock session — must export all names to avoid polluting other test files via mock.module.
+// Mock session — must export all names because vi.mock replaces the entire module.
 const mockSession = { id: 'session-123', userId: TEST_USER.id, expiresAt: new Date() };
-mock.module('$lib/server/session', () => ({
+vi.mock('$lib/server/session', () => ({
 	generateSessionId: () => 'mock-session-id',
-	createSession: mock(() => Promise.resolve(mockSession)),
-	getSession: mock(() => Promise.resolve(null)),
-	getSessionWithUser: mock(() => Promise.resolve(null)),
-	deleteSession: mock(() => Promise.resolve()),
-	deleteUserSessions: mock(() => Promise.resolve()),
-	cleanExpiredSessions: mock(() => Promise.resolve(0)),
-	createSessionCookie: mock(
+	createSession: vi.fn(() => Promise.resolve(mockSession)),
+	getSession: vi.fn(() => Promise.resolve(null)),
+	getSessionWithUser: vi.fn(() => Promise.resolve(null)),
+	deleteSession: vi.fn(() => Promise.resolve()),
+	deleteUserSessions: vi.fn(() => Promise.resolve()),
+	cleanExpiredSessions: vi.fn(() => Promise.resolve(0)),
+	createSessionCookie: vi.fn(
 		() => 'session=mock; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=604800'
 	),
-	clearSessionCookie: mock(() => 'session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'),
-	parseSessionCookie: mock(() => null)
+	clearSessionCookie: vi.fn(() => 'session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'),
+	parseSessionCookie: vi.fn(() => null)
 }));
 
 // Mock OIDC validation — must include all exports
-mock.module('$lib/server/oidc-validate', () => ({
-	assertState: mock(() => {}),
-	assertNonce: mock(() => {}),
-	decodeIdToken: mock(() => ({}))
+vi.mock('$lib/server/oidc-validate', () => ({
+	assertState: vi.fn(() => {}),
+	assertNonce: vi.fn(() => {}),
+	decodeIdToken: vi.fn(() => ({}))
 }));
 
 // Mock JWT verification — must include all exports
-mock.module('$lib/server/oidc-jwt', () => ({
-	verifyIdToken: mock(() => Promise.resolve({ sub: '12345', email: 'test@example.com' })),
-	assertClaims: mock(() => {})
+vi.mock('$lib/server/oidc-jwt', () => ({
+	verifyIdToken: vi.fn(() => Promise.resolve({ sub: '12345', email: 'test@example.com' })),
+	assertClaims: vi.fn(() => {})
 }));
 
 // Mock rate limiting
-mock.module('$lib/server/rate-limit', () => ({
-	rateLimit: mock(() => {})
+vi.mock('$lib/server/rate-limit', () => ({
+	rateLimit: vi.fn(() => {})
 }));
 
 // Import after mocking

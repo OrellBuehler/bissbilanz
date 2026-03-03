@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { TEST_USER } from '../helpers/fixtures';
 
 // Mock listEntriesByDateRange to return test data
@@ -31,7 +31,7 @@ const resetMockEntries = () => {
 };
 
 // Mock the entries module
-mock.module('$lib/server/entries', () => ({
+vi.mock('$lib/server/entries', () => ({
 	listEntriesByDateRange: async (userId: string, startDate: string, endDate: string) => {
 		return mockEntriesResult;
 	},

@@ -1,11 +1,11 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD, TEST_FOOD_2 } from '../helpers/fixtures';
 
 // Mock the foods module
 let mockRecentResult: any = [];
 
-mock.module('$lib/server/foods', () => ({
+vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
 	listRecentFoods: async (userId: string) => mockRecentResult,
 	listFoods: async () => [],
@@ -18,7 +18,7 @@ mock.module('$lib/server/foods', () => ({
 }));
 
 // Mock utils
-mock.module('$lib/utils/recents', () => ({
+vi.mock('$lib/utils/recents', () => ({
 	uniqueById: (items: any[]) => {
 		const seen = new Set();
 		return items.filter((item) => {

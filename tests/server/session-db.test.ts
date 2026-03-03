@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_SESSION, TEST_SESSION_WITH_USER } from '../helpers/fixtures';
 
@@ -11,7 +11,7 @@ const { db, setResult, reset } = createMockDB();
 // The mock DB returns whatever setResult() provides regardless of encrypted values.
 
 // Mock env next (no dependencies)
-mock.module('$lib/server/env', () => {
+vi.mock('$lib/server/env', () => {
 	const parseDatabaseConfig = (env: Record<string, string | undefined>) => {
 		const toNumber = (value: string | undefined, fallback: number) => {
 			const parsed = Number(value);
@@ -59,7 +59,7 @@ mock.module('$lib/server/env', () => {
 const schema = await import('$lib/server/schema');
 
 // Mock db last (re-export entire schema module)
-mock.module('$lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));

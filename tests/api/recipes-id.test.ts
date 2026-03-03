@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_RECIPE } from '../helpers/fixtures';
 
@@ -6,7 +6,7 @@ let mockGetResult: any = null;
 let mockUpdateResult: any = null;
 let mockDeleteResult: any = { blocked: false };
 
-mock.module('$lib/server/recipes', () => ({
+vi.mock('$lib/server/recipes', () => ({
 	getRecipe: async () => mockGetResult,
 	updateRecipe: async () => mockUpdateResult,
 	deleteRecipe: async (_userId: string, _id: string, force: boolean) => {

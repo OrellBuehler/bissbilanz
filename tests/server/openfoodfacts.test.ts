@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fetchProduct } from '../../src/lib/server/openfoodfacts';
 
 const VALID_BARCODE = '3017620422003';
@@ -27,10 +27,10 @@ const fullOFFResponse = {
 	}
 };
 
-let fetchSpy: ReturnType<typeof spyOn>;
+let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-	fetchSpy = spyOn(globalThis, 'fetch');
+	fetchSpy = vi.spyOn(globalThis, 'fetch');
 });
 
 afterEach(() => {
@@ -56,7 +56,7 @@ describe('fetchProduct', () => {
 		expect(result!.sodium).toBe(41); // 0.041 * 1000 rounded
 		expect(result!.sugar).toBe(56.3);
 		expect(result!.saturatedFat).toBe(10.6);
-		expect(result!.cholesterol).toBe(0.005);
+		expect(result!.cholesterol).toBe(5); // 0.005g * 1000 (offConversion g→mg)
 		expect(result!.nutriScore).toBe('e');
 		expect(result!.novaGroup).toBe(4);
 		expect(result!.additives).toEqual(['en:e322', 'en:e476']);
@@ -82,7 +82,7 @@ describe('fetchProduct', () => {
 	test('throws on malformed JSON response', async () => {
 		fetchSpy.mockResolvedValueOnce(new Response('not json'));
 
-		expect(fetchProduct(VALID_BARCODE)).rejects.toThrow();
+		await expect(fetchProduct(VALID_BARCODE)).rejects.toThrow();
 	});
 
 	test('returns null when response has unexpected shape', async () => {

@@ -130,7 +130,7 @@
 								<Pencil class="mr-2 size-4" />
 								{m.foods_edit()}
 							</DropdownMenu.Item>
-							{#if food.barcode && !food.nutriScore && onEnrich}
+							{#if food.barcode && onEnrich}
 								<DropdownMenu.Item
 									disabled={enrichingId === food.id}
 									onclick={() => handleEnrich(food)}

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { foodCreateSchema, foodUpdateSchema } from '../../src/lib/server/validation/foods';
 
 const validFood = {

@@ -24,7 +24,6 @@
 
 {#if hasData}
 	<Card.Root class="p-4">
-		<h3 class="text-sm font-semibold">{m.quality_title()}</h3>
 		<div class="space-y-3">
 			{#if nutriScore}
 				<div class="flex items-center justify-between">

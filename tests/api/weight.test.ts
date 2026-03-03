@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
@@ -20,7 +20,7 @@ let mockLatestResult: any = null;
 let mockUpdateResult: any = null;
 let mockDeleteResult: any = false;
 
-mock.module('$lib/server/weight', () => ({
+vi.mock('$lib/server/weight', () => ({
 	getWeightEntries: async () => mockGetEntriesResult,
 	getWeightWithTrend: async () => mockGetTrendResult,
 	createWeightEntry: async (_userId: string, payload: unknown) =>

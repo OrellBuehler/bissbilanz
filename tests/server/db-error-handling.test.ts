@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import {
 	TEST_USER,
@@ -14,19 +14,15 @@ import {
 	VALID_MEAL_TYPE_PAYLOAD
 } from '../helpers/fixtures';
 
-// Create mock DB
 const { db, setResult, setError, reset } = createMockDB();
 
-// Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
 
-// Mock modules
-mock.module('$lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-// Import after mocking
 const { createFood, updateFood } = await import('$lib/server/foods');
 const { createEntry, updateEntry } = await import('$lib/server/entries');
 const { createRecipe, updateRecipe } = await import('$lib/server/recipes');

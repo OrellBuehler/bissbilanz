@@ -17,14 +17,54 @@ export type DexieFood = {
 	carbs: number;
 	fat: number;
 	fiber: number;
-	sodium: number | null;
-	sugar: number | null;
+	// Fat breakdown
 	saturatedFat: number | null;
+	monounsaturatedFat: number | null;
+	polyunsaturatedFat: number | null;
+	transFat: number | null;
 	cholesterol: number | null;
-	vitaminA: number | null;
-	vitaminC: number | null;
+	omega3: number | null;
+	omega6: number | null;
+	// Sugar & carb details
+	sugar: number | null;
+	addedSugars: number | null;
+	sugarAlcohols: number | null;
+	starch: number | null;
+	// Minerals
+	sodium: number | null;
+	potassium: number | null;
 	calcium: number | null;
 	iron: number | null;
+	magnesium: number | null;
+	phosphorus: number | null;
+	zinc: number | null;
+	copper: number | null;
+	manganese: number | null;
+	selenium: number | null;
+	iodine: number | null;
+	fluoride: number | null;
+	chromium: number | null;
+	molybdenum: number | null;
+	chloride: number | null;
+	// Vitamins
+	vitaminA: number | null;
+	vitaminC: number | null;
+	vitaminD: number | null;
+	vitaminE: number | null;
+	vitaminK: number | null;
+	vitaminB1: number | null;
+	vitaminB2: number | null;
+	vitaminB3: number | null;
+	vitaminB5: number | null;
+	vitaminB6: number | null;
+	vitaminB7: number | null;
+	vitaminB9: number | null;
+	vitaminB12: number | null;
+	// Other
+	caffeine: number | null;
+	alcohol: number | null;
+	water: number | null;
+	salt: number | null;
 	barcode: string | null;
 	isFavorite: boolean;
 	nutriScore: string | null;
@@ -120,6 +160,7 @@ export type DexieUserPreferences = {
 	startPage: string;
 	favoriteTapAction: string;
 	favoriteMealAssignmentMode: string;
+	visibleNutrients: string[];
 	updatedAt: string | null;
 	locale: string | null;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];

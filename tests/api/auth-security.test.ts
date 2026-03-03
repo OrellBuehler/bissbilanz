@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_USER_2, TEST_FOOD, TEST_ENTRY, TEST_RECIPE } from '../helpers/fixtures';
 
@@ -16,7 +16,7 @@ let mockEntryResult: any = null;
 let mockRecipeResult: any = null;
 let mockMealTypeResult: any = null;
 
-mock.module('$lib/server/foods', () => ({
+vi.mock('$lib/server/foods', () => ({
 	getFood: async (userId: string, id: string) => {
 		if (mockFoodResult && mockFoodResult.userId === userId) {
 			return mockFoodResult;
@@ -39,7 +39,7 @@ mock.module('$lib/server/foods', () => ({
 	toFoodUpdate: () => ({})
 }));
 
-mock.module('$lib/server/entries', () => ({
+vi.mock('$lib/server/entries', () => ({
 	listEntriesByDate: async () => [],
 	createEntry: async () => ({ success: true, data: null }),
 	updateEntry: async (userId: string, id: string) => {
@@ -55,7 +55,7 @@ mock.module('$lib/server/entries', () => ({
 	toEntryUpdate: () => ({})
 }));
 
-mock.module('$lib/server/recipes', () => ({
+vi.mock('$lib/server/recipes', () => ({
 	listRecipes: async () => [],
 	createRecipe: async () => ({ success: true, data: null }),
 	getRecipe: async (userId: string, id: string) => {
@@ -76,7 +76,7 @@ mock.module('$lib/server/recipes', () => ({
 	toRecipeInsert: () => ({})
 }));
 
-mock.module('$lib/server/meal-types', () => ({
+vi.mock('$lib/server/meal-types', () => ({
 	listMealTypes: async () => [],
 	createMealType: async () => ({ success: true, data: null }),
 	updateMealType: async (userId: string, id: string) => {
@@ -91,7 +91,7 @@ mock.module('$lib/server/meal-types', () => ({
 }));
 
 import { allValidationSchemas } from '../helpers/mock-validation';
-mock.module('$lib/server/validation', () => ({ ...allValidationSchemas }));
+vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const foodsRoute = await import('../../src/routes/api/foods/[id]/+server');

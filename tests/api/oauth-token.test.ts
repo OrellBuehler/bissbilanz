@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { TEST_USER } from '../helpers/fixtures';
 import { allOAuthExports } from '../helpers/mock-oauth';
 
@@ -8,7 +8,7 @@ let mockConsumeCodeResult: string | null = null;
 let mockCreateTokenResult: any = null;
 let mockRefreshResult: any = null;
 
-mock.module('$lib/server/oauth', () => ({
+vi.mock('$lib/server/oauth', () => ({
 	...allOAuthExports,
 	verifyOAuthClient: async () => mockVerifyClientResult,
 	getPublicOAuthClient: async () => mockPublicClientResult,

@@ -1,31 +1,32 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach, vi } from 'vitest';
 
-let decodeCallback: ((result: unknown, err: unknown) => void) | null = null;
-const stopMock = mock(() => {});
-const captureExceptionMock = mock(() => {});
-let shouldReject = false;
+const { stopMock, captureExceptionMock, state, MockNotFoundException } = vi.hoisted(() => {
+	const stopMock = vi.fn(() => {});
+	const captureExceptionMock = vi.fn(() => {});
+	const state = { decodeCallback: null as ((result: unknown, err: unknown) => void) | null, shouldReject: false };
+	class MockNotFoundException extends Error {
+		name = 'NotFoundException';
+	}
+	return { stopMock, captureExceptionMock, state, MockNotFoundException };
+});
 
-mock.module('@sentry/sveltekit', () => ({
+vi.mock('@sentry/sveltekit', () => ({
 	addBreadcrumb: () => {},
 	captureException: captureExceptionMock
 }));
 
-class MockNotFoundException extends Error {
-	name = 'NotFoundException';
-}
-
-mock.module('@zxing/browser', () => ({
+vi.mock('@zxing/browser', () => ({
 	BrowserMultiFormatReader: class {
 		constructor() {}
 		decodeFromVideoElement(_video: unknown, cb: (result: unknown, err: unknown) => void) {
-			if (shouldReject) return Promise.reject(new Error('video element unavailable'));
-			decodeCallback = cb;
+			if (state.shouldReject) return Promise.reject(new Error('video element unavailable'));
+			state.decodeCallback = cb;
 			return Promise.resolve({ stop: stopMock });
 		}
 	}
 }));
 
-mock.module('@zxing/library', () => ({
+vi.mock('@zxing/library', () => ({
 	BarcodeFormat: { EAN_13: 0, EAN_8: 1, UPC_A: 2, UPC_E: 3 },
 	DecodeHintType: { POSSIBLE_FORMATS: 0 },
 	NotFoundException: MockNotFoundException
@@ -39,56 +40,56 @@ function makeVideo() {
 
 describe('barcode-detect', () => {
 	beforeEach(() => {
-		decodeCallback = null;
+		state.decodeCallback = null;
 		stopMock.mockClear();
 		captureExceptionMock.mockClear();
-		shouldReject = false;
+		state.shouldReject = false;
 	});
 
 	test('calls onDetect when barcode is detected', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		await createBarcodeScanner(makeVideo(), onDetect);
 
-		decodeCallback!({ getText: () => '1234567890123' }, null);
+		state.decodeCallback!({ getText: () => '1234567890123' }, null);
 
 		expect(onDetect).toHaveBeenCalledWith('1234567890123');
 	});
 
 	test('debounces same barcode within 2 seconds', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		await createBarcodeScanner(makeVideo(), onDetect);
 
-		decodeCallback!({ getText: () => 'ABC123' }, null);
-		decodeCallback!({ getText: () => 'ABC123' }, null);
-		decodeCallback!({ getText: () => 'ABC123' }, null);
+		state.decodeCallback!({ getText: () => 'ABC123' }, null);
+		state.decodeCallback!({ getText: () => 'ABC123' }, null);
+		state.decodeCallback!({ getText: () => 'ABC123' }, null);
 
 		expect(onDetect).toHaveBeenCalledTimes(1);
 	});
 
 	test('allows same barcode after debounce window expires', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		const originalNow = Date.now;
 		let fakeTime = 1000;
 		Date.now = () => fakeTime;
 
 		await createBarcodeScanner(makeVideo(), onDetect);
 
-		decodeCallback!({ getText: () => 'REPEAT' }, null);
+		state.decodeCallback!({ getText: () => 'REPEAT' }, null);
 		expect(onDetect).toHaveBeenCalledTimes(1);
 
 		fakeTime += 2001;
-		decodeCallback!({ getText: () => 'REPEAT' }, null);
+		state.decodeCallback!({ getText: () => 'REPEAT' }, null);
 		expect(onDetect).toHaveBeenCalledTimes(2);
 
 		Date.now = originalNow;
 	});
 
 	test('allows different barcodes immediately', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		await createBarcodeScanner(makeVideo(), onDetect);
 
-		decodeCallback!({ getText: () => 'FIRST' }, null);
-		decodeCallback!({ getText: () => 'SECOND' }, null);
+		state.decodeCallback!({ getText: () => 'FIRST' }, null);
+		state.decodeCallback!({ getText: () => 'SECOND' }, null);
 
 		expect(onDetect).toHaveBeenCalledTimes(2);
 		expect(onDetect).toHaveBeenCalledWith('FIRST');
@@ -103,21 +104,21 @@ describe('barcode-detect', () => {
 	});
 
 	test('ignores NotFoundException from decoder', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		await createBarcodeScanner(makeVideo(), onDetect);
 
-		decodeCallback!(null, new MockNotFoundException('no barcode found'));
+		state.decodeCallback!(null, new MockNotFoundException('no barcode found'));
 
 		expect(onDetect).toHaveBeenCalledTimes(0);
 		expect(captureExceptionMock).toHaveBeenCalledTimes(0);
 	});
 
 	test('reports non-NotFoundException errors to Sentry', async () => {
-		const onDetect = mock(() => {});
+		const onDetect = vi.fn(() => {});
 		await createBarcodeScanner(makeVideo(), onDetect);
 
 		const realError = new Error('checksum failure');
-		decodeCallback!(null, realError);
+		state.decodeCallback!(null, realError);
 
 		expect(onDetect).toHaveBeenCalledTimes(0);
 		expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -127,7 +128,7 @@ describe('barcode-detect', () => {
 	});
 
 	test('rejects when decodeFromVideoElement fails', async () => {
-		shouldReject = true;
+		state.shouldReject = true;
 
 		await expect(createBarcodeScanner(makeVideo(), () => {})).rejects.toThrow(
 			'video element unavailable'

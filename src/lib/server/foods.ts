@@ -4,6 +4,7 @@ import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import type { ZodError } from 'zod';
 import { ApiError } from '$lib/server/errors';
+import { pickNutrients } from '$lib/nutrients';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -19,35 +20,30 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 
 export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
 
-export const toFoodInsert = (userId: string, input: FoodCreateInput) => ({
-	userId,
-	name: input.name,
-	brand: input.brand ?? null,
-	servingSize: input.servingSize,
-	servingUnit: input.servingUnit,
-	calories: input.calories,
-	protein: input.protein,
-	carbs: input.carbs,
-	fat: input.fat,
-	fiber: input.fiber,
-	// Advanced nutrients
-	sodium: input.sodium ?? null,
-	sugar: input.sugar ?? null,
-	saturatedFat: input.saturatedFat ?? null,
-	cholesterol: input.cholesterol ?? null,
-	vitaminA: input.vitaminA ?? null,
-	vitaminC: input.vitaminC ?? null,
-	calcium: input.calcium ?? null,
-	iron: input.iron ?? null,
-	barcode: input.barcode || null,
-	isFavorite: input.isFavorite ?? false,
-	// Open Food Facts quality data
-	nutriScore: input.nutriScore ?? null,
-	novaGroup: input.novaGroup ?? null,
-	additives: input.additives ?? null,
-	ingredientsText: input.ingredientsText ?? null,
-	imageUrl: input.imageUrl ?? null
-});
+export const toFoodInsert = (userId: string, input: FoodCreateInput) => {
+	return {
+		userId,
+		name: input.name,
+		brand: input.brand ?? null,
+		servingSize: input.servingSize,
+		servingUnit: input.servingUnit,
+		calories: input.calories,
+		protein: input.protein,
+		carbs: input.carbs,
+		fat: input.fat,
+		fiber: input.fiber,
+		barcode: input.barcode || null,
+		isFavorite: input.isFavorite ?? false,
+		// Open Food Facts quality data
+		nutriScore: input.nutriScore ?? null,
+		novaGroup: input.novaGroup ?? null,
+		additives: input.additives ?? null,
+		ingredientsText: input.ingredientsText ?? null,
+		imageUrl: input.imageUrl ?? null,
+		// All extended nutrients (keys derived from catalog)
+		...pickNutrients(input as Record<string, unknown>)
+	} as typeof foods.$inferInsert;
+};
 
 export const getFood = async (userId: string, id: string) => {
 	const db = getDB();

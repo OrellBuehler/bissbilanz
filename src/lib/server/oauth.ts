@@ -330,7 +330,7 @@ export async function refreshAccessToken(
 
 export async function validateAccessToken(
 	token: string
-): Promise<{ userId: string; clientId: string } | undefined> {
+): Promise<{ userId: string; clientId: string; scopes: string[] } | undefined> {
 	const db = getDB();
 
 	const tokenHash = hashAccessToken(token);
@@ -344,8 +344,37 @@ export async function validateAccessToken(
 
 	return {
 		userId: tokenRecord.userId,
-		clientId: tokenRecord.clientId
+		clientId: tokenRecord.clientId,
+		scopes: tokenRecord.scopes
 	};
+}
+
+export async function listAuthorizedClients(
+	userId: string
+): Promise<{ clientId: string; clientName: string | null; approvedAt: Date | null }[]> {
+	const db = getDB();
+	const results = await db
+		.select({
+			clientId: oauthAuthorizations.clientId,
+			clientName: oauthClients.clientName,
+			approvedAt: oauthAuthorizations.approvedAt
+		})
+		.from(oauthAuthorizations)
+		.innerJoin(oauthClients, eq(oauthAuthorizations.clientId, oauthClients.clientId))
+		.where(eq(oauthAuthorizations.userId, userId));
+	return results;
+}
+
+export async function revokeAuthorization(userId: string, clientId: string): Promise<void> {
+	const db = getDB();
+	await db
+		.delete(oauthAuthorizations)
+		.where(
+			and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId))
+		);
+	await db
+		.delete(oauthTokens)
+		.where(and(eq(oauthTokens.clientId, clientId), eq(oauthTokens.userId, userId)));
 }
 
 export async function revokeClientTokens(clientId: string): Promise<void> {

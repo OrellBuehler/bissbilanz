@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import {
 	TEST_USER,
@@ -17,17 +17,19 @@ const { db, setResult, reset } = createMockDB();
 const schema = await import('$lib/server/schema');
 
 // Mock modules
-mock.module('$lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-const realDates = await import('$lib/utils/dates');
-mock.module('$lib/utils/dates', () => ({
-	...Object.fromEntries(Object.entries(realDates).map(([key, value]) => [key, value])),
-	today: () => '2026-02-17',
-	yesterday: () => '2026-02-16'
-}));
+vi.mock('$lib/utils/dates', async () => {
+	const realDates = await vi.importActual<typeof import('$lib/utils/dates')>('$lib/utils/dates');
+	return {
+		...realDates,
+		today: () => '2026-02-17',
+		yesterday: () => '2026-02-16'
+	};
+});
 
 // Import after mocking
 const {

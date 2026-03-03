@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
@@ -15,8 +16,12 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
+	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
+	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	let foods: Array<any> = $state([]);
+	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
 	let showForm = $state(false);
 	let editingFood: any | null = $state(null);
@@ -29,6 +34,7 @@
 	let activeBarcode = $state('');
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
+	let qualityOpen = $state(false);
 
 	const loadFoods = async (q?: string) => {
 		const params = new URLSearchParams();
@@ -48,11 +54,20 @@
 					imageUrl: offData.imageUrl
 				}
 			: payload;
-		await apiFetch('/api/foods', {
+		const res = await apiFetch('/api/foods', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			if (data.error === 'duplicate_barcode') {
+				toast.error(m.detail_duplicate_barcode());
+			} else {
+				toast.error(m.detail_create_failed());
+			}
+			return;
+		}
 		closeForm();
 		await loadFoods(query);
 	};
@@ -64,11 +79,16 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ...payload, imageUrl: editImageUrl })
 		});
-		if (res.ok) {
-			toast.success(m.detail_saved());
-		} else {
-			toast.error(m.detail_save_failed());
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			if (data.error === 'duplicate_barcode') {
+				toast.error(m.detail_duplicate_barcode());
+			} else {
+				toast.error(m.detail_save_failed());
+			}
+			return;
 		}
+		toast.success(m.detail_saved());
 		closeForm();
 		await loadFoods(query);
 	};
@@ -103,7 +123,8 @@
 				novaGroup: product.novaGroup,
 				additives: product.additives,
 				ingredientsText: product.ingredientsText,
-				imageUrl: product.imageUrl
+				imageUrl: product.imageUrl,
+				...pickNonNullNutrients(product)
 			})
 		});
 		await loadFoods(query);
@@ -116,6 +137,7 @@
 		offData = null;
 		offNotFound = false;
 		activeBarcode = '';
+		qualityOpen = false;
 	};
 
 	const openEdit = async (id: string) => {
@@ -193,6 +215,21 @@
 		}
 	}
 
+	// Load visible nutrients preference (once on mount)
+	onMount(async () => {
+		try {
+			const res = await apiFetch('/api/preferences');
+			if (res.ok) {
+				const { preferences } = await res.json();
+				if (preferences?.visibleNutrients?.length) {
+					visibleNutrients = preferences.visibleNutrients;
+				}
+			}
+		} catch {
+			// Use defaults
+		}
+	});
+
 	$effect(() => {
 		if (browser) {
 			const urlBarcode = $page.url.searchParams.get('barcode');
@@ -229,10 +266,7 @@
 					barcode: editingFood.barcode ?? '',
 					isFavorite: editingFood.isFavorite,
 					nutriScore: editingFood.nutriScore,
-					sodium: editingFood.sodium,
-					sugar: editingFood.sugar,
-					saturatedFat: editingFood.saturatedFat,
-					cholesterol: editingFood.cholesterol
+					...pickNutrients(editingFood)
 				}
 			: offData
 				? {
@@ -245,13 +279,10 @@
 						carbs: offData.carbs,
 						fat: offData.fat,
 						fiber: offData.fiber,
-						sodium: offData.sodium,
-						sugar: offData.sugar,
-						saturatedFat: offData.saturatedFat,
-						cholesterol: offData.cholesterol,
 						nutriScore: offData.nutriScore,
 						barcode: activeBarcode,
-						isFavorite: false
+						isFavorite: false,
+						...pickNutrients(offData)
 					}
 				: { barcode: activeBarcode }
 	);
@@ -300,19 +331,39 @@
 			<p class="mb-3 text-sm text-amber-600">{m.quality_off_not_found()}</p>
 		{:else if offData && !editingFood}
 			<p class="mb-3 text-sm text-green-600">{m.quality_off_prefilled()}</p>
-			<FoodQualityPanel
-				nutriScore={offData.nutriScore}
-				novaGroup={offData.novaGroup}
-				additives={offData.additives}
-				ingredientsText={offData.ingredientsText}
-			/>
+			<Collapsible.Root bind:open={qualityOpen}>
+				<Collapsible.Trigger
+					class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+				>
+					<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+					{m.quality_title()}
+				</Collapsible.Trigger>
+				<Collapsible.Content>
+					<FoodQualityPanel
+						nutriScore={offData.nutriScore}
+						novaGroup={offData.novaGroup}
+						additives={offData.additives}
+						ingredientsText={offData.ingredientsText}
+					/>
+				</Collapsible.Content>
+			</Collapsible.Root>
 		{:else if editingFood}
 			<div class="mb-3">
-				<FoodQualityPanel
-					novaGroup={editingFood.novaGroup}
-					additives={editingFood.additives}
-					ingredientsText={editingFood.ingredientsText}
-				/>
+				<Collapsible.Root bind:open={qualityOpen}>
+					<Collapsible.Trigger
+						class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+					>
+						<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+						{m.quality_title()}
+					</Collapsible.Trigger>
+					<Collapsible.Content>
+						<FoodQualityPanel
+							novaGroup={editingFood.novaGroup}
+							additives={editingFood.additives}
+							ingredientsText={editingFood.ingredientsText}
+						/>
+					</Collapsible.Content>
+				</Collapsible.Root>
 			</div>
 		{/if}
 		{#key editingFood?.id ?? offData ?? activeBarcode}
@@ -323,6 +374,7 @@
 				imageUrl={editingFood ? editImageUrl : undefined}
 				onImageUpload={editingFood ? handleImageUpload : undefined}
 				{uploading}
+				{visibleNutrients}
 			/>
 		{/key}
 	{/if}

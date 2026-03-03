@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { groupEntriesByMeal } from '../../src/lib/utils/entries';
 
 describe('groupEntriesByMeal', () => {
