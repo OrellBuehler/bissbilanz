@@ -7,6 +7,8 @@
 	import AmountInput from '$lib/components/entries/AmountInput.svelte';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Check from '@lucide/svelte/icons/check';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
@@ -64,6 +66,14 @@
 	let editQuickFiber = $state('');
 
 	const isQuickEntry = $derived(entry?.quickCalories != null);
+
+	let editMacroCalories = $derived(
+		(Number(editQuickProtein) || 0) * 4 +
+		(Number(editQuickCarbs) || 0) * 4 +
+		(Number(editQuickFat) || 0) * 9
+	);
+	let editHasMacros = $derived(!!editQuickProtein || !!editQuickCarbs || !!editQuickFat);
+	let editMacrosMatch = $derived(Math.round(editMacroCalories) === Math.round(Number(editQuickCalories) || 0));
 
 	$effect(() => {
 		if (entry) {
@@ -145,6 +155,16 @@
 						<Input type="number" inputmode="decimal" min="0" bind:value={editQuickFiber} />
 					</div>
 				</div>
+				{#if editHasMacros}
+					<div class="flex items-center gap-1.5 text-xs {editMacrosMatch ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}">
+						{#if editMacrosMatch}
+							<CircleCheck class="size-3.5" />
+						{:else}
+							<TriangleAlert class="size-3.5" />
+						{/if}
+						{m.quick_log_macro_calories({ calories: Math.round(editMacroCalories) })}
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<AmountInput

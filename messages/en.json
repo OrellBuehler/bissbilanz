@@ -55,6 +55,7 @@
 	"quick_log_fiber": "Fiber (g)",
 	"quick_log_macros": "Macros (optional)",
 	"quick_log_add": "Log",
+	"quick_log_macro_calories": "{calories} kcal from macros",
 	"add_food_servings": "Servings",
 
 	"amount_mode_servings": "Servings",

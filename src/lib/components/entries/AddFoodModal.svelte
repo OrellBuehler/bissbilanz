@@ -7,6 +7,8 @@
 	import AmountInput from '$lib/components/entries/AmountInput.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -81,6 +83,14 @@
 	let quickFat = $state('');
 	let quickFiber = $state('');
 	let quickMacrosOpen = $state(false);
+
+	let macroCalories = $derived(
+		(Number(quickProtein) || 0) * 4 +
+		(Number(quickCarbs) || 0) * 4 +
+		(Number(quickFat) || 0) * 9
+	);
+	let hasMacros = $derived(!!quickProtein || !!quickCarbs || !!quickFat);
+	let macrosMatch = $derived(Math.round(macroCalories) === Math.round(Number(quickCalories) || 0));
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
@@ -449,6 +459,16 @@
 									/>
 								</div>
 							</div>
+							{#if hasMacros}
+								<div class="flex items-center gap-1.5 text-xs {macrosMatch ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}">
+									{#if macrosMatch}
+										<CircleCheck class="size-3.5" />
+									{:else}
+										<TriangleAlert class="size-3.5" />
+									{/if}
+									{m.quick_log_macro_calories({ calories: Math.round(macroCalories) })}
+								</div>
+							{/if}
 						{/if}
 						<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={confirmQuickLog}>
 							<Check class="mr-1 size-4" />
