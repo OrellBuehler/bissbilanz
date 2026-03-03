@@ -47,12 +47,12 @@
 	}
 
 	const canProject = $derived(data.length >= 3);
+	const firstDateMs = $derived(data.length > 0 ? new Date(data[0].entry_date).getTime() : 0);
 
 	const regression = $derived.by(() => {
 		if (!canProject || projectionDays === 0) return null;
-		const firstDate = new Date(data[0].entry_date).getTime();
 		const points = data.map((d) => ({
-			x: (new Date(d.entry_date).getTime() - firstDate) / 86400000,
+			x: (new Date(d.entry_date).getTime() - firstDateMs) / 86400000,
 			y: Number(d.weight_kg)
 		}));
 		return linearRegression(points);
@@ -61,13 +61,11 @@
 	const shortLabels = $derived(data.length > 14);
 
 	const chartData = $derived.by(() => {
-		const firstDate = data.length > 0 ? new Date(data[0].entry_date).getTime() : 0;
-
 		const actual = data.map((d) => {
-			const dayIndex = (new Date(d.entry_date).getTime() - firstDate) / 86400000;
+			const dayIndex = (new Date(d.entry_date).getTime() - firstDateMs) / 86400000;
 			return {
 				weightKg: Number(d.weight_kg),
-				movingAvg: d.moving_avg ? Number(d.moving_avg) : null,
+				movingAvg: d.moving_avg != null ? Number(d.moving_avg) : null,
 				projection:
 					regression ? Number((regression.slope * dayIndex + regression.intercept).toFixed(1)) : null,
 				dateLabel: new Date(d.entry_date).toLocaleDateString(
@@ -83,7 +81,7 @@
 
 		const lastDate = new Date(data[data.length - 1].entry_date);
 		const lastDayIndex =
-			(lastDate.getTime() - firstDate) / 86400000;
+			(lastDate.getTime() - firstDateMs) / 86400000;
 
 		const future = [];
 		for (let i = 1; i <= projectionDays; i++) {
@@ -121,8 +119,8 @@
 		}
 		return vals;
 	});
-	const minWeight = $derived(Math.min(...allValues));
-	const maxWeight = $derived(Math.max(...allValues));
+	const minWeight = $derived(allValues.length > 0 ? Math.min(...allValues) : 0);
+	const maxWeight = $derived(allValues.length > 0 ? Math.max(...allValues) : 0);
 	const padding = $derived((maxWeight - minWeight) * 0.15 || 2);
 	const yDomain = $derived([Math.floor(minWeight - padding), Math.ceil(maxWeight + padding)]);
 
@@ -143,12 +141,9 @@
 	);
 
 	const projectedWeight = $derived.by(() => {
-		if (!regression || projectionDays === 0 || data.length === 0) return null;
-		const firstDate = new Date(data[0].entry_date).getTime();
-		const lastDate = new Date(data[data.length - 1].entry_date).getTime();
-		const lastDayIndex = (lastDate - firstDate) / 86400000;
-		const futureDayIndex = lastDayIndex + projectionDays;
-		return Number((regression.slope * futureDayIndex + regression.intercept).toFixed(1));
+		if (projectionDays === 0 || chartData.length === 0) return null;
+		const last = chartData[chartData.length - 1];
+		return last.projection;
 	});
 
 	const formatWeight = (value: number | null) => (value == null ? '—' : `${value.toFixed(1)} kg`);
@@ -268,6 +263,7 @@
 				<div class="bg-muted inline-flex rounded-full p-0.5">
 					{#each projectionOptions as opt}
 						<button
+							type="button"
 							class="rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200 {projectionDays ===
 							opt.days
 								? 'bg-background text-foreground shadow-sm'
