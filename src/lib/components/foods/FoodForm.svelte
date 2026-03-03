@@ -323,7 +323,7 @@
 				{/each}
 
 				<!-- Nutri-Score -->
-				<div class="rounded-md border p-3">
+				<div class="rounded-md border p-3 space-y-2">
 					<Label>{m.quality_nutriscore()}</Label>
 					<NutriScoreSelector
 						value={form.nutriScore ?? null}
