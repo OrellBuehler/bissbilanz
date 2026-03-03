@@ -1,26 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { updateWeightEntry, deleteWeightEntry } from '$lib/server/weight';
-import { handleApiError, requireAuth, isZodError, validationError } from '$lib/server/errors';
+import { handleApiError, notFound, requireAuth, unwrapResult } from '$lib/server/errors';
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await request.json();
-		const result = await updateWeightEntry(userId, params.id, body);
-
-		if (!result.success) {
-			if (isZodError(result.error)) {
-				return validationError(result.error);
-			}
-			throw result.error;
+		const entry = unwrapResult(await updateWeightEntry(userId, params.id, body));
+		if (!entry) {
+			return notFound('Weight entry');
 		}
-
-		if (!result.data) {
-			return json({ error: 'Weight entry not found' }, { status: 404 });
-		}
-
-		return json({ entry: result.data });
+		return json({ entry });
 	} catch (error) {
 		return handleApiError(error);
 	}
@@ -32,7 +23,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		const deleted = await deleteWeightEntry(userId, params.id);
 
 		if (!deleted) {
-			return json({ error: 'Weight entry not found' }, { status: 404 });
+			return notFound('Weight entry');
 		}
 
 		return new Response(null, { status: 204 });

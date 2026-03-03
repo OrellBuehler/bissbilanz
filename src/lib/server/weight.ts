@@ -1,13 +1,8 @@
 import { getDB } from '$lib/server/db';
 import { weightEntries } from '$lib/server/schema';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation';
-import { and, eq, desc } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
-import type { ZodError } from 'zod';
-
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
+import { and, eq, desc, sql } from 'drizzle-orm';
+import type { Result } from '$lib/server/types';
 
 export const createWeightEntry = async (
 	userId: string,

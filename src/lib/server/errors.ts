@@ -52,6 +52,10 @@ export function validationError(zodError: ZodError) {
  * @param error - The error to handle
  */
 export function handleApiError(error: unknown): Response {
+	if (error instanceof ResultValidationError) {
+		return validationError(error.zodError);
+	}
+
 	if (error instanceof ApiError) {
 		return json(
 			{
@@ -103,4 +107,30 @@ export function requireAuth(locals: App.Locals): string {
  */
 export function isZodError(error: unknown): error is ZodError {
 	return error instanceof ZodError;
+}
+
+/**
+ * Handles a Result from a service function, converting failures to responses.
+ * On validation error returns a 400 response; on other errors re-throws for handleApiError.
+ * Returns the data on success, or undefined if the record was not found (for update operations).
+ */
+export function unwrapResult<T>(result: { success: boolean; data?: T; error?: unknown }): T {
+	if (!result.success) {
+		if (isZodError(result.error)) {
+			throw new ResultValidationError(result.error);
+		}
+		throw result.error;
+	}
+	return result.data as T;
+}
+
+/**
+ * Wrapper error to distinguish validation errors from other thrown errors in handleApiError.
+ * Caught by handleApiError and converted to a 400 validation response.
+ */
+export class ResultValidationError extends Error {
+	constructor(public zodError: ZodError) {
+		super('Validation failed');
+		this.name = 'ResultValidationError';
+	}
 }

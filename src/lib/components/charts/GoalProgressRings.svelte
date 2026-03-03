@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MacroTotals } from '$lib/utils/nutrition';
+	import { MACRO_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
@@ -22,40 +23,40 @@
 						label: m.macro_calories(),
 						consumed: Math.round(totals.calories),
 						goal: goals.calorieGoal,
-						color: '#3B82F6',
-						bg: '#3B82F620',
+						color: MACRO_COLORS.calories,
+						bg: `${MACRO_COLORS.calories}20`,
 						unit: m.foods_kcal()
 					},
 					{
 						label: m.macro_protein(),
 						consumed: Math.round(totals.protein * 10) / 10,
 						goal: goals.proteinGoal,
-						color: '#EF4444',
-						bg: '#EF444420',
+						color: MACRO_COLORS.protein,
+						bg: `${MACRO_COLORS.protein}20`,
 						unit: 'g'
 					},
 					{
 						label: m.macro_carbs(),
 						consumed: Math.round(totals.carbs * 10) / 10,
 						goal: goals.carbGoal,
-						color: '#F97316',
-						bg: '#F9731620',
+						color: MACRO_COLORS.carbs,
+						bg: `${MACRO_COLORS.carbs}20`,
 						unit: 'g'
 					},
 					{
 						label: m.macro_fat(),
 						consumed: Math.round(totals.fat * 10) / 10,
 						goal: goals.fatGoal,
-						color: '#EAB308',
-						bg: '#EAB30820',
+						color: MACRO_COLORS.fat,
+						bg: `${MACRO_COLORS.fat}20`,
 						unit: 'g'
 					},
 					{
 						label: m.macro_fiber(),
 						consumed: Math.round(totals.fiber * 10) / 10,
 						goal: goals.fiberGoal,
-						color: '#22C55E',
-						bg: '#22C55E20',
+						color: MACRO_COLORS.fiber,
+						bg: `${MACRO_COLORS.fiber}20`,
 						unit: 'g'
 					}
 				]

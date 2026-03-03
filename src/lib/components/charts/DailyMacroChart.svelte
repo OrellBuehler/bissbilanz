@@ -2,15 +2,16 @@
 	import { PieChart } from 'layerchart';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
+	import { MACRO_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
 	let { totals }: { totals: MacroTotals } = $props();
 
 	const config: ChartConfig = {
-		protein: { label: m.macro_protein(), color: '#EF4444' },
-		carbs: { label: m.macro_carbs(), color: '#F97316' },
-		fat: { label: m.macro_fat(), color: '#EAB308' },
-		fiber: { label: m.macro_fiber(), color: '#22C55E' }
+		protein: { label: m.macro_protein(), color: MACRO_COLORS.protein },
+		carbs: { label: m.macro_carbs(), color: MACRO_COLORS.carbs },
+		fat: { label: m.macro_fat(), color: MACRO_COLORS.fat },
+		fiber: { label: m.macro_fiber(), color: MACRO_COLORS.fiber }
 	};
 
 	const chartData = $derived(
@@ -34,7 +35,7 @@
 				key="key"
 				label="label"
 				value="value"
-				cRange={['#EF4444', '#F97316', '#EAB308', '#22C55E']}
+				cRange={[MACRO_COLORS.protein, MACRO_COLORS.carbs, MACRO_COLORS.fat, MACRO_COLORS.fiber]}
 				innerRadius={0.6}
 				cornerRadius={4}
 				padAngle={0.02}

@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 	import { apiFetch } from '$lib/utils/api';
+	import { MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
 	type MealData = {
@@ -20,13 +21,6 @@
 
 	let data: MealData[] = $state([]);
 	let loading = $state(true);
-
-	const MEAL_COLORS: Record<string, string> = {
-		Breakfast: '#F59E0B',
-		Lunch: '#3B82F6',
-		Dinner: '#8B5CF6',
-		Snacks: '#10B981'
-	};
 
 	const DEFAULT_COLOR = '#6B7280';
 

@@ -6,6 +6,7 @@
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/utils/api';
+	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
 	type MealData = {
@@ -37,13 +38,6 @@
 	let topFoodsDays = $state(7);
 	let foods: TopFood[] = $state([]);
 	let topFoodsLoading = $state(true);
-
-	const MEAL_COLORS: Record<string, string> = {
-		Breakfast: '#F59E0B',
-		Lunch: '#3B82F6',
-		Dinner: '#8B5CF6',
-		Snacks: '#10B981'
-	};
 
 	const DEFAULT_COLOR = '#6B7280';
 	const getMealColor = (mealType: string) => MEAL_COLORS[mealType] ?? DEFAULT_COLOR;
@@ -221,10 +215,10 @@
 										>
 									</div>
 									<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
-										<span style="color: #EF4444">{Math.round(row.protein)}g P</span>
-										<span style="color: #F97316">{Math.round(row.carbs)}g C</span>
-										<span style="color: #EAB308">{Math.round(row.fat)}g F</span>
-										<span style="color: #22C55E">{Math.round(row.fiber)}g Fi</span>
+										<span style="color: {MACRO_COLORS.protein}">{Math.round(row.protein)}g P</span>
+										<span style="color: {MACRO_COLORS.carbs}">{Math.round(row.carbs)}g C</span>
+										<span style="color: {MACRO_COLORS.fat}">{Math.round(row.fat)}g F</span>
+										<span style="color: {MACRO_COLORS.fiber}">{Math.round(row.fiber)}g Fi</span>
 									</div>
 								</div>
 							{/each}
@@ -332,10 +326,10 @@
 									kcal {m.insights_per_serving()}
 								</div>
 								<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
-									<span style="color: #EF4444">{food.protein}g P</span>
-									<span style="color: #F97316">{food.carbs}g C</span>
-									<span style="color: #EAB308">{food.fat}g F</span>
-									<span style="color: #22C55E">{food.fiber}g Fi</span>
+									<span style="color: {MACRO_COLORS.protein}">{food.protein}g P</span>
+									<span style="color: {MACRO_COLORS.carbs}">{food.carbs}g C</span>
+									<span style="color: {MACRO_COLORS.fat}">{food.fat}g F</span>
+									<span style="color: {MACRO_COLORS.fiber}">{food.fiber}g Fi</span>
 								</div>
 							</div>
 						</div>

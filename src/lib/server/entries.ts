@@ -1,12 +1,31 @@
 import { getDB } from '$lib/server/db';
 import { foodEntries, foods, recipes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { and, eq, gte, lte, sql } from 'drizzle-orm';
-import type { ZodError } from 'zod';
+import { type AnyColumn, and, eq, gte, lte, sql } from 'drizzle-orm';
+import type { Result } from '$lib/server/types';
 
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
+/**
+ * SQL helper: resolves a macro value from quick entry, food, or recipe subquery.
+ * Eliminates duplication across listEntriesByDate and listEntriesByDateRange.
+ */
+const entryMacroSql = (
+	quickCol: AnyColumn,
+	foodCol: AnyColumn,
+	recipeMacro: string,
+	alias: string
+) =>
+	sql<number | null>`COALESCE(${quickCol}, ${foodCol}, (SELECT COALESCE(SUM(f2.${sql.raw(recipeMacro)} * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+		alias
+	);
+
+const entryMacroColumns = () => ({
+	foodName: sql<string | null>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
+	calories: entryMacroSql(foodEntries.quickCalories, foods.calories, 'calories', 'calories'),
+	protein: entryMacroSql(foodEntries.quickProtein, foods.protein, 'protein', 'protein'),
+	carbs: entryMacroSql(foodEntries.quickCarbs, foods.carbs, 'carbs', 'carbs'),
+	fat: entryMacroSql(foodEntries.quickFat, foods.fat, 'fat', 'fat'),
+	fiber: entryMacroSql(foodEntries.quickFiber, foods.fiber, 'fiber', 'fiber')
+});
 
 export const listEntriesByDate = async (
 	userId: string,
@@ -31,32 +50,7 @@ export const listEntriesByDate = async (
 			quickCarbs: foodEntries.quickCarbs,
 			quickFat: foodEntries.quickFat,
 			quickFiber: foodEntries.quickFiber,
-			foodName: sql<string | null>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
-			calories: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickCalories}, ${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'calories'
-			),
-			protein: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickProtein}, ${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'protein'
-			),
-			carbs: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickCarbs}, ${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'carbs'
-			),
-			fat: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickFat}, ${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'fat'
-			),
-			fiber: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickFiber}, ${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'fiber'
-			),
+			...entryMacroColumns(),
 			createdAt: foodEntries.createdAt,
 			servingSize: foods.servingSize,
 			servingUnit: foods.servingUnit
@@ -157,32 +151,7 @@ export const listEntriesByDateRange = async (
 			notes: foodEntries.notes,
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
-			foodName: sql<string | null>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
-			calories: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickCalories}, ${foods.calories}, (SELECT COALESCE(SUM(f2.calories * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'calories'
-			),
-			protein: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickProtein}, ${foods.protein}, (SELECT COALESCE(SUM(f2.protein * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'protein'
-			),
-			carbs: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickCarbs}, ${foods.carbs}, (SELECT COALESCE(SUM(f2.carbs * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'carbs'
-			),
-			fat: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickFat}, ${foods.fat}, (SELECT COALESCE(SUM(f2.fat * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'fat'
-			),
-			fiber: sql<
-				number | null
-			>`COALESCE(${foodEntries.quickFiber}, ${foods.fiber}, (SELECT COALESCE(SUM(f2.fiber * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-				'fiber'
-			)
+			...entryMacroColumns()
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))

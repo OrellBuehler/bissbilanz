@@ -2,6 +2,7 @@
 	import { BarChart } from 'layerchart';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
+	import { MACRO_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
 	type DailyData = { date: string } & MacroTotals;
@@ -18,17 +19,17 @@
 
 	const shortLabels = $derived(data.length > 10);
 	const config: ChartConfig = {
-		protein: { label: m.macro_protein(), color: '#EF4444' },
-		carbs: { label: m.macro_carbs(), color: '#F97316' },
-		fat: { label: m.macro_fat(), color: '#EAB308' },
-		fiber: { label: m.macro_fiber(), color: '#22C55E' }
+		protein: { label: m.macro_protein(), color: MACRO_COLORS.protein },
+		carbs: { label: m.macro_carbs(), color: MACRO_COLORS.carbs },
+		fat: { label: m.macro_fat(), color: MACRO_COLORS.fat },
+		fiber: { label: m.macro_fiber(), color: MACRO_COLORS.fiber }
 	};
 
 	const allSeries = [
-		{ key: 'protein', label: m.macro_protein(), color: '#EF4444' },
-		{ key: 'carbs', label: m.macro_carbs(), color: '#F97316' },
-		{ key: 'fat', label: m.macro_fat(), color: '#EAB308' },
-		{ key: 'fiber', label: m.macro_fiber(), color: '#22C55E' }
+		{ key: 'protein', label: m.macro_protein(), color: MACRO_COLORS.protein },
+		{ key: 'carbs', label: m.macro_carbs(), color: MACRO_COLORS.carbs },
+		{ key: 'fat', label: m.macro_fat(), color: MACRO_COLORS.fat },
+		{ key: 'fiber', label: m.macro_fiber(), color: MACRO_COLORS.fiber }
 	] as const satisfies Array<{ key: MacroKey; label: string; color: string }>;
 
 	const activeKeys = $derived<MacroKey[]>(visibleKeys ?? ['protein', 'carbs', 'fat', 'fiber']);

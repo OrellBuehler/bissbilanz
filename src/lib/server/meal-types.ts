@@ -3,13 +3,9 @@ import { ApiError } from '$lib/server/errors';
 import { customMealTypes } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from '$lib/server/validation';
-import type { ZodError } from 'zod';
+import type { Result } from '$lib/server/types';
 
 export type MealTypeInput = { name: string; sortOrder: number };
-
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
 
 export const toMealTypeInsert = (userId: string, input: MealTypeInput) => ({
 	userId,
