@@ -22,6 +22,7 @@ export async function syncQueue(): Promise<number> {
 	if (!browser || syncing || !navigator.onLine) return 0;
 	syncing = true;
 	setSyncing(true);
+	clearSyncErrors();
 	let synced = 0;
 	const affectedTables = new Set<string>();
 
