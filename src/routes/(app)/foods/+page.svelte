@@ -17,6 +17,8 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
+	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	let foods: Array<any> = $state([]);
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
@@ -32,6 +34,7 @@
 	let activeBarcode = $state('');
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
+	let qualityOpen = $state(false);
 
 	const loadFoods = async (q?: string) => {
 		const params = new URLSearchParams();
@@ -327,19 +330,39 @@
 			<p class="mb-3 text-sm text-amber-600">{m.quality_off_not_found()}</p>
 		{:else if offData && !editingFood}
 			<p class="mb-3 text-sm text-green-600">{m.quality_off_prefilled()}</p>
-			<FoodQualityPanel
-				nutriScore={offData.nutriScore}
-				novaGroup={offData.novaGroup}
-				additives={offData.additives}
-				ingredientsText={offData.ingredientsText}
-			/>
+			<Collapsible.Root bind:open={qualityOpen}>
+				<Collapsible.Trigger
+					class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+				>
+					<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+					{m.quality_title()}
+				</Collapsible.Trigger>
+				<Collapsible.Content>
+					<FoodQualityPanel
+						nutriScore={offData.nutriScore}
+						novaGroup={offData.novaGroup}
+						additives={offData.additives}
+						ingredientsText={offData.ingredientsText}
+					/>
+				</Collapsible.Content>
+			</Collapsible.Root>
 		{:else if editingFood}
 			<div class="mb-3">
-				<FoodQualityPanel
-					novaGroup={editingFood.novaGroup}
-					additives={editingFood.additives}
-					ingredientsText={editingFood.ingredientsText}
-				/>
+				<Collapsible.Root bind:open={qualityOpen}>
+					<Collapsible.Trigger
+						class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+					>
+						<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+						{m.quality_title()}
+					</Collapsible.Trigger>
+					<Collapsible.Content>
+						<FoodQualityPanel
+							novaGroup={editingFood.novaGroup}
+							additives={editingFood.additives}
+							ingredientsText={editingFood.ingredientsText}
+						/>
+					</Collapsible.Content>
+				</Collapsible.Root>
 			</div>
 		{/if}
 		{#key editingFood?.id ?? offData ?? activeBarcode}
