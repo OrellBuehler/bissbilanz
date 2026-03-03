@@ -125,7 +125,9 @@
 	});
 
 	// Track which category collapsibles are open
-	let openCategories = $state<Record<string, boolean>>({});
+	let openCategories = $state<Record<string, boolean>>(
+		Object.fromEntries(CATEGORY_ORDER.map((cat) => [cat, false]))
+	);
 
 	// Filter nutrients by visibility and compute which categories have visible nutrients
 	let visibleSet = $derived(new Set(visibleNutrients));
