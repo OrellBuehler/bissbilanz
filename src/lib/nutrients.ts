@@ -459,12 +459,7 @@ export const CATEGORY_I18N_KEYS: Record<NutrientCategory, string> = {
 };
 
 /** Default visible nutrients (shown by default before user customizes) */
-export const DEFAULT_VISIBLE_NUTRIENTS: string[] = [
-	'sodium',
-	'sugar',
-	'saturatedFat',
-	'cholesterol'
-];
+export const DEFAULT_VISIBLE_NUTRIENTS: string[] = ALL_NUTRIENT_KEYS;
 
 /** Pick all nutrient keys from a source object, defaulting missing values to null. */
 export function pickNutrients(src: Record<string, unknown>): Record<string, unknown> {
