@@ -25,7 +25,7 @@ const offProductSchema = z.object({
 	additives_tags: z.array(z.string().max(100)).max(100).optional().default([]),
 	ingredients_text: z.string().max(10000).optional().nullable(),
 	image_front_url: z.string().url().max(2000).optional().nullable(),
-	nutriments: z.record(z.string(), z.number().optional()).optional().default({})
+	nutriments: z.record(z.string(), z.union([z.number(), z.string()])).optional().default({})
 });
 
 const offResponseSchema = z.object({
