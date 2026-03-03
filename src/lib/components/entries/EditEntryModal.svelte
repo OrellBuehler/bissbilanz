@@ -72,7 +72,7 @@
 		(Number(editQuickCarbs) || 0) * 4 +
 		(Number(editQuickFat) || 0) * 9
 	);
-	let editHasMacros = $derived(!!editQuickProtein || !!editQuickCarbs || !!editQuickFat);
+	let editHasMacros = $derived((!!editQuickProtein || !!editQuickCarbs || !!editQuickFat) && !!editQuickCalories);
 	let editMacrosMatch = $derived(Math.round(editMacroCalories) === Math.round(Number(editQuickCalories) || 0));
 
 	$effect(() => {

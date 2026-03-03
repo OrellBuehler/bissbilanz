@@ -89,7 +89,7 @@
 		(Number(quickCarbs) || 0) * 4 +
 		(Number(quickFat) || 0) * 9
 	);
-	let hasMacros = $derived(!!quickProtein || !!quickCarbs || !!quickFat);
+	let hasMacros = $derived((!!quickProtein || !!quickCarbs || !!quickFat) && !!quickCalories);
 	let macrosMatch = $derived(Math.round(macroCalories) === Math.round(Number(quickCalories) || 0));
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
