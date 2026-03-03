@@ -2,9 +2,9 @@ import { getDB } from '$lib/server/db';
 import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, ilike } from 'drizzle-orm';
-import type { ZodError } from 'zod';
 import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
+import type { Result, DeleteResult } from '$lib/server/types';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -14,11 +14,21 @@ function isDuplicateBarcodeError(error: unknown): boolean {
 	return msg.includes('unique constraint') && msg.includes('barcode');
 }
 
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
+async function handleBarcodeConflict(
+	error: unknown,
+	userId: string,
+	barcode: string | null | undefined
+): Promise<Result<never> | null> {
+	if (!isDuplicateBarcodeError(error) || !barcode) return null;
+	const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
+	const name = existing?.name ?? 'unknown';
+	return {
+		success: false,
+		error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
+	};
+}
 
-export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
+export type { DeleteResult };
 
 export const toFoodInsert = (userId: string, input: FoodCreateInput) => {
 	return {
@@ -87,16 +97,7 @@ export const createFood = async (
 		}
 		return { success: true, data: created };
 	} catch (error) {
-		if (isDuplicateBarcodeError(error)) {
-			const barcode = result.data.barcode!;
-			const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
-			const name = existing?.name ?? 'unknown';
-			return {
-				success: false,
-				error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
-			};
-		}
-		return { success: false, error: error as Error };
+		return (await handleBarcodeConflict(error, userId, result.data.barcode)) ?? { success: false, error: error as Error };
 	}
 };
 
@@ -127,16 +128,7 @@ export const updateFood = async (
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {
-		if (isDuplicateBarcodeError(error)) {
-			const barcode = result.data.barcode!;
-			const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
-			const name = existing?.name ?? 'unknown';
-			return {
-				success: false,
-				error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
-			};
-		}
-		return { success: false, error: error as Error };
+		return (await handleBarcodeConflict(error, userId, result.data.barcode)) ?? { success: false, error: error as Error };
 	}
 };
 

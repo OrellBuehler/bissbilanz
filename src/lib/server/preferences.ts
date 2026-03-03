@@ -10,11 +10,7 @@ import {
 import { preferencesUpdateSchema } from '$lib/server/validation';
 import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import type { ZodError } from 'zod';
-
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
+import type { Result } from '$lib/server/types';
 
 type FavoriteMealTimeframePreference = {
 	id: string;

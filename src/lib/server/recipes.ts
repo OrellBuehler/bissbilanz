@@ -2,7 +2,7 @@ import { getDB } from '$lib/server/db';
 import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/schema';
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
-import type { ZodError } from 'zod';
+import type { Result, DeleteResult } from '$lib/server/types';
 
 type RecipeInput = {
 	name: string;
@@ -11,11 +11,7 @@ type RecipeInput = {
 	imageUrl?: string | null;
 };
 
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
-
-export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
+export type { DeleteResult };
 
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,

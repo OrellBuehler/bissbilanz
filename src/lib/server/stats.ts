@@ -5,21 +5,15 @@ import {
 	addTotals,
 	calculateEntryMacros,
 	roundTotals,
+	scaleTotals,
 	type MacroTotals
 } from '$lib/utils/nutrition';
+import { today, shiftDate } from '$lib/utils/dates';
 import { getDB, foodEntries } from '$lib/server/db';
 import { eq, sql } from 'drizzle-orm';
 
 export type CalendarDay = { calories: number; hasEntries: boolean };
 export type CalendarStats = { days: Record<string, CalendarDay> };
-
-const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-const getDaysAgo = (days: number) => {
-	const date = new Date();
-	date.setDate(date.getDate() - days);
-	return formatDate(date);
-};
 
 const groupEntriesByDate = (
 	entries: Array<{
@@ -43,16 +37,16 @@ const groupEntriesByDate = (
 };
 
 export const getWeeklyStats = async (userId: string) => {
-	const endDate = formatDate(new Date());
-	const startDate = getDaysAgo(6);
+	const endDate = today();
+	const startDate = shiftDate(endDate, -6);
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
 	const dailyTotals = groupEntriesByDate(entries);
 	return averageTotals(dailyTotals);
 };
 
 export const getMonthlyStats = async (userId: string) => {
-	const endDate = formatDate(new Date());
-	const startDate = getDaysAgo(29);
+	const endDate = today();
+	const startDate = shiftDate(endDate, -29);
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
 	const dailyTotals = groupEntriesByDate(entries);
 	return averageTotals(dailyTotals);
@@ -142,8 +136,8 @@ export const getStreaks = async (userId: string) => {
 
 	const dates = rows.map((r) => r.date);
 
-	const todayStr = formatDate(new Date());
-	const yesterdayStr = getDaysAgo(1);
+	const todayStr = today();
+	const yesterdayStr = shiftDate(todayStr, -1);
 
 	let currentStreak = 0;
 	if (dates[0] === todayStr || dates[0] === yesterdayStr) {
@@ -151,9 +145,7 @@ export const getStreaks = async (userId: string) => {
 		for (const d of dates) {
 			if (d === expected) {
 				currentStreak++;
-				const prev = new Date(expected + 'T00:00:00Z');
-				prev.setUTCDate(prev.getUTCDate() - 1);
-				expected = prev.toISOString().split('T')[0];
+				expected = shiftDate(expected, -1);
 			} else if (d < expected) {
 				break;
 			}
@@ -163,9 +155,7 @@ export const getStreaks = async (userId: string) => {
 	let longestStreak = 1;
 	let run = 1;
 	for (let i = 1; i < dates.length; i++) {
-		const prev = new Date(dates[i - 1] + 'T00:00:00Z');
-		prev.setUTCDate(prev.getUTCDate() - 1);
-		if (dates[i] === prev.toISOString().split('T')[0]) {
+		if (dates[i] === shiftDate(dates[i - 1], -1)) {
 			run++;
 			if (run > longestStreak) longestStreak = run;
 		} else {
@@ -193,8 +183,8 @@ export const getTopFoods = async (
 		fiber: number;
 	}>
 > => {
-	const endDate = formatDate(new Date());
-	const startDate = getDaysAgo(days - 1);
+	const endDate = today();
+	const startDate = shiftDate(endDate, -(days - 1));
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
 
 	const groups: Record<
@@ -230,12 +220,6 @@ export const getTopFoods = async (
 			recipeId: g.recipeId,
 			foodName: g.foodName,
 			count: g.count,
-			...roundTotals({
-				calories: g.totalMacros.calories / g.count,
-				protein: g.totalMacros.protein / g.count,
-				carbs: g.totalMacros.carbs / g.count,
-				fat: g.totalMacros.fat / g.count,
-				fiber: g.totalMacros.fiber / g.count
-			})
+			...roundTotals(scaleTotals(g.totalMacros, 1 / g.count))
 		}));
 };

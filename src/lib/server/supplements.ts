@@ -1,14 +1,9 @@
 import { getDB } from '$lib/server/db';
 import { supplements, supplementLogs, supplementIngredients } from '$lib/server/schema';
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
-import { and, eq, desc, inArray } from 'drizzle-orm';
-import { gte, lte } from 'drizzle-orm';
-import type { ZodError } from 'zod';
+import { and, eq, desc, inArray, gte, lte } from 'drizzle-orm';
 import { today } from '$lib/utils/dates';
-
-type SuccessResult<T> = { success: true; data: T };
-type ErrorResult = { success: false; error: ZodError | Error };
-type Result<T> = SuccessResult<T> | ErrorResult;
+import type { Result } from '$lib/server/types';
 
 type IngredientRow = {
 	id: string;

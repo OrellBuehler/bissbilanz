@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getPreferences, updatePreferences, DEFAULT_PREFERENCES } from '$lib/server/preferences';
-import { handleApiError, isZodError, requireAuth, validationError } from '$lib/server/errors';
+import { handleApiError, requireAuth, unwrapResult } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
@@ -18,15 +18,8 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		const userId = requireAuth(locals);
 		const body = await request.json();
 
-		const result = await updatePreferences(userId, body);
-		if (!result.success) {
-			if (isZodError(result.error)) {
-				return validationError(result.error);
-			}
-			throw result.error;
-		}
-
-		return json({ preferences: result.data });
+		const preferences = unwrapResult(await updatePreferences(userId, body));
+		return json({ preferences });
 	} catch (error) {
 		return handleApiError(error);
 	}

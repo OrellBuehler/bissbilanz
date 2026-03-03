@@ -3,6 +3,7 @@
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import { curveMonotoneX } from 'd3-shape';
 	import type { MacroTotals } from '$lib/utils/nutrition';
+	import { MACRO_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
 	type DailyData = { date: string } & MacroTotals;
@@ -33,11 +34,11 @@
 	const config: ChartConfig = {
 		calories: {
 			label: m.macro_calories(),
-			color: '#3B82F6'
+			color: MACRO_COLORS.calories
 		}
 	};
 
-	const series = [{ key: 'calories', label: m.macro_calories(), color: '#3B82F6' }];
+	const series = [{ key: 'calories', label: m.macro_calories(), color: MACRO_COLORS.calories }];
 
 	const maxCalories = $derived(Math.max(...data.map((d) => d.calories), 0));
 	const hasData = $derived(maxCalories > 0);
