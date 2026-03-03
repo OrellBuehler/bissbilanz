@@ -51,11 +51,20 @@
 					imageUrl: offData.imageUrl
 				}
 			: payload;
-		await apiFetch('/api/foods', {
+		const res = await apiFetch('/api/foods', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			if (data.error === 'duplicate_barcode') {
+				toast.error(m.detail_duplicate_barcode());
+			} else {
+				toast.error(m.detail_create_failed());
+			}
+			return;
+		}
 		closeForm();
 		await loadFoods(query);
 	};
@@ -67,11 +76,16 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ...payload, imageUrl: editImageUrl })
 		});
-		if (res.ok) {
-			toast.success(m.detail_saved());
-		} else {
-			toast.error(m.detail_save_failed());
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			if (data.error === 'duplicate_barcode') {
+				toast.error(m.detail_duplicate_barcode());
+			} else {
+				toast.error(m.detail_save_failed());
+			}
+			return;
 		}
+		toast.success(m.detail_saved());
 		closeForm();
 		await loadFoods(query);
 	};

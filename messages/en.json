@@ -410,6 +410,8 @@
 	"detail_saving": "Saving...",
 	"detail_saved": "Changes saved",
 	"detail_save_failed": "Failed to save changes",
+	"detail_duplicate_barcode": "A food with this barcode already exists",
+	"detail_create_failed": "Failed to create food",
 	"image_uploaded": "Image uploaded",
 	"image_upload_failed": "Image upload failed",
 	"detail_ingredients": "Ingredients",

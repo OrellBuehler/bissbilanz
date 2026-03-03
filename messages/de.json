@@ -410,6 +410,8 @@
 	"detail_saving": "Speichern...",
 	"detail_saved": "Änderungen gespeichert",
 	"detail_save_failed": "Speichern fehlgeschlagen",
+	"detail_duplicate_barcode": "Ein Lebensmittel mit diesem Barcode existiert bereits",
+	"detail_create_failed": "Lebensmittel konnte nicht erstellt werden",
 	"image_uploaded": "Bild hochgeladen",
 	"image_upload_failed": "Bild-Upload fehlgeschlagen",
 	"detail_ingredients": "Zutaten",
