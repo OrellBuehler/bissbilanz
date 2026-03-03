@@ -51,6 +51,7 @@
 	let saving = $state(false);
 	let uploading = $state(false);
 	let enriching = $state(false);
+	let qualityOpen = $state(false);
 
 	// Editable fields
 	let name = $state('');
@@ -302,7 +303,7 @@
 			<Label>{m.mark_as_favorite()}</Label>
 		</div>
 
-		<Collapsible.Root open={false}>
+		<Collapsible.Root bind:open={qualityOpen}>
 			<Collapsible.Trigger
 				class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
 			>
