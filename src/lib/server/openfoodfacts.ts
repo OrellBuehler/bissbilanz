@@ -58,15 +58,17 @@ export type OFFProduct = {
  * OFF stores everything per 100g in grams; conversion multiplier converts to our unit.
  */
 function extractNutrient(
-	nutriments: Record<string, number | undefined>,
+	nutriments: Record<string, number | string | undefined>,
 	offKey: string | undefined,
 	conversion?: number
 ): number | null {
 	if (!offKey) return null;
 	const raw = nutriments[offKey];
 	if (raw == null) return null;
-	if (conversion) return Math.round(raw * conversion * 100) / 100;
-	return Math.round(raw * 100) / 100;
+	const num = typeof raw === 'string' ? parseFloat(raw) : raw;
+	if (isNaN(num)) return null;
+	if (conversion) return Math.round(num * conversion * 100) / 100;
+	return Math.round(num * 100) / 100;
 }
 
 export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
@@ -88,7 +90,7 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 	}
 
 	const p = parsed.data.product;
-	const n = p.nutriments as Record<string, number | undefined>;
+	const n = p.nutriments as Record<string, number | string | undefined>;
 
 	const result: OFFProduct = {
 		name: p.product_name,

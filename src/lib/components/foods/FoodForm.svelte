@@ -147,7 +147,7 @@
 					const val = form[n.key];
 					return val != null && val !== 0;
 				});
-				if (hasData && openCategories[cat] === undefined) {
+				if (hasData && !openCategories[cat]) {
 					openCategories[cat] = true;
 				}
 			}

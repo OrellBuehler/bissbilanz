@@ -137,6 +137,7 @@
 		offData = null;
 		offNotFound = false;
 		activeBarcode = '';
+		qualityOpen = false;
 	};
 
 	const openEdit = async (id: string) => {
