@@ -9,10 +9,12 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
+	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open?: boolean;
+		date: string;
 		entry: {
 			id: string;
 			servings: number;
@@ -45,7 +47,7 @@
 		onDelete: (id: string) => void;
 	};
 
-	let { open = $bindable(false), entry, onClose, onSave, onDelete }: Props = $props();
+	let { open = $bindable(false), date, entry, onClose, onSave, onDelete }: Props = $props();
 
 	let wasOpen = $state(false);
 	$effect(() => {
@@ -68,17 +70,11 @@
 
 	const isQuickEntry = $derived(entry?.quickCalories != null);
 
-	const formatTimeFromIso = (iso: string | null | undefined): string => {
-		if (!iso) return '';
-		const d = new Date(iso);
-		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-	};
-
 	$effect(() => {
 		if (entry) {
 			editServings = round2(entry.servings);
 			editMealType = entry.mealType;
-			editTime = formatTimeFromIso(entry.eatenAt);
+			editTime = formatTime24h(entry.eatenAt);
 			if (entry.quickCalories != null) {
 				editQuickName = entry.quickName ?? '';
 				editQuickCalories = String(entry.quickCalories);
@@ -90,17 +86,9 @@
 		}
 	});
 
-	const buildEatenAt = (): string | null => {
-		if (!editTime) return null;
-		const now = new Date();
-		const [h, min] = editTime.split(':').map(Number);
-		const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min);
-		return d.toISOString();
-	};
-
 	const handleSave = () => {
 		if (!entry) return;
-		const eatenAt = buildEatenAt();
+		const eatenAt = timeToIsoString(editTime, date);
 		if (isQuickEntry) {
 			const cal = Number(editQuickCalories);
 			if (!cal || cal < 0) return;

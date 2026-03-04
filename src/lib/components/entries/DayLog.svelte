@@ -178,6 +178,7 @@
 		bind:open={addModalOpen}
 		{foods}
 		{recipes}
+		{date}
 		mealType={activeMeal}
 		onClose={() => {
 			addModalOpen = false;
@@ -186,6 +187,7 @@
 	/>
 	<EditEntryModal
 		bind:open={editModalOpen}
+		{date}
 		entry={editingEntry}
 		onClose={() => {
 			editModalOpen = false;

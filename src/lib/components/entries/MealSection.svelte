@@ -9,6 +9,7 @@
 	import Sunset from '@lucide/svelte/icons/sunset';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import SwipeableEntry from '$lib/components/entries/SwipeableEntry.svelte';
+	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -62,11 +63,6 @@
 		onDelete
 	}: Props = $props();
 
-	const formatTime = (iso: string | null | undefined) => {
-		if (!iso) return '';
-		const d = new Date(iso);
-		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-	};
 
 	const mealVisual = $derived.by(() => {
 		const key = title.trim().toLowerCase();
