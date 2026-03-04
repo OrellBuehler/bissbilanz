@@ -21,6 +21,7 @@
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
+			eatenAt?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
 			quickCarbs?: number | null;
@@ -33,6 +34,7 @@
 			id: string;
 			servings: number;
 			mealType: string;
+			eatenAt?: string | null;
 			quickName?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
@@ -55,6 +57,7 @@
 
 	let editServings = $state(1);
 	let editMealType = $state('');
+	let editTime = $state('');
 
 	let editQuickName = $state('');
 	let editQuickCalories = $state('');
@@ -65,10 +68,17 @@
 
 	const isQuickEntry = $derived(entry?.quickCalories != null);
 
+	const formatTimeFromIso = (iso: string | null | undefined): string => {
+		if (!iso) return '';
+		const d = new Date(iso);
+		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+	};
+
 	$effect(() => {
 		if (entry) {
 			editServings = round2(entry.servings);
 			editMealType = entry.mealType;
+			editTime = formatTimeFromIso(entry.eatenAt);
 			if (entry.quickCalories != null) {
 				editQuickName = entry.quickName ?? '';
 				editQuickCalories = String(entry.quickCalories);
@@ -80,8 +90,17 @@
 		}
 	});
 
+	const buildEatenAt = (): string | null => {
+		if (!editTime) return null;
+		const now = new Date();
+		const [h, min] = editTime.split(':').map(Number);
+		const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min);
+		return d.toISOString();
+	};
+
 	const handleSave = () => {
 		if (!entry) return;
+		const eatenAt = buildEatenAt();
 		if (isQuickEntry) {
 			const cal = Number(editQuickCalories);
 			if (!cal || cal < 0) return;
@@ -89,6 +108,7 @@
 				id: entry.id,
 				servings: 1,
 				mealType: editMealType,
+				eatenAt,
 				quickName: editQuickName.trim() || null,
 				quickCalories: cal,
 				quickProtein: editQuickProtein ? Number(editQuickProtein) : null,
@@ -97,7 +117,7 @@
 				quickFiber: editQuickFiber ? Number(editQuickFiber) : null
 			});
 		} else {
-			onSave({ id: entry.id, servings: editServings, mealType: editMealType });
+			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
 		}
 	};
 
@@ -168,6 +188,11 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		</div>
+
+		<div class="grid gap-2">
+			<Label>{m.edit_entry_time()}</Label>
+			<Input type="time" bind:value={editTime} />
 		</div>
 
 		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">

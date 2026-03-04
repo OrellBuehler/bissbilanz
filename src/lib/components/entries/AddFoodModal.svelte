@@ -51,6 +51,7 @@
 			recipeId?: string;
 			mealType: string;
 			servings: number;
+			eatenAt?: string;
 			quickName?: string;
 			quickCalories?: number;
 			quickProtein?: number;
@@ -71,6 +72,7 @@
 
 	let query = $state('');
 	let servings = $state(1);
+	let eatenTime = $state('');
 	let tab: 'search' | 'favorites' | 'recent' | 'recipes' | 'quick' = $state('search');
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
 
@@ -161,14 +163,24 @@
 		servings = 1;
 	};
 
+	const buildEatenAt = (): string | undefined => {
+		if (!eatenTime) return undefined;
+		const now = new Date();
+		const [h, min] = eatenTime.split(':').map(Number);
+		const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min);
+		return d.toISOString();
+	};
+
 	const confirmAdd = () => {
 		if (!selectedFood) return;
+		const base = { mealType, servings, eatenAt: buildEatenAt() };
 		if (selectedFood.type === 'food') {
-			onSave({ foodId: selectedFood.id, mealType, servings });
+			onSave({ foodId: selectedFood.id, ...base });
 		} else {
-			onSave({ recipeId: selectedFood.id, mealType, servings });
+			onSave({ recipeId: selectedFood.id, ...base });
 		}
 		selectedFood = null;
+		eatenTime = '';
 	};
 
 	const confirmQuickLog = () => {
@@ -177,6 +189,7 @@
 		onSave({
 			mealType,
 			servings: 1,
+			eatenAt: buildEatenAt(),
 			quickName: quickName.trim() || undefined,
 			quickCalories: cal,
 			quickProtein: quickProtein ? Number(quickProtein) : undefined,
@@ -190,6 +203,7 @@
 		quickCarbs = '';
 		quickFat = '';
 		quickFiber = '';
+		eatenTime = '';
 	};
 
 	const goBack = () => {
@@ -267,6 +281,11 @@
 					caloriesPerServing={selectedFood.calories}
 					onServingsChange={(v) => (servings = v)}
 				/>
+
+				<div class="grid gap-1.5">
+					<Label class="text-xs">{m.add_food_time()}</Label>
+					<Input type="time" bind:value={eatenTime} />
+				</div>
 
 				<Button class="w-full" onclick={confirmAdd}>
 					<Check class="mr-1 size-4" />
@@ -450,6 +469,10 @@
 								</div>
 							</div>
 						{/if}
+						<div class="grid gap-1.5">
+							<Label class="text-xs">{m.add_food_time()}</Label>
+							<Input type="time" bind:value={eatenTime} />
+						</div>
 						<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={confirmQuickLog}>
 							<Check class="mr-1 size-4" />
 							{m.quick_log_add()}

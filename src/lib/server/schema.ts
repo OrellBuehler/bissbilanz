@@ -194,6 +194,7 @@ export const foodEntries = pgTable(
 		quickCarbs: real('quick_carbs'),
 		quickFat: real('quick_fat'),
 		quickFiber: real('quick_fiber'),
+		eatenAt: timestamp('eaten_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},

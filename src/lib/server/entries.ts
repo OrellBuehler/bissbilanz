@@ -51,6 +51,7 @@ export const listEntriesByDate = async (
 			quickFat: foodEntries.quickFat,
 			quickFiber: foodEntries.quickFiber,
 			...entryMacroColumns(),
+			eatenAt: foodEntries.eatenAt,
 			createdAt: foodEntries.createdAt,
 			servingSize: foods.servingSize,
 			servingUnit: foods.servingUnit
@@ -89,7 +90,8 @@ export const createEntry = async (
 				quickProtein: result.data.quickProtein ?? null,
 				quickCarbs: result.data.quickCarbs ?? null,
 				quickFat: result.data.quickFat ?? null,
-				quickFiber: result.data.quickFiber ?? null
+				quickFiber: result.data.quickFiber ?? null,
+				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : null
 			})
 			.returning();
 		if (!created) {
@@ -103,10 +105,14 @@ export const createEntry = async (
 
 type EntryUpdateInput = typeof entryUpdateSchema._output;
 
-export const toEntryUpdate = (input: EntryUpdateInput) => ({
-	...input,
-	notes: input.notes ?? null
-});
+export const toEntryUpdate = (input: EntryUpdateInput) => {
+	const { eatenAt, ...rest } = input;
+	return {
+		...rest,
+		notes: input.notes ?? null,
+		...(eatenAt !== undefined ? { eatenAt: eatenAt ? new Date(eatenAt) : null } : {})
+	};
+};
 
 export const updateEntry = async (
 	userId: string,

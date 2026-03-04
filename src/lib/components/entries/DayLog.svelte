@@ -41,6 +41,7 @@
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;
+		eatenAt?: string | null;
 		quickCalories?: number | null;
 		quickProtein?: number | null;
 		quickCarbs?: number | null;
@@ -82,6 +83,7 @@
 		id: string;
 		servings: number;
 		mealType: string;
+		eatenAt?: string | null;
 		quickName?: string | null;
 		quickCalories?: number | null;
 		quickProtein?: number | null;
@@ -117,6 +119,7 @@
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;
+		eatenAt?: string | null;
 		quickCalories?: number | null;
 		quickProtein?: number | null;
 		quickCarbs?: number | null;

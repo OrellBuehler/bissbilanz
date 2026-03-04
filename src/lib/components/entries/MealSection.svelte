@@ -19,6 +19,7 @@
 			calories: number | null;
 			servings: number;
 			mealType: string;
+			eatenAt?: string | null;
 			createdAt?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
@@ -40,6 +41,7 @@
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
+			eatenAt?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
 			quickCarbs?: number | null;
@@ -89,6 +91,7 @@
 						servingSize: entry.servingSize,
 						servingUnit: entry.servingUnit,
 						calories: entry.calories,
+						eatenAt: entry.eatenAt,
 						quickCalories: entry.quickCalories,
 						quickProtein: entry.quickProtein,
 						quickCarbs: entry.quickCarbs,
@@ -120,9 +123,9 @@
 									entry.servingUnit
 								)}
 							</span>
-							{#if entry.createdAt}
+							{#if entry.eatenAt || entry.createdAt}
 								<span class="shrink-0 text-xs text-muted-foreground/60"
-									>{formatTime(entry.createdAt)}</span
+									>{formatTime(entry.eatenAt ?? entry.createdAt)}</span
 								>
 							{/if}
 						</div>
