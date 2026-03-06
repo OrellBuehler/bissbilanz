@@ -9,6 +9,8 @@ apt-get install -y --no-install-recommends \
 # Bun
 if ! command -v bun &>/dev/null; then
   curl -fsSL https://bun.sh/install | bash
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$PATH"
 fi
 
 # GitHub CLI
@@ -31,5 +33,6 @@ fi
 
 # Trivy
 if ! command -v trivy &>/dev/null; then
-  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin \
+    || echo "WARNING: Trivy install failed — run manually or check network access"
 fi
