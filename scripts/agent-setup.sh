@@ -30,9 +30,3 @@ bunx playwright install --with-deps chromium || echo "WARNING: Playwright browse
 if ! command -v semgrep &>/dev/null; then
   pip3 install --break-system-packages semgrep 2>/dev/null || pip3 install semgrep
 fi
-
-# Trivy
-if ! command -v trivy &>/dev/null; then
-  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin \
-    || echo "WARNING: Trivy install failed — run manually or check network access"
-fi
