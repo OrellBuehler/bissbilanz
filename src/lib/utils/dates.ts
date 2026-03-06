@@ -68,3 +68,34 @@ export const daysBetween = (startDate: string, endDate: string): number => {
 export const getDayOfWeek = (isoDate: string) => new Date(isoDate + 'T00:00:00Z').getUTCDay();
 
 export const daysAgo = (days: number) => shiftDate(today(), -(days - 1));
+
+/**
+ * Convert an HH:MM time string to an ISO 8601 datetime for the given date.
+ * Returns null if the time string is empty/falsy.
+ */
+export const timeToIsoString = (time: string, isoDate: string): string | null => {
+	if (!time) return null;
+	const [h, min] = time.split(':').map(Number);
+	const [y, mo, d] = isoDate.split('-').map(Number);
+	return new Date(y, mo - 1, d, h, min).toISOString();
+};
+
+/**
+ * Format an ISO datetime string to a locale HH:MM time string for display.
+ */
+export const formatTime = (iso: string | null | undefined): string => {
+	if (!iso) return '';
+	return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+};
+
+/**
+ * Format an ISO datetime string to HH:MM in 24-hour format (for time input values).
+ */
+export const formatTime24h = (iso: string | null | undefined): string => {
+	if (!iso) return '';
+	return new Date(iso).toLocaleTimeString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
+};

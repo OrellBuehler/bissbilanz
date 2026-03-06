@@ -9,6 +9,7 @@
 	import Sunset from '@lucide/svelte/icons/sunset';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import SwipeableEntry from '$lib/components/entries/SwipeableEntry.svelte';
+	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -19,6 +20,7 @@
 			calories: number | null;
 			servings: number;
 			mealType: string;
+			eatenAt?: string | null;
 			createdAt?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
@@ -40,6 +42,7 @@
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
+			eatenAt?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
 			quickCarbs?: number | null;
@@ -60,11 +63,6 @@
 		onDelete
 	}: Props = $props();
 
-	const formatTime = (iso: string | null | undefined) => {
-		if (!iso) return '';
-		const d = new Date(iso);
-		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-	};
 
 	const mealVisual = $derived.by(() => {
 		const key = title.trim().toLowerCase();
@@ -89,6 +87,7 @@
 						servingSize: entry.servingSize,
 						servingUnit: entry.servingUnit,
 						calories: entry.calories,
+						eatenAt: entry.eatenAt,
 						quickCalories: entry.quickCalories,
 						quickProtein: entry.quickProtein,
 						quickCarbs: entry.quickCarbs,
@@ -120,9 +119,9 @@
 									entry.servingUnit
 								)}
 							</span>
-							{#if entry.createdAt}
+							{#if entry.eatenAt || entry.createdAt}
 								<span class="shrink-0 text-xs text-muted-foreground/60"
-									>{formatTime(entry.createdAt)}</span
+									>{formatTime(entry.eatenAt ?? entry.createdAt)}</span
 								>
 							{/if}
 						</div>
@@ -146,9 +145,9 @@
 								entry.servingUnit
 							)}</span
 						>
-						{#if entry.createdAt}
+						{#if entry.eatenAt || entry.createdAt}
 							<span class="shrink-0 text-xs text-muted-foreground/60"
-								>{formatTime(entry.createdAt)}</span
+								>{formatTime(entry.eatenAt ?? entry.createdAt)}</span
 							>
 						{/if}
 					</div>

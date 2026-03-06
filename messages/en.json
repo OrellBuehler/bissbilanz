@@ -62,6 +62,9 @@
 	"amount_preview_equals": "= {amount} {unit}",
 	"amount_preview_kcal": "{kcal} kcal",
 
+	"add_food_time": "Time (optional)",
+	"edit_entry_time": "Time",
+
 	"edit_entry_title": "Edit Entry",
 	"edit_entry_servings": "Servings",
 	"edit_entry_meal": "Meal",

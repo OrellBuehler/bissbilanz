@@ -187,7 +187,19 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleUpdateEntry = async (
 		userId: string,
-		args: { entryId: string; servings?: number; mealType?: string; notes?: string }
+		args: {
+			entryId: string;
+			servings?: number;
+			mealType?: string;
+			notes?: string;
+			eatenAt?: string | null;
+			quickName?: string | null;
+			quickCalories?: number | null;
+			quickProtein?: number | null;
+			quickCarbs?: number | null;
+			quickFat?: number | null;
+			quickFiber?: number | null;
+		}
 	) => {
 		const { entryId, ...rest } = args;
 		const result = await d.updateEntry(userId, entryId, rest);

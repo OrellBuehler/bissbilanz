@@ -7,6 +7,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { apiFetch } from '$lib/utils/api';
 	import { round2 } from '$lib/utils/number';
+	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type WeightEntry = {
@@ -58,8 +59,7 @@
 			month: 'short'
 		});
 
-	const formatTime = (iso: string) =>
-		new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
 </script>
 
 <div class="space-y-2">
