@@ -178,7 +178,7 @@ export function createMcpServer(userId: string): McpServer {
 				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
 				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
 				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log'),
-				eatenAt: z.string().optional().describe('When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.')
+				eatenAt: z.string().datetime({ offset: true }).optional().describe('When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.')
 			}
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -237,7 +237,8 @@ export function createMcpServer(userId: string): McpServer {
 				quickProtein: z.number().nonnegative().optional().nullable().describe('New protein for quick log'),
 				quickCarbs: z.number().nonnegative().optional().nullable().describe('New carbs for quick log'),
 				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
-				quickFiber: z.number().nonnegative().optional().nullable().describe('New fiber for quick log')
+				quickFiber: z.number().nonnegative().optional().nullable().describe('New fiber for quick log'),
+				eatenAt: z.string().datetime({ offset: true }).optional().nullable().describe('When the food was eaten, as ISO 8601 datetime with timezone. Set to null to clear.')
 			}
 		},
 		safe((args) => handleUpdateEntry(userId, args))

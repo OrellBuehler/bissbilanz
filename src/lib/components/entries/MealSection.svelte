@@ -145,9 +145,9 @@
 								entry.servingUnit
 							)}</span
 						>
-						{#if entry.createdAt}
+						{#if entry.eatenAt || entry.createdAt}
 							<span class="shrink-0 text-xs text-muted-foreground/60"
-								>{formatTime(entry.createdAt)}</span
+								>{formatTime(entry.eatenAt ?? entry.createdAt)}</span
 							>
 						{/if}
 					</div>
