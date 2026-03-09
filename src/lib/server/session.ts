@@ -3,6 +3,12 @@ import { getDB, sessions, users, type Session, type User } from './db';
 import { config } from './env';
 import { encryptToken } from './token-crypto';
 
+export async function getUserById(userId: string): Promise<User | null> {
+	const db = getDB();
+	const [user] = await db.select().from(users).where(eq(users.id, userId));
+	return user ?? null;
+}
+
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function generateSessionId(): string {

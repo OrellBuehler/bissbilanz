@@ -2,7 +2,8 @@ import * as Sentry from '@sentry/sveltekit';
 import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
-import { getSessionWithUser } from '$lib/server/session';
+import { getSessionWithUser, getUserById } from '$lib/server/session';
+import { validateAccessToken } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
@@ -110,6 +111,21 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		if (result) {
 			event.locals.user = result.user;
 			event.locals.session = result.session;
+		}
+	}
+
+	// Fallback to Bearer token auth for API routes
+	if (!event.locals.user && pathname.startsWith('/api/')) {
+		const authHeader = event.request.headers.get('authorization');
+		if (authHeader?.startsWith('Bearer ')) {
+			const token = authHeader.slice(7);
+			const tokenResult = await validateAccessToken(token);
+			if (tokenResult) {
+				const user = await getUserById(tokenResult.userId);
+				if (user) {
+					event.locals.user = user;
+				}
+			}
 		}
 	}
 
