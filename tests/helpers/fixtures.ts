@@ -291,6 +291,45 @@ export const TEST_SUPPLEMENT_INGREDIENTS = [
 	}
 ];
 
+// Null expanded nutrients — spread into Dexie food fixtures
+export const NULL_NUTRIENTS = {
+	monounsaturatedFat: null,
+	polyunsaturatedFat: null,
+	transFat: null,
+	omega3: null,
+	omega6: null,
+	addedSugars: null,
+	sugarAlcohols: null,
+	starch: null,
+	potassium: null,
+	magnesium: null,
+	phosphorus: null,
+	zinc: null,
+	copper: null,
+	manganese: null,
+	selenium: null,
+	iodine: null,
+	fluoride: null,
+	chromium: null,
+	molybdenum: null,
+	chloride: null,
+	vitaminD: null,
+	vitaminE: null,
+	vitaminK: null,
+	vitaminB1: null,
+	vitaminB2: null,
+	vitaminB3: null,
+	vitaminB5: null,
+	vitaminB6: null,
+	vitaminB7: null,
+	vitaminB9: null,
+	vitaminB12: null,
+	caffeine: null,
+	alcohol: null,
+	water: null,
+	salt: null
+} as const;
+
 // Valid payloads for POST requests
 export const VALID_FOOD_PAYLOAD = {
 	name: 'Oats',
