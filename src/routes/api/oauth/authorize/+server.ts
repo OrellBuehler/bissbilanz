@@ -27,6 +27,9 @@ function isValidRedirectUriFormat(uri: string): boolean {
 				url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
 			);
 		}
+		if (/^[a-z][a-z0-9+.-]*:$/.test(url.protocol) && url.protocol !== 'javascript:') {
+			return true;
+		}
 		return false;
 	} catch {
 		return false;
