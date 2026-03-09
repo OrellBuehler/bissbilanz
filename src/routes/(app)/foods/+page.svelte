@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
@@ -138,6 +139,9 @@
 		offNotFound = false;
 		activeBarcode = '';
 		qualityOpen = false;
+		if ($page.url.searchParams.has('barcode')) {
+			goto('/foods', { replaceState: true });
+		}
 	};
 
 	const openEdit = async (id: string) => {
