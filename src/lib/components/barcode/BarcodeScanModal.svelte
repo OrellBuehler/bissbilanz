@@ -33,7 +33,7 @@
 	};
 </script>
 
-<ResponsiveModal bind:open title={m.barcode_title()}>
+<ResponsiveModal bind:open title={m.barcode_title()} openFull>
 	{#if error}
 		<Alert.Root variant="destructive">
 			<AlertCircle class="size-4" />

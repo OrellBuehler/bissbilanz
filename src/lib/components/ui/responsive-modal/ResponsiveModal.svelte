@@ -8,10 +8,11 @@
 		open: boolean;
 		title: string;
 		description?: string;
+		openFull?: boolean;
 		children: Snippet;
 	};
 
-	let { open = $bindable(false), title, description, children }: Props = $props();
+	let { open = $bindable(false), title, description, openFull = false, children }: Props = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
 	const snapPoints = [0.7, 1];
@@ -19,7 +20,7 @@
 
 	$effect(() => {
 		if (open) {
-			activeSnapPoint = snapPoints[0];
+			activeSnapPoint = openFull ? snapPoints[1] : snapPoints[0];
 		}
 	});
 
