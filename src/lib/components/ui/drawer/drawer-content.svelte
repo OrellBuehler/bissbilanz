@@ -15,6 +15,26 @@
 	}: DrawerPrimitive.ContentProps & {
 		portalProps?: WithoutChildrenOrChild<ComponentProps<typeof DrawerPortal>>;
 	} = $props();
+
+	let keyboardOffset = $state(0);
+
+	$effect(() => {
+		const vv = window.visualViewport;
+		if (!vv) return;
+
+		function onResize() {
+			if (!vv) return;
+			const offset = window.innerHeight - vv.height - vv.offsetTop;
+			keyboardOffset = Math.max(0, offset);
+		}
+
+		vv.addEventListener('resize', onResize);
+		vv.addEventListener('scroll', onResize);
+		return () => {
+			vv.removeEventListener('resize', onResize);
+			vv.removeEventListener('scroll', onResize);
+		};
+	});
 </script>
 
 <DrawerPortal {...portalProps}>
@@ -30,6 +50,7 @@
 			'data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:start-0 data-[vaul-drawer-direction=left]:w-3/4 data-[vaul-drawer-direction=left]:border-e data-[vaul-drawer-direction=left]:sm:max-w-sm',
 			className
 		)}
+		style={keyboardOffset > 0 ? `transform: translateY(-${keyboardOffset}px)` : undefined}
 		{...restProps}
 	>
 		<div
