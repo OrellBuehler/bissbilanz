@@ -1,0 +1,5 @@
+#!/bin/sh
+# Gradle wrapper stub - download actual wrapper with: gradle wrapper
+echo "Please install the Gradle wrapper by running: gradle wrapper --gradle-version 8.11"
+echo "Or download from: https://services.gradle.org/distributions/gradle-8.11-bin.zip"
+exit 1

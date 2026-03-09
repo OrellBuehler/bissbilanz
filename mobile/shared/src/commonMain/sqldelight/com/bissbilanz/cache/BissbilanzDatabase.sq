@@ -1,0 +1,85 @@
+CREATE TABLE IF NOT EXISTS CachedEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    date TEXT NOT NULL,
+    mealType TEXT NOT NULL,
+    servings REAL NOT NULL,
+    foodId TEXT,
+    recipeId TEXT,
+    foodName TEXT,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedFood (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedGoals (
+    id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
+    calorieGoal REAL NOT NULL,
+    proteinGoal REAL NOT NULL,
+    carbGoal REAL NOT NULL,
+    fatGoal REAL NOT NULL,
+    fiberGoal REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS SyncMeta (
+    entityType TEXT NOT NULL PRIMARY KEY,
+    lastSyncedAt TEXT NOT NULL
+);
+
+-- Entries
+selectEntriesByDate:
+SELECT * FROM CachedEntry WHERE date = ?;
+
+insertEntry:
+INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteEntry:
+DELETE FROM CachedEntry WHERE id = ?;
+
+deleteEntriesByDate:
+DELETE FROM CachedEntry WHERE date = ?;
+
+-- Foods
+selectAllFoods:
+SELECT * FROM CachedFood ORDER BY name;
+
+selectFavorites:
+SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
+
+insertFood:
+INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteFood:
+DELETE FROM CachedFood WHERE id = ?;
+
+-- Goals
+selectGoals:
+SELECT * FROM CachedGoals WHERE id = 1;
+
+insertGoals:
+INSERT OR REPLACE INTO CachedGoals(id, calorieGoal, proteinGoal, carbGoal, fatGoal, fiberGoal)
+VALUES (1, ?, ?, ?, ?, ?);
+
+-- Sync meta
+selectSyncMeta:
+SELECT lastSyncedAt FROM SyncMeta WHERE entityType = ?;
+
+upsertSyncMeta:
+INSERT OR REPLACE INTO SyncMeta(entityType, lastSyncedAt) VALUES (?, ?);
