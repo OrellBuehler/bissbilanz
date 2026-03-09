@@ -8,7 +8,7 @@
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
 		"paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url cookie baseLocale --emit-ts-declarations",
-		"prepare": "svelte-kit sync || echo ''",
+		"prepare": "(svelte-kit sync || echo '') && (prek install || echo '')",
 		"check": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && prettier --write .",
 		"check:watch": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
@@ -23,6 +23,7 @@
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.0",
+		"@j178/prek": "^0.3.5",
 		"@lucide/svelte": "^0.561.0",
 		"@playwright/test": "^1.58.2",
 		"@sveltejs/kit": "^2.50.1",

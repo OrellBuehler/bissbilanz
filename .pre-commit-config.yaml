@@ -1,0 +1,25 @@
+repos:
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: bunx prettier --write --ignore-unknown
+        language: system
+        types_or:
+          - javascript
+          - ts
+          - svelte
+          - css
+          - json
+          - yaml
+          - markdown
+          - html
+
+      - id: svelte-check
+        name: svelte-check
+        entry: bash -c 'bun run paraglide:compile && bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json'
+        language: system
+        pass_filenames: false
+        types_or:
+          - ts
+          - svelte
