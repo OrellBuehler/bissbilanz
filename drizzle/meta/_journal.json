@@ -169,6 +169,13 @@
       "when": 1772628765232,
       "tag": "0023_tidy_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1773360000000,
+      "tag": "0024_seed_mobile_oauth_clients",
+      "breakpoints": true
     }
   ]
 }
