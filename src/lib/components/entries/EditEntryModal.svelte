@@ -137,7 +137,7 @@
 	]);
 </script>
 
-<ResponsiveModal bind:open title={m.edit_entry_title()} description={entry?.foodName}>
+<ResponsiveModal bind:open title={m.edit_entry_title()} description={entry?.foodName} openFull>
 	<div class="grid gap-4">
 		{#if isQuickEntry}
 			<div class="grid gap-3">
