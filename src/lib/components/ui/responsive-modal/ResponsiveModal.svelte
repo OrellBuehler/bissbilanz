@@ -51,7 +51,7 @@
 				{/if}
 			</Drawer.Header>
 			<div
-				class="min-h-[60dvh] px-4 pb-4"
+				class="min-h-[60dvh] min-w-0 px-4 pb-4"
 				class:overflow-y-auto={isExpanded}
 				class:overflow-hidden={!isExpanded}
 			>
