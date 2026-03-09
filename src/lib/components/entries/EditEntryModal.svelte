@@ -11,10 +11,12 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
+	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open?: boolean;
+		date: string;
 		entry: {
 			id: string;
 			servings: number;
@@ -23,6 +25,7 @@
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
+			eatenAt?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
 			quickCarbs?: number | null;
@@ -35,6 +38,7 @@
 			id: string;
 			servings: number;
 			mealType: string;
+			eatenAt?: string | null;
 			quickName?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
@@ -45,7 +49,7 @@
 		onDelete: (id: string) => void;
 	};
 
-	let { open = $bindable(false), entry, onClose, onSave, onDelete }: Props = $props();
+	let { open = $bindable(false), date, entry, onClose, onSave, onDelete }: Props = $props();
 
 	let wasOpen = $state(false);
 	$effect(() => {
@@ -57,6 +61,7 @@
 
 	let editServings = $state(1);
 	let editMealType = $state('');
+	let editTime = $state('');
 
 	let editQuickName = $state('');
 	let editQuickCalories = $state('');
@@ -79,6 +84,7 @@
 		if (entry) {
 			editServings = round2(entry.servings);
 			editMealType = entry.mealType;
+			editTime = formatTime24h(entry.eatenAt);
 			if (entry.quickCalories != null) {
 				editQuickName = entry.quickName ?? '';
 				editQuickCalories = String(entry.quickCalories);
@@ -92,6 +98,7 @@
 
 	const handleSave = () => {
 		if (!entry) return;
+		const eatenAt = timeToIsoString(editTime, date);
 		if (isQuickEntry) {
 			const cal = Number(editQuickCalories);
 			if (!cal || cal < 0) return;
@@ -99,6 +106,7 @@
 				id: entry.id,
 				servings: 1,
 				mealType: editMealType,
+				eatenAt,
 				quickName: editQuickName.trim() || null,
 				quickCalories: cal,
 				quickProtein: editQuickProtein ? Number(editQuickProtein) : null,
@@ -107,7 +115,7 @@
 				quickFiber: editQuickFiber ? Number(editQuickFiber) : null
 			});
 		} else {
-			onSave({ id: entry.id, servings: editServings, mealType: editMealType });
+			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
 		}
 	};
 
@@ -188,6 +196,11 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		</div>
+
+		<div class="grid gap-2">
+			<Label>{m.edit_entry_time()}</Label>
+			<Input type="time" bind:value={editTime} />
 		</div>
 
 		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">

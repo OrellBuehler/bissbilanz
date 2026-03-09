@@ -14,6 +14,7 @@
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { apiFetch } from '$lib/utils/api';
+	import { timeToIsoString } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type FoodItem = {
@@ -47,12 +48,14 @@
 		foods?: FoodItem[];
 		recipes?: Array<{ id: string; name: string; isFavorite?: boolean }>;
 		mealType?: string;
+		date: string;
 		onClose: () => void;
 		onSave: (payload: {
 			foodId?: string;
 			recipeId?: string;
 			mealType: string;
 			servings: number;
+			eatenAt?: string;
 			quickName?: string;
 			quickCalories?: number;
 			quickProtein?: number;
@@ -67,12 +70,14 @@
 		foods = [],
 		recipes = [],
 		mealType = 'Breakfast',
+		date,
 		onClose,
 		onSave
 	}: Props = $props();
 
 	let query = $state('');
 	let servings = $state(1);
+	let eatenTime = $state('');
 	let tab: 'search' | 'favorites' | 'recent' | 'recipes' | 'quick' = $state('search');
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
 
@@ -173,12 +178,15 @@
 
 	const confirmAdd = () => {
 		if (!selectedFood) return;
+		const eatenAt = timeToIsoString(eatenTime, date) ?? undefined;
+		const base = { mealType, servings, eatenAt };
 		if (selectedFood.type === 'food') {
-			onSave({ foodId: selectedFood.id, mealType, servings });
+			onSave({ foodId: selectedFood.id, ...base });
 		} else {
-			onSave({ recipeId: selectedFood.id, mealType, servings });
+			onSave({ recipeId: selectedFood.id, ...base });
 		}
 		selectedFood = null;
+		eatenTime = '';
 	};
 
 	const confirmQuickLog = () => {
@@ -187,6 +195,7 @@
 		onSave({
 			mealType,
 			servings: 1,
+			eatenAt: timeToIsoString(eatenTime, date) ?? undefined,
 			quickName: quickName.trim() || undefined,
 			quickCalories: cal,
 			quickProtein: quickProtein ? Number(quickProtein) : undefined,
@@ -200,6 +209,7 @@
 		quickCarbs = '';
 		quickFat = '';
 		quickFiber = '';
+		eatenTime = '';
 	};
 
 	const goBack = () => {
@@ -277,6 +287,11 @@
 					caloriesPerServing={selectedFood.calories}
 					onServingsChange={(v) => (servings = v)}
 				/>
+
+				<div class="grid gap-1.5">
+					<Label class="text-xs">{m.add_food_time()}</Label>
+					<Input type="time" bind:value={eatenTime} />
+				</div>
 
 				<Button class="w-full" onclick={confirmAdd}>
 					<Check class="mr-1 size-4" />
@@ -470,6 +485,10 @@
 								</div>
 							{/if}
 						{/if}
+						<div class="grid gap-1.5">
+							<Label class="text-xs">{m.add_food_time()}</Label>
+							<Input type="time" bind:value={eatenTime} />
+						</div>
 						<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={confirmQuickLog}>
 							<Check class="mr-1 size-4" />
 							{m.quick_log_add()}

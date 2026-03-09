@@ -13,7 +13,8 @@ const entryBaseSchema = z.object({
 	quickProtein: z.coerce.number().nonnegative().optional().nullable(),
 	quickCarbs: z.coerce.number().nonnegative().optional().nullable(),
 	quickFat: z.coerce.number().nonnegative().optional().nullable(),
-	quickFiber: z.coerce.number().nonnegative().optional().nullable()
+	quickFiber: z.coerce.number().nonnegative().optional().nullable(),
+	eatenAt: z.string().datetime({ offset: true }).optional().nullable()
 });
 
 export const entryCreateSchema = entryBaseSchema.refine(
