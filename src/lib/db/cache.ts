@@ -28,11 +28,13 @@ const cacheHandlers: [pattern: string, handler: CacheHandler][] = [
 					// /api/foods/recent returns partial records (id, name, brand, isFavorite).
 					// Only update the fields present — never bulkPut partial data over full records.
 					for (const partial of data.foods) {
-						await db.foods.update(partial.id, {
-							name: partial.name,
-							brand: partial.brand,
-							isFavorite: partial.isFavorite
-						}).catch(() => {});
+						await db.foods
+							.update(partial.id, {
+								name: partial.name,
+								brand: partial.brand,
+								isFavorite: partial.isFavorite
+							})
+							.catch(() => {});
 					}
 				} else {
 					await db.foods.bulkPut(data.foods as DexieFood[]);

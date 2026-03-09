@@ -63,7 +63,6 @@
 		onDelete
 	}: Props = $props();
 
-
 	const mealVisual = $derived.by(() => {
 		const key = title.trim().toLowerCase();
 		if (key.includes('breakfast')) return { Icon: Sunrise, tone: 'amber' as const };

@@ -22,7 +22,8 @@
 const passthrough = {
 	safeParse: (data: any) => ({ success: true, data: data ?? {} }),
 	parse: (data: any) => {
-		if (data === undefined) throw new Error('Mock schema received undefined input — likely missing request body');
+		if (data === undefined)
+			throw new Error('Mock schema received undefined input — likely missing request body');
 		return data;
 	}
 };

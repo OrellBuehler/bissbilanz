@@ -67,7 +67,12 @@ export function handleApiError(error: unknown): Response {
 	}
 
 	const cause = error instanceof Error && 'cause' in error ? (error as any).cause : error;
-	if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'ERR_POSTGRES_SERVER_ERROR') {
+	if (
+		cause &&
+		typeof cause === 'object' &&
+		'code' in cause &&
+		cause.code === 'ERR_POSTGRES_SERVER_ERROR'
+	) {
 		const pg = cause as any;
 		if (pg.errno === '23505') {
 			const constraint = pg.constraint ?? '';

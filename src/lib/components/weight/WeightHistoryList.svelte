@@ -58,8 +58,6 @@
 			day: 'numeric',
 			month: 'short'
 		});
-
-
 </script>
 
 <div class="space-y-2">

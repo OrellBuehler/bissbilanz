@@ -14,12 +14,16 @@ const entryMacroSql = (
 	recipeMacro: string,
 	alias: string
 ) =>
-	sql<number | null>`COALESCE(${quickCol}, ${foodCol}, (SELECT COALESCE(SUM(f2.${sql.raw(recipeMacro)} * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
+	sql<
+		number | null
+	>`COALESCE(${quickCol}, ${foodCol}, (SELECT COALESCE(SUM(f2.${sql.raw(recipeMacro)} * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
 		alias
 	);
 
 const entryMacroColumns = () => ({
-	foodName: sql<string | null>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
+	foodName: sql<
+		string | null
+	>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
 	calories: entryMacroSql(foodEntries.quickCalories, foods.calories, 'calories', 'calories'),
 	protein: entryMacroSql(foodEntries.quickProtein, foods.protein, 'protein', 'protein'),
 	carbs: entryMacroSql(foodEntries.quickCarbs, foods.carbs, 'carbs', 'carbs'),

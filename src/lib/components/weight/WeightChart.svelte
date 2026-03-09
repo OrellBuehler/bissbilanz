@@ -66,13 +66,12 @@
 			return {
 				weightKg: Number(d.weight_kg),
 				movingAvg: d.moving_avg != null ? Number(d.moving_avg) : null,
-				projection:
-					regression ? Number((regression.slope * dayIndex + regression.intercept).toFixed(1)) : null,
+				projection: regression
+					? Number((regression.slope * dayIndex + regression.intercept).toFixed(1))
+					: null,
 				dateLabel: new Date(d.entry_date).toLocaleDateString(
 					undefined,
-					shortLabels
-						? { day: 'numeric', month: 'short' }
-						: { weekday: 'short', day: 'numeric' }
+					shortLabels ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric' }
 				)
 			};
 		});
@@ -80,8 +79,7 @@
 		if (!regression || projectionDays === 0 || data.length === 0) return actual;
 
 		const lastDate = new Date(data[data.length - 1].entry_date);
-		const lastDayIndex =
-			(lastDate.getTime() - firstDateMs) / 86400000;
+		const lastDayIndex = (lastDate.getTime() - firstDateMs) / 86400000;
 
 		const future = [];
 		for (let i = 1; i <= projectionDays; i++) {
@@ -91,14 +89,10 @@
 			future.push({
 				weightKg: null as number | null,
 				movingAvg: null as number | null,
-				projection: Number(
-					(regression.slope * dayIndex + regression.intercept).toFixed(1)
-				),
+				projection: Number((regression.slope * dayIndex + regression.intercept).toFixed(1)),
 				dateLabel: futureDate.toLocaleDateString(
 					undefined,
-					shortLabels
-						? { day: 'numeric', month: 'short' }
-						: { weekday: 'short', day: 'numeric' }
+					shortLabels ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric' }
 				)
 			});
 		}
@@ -156,7 +150,9 @@
 	const config: ChartConfig = $derived({
 		weightKg: { label: m.weight_actual(), color: '#2563EB' },
 		movingAvg: { label: m.weight_trend(), color: '#059669' },
-		...(projectionDays > 0 ? { projection: { label: m.weight_projection(), color: '#8B5CF6' } } : {})
+		...(projectionDays > 0
+			? { projection: { label: m.weight_projection(), color: '#8B5CF6' } }
+			: {})
 	});
 
 	const series = $derived([

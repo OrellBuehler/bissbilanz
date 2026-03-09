@@ -133,9 +133,7 @@
 	let visibleSet = $derived(new Set(visibleNutrients));
 
 	let visibleCategories = $derived(
-		CATEGORY_ORDER.filter((cat) =>
-			NUTRIENTS_BY_CATEGORY[cat].some((n) => visibleSet.has(n.key))
-		)
+		CATEGORY_ORDER.filter((cat) => NUTRIENTS_BY_CATEGORY[cat].some((n) => visibleSet.has(n.key)))
 	);
 
 	// Auto-expand categories that have pre-filled data (one-time on mount)
@@ -285,9 +283,7 @@
 		<Collapsible.Content>
 			<div class="space-y-3">
 				{#each visibleCategories as category}
-					{@const nutrients = NUTRIENTS_BY_CATEGORY[category].filter((n) =>
-						visibleSet.has(n.key)
-					)}
+					{@const nutrients = NUTRIENTS_BY_CATEGORY[category].filter((n) => visibleSet.has(n.key))}
 					{#if nutrients.length > 0}
 						<Collapsible.Root bind:open={openCategories[category]}>
 							<Collapsible.Trigger

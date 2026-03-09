@@ -91,12 +91,9 @@ export async function syncQueue(): Promise<number> {
 		if (affectedTables.size > 0) {
 			const now = Date.now();
 			await Promise.all(
-				[...affectedTables].map((tableName) =>
-					db.syncMeta.put({ tableName, lastSyncedAt: now })
-				)
+				[...affectedTables].map((tableName) => db.syncMeta.put({ tableName, lastSyncedAt: now }))
 			);
 		}
-
 	} finally {
 		syncing = false;
 		setSyncing(false);

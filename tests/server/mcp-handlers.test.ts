@@ -865,7 +865,17 @@ describe('MCP handlers', () => {
 	describe('handleGetTopFoods', () => {
 		test('returns top foods with defaults', async () => {
 			mockTopFoods = [
-				{ foodId: TEST_FOOD.id, recipeId: null, foodName: 'Oats', count: 5, calories: 389, protein: 13, carbs: 66, fat: 7, fiber: 11 }
+				{
+					foodId: TEST_FOOD.id,
+					recipeId: null,
+					foodName: 'Oats',
+					count: 5,
+					calories: 389,
+					protein: 13,
+					carbs: 66,
+					fat: 7,
+					fiber: 11
+				}
 			];
 			const result = await handleGetTopFoods(TEST_USER.id, {});
 			expect(result).toHaveLength(1);

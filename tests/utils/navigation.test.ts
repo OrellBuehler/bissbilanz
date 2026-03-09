@@ -17,7 +17,7 @@ describe('breadcrumb label keys', () => {
 			'/settings/mcp'
 		];
 
-		const keys = new Set(breadcrumbLabelKeys);
+		const keys: Set<string> = new Set(breadcrumbLabelKeys);
 
 		for (const href of navHrefs) {
 			const segments = href.split('/').filter(Boolean);

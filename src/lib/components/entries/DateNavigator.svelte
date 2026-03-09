@@ -61,7 +61,12 @@
 
 	{#if !isToday}
 		<div class="ml-1">
-			<Button variant="link" size="sm" class="text-muted-foreground h-auto p-0 text-xs" onclick={goToday}>
+			<Button
+				variant="link"
+				size="sm"
+				class="text-muted-foreground h-auto p-0 text-xs"
+				onclick={goToday}
+			>
 				{m.dashboard_go_to_today()}
 			</Button>
 		</div>

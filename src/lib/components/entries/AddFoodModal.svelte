@@ -90,9 +90,7 @@
 	let quickMacrosOpen = $state(false);
 
 	let macroCalories = $derived(
-		(Number(quickProtein) || 0) * 4 +
-		(Number(quickCarbs) || 0) * 4 +
-		(Number(quickFat) || 0) * 9
+		(Number(quickProtein) || 0) * 4 + (Number(quickCarbs) || 0) * 4 + (Number(quickFat) || 0) * 9
 	);
 	let hasMacros = $derived((!!quickProtein || !!quickCarbs || !!quickFat) && !!quickCalories);
 	let macrosMatch = $derived(Math.round(macroCalories) === Math.round(Number(quickCalories) || 0));
@@ -444,21 +442,11 @@
 							<div class="grid grid-cols-2 gap-3">
 								<div class="grid gap-1.5">
 									<Label class="text-xs">{m.quick_log_protein()}</Label>
-									<Input
-										type="number"
-										inputmode="decimal"
-										min="0"
-										bind:value={quickProtein}
-									/>
+									<Input type="number" inputmode="decimal" min="0" bind:value={quickProtein} />
 								</div>
 								<div class="grid gap-1.5">
 									<Label class="text-xs">{m.quick_log_carbs()}</Label>
-									<Input
-										type="number"
-										inputmode="decimal"
-										min="0"
-										bind:value={quickCarbs}
-									/>
+									<Input type="number" inputmode="decimal" min="0" bind:value={quickCarbs} />
 								</div>
 								<div class="grid gap-1.5">
 									<Label class="text-xs">{m.quick_log_fat()}</Label>
@@ -466,16 +454,15 @@
 								</div>
 								<div class="grid gap-1.5">
 									<Label class="text-xs">{m.quick_log_fiber()}</Label>
-									<Input
-										type="number"
-										inputmode="decimal"
-										min="0"
-										bind:value={quickFiber}
-									/>
+									<Input type="number" inputmode="decimal" min="0" bind:value={quickFiber} />
 								</div>
 							</div>
 							{#if hasMacros}
-								<div class="flex items-center gap-1.5 text-xs {macrosMatch ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}">
+								<div
+									class="flex items-center gap-1.5 text-xs {macrosMatch
+										? 'text-green-600 dark:text-green-400'
+										: 'text-amber-600 dark:text-amber-400'}"
+								>
 									{#if macrosMatch}
 										<CircleCheck class="size-3.5" />
 									{:else}
@@ -489,7 +476,11 @@
 							<Label class="text-xs">{m.add_food_time()}</Label>
 							<Input type="time" bind:value={eatenTime} />
 						</div>
-						<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={confirmQuickLog}>
+						<Button
+							class="w-full"
+							disabled={!quickCalories || Number(quickCalories) <= 0}
+							onclick={confirmQuickLog}
+						>
 							<Check class="mr-1 size-4" />
 							{m.quick_log_add()}
 						</Button>

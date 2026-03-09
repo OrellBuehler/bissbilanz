@@ -78,11 +78,7 @@
 <div class="space-y-5">
 	<div class="flex items-center justify-between">
 		<h3 class="text-sm font-medium">{m.goals_macro_split()}</h3>
-		<span
-			class="text-sm font-medium {totalPct === 100
-				? 'text-green-500'
-				: 'text-destructive'}"
-		>
+		<span class="text-sm font-medium {totalPct === 100 ? 'text-green-500' : 'text-destructive'}">
 			{m.goals_total()}: {totalPct}%
 		</span>
 	</div>

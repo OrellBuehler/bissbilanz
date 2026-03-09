@@ -125,11 +125,34 @@ export function createMcpServer(userId: string): McpServer {
 				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
 				barcode: z.string().optional().describe('Barcode number'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
-				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
-				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
+				nutriScore: z
+					.enum(['a', 'b', 'c', 'd', 'e'])
+					.nullable()
+					.optional()
+					.describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z
+					.number()
+					.int()
+					.min(1)
+					.max(4)
+					.nullable()
+					.optional()
+					.describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z
+					.array(z.string())
+					.nullable()
+					.optional()
+					.describe('List of additives (null to clear)'),
+				ingredientsText: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Full ingredients text (null to clear)'),
+				imageUrl: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
 			}
 		},
@@ -154,7 +177,11 @@ export function createMcpServer(userId: string): McpServer {
 					)
 					.describe('List of ingredients'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
+				imageUrl: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -172,13 +199,30 @@ export function createMcpServer(userId: string): McpServer {
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				quickName: z.string().optional().describe('Label for quick log entry (e.g., "Restaurant lunch")'),
-				quickCalories: z.number().nonnegative().optional().describe('Calories for quick log (use instead of foodId/recipeId)'),
-				quickProtein: z.number().nonnegative().optional().describe('Protein in grams for quick log'),
+				quickName: z
+					.string()
+					.optional()
+					.describe('Label for quick log entry (e.g., "Restaurant lunch")'),
+				quickCalories: z
+					.number()
+					.nonnegative()
+					.optional()
+					.describe('Calories for quick log (use instead of foodId/recipeId)'),
+				quickProtein: z
+					.number()
+					.nonnegative()
+					.optional()
+					.describe('Protein in grams for quick log'),
 				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
 				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
 				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log'),
-				eatenAt: z.string().datetime({ offset: true }).optional().describe('When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.')
+				eatenAt: z
+					.string()
+					.datetime({ offset: true })
+					.optional()
+					.describe(
+						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.'
+					)
 			}
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -223,7 +267,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_entry',
 		{
-			description: 'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
+			description:
+				'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to update'),
 				servings: z.number().optional().describe('New number of servings'),
@@ -233,12 +278,39 @@ export function createMcpServer(userId: string): McpServer {
 					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
 				notes: z.string().optional().describe('New notes'),
 				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
-				quickCalories: z.number().nonnegative().optional().nullable().describe('New calories for quick log'),
-				quickProtein: z.number().nonnegative().optional().nullable().describe('New protein for quick log'),
-				quickCarbs: z.number().nonnegative().optional().nullable().describe('New carbs for quick log'),
+				quickCalories: z
+					.number()
+					.nonnegative()
+					.optional()
+					.nullable()
+					.describe('New calories for quick log'),
+				quickProtein: z
+					.number()
+					.nonnegative()
+					.optional()
+					.nullable()
+					.describe('New protein for quick log'),
+				quickCarbs: z
+					.number()
+					.nonnegative()
+					.optional()
+					.nullable()
+					.describe('New carbs for quick log'),
 				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
-				quickFiber: z.number().nonnegative().optional().nullable().describe('New fiber for quick log'),
-				eatenAt: z.string().datetime({ offset: true }).optional().nullable().describe('When the food was eaten, as ISO 8601 datetime with timezone. Set to null to clear.')
+				quickFiber: z
+					.number()
+					.nonnegative()
+					.optional()
+					.nullable()
+					.describe('New fiber for quick log'),
+				eatenAt: z
+					.string()
+					.datetime({ offset: true })
+					.optional()
+					.nullable()
+					.describe(
+						'When the food was eaten, as ISO 8601 datetime with timezone. Set to null to clear.'
+					)
 			}
 		},
 		safe((args) => handleUpdateEntry(userId, args))
@@ -275,7 +347,12 @@ export function createMcpServer(userId: string): McpServer {
 				carbGoal: z.number().nonnegative().describe('Daily carbohydrate goal in grams'),
 				fatGoal: z.number().nonnegative().describe('Daily fat goal in grams'),
 				fiberGoal: z.number().nonnegative().describe('Daily fiber goal in grams'),
-				sodiumGoal: z.number().nonnegative().nullable().optional().describe('Daily sodium goal in mg'),
+				sodiumGoal: z
+					.number()
+					.nonnegative()
+					.nullable()
+					.optional()
+					.describe('Daily sodium goal in mg'),
 				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
 			}
 		},
@@ -410,11 +487,34 @@ export function createMcpServer(userId: string): McpServer {
 				brand: z.string().optional().describe('New brand name'),
 				barcode: z.string().optional().describe('New barcode number'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().optional().describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z.number().int().min(1).max(4).nullable().optional().describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z.array(z.string()).nullable().optional().describe('List of additives (null to clear)'),
-				ingredientsText: z.string().nullable().optional().describe('Full ingredients text (null to clear)'),
-				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)'),
+				nutriScore: z
+					.enum(['a', 'b', 'c', 'd', 'e'])
+					.nullable()
+					.optional()
+					.describe('Nutri-Score grade (null to clear)'),
+				novaGroup: z
+					.number()
+					.int()
+					.min(1)
+					.max(4)
+					.nullable()
+					.optional()
+					.describe('NOVA food processing group 1-4 (null to clear)'),
+				additives: z
+					.array(z.string())
+					.nullable()
+					.optional()
+					.describe('List of additives (null to clear)'),
+				ingredientsText: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Full ingredients text (null to clear)'),
+				imageUrl: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
 			}
 		},
@@ -465,7 +565,11 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.describe('New list of ingredients (replaces all existing)'),
 				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z.string().nullable().optional().describe('Image URL or relative path (null to clear)')
+				imageUrl: z
+					.string()
+					.nullable()
+					.optional()
+					.describe('Image URL or relative path (null to clear)')
 			}
 		},
 		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))

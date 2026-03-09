@@ -97,7 +97,12 @@ export const createFood = async (
 		}
 		return { success: true, data: created };
 	} catch (error) {
-		return (await handleBarcodeConflict(error, userId, result.data.barcode)) ?? { success: false, error: error as Error };
+		return (
+			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
+				success: false,
+				error: error as Error
+			}
+		);
 	}
 };
 
@@ -128,7 +133,12 @@ export const updateFood = async (
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {
-		return (await handleBarcodeConflict(error, userId, result.data.barcode)) ?? { success: false, error: error as Error };
+		return (
+			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
+				success: false,
+				error: error as Error
+			}
+		);
 	}
 };
 

@@ -59,7 +59,9 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 			if (q) {
 				const lower = q.toLowerCase();
 				collection = collection.filter(
-					(f) => f.name.toLowerCase().includes(lower) || f.brand?.toLowerCase().includes(lower)
+					(f) =>
+						f.name.toLowerCase().includes(lower) ||
+						(f.brand?.toLowerCase().includes(lower) ?? false)
 				);
 			}
 			const foods = await collection.offset(offset).limit(limit).toArray();
@@ -176,16 +178,12 @@ const routes: { match: (segs: string[], url: URL) => boolean; handler: OfflineHa
 
 	// ── Supplements history: /api/supplements/history ────────
 	{
-		match: (s) =>
-			s.length === 3 && s[0] === 'api' && s[1] === 'supplements' && s[2] === 'history',
+		match: (s) => s.length === 3 && s[0] === 'api' && s[1] === 'supplements' && s[2] === 'history',
 		handler: async (url) => {
 			const from = url.searchParams.get('from');
 			const to = url.searchParams.get('to');
 			if (!from || !to) return null;
-			const logs = await db.supplementLogs
-				.where('date')
-				.between(from, to, true, true)
-				.toArray();
+			const logs = await db.supplementLogs.where('date').between(from, to, true, true).toArray();
 			const supplements = await db.supplements.toArray();
 			const supplementMap = new Map(supplements.map((s) => [s.id, s]));
 			// Match server response shape: { log: {...}, supplementName, dosage, dosageUnit }

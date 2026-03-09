@@ -3,7 +3,10 @@ import { describe, expect, test, beforeEach, vi } from 'vitest';
 const { stopMock, captureExceptionMock, state, MockNotFoundException } = vi.hoisted(() => {
 	const stopMock = vi.fn(() => {});
 	const captureExceptionMock = vi.fn(() => {});
-	const state = { decodeCallback: null as ((result: unknown, err: unknown) => void) | null, shouldReject: false };
+	const state = {
+		decodeCallback: null as ((result: unknown, err: unknown) => void) | null,
+		shouldReject: false
+	};
 	class MockNotFoundException extends Error {
 		name = 'NotFoundException';
 	}

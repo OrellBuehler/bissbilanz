@@ -8,14 +8,56 @@
  * Production code uses handlers.ts which creates a default instance with real deps.
  */
 
-import type { listFoods, createFood, updateFood, deleteFood, getFood, findFoodByBarcode, listRecentFoods } from '$lib/server/foods';
-import type { createRecipe, updateRecipe, deleteRecipe, listRecipes, getRecipe } from '$lib/server/recipes';
-import type { createEntry, listEntriesByDate, updateEntry, deleteEntry, copyEntries } from '$lib/server/entries';
+import type {
+	listFoods,
+	createFood,
+	updateFood,
+	deleteFood,
+	getFood,
+	findFoodByBarcode,
+	listRecentFoods
+} from '$lib/server/foods';
+import type {
+	createRecipe,
+	updateRecipe,
+	deleteRecipe,
+	listRecipes,
+	getRecipe
+} from '$lib/server/recipes';
+import type {
+	createEntry,
+	listEntriesByDate,
+	updateEntry,
+	deleteEntry,
+	copyEntries
+} from '$lib/server/entries';
 import type { getGoals, upsertGoals } from '$lib/server/goals';
 import type { listFavoriteFoods, listFavoriteRecipes } from '$lib/server/favorites';
-import type { createWeightEntry, updateWeightEntry, deleteWeightEntry, getLatestWeight, getWeightWithTrend } from '$lib/server/weight';
-import type { getWeeklyStats, getMonthlyStats, getDailyBreakdown, getMealBreakdown, getTopFoods, getStreaks } from '$lib/server/stats';
-import type { createSupplement, listSupplements, updateSupplement, deleteSupplement, unlogSupplement, getLogsForDate, logSupplement, getSupplementById } from '$lib/server/supplements';
+import type {
+	createWeightEntry,
+	updateWeightEntry,
+	deleteWeightEntry,
+	getLatestWeight,
+	getWeightWithTrend
+} from '$lib/server/weight';
+import type {
+	getWeeklyStats,
+	getMonthlyStats,
+	getDailyBreakdown,
+	getMealBreakdown,
+	getTopFoods,
+	getStreaks
+} from '$lib/server/stats';
+import type {
+	createSupplement,
+	listSupplements,
+	updateSupplement,
+	deleteSupplement,
+	unlogSupplement,
+	getLogsForDate,
+	logSupplement,
+	getSupplementById
+} from '$lib/server/supplements';
 import type { formatDailyStatus } from '$lib/server/mcp/format';
 import type { today } from '$lib/utils/dates';
 import type { isSupplementDue } from '$lib/utils/supplements';
@@ -282,10 +324,7 @@ export function createHandlers(d: HandlerDeps) {
 		return await d.getMonthlyStats(userId);
 	};
 
-	const handleCopyEntries = async (
-		userId: string,
-		args: { fromDate: string; toDate?: string }
-	) => {
+	const handleCopyEntries = async (userId: string, args: { fromDate: string; toDate?: string }) => {
 		const targetDate = args.toDate ?? d.today();
 		const copied = await d.copyEntries(userId, args.fromDate, targetDate);
 		return { success: true, copiedCount: copied.length };
@@ -307,10 +346,7 @@ export function createHandlers(d: HandlerDeps) {
 		return { success: true, foodId };
 	};
 
-	const handleDeleteFood = async (
-		userId: string,
-		args: { foodId: string; force?: boolean }
-	) => {
+	const handleDeleteFood = async (userId: string, args: { foodId: string; force?: boolean }) => {
 		const result = await d.deleteFood(userId, args.foodId, args.force ?? false);
 		if (result.blocked)
 			return {
@@ -412,10 +448,7 @@ export function createHandlers(d: HandlerDeps) {
 		return d.getMealBreakdown(userId, args.startDate, args.endDate);
 	};
 
-	const handleGetTopFoods = async (
-		userId: string,
-		args: { days?: number; limit?: number }
-	) => {
+	const handleGetTopFoods = async (userId: string, args: { days?: number; limit?: number }) => {
 		return d.getTopFoods(userId, args.days ?? 7, args.limit ?? 10);
 	};
 

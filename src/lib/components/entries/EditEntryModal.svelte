@@ -74,11 +74,15 @@
 
 	let editMacroCalories = $derived(
 		(Number(editQuickProtein) || 0) * 4 +
-		(Number(editQuickCarbs) || 0) * 4 +
-		(Number(editQuickFat) || 0) * 9
+			(Number(editQuickCarbs) || 0) * 4 +
+			(Number(editQuickFat) || 0) * 9
 	);
-	let editHasMacros = $derived((!!editQuickProtein || !!editQuickCarbs || !!editQuickFat) && !!editQuickCalories);
-	let editMacrosMatch = $derived(Math.round(editMacroCalories) === Math.round(Number(editQuickCalories) || 0));
+	let editHasMacros = $derived(
+		(!!editQuickProtein || !!editQuickCarbs || !!editQuickFat) && !!editQuickCalories
+	);
+	let editMacrosMatch = $derived(
+		Math.round(editMacroCalories) === Math.round(Number(editQuickCalories) || 0)
+	);
 
 	$effect(() => {
 		if (entry) {
@@ -164,7 +168,11 @@
 					</div>
 				</div>
 				{#if editHasMacros}
-					<div class="flex items-center gap-1.5 text-xs {editMacrosMatch ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}">
+					<div
+						class="flex items-center gap-1.5 text-xs {editMacrosMatch
+							? 'text-green-600 dark:text-green-400'
+							: 'text-amber-600 dark:text-amber-400'}"
+					>
 						{#if editMacrosMatch}
 							<CircleCheck class="size-3.5" />
 						{:else}
@@ -219,7 +227,12 @@
 					<X class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_cancel()}</span>
 				</Button>
-				<Button class="flex-1 sm:flex-none" aria-label={m.edit_entry_save()} disabled={isQuickEntry && (!editQuickCalories || Number(editQuickCalories) <= 0)} onclick={handleSave}>
+				<Button
+					class="flex-1 sm:flex-none"
+					aria-label={m.edit_entry_save()}
+					disabled={isQuickEntry && (!editQuickCalories || Number(editQuickCalories) <= 0)}
+					onclick={handleSave}
+				>
 					<Check class="size-4" />
 					<span class="hidden sm:inline">{m.edit_entry_save()}</span>
 				</Button>

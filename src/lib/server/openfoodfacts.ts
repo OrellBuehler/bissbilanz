@@ -25,7 +25,10 @@ const offProductSchema = z.object({
 	additives_tags: z.array(z.string().max(100)).max(100).optional().default([]),
 	ingredients_text: z.string().max(10000).optional().nullable(),
 	image_front_url: z.string().url().max(2000).optional().nullable(),
-	nutriments: z.record(z.string(), z.union([z.number(), z.string()])).optional().default({})
+	nutriments: z
+		.record(z.string(), z.union([z.number(), z.string()]))
+		.optional()
+		.default({})
 });
 
 const offResponseSchema = z.object({
@@ -91,17 +94,19 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 
 	const p = parsed.data.product;
 	const n = p.nutriments as Record<string, number | string | undefined>;
+	const num = (v: number | string | undefined): number =>
+		typeof v === 'string' ? parseFloat(v) || 0 : (v ?? 0);
 
 	const result: OFFProduct = {
 		name: p.product_name,
 		brand: p.brands,
 		servingSize: 100,
 		servingUnit: 'g',
-		calories: n['energy-kcal_100g'] ?? 0,
-		protein: n['proteins_100g'] ?? 0,
-		carbs: n['carbohydrates_100g'] ?? 0,
-		fat: n['fat_100g'] ?? 0,
-		fiber: n['fiber_100g'] ?? 0,
+		calories: num(n['energy-kcal_100g']),
+		protein: num(n['proteins_100g']),
+		carbs: num(n['carbohydrates_100g']),
+		fat: num(n['fat_100g']),
+		fiber: num(n['fiber_100g']),
 		nutriScore: p.nutriscore_grade ?? null,
 		novaGroup: p.nova_group ?? null,
 		additives: p.additives_tags,

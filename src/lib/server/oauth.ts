@@ -369,9 +369,7 @@ export async function revokeAuthorization(userId: string, clientId: string): Pro
 	const db = getDB();
 	await db
 		.delete(oauthAuthorizations)
-		.where(
-			and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId))
-		);
+		.where(and(eq(oauthAuthorizations.userId, userId), eq(oauthAuthorizations.clientId, clientId)));
 	await db
 		.delete(oauthTokens)
 		.where(and(eq(oauthTokens.clientId, clientId), eq(oauthTokens.userId, userId)));
