@@ -43,9 +43,3 @@ learn.microsoft.com
 api.anthropic.com
 context7.com
 cdn.context7.com
-services.gradle.org
-repo1.maven.org
-plugins.gradle.org
-dl.google.com
-maven.google.com
-repo.maven.apache.org
