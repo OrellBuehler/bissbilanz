@@ -2,30 +2,31 @@ import SwiftUI
 
 @main
 struct BissbilanzApp: App {
-    @StateObject private var authManager = AuthManagerWrapper()
+    @StateObject private var authManager = AuthManager()
+    @StateObject private var api: BissbilanzAPI
+
+    init() {
+        let auth = AuthManager()
+        _authManager = StateObject(wrappedValue: auth)
+        _api = StateObject(wrappedValue: BissbilanzAPI(authManager: auth))
+    }
 
     var body: some Scene {
         WindowGroup {
-            if authManager.isAuthenticated {
-                ContentView()
-                    .environmentObject(authManager)
-            } else {
-                LoginView()
-                    .environmentObject(authManager)
+            Group {
+                if authManager.isAuthenticated {
+                    ContentView()
+                } else {
+                    LoginView()
+                }
+            }
+            .environmentObject(authManager)
+            .environmentObject(api)
+            .onOpenURL { url in
+                Task {
+                    await authManager.handleCallback(url: url)
+                }
             }
         }
-    }
-}
-
-class AuthManagerWrapper: ObservableObject {
-    @Published var isAuthenticated = false
-
-    func login() {
-        // TODO: Integrate with shared KMP AuthManager
-        isAuthenticated = true
-    }
-
-    func logout() {
-        isAuthenticated = false
     }
 }
