@@ -45,6 +45,7 @@ test-results/
 # Android / KMP
 mobile/local.properties
 mobile/.gradle/
+mobile/.kotlin/
 mobile/build/
 mobile/shared/build/
 mobile/androidApp/build/
