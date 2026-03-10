@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS CachedEntry (
     carbs REAL NOT NULL DEFAULT 0,
     fat REAL NOT NULL DEFAULT 0,
     fiber REAL NOT NULL DEFAULT 0,
-    json TEXT NOT NULL
+    jsonData TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CachedFood (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS CachedFood (
     fat REAL NOT NULL DEFAULT 0,
     fiber REAL NOT NULL DEFAULT 0,
     isFavorite INTEGER NOT NULL DEFAULT 0,
-    json TEXT NOT NULL
+    jsonData TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CachedGoals (
@@ -46,7 +46,7 @@ selectEntriesByDate:
 SELECT * FROM CachedEntry WHERE date = ?;
 
 insertEntry:
-INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, json)
+INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, jsonData)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteEntry:
@@ -63,7 +63,7 @@ selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
 insertFood:
-INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, json)
+INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, jsonData)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteFood:

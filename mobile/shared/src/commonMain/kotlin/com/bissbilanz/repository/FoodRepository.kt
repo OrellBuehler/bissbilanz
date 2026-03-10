@@ -40,7 +40,7 @@ class FoodRepository(
         } catch (e: Exception) {
             val cached = db.bissbilanzDatabaseQueries.selectAllFoods().executeAsList()
             if (cached.isNotEmpty()) {
-                _foods.value = cached.map { json.decodeFromString<Food>(it.json_) }
+                _foods.value = cached.map { json.decodeFromString<Food>(it.jsonData) }
             } else {
                 throw e
             }
@@ -54,7 +54,7 @@ class FoodRepository(
         } catch (e: Exception) {
             val cached = db.bissbilanzDatabaseQueries.selectFavorites().executeAsList()
             if (cached.isNotEmpty()) {
-                _favorites.value = cached.map { json.decodeFromString<Food>(it.json_) }
+                _favorites.value = cached.map { json.decodeFromString<Food>(it.jsonData) }
             } else {
                 throw e
             }
@@ -105,7 +105,7 @@ class FoodRepository(
                     fat = food.fat,
                     fiber = food.fiber,
                     isFavorite = if (food.isFavorite) 1L else 0L,
-                    json_ = json.encodeToString(food),
+                    jsonData = json.encodeToString(food),
                 )
             }
             db.bissbilanzDatabaseQueries.upsertSyncMeta(

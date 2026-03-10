@@ -34,7 +34,7 @@ class EntryRepository(
         } catch (e: Exception) {
             val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
             if (cached.isNotEmpty()) {
-                _entries.value = cached.map { json.decodeFromString<Entry>(it.json_) }
+                _entries.value = cached.map { json.decodeFromString<Entry>(it.jsonData) }
             } else {
                 throw e
             }
@@ -88,7 +88,7 @@ class EntryRepository(
                     carbs = carbs,
                     fat = fat,
                     fiber = fiber,
-                    json_ = json.encodeToString(entry),
+                    jsonData = json.encodeToString(entry),
                 )
             }
             db.bissbilanzDatabaseQueries.upsertSyncMeta(
