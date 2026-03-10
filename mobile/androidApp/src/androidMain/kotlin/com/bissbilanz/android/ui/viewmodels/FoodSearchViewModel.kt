@@ -86,4 +86,11 @@ class FoodSearchViewModel(
     fun clearSnackbar() {
         _snackbarMessage.value = null
     }
+
+    fun refresh() {
+        viewModelScope.launch {
+            foodRepo.loadRecentFoods()
+            foodRepo.loadFavorites()
+        }
+    }
 }

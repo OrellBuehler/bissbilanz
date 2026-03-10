@@ -5,7 +5,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
@@ -35,6 +38,8 @@ fun SupplementsScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
+    var showCreateSheet by remember { mutableStateOf(false) }
+    var editingSupplementId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -56,12 +61,39 @@ fun SupplementsScreen(navController: NavController) {
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showCreateSheet = true }) {
+                Icon(Icons.Default.Add, "Add supplement")
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (showCreateSheet) {
+            SupplementEditSheet(
+                supplementId = null,
+                onDismiss = { showCreateSheet = false },
+                onSaved = {
+                    showCreateSheet = false
+                    scope.launch { supplementRepo.loadSupplements() }
+                },
+            )
+        }
+
+        if (editingSupplementId != null) {
+            SupplementEditSheet(
+                supplementId = editingSupplementId,
+                onDismiss = { editingSupplementId = null },
+                onSaved = {
+                    editingSupplementId = null
+                    scope.launch { supplementRepo.loadSupplements() }
+                },
+            )
+        }
+
         if (isLoading) {
             LoadingScreen()
         } else if (supplements.isEmpty()) {
-            EmptyState("No supplements configured.\nAdd supplements on the web app.")
+            EmptyState("No supplements yet.\nTap + to add a supplement.")
         } else {
             val activeSupplements = supplements.filter { it.isActive }
 
@@ -97,6 +129,7 @@ fun SupplementsScreen(navController: NavController) {
                     SupplementChecklistItem(
                         supplement = supplement,
                         isTaken = isTaken,
+                        onEdit = { editingSupplementId = supplement.id },
                         onToggle = {
                             scope.launch {
                                 try {
@@ -154,6 +187,7 @@ fun SupplementChecklistItem(
     supplement: Supplement,
     isTaken: Boolean,
     onToggle: () -> Unit,
+    onEdit: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -194,8 +228,20 @@ fun SupplementChecklistItem(
                 Checkbox(checked = isTaken, onCheckedChange = { onToggle() })
             },
             trailingContent = {
-                if (isTaken) {
-                    Icon(Icons.Default.Check, "Taken", tint = FiberGreen)
+                Row {
+                    onEdit?.let {
+                        IconButton(onClick = it) {
+                            Icon(Icons.Default.Edit, "Edit", modifier = androidx.compose.ui.Modifier.size(20.dp))
+                        }
+                    }
+                    if (isTaken) {
+                        Icon(
+                            Icons.Default.Check,
+                            "Taken",
+                            tint = FiberGreen,
+                            modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.CenterVertically),
+                        )
+                    }
                 }
             },
         )

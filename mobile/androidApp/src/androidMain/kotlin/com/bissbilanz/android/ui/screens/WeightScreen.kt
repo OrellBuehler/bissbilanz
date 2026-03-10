@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import com.bissbilanz.model.WeightUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -36,6 +38,7 @@ fun WeightScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var showAddDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<WeightEntry?>(null) }
+    var entryToEdit by remember { mutableStateOf<WeightEntry?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -62,6 +65,27 @@ fun WeightScreen(navController: NavController) {
                     }
                 }
                 showAddDialog = false
+            },
+        )
+    }
+
+    if (entryToEdit != null) {
+        EditWeightDialog(
+            entry = entryToEdit!!,
+            onDismiss = { entryToEdit = null },
+            onSave = { weight, notes ->
+                scope.launch {
+                    try {
+                        weightRepo.updateEntry(
+                            entryToEdit!!.id,
+                            WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
+                        )
+                        snackbarHostState.showSnackbar("Weight updated")
+                    } catch (_: Exception) {
+                        snackbarHostState.showSnackbar("Failed to update weight")
+                    }
+                }
+                entryToEdit = null
             },
         )
     }
@@ -172,8 +196,13 @@ fun WeightScreen(navController: NavController) {
                                 }
                             },
                             trailingContent = {
-                                IconButton(onClick = { entryToDelete = entry }) {
-                                    Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                Row {
+                                    IconButton(onClick = { entryToEdit = entry }) {
+                                        Icon(Icons.Default.Edit, "Edit")
+                                    }
+                                    IconButton(onClick = { entryToDelete = entry }) {
+                                        Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             },
                         )
@@ -195,6 +224,51 @@ fun AddWeightDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Log Weight") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = weightText,
+                    onValueChange = { weightText = it },
+                    label = { Text("Weight (kg)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val weight = weightText.toDoubleOrNull()
+                    if (weight != null && weight > 0) onSave(weight, notes)
+                },
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+fun EditWeightDialog(
+    entry: WeightEntry,
+    onDismiss: () -> Unit,
+    onSave: (Double, String) -> Unit,
+) {
+    var weightText by remember { mutableStateOf("%.1f".format(entry.weightKg)) }
+    var notes by remember { mutableStateOf(entry.notes ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Weight") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(

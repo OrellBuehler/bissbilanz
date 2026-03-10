@@ -15,7 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
-import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import org.koin.androidx.compose.koinViewModel
@@ -33,6 +34,7 @@ fun FoodSearchScreen(navController: NavController) {
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var foodToLog by remember { mutableStateOf<Food?>(null) }
+    var showCreateFoodSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
@@ -42,7 +44,7 @@ fun FoodSearchScreen(navController: NavController) {
     }
 
     if (foodToLog != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { foodToLog = null },
             onConfirm = { meal, servings ->
                 viewModel.logFood(foodToLog!!, meal, servings)
@@ -51,7 +53,23 @@ fun FoodSearchScreen(navController: NavController) {
         )
     }
 
+    if (showCreateFoodSheet) {
+        FoodEditSheet(
+            foodId = null,
+            onDismiss = { showCreateFoodSheet = false },
+            onSaved = {
+                showCreateFoodSheet = false
+                viewModel.refresh()
+            },
+        )
+    }
+
     Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showCreateFoodSheet = true }) {
+                Icon(Icons.Default.Add, "Create food")
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {

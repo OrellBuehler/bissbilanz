@@ -22,10 +22,22 @@ class SupplementRepository(
         return created
     }
 
+    suspend fun updateSupplement(
+        id: String,
+        supplement: SupplementCreate,
+    ): Supplement {
+        val updated = api.updateSupplement(id, supplement)
+        loadSupplements()
+        return updated
+    }
+
     suspend fun deleteSupplement(id: String) {
         api.deleteSupplement(id)
         _supplements.value = _supplements.value.filter { it.id != id }
     }
+
+    suspend fun getChecklist(date: String): List<SupplementLog> =
+        api.getSupplementChecklist(date)
 
     suspend fun logSupplement(
         supplementId: String,

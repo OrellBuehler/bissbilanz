@@ -22,8 +22,11 @@ class DayLogViewModel(
 
     private var currentDate: String? = null
 
-    fun loadEntries(date: String) {
-        if (date == currentDate) return
+    fun loadEntries(
+        date: String,
+        force: Boolean = false,
+    ) {
+        if (date == currentDate && !force) return
         currentDate = date
         viewModelScope.launch {
             _isLoading.value = true
