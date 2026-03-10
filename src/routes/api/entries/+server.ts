@@ -2,7 +2,13 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createEntry, listEntriesByDate } from '$lib/server/entries';
 import { paginationSchema } from '$lib/server/validation';
-import { handleApiError, requireAuth, unwrapResult, validationError } from '$lib/server/errors';
+import {
+	handleApiError,
+	requireAuth,
+	unwrapResult,
+	validationError,
+	parseJsonBody
+} from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -32,7 +38,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
-		const body = await request.json();
+		const body = await parseJsonBody(request);
 
 		const entry = unwrapResult(await createEntry(userId, body));
 		return json({ entry }, { status: 201 });

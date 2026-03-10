@@ -3,12 +3,12 @@ import type { RequestHandler } from './$types';
 import { logSupplement } from '$lib/server/supplements';
 import { supplementLogSchema } from '$lib/server/validation';
 import { today } from '$lib/utils/dates';
-import { handleApiError, requireAuth, validationError } from '$lib/server/errors';
+import { handleApiError, requireAuth, validationError, parseJsonBody } from '$lib/server/errors';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
-		const body = await request.json().catch(() => ({}));
+		const body = await parseJsonBody(request);
 
 		const parsed = supplementLogSchema.safeParse(body);
 		if (!parsed.success) {

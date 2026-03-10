@@ -98,6 +98,14 @@ export function handleApiError(error: unknown): Response {
  * @param locals - SvelteKit locals object
  * @returns User ID
  */
+export async function parseJsonBody(request: Request): Promise<unknown> {
+	try {
+		return await request.json();
+	} catch {
+		throw new ApiError(400, 'Invalid JSON body');
+	}
+}
+
 export function requireAuth(locals: App.Locals): string {
 	if (!locals.user) {
 		throw new ApiError(401, 'Unauthorized');
