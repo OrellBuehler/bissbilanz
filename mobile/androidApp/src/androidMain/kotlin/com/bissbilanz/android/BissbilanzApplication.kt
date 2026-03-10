@@ -9,6 +9,7 @@ import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
+import io.sentry.android.core.SentryAndroid
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -18,6 +19,18 @@ import org.koin.dsl.module
 class BissbilanzApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+
+        if (BuildConfig.SENTRY_DSN.isNotBlank()) {
+            SentryAndroid.init(this) { options ->
+                options.dsn = BuildConfig.SENTRY_DSN
+                options.isAnrEnabled = true
+                options.isAttachScreenshot = true
+                options.isAttachViewHierarchy = true
+                options.tracesSampleRate = 0.2
+                options.environment = if (BuildConfig.DEBUG) "development" else "production"
+                options.release = "com.bissbilanz.android@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
+            }
+        }
 
         val androidModule =
             module {
