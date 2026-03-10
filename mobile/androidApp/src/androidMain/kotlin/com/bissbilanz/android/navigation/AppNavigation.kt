@@ -11,21 +11,30 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+sealed class Screen(
+    val route: String,
+    val title: String,
+    val icon: ImageVector,
+) {
     data object Dashboard : Screen("dashboard", "Home", Icons.Default.Home)
+
     data object Foods : Screen("foods", "Foods", Icons.Default.Restaurant)
+
     data object Favorites : Screen("favorites", "Favorites", Icons.Default.Star)
+
     data object Insights : Screen("insights", "Insights", Icons.Default.BarChart)
+
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
 
-val bottomNavItems = listOf(
-    Screen.Dashboard,
-    Screen.Foods,
-    Screen.Favorites,
-    Screen.Insights,
-    Screen.Settings
-)
+val bottomNavItems =
+    listOf(
+        Screen.Dashboard,
+        Screen.Foods,
+        Screen.Favorites,
+        Screen.Insights,
+        Screen.Settings,
+    )
 
 @Composable
 fun AppNavigation() {
@@ -33,59 +42,93 @@ fun AppNavigation() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+            val currentRoute = currentDestination?.route
 
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = { Text(screen.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            val hideBottomBar =
+                currentRoute in listOf("scanner", "weight", "supplements", "recipes") ||
+                    currentRoute?.startsWith("food/") == true ||
+                    currentRoute?.startsWith("daylog/") == true ||
+                    currentRoute?.startsWith("recipe/") == true
+
+            if (!hideBottomBar) {
+                NavigationBar {
+                    bottomNavItems.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.title) },
+                            label = { Text(screen.title) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    )
+                            },
+                        )
+                    }
                 }
             }
-        }
+        },
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
         ) {
             composable(Screen.Dashboard.route) {
-                com.bissbilanz.android.ui.screens.DashboardScreen(navController)
+                com.bissbilanz.android.ui.screens
+                    .DashboardScreen(navController)
             }
             composable(Screen.Foods.route) {
-                com.bissbilanz.android.ui.screens.FoodSearchScreen(navController)
+                com.bissbilanz.android.ui.screens
+                    .FoodSearchScreen(navController)
             }
             composable(Screen.Favorites.route) {
-                com.bissbilanz.android.ui.screens.FavoritesScreen(navController)
+                com.bissbilanz.android.ui.screens
+                    .FavoritesScreen(navController)
             }
             composable(Screen.Insights.route) {
-                com.bissbilanz.android.ui.screens.InsightsScreen()
+                com.bissbilanz.android.ui.screens
+                    .InsightsScreen()
             }
             composable(Screen.Settings.route) {
-                com.bissbilanz.android.ui.screens.SettingsScreen()
+                com.bissbilanz.android.ui.screens
+                    .SettingsScreen(navController)
             }
             composable("food/{foodId}") { backStackEntry ->
                 val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
-                com.bissbilanz.android.ui.screens.FoodDetailScreen(foodId, navController)
+                com.bissbilanz.android.ui.screens
+                    .FoodDetailScreen(foodId, navController)
             }
             composable("daylog/{date}") { backStackEntry ->
                 val date = backStackEntry.arguments?.getString("date") ?: return@composable
-                com.bissbilanz.android.ui.screens.DayLogScreen(date, navController)
+                com.bissbilanz.android.ui.screens
+                    .DayLogScreen(date, navController)
             }
             composable("scanner") {
-                com.bissbilanz.android.ui.screens.BarcodeScannerScreen(navController)
+                com.bissbilanz.android.ui.screens
+                    .BarcodeScannerScreen(navController)
+            }
+            composable("recipes") {
+                com.bissbilanz.android.ui.screens
+                    .RecipeListScreen(navController)
+            }
+            composable("recipe/{recipeId}") { backStackEntry ->
+                val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
+                com.bissbilanz.android.ui.screens
+                    .RecipeDetailScreen(recipeId, navController)
+            }
+            composable("weight") {
+                com.bissbilanz.android.ui.screens
+                    .WeightScreen(navController)
+            }
+            composable("supplements") {
+                com.bissbilanz.android.ui.screens
+                    .SupplementsScreen(navController)
             }
         }
     }

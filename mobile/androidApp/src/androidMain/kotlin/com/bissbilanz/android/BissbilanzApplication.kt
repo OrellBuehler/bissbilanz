@@ -12,11 +12,12 @@ class BissbilanzApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        val androidModule = module {
-            single(named("baseUrl")) { "https://bissbilanz.app" }
-            single(named("clientId")) { "bissbilanz-android" }
-            single { SecureStorage(androidContext()) }
-        }
+        val androidModule =
+            module {
+                single(named("baseUrl")) { "https://bissbilanz.app" }
+                single(named("clientId")) { "bissbilanz-android" }
+                single { SecureStorage(androidContext()) }
+            }
 
         startKoin {
             androidContext(this@BissbilanzApplication)

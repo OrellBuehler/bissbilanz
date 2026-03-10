@@ -5,60 +5,194 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.model.EntryCreate
+import com.bissbilanz.model.Food
+import com.bissbilanz.model.Recipe
+import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.RecipeRepository
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val foodRepo: FoodRepository = koinInject()
+    val recipeRepo: RecipeRepository = koinInject()
+    val entryRepo: EntryRepository = koinInject()
     val favorites by foodRepo.favorites.collectAsStateWithLifecycle()
+    val recipes by recipeRepo.recipes.collectAsStateWithLifecycle()
+    var isLoading by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var foodToLog by remember { mutableStateOf<Food?>(null) }
+    var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
 
     LaunchedEffect(Unit) {
-        foodRepo.loadFavorites()
+        isLoading = true
+        try {
+            foodRepo.loadFavorites()
+            recipeRepo.loadRecipes()
+        } catch (_: Exception) {
+        }
+        isLoading = false
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Favorites", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
+    val favoriteRecipes = recipes.filter { it.isFavorite }
 
-        if (favorites.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No favorites yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (foodToLog != null) {
+        MealPickerDialog(
+            onDismiss = { foodToLog = null },
+            onConfirm = { meal, servings ->
+                scope.launch {
+                    try {
+                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+                        entryRepo.createEntry(EntryCreate(foodId = foodToLog!!.id, mealType = meal, servings = servings, date = today))
+                        snackbarHostState.showSnackbar("Logged ${foodToLog!!.name}")
+                    } catch (_: Exception) {
+                        snackbarHostState.showSnackbar("Failed to log food")
+                    }
+                }
+                foodToLog = null
+            },
+        )
+    }
+
+    if (recipeToLog != null) {
+        MealPickerDialog(
+            onDismiss = { recipeToLog = null },
+            onConfirm = { meal, servings ->
+                scope.launch {
+                    try {
+                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+                        entryRepo.createEntry(EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today))
+                        snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
+                    } catch (_: Exception) {
+                        snackbarHostState.showSnackbar("Failed to log recipe")
+                    }
+                }
+                recipeToLog = null
+            },
+        )
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Foods (${favorites.size})") })
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Recipes (${favoriteRecipes.size})") })
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(favorites) { food ->
-                    Card(
-                        modifier = Modifier.clickable { navController.navigate("food/${food.id}") }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (isLoading) {
+                LoadingScreen()
+            } else if (selectedTab == 0) {
+                if (favorites.isEmpty()) {
+                    EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                food.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "${food.calories.toInt()} cal",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
+                        items(favorites) { food ->
+                            FavoriteCard(
+                                name = food.name,
+                                subtitle = "${food.calories.toInt()} cal",
+                                secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
+                                onClick = { navController.navigate("food/${food.id}") },
+                                onQuickLog = { foodToLog = food },
                             )
                         }
                     }
                 }
+            } else {
+                if (favoriteRecipes.isEmpty()) {
+                    EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(favoriteRecipes) { recipe ->
+                            FavoriteCard(
+                                name = recipe.name,
+                                subtitle = "${recipe.totalServings.toInt()} servings",
+                                secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
+                                onClick = { navController.navigate("recipe/${recipe.id}") },
+                                onQuickLog = { recipeToLog = recipe },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FavoriteCard(
+    name: String,
+    subtitle: String,
+    secondaryText: String,
+    onClick: () -> Unit,
+    onQuickLog: () -> Unit,
+) {
+    Card(modifier = Modifier.clickable(onClick = onClick)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = CaloriesBlue,
+            )
+            Text(
+                secondaryText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FilledTonalButton(
+                onClick = onQuickLog,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Icon(Icons.Default.Add, "Log", modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Quick log", style = MaterialTheme.typography.labelSmall)
             }
         }
     }

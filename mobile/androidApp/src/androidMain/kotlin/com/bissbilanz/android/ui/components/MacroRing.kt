@@ -10,43 +10,63 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
 @Composable
-fun MacroRing(label: String, current: Double, goal: Double, color: Color) {
+fun MacroRing(
+    label: String,
+    current: Double,
+    goal: Double,
+    color: Color,
+    size: Dp = 64.dp,
+    strokeWidth: Dp = 6.dp,
+    showGoal: Boolean = false,
+) {
     val progress = if (goal > 0) (current / goal).toFloat() else 0f
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
             Canvas(modifier = Modifier.fillMaxSize().padding(4.dp)) {
-                val strokeWidth = 6.dp.toPx()
+                val sw = strokeWidth.toPx()
                 drawArc(
                     color = color.copy(alpha = 0.2f),
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    style = Stroke(width = sw, cap = StrokeCap.Round),
                 )
                 drawArc(
-                    color = color,
+                    color = if (progress > 1f) color.copy(alpha = 0.6f) else color,
                     startAngle = -90f,
                     sweepAngle = min(progress, 1f) * 360f,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    style = Stroke(width = sw, cap = StrokeCap.Round),
                 )
             }
-            Text(
-                text = current.toInt().toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = color
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = current.toInt().toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = color,
+                )
+                if (showGoal) {
+                    Text(
+                        text = "/ ${goal.toInt()}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = color.copy(alpha = 0.6f),
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

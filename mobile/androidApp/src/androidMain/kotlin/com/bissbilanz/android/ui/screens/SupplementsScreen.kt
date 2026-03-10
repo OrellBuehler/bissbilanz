@@ -1,0 +1,203 @@
+package com.bissbilanz.android.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.model.Supplement
+import com.bissbilanz.repository.SupplementRepository
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import org.koin.compose.koinInject
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SupplementsScreen(navController: NavController) {
+    val supplementRepo: SupplementRepository = koinInject()
+    val supplements by supplementRepo.supplements.collectAsStateWithLifecycle()
+    var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+    var takenIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        try {
+            supplementRepo.loadSupplements()
+        } catch (_: Exception) {
+        }
+        isLoading = false
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Supplements") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        if (isLoading) {
+            LoadingScreen()
+        } else if (supplements.isEmpty()) {
+            EmptyState("No supplements configured.\nAdd supplements on the web app.")
+        } else {
+            val activeSupplements = supplements.filter { it.isActive }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                item {
+                    Text(
+                        "Today's Checklist",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "${takenIds.size} / ${activeSupplements.size} taken",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (activeSupplements.isNotEmpty()) {
+                        LinearProgressIndicator(
+                            progress = { takenIds.size.toFloat() / activeSupplements.size.toFloat() },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = FiberGreen,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(activeSupplements) { supplement ->
+                    val isTaken = takenIds.contains(supplement.id)
+                    SupplementChecklistItem(
+                        supplement = supplement,
+                        isTaken = isTaken,
+                        onToggle = {
+                            scope.launch {
+                                try {
+                                    if (isTaken) {
+                                        supplementRepo.unlogSupplement(supplement.id, today)
+                                        takenIds = takenIds - supplement.id
+                                    } else {
+                                        supplementRepo.logSupplement(supplement.id, today)
+                                        takenIds = takenIds + supplement.id
+                                    }
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update supplement")
+                                }
+                            }
+                        },
+                    )
+                }
+
+                val inactiveSupplements = supplements.filter { !it.isActive }
+                if (inactiveSupplements.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Inactive",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(inactiveSupplements) { supplement ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        ) {
+                            ListItem(
+                                headlineContent = {
+                                    Text(supplement.name, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                supportingContent = {
+                                    Text(
+                                        "${supplement.dosage.toInt()} ${supplement.dosageUnit}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SupplementChecklistItem(
+    supplement: Supplement,
+    isTaken: Boolean,
+    onToggle: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onToggle,
+        colors =
+            if (isTaken) {
+                CardDefaults.cardColors(containerColor = FiberGreen.copy(alpha = 0.15f))
+            } else {
+                CardDefaults.cardColors()
+            },
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    supplement.name,
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = if (isTaken) TextDecoration.LineThrough else TextDecoration.None,
+                )
+            },
+            supportingContent = {
+                Column {
+                    Text("${supplement.dosage.toInt()} ${supplement.dosageUnit}")
+                    supplement.timeOfDay?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    supplement.ingredients?.let { ings ->
+                        if (ings.isNotEmpty()) {
+                            Text(
+                                ings.joinToString(", ") { "${it.name} ${it.dosage.toInt()}${it.dosageUnit}" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            },
+            leadingContent = {
+                Checkbox(checked = isTaken, onCheckedChange = { onToggle() })
+            },
+            trailingContent = {
+                if (isTaken) {
+                    Icon(Icons.Default.Check, "Taken", tint = FiberGreen)
+                }
+            },
+        )
+    }
+}

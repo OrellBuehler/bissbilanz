@@ -11,39 +11,41 @@ val CarbsOrange = Color(0xFFF97316)
 val FatYellow = Color(0xFFEAB308)
 val FiberGreen = Color(0xFF22C55E)
 
-private val DarkColorScheme = darkColorScheme(
-    primary = CaloriesBlue,
-    secondary = ProteinRed,
-    tertiary = FiberGreen,
-    background = Color(0xFF0A0A0A),
-    surface = Color(0xFF1A1A1A),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onBackground = Color.White,
-    onSurface = Color.White
-)
+private val DarkColorScheme =
+    darkColorScheme(
+        primary = CaloriesBlue,
+        secondary = ProteinRed,
+        tertiary = FiberGreen,
+        background = Color(0xFF0A0A0A),
+        surface = Color(0xFF1A1A1A),
+        onPrimary = Color.White,
+        onSecondary = Color.White,
+        onBackground = Color.White,
+        onSurface = Color.White,
+    )
 
-private val LightColorScheme = lightColorScheme(
-    primary = CaloriesBlue,
-    secondary = ProteinRed,
-    tertiary = FiberGreen,
-    background = Color.White,
-    surface = Color(0xFFF5F5F5),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onBackground = Color.Black,
-    onSurface = Color.Black
-)
+private val LightColorScheme =
+    lightColorScheme(
+        primary = CaloriesBlue,
+        secondary = ProteinRed,
+        tertiary = FiberGreen,
+        background = Color.White,
+        surface = Color(0xFFF5F5F5),
+        onPrimary = Color.White,
+        onSecondary = Color.White,
+        onBackground = Color.Black,
+        onSurface = Color.Black,
+    )
 
 @Composable
 fun BissbilanzTheme(
     darkTheme: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
-        content = content
+        content = content,
     )
 }
