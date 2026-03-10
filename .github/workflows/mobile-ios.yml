@@ -1,0 +1,55 @@
+name: iOS Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths: [mobile/**]
+  pull_request:
+    branches: [main]
+    paths: [mobile/**]
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-ios-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-ios-${{ runner.os }}-
+
+      - name: Build shared iOS framework
+        run: ./gradlew shared:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Build iOS app
+        if: hashFiles('mobile/iosApp/iosApp.xcodeproj') != ''
+        working-directory: mobile/iosApp
+        run: |
+          xcodebuild build \
+            -project iosApp.xcodeproj \
+            -scheme iosApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
