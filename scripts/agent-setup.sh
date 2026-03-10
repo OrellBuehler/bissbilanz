@@ -32,6 +32,8 @@ if ! command -v semgrep &>/dev/null; then
 fi
 
 # SDKMAN + Java 17 (for Android/KMP builds)
+# SDKMAN init requires nounset to be off
+set +u
 if [ ! -d "$HOME/.sdkman" ]; then
   curl -fsSL https://get.sdkman.io | bash
 fi
@@ -40,6 +42,7 @@ source "$HOME/.sdkman/bin/sdkman-init.sh"
 if ! java -version 2>&1 | grep -q '"17'; then
   sdk install java 17.0.13-tem
 fi
+set -u
 
 # Android SDK command-line tools
 export ANDROID_HOME="$HOME/android-sdk"
