@@ -100,7 +100,7 @@ class AuthManager(
             val response: TokenResponse =
                 client
                     .submitForm(
-                        url = "$baseUrl/token",
+                        url = "$baseUrl/api/oauth/token",
                         formParameters =
                             parameters {
                                 append("grant_type", "authorization_code")
@@ -138,7 +138,7 @@ class AuthManager(
                 val response: TokenResponse =
                     client
                         .submitForm(
-                            url = "$baseUrl/token",
+                            url = "$baseUrl/api/oauth/token",
                             formParameters =
                                 parameters {
                                     append("grant_type", "refresh_token")
