@@ -1,9 +1,6 @@
 name: Android Build & Test
 
 on:
-  push:
-    branches: [main]
-    paths: [mobile/**]
   pull_request:
     branches: [main]
     paths: [mobile/**]
