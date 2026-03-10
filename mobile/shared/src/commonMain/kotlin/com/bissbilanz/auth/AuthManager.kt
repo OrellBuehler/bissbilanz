@@ -13,9 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.concurrent.Volatile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.random.Random
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed class AuthState {
     data object Unauthenticated : AuthState()
@@ -48,6 +51,9 @@ class AuthManager(
             }
         }
 
+    private val refreshMutex = Mutex()
+
+    @Volatile
     private var codeVerifier: String? = null
     private var pendingState: String? = null
 
@@ -117,29 +123,38 @@ class AuthManager(
     suspend fun getAccessToken(): String? = secureStorage.load(KEY_ACCESS_TOKEN)
 
     suspend fun refreshToken(): Boolean {
-        val refreshToken = secureStorage.load(KEY_REFRESH_TOKEN) ?: return false
+        val tokenBeforeLock = secureStorage.load(KEY_ACCESS_TOKEN)
 
-        _authState.value = AuthState.Refreshing
-        return try {
-            val response: TokenResponse =
-                client
-                    .submitForm(
-                        url = "$baseUrl/token",
-                        formParameters =
-                            parameters {
-                                append("grant_type", "refresh_token")
-                                append("refresh_token", refreshToken)
-                                append("client_id", clientId)
-                            },
-                    ).body()
+        return refreshMutex.withLock {
+            val tokenAfterLock = secureStorage.load(KEY_ACCESS_TOKEN)
+            if (tokenAfterLock != null && tokenAfterLock != tokenBeforeLock) {
+                return@withLock true
+            }
 
-            secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
-            response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
-            _authState.value = AuthState.Authenticated
-            true
-        } catch (e: Exception) {
-            _authState.value = AuthState.Unauthenticated
-            false
+            val refreshToken = secureStorage.load(KEY_REFRESH_TOKEN) ?: return@withLock false
+
+            _authState.value = AuthState.Refreshing
+            try {
+                val response: TokenResponse =
+                    client
+                        .submitForm(
+                            url = "$baseUrl/token",
+                            formParameters =
+                                parameters {
+                                    append("grant_type", "refresh_token")
+                                    append("refresh_token", refreshToken)
+                                    append("client_id", clientId)
+                                },
+                        ).body()
+
+                secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
+                response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
+                _authState.value = AuthState.Authenticated
+                true
+            } catch (e: Exception) {
+                _authState.value = AuthState.Unauthenticated
+                false
+            }
         }
     }
 

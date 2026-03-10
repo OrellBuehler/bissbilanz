@@ -1,0 +1,21 @@
+--indent 4
+--maxwidth 120
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen balanced
+--commas always
+--decimalgrouping 3,6
+--elseposition same-line
+--guardelse next-line
+--header ignore
+--ifdef no-indent
+--importgrouping alpha
+--lifecycle
+--linebreaks lf
+--self remove
+--semicolons never
+--stripunusedargs closure-only
+--swiftversion 5.9
+--trimwhitespace always
+--voidtype void
