@@ -37,6 +37,10 @@ kotlin {
             implementation(libs.sqldelight.coroutines)
             implementation(libs.koin.core)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.sqldelight.android)
@@ -46,6 +50,13 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
             implementation(libs.sqldelight.native)
+        }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(libs.mockk)
+                implementation(libs.ktor.client.mock)
+                implementation(libs.turbine)
+            }
         }
     }
 }
