@@ -1,0 +1,1 @@
+CREATE INDEX "idx_oauth_tokens_refresh_token_hash" ON "oauth_tokens" USING btree ("refresh_token_hash");

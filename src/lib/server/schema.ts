@@ -517,7 +517,8 @@ export const oauthTokens = pgTable(
 		index('idx_oauth_tokens_client_id').on(table.clientId),
 		index('idx_oauth_tokens_user_id').on(table.userId),
 		index('idx_oauth_tokens_expires_at').on(table.expiresAt),
-		index('idx_oauth_tokens_access_token_hash').on(table.accessTokenHash)
+		index('idx_oauth_tokens_access_token_hash').on(table.accessTokenHash),
+		index('idx_oauth_tokens_refresh_token_hash').on(table.refreshTokenHash)
 	]
 );
 

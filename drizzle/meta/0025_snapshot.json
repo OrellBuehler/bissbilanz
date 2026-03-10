@@ -1,6 +1,6 @@
 {
-  "id": "e07d1e35-85ce-4d66-abd3-42af73bd0351",
-  "prevId": "ad6ba0db-ae25-43d8-ad61-3867dc51cdfa",
+  "id": "c6a2a7c1-bf71-40d3-b7b6-0ddddb53dbfd",
+  "prevId": "e07d1e35-85ce-4d66-abd3-42af73bd0351",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1452,6 +1452,21 @@
           "columns": [
             {
               "expression": "access_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_oauth_tokens_refresh_token_hash": {
+          "name": "idx_oauth_tokens_refresh_token_hash",
+          "columns": [
+            {
+              "expression": "refresh_token_hash",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
