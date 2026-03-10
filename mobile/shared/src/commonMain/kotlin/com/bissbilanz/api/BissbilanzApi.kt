@@ -1,6 +1,7 @@
 package com.bissbilanz.api
 
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.createHttpEngine
 import com.bissbilanz.model.*
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -14,8 +15,7 @@ import kotlinx.serialization.json.Json
 
 class BissbilanzApi(
     private val baseUrl: String,
-    private val authManager: AuthManager,
-    engine: HttpClientEngine
+    private val authManager: AuthManager
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -23,7 +23,7 @@ class BissbilanzApi(
         isLenient = true
     }
 
-    private val client = HttpClient(engine) {
+    private val client = HttpClient(createHttpEngine()) {
         install(ContentNegotiation) {
             json(this@BissbilanzApi.json)
         }

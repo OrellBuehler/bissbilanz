@@ -34,13 +34,12 @@ data class TokenResponse(
 class AuthManager(
     private val baseUrl: String,
     private val clientId: String,
-    private val secureStorage: SecureStorage,
-    engine: io.ktor.client.engine.HttpClientEngine
+    private val secureStorage: SecureStorage
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    private val client = HttpClient(engine) {
+    private val client = HttpClient(com.bissbilanz.createHttpEngine()) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }

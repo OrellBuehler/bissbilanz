@@ -3,12 +3,12 @@ package com.bissbilanz.di
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.repository.*
-import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val sharedModule = module {
-    single { AuthManager(get(qualifier = org.koin.core.qualifier.named("baseUrl")), get(qualifier = org.koin.core.qualifier.named("clientId")), get(), get()) }
-    single { BissbilanzApi(get(qualifier = org.koin.core.qualifier.named("baseUrl")), get(), get()) }
+    single { AuthManager(get<String>(named("baseUrl")), get<String>(named("clientId")), get()) }
+    single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
     single { FoodRepository(get()) }
     single { EntryRepository(get()) }
     single { RecipeRepository(get()) }

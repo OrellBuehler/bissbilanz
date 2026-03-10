@@ -59,12 +59,14 @@ android {
         implementation(libs.lifecycle.viewmodel.compose)
         implementation(libs.koin.android)
         implementation(libs.koin.compose)
+        implementation(libs.kotlinx.datetime)
         implementation(libs.camerax.core)
         implementation(libs.camerax.camera2)
         implementation(libs.camerax.lifecycle)
         implementation(libs.camerax.view)
         implementation(libs.mlkit.barcode)
         implementation(libs.health.connect)
+        implementation("com.google.guava:guava:33.3.1-android")
         debugImplementation(libs.compose.ui.tooling)
     }
 }

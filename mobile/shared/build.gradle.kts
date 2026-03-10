@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.sqldelight.android)
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.security.crypto)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
