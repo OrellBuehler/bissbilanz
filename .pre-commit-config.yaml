@@ -23,3 +23,18 @@ repos:
         types_or:
           - ts
           - svelte
+
+      - id: ktlint
+        name: ktlint
+        entry: bash -c 'source ~/.sdkman/bin/sdkman-init.sh 2>/dev/null; export ANDROID_HOME=${ANDROID_HOME:-~/android-sdk}; cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck'
+        language: system
+        pass_filenames: false
+        types:
+          - kotlin
+
+      - id: swiftformat
+        name: swiftformat
+        entry: bash -c 'command -v swiftformat >/dev/null 2>&1 && swiftformat --lint --config mobile/iosApp/.swiftformat || echo "swiftformat not installed, skipping"'
+        language: system
+        types:
+          - swift

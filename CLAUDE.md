@@ -144,6 +144,36 @@ To also scan the Docker image:
 ./scripts/security/scan-trivy.sh --images
 ```
 
+## Mobile Development
+
+The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI skeleton).
+
+### Build Commands
+
+```bash
+# Android debug build (requires SDKMAN + Android SDK)
+source ~/.sdkman/bin/sdkman-init.sh && export ANDROID_HOME=~/android-sdk && cd mobile && ./gradlew androidApp:assembleDebug
+
+# Kotlin lint check
+cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
+```
+
+### Conventions
+
+- **Shared module** (`mobile/shared/`): KMP code shared between Android and iOS — models, API client, repositories, auth, DI
+- **Android app** (`mobile/androidApp/`): Jetpack Compose UI with Material 3
+- **iOS app** (`mobile/iosApp/`): SwiftUI (skeleton, requires macOS with Xcode to build)
+- Use `expect`/`actual` for platform-specific implementations (HTTP engine, secure storage, SHA-256)
+- Use Koin for dependency injection
+- Use Ktor for HTTP client, kotlinx.serialization for JSON
+- Use SQLDelight for local database
+- Kotlin formatting enforced by ktlint via pre-commit hook
+- Swift formatting enforced by swiftformat (macOS only)
+
+### iOS Builds
+
+iOS builds require macOS with Xcode installed. The shared KMP framework is compiled to a static framework for iOS targets (x64, arm64, simulator arm64).
+
 ## Git Workflow
 
 - **IMPORTANT:** Always commit changes when work is complete
