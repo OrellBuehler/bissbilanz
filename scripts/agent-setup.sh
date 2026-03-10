@@ -43,18 +43,11 @@ fi
 export JAVA_HOME="/opt/java/current"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# Android SDK command-line tools
+# Android SDK — Gradle downloads SDK components automatically via its own
+# dependency resolution. We just need ANDROID_HOME set so Gradle knows where
+# to put them. CI uses android-actions/setup-android@v3 instead.
 export ANDROID_HOME="$HOME/android-sdk"
-if [ ! -d "$ANDROID_HOME/cmdline-tools" ]; then
-  mkdir -p "$ANDROID_HOME"
-  curl -fsSL "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o /tmp/cmdline-tools.zip
-  unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools-tmp"
-  mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
-  mv "$ANDROID_HOME/cmdline-tools-tmp/cmdline-tools/"* "$ANDROID_HOME/cmdline-tools/latest/"
-  rm -rf "$ANDROID_HOME/cmdline-tools-tmp" /tmp/cmdline-tools.zip
-  yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
-  "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-fi
+mkdir -p "$ANDROID_HOME"
 
 # ktlint (standalone, for pre-commit hook)
 if ! command -v ktlint &>/dev/null; then
