@@ -1,7 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getSupplementById, updateSupplement, deleteSupplement } from '$lib/server/supplements';
-import { handleApiError, notFound, requireAuth, unwrapResult } from '$lib/server/errors';
+import {
+	handleApiError,
+	notFound,
+	requireAuth,
+	unwrapResult,
+	parseJsonBody
+} from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
@@ -19,7 +25,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
-		const body = await request.json();
+		const body = await parseJsonBody(request);
 		const supplement = unwrapResult(await updateSupplement(userId, params.id, body));
 		if (!supplement) {
 			return notFound('Supplement');

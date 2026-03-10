@@ -1,7 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteFood, getFood, updateFood } from '$lib/server/foods';
-import { handleApiError, notFound, requireAuth, unwrapResult } from '$lib/server/errors';
+import {
+	handleApiError,
+	notFound,
+	requireAuth,
+	unwrapResult,
+	parseJsonBody
+} from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
@@ -19,7 +25,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		const body = await request.json();
+		const body = await parseJsonBody(request);
 		const food = unwrapResult(await updateFood(userId, params.id, body));
 		if (!food) {
 			return notFound('Food');

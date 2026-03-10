@@ -92,6 +92,14 @@ export function handleApiError(error: unknown): Response {
 	return json({ error: 'Internal server error' }, { status: 500 });
 }
 
+export async function parseJsonBody(request: Request): Promise<unknown> {
+	try {
+		return await request.json();
+	} catch {
+		throw new ApiError(400, 'Invalid JSON body');
+	}
+}
+
 /**
  * Checks if user is authenticated and returns user ID
  * Throws ApiError if not authenticated
