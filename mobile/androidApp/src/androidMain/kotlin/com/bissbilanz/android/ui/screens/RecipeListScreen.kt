@@ -16,7 +16,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
-import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
@@ -37,6 +38,7 @@ fun RecipeListScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
+    var showCreateSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -48,7 +50,7 @@ fun RecipeListScreen(navController: NavController) {
     }
 
     if (recipeToLog != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { recipeToLog = null },
             onConfirm = { meal, servings ->
                 scope.launch {
@@ -65,6 +67,17 @@ fun RecipeListScreen(navController: NavController) {
         )
     }
 
+    if (showCreateSheet) {
+        RecipeEditSheet(
+            recipeId = null,
+            onDismiss = { showCreateSheet = false },
+            onSaved = {
+                showCreateSheet = false
+                scope.launch { recipeRepo.loadRecipes() }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,7 +90,7 @@ fun RecipeListScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate("recipe_create") }) {
+            FloatingActionButton(onClick = { showCreateSheet = true }) {
                 Icon(Icons.Default.Add, "Create recipe")
             }
         },

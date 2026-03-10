@@ -15,7 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.LoadingScreen
-import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
@@ -39,6 +40,7 @@ fun RecipeDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -51,8 +53,24 @@ fun RecipeDetailScreen(
         isLoading = false
     }
 
+    if (showEditSheet) {
+        RecipeEditSheet(
+            recipeId = recipeId,
+            onDismiss = { showEditSheet = false },
+            onSaved = {
+                showEditSheet = false
+                scope.launch {
+                    try {
+                        recipe = recipeRepo.getRecipe(recipeId)
+                    } catch (_: Exception) {
+                    }
+                }
+            },
+        )
+    }
+
     if (showLogDialog && recipe != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { showLogDialog = false },
             onConfirm = { meal, servings ->
                 scope.launch {
@@ -107,7 +125,7 @@ fun RecipeDetailScreen(
                 },
                 actions = {
                     if (recipe != null) {
-                        IconButton(onClick = { navController.navigate("recipe_edit/$recipeId") }) {
+                        IconButton(onClick = { showEditSheet = true }) {
                             Icon(Icons.Default.Edit, "Edit")
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {

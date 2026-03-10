@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
@@ -37,6 +38,8 @@ fun SupplementsScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
+    var showCreateSheet by remember { mutableStateOf(false) }
+    var editingSupplementId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -59,12 +62,34 @@ fun SupplementsScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate("supplement_create") }) {
+            FloatingActionButton(onClick = { showCreateSheet = true }) {
                 Icon(Icons.Default.Add, "Add supplement")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (showCreateSheet) {
+            SupplementEditSheet(
+                supplementId = null,
+                onDismiss = { showCreateSheet = false },
+                onSaved = {
+                    showCreateSheet = false
+                    scope.launch { supplementRepo.loadSupplements() }
+                },
+            )
+        }
+
+        if (editingSupplementId != null) {
+            SupplementEditSheet(
+                supplementId = editingSupplementId,
+                onDismiss = { editingSupplementId = null },
+                onSaved = {
+                    editingSupplementId = null
+                    scope.launch { supplementRepo.loadSupplements() }
+                },
+            )
+        }
+
         if (isLoading) {
             LoadingScreen()
         } else if (supplements.isEmpty()) {
@@ -104,7 +129,7 @@ fun SupplementsScreen(navController: NavController) {
                     SupplementChecklistItem(
                         supplement = supplement,
                         isTaken = isTaken,
-                        onEdit = { navController.navigate("supplement_edit/${supplement.id}") },
+                        onEdit = { editingSupplementId = supplement.id },
                         onToggle = {
                             scope.launch {
                                 try {

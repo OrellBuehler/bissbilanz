@@ -16,6 +16,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
@@ -36,6 +38,8 @@ fun SettingsScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showGoalsDialog by remember { mutableStateOf(false) }
     var showMealTypeDialog by remember { mutableStateOf(false) }
+    var showCreateFoodSheet by remember { mutableStateOf(false) }
+    var showCreateRecipeSheet by remember { mutableStateOf(false) }
     var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
 
     LaunchedEffect(Unit) {
@@ -99,6 +103,22 @@ fun SettingsScreen(navController: NavController) {
             dismissButton = {
                 TextButton(onClick = { showMealTypeDialog = false }) { Text("Cancel") }
             },
+        )
+    }
+
+    if (showCreateFoodSheet) {
+        FoodEditSheet(
+            foodId = null,
+            onDismiss = { showCreateFoodSheet = false },
+            onSaved = { showCreateFoodSheet = false },
+        )
+    }
+
+    if (showCreateRecipeSheet) {
+        RecipeEditSheet(
+            recipeId = null,
+            onDismiss = { showCreateRecipeSheet = false },
+            onSaved = { showCreateRecipeSheet = false },
         )
     }
 
@@ -179,7 +199,7 @@ fun SettingsScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         FilledTonalButton(
-                            onClick = { navController.navigate("food_create") },
+                            onClick = { showCreateFoodSheet = true },
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Default.Add, "Create food", modifier = Modifier.size(18.dp))
@@ -187,7 +207,7 @@ fun SettingsScreen(navController: NavController) {
                             Text("Food")
                         }
                         FilledTonalButton(
-                            onClick = { navController.navigate("recipe_create") },
+                            onClick = { showCreateRecipeSheet = true },
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Default.Add, "Create recipe", modifier = Modifier.size(18.dp))

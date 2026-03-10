@@ -17,7 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
-import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
@@ -47,7 +47,7 @@ fun FavoritesScreen(navController: NavController) {
     }
 
     if (foodToLog != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { foodToLog = null },
             onConfirm = { meal, servings ->
                 viewModel.logFood(foodToLog!!, meal, servings)
@@ -57,7 +57,7 @@ fun FavoritesScreen(navController: NavController) {
     }
 
     if (recipeToLog != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { recipeToLog = null },
             onConfirm = { meal, servings ->
                 viewModel.logRecipe(recipeToLog!!, meal, servings)

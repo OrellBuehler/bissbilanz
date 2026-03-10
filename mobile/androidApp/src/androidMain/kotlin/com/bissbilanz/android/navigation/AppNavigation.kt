@@ -51,16 +51,10 @@ fun AppNavigation() {
                     listOf(
                         "scanner", "weight", "supplements", "recipes",
                         "calendar", "maintenance",
-                        "food_create", "recipe_create", "supplement_create",
                     ) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
-                    currentRoute?.startsWith("recipe/") == true ||
-                    currentRoute?.startsWith("entry_edit/") == true ||
-                    currentRoute?.startsWith("food_edit/") == true ||
-                    currentRoute?.startsWith("recipe_edit/") == true ||
-                    currentRoute?.startsWith("supplement_edit/") == true ||
-                    currentRoute?.startsWith("quickadd/") == true
+                    currentRoute?.startsWith("recipe/") == true
 
             if (!hideBottomBar) {
                 NavigationBar {
@@ -114,29 +108,10 @@ fun AppNavigation() {
                 com.bissbilanz.android.ui.screens
                     .FoodDetailScreen(foodId, navController)
             }
-            composable("food_create") {
-                com.bissbilanz.android.ui.screens
-                    .FoodEditScreen(foodId = null, navController = navController)
-            }
-            composable("food_edit/{foodId}") { backStackEntry ->
-                val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .FoodEditScreen(foodId = foodId, navController = navController)
-            }
             composable("daylog/{date}") { backStackEntry ->
                 val date = backStackEntry.arguments?.getString("date") ?: return@composable
                 com.bissbilanz.android.ui.screens
                     .DayLogScreen(date, navController)
-            }
-            composable("entry_edit/{entryId}") { backStackEntry ->
-                val entryId = backStackEntry.arguments?.getString("entryId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .EntryEditScreen(entryId = entryId, date = null, navController = navController)
-            }
-            composable("quickadd/{date}") { backStackEntry ->
-                val date = backStackEntry.arguments?.getString("date") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .EntryEditScreen(entryId = null, date = date, navController = navController)
             }
             composable("scanner") {
                 com.bissbilanz.android.ui.screens
@@ -151,15 +126,6 @@ fun AppNavigation() {
                 com.bissbilanz.android.ui.screens
                     .RecipeDetailScreen(recipeId, navController)
             }
-            composable("recipe_create") {
-                com.bissbilanz.android.ui.screens
-                    .RecipeEditScreen(recipeId = null, navController = navController)
-            }
-            composable("recipe_edit/{recipeId}") { backStackEntry ->
-                val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .RecipeEditScreen(recipeId = recipeId, navController = navController)
-            }
             composable("weight") {
                 com.bissbilanz.android.ui.screens
                     .WeightScreen(navController)
@@ -167,15 +133,6 @@ fun AppNavigation() {
             composable("supplements") {
                 com.bissbilanz.android.ui.screens
                     .SupplementsScreen(navController)
-            }
-            composable("supplement_create") {
-                com.bissbilanz.android.ui.screens
-                    .SupplementEditScreen(supplementId = null, navController = navController)
-            }
-            composable("supplement_edit/{supplementId}") { backStackEntry ->
-                val supplementId = backStackEntry.arguments?.getString("supplementId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .SupplementEditScreen(supplementId = supplementId, navController = navController)
             }
             composable("calendar") {
                 com.bissbilanz.android.ui.screens

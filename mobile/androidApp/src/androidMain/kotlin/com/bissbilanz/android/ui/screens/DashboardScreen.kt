@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.theme.*
@@ -40,6 +41,7 @@ fun DashboardScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    var showQuickAddSheet by remember { mutableStateOf(false) }
 
     fun entryCalories(entry: com.bissbilanz.model.Entry): Double {
         val food = entry.food
@@ -79,7 +81,7 @@ fun DashboardScreen(navController: NavController) {
         floatingActionButton = {
             Column {
                 SmallFloatingActionButton(
-                    onClick = { navController.navigate("quickadd/$selectedDate") },
+                    onClick = { showQuickAddSheet = true },
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 ) {
                     Icon(Icons.Default.Edit, "Quick add")
@@ -101,6 +103,18 @@ fun DashboardScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (showQuickAddSheet) {
+            EntryEditSheet(
+                entryId = null,
+                date = selectedDate.toString(),
+                onDismiss = { showQuickAddSheet = false },
+                onSaved = {
+                    showQuickAddSheet = false
+                    viewModel.loadData()
+                },
+            )
+        }
+
         Column(
             modifier =
                 Modifier
