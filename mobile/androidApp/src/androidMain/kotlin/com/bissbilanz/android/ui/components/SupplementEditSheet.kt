@@ -14,10 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+
+private data class SupplementSupplementIngredientRow(
+    val name: String = "",
+    val dosage: String = "",
+    val dosageUnit: String = "mg",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,13 +48,7 @@ fun SupplementEditSheet(
     var timeOfDay by remember { mutableStateOf("morning") }
     var isActive by remember { mutableStateOf(true) }
 
-    data class IngredientRow(
-        val name: String = "",
-        val dosage: String = "",
-        val dosageUnit: String = "mg",
-    )
-
-    var ingredients by remember { mutableStateOf(listOf<IngredientRow>()) }
+    var ingredients by remember { mutableStateOf(listOf<SupplementIngredientRow>()) }
 
     LaunchedEffect(supplementId) {
         if (supplementId != null) {
@@ -64,7 +65,7 @@ fun SupplementEditSheet(
                     timeOfDay = found.timeOfDay ?: "morning"
                     isActive = found.isActive
                     ingredients = found.ingredients?.map { ing ->
-                        IngredientRow(
+                        SupplementIngredientRow(
                             name = ing.name,
                             dosage = ing.dosage.let {
                                 if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
@@ -73,7 +74,8 @@ fun SupplementEditSheet(
                         )
                     } ?: emptyList()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("SupplementEditSheet", "Failed to load supplement", e)
                 errorMessage = "Failed to load supplement"
             }
             isLoading = false
@@ -224,7 +226,7 @@ fun SupplementEditSheet(
                         fontWeight = FontWeight.SemiBold,
                     )
                     FilledTonalButton(onClick = {
-                        ingredients = ingredients + IngredientRow()
+                        ingredients = ingredients + SupplementIngredientRow()
                     }) {
                         Icon(Icons.Default.Add, "Add", modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -319,7 +321,9 @@ fun SupplementEditSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Cancel")
@@ -349,12 +353,15 @@ fun SupplementEditSheet(
                                             },
                                     )
                                     if (isEditing) {
-                                        supplementRepo.updateSupplement(supplementId!!, create)
+                                        val id = supplementId ?: return@launch
+                                        supplementRepo.updateSupplement(id, create)
                                     } else {
                                         supplementRepo.createSupplement(create)
                                     }
+                                    sheetState.hide()
                                     onSaved()
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    Log.e("SupplementEditSheet", "Failed to save supplement", e)
                                     errorMessage = "Failed to save supplement"
                                 }
                                 isSaving = false

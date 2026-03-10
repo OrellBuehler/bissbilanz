@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.bissbilanz.android.ui.screens.NutrientTextField
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
@@ -43,7 +43,7 @@ fun EntryEditSheet(
 
     // Form state
     var servings by remember { mutableStateOf("1") }
-    var mealType by remember { mutableStateOf("breakfast") }
+    var mealType by remember { mutableStateOf("lunch") }
     var notes by remember { mutableStateOf("") }
     var quickName by remember { mutableStateOf("") }
     var quickCalories by remember { mutableStateOf("") }
@@ -79,15 +79,19 @@ fun EntryEditSheet(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val entryId = entry?.id ?: return@TextButton
                         scope.launch {
                             try {
-                                entryRepo.deleteEntry(entry!!.id)
+                                entryRepo.deleteEntry(entryId)
+                                showDeleteDialog = false
+                                sheetState.hide()
                                 onSaved()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.e("EntryEditSheet", "Failed to delete entry", e)
+                                showDeleteDialog = false
                                 errorMessage = "Failed to delete entry"
                             }
                         }
-                        showDeleteDialog = false
                     },
                     colors =
                         ButtonDefaults.textButtonColors(
@@ -100,8 +104,6 @@ fun EntryEditSheet(
             },
         )
     }
-
-    val mealOptions = listOf("breakfast", "lunch", "dinner", "snack")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -156,12 +158,12 @@ fun EntryEditSheet(
             // Meal type
             Text("Meal Type", style = MaterialTheme.typography.labelLarge)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                mealOptions.forEachIndexed { index, option ->
+                mealTypes.forEachIndexed { index, option ->
                     SegmentedButton(
                         shape =
                             SegmentedButtonDefaults.itemShape(
                                 index,
-                                mealOptions.size,
+                                mealTypes.size,
                             ),
                         onClick = { mealType = option },
                         selected = mealType == option,
@@ -231,7 +233,9 @@ fun EntryEditSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("Cancel")
@@ -241,9 +245,10 @@ fun EntryEditSheet(
                         isSaving = true
                         scope.launch {
                             try {
-                                if (isEditing && entry != null) {
+                                if (isEditing) {
+                                    val id = entry?.id ?: return@launch
                                     entryRepo.updateEntry(
-                                        entry!!.id,
+                                        id,
                                         EntryUpdate(
                                             mealType = mealType,
                                             servings =
@@ -272,8 +277,10 @@ fun EntryEditSheet(
                                         ),
                                     )
                                 }
+                                sheetState.hide()
                                 onSaved()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.e("EntryEditSheet", "Failed to save entry", e)
                                 errorMessage = "Failed to save entry"
                             }
                             isSaving = false

@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -16,7 +17,8 @@ fun MealPickerSheet(
     onConfirm: (mealType: String, servings: Double) -> Unit,
     title: String = "Log Food",
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedMeal by remember { mutableStateOf("lunch") }
     var servingsText by remember { mutableStateOf("1") }
 
@@ -64,7 +66,9 @@ fun MealPickerSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("Cancel")
@@ -72,7 +76,11 @@ fun MealPickerSheet(
                 Button(
                     onClick = {
                         val servings = servingsText.toDoubleOrNull() ?: 1.0
-                        if (servings > 0) onConfirm(selectedMeal, servings)
+                        if (servings > 0) {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                onConfirm(selectedMeal, servings)
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f),
                 ) {

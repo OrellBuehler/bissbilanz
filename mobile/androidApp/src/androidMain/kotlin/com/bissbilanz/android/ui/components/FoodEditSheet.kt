@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.bissbilanz.android.ui.screens.NutrientTextField
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
@@ -94,7 +94,8 @@ fun FoodEditSheet(
                 iron = food.iron?.toString() ?: ""
                 vitaminC = food.vitaminC?.toString() ?: ""
                 vitaminD = food.vitaminD?.toString() ?: ""
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("FoodEditSheet", "Failed to load food", e)
                 errorMessage = "Failed to load food"
             }
             isLoading = false
@@ -103,14 +104,22 @@ fun FoodEditSheet(
 
     fun save() {
         val nameVal = name.trim()
-        if (nameVal.isBlank()) return
-        val caloriesVal = calories.toDoubleOrNull() ?: return
-        val proteinVal = protein.toDoubleOrNull() ?: return
-        val carbsVal = carbs.toDoubleOrNull() ?: return
-        val fatVal = fat.toDoubleOrNull() ?: return
+        if (nameVal.isBlank()) {
+            errorMessage = "Name is required"
+            return
+        }
+        val caloriesVal = calories.toDoubleOrNull()
+        val proteinVal = protein.toDoubleOrNull()
+        val carbsVal = carbs.toDoubleOrNull()
+        val fatVal = fat.toDoubleOrNull()
+        val servingSizeVal = servingSize.toDoubleOrNull()
+        if (caloriesVal == null || proteinVal == null || carbsVal == null || fatVal == null || servingSizeVal == null) {
+            errorMessage = "Calories, protein, carbs, fat, and serving size are required"
+            return
+        }
         val fiberVal = fiber.toDoubleOrNull() ?: 0.0
-        val servingSizeVal = servingSize.toDoubleOrNull() ?: return
 
+        errorMessage = null
         isSaving = true
         scope.launch {
             try {
@@ -136,12 +145,15 @@ fun FoodEditSheet(
                     vitaminD = vitaminD.toDoubleOrNull(),
                 )
                 if (isEditing) {
-                    foodRepo.updateFood(foodId!!, foodCreate)
+                    val id = foodId ?: return@launch
+                    foodRepo.updateFood(id, foodCreate)
                 } else {
                     foodRepo.createFood(foodCreate)
                 }
+                sheetState.hide()
                 onSaved()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("FoodEditSheet", "Failed to save food", e)
                 errorMessage = "Failed to save food"
             }
             isSaving = false
@@ -296,7 +308,9 @@ fun FoodEditSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Cancel")
@@ -304,7 +318,12 @@ fun FoodEditSheet(
                     Button(
                         onClick = { save() },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSaving && name.isNotBlank() && calories.toDoubleOrNull() != null,
+                        enabled = !isSaving && name.isNotBlank() &&
+                            calories.toDoubleOrNull() != null &&
+                            protein.toDoubleOrNull() != null &&
+                            carbs.toDoubleOrNull() != null &&
+                            fat.toDoubleOrNull() != null &&
+                            servingSize.toDoubleOrNull() != null,
                     ) {
                         Text("Save")
                     }

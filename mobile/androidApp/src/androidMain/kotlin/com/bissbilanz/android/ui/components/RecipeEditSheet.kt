@@ -15,11 +15,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+
+private data class RecipeRecipeIngredientRow(
+    val food: Food? = null,
+    val foodId: String = "",
+    val quantity: String = "100",
+    val unit: ServingUnit = ServingUnit.G,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,18 +51,12 @@ fun RecipeEditSheet(
     var totalServings by remember { mutableStateOf("1") }
     var isFavorite by remember { mutableStateOf(false) }
 
-    data class IngredientRow(
-        val food: Food? = null,
-        val foodId: String = "",
-        val quantity: String = "100",
-        val unit: ServingUnit = ServingUnit.G,
-    )
-
-    var ingredients by remember { mutableStateOf(listOf<IngredientRow>()) }
+    var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
     var showFoodPicker by remember { mutableStateOf(false) }
     var foodSearchQuery by remember { mutableStateOf("") }
     var foodSearchResults by remember { mutableStateOf<List<Food>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(recipeId) {
         if (recipeId != null) {
@@ -64,7 +68,7 @@ fun RecipeEditSheet(
                 }
                 isFavorite = recipe.isFavorite
                 ingredients = recipe.ingredients?.map { ing ->
-                    IngredientRow(
+                    RecipeIngredientRow(
                         food = ing.food,
                         foodId = ing.foodId,
                         quantity = ing.quantity.let {
@@ -73,7 +77,8 @@ fun RecipeEditSheet(
                         unit = ing.servingUnit,
                     )
                 } ?: emptyList()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("RecipeEditSheet", "Failed to load recipe", e)
                 errorMessage = "Failed to load recipe"
             }
             isLoading = false
@@ -90,12 +95,15 @@ fun RecipeEditSheet(
                         value = foodSearchQuery,
                         onValueChange = { query ->
                             foodSearchQuery = query
+                            searchJob?.cancel()
                             if (query.length >= 2) {
                                 isSearching = true
-                                scope.launch {
+                                searchJob = scope.launch {
+                                    delay(300)
                                     try {
                                         foodSearchResults = foodRepo.searchFoods(query)
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
+                                        Log.e("RecipeEditSheet", "Food search failed", e)
                                         foodSearchResults = emptyList()
                                     }
                                     isSearching = false
@@ -116,7 +124,7 @@ fun RecipeEditSheet(
                         foodSearchResults.take(5).forEach { food ->
                             TextButton(
                                 onClick = {
-                                    ingredients = ingredients + IngredientRow(
+                                    ingredients = ingredients + RecipeIngredientRow(
                                         food = food,
                                         foodId = food.id,
                                         quantity = food.servingSize.let {
@@ -291,7 +299,9 @@ fun RecipeEditSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Cancel")
@@ -311,8 +321,9 @@ fun RecipeEditSheet(
                                         )
                                     }
                                     if (isEditing) {
+                                        val id = recipeId ?: return@launch
                                         recipeRepo.updateRecipe(
-                                            recipeId!!,
+                                            id,
                                             RecipeUpdate(
                                                 name = nameVal,
                                                 totalServings = totalServings.toDoubleOrNull()
@@ -332,8 +343,10 @@ fun RecipeEditSheet(
                                             ),
                                         )
                                     }
+                                    sheetState.hide()
                                     onSaved()
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    Log.e("RecipeEditSheet", "Failed to save recipe", e)
                                     errorMessage = "Failed to save recipe"
                                 }
                                 isSaving = false
