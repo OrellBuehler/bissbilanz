@@ -45,41 +45,46 @@ fun InsightsScreen() {
 
         try {
             coroutineScope {
-                val weeklyDeferred = async {
-                    try {
-                        statsRepo.getWeeklyStats().stats
-                    } catch (_: Exception) {
-                        null
+                val weeklyDeferred =
+                    async {
+                        try {
+                            statsRepo.getWeeklyStats().stats
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
-                }
-                val monthlyDeferred = async {
-                    try {
-                        statsRepo.getMonthlyStats().stats
-                    } catch (_: Exception) {
-                        null
+                val monthlyDeferred =
+                    async {
+                        try {
+                            statsRepo.getMonthlyStats().stats
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
-                }
-                val streaksDeferred = async {
-                    try {
-                        statsRepo.getStreaks()
-                    } catch (_: Exception) {
-                        null
+                val streaksDeferred =
+                    async {
+                        try {
+                            statsRepo.getStreaks()
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
-                }
-                val topFoodsDeferred = async {
-                    try {
-                        statsRepo.getTopFoods(days).data
-                    } catch (_: Exception) {
-                        emptyList()
+                val topFoodsDeferred =
+                    async {
+                        try {
+                            statsRepo.getTopFoods(days).data
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
                     }
-                }
-                val dailyStatsDeferred = async {
-                    try {
-                        statsRepo.getDailyStats(startDate, endDate).data
-                    } catch (_: Exception) {
-                        emptyList()
+                val dailyStatsDeferred =
+                    async {
+                        try {
+                            statsRepo.getDailyStats(startDate, endDate).data
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
                     }
-                }
 
                 weeklyStats = weeklyDeferred.await()
                 monthlyStats = monthlyDeferred.await()

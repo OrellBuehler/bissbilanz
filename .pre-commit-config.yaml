@@ -26,9 +26,8 @@ repos:
 
       - id: ktlint
         name: ktlint
-        entry: bash -c 'source ~/.sdkman/bin/sdkman-init.sh 2>/dev/null; export ANDROID_HOME=${ANDROID_HOME:-~/android-sdk}; cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck'
+        entry: ktlint
         language: system
-        pass_filenames: false
         types:
           - kotlin
 
