@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,7 +25,9 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealType
 import com.bissbilanz.model.MealTypeCreate
+import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -32,8 +35,10 @@ import org.koin.compose.koinInject
 fun SettingsScreen(navController: NavController) {
     val authManager: AuthManager = koinInject()
     val goalsRepo: GoalsRepository = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
     val api: BissbilanzApi = koinInject()
     val goals by goalsRepo.goals.collectAsStateWithLifecycle()
+    val prefs by prefsRepo.preferences.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showGoalsDialog by remember { mutableStateOf(false) }
@@ -41,9 +46,18 @@ fun SettingsScreen(navController: NavController) {
     var showCreateFoodSheet by remember { mutableStateOf(false) }
     var showCreateRecipeSheet by remember { mutableStateOf(false) }
     var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
+    var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
+    var nutrientsDirty by remember { mutableStateOf(false) }
+
+    LaunchedEffect(prefs) {
+        if (editedNutrients == null && prefs != null) {
+            editedNutrients = prefs!!.visibleNutrients.toSet()
+        }
+    }
 
     LaunchedEffect(Unit) {
         goalsRepo.loadGoals()
+        prefsRepo.loadPreferences()
         try {
             val response = api.getMealTypes()
             customMealTypes = response.mealTypes
@@ -257,6 +271,218 @@ fun SettingsScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Dashboard Widgets
+            prefs?.let { p ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Dashboard Widgets",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WidgetToggle("Chart", p.showChartWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showChartWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                        WidgetToggle("Favorites", p.showFavoritesWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showFavoritesWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                        WidgetToggle("Supplements", p.showSupplementsWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showSupplementsWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                        WidgetToggle("Weight", p.showWeightWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showWeightWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                        WidgetToggle("Meal Breakdown", p.showMealBreakdownWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showMealBreakdownWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                        WidgetToggle("Top Foods", p.showTopFoodsWidget) { value ->
+                            scope.launch {
+                                try {
+                                    prefsRepo.updatePreferences(PreferencesUpdate(showTopFoodsWidget = value))
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to update preference")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Favorite Logging
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Favorite Logging",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = p.favoriteMealAssignmentMode == "time_based",
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            prefsRepo.updatePreferences(
+                                                PreferencesUpdate(favoriteMealAssignmentMode = "time_based"),
+                                            )
+                                            snackbarHostState.showSnackbar("Meal assignment updated")
+                                        } catch (_: Exception) {
+                                            snackbarHostState.showSnackbar("Failed to update preference")
+                                        }
+                                    }
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Auto-assign by time")
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = p.favoriteMealAssignmentMode == "ask_meal",
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            prefsRepo.updatePreferences(
+                                                PreferencesUpdate(favoriteMealAssignmentMode = "ask_meal"),
+                                            )
+                                            snackbarHostState.showSnackbar("Meal assignment updated")
+                                        } catch (_: Exception) {
+                                            snackbarHostState.showSnackbar("Failed to update preference")
+                                        }
+                                    }
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Always ask")
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Visible Nutrients
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Visible Nutrients",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Choose which nutrients to display on food detail pages",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    editedNutrients = ALL_NUTRIENT_KEYS.toSet()
+                                    nutrientsDirty = true
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text("Select All") }
+                            OutlinedButton(
+                                onClick = {
+                                    editedNutrients = emptySet()
+                                    nutrientsDirty = true
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text("Deselect All") }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        editedNutrients?.let { selected ->
+                            NUTRIENT_CATEGORIES.forEach { (category, nutrients) ->
+                                Text(
+                                    category,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                )
+                                nutrients.forEach { (key, label) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Checkbox(
+                                            checked = key in selected,
+                                            onCheckedChange = { checked ->
+                                                editedNutrients = if (checked) selected + key else selected - key
+                                                nutrientsDirty = true
+                                            },
+                                        )
+                                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                        }
+                        if (nutrientsDirty) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            prefsRepo.updatePreferences(
+                                                PreferencesUpdate(visibleNutrients = editedNutrients?.toList() ?: emptyList()),
+                                            )
+                                            nutrientsDirty = false
+                                            snackbarHostState.showSnackbar("Visible nutrients updated")
+                                        } catch (_: Exception) {
+                                            snackbarHostState.showSnackbar("Failed to update nutrients")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text("Save") }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Account
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -366,3 +592,128 @@ fun GoalTextField(
         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = color, focusedLabelColor = color),
     )
 }
+
+@Composable
+fun WidgetToggle(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+val ALL_NUTRIENT_KEYS =
+    listOf(
+        "saturatedFat",
+        "monounsaturatedFat",
+        "polyunsaturatedFat",
+        "transFat",
+        "cholesterol",
+        "omega3",
+        "omega6",
+        "sugar",
+        "addedSugars",
+        "sugarAlcohols",
+        "starch",
+        "sodium",
+        "potassium",
+        "calcium",
+        "iron",
+        "magnesium",
+        "phosphorus",
+        "zinc",
+        "copper",
+        "manganese",
+        "selenium",
+        "iodine",
+        "fluoride",
+        "chromium",
+        "molybdenum",
+        "chloride",
+        "vitaminA",
+        "vitaminC",
+        "vitaminD",
+        "vitaminE",
+        "vitaminK",
+        "vitaminB1",
+        "vitaminB2",
+        "vitaminB3",
+        "vitaminB5",
+        "vitaminB6",
+        "vitaminB7",
+        "vitaminB9",
+        "vitaminB12",
+        "caffeine",
+        "alcohol",
+        "water",
+        "salt",
+    )
+
+val NUTRIENT_CATEGORIES =
+    listOf(
+        "Fat Breakdown" to
+            listOf(
+                "saturatedFat" to "Saturated Fat",
+                "monounsaturatedFat" to "Monounsaturated Fat",
+                "polyunsaturatedFat" to "Polyunsaturated Fat",
+                "transFat" to "Trans Fat",
+                "cholesterol" to "Cholesterol",
+                "omega3" to "Omega-3",
+                "omega6" to "Omega-6",
+            ),
+        "Sugar & Carbs" to
+            listOf(
+                "sugar" to "Sugar",
+                "addedSugars" to "Added Sugars",
+                "sugarAlcohols" to "Sugar Alcohols",
+                "starch" to "Starch",
+            ),
+        "Minerals" to
+            listOf(
+                "sodium" to "Sodium",
+                "potassium" to "Potassium",
+                "calcium" to "Calcium",
+                "iron" to "Iron",
+                "magnesium" to "Magnesium",
+                "phosphorus" to "Phosphorus",
+                "zinc" to "Zinc",
+                "copper" to "Copper",
+                "manganese" to "Manganese",
+                "selenium" to "Selenium",
+                "iodine" to "Iodine",
+                "fluoride" to "Fluoride",
+                "chromium" to "Chromium",
+                "molybdenum" to "Molybdenum",
+                "chloride" to "Chloride",
+            ),
+        "Vitamins" to
+            listOf(
+                "vitaminA" to "Vitamin A",
+                "vitaminC" to "Vitamin C",
+                "vitaminD" to "Vitamin D",
+                "vitaminE" to "Vitamin E",
+                "vitaminK" to "Vitamin K",
+                "vitaminB1" to "Vitamin B1",
+                "vitaminB2" to "Vitamin B2",
+                "vitaminB3" to "Vitamin B3",
+                "vitaminB5" to "Vitamin B5",
+                "vitaminB6" to "Vitamin B6",
+                "vitaminB7" to "Vitamin B7",
+                "vitaminB9" to "Vitamin B9",
+                "vitaminB12" to "Vitamin B12",
+            ),
+        "Other" to
+            listOf(
+                "caffeine" to "Caffeine",
+                "alcohol" to "Alcohol",
+                "water" to "Water",
+                "salt" to "Salt",
+            ),
+    )

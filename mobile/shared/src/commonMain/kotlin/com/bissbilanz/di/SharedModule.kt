@@ -20,4 +20,5 @@ val sharedModule =
         single { WeightRepository(get()) }
         single { SupplementRepository(get()) }
         single { StatsRepository(get()) }
+        single { PreferencesRepository(get()) }
     }

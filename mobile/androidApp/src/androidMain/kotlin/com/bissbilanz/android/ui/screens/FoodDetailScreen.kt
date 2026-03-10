@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -22,6 +23,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -36,6 +38,9 @@ fun FoodDetailScreen(
 ) {
     val foodRepo: FoodRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
+    val prefs by prefsRepo.preferences.collectAsStateWithLifecycle()
+    val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
@@ -46,6 +51,7 @@ fun FoodDetailScreen(
 
     LaunchedEffect(foodId) {
         isLoading = true
+        prefsRepo.loadPreferences()
         try {
             food = foodRepo.getFood(foodId)
         } catch (_: Exception) {
@@ -200,15 +206,22 @@ fun FoodDetailScreen(
                     }
 
                     // Fat Breakdown
+                    val vn = visibleNutrients
                     val fatNutrients =
                         listOfNotNull(
-                            f.saturatedFat?.let { "Saturated Fat" to Pair(it, "g") },
-                            f.monounsaturatedFat?.let { "Monounsat. Fat" to Pair(it, "g") },
-                            f.polyunsaturatedFat?.let { "Polyunsat. Fat" to Pair(it, "g") },
-                            f.transFat?.let { "Trans Fat" to Pair(it, "g") },
-                            f.cholesterol?.let { "Cholesterol" to Pair(it, "mg") },
-                            f.omega3?.let { "Omega-3" to Pair(it, "mg") },
-                            f.omega6?.let { "Omega-6" to Pair(it, "mg") },
+                            f.saturatedFat?.takeIf { vn == null || "saturatedFat" in vn }?.let { "Saturated Fat" to Pair(it, "g") },
+                            f.monounsaturatedFat?.takeIf { vn == null || "monounsaturatedFat" in vn }?.let {
+                                "Monounsat. Fat" to
+                                    Pair(it, "g")
+                            },
+                            f.polyunsaturatedFat?.takeIf { vn == null || "polyunsaturatedFat" in vn }?.let {
+                                "Polyunsat. Fat" to
+                                    Pair(it, "g")
+                            },
+                            f.transFat?.takeIf { vn == null || "transFat" in vn }?.let { "Trans Fat" to Pair(it, "g") },
+                            f.cholesterol?.takeIf { vn == null || "cholesterol" in vn }?.let { "Cholesterol" to Pair(it, "mg") },
+                            f.omega3?.takeIf { vn == null || "omega3" in vn }?.let { "Omega-3" to Pair(it, "mg") },
+                            f.omega6?.takeIf { vn == null || "omega6" in vn }?.let { "Omega-6" to Pair(it, "mg") },
                         )
                     if (fatNutrients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -218,10 +231,10 @@ fun FoodDetailScreen(
                     // Sugar & Carbs
                     val sugarNutrients =
                         listOfNotNull(
-                            f.sugar?.let { "Sugar" to Pair(it, "g") },
-                            f.addedSugars?.let { "Added Sugars" to Pair(it, "g") },
-                            f.sugarAlcohols?.let { "Sugar Alcohols" to Pair(it, "g") },
-                            f.starch?.let { "Starch" to Pair(it, "g") },
+                            f.sugar?.takeIf { vn == null || "sugar" in vn }?.let { "Sugar" to Pair(it, "g") },
+                            f.addedSugars?.takeIf { vn == null || "addedSugars" in vn }?.let { "Added Sugars" to Pair(it, "g") },
+                            f.sugarAlcohols?.takeIf { vn == null || "sugarAlcohols" in vn }?.let { "Sugar Alcohols" to Pair(it, "g") },
+                            f.starch?.takeIf { vn == null || "starch" in vn }?.let { "Starch" to Pair(it, "g") },
                         )
                     if (sugarNutrients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -231,21 +244,21 @@ fun FoodDetailScreen(
                     // Minerals
                     val mineralNutrients =
                         listOfNotNull(
-                            f.sodium?.let { "Sodium" to Pair(it, "mg") },
-                            f.potassium?.let { "Potassium" to Pair(it, "mg") },
-                            f.calcium?.let { "Calcium" to Pair(it, "mg") },
-                            f.iron?.let { "Iron" to Pair(it, "mg") },
-                            f.magnesium?.let { "Magnesium" to Pair(it, "mg") },
-                            f.phosphorus?.let { "Phosphorus" to Pair(it, "mg") },
-                            f.zinc?.let { "Zinc" to Pair(it, "mg") },
-                            f.copper?.let { "Copper" to Pair(it, "mg") },
-                            f.manganese?.let { "Manganese" to Pair(it, "mg") },
-                            f.selenium?.let { "Selenium" to Pair(it, "mcg") },
-                            f.iodine?.let { "Iodine" to Pair(it, "mcg") },
-                            f.fluoride?.let { "Fluoride" to Pair(it, "mg") },
-                            f.chromium?.let { "Chromium" to Pair(it, "mcg") },
-                            f.molybdenum?.let { "Molybdenum" to Pair(it, "mcg") },
-                            f.chloride?.let { "Chloride" to Pair(it, "mg") },
+                            f.sodium?.takeIf { vn == null || "sodium" in vn }?.let { "Sodium" to Pair(it, "mg") },
+                            f.potassium?.takeIf { vn == null || "potassium" in vn }?.let { "Potassium" to Pair(it, "mg") },
+                            f.calcium?.takeIf { vn == null || "calcium" in vn }?.let { "Calcium" to Pair(it, "mg") },
+                            f.iron?.takeIf { vn == null || "iron" in vn }?.let { "Iron" to Pair(it, "mg") },
+                            f.magnesium?.takeIf { vn == null || "magnesium" in vn }?.let { "Magnesium" to Pair(it, "mg") },
+                            f.phosphorus?.takeIf { vn == null || "phosphorus" in vn }?.let { "Phosphorus" to Pair(it, "mg") },
+                            f.zinc?.takeIf { vn == null || "zinc" in vn }?.let { "Zinc" to Pair(it, "mg") },
+                            f.copper?.takeIf { vn == null || "copper" in vn }?.let { "Copper" to Pair(it, "mg") },
+                            f.manganese?.takeIf { vn == null || "manganese" in vn }?.let { "Manganese" to Pair(it, "mg") },
+                            f.selenium?.takeIf { vn == null || "selenium" in vn }?.let { "Selenium" to Pair(it, "mcg") },
+                            f.iodine?.takeIf { vn == null || "iodine" in vn }?.let { "Iodine" to Pair(it, "mcg") },
+                            f.fluoride?.takeIf { vn == null || "fluoride" in vn }?.let { "Fluoride" to Pair(it, "mg") },
+                            f.chromium?.takeIf { vn == null || "chromium" in vn }?.let { "Chromium" to Pair(it, "mcg") },
+                            f.molybdenum?.takeIf { vn == null || "molybdenum" in vn }?.let { "Molybdenum" to Pair(it, "mcg") },
+                            f.chloride?.takeIf { vn == null || "chloride" in vn }?.let { "Chloride" to Pair(it, "mg") },
                         )
                     if (mineralNutrients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -255,19 +268,19 @@ fun FoodDetailScreen(
                     // Vitamins
                     val vitaminNutrients =
                         listOfNotNull(
-                            f.vitaminA?.let { "Vitamin A" to Pair(it, "mcg") },
-                            f.vitaminC?.let { "Vitamin C" to Pair(it, "mg") },
-                            f.vitaminD?.let { "Vitamin D" to Pair(it, "mcg") },
-                            f.vitaminE?.let { "Vitamin E" to Pair(it, "mg") },
-                            f.vitaminK?.let { "Vitamin K" to Pair(it, "mcg") },
-                            f.vitaminB1?.let { "Vitamin B1" to Pair(it, "mg") },
-                            f.vitaminB2?.let { "Vitamin B2" to Pair(it, "mg") },
-                            f.vitaminB3?.let { "Vitamin B3" to Pair(it, "mg") },
-                            f.vitaminB5?.let { "Vitamin B5" to Pair(it, "mg") },
-                            f.vitaminB6?.let { "Vitamin B6" to Pair(it, "mg") },
-                            f.vitaminB7?.let { "Vitamin B7" to Pair(it, "mcg") },
-                            f.vitaminB9?.let { "Vitamin B9" to Pair(it, "mcg") },
-                            f.vitaminB12?.let { "Vitamin B12" to Pair(it, "mcg") },
+                            f.vitaminA?.takeIf { vn == null || "vitaminA" in vn }?.let { "Vitamin A" to Pair(it, "mcg") },
+                            f.vitaminC?.takeIf { vn == null || "vitaminC" in vn }?.let { "Vitamin C" to Pair(it, "mg") },
+                            f.vitaminD?.takeIf { vn == null || "vitaminD" in vn }?.let { "Vitamin D" to Pair(it, "mcg") },
+                            f.vitaminE?.takeIf { vn == null || "vitaminE" in vn }?.let { "Vitamin E" to Pair(it, "mg") },
+                            f.vitaminK?.takeIf { vn == null || "vitaminK" in vn }?.let { "Vitamin K" to Pair(it, "mcg") },
+                            f.vitaminB1?.takeIf { vn == null || "vitaminB1" in vn }?.let { "Vitamin B1" to Pair(it, "mg") },
+                            f.vitaminB2?.takeIf { vn == null || "vitaminB2" in vn }?.let { "Vitamin B2" to Pair(it, "mg") },
+                            f.vitaminB3?.takeIf { vn == null || "vitaminB3" in vn }?.let { "Vitamin B3" to Pair(it, "mg") },
+                            f.vitaminB5?.takeIf { vn == null || "vitaminB5" in vn }?.let { "Vitamin B5" to Pair(it, "mg") },
+                            f.vitaminB6?.takeIf { vn == null || "vitaminB6" in vn }?.let { "Vitamin B6" to Pair(it, "mg") },
+                            f.vitaminB7?.takeIf { vn == null || "vitaminB7" in vn }?.let { "Vitamin B7" to Pair(it, "mcg") },
+                            f.vitaminB9?.takeIf { vn == null || "vitaminB9" in vn }?.let { "Vitamin B9" to Pair(it, "mcg") },
+                            f.vitaminB12?.takeIf { vn == null || "vitaminB12" in vn }?.let { "Vitamin B12" to Pair(it, "mcg") },
                         )
                     if (vitaminNutrients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -277,10 +290,10 @@ fun FoodDetailScreen(
                     // Other
                     val otherNutrients =
                         listOfNotNull(
-                            f.caffeine?.let { "Caffeine" to Pair(it, "mg") },
-                            f.alcohol?.let { "Alcohol" to Pair(it, "g") },
-                            f.water?.let { "Water" to Pair(it, "ml") },
-                            f.salt?.let { "Salt" to Pair(it, "g") },
+                            f.caffeine?.takeIf { vn == null || "caffeine" in vn }?.let { "Caffeine" to Pair(it, "mg") },
+                            f.alcohol?.takeIf { vn == null || "alcohol" in vn }?.let { "Alcohol" to Pair(it, "g") },
+                            f.water?.takeIf { vn == null || "water" in vn }?.let { "Water" to Pair(it, "ml") },
+                            f.salt?.takeIf { vn == null || "salt" in vn }?.let { "Salt" to Pair(it, "g") },
                         )
                     if (otherNutrients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
