@@ -68,5 +68,9 @@ android {
         implementation(libs.health.connect)
         implementation("com.google.guava:guava:33.3.1-android")
         debugImplementation(libs.compose.ui.tooling)
+        testImplementation(libs.kotlin.test)
+        testImplementation(libs.mockk)
+        testImplementation(libs.kotlinx.coroutines.test)
+        testImplementation(libs.turbine)
     }
 }

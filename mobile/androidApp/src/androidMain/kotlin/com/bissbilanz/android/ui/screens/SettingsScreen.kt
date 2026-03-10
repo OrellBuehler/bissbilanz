@@ -16,9 +16,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.model.Goals
+import com.bissbilanz.model.MealType
+import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.repository.GoalsRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -27,13 +32,23 @@ import org.koin.compose.koinInject
 fun SettingsScreen(navController: NavController) {
     val authManager: AuthManager = koinInject()
     val goalsRepo: GoalsRepository = koinInject()
+    val api: BissbilanzApi = koinInject()
     val goals by goalsRepo.goals.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showGoalsDialog by remember { mutableStateOf(false) }
+    var showMealTypeDialog by remember { mutableStateOf(false) }
+    var showCreateFoodSheet by remember { mutableStateOf(false) }
+    var showCreateRecipeSheet by remember { mutableStateOf(false) }
+    var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         goalsRepo.loadGoals()
+        try {
+            val response = api.getMealTypes()
+            customMealTypes = response.mealTypes
+        } catch (_: Exception) {
+        }
     }
 
     if (showGoalsDialog) {
@@ -51,6 +66,59 @@ fun SettingsScreen(navController: NavController) {
                 }
                 showGoalsDialog = false
             },
+        )
+    }
+
+    if (showMealTypeDialog) {
+        var newMealName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showMealTypeDialog = false },
+            title = { Text("Add Custom Meal Type") },
+            text = {
+                OutlinedTextField(
+                    value = newMealName,
+                    onValueChange = { newMealName = it },
+                    label = { Text("Meal type name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newMealName.isNotBlank()) {
+                        scope.launch {
+                            try {
+                                api.createMealType(MealTypeCreate(name = newMealName.trim()))
+                                val response = api.getMealTypes()
+                                customMealTypes = response.mealTypes
+                                snackbarHostState.showSnackbar("Meal type added")
+                            } catch (_: Exception) {
+                                snackbarHostState.showSnackbar("Failed to add meal type")
+                            }
+                        }
+                    }
+                    showMealTypeDialog = false
+                }) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMealTypeDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showCreateFoodSheet) {
+        FoodEditSheet(
+            foodId = null,
+            onDismiss = { showCreateFoodSheet = false },
+            onSaved = { showCreateFoodSheet = false },
+        )
+    }
+
+    if (showCreateRecipeSheet) {
+        RecipeEditSheet(
+            recipeId = null,
+            onDismiss = { showCreateRecipeSheet = false },
+            onSaved = { showCreateRecipeSheet = false },
         )
     }
 
@@ -107,6 +175,82 @@ fun SettingsScreen(navController: NavController) {
                     HorizontalDivider()
                     SettingsNavItem("Recipes", Icons.Default.MenuBook) {
                         navController.navigate("recipes")
+                    }
+                    HorizontalDivider()
+                    SettingsNavItem("Calendar", Icons.Default.CalendarMonth) {
+                        navController.navigate("calendar")
+                    }
+                    HorizontalDivider()
+                    SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
+                        navController.navigate("maintenance")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Quick actions
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilledTonalButton(
+                            onClick = { showCreateFoodSheet = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.Add, "Create food", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Food")
+                        }
+                        FilledTonalButton(
+                            onClick = { showCreateRecipeSheet = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.Add, "Create recipe", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Recipe")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Custom meal types
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "Custom Meal Types",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        IconButton(onClick = { showMealTypeDialog = true }) {
+                            Icon(Icons.Default.Add, "Add meal type")
+                        }
+                    }
+                    if (customMealTypes.isEmpty()) {
+                        Text(
+                            "Default meals only (Breakfast, Lunch, Dinner, Snack)",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        customMealTypes.forEach { mealType ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(mealType.name)
+                            }
+                        }
                     }
                 }
             }

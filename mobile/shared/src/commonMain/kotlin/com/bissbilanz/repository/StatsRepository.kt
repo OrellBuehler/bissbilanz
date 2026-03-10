@@ -23,4 +23,7 @@ class StatsRepository(
         days: Int = 7,
         limit: Int = 10,
     ): TopFoodsResponse = api.getTopFoods(days, limit)
+
+    suspend fun getCalendarStats(month: String): CalendarResponse =
+        api.getCalendarStats(month)
 }

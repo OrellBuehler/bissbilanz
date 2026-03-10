@@ -62,6 +62,15 @@ class EntryRepository(
         _entries.value = _entries.value.filter { it.id != id }
     }
 
+    suspend fun copyEntries(
+        fromDate: String,
+        toDate: String,
+    ): Int {
+        val result = api.copyEntries(fromDate, toDate)
+        loadEntries(toDate)
+        return result.count
+    }
+
     private fun cacheEntries(
         date: String,
         entries: List<Entry>,

@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,11 +19,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
+import com.bissbilanz.repository.EntryRepository
+import kotlinx.coroutines.launch
+import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,11 +37,15 @@ fun DayLogScreen(
     navController: NavController,
 ) {
     val viewModel: DayLogViewModel = koinViewModel()
+    val entryRepo: EntryRepository = koinInject()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var entryToDelete by remember { mutableStateOf<Entry?>(null) }
+    var editingEntryId by remember { mutableStateOf<String?>(null) }
+    var showQuickAddSheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(date) {
         viewModel.loadEntries(date)
@@ -86,6 +97,26 @@ fun DayLogScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            try {
+                                val parsedDate = LocalDate.parse(date)
+                                val yesterday = parsedDate.minus(1, DateTimeUnit.DAY).toString()
+                                val count = entryRepo.copyEntries(yesterday, date)
+                                snackbarHostState.showSnackbar("Copied $count entries")
+                                viewModel.loadEntries(date, force = true)
+                            } catch (_: Exception) {
+                                snackbarHostState.showSnackbar("No entries to copy")
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.ContentCopy, "Copy from yesterday")
+                    }
+                    IconButton(onClick = { showQuickAddSheet = true }) {
+                        Icon(Icons.Default.Edit, "Quick add")
+                    }
+                },
             )
         },
         floatingActionButton = {
@@ -95,6 +126,30 @@ fun DayLogScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (editingEntryId != null) {
+            EntryEditSheet(
+                entryId = editingEntryId,
+                date = null,
+                onDismiss = { editingEntryId = null },
+                onSaved = {
+                    editingEntryId = null
+                    viewModel.loadEntries(date, force = true)
+                },
+            )
+        }
+
+        if (showQuickAddSheet) {
+            EntryEditSheet(
+                entryId = null,
+                date = date,
+                onDismiss = { showQuickAddSheet = false },
+                onSaved = {
+                    showQuickAddSheet = false
+                    viewModel.loadEntries(date, force = true)
+                },
+            )
+        }
+
         if (isLoading) {
             LoadingScreen()
         } else if (entries.isEmpty()) {
@@ -167,7 +222,7 @@ fun DayLogScreen(
                             entry = entry,
                             onDelete = { entryToDelete = entry },
                             onClick = {
-                                entry.food?.let { navController.navigate("food/${it.id}") }
+                                editingEntryId = entry.id
                             },
                         )
                     }

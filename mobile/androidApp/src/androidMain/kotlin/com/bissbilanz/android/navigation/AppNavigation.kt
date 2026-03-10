@@ -47,7 +47,11 @@ fun AppNavigation() {
             val currentRoute = currentDestination?.route
 
             val hideBottomBar =
-                currentRoute in listOf("scanner", "weight", "supplements", "recipes") ||
+                currentRoute in
+                    listOf(
+                        "scanner", "weight", "supplements", "recipes",
+                        "calendar", "maintenance",
+                    ) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -129,6 +133,14 @@ fun AppNavigation() {
             composable("supplements") {
                 com.bissbilanz.android.ui.screens
                     .SupplementsScreen(navController)
+            }
+            composable("calendar") {
+                com.bissbilanz.android.ui.screens
+                    .CalendarScreen(navController)
+            }
+            composable("maintenance") {
+                com.bissbilanz.android.ui.screens
+                    .MaintenanceScreen(navController)
             }
         }
     }

@@ -7,14 +7,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
-import com.bissbilanz.android.ui.components.MealPickerDialog
+import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
@@ -38,6 +40,7 @@ fun FoodDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -51,7 +54,7 @@ fun FoodDetailScreen(
     }
 
     if (showLogDialog && food != null) {
-        MealPickerDialog(
+        MealPickerSheet(
             onDismiss = { showLogDialog = false },
             onConfirm = { meal, servings ->
                 scope.launch {
@@ -71,6 +74,22 @@ fun FoodDetailScreen(
                     }
                 }
                 showLogDialog = false
+            },
+        )
+    }
+
+    if (showEditSheet) {
+        FoodEditSheet(
+            foodId = foodId,
+            onDismiss = { showEditSheet = false },
+            onSaved = {
+                showEditSheet = false
+                scope.launch {
+                    try {
+                        food = foodRepo.getFood(foodId)
+                    } catch (_: Exception) {
+                    }
+                }
             },
         )
     }
@@ -113,6 +132,9 @@ fun FoodDetailScreen(
                 },
                 actions = {
                     if (food != null) {
+                        IconButton(onClick = { showEditSheet = true }) {
+                            Icon(Icons.Default.Edit, "Edit")
+                        }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
                         }

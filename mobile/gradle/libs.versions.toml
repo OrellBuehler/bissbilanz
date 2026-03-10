@@ -13,6 +13,8 @@ skie = "0.10.1"
 mlkit-barcode = "17.3.0"
 camerax = "1.4.1"
 ktlint = "12.1.2"
+mockk = "1.13.13"
+turbine = "1.2.0"
 health-connect = "1.1.0-alpha10"
 security-crypto = "1.1.0-alpha06"
 activity-compose = "1.9.3"
@@ -68,6 +70,13 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 
 # Health Connect
 health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "health-connect" }
+
+# Testing
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

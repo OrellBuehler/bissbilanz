@@ -256,7 +256,46 @@ class BissbilanzApi(
     suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences = authenticatedPut("/api/preferences", prefs)
 
     // Meal types
-    suspend fun getMealTypes(): List<MealType> = authenticatedGet("/api/meal-types")
+    suspend fun getMealTypes(): MealTypesResponse = authenticatedGet("/api/meal-types")
+
+    suspend fun createMealType(mealType: MealTypeCreate): MealType =
+        authenticatedPost("/api/meal-types", mealType)
+
+    // Copy entries
+    suspend fun copyEntries(
+        fromDate: String,
+        toDate: String,
+    ): CopyEntriesResponse =
+        authenticatedPost("/api/entries/copy", mapOf<String, String>()) {
+            parameter("fromDate", fromDate)
+            parameter("toDate", toDate)
+        }
+
+    // Calendar
+    suspend fun getCalendarStats(month: String): CalendarResponse =
+        authenticatedGet("/api/stats/calendar") { parameter("month", month) }
+
+    // Maintenance
+    suspend fun getMaintenanceCalories(
+        startDate: String,
+        endDate: String,
+        muscleRatio: Double = 0.3,
+    ): MaintenanceResponse =
+        authenticatedGet("/api/maintenance") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+            parameter("muscleRatio", muscleRatio)
+        }
+
+    // Supplement update
+    suspend fun updateSupplement(
+        id: String,
+        supplement: SupplementCreate,
+    ): Supplement = authenticatedPut("/api/supplements/$id", supplement)
+
+    // Supplement checklist for a date
+    suspend fun getSupplementChecklist(date: String): List<SupplementLog> =
+        authenticatedGet("/api/supplements/$date/checklist")
 }
 
 class UnauthorizedException : Exception("Not authenticated")
