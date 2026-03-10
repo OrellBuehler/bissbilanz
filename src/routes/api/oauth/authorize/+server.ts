@@ -6,7 +6,8 @@ import {
 	hasAuthorization,
 	createAuthorizationCode,
 	validateRedirectUri,
-	isValidCodeChallengeS256
+	isValidCodeChallengeS256,
+	isValidRedirectUriFormat
 } from '$lib/server/oauth';
 
 function oauthError(code: string, detail?: string): never {
@@ -16,24 +17,6 @@ function oauthError(code: string, detail?: string): never {
 		errorUrl.searchParams.set('detail', detail);
 	}
 	throw redirect(302, errorUrl.pathname + errorUrl.search);
-}
-
-function isValidRedirectUriFormat(uri: string): boolean {
-	try {
-		const url = new URL(uri);
-		if (url.protocol === 'https:') return true;
-		if (url.protocol === 'http:') {
-			return (
-				url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
-			);
-		}
-		if (/^[a-z][a-z0-9+.-]*:$/.test(url.protocol) && url.protocol !== 'javascript:') {
-			return true;
-		}
-		return false;
-	} catch {
-		return false;
-	}
 }
 
 export const GET: RequestHandler = async ({ url, request }) => {

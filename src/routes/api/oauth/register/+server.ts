@@ -1,26 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, oauthClients } from '$lib/server/db';
-import { generateClientId, generateClientSecret, hashToken } from '$lib/server/oauth';
+import {
+	generateClientId,
+	generateClientSecret,
+	hashToken,
+	isValidRedirectUriFormat
+} from '$lib/server/oauth';
 import { rateLimitRegistration } from '$lib/server/rate-limit';
-
-function isValidRedirectUriFormat(uri: string): boolean {
-	try {
-		const url = new URL(uri);
-		if (url.protocol === 'https:') return true;
-		if (url.protocol === 'http:') {
-			return (
-				url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
-			);
-		}
-		if (/^[a-z][a-z0-9+.-]*:$/.test(url.protocol) && url.protocol !== 'javascript:') {
-			return true;
-		}
-		return false;
-	} catch {
-		return false;
-	}
-}
 
 /**
  * RFC 7591 — OAuth 2.0 Dynamic Client Registration
