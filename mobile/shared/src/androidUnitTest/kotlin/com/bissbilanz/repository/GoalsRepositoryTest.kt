@@ -4,6 +4,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
 import com.bissbilanz.model.Goals
+import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,7 +33,7 @@ class GoalsRepositoryTest {
 
     @Test
     fun loadGoalsUpdatesStateFlowOnSuccess() = runTest {
-        val goals = testGoals()
+        val goals = TestFixtures.goals()
         coEvery { api.getGoals() } returns goals
 
         repository.loadGoals()
@@ -51,7 +52,7 @@ class GoalsRepositoryTest {
 
     @Test
     fun setGoalsUpdatesStateFlowAndCaches() = runTest {
-        val goals = testGoals()
+        val goals = TestFixtures.goals()
         coEvery { api.setGoals(goals) } returns goals
 
         val result = repository.setGoals(goals)
@@ -80,15 +81,5 @@ class GoalsRepositoryTest {
         repository.setGoals(goals)
 
         coVerify { api.setGoals(goals) }
-    }
-
-    companion object {
-        fun testGoals() = Goals(
-            calorieGoal = 2000.0,
-            proteinGoal = 150.0,
-            carbGoal = 250.0,
-            fatGoal = 65.0,
-            fiberGoal = 30.0,
-        )
     }
 }

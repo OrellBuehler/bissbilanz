@@ -1,18 +1,15 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.test.testJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 class FoodSerializationTest {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-    }
+    private val json = testJson
 
     @Test
     fun serializeAndDeserializeFoodRoundTrip() {

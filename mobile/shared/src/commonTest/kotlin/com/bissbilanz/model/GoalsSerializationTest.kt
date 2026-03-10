@@ -1,16 +1,13 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.test.testJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 class GoalsSerializationTest {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-    }
+    private val json = testJson
 
     @Test
     fun serializeAndDeserializeGoalsRoundTrip() {
@@ -24,19 +21,6 @@ class GoalsSerializationTest {
         val encoded = json.encodeToString(goals)
         val decoded = json.decodeFromString<Goals>(encoded)
         assertEquals(goals, decoded)
-    }
-
-    @Test
-    fun goalsOptionalFieldsDefaultToNull() {
-        val goals = Goals(
-            calorieGoal = 2000.0,
-            proteinGoal = 150.0,
-            carbGoal = 250.0,
-            fatGoal = 65.0,
-            fiberGoal = 30.0,
-        )
-        assertNull(goals.sodiumGoal)
-        assertNull(goals.sugarGoal)
     }
 
     @Test

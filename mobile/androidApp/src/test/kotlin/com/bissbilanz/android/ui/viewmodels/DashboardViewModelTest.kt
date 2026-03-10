@@ -10,6 +10,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,7 +47,7 @@ class DashboardViewModelTest {
         }
     }
 
-    @kotlin.test.AfterTest
+    @AfterTest
     fun tearDown() {
         Dispatchers.resetMain()
     }

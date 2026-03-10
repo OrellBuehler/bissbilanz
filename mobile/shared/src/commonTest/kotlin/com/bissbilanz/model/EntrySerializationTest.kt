@@ -1,16 +1,14 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.test.testJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 class EntrySerializationTest {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-    }
+    private val json = testJson
 
     @Test
     fun serializeAndDeserializeEntryRoundTrip() {
@@ -91,9 +89,9 @@ class EntrySerializationTest {
             date = "2024-01-15",
         )
         val encoded = json.encodeToString(create)
-        assertNull(create.recipeId)
-        assertNull(create.notes)
-        assertNull(create.quickName)
+        assertFalse(encoded.contains("recipeId"))
+        assertFalse(encoded.contains("notes"))
+        assertFalse(encoded.contains("quickName"))
         assertEquals("dinner", json.decodeFromString<EntryCreate>(encoded).mealType)
     }
 

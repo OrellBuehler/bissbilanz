@@ -3,9 +3,9 @@ package com.bissbilanz.repository
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
-import com.bissbilanz.model.Food
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
+import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -35,7 +35,7 @@ class FoodRepositoryTest {
 
     @Test
     fun loadFoodsUpdatesStateFlowOnSuccess() = runTest {
-        val foods = listOf(testFood("1", "Apple"), testFood("2", "Banana"))
+        val foods = listOf(TestFixtures.food(id = "1", name = "Apple"), TestFixtures.food(id = "2", name = "Banana"))
         coEvery { api.getFoods(100, 0) } returns foods
 
         repository.loadFoods()
@@ -46,7 +46,7 @@ class FoodRepositoryTest {
 
     @Test
     fun loadFavoritesUpdatesStateFlow() = runTest {
-        val favorites = listOf(testFood("1", "Chicken", isFavorite = true))
+        val favorites = listOf(TestFixtures.food(id = "1", name = "Chicken", isFavorite = true))
         coEvery { api.getFavorites() } returns favorites
 
         repository.loadFavorites()
@@ -57,7 +57,7 @@ class FoodRepositoryTest {
 
     @Test
     fun searchFoodsReturnsResults() = runTest {
-        val results = listOf(testFood("1", "Apple"), testFood("2", "Apple Pie"))
+        val results = listOf(TestFixtures.food(id = "1", name = "Apple"), TestFixtures.food(id = "2", name = "Apple Pie"))
         coEvery { api.searchFoods("apple") } returns results
 
         val found = repository.searchFoods("apple")
@@ -67,7 +67,7 @@ class FoodRepositoryTest {
 
     @Test
     fun deleteFoodRemovesFromStateFlow() = runTest {
-        val foods = listOf(testFood("1", "Apple"), testFood("2", "Banana"))
+        val foods = listOf(TestFixtures.food(id = "1", name = "Apple"), TestFixtures.food(id = "2", name = "Banana"))
         coEvery { api.getFoods(100, 0) } returns foods
         coEvery { api.deleteFood("1") } returns Unit
 
@@ -81,7 +81,7 @@ class FoodRepositoryTest {
 
     @Test
     fun findByBarcodeReturnsFood() = runTest {
-        val food = testFood("1", "Milk")
+        val food = TestFixtures.food(id = "1", name = "Milk")
         coEvery { api.getFoodByBarcode("123456") } returns food
 
         val result = repository.findByBarcode("123456")
@@ -110,7 +110,7 @@ class FoodRepositoryTest {
             fat = 0.3,
             fiber = 0.4,
         )
-        val created = testFood("3", "Rice")
+        val created = TestFixtures.food(id = "3", name = "Rice")
         coEvery { api.createFood(create) } returns created
         coEvery { api.getFoods(100, 0) } returns listOf(created)
 
@@ -125,25 +125,5 @@ class FoodRepositoryTest {
         assertTrue(repository.foods.value.isEmpty())
         assertTrue(repository.favorites.value.isEmpty())
         assertTrue(repository.recentFoods.value.isEmpty())
-    }
-
-    companion object {
-        fun testFood(
-            id: String,
-            name: String,
-            isFavorite: Boolean = false,
-        ) = Food(
-            id = id,
-            userId = "user-1",
-            name = name,
-            servingSize = 100.0,
-            servingUnit = ServingUnit.G,
-            calories = 100.0,
-            protein = 5.0,
-            carbs = 15.0,
-            fat = 3.0,
-            fiber = 2.0,
-            isFavorite = isFavorite,
-        )
     }
 }

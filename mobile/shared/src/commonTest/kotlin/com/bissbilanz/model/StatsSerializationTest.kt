@@ -1,14 +1,11 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.test.testJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlinx.serialization.json.Json
 
 class StatsSerializationTest {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-    }
+    private val json = testJson
 
     @Test
     fun deserializeDailyStatsResponse() {
