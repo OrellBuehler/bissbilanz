@@ -41,3 +41,11 @@ src/lib/paraglide/
 # Playwright test auth state and results
 tests/e2e/.auth/
 test-results/
+
+# Android / KMP
+mobile/local.properties
+mobile/.gradle/
+mobile/build/
+mobile/shared/build/
+mobile/androidApp/build/
+*.zip
