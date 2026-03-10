@@ -16,6 +16,7 @@ fun MealPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (mealType: String, servings: Double) -> Unit,
     title: String = "Log Food",
+    showMealPicker: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -36,18 +37,20 @@ fun MealPickerSheet(
                 fontWeight = FontWeight.Bold,
             )
 
-            Text("Meal", style = MaterialTheme.typography.labelLarge)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                mealTypes.forEachIndexed { index, meal ->
-                    SegmentedButton(
-                        selected = selectedMeal == meal,
-                        onClick = { selectedMeal = meal },
-                        shape = SegmentedButtonDefaults.itemShape(index, mealTypes.size),
-                    ) {
-                        Text(
-                            meal.replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+            if (showMealPicker) {
+                Text("Meal", style = MaterialTheme.typography.labelLarge)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    mealTypes.forEachIndexed { index, meal ->
+                        SegmentedButton(
+                            selected = selectedMeal == meal,
+                            onClick = { selectedMeal = meal },
+                            shape = SegmentedButtonDefaults.itemShape(index, mealTypes.size),
+                        ) {
+                            Text(
+                                meal.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
                     }
                 }
             }
@@ -84,7 +87,7 @@ fun MealPickerSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Log")
+                    Text(if (showMealPicker) "Log" else "Confirm")
                 }
             }
         }

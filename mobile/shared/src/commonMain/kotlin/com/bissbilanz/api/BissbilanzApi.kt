@@ -251,15 +251,17 @@ class BissbilanzApi(
         }
 
     // Preferences
-    suspend fun getPreferences(): Preferences = authenticatedGet("/api/preferences")
+    suspend fun getPreferences(): Preferences {
+        val response: PreferencesResponse = authenticatedGet("/api/preferences")
+        return response.preferences
+    }
 
     suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences = authenticatedPut("/api/preferences", prefs)
 
     // Meal types
     suspend fun getMealTypes(): MealTypesResponse = authenticatedGet("/api/meal-types")
 
-    suspend fun createMealType(mealType: MealTypeCreate): MealType =
-        authenticatedPost("/api/meal-types", mealType)
+    suspend fun createMealType(mealType: MealTypeCreate): MealType = authenticatedPost("/api/meal-types", mealType)
 
     // Copy entries
     suspend fun copyEntries(
@@ -272,8 +274,7 @@ class BissbilanzApi(
         }
 
     // Calendar
-    suspend fun getCalendarStats(month: String): CalendarResponse =
-        authenticatedGet("/api/stats/calendar") { parameter("month", month) }
+    suspend fun getCalendarStats(month: String): CalendarResponse = authenticatedGet("/api/stats/calendar") { parameter("month", month) }
 
     // Maintenance
     suspend fun getMaintenanceCalories(
@@ -294,8 +295,7 @@ class BissbilanzApi(
     ): Supplement = authenticatedPut("/api/supplements/$id", supplement)
 
     // Supplement checklist for a date
-    suspend fun getSupplementChecklist(date: String): List<SupplementLog> =
-        authenticatedGet("/api/supplements/$date/checklist")
+    suspend fun getSupplementChecklist(date: String): List<SupplementLog> = authenticatedGet("/api/supplements/$date/checklist")
 }
 
 class UnauthorizedException : Exception("Not authenticated")

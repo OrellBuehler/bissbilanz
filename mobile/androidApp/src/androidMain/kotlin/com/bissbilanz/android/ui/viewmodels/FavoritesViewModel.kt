@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
+import com.bissbilanz.model.Preferences
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,12 +16,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 
 class FavoritesViewModel(
     private val foodRepo: FoodRepository,
     private val recipeRepo: RecipeRepository,
     private val entryRepo: EntryRepository,
+    private val prefsRepo: PreferencesRepository,
 ) : ViewModel() {
     val favorites: StateFlow<List<Food>> = foodRepo.favorites
     val recipes: StateFlow<List<Recipe>> = recipeRepo.recipes
@@ -33,12 +37,17 @@ class FavoritesViewModel(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
+    private val _preferences = MutableStateFlow<Preferences?>(null)
+    val preferences: StateFlow<Preferences?> = _preferences.asStateFlow()
+
     init {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 foodRepo.loadFavorites()
                 recipeRepo.loadRecipes()
+                prefsRepo.loadPreferences()
+                _preferences.value = prefsRepo.preferences.value
             } catch (_: Exception) {
             }
             _isLoading.value = false
@@ -48,6 +57,24 @@ class FavoritesViewModel(
     fun selectTab(index: Int) {
         _selectedTab.value = index
     }
+
+    fun resolveDefaultMeal(): String? {
+        val prefs = _preferences.value ?: return null
+        if (prefs.favoriteMealAssignmentMode == "ask_meal") return null
+
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val minuteOfDay = now.hour * 60 + now.minute
+
+        for (timeframe in prefs.favoriteMealTimeframes) {
+            if (minuteOfDay >= timeframe.startMinute && minuteOfDay < timeframe.endMinute) {
+                return timeframe.mealType
+            }
+        }
+        return null
+    }
+
+    val tapAction: String
+        get() = _preferences.value?.favoriteTapAction ?: "instant"
 
     fun logFood(
         food: Food,

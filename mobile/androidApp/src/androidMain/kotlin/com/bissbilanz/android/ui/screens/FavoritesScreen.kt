@@ -36,6 +36,8 @@ fun FavoritesScreen(navController: NavController) {
 
     var foodToLog by remember { mutableStateOf<Food?>(null) }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
+    var pendingServingsFood by remember { mutableStateOf<Food?>(null) }
+    var pendingServingsRecipe by remember { mutableStateOf<Recipe?>(null) }
 
     val favoriteRecipes = recipes.filter { it.isFavorite }
 
@@ -63,6 +65,42 @@ fun FavoritesScreen(navController: NavController) {
                 viewModel.logRecipe(recipeToLog!!, meal, servings)
                 recipeToLog = null
             },
+        )
+    }
+
+    if (pendingServingsFood != null) {
+        MealPickerSheet(
+            onDismiss = { pendingServingsFood = null },
+            onConfirm = { _, servings ->
+                val meal = viewModel.resolveDefaultMeal()
+                if (meal != null) {
+                    viewModel.logFood(pendingServingsFood!!, meal, servings)
+                    pendingServingsFood = null
+                } else {
+                    foodToLog = pendingServingsFood
+                    pendingServingsFood = null
+                }
+            },
+            title = "Select Servings",
+            showMealPicker = false,
+        )
+    }
+
+    if (pendingServingsRecipe != null) {
+        MealPickerSheet(
+            onDismiss = { pendingServingsRecipe = null },
+            onConfirm = { _, servings ->
+                val meal = viewModel.resolveDefaultMeal()
+                if (meal != null) {
+                    viewModel.logRecipe(pendingServingsRecipe!!, meal, servings)
+                    pendingServingsRecipe = null
+                } else {
+                    recipeToLog = pendingServingsRecipe
+                    pendingServingsRecipe = null
+                }
+            },
+            title = "Select Servings",
+            showMealPicker = false,
         )
     }
 
@@ -98,7 +136,14 @@ fun FavoritesScreen(navController: NavController) {
                                 subtitle = "${food.calories.toInt()} cal",
                                 secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
                                 onClick = { navController.navigate("food/${food.id}") },
-                                onQuickLog = { foodToLog = food },
+                                onQuickLog = {
+                                    handleQuickLog(
+                                        viewModel = viewModel,
+                                        onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
+                                        onShowServingsPicker = { pendingServingsFood = food },
+                                        onShowMealPicker = { foodToLog = food },
+                                    )
+                                },
                             )
                         }
                     }
@@ -118,13 +163,44 @@ fun FavoritesScreen(navController: NavController) {
                                 subtitle = "${recipe.totalServings.toInt()} servings",
                                 secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
                                 onClick = { navController.navigate("recipe/${recipe.id}") },
-                                onQuickLog = { recipeToLog = recipe },
+                                onQuickLog = {
+                                    handleQuickLog(
+                                        viewModel = viewModel,
+                                        onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
+                                        onShowServingsPicker = { pendingServingsRecipe = recipe },
+                                        onShowMealPicker = { recipeToLog = recipe },
+                                    )
+                                },
                             )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+private fun handleQuickLog(
+    viewModel: FavoritesViewModel,
+    onInstantWithMeal: (String) -> Unit,
+    onShowServingsPicker: () -> Unit,
+    onShowMealPicker: () -> Unit,
+) {
+    val meal = viewModel.resolveDefaultMeal()
+
+    if (viewModel.tapAction == "picker") {
+        if (meal != null) {
+            onShowServingsPicker()
+        } else {
+            onShowMealPicker()
+        }
+        return
+    }
+
+    if (meal != null) {
+        onInstantWithMeal(meal)
+    } else {
+        onShowMealPicker()
     }
 }
 

@@ -3,6 +3,13 @@ package com.bissbilanz.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class FavoriteMealTimeframe(
+    val mealType: String,
+    val startMinute: Int,
+    val endMinute: Int,
+)
+
+@Serializable
 data class Preferences(
     val showChartWidget: Boolean = true,
     val showFavoritesWidget: Boolean = true,
@@ -14,8 +21,14 @@ data class Preferences(
     val startPage: String = "dashboard",
     val favoriteTapAction: String = "instant",
     val favoriteMealAssignmentMode: String = "time_based",
+    val favoriteMealTimeframes: List<FavoriteMealTimeframe> = emptyList(),
     val visibleNutrients: List<String> = emptyList(),
     val locale: String? = null,
+)
+
+@Serializable
+data class PreferencesResponse(
+    val preferences: Preferences,
 )
 
 @Serializable
