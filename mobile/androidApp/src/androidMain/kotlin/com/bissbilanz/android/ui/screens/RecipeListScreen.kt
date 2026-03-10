@@ -76,12 +76,17 @@ fun RecipeListScreen(navController: NavController) {
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { navController.navigate("recipe_create") }) {
+                Icon(Icons.Default.Add, "Create recipe")
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (isLoading) {
             LoadingScreen()
         } else if (recipes.isEmpty()) {
-            EmptyState("No recipes yet.\nCreate recipes on the web app.")
+            EmptyState("No recipes yet.\nTap + to create one.")
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),

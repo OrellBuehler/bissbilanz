@@ -52,6 +52,11 @@ fun FoodSearchScreen(navController: NavController) {
     }
 
     Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = { navController.navigate("food_create") }) {
+                Icon(Icons.Default.Add, "Create food")
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {

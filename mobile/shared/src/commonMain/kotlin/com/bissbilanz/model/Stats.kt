@@ -70,3 +70,62 @@ data class TopFoodEntry(
     val fat: Double,
     val fiber: Double,
 )
+
+@Serializable
+data class CalendarDay(
+    val date: String,
+    val calories: Double,
+    val goalMet: Boolean,
+    val hasEntries: Boolean,
+)
+
+@Serializable
+data class CalendarResponse(
+    val days: List<CalendarDay>,
+)
+
+@Serializable
+data class CopyEntriesResponse(
+    val entries: List<Entry>,
+    val count: Int,
+)
+
+@Serializable
+data class MaintenanceResult(
+    val maintenanceCalories: Double,
+    val dailyDeficitOrSurplus: Double,
+    val weightChangeKg: Double,
+    val fatMassChangeKg: Double,
+    val muscleMassChangeKg: Double,
+    val fatEnergyKcal: Double,
+    val muscleEnergyKcal: Double,
+    val avgDailyCalories: Double,
+)
+
+@Serializable
+data class MaintenanceMeta(
+    val weightEntries: Int,
+    val foodEntryDays: Int,
+    val totalDays: Int,
+    val coverage: Double,
+    val firstWeight: Double,
+    val lastWeight: Double,
+    val startDate: String,
+    val endDate: String,
+)
+
+@Serializable
+data class MaintenanceResponse(
+    val result: MaintenanceResult,
+    val meta: MaintenanceMeta,
+)
+
+@Serializable
+data class MealTypeCreate(
+    val name: String,
+)
+
+@Serializable
+data class MealTypesResponse(
+    val mealTypes: List<MealType>,
+)

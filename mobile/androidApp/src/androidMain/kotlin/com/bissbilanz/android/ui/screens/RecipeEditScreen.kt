@@ -1,0 +1,340 @@
+package com.bissbilanz.android.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.model.*
+import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.RecipeRepository
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeEditScreen(
+    recipeId: String?,
+    navController: NavController,
+) {
+    val recipeRepo: RecipeRepository = koinInject()
+    val foodRepo: FoodRepository = koinInject()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var isLoading by remember { mutableStateOf(recipeId != null) }
+    var isSaving by remember { mutableStateOf(false) }
+    val isEditing = recipeId != null
+
+    var name by remember { mutableStateOf("") }
+    var totalServings by remember { mutableStateOf("1") }
+    var isFavorite by remember { mutableStateOf(false) }
+
+    data class IngredientRow(
+        val food: Food? = null,
+        val foodId: String = "",
+        val quantity: String = "100",
+        val unit: ServingUnit = ServingUnit.G,
+    )
+
+    var ingredients by remember { mutableStateOf(listOf<IngredientRow>()) }
+    var showFoodPicker by remember { mutableStateOf(false) }
+    var foodSearchQuery by remember { mutableStateOf("") }
+    var foodSearchResults by remember { mutableStateOf<List<Food>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+
+    LaunchedEffect(recipeId) {
+        if (recipeId != null) {
+            try {
+                val recipe = recipeRepo.getRecipe(recipeId)
+                name = recipe.name
+                totalServings = recipe.totalServings.let {
+                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                }
+                isFavorite = recipe.isFavorite
+                ingredients = recipe.ingredients?.map { ing ->
+                    IngredientRow(
+                        food = ing.food,
+                        foodId = ing.foodId,
+                        quantity = ing.quantity.let {
+                            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                        },
+                        unit = ing.servingUnit,
+                    )
+                } ?: emptyList()
+            } catch (_: Exception) {
+                snackbarHostState.showSnackbar("Failed to load recipe")
+                navController.popBackStack()
+            }
+            isLoading = false
+        }
+    }
+
+    if (showFoodPicker) {
+        AlertDialog(
+            onDismissRequest = { showFoodPicker = false },
+            title = { Text("Add Ingredient") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = foodSearchQuery,
+                        onValueChange = { query ->
+                            foodSearchQuery = query
+                            if (query.length >= 2) {
+                                isSearching = true
+                                scope.launch {
+                                    try {
+                                        foodSearchResults = foodRepo.searchFoods(query)
+                                    } catch (_: Exception) {
+                                        foodSearchResults = emptyList()
+                                    }
+                                    isSearching = false
+                                }
+                            }
+                        },
+                        label = { Text("Search food") },
+                        leadingIcon = { Icon(Icons.Default.Search, "Search") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (isSearching) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                    } else {
+                        foodSearchResults.take(5).forEach { food ->
+                            TextButton(
+                                onClick = {
+                                    ingredients = ingredients + IngredientRow(
+                                        food = food,
+                                        foodId = food.id,
+                                        quantity = food.servingSize.let {
+                                            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                                        },
+                                        unit = food.servingUnit,
+                                    )
+                                    showFoodPicker = false
+                                    foodSearchQuery = ""
+                                    foodSearchResults = emptyList()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    "${food.name}${food.brand?.let { " ($it)" } ?: ""}",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFoodPicker = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(if (isEditing) "Edit Recipe" else "Create Recipe") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            val nameVal = name.trim()
+                            if (nameVal.isBlank() || ingredients.isEmpty()) return@IconButton
+                            isSaving = true
+                            scope.launch {
+                                try {
+                                    val ingredientInputs = ingredients.map { ing ->
+                                        RecipeIngredientInput(
+                                            foodId = ing.foodId,
+                                            quantity = ing.quantity.toDoubleOrNull() ?: 100.0,
+                                            servingUnit = ing.unit,
+                                        )
+                                    }
+                                    if (isEditing) {
+                                        recipeRepo.updateRecipe(
+                                            recipeId!!,
+                                            RecipeUpdate(
+                                                name = nameVal,
+                                                totalServings = totalServings.toDoubleOrNull() ?: 1.0,
+                                                ingredients = ingredientInputs,
+                                                isFavorite = isFavorite,
+                                            ),
+                                        )
+                                    } else {
+                                        recipeRepo.createRecipe(
+                                            RecipeCreate(
+                                                name = nameVal,
+                                                totalServings = totalServings.toDoubleOrNull() ?: 1.0,
+                                                ingredients = ingredientInputs,
+                                                isFavorite = isFavorite,
+                                            ),
+                                        )
+                                    }
+                                    navController.popBackStack()
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to save recipe")
+                                }
+                                isSaving = false
+                            }
+                        },
+                        enabled = !isSaving && name.isNotBlank() && ingredients.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Default.Check, "Save")
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        if (isLoading) {
+            LoadingScreen()
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 16.dp),
+            ) {
+                // Basic info
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                "Recipe Details",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                label = { Text("Recipe name *") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = totalServings,
+                                onValueChange = { totalServings = it },
+                                label = { Text("Total servings") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Favorite")
+                                Switch(checked = isFavorite, onCheckedChange = { isFavorite = it })
+                            }
+                        }
+                    }
+                }
+
+                // Ingredients header
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Ingredients (${ingredients.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        FilledTonalButton(onClick = { showFoodPicker = true }) {
+                            Icon(Icons.Default.Add, "Add", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add")
+                        }
+                    }
+                }
+
+                // Ingredients list
+                itemsIndexed(ingredients) { index, ingredient ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    ingredient.food?.name ?: "Food",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                IconButton(
+                                    onClick = {
+                                        ingredients = ingredients.toMutableList().apply { removeAt(index) }
+                                    },
+                                ) {
+                                    Icon(Icons.Default.Close, "Remove", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = ingredient.quantity,
+                                    onValueChange = { newQty ->
+                                        ingredients = ingredients.toMutableList().apply {
+                                            set(index, ingredient.copy(quantity = newQty))
+                                        }
+                                    },
+                                    label = { Text("Amount") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                )
+                                Text(
+                                    ingredient.unit.name.lowercase(),
+                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (ingredients.isEmpty()) {
+                    item {
+                        Text(
+                            "No ingredients added yet.\nTap Add to search for foods.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                item {
+                    if (isSaving) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Spacer(modifier = Modifier.height(80.dp))
+                }
+            }
+        }
+    }
+}
