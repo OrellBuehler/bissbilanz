@@ -10,5 +10,5 @@ data class Goals(
     val fatGoal: Double,
     val fiberGoal: Double,
     val sodiumGoal: Double? = null,
-    val sugarGoal: Double? = null
+    val sugarGoal: Double? = null,
 )

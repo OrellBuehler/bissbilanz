@@ -5,10 +5,17 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class ScheduleType {
-    @SerialName("daily") DAILY,
-    @SerialName("every_other_day") EVERY_OTHER_DAY,
-    @SerialName("weekly") WEEKLY,
-    @SerialName("specific_days") SPECIFIC_DAYS;
+    @SerialName("daily")
+    DAILY,
+
+    @SerialName("every_other_day")
+    EVERY_OTHER_DAY,
+
+    @SerialName("weekly")
+    WEEKLY,
+
+    @SerialName("specific_days")
+    SPECIFIC_DAYS,
 }
 
 @Serializable
@@ -26,7 +33,7 @@ data class Supplement(
     val timeOfDay: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
-    val ingredients: List<SupplementIngredient>? = null
+    val ingredients: List<SupplementIngredient>? = null,
 )
 
 @Serializable
@@ -36,7 +43,7 @@ data class SupplementIngredient(
     val name: String,
     val dosage: Double,
     val dosageUnit: String,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
 )
 
 @Serializable
@@ -50,7 +57,7 @@ data class SupplementCreate(
     val isActive: Boolean? = null,
     val sortOrder: Int? = null,
     val timeOfDay: String? = null,
-    val ingredients: List<SupplementIngredientInput>? = null
+    val ingredients: List<SupplementIngredientInput>? = null,
 )
 
 @Serializable
@@ -58,7 +65,7 @@ data class SupplementIngredientInput(
     val name: String,
     val dosage: Double,
     val dosageUnit: String,
-    val sortOrder: Int? = null
+    val sortOrder: Int? = null,
 )
 
 @Serializable
@@ -68,5 +75,5 @@ data class SupplementLog(
     val userId: String,
     val date: String,
     val takenAt: String,
-    val createdAt: String? = null
+    val createdAt: String? = null,
 )

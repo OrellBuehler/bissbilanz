@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class RecipeRepository(private val api: BissbilanzApi) {
+class RecipeRepository(
+    private val api: BissbilanzApi,
+) {
     private val _recipes = MutableStateFlow<List<Recipe>>(emptyList())
     val recipes: StateFlow<List<Recipe>> = _recipes.asStateFlow()
 
@@ -22,7 +24,10 @@ class RecipeRepository(private val api: BissbilanzApi) {
         return created
     }
 
-    suspend fun updateRecipe(id: String, recipe: RecipeUpdate): Recipe {
+    suspend fun updateRecipe(
+        id: String,
+        recipe: RecipeUpdate,
+    ): Recipe {
         val updated = api.updateRecipe(id, recipe)
         loadRecipes()
         return updated

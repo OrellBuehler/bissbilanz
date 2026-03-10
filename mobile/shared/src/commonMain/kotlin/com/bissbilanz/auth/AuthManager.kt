@@ -19,7 +19,9 @@ import kotlin.random.Random
 
 sealed class AuthState {
     data object Unauthenticated : AuthState()
+
     data object Authenticated : AuthState()
+
     data object Refreshing : AuthState()
 }
 
@@ -28,24 +30,26 @@ data class TokenResponse(
     @SerialName("access_token") val accessToken: String,
     @SerialName("refresh_token") val refreshToken: String? = null,
     @SerialName("token_type") val tokenType: String,
-    @SerialName("expires_in") val expiresIn: Int
+    @SerialName("expires_in") val expiresIn: Int,
 )
 
 class AuthManager(
     private val baseUrl: String,
     private val clientId: String,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    private val client = HttpClient(com.bissbilanz.createHttpEngine()) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+    private val client =
+        HttpClient(com.bissbilanz.createHttpEngine()) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
         }
-    }
 
     private var codeVerifier: String? = null
+    private var pendingState: String? = null
 
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
@@ -64,6 +68,7 @@ class AuthManager(
     fun buildAuthorizationUrl(state: String): String {
         val verifier = generateCodeVerifier()
         codeVerifier = verifier
+        pendingState = state
         val challenge = generateCodeChallenge(verifier)
 
         return "$baseUrl/api/oauth/authorize?" +
@@ -75,21 +80,30 @@ class AuthManager(
             "code_challenge_method=S256"
     }
 
+    fun validateState(state: String?): Boolean {
+        val expected = pendingState
+        pendingState = null
+        return state != null && state == expected
+    }
+
     suspend fun handleCallback(code: String): Boolean {
         val verifier = codeVerifier ?: return false
         codeVerifier = null
 
         return try {
-            val response: TokenResponse = client.submitForm(
-                url = "$baseUrl/token",
-                formParameters = parameters {
-                    append("grant_type", "authorization_code")
-                    append("code", code)
-                    append("redirect_uri", REDIRECT_URI)
-                    append("client_id", clientId)
-                    append("code_verifier", verifier)
-                }
-            ).body()
+            val response: TokenResponse =
+                client
+                    .submitForm(
+                        url = "$baseUrl/token",
+                        formParameters =
+                            parameters {
+                                append("grant_type", "authorization_code")
+                                append("code", code)
+                                append("redirect_uri", REDIRECT_URI)
+                                append("client_id", clientId)
+                                append("code_verifier", verifier)
+                            },
+                    ).body()
 
             secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
             response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
@@ -100,23 +114,24 @@ class AuthManager(
         }
     }
 
-    suspend fun getAccessToken(): String? {
-        return secureStorage.load(KEY_ACCESS_TOKEN)
-    }
+    suspend fun getAccessToken(): String? = secureStorage.load(KEY_ACCESS_TOKEN)
 
     suspend fun refreshToken(): Boolean {
         val refreshToken = secureStorage.load(KEY_REFRESH_TOKEN) ?: return false
 
         _authState.value = AuthState.Refreshing
         return try {
-            val response: TokenResponse = client.submitForm(
-                url = "$baseUrl/token",
-                formParameters = parameters {
-                    append("grant_type", "refresh_token")
-                    append("refresh_token", refreshToken)
-                    append("client_id", clientId)
-                }
-            ).body()
+            val response: TokenResponse =
+                client
+                    .submitForm(
+                        url = "$baseUrl/token",
+                        formParameters =
+                            parameters {
+                                append("grant_type", "refresh_token")
+                                append("refresh_token", refreshToken)
+                                append("client_id", clientId)
+                            },
+                    ).body()
 
             secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
             response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }

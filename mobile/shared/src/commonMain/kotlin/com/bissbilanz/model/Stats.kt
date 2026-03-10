@@ -8,13 +8,13 @@ data class MacroTotals(
     val protein: Double = 0.0,
     val carbs: Double = 0.0,
     val fat: Double = 0.0,
-    val fiber: Double = 0.0
+    val fiber: Double = 0.0,
 )
 
 @Serializable
 data class DailyStatsResponse(
     val data: List<DailyStatsEntry>,
-    val goals: Goals? = null
+    val goals: Goals? = null,
 )
 
 @Serializable
@@ -24,17 +24,17 @@ data class DailyStatsEntry(
     val protein: Double,
     val carbs: Double,
     val fat: Double,
-    val fiber: Double
+    val fiber: Double,
 )
 
 @Serializable
 data class WeeklyMonthlyStatsResponse(
-    val stats: MacroTotals
+    val stats: MacroTotals,
 )
 
 @Serializable
 data class MealBreakdownResponse(
-    val data: List<MealBreakdownEntry>
+    val data: List<MealBreakdownEntry>,
 )
 
 @Serializable
@@ -44,18 +44,18 @@ data class MealBreakdownEntry(
     val protein: Double,
     val carbs: Double,
     val fat: Double,
-    val fiber: Double
+    val fiber: Double,
 )
 
 @Serializable
 data class StreaksResponse(
     val currentStreak: Int,
-    val longestStreak: Int
+    val longestStreak: Int,
 )
 
 @Serializable
 data class TopFoodsResponse(
-    val data: List<TopFoodEntry>
+    val data: List<TopFoodEntry>,
 )
 
 @Serializable
@@ -68,5 +68,5 @@ data class TopFoodEntry(
     val protein: Double,
     val carbs: Double,
     val fat: Double,
-    val fiber: Double
+    val fiber: Double,
 )

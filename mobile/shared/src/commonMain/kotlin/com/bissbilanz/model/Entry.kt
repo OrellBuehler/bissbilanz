@@ -22,7 +22,7 @@ data class Entry(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val food: Food? = null,
-    val recipe: Recipe? = null
+    val recipe: Recipe? = null,
 )
 
 @Serializable
@@ -39,7 +39,7 @@ data class EntryCreate(
     val quickCarbs: Double? = null,
     val quickFat: Double? = null,
     val quickFiber: Double? = null,
-    val eatenAt: String? = null
+    val eatenAt: String? = null,
 )
 
 @Serializable
@@ -56,5 +56,5 @@ data class EntryUpdate(
     val quickCarbs: Double? = null,
     val quickFat: Double? = null,
     val quickFiber: Double? = null,
-    val eatenAt: String? = null
+    val eatenAt: String? = null,
 )

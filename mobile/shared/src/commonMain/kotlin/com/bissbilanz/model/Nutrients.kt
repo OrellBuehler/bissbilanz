@@ -56,5 +56,5 @@ data class Nutrients(
     val caffeine: Double? = null,
     val alcohol: Double? = null,
     val water: Double? = null,
-    val salt: Double? = null
+    val salt: Double? = null,
 )

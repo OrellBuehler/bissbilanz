@@ -11,19 +11,19 @@ data class WeightEntry(
     val loggedAt: String? = null,
     val notes: String? = null,
     val createdAt: String? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
 )
 
 @Serializable
 data class WeightCreate(
     val weightKg: Double,
     val entryDate: String,
-    val notes: String? = null
+    val notes: String? = null,
 )
 
 @Serializable
 data class WeightUpdate(
     val weightKg: Double? = null,
     val entryDate: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
 )

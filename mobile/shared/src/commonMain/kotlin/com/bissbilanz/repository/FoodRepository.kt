@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class FoodRepository(private val api: BissbilanzApi) {
+class FoodRepository(
+    private val api: BissbilanzApi,
+) {
     private val _foods = MutableStateFlow<List<Food>>(emptyList())
     val foods: StateFlow<List<Food>> = _foods.asStateFlow()
 
@@ -16,7 +18,10 @@ class FoodRepository(private val api: BissbilanzApi) {
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
-    suspend fun loadFoods(limit: Int = 100, offset: Int = 0) {
+    suspend fun loadFoods(
+        limit: Int = 100,
+        offset: Int = 0,
+    ) {
         _foods.value = api.getFoods(limit, offset)
     }
 
@@ -36,7 +41,10 @@ class FoodRepository(private val api: BissbilanzApi) {
         return created
     }
 
-    suspend fun updateFood(id: String, food: FoodCreate): Food {
+    suspend fun updateFood(
+        id: String,
+        food: FoodCreate,
+    ): Food {
         val updated = api.updateFood(id, food)
         loadFoods()
         return updated

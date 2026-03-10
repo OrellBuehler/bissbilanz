@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class GoalsRepository(private val api: BissbilanzApi) {
+class GoalsRepository(
+    private val api: BissbilanzApi,
+) {
     private val _goals = MutableStateFlow<Goals?>(null)
     val goals: StateFlow<Goals?> = _goals.asStateFlow()
 

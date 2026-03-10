@@ -15,7 +15,7 @@ data class Preferences(
     val favoriteTapAction: String = "instant",
     val favoriteMealAssignmentMode: String = "time_based",
     val visibleNutrients: List<String> = emptyList(),
-    val locale: String? = null
+    val locale: String? = null,
 )
 
 @Serializable
@@ -31,7 +31,7 @@ data class PreferencesUpdate(
     val favoriteTapAction: String? = null,
     val favoriteMealAssignmentMode: String? = null,
     val visibleNutrients: List<String>? = null,
-    val locale: String? = null
+    val locale: String? = null,
 )
 
 @Serializable
@@ -40,5 +40,5 @@ data class MealType(
     val userId: String,
     val name: String,
     val sortOrder: Int,
-    val createdAt: String? = null
+    val createdAt: String? = null,
 )

@@ -68,7 +68,7 @@ data class Food(
     val ingredientsText: String? = null,
     val imageUrl: String? = null,
     val createdAt: String? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
 )
 
 @Serializable
@@ -131,5 +131,5 @@ data class FoodCreate(
     val novaGroup: Int? = null,
     val additives: List<String>? = null,
     val ingredientsText: String? = null,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
 )

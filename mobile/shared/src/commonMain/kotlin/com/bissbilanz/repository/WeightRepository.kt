@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class WeightRepository(private val api: BissbilanzApi) {
+class WeightRepository(
+    private val api: BissbilanzApi,
+) {
     private val _entries = MutableStateFlow<List<WeightEntry>>(emptyList())
     val entries: StateFlow<List<WeightEntry>> = _entries.asStateFlow()
 
@@ -20,7 +22,10 @@ class WeightRepository(private val api: BissbilanzApi) {
         return created
     }
 
-    suspend fun updateEntry(id: String, entry: WeightUpdate): WeightEntry {
+    suspend fun updateEntry(
+        id: String,
+        entry: WeightUpdate,
+    ): WeightEntry {
         val updated = api.updateWeightEntry(id, entry)
         loadEntries()
         return updated

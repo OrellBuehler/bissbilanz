@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SupplementRepository(private val api: BissbilanzApi) {
+class SupplementRepository(
+    private val api: BissbilanzApi,
+) {
     private val _supplements = MutableStateFlow<List<Supplement>>(emptyList())
     val supplements: StateFlow<List<Supplement>> = _supplements.asStateFlow()
 
@@ -25,9 +27,13 @@ class SupplementRepository(private val api: BissbilanzApi) {
         _supplements.value = _supplements.value.filter { it.id != id }
     }
 
-    suspend fun logSupplement(supplementId: String, date: String? = null): SupplementLog =
-        api.logSupplement(supplementId, date)
+    suspend fun logSupplement(
+        supplementId: String,
+        date: String? = null,
+    ): SupplementLog = api.logSupplement(supplementId, date)
 
-    suspend fun unlogSupplement(supplementId: String, date: String) =
-        api.unlogSupplement(supplementId, date)
+    suspend fun unlogSupplement(
+        supplementId: String,
+        date: String,
+    ) = api.unlogSupplement(supplementId, date)
 }

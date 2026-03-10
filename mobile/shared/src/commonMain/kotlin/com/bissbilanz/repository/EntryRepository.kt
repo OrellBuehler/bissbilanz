@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class EntryRepository(private val api: BissbilanzApi) {
+class EntryRepository(
+    private val api: BissbilanzApi,
+) {
     private val _entries = MutableStateFlow<List<Entry>>(emptyList())
     val entries: StateFlow<List<Entry>> = _entries.asStateFlow()
 
@@ -23,7 +25,10 @@ class EntryRepository(private val api: BissbilanzApi) {
         return created
     }
 
-    suspend fun updateEntry(id: String, entry: EntryUpdate): Entry {
+    suspend fun updateEntry(
+        id: String,
+        entry: EntryUpdate,
+    ): Entry {
         val updated = api.updateEntry(id, entry)
         currentDate?.let { loadEntries(it) }
         return updated
