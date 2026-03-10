@@ -16,56 +16,36 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.MealPickerDialog
-import com.bissbilanz.model.EntryCreate
+import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
-import com.bissbilanz.repository.EntryRepository
-import com.bissbilanz.repository.FoodRepository
-import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodSearchScreen(navController: NavController) {
-    val foodRepo: FoodRepository = koinInject()
-    val entryRepo: EntryRepository = koinInject()
-    val recentFoods by foodRepo.recentFoods.collectAsStateWithLifecycle()
-    val favorites by foodRepo.favorites.collectAsStateWithLifecycle()
-    var query by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<Food>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
+    val viewModel: FoodSearchViewModel = koinViewModel()
+    val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var foodToLog by remember { mutableStateOf<Food?>(null) }
 
-    LaunchedEffect(Unit) {
-        foodRepo.loadRecentFoods()
-        foodRepo.loadFavorites()
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
     }
 
     if (foodToLog != null) {
         MealPickerDialog(
             onDismiss = { foodToLog = null },
             onConfirm = { meal, servings ->
-                scope.launch {
-                    try {
-                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                        entryRepo.createEntry(
-                            EntryCreate(
-                                foodId = foodToLog!!.id,
-                                mealType = meal,
-                                servings = servings,
-                                date = today,
-                            ),
-                        )
-                        snackbarHostState.showSnackbar("Logged ${foodToLog!!.name}")
-                    } catch (e: Exception) {
-                        snackbarHostState.showSnackbar("Failed to log food")
-                    }
-                }
+                viewModel.logFood(foodToLog!!, meal, servings)
                 foodToLog = null
             },
         )
@@ -81,23 +61,7 @@ fun FoodSearchScreen(navController: NavController) {
                 inputField = {
                     SearchBarDefaults.InputField(
                         query = query,
-                        onQueryChange = {
-                            query = it
-                            scope.launch {
-                                if (it.length >= 2) {
-                                    isSearching = true
-                                    searchResults =
-                                        try {
-                                            foodRepo.searchFoods(it)
-                                        } catch (_: Exception) {
-                                            emptyList()
-                                        }
-                                    isSearching = false
-                                } else {
-                                    searchResults = emptyList()
-                                }
-                            }
-                        },
+                        onQueryChange = { viewModel.updateQuery(it) },
                         onSearch = {},
                         expanded = false,
                         onExpandedChange = {},
@@ -132,8 +96,8 @@ fun FoodSearchScreen(navController: NavController) {
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
                 TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Recent") })
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Favorites") })
+                    Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
+                    Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("Favorites") })
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

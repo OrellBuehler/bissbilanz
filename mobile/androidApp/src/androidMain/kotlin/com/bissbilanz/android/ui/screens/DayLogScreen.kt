@@ -19,10 +19,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
-import com.bissbilanz.repository.EntryRepository
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,21 +29,22 @@ fun DayLogScreen(
     date: String,
     navController: NavController,
 ) {
-    val entryRepo: EntryRepository = koinInject()
-    val entries by entryRepo.entries.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var isLoading by remember { mutableStateOf(true) }
+    val viewModel: DayLogViewModel = koinViewModel()
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var entryToDelete by remember { mutableStateOf<Entry?>(null) }
 
     LaunchedEffect(date) {
-        isLoading = true
-        try {
-            entryRepo.loadEntries(date)
-        } catch (e: Exception) {
-            snackbarHostState.showSnackbar("Failed to load entries")
+        viewModel.loadEntries(date)
+    }
+
+    LaunchedEffect(error) {
+        error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
         }
-        isLoading = false
     }
 
     val mealOrder = listOf("breakfast", "lunch", "dinner", "snack")
@@ -63,13 +63,7 @@ fun DayLogScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            try {
-                                entryRepo.deleteEntry(entry.id)
-                            } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Failed to delete entry")
-                            }
-                        }
+                        viewModel.deleteEntry(entry.id)
                         entryToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),

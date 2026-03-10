@@ -19,33 +19,19 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.theme.*
-import com.bissbilanz.repository.EntryRepository
-import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import kotlinx.datetime.*
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DashboardScreen(navController: NavController) {
-    val entryRepo: EntryRepository = koinInject()
-    val goalsRepo: GoalsRepository = koinInject()
-    val entries by entryRepo.entries.collectAsStateWithLifecycle()
-    val goals by goalsRepo.goals.collectAsStateWithLifecycle()
+    val viewModel: DashboardViewModel = koinViewModel()
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val goals by viewModel.goals.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    var selectedDate by remember { mutableStateOf(today) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(selectedDate) {
-        isLoading = true
-        try {
-            entryRepo.loadEntries(selectedDate.toString())
-            goalsRepo.loadGoals()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            isLoading = false
-        }
-    }
 
     val totalCalories = entries.sumOf { it.food?.calories?.times(it.servings) ?: it.quickCalories?.times(it.servings) ?: 0.0 }
     val totalProtein = entries.sumOf { it.food?.protein?.times(it.servings) ?: it.quickProtein?.times(it.servings) ?: 0.0 }
@@ -94,22 +80,18 @@ fun DashboardScreen(navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = {
-                    selectedDate = selectedDate.minus(1, DateTimeUnit.DAY)
-                }) {
+                IconButton(onClick = { viewModel.previousDay() }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous day")
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(dateLabel, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     if (selectedDate != today) {
-                        TextButton(onClick = { selectedDate = today }) {
+                        TextButton(onClick = { viewModel.goToToday() }) {
                             Text("Go to today")
                         }
                     }
                 }
-                IconButton(onClick = {
-                    selectedDate = selectedDate.plus(1, DateTimeUnit.DAY)
-                }) {
+                IconButton(onClick = { viewModel.nextDay() }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next day")
                 }
             }

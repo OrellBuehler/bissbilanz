@@ -19,58 +19,38 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerDialog
 import com.bissbilanz.android.ui.theme.*
-import com.bissbilanz.model.EntryCreate
+import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
-import com.bissbilanz.repository.EntryRepository
-import com.bissbilanz.repository.FoodRepository
-import com.bissbilanz.repository.RecipeRepository
-import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
-    val foodRepo: FoodRepository = koinInject()
-    val recipeRepo: RecipeRepository = koinInject()
-    val entryRepo: EntryRepository = koinInject()
-    val favorites by foodRepo.favorites.collectAsStateWithLifecycle()
-    val recipes by recipeRepo.recipes.collectAsStateWithLifecycle()
-    var isLoading by remember { mutableStateOf(true) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
+    val viewModel: FavoritesViewModel = koinViewModel()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var foodToLog by remember { mutableStateOf<Food?>(null) }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
 
-    LaunchedEffect(Unit) {
-        isLoading = true
-        try {
-            foodRepo.loadFavorites()
-            recipeRepo.loadRecipes()
-        } catch (_: Exception) {
-        }
-        isLoading = false
-    }
-
     val favoriteRecipes = recipes.filter { it.isFavorite }
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
 
     if (foodToLog != null) {
         MealPickerDialog(
             onDismiss = { foodToLog = null },
             onConfirm = { meal, servings ->
-                scope.launch {
-                    try {
-                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                        entryRepo.createEntry(EntryCreate(foodId = foodToLog!!.id, mealType = meal, servings = servings, date = today))
-                        snackbarHostState.showSnackbar("Logged ${foodToLog!!.name}")
-                    } catch (_: Exception) {
-                        snackbarHostState.showSnackbar("Failed to log food")
-                    }
-                }
+                viewModel.logFood(foodToLog!!, meal, servings)
                 foodToLog = null
             },
         )
@@ -80,15 +60,7 @@ fun FavoritesScreen(navController: NavController) {
         MealPickerDialog(
             onDismiss = { recipeToLog = null },
             onConfirm = { meal, servings ->
-                scope.launch {
-                    try {
-                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                        entryRepo.createEntry(EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today))
-                        snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
-                    } catch (_: Exception) {
-                        snackbarHostState.showSnackbar("Failed to log recipe")
-                    }
-                }
+                viewModel.logRecipe(recipeToLog!!, meal, servings)
                 recipeToLog = null
             },
         )
@@ -103,8 +75,8 @@ fun FavoritesScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(8.dp))
 
             TabRow(selectedTabIndex = selectedTab) {
-                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Foods (${favorites.size})") })
-                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Recipes (${favoriteRecipes.size})") })
+                Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Foods (${favorites.size})") })
+                Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("Recipes (${favoriteRecipes.size})") })
             }
 
             Spacer(modifier = Modifier.height(12.dp))

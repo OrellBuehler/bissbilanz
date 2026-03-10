@@ -15,89 +15,22 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.ui.theme.*
-import com.bissbilanz.model.*
-import com.bissbilanz.repository.StatsRepository
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.datetime.*
-import org.koin.compose.koinInject
+import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun InsightsScreen() {
-    val statsRepo: StatsRepository = koinInject()
-    var weeklyStats by remember { mutableStateOf<MacroTotals?>(null) }
-    var monthlyStats by remember { mutableStateOf<MacroTotals?>(null) }
-    var streaks by remember { mutableStateOf<StreaksResponse?>(null) }
-    var topFoods by remember { mutableStateOf<List<TopFoodEntry>>(emptyList()) }
-    var dailyStats by remember { mutableStateOf<List<DailyStatsEntry>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val viewModel: InsightsViewModel = koinViewModel()
+    val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
+    val monthlyStats by viewModel.monthlyStats.collectAsStateWithLifecycle()
+    val streaks by viewModel.streaks.collectAsStateWithLifecycle()
+    val topFoods by viewModel.topFoods.collectAsStateWithLifecycle()
+    val dailyStats by viewModel.dailyStats.collectAsStateWithLifecycle()
+    val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
 
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    var selectedRange by remember { mutableIntStateOf(0) }
     val ranges = listOf("7 Days", "30 Days")
-
-    LaunchedEffect(selectedRange) {
-        isLoading = true
-        val days = if (selectedRange == 0) 7 else 30
-        val startDate = today.minus(days, DateTimeUnit.DAY).toString()
-        val endDate = today.toString()
-
-        try {
-            coroutineScope {
-                val weeklyDeferred =
-                    async {
-                        try {
-                            statsRepo.getWeeklyStats().stats
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                val monthlyDeferred =
-                    async {
-                        try {
-                            statsRepo.getMonthlyStats().stats
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                val streaksDeferred =
-                    async {
-                        try {
-                            statsRepo.getStreaks()
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                val topFoodsDeferred =
-                    async {
-                        try {
-                            statsRepo.getTopFoods(days).data
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                val dailyStatsDeferred =
-                    async {
-                        try {
-                            statsRepo.getDailyStats(startDate, endDate).data
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-
-                weeklyStats = weeklyDeferred.await()
-                monthlyStats = monthlyDeferred.await()
-                streaks = streaksDeferred.await()
-                topFoods = topFoodsDeferred.await()
-                dailyStats = dailyStatsDeferred.await()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            isLoading = false
-        }
-    }
 
     Column(
         modifier =
@@ -113,7 +46,7 @@ fun InsightsScreen() {
             ranges.forEachIndexed { index, label ->
                 SegmentedButton(
                     selected = selectedRange == index,
-                    onClick = { selectedRange = index },
+                    onClick = { viewModel.selectRange(index) },
                     shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                 ) {
                     Text(label)
