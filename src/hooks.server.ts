@@ -151,7 +151,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Rate limit authenticated API write requests
-	if (event.locals.user && pathname.startsWith('/api/')) {
+	if (event.locals.user && pathname.startsWith('/api/') && !isMcpRoute(pathname)) {
 		const method = event.request.method;
 		const userId = event.locals.user.id;
 		try {
