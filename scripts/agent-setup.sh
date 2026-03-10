@@ -31,18 +31,17 @@ if ! command -v semgrep &>/dev/null; then
   pip3 install --break-system-packages semgrep 2>/dev/null || pip3 install semgrep
 fi
 
-# SDKMAN + Java 17 (for Android/KMP builds)
-# SDKMAN init requires nounset to be off
-set +u
-if [ ! -d "$HOME/.sdkman" ]; then
-  curl -fsSL https://get.sdkman.io | bash
-fi
-# shellcheck source=/dev/null
-source "$HOME/.sdkman/bin/sdkman-init.sh"
+# Java 17 (Adoptium Temurin, for Android/KMP builds)
 if ! java -version 2>&1 | grep -q '"17'; then
-  sdk install java 17.0.13-tem
+  JAVA_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jdk_x64_linux_hotspot_17.0.13_11.tar.gz"
+  curl -fsSL "$JAVA_URL" -o /tmp/jdk17.tar.gz
+  mkdir -p /opt/java
+  tar -xzf /tmp/jdk17.tar.gz -C /opt/java
+  rm /tmp/jdk17.tar.gz
+  ln -sf /opt/java/jdk-17.0.13+11 /opt/java/current
 fi
-set -u
+export JAVA_HOME="/opt/java/current"
+export PATH="$JAVA_HOME/bin:$PATH"
 
 # Android SDK command-line tools
 export ANDROID_HOME="$HOME/android-sdk"
