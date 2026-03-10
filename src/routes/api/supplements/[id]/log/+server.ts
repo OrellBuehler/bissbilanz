@@ -8,7 +8,7 @@ import { handleApiError, requireAuth, validationError, parseJsonBody } from '$li
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
-		const body = await parseJsonBody(request);
+		const body = await parseJsonBody(request).catch(() => ({}));
 
 		const parsed = supplementLogSchema.safeParse(body);
 		if (!parsed.success) {

@@ -92,12 +92,6 @@ export function handleApiError(error: unknown): Response {
 	return json({ error: 'Internal server error' }, { status: 500 });
 }
 
-/**
- * Checks if user is authenticated and returns user ID
- * Throws ApiError if not authenticated
- * @param locals - SvelteKit locals object
- * @returns User ID
- */
 export async function parseJsonBody(request: Request): Promise<unknown> {
 	try {
 		return await request.json();
@@ -106,6 +100,12 @@ export async function parseJsonBody(request: Request): Promise<unknown> {
 	}
 }
 
+/**
+ * Checks if user is authenticated and returns user ID
+ * Throws ApiError if not authenticated
+ * @param locals - SvelteKit locals object
+ * @returns User ID
+ */
 export function requireAuth(locals: App.Locals): string {
 	if (!locals.user) {
 		throw new ApiError(401, 'Unauthorized');
