@@ -197,18 +197,20 @@ const buildNormalizedTimeframeRows = async (
 
 export const getPreferences = async (userId: string) => {
 	const db = getDB();
-	const [prefs] = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+	const [prefsResult, timeframeRows, userResult] = await Promise.all([
+		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
+		db
+			.select()
+			.from(favoriteMealTimeframes)
+			.where(eq(favoriteMealTimeframes.userId, userId))
+			.orderBy(asc(favoriteMealTimeframes.startMinute), asc(favoriteMealTimeframes.sortOrder)),
+		db.select({ locale: users.locale }).from(users).where(eq(users.id, userId))
+	]);
 
-	const timeframeRows = await db
-		.select()
-		.from(favoriteMealTimeframes)
-		.where(eq(favoriteMealTimeframes.userId, userId))
-		.orderBy(asc(favoriteMealTimeframes.startMinute), asc(favoriteMealTimeframes.sortOrder));
-
+	const [prefs] = prefsResult;
 	if (!prefs) return null;
 
-	// Also fetch locale from users table
-	const [user] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, userId));
+	const [user] = userResult;
 
 	return {
 		...prefs,
