@@ -2,6 +2,7 @@ name: iOS Build & Test
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths: [mobile/**]
 
@@ -11,6 +12,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.pull_request.draft == false
     runs-on: macos-14
     timeout-minutes: 45
     defaults:

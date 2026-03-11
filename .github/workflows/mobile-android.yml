@@ -2,6 +2,7 @@ name: Android Build & Test
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths: [mobile/**]
 
@@ -11,6 +12,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -54,6 +56,7 @@ jobs:
           retention-days: 14
 
   lint:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
