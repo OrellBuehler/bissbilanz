@@ -1,0 +1,1 @@
+ALTER TABLE "weight_entries" ADD CONSTRAINT "weight_entries_user_date_unique" UNIQUE("user_id","entry_date");
