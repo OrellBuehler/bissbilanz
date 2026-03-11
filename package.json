@@ -8,7 +8,7 @@
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
 		"paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url cookie baseLocale --emit-ts-declarations",
-		"prepare": "(svelte-kit sync || echo '') && (prek install || echo '')",
+		"prepare": "(svelte-kit sync || echo '') && (prek install 2>/dev/null || true)",
 		"check": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && prettier --write .",
 		"check:watch": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
