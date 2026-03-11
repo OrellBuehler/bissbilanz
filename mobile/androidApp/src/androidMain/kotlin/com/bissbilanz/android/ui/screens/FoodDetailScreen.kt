@@ -81,6 +81,7 @@ fun FoodDetailScreen(
             food = foodRepo.getFood(foodId)
             prefsRepo.loadPreferences()
         } catch (_: Exception) {
+            snackbarHostState.showSnackbar("Failed to load food details")
         }
         isLoading = false
     }

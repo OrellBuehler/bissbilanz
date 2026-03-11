@@ -145,7 +145,6 @@ fun CalendarScreen(navController: NavController) {
                 val dayMap = calendarDays.associateBy { it.date }
 
                 var dayCounter = 1
-                var weekStarted = false
                 val weeks = mutableListOf<List<Int?>>()
                 var currentWeek = mutableListOf<Int?>()
 
@@ -153,7 +152,6 @@ fun CalendarScreen(navController: NavController) {
                 for (i in 1 until startDayOfWeek) {
                     currentWeek.add(null)
                 }
-                weekStarted = true
 
                 while (dayCounter <= daysInMonth) {
                     currentWeek.add(dayCounter)
