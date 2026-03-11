@@ -11,6 +11,12 @@ const REQUIRED_SCOPE = 'mcp:access';
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
+export type SessionEntry = {
+	transport: { close(): void };
+	userId: string;
+	lastActivity: number;
+};
+
 type SessionState = {
 	transport: WebStandardStreamableHTTPServerTransport;
 	userId: string;
@@ -19,19 +25,21 @@ type SessionState = {
 
 const sessionTransports = new Map<string, SessionState>();
 
-setInterval(() => {
+export function sweepExpiredSessions(sessions: Map<string, SessionEntry>, ttlMs: number): void {
 	const now = Date.now();
-	for (const [id, session] of sessionTransports) {
-		if (now - session.lastActivity > SESSION_TTL_MS) {
+	for (const [id, session] of sessions) {
+		if (now - session.lastActivity > ttlMs) {
 			try {
 				session.transport.close();
 			} catch {
 				// ignore close errors
 			}
-			sessionTransports.delete(id);
+			sessions.delete(id);
 		}
 	}
-}, CLEANUP_INTERVAL_MS);
+}
+
+setInterval(() => sweepExpiredSessions(sessionTransports, SESSION_TTL_MS), CLEANUP_INTERVAL_MS);
 
 function getBaseUrl(url: URL): string {
 	const base = config.app.url || url.origin;

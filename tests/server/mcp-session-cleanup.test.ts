@@ -1,28 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-
-type SessionState = {
-	transport: { close: () => void };
-	userId: string;
-	lastActivity: number;
-};
-
-function cleanupSessions(sessions: Map<string, SessionState>, ttlMs: number) {
-	const now = Date.now();
-	for (const [id, session] of sessions) {
-		if (now - session.lastActivity > ttlMs) {
-			try {
-				session.transport.close();
-			} catch {
-				// ignore close errors
-			}
-			sessions.delete(id);
-		}
-	}
-}
+import { sweepExpiredSessions, type SessionEntry } from '../../src/routes/api/mcp/+server';
 
 describe('MCP session cleanup', () => {
 	it('removes sessions older than TTL', () => {
-		const sessions = new Map<string, SessionState>();
+		const sessions = new Map<string, SessionEntry>();
 		const close = vi.fn();
 		sessions.set('expired', {
 			transport: { close },
@@ -35,7 +16,7 @@ describe('MCP session cleanup', () => {
 			lastActivity: Date.now()
 		});
 
-		cleanupSessions(sessions, 60 * 60 * 1000);
+		sweepExpiredSessions(sessions, 60 * 60 * 1000);
 
 		expect(sessions.size).toBe(1);
 		expect(sessions.has('active')).toBe(true);
@@ -44,7 +25,7 @@ describe('MCP session cleanup', () => {
 	});
 
 	it('handles transport.close() errors gracefully', () => {
-		const sessions = new Map<string, SessionState>();
+		const sessions = new Map<string, SessionEntry>();
 		sessions.set('broken', {
 			transport: {
 				close: () => {
@@ -55,12 +36,12 @@ describe('MCP session cleanup', () => {
 			lastActivity: Date.now() - 2 * 60 * 60 * 1000
 		});
 
-		expect(() => cleanupSessions(sessions, 60 * 60 * 1000)).not.toThrow();
+		expect(() => sweepExpiredSessions(sessions, 60 * 60 * 1000)).not.toThrow();
 		expect(sessions.size).toBe(0);
 	});
 
 	it('keeps all sessions when none are expired', () => {
-		const sessions = new Map<string, SessionState>();
+		const sessions = new Map<string, SessionEntry>();
 		sessions.set('a', {
 			transport: { close: vi.fn() },
 			userId: 'user1',
@@ -72,7 +53,7 @@ describe('MCP session cleanup', () => {
 			lastActivity: Date.now() - 30 * 60 * 1000 // 30 min ago
 		});
 
-		cleanupSessions(sessions, 60 * 60 * 1000);
+		sweepExpiredSessions(sessions, 60 * 60 * 1000);
 
 		expect(sessions.size).toBe(2);
 	});
