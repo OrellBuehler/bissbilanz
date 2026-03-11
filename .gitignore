@@ -32,6 +32,9 @@ vite.config.ts.timestamp-*
 .worktrees/
 .claude/worktrees/
 
+# Superpowers plans
+docs/superpowers/plans/
+
 # Paraglide generated
 src/lib/paraglide/
 
