@@ -28,8 +28,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const { limit, offset } = paginationResult.data;
-		const entries = await listEntriesByDate(userId, date, { limit, offset });
-		return json({ entries });
+		const { items: entries, total } = await listEntriesByDate(userId, date, { limit, offset });
+		return json({ entries, total });
 	} catch (error) {
 		return handleApiError(error);
 	}

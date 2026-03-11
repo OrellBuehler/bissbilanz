@@ -15,7 +15,7 @@ vi.mock('$lib/server/recipes', () => ({
 		}
 		return { blocked: false };
 	},
-	listRecipes: async () => [],
+	listRecipes: async () => ({ items: [], total: 0 }),
 	createRecipe: async () => ({ success: true, data: TEST_RECIPE }),
 	toRecipeInsert: () => ({})
 }));

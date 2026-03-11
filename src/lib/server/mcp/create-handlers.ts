@@ -120,13 +120,13 @@ export type HandlerDeps = {
 export function createHandlers(d: HandlerDeps) {
 	const handleGetDailyStatus = async (userId: string, date?: string) => {
 		const targetDate = date ?? d.today();
-		const entries = await d.listEntriesByDate(userId, targetDate);
+		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
 		const goals = await d.getGoals(userId);
 		return d.formatDailyStatus({ entries, goals });
 	};
 
 	const handleSearchFoods = async (userId: string, query: string) => {
-		const foods = await d.listFoods(userId, { query });
+		const { items: foods } = await d.listFoods(userId, { query });
 		return { foods };
 	};
 
@@ -223,7 +223,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleListEntries = async (userId: string, date?: string) => {
 		const targetDate = date ?? d.today();
-		const entries = await d.listEntriesByDate(userId, targetDate);
+		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
 		return { date: targetDate, entries };
 	};
 
@@ -266,7 +266,7 @@ export function createHandlers(d: HandlerDeps) {
 	};
 
 	const handleListRecipes = async (userId: string) => {
-		const recipes = await d.listRecipes(userId);
+		const { items: recipes } = await d.listRecipes(userId);
 		return { recipes };
 	};
 

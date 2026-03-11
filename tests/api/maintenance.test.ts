@@ -18,7 +18,7 @@ const mockEntries = [
 
 vi.mock('$lib/server/entries', () => ({
 	listEntriesByDateRange: async () => mockEntries,
-	listEntriesByDate: async () => [],
+	listEntriesByDate: async () => ({ items: [], total: 0 }),
 	createEntry: async () => ({ success: false, error: new Error('not implemented') }),
 	updateEntry: async () => ({ success: false, error: new Error('not implemented') }),
 	deleteEntry: async () => {},

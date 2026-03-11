@@ -17,7 +17,7 @@ const mockValidationError = new ZodError([
 ]);
 
 vi.mock('$lib/server/entries', () => ({
-	listEntriesByDate: async () => mockListResult,
+	listEntriesByDate: async () => ({ items: mockListResult, total: mockListResult.length }),
 	createEntry: async () =>
 		mockCreateResult
 			? { success: true, data: mockCreateResult }

@@ -52,7 +52,7 @@ let mockUpdateSupplementResult: any = null;
 // Create handlers with mock deps — no vi.mock needed!
 // Uses type assertion because mock functions return `any`-typed test state variables.
 const mockDeps = {
-	listFoods: async () => mockFoods,
+	listFoods: async () => ({ items: mockFoods, total: mockFoods.length }),
 	createFood: async () =>
 		mockCreateFoodResult
 			? { success: true, data: mockCreateFoodResult }
@@ -65,7 +65,7 @@ const mockDeps = {
 			: { success: false, error: new Error('Validation failed') },
 	deleteFood: async () => mockDeleteFoodResult,
 	listRecentFoods: async () => mockRecentFoods,
-	listRecipes: async () => mockRecipes,
+	listRecipes: async () => ({ items: mockRecipes, total: mockRecipes.length }),
 	createRecipe: async () =>
 		mockCreateRecipeResult
 			? { success: true, data: mockCreateRecipeResult }
@@ -80,7 +80,7 @@ const mockDeps = {
 		mockCreateEntryResult
 			? { success: true, data: mockCreateEntryResult }
 			: { success: false, error: new Error('Validation failed') },
-	listEntriesByDate: async () => mockEntries,
+	listEntriesByDate: async () => ({ items: mockEntries, total: mockEntries.length }),
 	updateEntry: async () =>
 		mockUpdateEntryResult
 			? { success: true, data: mockUpdateEntryResult }

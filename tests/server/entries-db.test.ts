@@ -59,7 +59,7 @@ describe('entries-db', () => {
 			setResult(entriesWithFood);
 
 			const result = await listEntriesByDate(TEST_USER.id, '2026-02-10');
-			expect(result).toEqual(entriesWithFood);
+			expect(result.items).toEqual(entriesWithFood);
 		});
 
 		test('applies pagination', async () => {
@@ -70,14 +70,14 @@ describe('entries-db', () => {
 				limit: 10,
 				offset: 5
 			});
-			expect(result.length).toBe(1);
+			expect(result.items.length).toBe(1);
 		});
 
 		test('returns empty array when no entries exist for date', async () => {
 			setResult([]);
 
 			const result = await listEntriesByDate(TEST_USER.id, '2026-02-10');
-			expect(result).toEqual([]);
+			expect(result.items).toEqual([]);
 		});
 	});
 

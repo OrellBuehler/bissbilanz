@@ -16,8 +16,11 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
+import { allValidationSchemas } from '../helpers/mock-validation';
+vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
+
 vi.mock('$lib/server/recipes', () => ({
-	listRecipes: async () => mockListResult,
+	listRecipes: async () => ({ items: mockListResult, total: mockListResult.length }),
 	createRecipe: async () =>
 		mockCreateResult
 			? { success: true, data: mockCreateResult }

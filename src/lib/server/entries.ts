@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foodEntries, foods, recipes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { type AnyColumn, and, eq, gte, lte, sql } from 'drizzle-orm';
+import { type AnyColumn, and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 
 /**
@@ -40,32 +40,39 @@ export const listEntriesByDate = async (
 	const limit = options?.limit ?? 100;
 	const offset = options?.offset ?? 0;
 
-	return db
-		.select({
-			id: foodEntries.id,
-			mealType: foodEntries.mealType,
-			servings: foodEntries.servings,
-			notes: foodEntries.notes,
-			foodId: foodEntries.foodId,
-			recipeId: foodEntries.recipeId,
-			quickName: foodEntries.quickName,
-			quickCalories: foodEntries.quickCalories,
-			quickProtein: foodEntries.quickProtein,
-			quickCarbs: foodEntries.quickCarbs,
-			quickFat: foodEntries.quickFat,
-			quickFiber: foodEntries.quickFiber,
-			...entryMacroColumns(),
-			eatenAt: foodEntries.eatenAt,
-			createdAt: foodEntries.createdAt,
-			servingSize: foods.servingSize,
-			servingUnit: foods.servingUnit
-		})
-		.from(foodEntries)
-		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
-		.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
-		.where(and(eq(foodEntries.userId, userId), eq(foodEntries.date, date)))
-		.limit(limit)
-		.offset(offset);
+	const whereClause = and(eq(foodEntries.userId, userId), eq(foodEntries.date, date));
+
+	const [items, countResult] = await Promise.all([
+		db
+			.select({
+				id: foodEntries.id,
+				mealType: foodEntries.mealType,
+				servings: foodEntries.servings,
+				notes: foodEntries.notes,
+				foodId: foodEntries.foodId,
+				recipeId: foodEntries.recipeId,
+				quickName: foodEntries.quickName,
+				quickCalories: foodEntries.quickCalories,
+				quickProtein: foodEntries.quickProtein,
+				quickCarbs: foodEntries.quickCarbs,
+				quickFat: foodEntries.quickFat,
+				quickFiber: foodEntries.quickFiber,
+				...entryMacroColumns(),
+				eatenAt: foodEntries.eatenAt,
+				createdAt: foodEntries.createdAt,
+				servingSize: foods.servingSize,
+				servingUnit: foods.servingUnit
+			})
+			.from(foodEntries)
+			.leftJoin(foods, eq(foodEntries.foodId, foods.id))
+			.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
+			.where(whereClause)
+			.limit(limit)
+			.offset(offset),
+		db.select({ total: count() }).from(foodEntries).where(whereClause)
+	]);
+
+	return { items, total: countResult[0]?.total ?? 0 };
 };
 
 export const createEntry = async (
