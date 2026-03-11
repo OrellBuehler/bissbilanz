@@ -56,7 +56,12 @@ fun DashboardScreen(navController: NavController) {
             else -> (entry.quickCalories ?: 0.0) * entry.servings
         }
     }
-    fun entryMacro(entry: com.bissbilanz.model.Entry, getter: (com.bissbilanz.model.Food) -> Double, quick: Double?): Double {
+
+    fun entryMacro(
+        entry: com.bissbilanz.model.Entry,
+        getter: (com.bissbilanz.model.Food) -> Double,
+        quick: Double?,
+    ): Double {
         val food = entry.food
         return if (food != null) getter(food) * entry.servings else (quick ?: 0.0) * entry.servings
     }

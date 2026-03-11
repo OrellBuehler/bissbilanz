@@ -39,11 +39,12 @@ object TestFixtures {
         food = food(id = "food-$id", name = foodName),
     )
 
-    fun goals() = Goals(
-        calorieGoal = 2000.0,
-        proteinGoal = 150.0,
-        carbGoal = 250.0,
-        fatGoal = 65.0,
-        fiberGoal = 30.0,
-    )
+    fun goals() =
+        Goals(
+            calorieGoal = 2000.0,
+            proteinGoal = 150.0,
+            carbGoal = 250.0,
+            fatGoal = 65.0,
+            fiberGoal = 30.0,
+        )
 }

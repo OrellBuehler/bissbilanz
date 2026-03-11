@@ -65,25 +65,31 @@ fun FoodEditSheet(
                 val food = foodRepo.getFood(foodId)
                 name = food.name
                 brand = food.brand ?: ""
-                servingSize = food.servingSize.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
+                servingSize =
+                    food.servingSize.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
                 servingUnit = food.servingUnit
-                calories = food.calories.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
-                protein = food.protein.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
-                carbs = food.carbs.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
-                fat = food.fat.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
-                fiber = food.fiber.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
+                calories =
+                    food.calories.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
+                protein =
+                    food.protein.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
+                carbs =
+                    food.carbs.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
+                fat =
+                    food.fat.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
+                fiber =
+                    food.fiber.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
                 barcode = food.barcode ?: ""
                 isFavorite = food.isFavorite
                 saturatedFat = food.saturatedFat?.toString() ?: ""
@@ -123,27 +129,28 @@ fun FoodEditSheet(
         isSaving = true
         scope.launch {
             try {
-                val foodCreate = FoodCreate(
-                    name = nameVal,
-                    brand = brand.trim().ifBlank { null },
-                    servingSize = servingSizeVal,
-                    servingUnit = servingUnit,
-                    calories = caloriesVal,
-                    protein = proteinVal,
-                    carbs = carbsVal,
-                    fat = fatVal,
-                    fiber = fiberVal,
-                    barcode = barcode.trim().ifBlank { null },
-                    isFavorite = isFavorite,
-                    saturatedFat = saturatedFat.toDoubleOrNull(),
-                    sugar = sugar.toDoubleOrNull(),
-                    sodium = sodium.toDoubleOrNull(),
-                    potassium = potassium.toDoubleOrNull(),
-                    calcium = calcium.toDoubleOrNull(),
-                    iron = iron.toDoubleOrNull(),
-                    vitaminC = vitaminC.toDoubleOrNull(),
-                    vitaminD = vitaminD.toDoubleOrNull(),
-                )
+                val foodCreate =
+                    FoodCreate(
+                        name = nameVal,
+                        brand = brand.trim().ifBlank { null },
+                        servingSize = servingSizeVal,
+                        servingUnit = servingUnit,
+                        calories = caloriesVal,
+                        protein = proteinVal,
+                        carbs = carbsVal,
+                        fat = fatVal,
+                        fiber = fiberVal,
+                        barcode = barcode.trim().ifBlank { null },
+                        isFavorite = isFavorite,
+                        saturatedFat = saturatedFat.toDoubleOrNull(),
+                        sugar = sugar.toDoubleOrNull(),
+                        sodium = sodium.toDoubleOrNull(),
+                        potassium = potassium.toDoubleOrNull(),
+                        calcium = calcium.toDoubleOrNull(),
+                        iron = iron.toDoubleOrNull(),
+                        vitaminC = vitaminC.toDoubleOrNull(),
+                        vitaminD = vitaminD.toDoubleOrNull(),
+                    )
                 if (isEditing) {
                     val id = foodId ?: return@launch
                     foodRepo.updateFood(id, foodCreate)
@@ -173,10 +180,11 @@ fun FoodEditSheet(
             }
         } else {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -318,12 +326,14 @@ fun FoodEditSheet(
                     Button(
                         onClick = { save() },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSaving && name.isNotBlank() &&
-                            calories.toDoubleOrNull() != null &&
-                            protein.toDoubleOrNull() != null &&
-                            carbs.toDoubleOrNull() != null &&
-                            fat.toDoubleOrNull() != null &&
-                            servingSize.toDoubleOrNull() != null,
+                        enabled =
+                            !isSaving &&
+                                name.isNotBlank() &&
+                                calories.toDoubleOrNull() != null &&
+                                protein.toDoubleOrNull() != null &&
+                                carbs.toDoubleOrNull() != null &&
+                                fat.toDoubleOrNull() != null &&
+                                servingSize.toDoubleOrNull() != null,
                     ) {
                         Text("Save")
                     }

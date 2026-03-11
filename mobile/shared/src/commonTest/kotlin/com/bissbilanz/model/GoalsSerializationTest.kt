@@ -1,23 +1,23 @@
 package com.bissbilanz.model
 
 import com.bissbilanz.test.testJson
+import kotlinx.serialization.encodeToString
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlinx.serialization.encodeToString
 
 class GoalsSerializationTest {
     private val json = testJson
 
     @Test
     fun serializeAndDeserializeGoalsRoundTrip() {
-        val goals = Goals(
-            calorieGoal = 2000.0,
-            proteinGoal = 150.0,
-            carbGoal = 250.0,
-            fatGoal = 65.0,
-            fiberGoal = 30.0,
-        )
+        val goals =
+            Goals(
+                calorieGoal = 2000.0,
+                proteinGoal = 150.0,
+                carbGoal = 250.0,
+                fatGoal = 65.0,
+                fiberGoal = 30.0,
+            )
         val encoded = json.encodeToString(goals)
         val decoded = json.decodeFromString<Goals>(encoded)
         assertEquals(goals, decoded)
@@ -25,7 +25,8 @@ class GoalsSerializationTest {
 
     @Test
     fun goalsWithOptionalFieldsIncluded() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "calorieGoal": 1800,
                 "proteinGoal": 130,
@@ -35,7 +36,7 @@ class GoalsSerializationTest {
                 "sodiumGoal": 2300,
                 "sugarGoal": 50
             }
-        """.trimIndent()
+            """.trimIndent()
         val goals = json.decodeFromString<Goals>(jsonStr)
         assertEquals(2300.0, goals.sodiumGoal)
         assertEquals(50.0, goals.sugarGoal)
@@ -43,7 +44,8 @@ class GoalsSerializationTest {
 
     @Test
     fun deserializeGoalsFromServerResponse() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "calorieGoal": 2500.0,
                 "proteinGoal": 180.0,
@@ -52,7 +54,7 @@ class GoalsSerializationTest {
                 "fiberGoal": 35.0,
                 "extraServerField": true
             }
-        """.trimIndent()
+            """.trimIndent()
         val goals = json.decodeFromString<Goals>(jsonStr)
         assertEquals(2500.0, goals.calorieGoal)
         assertEquals(180.0, goals.proteinGoal)

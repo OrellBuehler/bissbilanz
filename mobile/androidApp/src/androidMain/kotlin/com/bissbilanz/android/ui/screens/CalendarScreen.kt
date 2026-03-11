@@ -71,11 +71,12 @@ fun CalendarScreen(navController: NavController) {
         },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // Month navigation
             Row(
@@ -132,11 +133,12 @@ fun CalendarScreen(navController: NavController) {
 
                 // Calendar grid
                 val firstDayOfMonth = LocalDate(currentYear, currentMonth, 1)
-                val daysInMonth = when (currentMonth) {
-                    Month.FEBRUARY -> if (currentYear % 4 == 0 && (currentYear % 100 != 0 || currentYear % 400 == 0)) 29 else 28
-                    Month.APRIL, Month.JUNE, Month.SEPTEMBER, Month.NOVEMBER -> 30
-                    else -> 31
-                }
+                val daysInMonth =
+                    when (currentMonth) {
+                        Month.FEBRUARY -> if (currentYear % 4 == 0 && (currentYear % 100 != 0 || currentYear % 400 == 0)) 29 else 28
+                        Month.APRIL, Month.JUNE, Month.SEPTEMBER, Month.NOVEMBER -> 30
+                        else -> 31
+                    }
                 // ISO: Monday=1
                 val startDayOfWeek = firstDayOfMonth.dayOfWeek.isoDayNumber
 
@@ -173,18 +175,19 @@ fun CalendarScreen(navController: NavController) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         week.forEach { day ->
                             Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .padding(2.dp)
-                                    .let { mod ->
-                                        if (day != null) {
-                                            val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.value, day)
-                                            mod.clickable { navController.navigate("daylog/$dateStr") }
-                                        } else {
-                                            mod
-                                        }
-                                    },
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .padding(2.dp)
+                                        .let { mod ->
+                                            if (day != null) {
+                                                val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.value, day)
+                                                mod.clickable { navController.navigate("daylog/$dateStr") }
+                                            } else {
+                                                mod
+                                            }
+                                        },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (day != null) {
@@ -192,39 +195,42 @@ fun CalendarScreen(navController: NavController) {
                                     val calDay = dayMap[dateStr]
                                     val isToday = dateStr == today.toString()
 
-                                    val bgColor = when {
-                                        calDay?.goalMet == true -> FiberGreen.copy(alpha = 0.3f)
-                                        calDay?.hasEntries == true -> CaloriesBlue.copy(alpha = 0.2f)
-                                        else -> MaterialTheme.colorScheme.surface
-                                    }
+                                    val bgColor =
+                                        when {
+                                            calDay?.goalMet == true -> FiberGreen.copy(alpha = 0.3f)
+                                            calDay?.hasEntries == true -> CaloriesBlue.copy(alpha = 0.2f)
+                                            else -> MaterialTheme.colorScheme.surface
+                                        }
 
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(CircleShape)
-                                            .background(bgColor)
-                                            .let { mod ->
-                                                if (isToday) {
-                                                    mod.background(
-                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                                        CircleShape,
-                                                    )
-                                                } else {
-                                                    mod
-                                                }
-                                            },
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                                .background(bgColor)
+                                                .let { mod ->
+                                                    if (isToday) {
+                                                        mod.background(
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                            CircleShape,
+                                                        )
+                                                    } else {
+                                                        mod
+                                                    }
+                                                },
                                         verticalArrangement = Arrangement.Center,
                                     ) {
                                         Text(
                                             day.toString(),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isToday) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
+                                            color =
+                                                if (isToday) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                },
                                         )
                                         if (calDay?.hasEntries == true) {
                                             Text(
@@ -256,10 +262,11 @@ fun CalendarScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(FiberGreen.copy(alpha = 0.3f)),
+                                modifier =
+                                    Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(FiberGreen.copy(alpha = 0.3f)),
                             )
                             Text("Goal met")
                         }
@@ -269,10 +276,11 @@ fun CalendarScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(CaloriesBlue.copy(alpha = 0.2f)),
+                                modifier =
+                                    Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(CaloriesBlue.copy(alpha = 0.2f)),
                             )
                             Text("Has entries")
                         }
@@ -280,11 +288,12 @@ fun CalendarScreen(navController: NavController) {
                         // Summary stats
                         val daysWithEntries = calendarDays.count { it.hasEntries }
                         val daysGoalMet = calendarDays.count { it.goalMet }
-                        val avgCalories = if (daysWithEntries > 0) {
-                            calendarDays.filter { it.hasEntries }.map { it.calories }.average()
-                        } else {
-                            0.0
-                        }
+                        val avgCalories =
+                            if (daysWithEntries > 0) {
+                                calendarDays.filter { it.hasEntries }.map { it.calories }.average()
+                            } else {
+                                0.0
+                            }
 
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider()

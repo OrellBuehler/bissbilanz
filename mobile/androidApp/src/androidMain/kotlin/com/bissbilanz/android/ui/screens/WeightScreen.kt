@@ -9,7 +9,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import com.bissbilanz.model.WeightUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,6 +22,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
+import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock

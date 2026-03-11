@@ -9,7 +9,8 @@ class StatsSerializationTest {
 
     @Test
     fun deserializeDailyStatsResponse() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "data": [
                     {"date": "2024-01-01", "calories": 2100, "protein": 140, "carbs": 230, "fat": 70, "fiber": 28},
@@ -23,7 +24,7 @@ class StatsSerializationTest {
                     "fiberGoal": 30
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
         val stats = json.decodeFromString<DailyStatsResponse>(jsonStr)
         assertEquals(2, stats.data.size)
         assertEquals("2024-01-01", stats.data[0].date)
@@ -41,7 +42,8 @@ class StatsSerializationTest {
 
     @Test
     fun deserializeTopFoodsResponse() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "data": [
                     {
@@ -56,7 +58,7 @@ class StatsSerializationTest {
                     }
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
         val topFoods = json.decodeFromString<TopFoodsResponse>(jsonStr)
         assertEquals(1, topFoods.data.size)
         assertEquals("Chicken Breast", topFoods.data[0].foodName)
@@ -65,14 +67,15 @@ class StatsSerializationTest {
 
     @Test
     fun deserializeMealBreakdownResponse() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "data": [
                     {"mealType": "breakfast", "calories": 500, "protein": 30, "carbs": 60, "fat": 15, "fiber": 8},
                     {"mealType": "lunch", "calories": 700, "protein": 45, "carbs": 80, "fat": 25, "fiber": 10}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
         val breakdown = json.decodeFromString<MealBreakdownResponse>(jsonStr)
         assertEquals(2, breakdown.data.size)
         assertEquals("breakfast", breakdown.data[0].mealType)

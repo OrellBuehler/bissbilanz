@@ -60,9 +60,10 @@ fun EntryEditSheet(
             val found = entries.find { it.id == entryId }
             if (found != null) {
                 entry = found
-                servings = found.servings.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
+                servings =
+                    found.servings.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
                 mealType = found.mealType
                 notes = found.notes ?: ""
             }

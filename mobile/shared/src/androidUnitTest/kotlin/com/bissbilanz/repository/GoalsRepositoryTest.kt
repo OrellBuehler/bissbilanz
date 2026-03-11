@@ -9,11 +9,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlinx.coroutines.test.runTest
 
 class GoalsRepositoryTest {
     private lateinit var api: BissbilanzApi
@@ -25,42 +25,46 @@ class GoalsRepositoryTest {
     fun setup() {
         api = mockk()
         queries = mockk(relaxed = true)
-        db = mockk {
-            every { bissbilanzDatabaseQueries } returns queries
-        }
+        db =
+            mockk {
+                every { bissbilanzDatabaseQueries } returns queries
+            }
         repository = GoalsRepository(api, db)
     }
 
     @Test
-    fun loadGoalsUpdatesStateFlowOnSuccess() = runTest {
-        val goals = TestFixtures.goals()
-        coEvery { api.getGoals() } returns goals
+    fun loadGoalsUpdatesStateFlowOnSuccess() =
+        runTest {
+            val goals = TestFixtures.goals()
+            coEvery { api.getGoals() } returns goals
 
-        repository.loadGoals()
+            repository.loadGoals()
 
-        assertEquals(goals, repository.goals.value)
-    }
-
-    @Test
-    fun loadGoalsSetsNullWhenApiReturnsNull() = runTest {
-        coEvery { api.getGoals() } returns null
-
-        repository.loadGoals()
-
-        assertNull(repository.goals.value)
-    }
+            assertEquals(goals, repository.goals.value)
+        }
 
     @Test
-    fun setGoalsUpdatesStateFlowAndCaches() = runTest {
-        val goals = TestFixtures.goals()
-        coEvery { api.setGoals(goals) } returns goals
+    fun loadGoalsSetsNullWhenApiReturnsNull() =
+        runTest {
+            coEvery { api.getGoals() } returns null
 
-        val result = repository.setGoals(goals)
+            repository.loadGoals()
 
-        assertEquals(goals, result)
-        assertEquals(goals, repository.goals.value)
-        coVerify { queries.transaction(any(), any()) }
-    }
+            assertNull(repository.goals.value)
+        }
+
+    @Test
+    fun setGoalsUpdatesStateFlowAndCaches() =
+        runTest {
+            val goals = TestFixtures.goals()
+            coEvery { api.setGoals(goals) } returns goals
+
+            val result = repository.setGoals(goals)
+
+            assertEquals(goals, result)
+            assertEquals(goals, repository.goals.value)
+            coVerify { queries.transaction(any(), any()) }
+        }
 
     @Test
     fun goalsStateFlowStartsNull() {
@@ -68,18 +72,20 @@ class GoalsRepositoryTest {
     }
 
     @Test
-    fun setGoalsCallsApiWithCorrectValues() = runTest {
-        val goals = Goals(
-            calorieGoal = 1800.0,
-            proteinGoal = 130.0,
-            carbGoal = 200.0,
-            fatGoal = 55.0,
-            fiberGoal = 25.0,
-        )
-        coEvery { api.setGoals(goals) } returns goals
+    fun setGoalsCallsApiWithCorrectValues() =
+        runTest {
+            val goals =
+                Goals(
+                    calorieGoal = 1800.0,
+                    proteinGoal = 130.0,
+                    carbGoal = 200.0,
+                    fatGoal = 55.0,
+                    fiberGoal = 25.0,
+                )
+            coEvery { api.setGoals(goals) } returns goals
 
-        repository.setGoals(goals)
+            repository.setGoals(goals)
 
-        coVerify { api.setGoals(goals) }
-    }
+            coVerify { api.setGoals(goals) }
+        }
 }

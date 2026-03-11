@@ -10,11 +10,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +20,11 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
@@ -39,12 +39,14 @@ class DashboardViewModelTest {
         Dispatchers.setMain(testDispatcher)
         entriesFlow = MutableStateFlow(emptyList())
         goalsFlow = MutableStateFlow(null)
-        entryRepo = mockk(relaxed = true) {
-            every { entries } returns entriesFlow
-        }
-        goalsRepo = mockk(relaxed = true) {
-            every { goals } returns goalsFlow
-        }
+        entryRepo =
+            mockk(relaxed = true) {
+                every { entries } returns entriesFlow
+            }
+        goalsRepo =
+            mockk(relaxed = true) {
+                every { goals } returns goalsFlow
+            }
     }
 
     @AfterTest
@@ -53,112 +55,124 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun initialDateIsToday() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        assertEquals(today, viewModel.selectedDate.value)
-    }
+    fun initialDateIsToday() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            assertEquals(today, viewModel.selectedDate.value)
+        }
 
     @Test
-    fun previousDayDecrementsDate() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
-        val today = viewModel.selectedDate.value
+    fun previousDayDecrementsDate() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+            val today = viewModel.selectedDate.value
 
-        viewModel.previousDay()
+            viewModel.previousDay()
 
-        assertNotEquals(today, viewModel.selectedDate.value)
-        assertEquals(today.toEpochDays() - 1, viewModel.selectedDate.value.toEpochDays())
-    }
-
-    @Test
-    fun nextDayIncrementsDate() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
-        viewModel.previousDay()
-        val yesterday = viewModel.selectedDate.value
-
-        viewModel.nextDay()
-
-        assertEquals(yesterday.toEpochDays() + 1, viewModel.selectedDate.value.toEpochDays())
-    }
+            assertNotEquals(today, viewModel.selectedDate.value)
+            assertEquals(today.toEpochDays() - 1, viewModel.selectedDate.value.toEpochDays())
+        }
 
     @Test
-    fun goToTodayResetsDate() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
-        viewModel.previousDay()
-        viewModel.previousDay()
+    fun nextDayIncrementsDate() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+            viewModel.previousDay()
+            val yesterday = viewModel.selectedDate.value
 
-        viewModel.goToToday()
+            viewModel.nextDay()
 
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        assertEquals(today, viewModel.selectedDate.value)
-    }
-
-    @Test
-    fun initLoadsData() = runTest {
-        DashboardViewModel(entryRepo, goalsRepo)
-
-        coVerify { entryRepo.loadEntries(any()) }
-        coVerify { goalsRepo.loadGoals() }
-    }
+            assertEquals(yesterday.toEpochDays() + 1, viewModel.selectedDate.value.toEpochDays())
+        }
 
     @Test
-    fun loadDataSetsLoadingFalseAfterCompletion() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+    fun goToTodayResetsDate() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+            viewModel.previousDay()
+            viewModel.previousDay()
 
-        assertEquals(false, viewModel.isLoading.value)
-    }
+            viewModel.goToToday()
 
-    @Test
-    fun loadDataHandlesErrorsGracefully() = runTest {
-        coEvery { entryRepo.loadEntries(any()) } throws RuntimeException("Network error")
-
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
-
-        assertEquals(false, viewModel.isLoading.value)
-    }
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            assertEquals(today, viewModel.selectedDate.value)
+        }
 
     @Test
-    fun entriesFlowDelegatesFromRepository() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+    fun initLoadsData() =
+        runTest {
+            DashboardViewModel(entryRepo, goalsRepo)
 
-        val entry = Entry(
-            id = "1",
-            userId = "u1",
-            foodId = "f1",
-            date = "2024-01-15",
-            mealType = "lunch",
-            servings = 1.0,
-            food = Food(
-                id = "f1",
-                userId = "u1",
-                name = "Test",
-                servingSize = 100.0,
-                servingUnit = ServingUnit.G,
-                calories = 200.0,
-                protein = 20.0,
-                carbs = 25.0,
-                fat = 8.0,
-                fiber = 3.0,
-            ),
-        )
-        entriesFlow.value = listOf(entry)
-
-        assertEquals(1, viewModel.entries.value.size)
-    }
+            coVerify { entryRepo.loadEntries(any()) }
+            coVerify { goalsRepo.loadGoals() }
+        }
 
     @Test
-    fun goalsFlowDelegatesFromRepository() = runTest {
-        val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+    fun loadDataSetsLoadingFalseAfterCompletion() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
 
-        val goals = Goals(
-            calorieGoal = 2000.0,
-            proteinGoal = 150.0,
-            carbGoal = 250.0,
-            fatGoal = 65.0,
-            fiberGoal = 30.0,
-        )
-        goalsFlow.value = goals
+            assertEquals(false, viewModel.isLoading.value)
+        }
 
-        assertEquals(goals, viewModel.goals.value)
-    }
+    @Test
+    fun loadDataHandlesErrorsGracefully() =
+        runTest {
+            coEvery { entryRepo.loadEntries(any()) } throws RuntimeException("Network error")
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+
+            assertEquals(false, viewModel.isLoading.value)
+        }
+
+    @Test
+    fun entriesFlowDelegatesFromRepository() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+
+            val entry =
+                Entry(
+                    id = "1",
+                    userId = "u1",
+                    foodId = "f1",
+                    date = "2024-01-15",
+                    mealType = "lunch",
+                    servings = 1.0,
+                    food =
+                        Food(
+                            id = "f1",
+                            userId = "u1",
+                            name = "Test",
+                            servingSize = 100.0,
+                            servingUnit = ServingUnit.G,
+                            calories = 200.0,
+                            protein = 20.0,
+                            carbs = 25.0,
+                            fat = 8.0,
+                            fiber = 3.0,
+                        ),
+                )
+            entriesFlow.value = listOf(entry)
+
+            assertEquals(1, viewModel.entries.value.size)
+        }
+
+    @Test
+    fun goalsFlowDelegatesFromRepository() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo)
+
+            val goals =
+                Goals(
+                    calorieGoal = 2000.0,
+                    proteinGoal = 150.0,
+                    carbGoal = 250.0,
+                    fatGoal = 65.0,
+                    fiberGoal = 30.0,
+                )
+            goalsFlow.value = goals
+
+            assertEquals(goals, viewModel.goals.value)
+        }
 }

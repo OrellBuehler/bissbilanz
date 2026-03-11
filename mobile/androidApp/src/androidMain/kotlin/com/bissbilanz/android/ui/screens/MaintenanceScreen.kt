@@ -14,8 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.theme.*
-import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.model.MaintenanceResponse
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
@@ -31,12 +31,13 @@ fun MaintenanceScreen(navController: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    val rangeOptions = listOf(
-        "2 Weeks" to 14,
-        "4 Weeks" to 28,
-        "8 Weeks" to 56,
-        "12 Weeks" to 84,
-    )
+    val rangeOptions =
+        listOf(
+            "2 Weeks" to 14,
+            "4 Weeks" to 28,
+            "8 Weeks" to 56,
+            "12 Weeks" to 84,
+        )
     var selectedRange by remember { mutableIntStateOf(28) }
     var muscleRatio by remember { mutableFloatStateOf(0.3f) }
 
@@ -70,11 +71,12 @@ fun MaintenanceScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Period selection
@@ -150,9 +152,10 @@ fun MaintenanceScreen(navController: NavController) {
             error?.let {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                        ),
                 ) {
                     Text(
                         it,
@@ -250,9 +253,10 @@ fun MaintenanceScreen(navController: NavController) {
                         if (m.coverage < 0.7) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = FatYellow.copy(alpha = 0.15f),
-                                ),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = FatYellow.copy(alpha = 0.15f),
+                                    ),
                             ) {
                                 Text(
                                     "Low data coverage (${(m.coverage * 100).toInt()}%). Results may be less accurate. Aim for >70% coverage.",

@@ -3,12 +3,12 @@ package com.bissbilanz.auth
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 
 class AuthManagerTest {
     private lateinit var secureStorage: SecureStorage
@@ -17,11 +17,12 @@ class AuthManagerTest {
     @BeforeTest
     fun setup() {
         secureStorage = mockk(relaxed = true)
-        authManager = AuthManager(
-            baseUrl = "https://test.example.com",
-            clientId = "test-client-id",
-            secureStorage = secureStorage,
-        )
+        authManager =
+            AuthManager(
+                baseUrl = "https://test.example.com",
+                clientId = "test-client-id",
+                secureStorage = secureStorage,
+            )
     }
 
     @Test
@@ -108,23 +109,29 @@ class AuthManagerTest {
     }
 
     @Test
-    fun getAccessTokenDelegatesToSecureStorage() = runTest {
-        every { secureStorage.load("access_token") } returns "my-token"
-        assertEquals("my-token", authManager.getAccessToken())
-    }
+    fun getAccessTokenDelegatesToSecureStorage() =
+        runTest {
+            every { secureStorage.load("access_token") } returns "my-token"
+            assertEquals("my-token", authManager.getAccessToken())
+        }
 
     @Test
-    fun getAccessTokenReturnsNullWhenNoToken() = runTest {
-        every { secureStorage.load("access_token") } returns null
-        assertEquals(null, authManager.getAccessToken())
-    }
+    fun getAccessTokenReturnsNullWhenNoToken() =
+        runTest {
+            every { secureStorage.load("access_token") } returns null
+            assertEquals(null, authManager.getAccessToken())
+        }
 
     @Test
-    fun handleCallbackReturnsFalseWithoutCodeVerifier() = runTest {
-        assertFalse(authManager.handleCallback("some-code"))
-    }
+    fun handleCallbackReturnsFalseWithoutCodeVerifier() =
+        runTest {
+            assertFalse(authManager.handleCallback("some-code"))
+        }
 
-    private fun extractParam(url: String, param: String): String? {
+    private fun extractParam(
+        url: String,
+        param: String,
+    ): String? {
         val regex = Regex("$param=([^&]+)")
         return regex.find(url)?.groupValues?.get(1)
     }

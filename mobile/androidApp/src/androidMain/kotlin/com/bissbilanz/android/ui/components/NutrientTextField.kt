@@ -25,9 +25,10 @@ fun NutrientTextField(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = color,
-            focusedLabelColor = color,
-        ),
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = color,
+                focusedLabelColor = color,
+            ),
     )
 }

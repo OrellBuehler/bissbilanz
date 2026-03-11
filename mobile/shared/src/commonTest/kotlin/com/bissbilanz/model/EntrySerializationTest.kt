@@ -1,26 +1,27 @@
 package com.bissbilanz.model
 
 import com.bissbilanz.test.testJson
+import kotlinx.serialization.encodeToString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlinx.serialization.encodeToString
 
 class EntrySerializationTest {
     private val json = testJson
 
     @Test
     fun serializeAndDeserializeEntryRoundTrip() {
-        val entry = Entry(
-            id = "entry-1",
-            userId = "user-1",
-            foodId = "food-1",
-            date = "2024-01-15",
-            mealType = "lunch",
-            servings = 1.5,
-            notes = "With salad",
-        )
+        val entry =
+            Entry(
+                id = "entry-1",
+                userId = "user-1",
+                foodId = "food-1",
+                date = "2024-01-15",
+                mealType = "lunch",
+                servings = 1.5,
+                notes = "With salad",
+            )
         val encoded = json.encodeToString(entry)
         val decoded = json.decodeFromString<Entry>(encoded)
         assertEquals(entry, decoded)
@@ -28,7 +29,8 @@ class EntrySerializationTest {
 
     @Test
     fun deserializeEntryWithNestedFood() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "id": "e1",
                 "userId": "u1",
@@ -49,7 +51,7 @@ class EntrySerializationTest {
                     "fiber": 4.0
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
         val entry = json.decodeFromString<Entry>(jsonStr)
         assertEquals("Oatmeal", entry.food?.name)
         assertEquals(150.0, entry.food?.calories)
@@ -58,7 +60,8 @@ class EntrySerializationTest {
 
     @Test
     fun deserializeQuickEntry() {
-        val jsonStr = """
+        val jsonStr =
+            """
             {
                 "id": "e2",
                 "userId": "u1",
@@ -72,7 +75,7 @@ class EntrySerializationTest {
                 "quickFat": 8.0,
                 "quickFiber": 3.0
             }
-        """.trimIndent()
+            """.trimIndent()
         val entry = json.decodeFromString<Entry>(jsonStr)
         assertEquals("Protein Bar", entry.quickName)
         assertEquals(200.0, entry.quickCalories)
@@ -82,12 +85,13 @@ class EntrySerializationTest {
 
     @Test
     fun entryCreateSerializationOmitsNulls() {
-        val create = EntryCreate(
-            foodId = "f1",
-            mealType = "dinner",
-            servings = 1.0,
-            date = "2024-01-15",
-        )
+        val create =
+            EntryCreate(
+                foodId = "f1",
+                mealType = "dinner",
+                servings = 1.0,
+                date = "2024-01-15",
+            )
         val encoded = json.encodeToString(create)
         assertFalse(encoded.contains("recipeId"))
         assertFalse(encoded.contains("notes"))
