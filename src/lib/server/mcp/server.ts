@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { servingUnitValues } from '$lib/units';
 import {
@@ -812,6 +812,298 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: READ_ONLY
 		},
 		safe(() => handleGetStreaks(userId))
+	);
+
+	// Static resources
+	server.registerResource(
+		"Today's Diary",
+		'diary://today',
+		{
+			description: 'Food entries logged today',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleListEntries(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		"Today's Status",
+		'status://today',
+		{
+			description: "Today's nutrition status with totals and goals",
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetDailyStatus(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Goals',
+		'goals://current',
+		{
+			description: 'Current daily nutrition goals',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetGoals(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Favorites',
+		'favorites://list',
+		{
+			description: 'Favorite foods and recipes',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleListFavorites(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'All Recipes',
+		'recipes://list',
+		{
+			description: 'All recipes in the database',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleListRecipes(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Supplements',
+		'supplements://list',
+		{
+			description: 'All supplements',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleListSupplements(userId, {}))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Supplement Status',
+		'supplements://status',
+		{
+			description: "Today's supplement checklist",
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetSupplementStatus(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Latest Weight',
+		'weight://latest',
+		{
+			description: 'Latest weight entry',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetWeight(userId, {}))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Weekly Stats',
+		'stats://weekly',
+		{
+			description: 'Average daily nutrition over the past 7 days',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetWeeklyStats(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Monthly Stats',
+		'stats://monthly',
+		{
+			description: 'Average daily nutrition over the past 30 days',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetMonthlyStats(userId))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Streaks',
+		'streaks://current',
+		{
+			description: 'Current and longest logging streaks',
+			mimeType: 'application/json'
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetStreaks(userId))
+				}
+			]
+		})
+	);
+
+	// Template resources
+	server.registerResource(
+		'Diary by Date',
+		new ResourceTemplate('diary://{date}', { list: undefined }),
+		{
+			description: 'Food entries for a specific date (YYYY-MM-DD)',
+			mimeType: 'application/json'
+		},
+		async (uri, { date }) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleListEntries(userId, date as string))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Status by Date',
+		new ResourceTemplate('status://{date}', { list: undefined }),
+		{
+			description: 'Nutrition status for a specific date (YYYY-MM-DD)',
+			mimeType: 'application/json'
+		},
+		async (uri, { date }) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetDailyStatus(userId, date as string))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Food by ID',
+		new ResourceTemplate('food://{foodId}', { list: undefined }),
+		{
+			description: 'Full nutritional details for a specific food',
+			mimeType: 'application/json'
+		},
+		async (uri, { foodId }) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetFood(userId, foodId as string))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Recipe by ID',
+		new ResourceTemplate('recipe://{recipeId}', { list: undefined }),
+		{
+			description: 'Recipe with full ingredient list and macros',
+			mimeType: 'application/json'
+		},
+		async (uri, { recipeId }) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(await handleGetRecipe(userId, recipeId as string))
+				}
+			]
+		})
+	);
+
+	server.registerResource(
+		'Weight Trend',
+		new ResourceTemplate('weight://{from}/{to}', { list: undefined }),
+		{
+			description: 'Weight trend over a date range (YYYY-MM-DD)',
+			mimeType: 'application/json'
+		},
+		async (uri, { from, to }) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: 'application/json',
+					text: JSON.stringify(
+						await handleGetWeight(userId, { from: from as string, to: to as string })
+					)
+				}
+			]
+		})
 	);
 
 	return server;
