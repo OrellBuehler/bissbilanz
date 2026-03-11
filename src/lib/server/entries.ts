@@ -1,8 +1,20 @@
 import { getDB } from '$lib/server/db';
-import { foodEntries, foods, recipes } from '$lib/server/schema';
+import { foodEntries, foods, recipes, customMealTypes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { type AnyColumn, and, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+
+const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
+	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
+	const db = getDB();
+	const [found] = await db
+		.select({ id: customMealTypes.id })
+		.from(customMealTypes)
+		.where(and(eq(customMealTypes.userId, userId), eq(customMealTypes.name, mealType)))
+		.limit(1);
+	return !!found;
+};
 
 /**
  * SQL helper: resolves a macro value from quick entry, food, or recipe subquery.
@@ -77,6 +89,10 @@ export const createEntry = async (
 		return { success: false, error: result.error };
 	}
 
+	if (!(await validateMealType(userId, result.data.mealType))) {
+		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
+	}
+
 	try {
 		const db = getDB();
 		const [created] = await db
@@ -126,6 +142,10 @@ export const updateEntry = async (
 	const result = entryUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
+	}
+
+	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType))) {
+		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
 	}
 
 	try {

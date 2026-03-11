@@ -4,7 +4,7 @@ import { normalizeMealType } from '$lib/utils/meals';
 const entryBaseSchema = z.object({
 	foodId: z.string().uuid().optional(),
 	recipeId: z.string().uuid().optional(),
-	mealType: z.string().min(1).transform(normalizeMealType),
+	mealType: z.string().min(1).max(50).transform(normalizeMealType),
 	servings: z.coerce.number().positive(),
 	notes: z.string().optional().nullable(),
 	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

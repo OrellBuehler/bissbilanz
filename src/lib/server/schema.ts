@@ -208,6 +208,10 @@ export const foodEntries = pgTable(
 		check(
 			'food_entries_has_source',
 			sql`${table.foodId} IS NOT NULL OR ${table.recipeId} IS NOT NULL OR ${table.quickCalories} IS NOT NULL`
+		),
+		check(
+			'food_entries_meal_type_length',
+			sql`length(${table.mealType}) > 0 AND length(${table.mealType}) <= 50`
 		)
 	]
 );

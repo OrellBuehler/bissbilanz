@@ -1,0 +1,1 @@
+ALTER TABLE "food_entries" ADD CONSTRAINT "food_entries_meal_type_length" CHECK (length("food_entries"."meal_type") > 0 AND length("food_entries"."meal_type") <= 50);

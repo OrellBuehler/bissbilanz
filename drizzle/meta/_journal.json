@@ -190,6 +190,13 @@
       "when": 1773265914876,
       "tag": "0026_windy_korath",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1773266869324,
+      "tag": "0027_last_bug",
+      "breakpoints": true
     }
   ]
 }
