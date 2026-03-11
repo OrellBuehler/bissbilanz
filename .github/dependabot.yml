@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Bun/npm (web app)
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+
+  # Gradle (Kotlin Multiplatform / Android)
+  - package-ecosystem: 'gradle'
+    directory: '/mobile'
+    schedule:
+      interval: 'weekly'
+
+  # GitHub Actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
