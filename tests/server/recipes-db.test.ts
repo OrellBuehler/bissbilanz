@@ -47,14 +47,14 @@ describe('recipes-db', () => {
 			setResult(recipes);
 
 			const result = await listRecipes(TEST_USER.id);
-			expect(result).toEqual(recipes);
+			expect(result.items).toEqual(recipes);
 		});
 
 		test('returns empty array when no recipes exist', async () => {
 			setResult([]);
 
 			const result = await listRecipes(TEST_USER.id);
-			expect(result).toEqual([]);
+			expect(result.items).toEqual([]);
 		});
 	});
 

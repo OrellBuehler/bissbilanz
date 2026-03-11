@@ -29,35 +29,35 @@ describe('foods-db', () => {
 			setResult(foods);
 
 			const result = await listFoods(TEST_USER.id);
-			expect(result).toEqual(foods);
+			expect(result.items).toEqual(foods);
 		});
 
 		test('filters foods by query string', async () => {
 			setResult([TEST_FOOD]);
 
 			const result = await listFoods(TEST_USER.id, { query: 'oat' });
-			expect(result).toEqual([TEST_FOOD]);
+			expect(result.items).toEqual([TEST_FOOD]);
 		});
 
 		test('applies pagination with limit and offset', async () => {
 			setResult([TEST_FOOD]);
 
 			const result = await listFoods(TEST_USER.id, { limit: 10, offset: 5 });
-			expect(result).toEqual([TEST_FOOD]);
+			expect(result.items).toEqual([TEST_FOOD]);
 		});
 
 		test('uses default pagination values', async () => {
 			setResult([TEST_FOOD, TEST_FOOD_2]);
 
 			const result = await listFoods(TEST_USER.id, {});
-			expect(result.length).toBe(2);
+			expect(result.items.length).toBe(2);
 		});
 
 		test('returns empty array when no foods exist', async () => {
 			setResult([]);
 
 			const result = await listFoods(TEST_USER.id);
-			expect(result).toEqual([]);
+			expect(result.items).toEqual([]);
 		});
 	});
 

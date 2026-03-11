@@ -23,7 +23,7 @@ vi.mock('$lib/server/foods', () => ({
 		}
 		return null;
 	},
-	listFoods: async () => [],
+	listFoods: async () => ({ items: [], total: 0 }),
 	findFoodByBarcode: async () => null,
 	createFood: async () => ({ success: true, data: null }),
 	updateFood: async (userId: string, id: string) => {
@@ -40,7 +40,7 @@ vi.mock('$lib/server/foods', () => ({
 }));
 
 vi.mock('$lib/server/entries', () => ({
-	listEntriesByDate: async () => [],
+	listEntriesByDate: async () => ({ items: [], total: 0 }),
 	createEntry: async () => ({ success: true, data: null }),
 	updateEntry: async (userId: string, id: string) => {
 		// Return data only if userId matches owner
@@ -56,7 +56,7 @@ vi.mock('$lib/server/entries', () => ({
 }));
 
 vi.mock('$lib/server/recipes', () => ({
-	listRecipes: async () => [],
+	listRecipes: async () => ({ items: [], total: 0 }),
 	createRecipe: async () => ({ success: true, data: null }),
 	getRecipe: async (userId: string, id: string) => {
 		// Return data only if userId matches owner

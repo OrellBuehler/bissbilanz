@@ -77,7 +77,13 @@ export const listFoods = async (
 
 	const q = db.select().from(foods).where(whereClause).orderBy(foods.name);
 	if (options?.limit !== undefined) q.limit(options.limit);
-	return q.offset(offset);
+
+	const [items, countResult] = await Promise.all([
+		q.offset(offset),
+		db.select({ total: count() }).from(foods).where(whereClause)
+	]);
+
+	return { items, total: countResult[0]?.total ?? 0 };
 };
 
 export const createFood = async (

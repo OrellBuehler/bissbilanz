@@ -1,13 +1,32 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createRecipe, listRecipes } from '$lib/server/recipes';
-import { handleApiError, requireAuth, unwrapResult, parseJsonBody } from '$lib/server/errors';
+import { paginationSchema } from '$lib/server/validation';
+import {
+	handleApiError,
+	requireAuth,
+	unwrapResult,
+	validationError,
+	parseJsonBody
+} from '$lib/server/errors';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const userId = requireAuth(locals);
-		const recipes = await listRecipes(userId);
-		return json({ recipes });
+
+		const paginationResult = paginationSchema.safeParse({
+			limit: url.searchParams.get('limit'),
+			offset: url.searchParams.get('offset')
+		});
+
+		if (!paginationResult.success) {
+			return validationError(paginationResult.error);
+		}
+
+		const { offset } = paginationResult.data;
+		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
+		const { items: recipes, total } = await listRecipes(userId, { limit, offset });
+		return json({ recipes, total });
 	} catch (error) {
 		return handleApiError(error);
 	}

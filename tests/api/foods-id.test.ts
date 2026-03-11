@@ -16,7 +16,7 @@ vi.mock('$lib/server/foods', () => ({
 		}
 		return { blocked: false };
 	},
-	listFoods: async () => [],
+	listFoods: async () => ({ items: [], total: 0 }),
 	findFoodByBarcode: async () => null,
 	createFood: async () => ({ success: true, data: TEST_FOOD }),
 	listRecentFoods: async () => [],

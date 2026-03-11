@@ -35,8 +35,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const query = url.searchParams.get('q') ?? undefined;
 		const { offset } = paginationResult.data;
 		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
-		const foods = await listFoods(userId, { query, limit, offset });
-		return json({ foods });
+		const { items: foods, total } = await listFoods(userId, { query, limit, offset });
+		return json({ foods, total });
 	} catch (error) {
 		return handleApiError(error);
 	}

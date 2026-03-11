@@ -21,9 +21,14 @@ export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	imageUrl: input.imageUrl ?? null
 });
 
-export const listRecipes = async (userId: string) => {
+export const listRecipes = async (
+	userId: string,
+	options?: { limit?: number; offset?: number }
+) => {
 	const db = getDB();
-	return db
+	const whereClause = eq(recipes.userId, userId);
+
+	const q = db
 		.select({
 			id: recipes.id,
 			name: recipes.name,
@@ -39,9 +44,19 @@ export const listRecipes = async (userId: string) => {
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
 		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
-		.where(eq(recipes.userId, userId))
+		.where(whereClause)
 		.groupBy(recipes.id)
 		.orderBy(recipes.name);
+
+	if (options?.limit !== undefined) q.limit(options.limit);
+	if (options?.offset) q.offset(options.offset);
+
+	const [items, countResult] = await Promise.all([
+		q,
+		db.select({ total: count() }).from(recipes).where(whereClause)
+	]);
+
+	return { items, total: countResult[0]?.total ?? 0 };
 };
 
 export const createRecipe = async (

@@ -20,7 +20,10 @@ const mockValidationError = new ZodError([
 
 vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
-	listFoods: async (userId: string, options: any) => mockListResult,
+	listFoods: async (userId: string, options: any) => ({
+		items: mockListResult,
+		total: mockListResult.length
+	}),
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
 	createFood: async (userId: string, payload: unknown) =>
 		mockCreateResult
