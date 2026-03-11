@@ -1,5 +1,8 @@
 package com.bissbilanz.android.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -86,7 +89,11 @@ fun AppNavigation() {
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(innerPadding).imePadding(),
+            enterTransition = { fadeIn(tween(200)) + slideInHorizontally { it / 4 } },
+            exitTransition = { fadeOut(tween(200)) },
+            popEnterTransition = { fadeIn(tween(200)) + slideInHorizontally { -it / 4 } },
+            popExitTransition = { fadeOut(tween(200)) + slideOutHorizontally { it / 4 } },
         ) {
             composable(Screen.Dashboard.route) {
                 com.bissbilanz.android.ui.screens
