@@ -8,13 +8,30 @@ import { createMcpServer } from '$lib/server/mcp/server';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const REQUIRED_SCOPE = 'mcp:access';
+const SESSION_TTL_MS = 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
 type SessionState = {
 	transport: WebStandardStreamableHTTPServerTransport;
 	userId: string;
+	lastActivity: number;
 };
 
 const sessionTransports = new Map<string, SessionState>();
+
+setInterval(() => {
+	const now = Date.now();
+	for (const [id, session] of sessionTransports) {
+		if (now - session.lastActivity > SESSION_TTL_MS) {
+			try {
+				session.transport.close();
+			} catch {
+				// ignore close errors
+			}
+			sessionTransports.delete(id);
+		}
+	}
+}, CLEANUP_INTERVAL_MS);
 
 function getBaseUrl(url: URL): string {
 	const base = config.app.url || url.origin;
@@ -106,7 +123,7 @@ async function createSessionTransport(
 	transport = new WebStandardStreamableHTTPServerTransport({
 		sessionIdGenerator: () => randomUUID(),
 		onsessioninitialized: (sessionId) => {
-			sessionTransports.set(sessionId, { transport, userId });
+			sessionTransports.set(sessionId, { transport, userId, lastActivity: Date.now() });
 		},
 		onsessionclosed: (sessionId) => {
 			sessionTransports.delete(sessionId);
@@ -129,9 +146,8 @@ function getSessionTransport(
 	userId: string
 ): WebStandardStreamableHTTPServerTransport | null {
 	const session = sessionTransports.get(sessionId);
-	if (!session || session.userId !== userId) {
-		return null;
-	}
+	if (!session || session.userId !== userId) return null;
+	session.lastActivity = Date.now();
 	return session.transport;
 }
 
