@@ -2,16 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { handleApiError, requireAuth, ApiError } from '$lib/server/errors';
 import { listEntriesByDateRange } from '$lib/server/entries';
-import { getDB } from '$lib/server/db';
-import { weightEntries } from '$lib/server/schema';
-import { and, eq, gte, lte, asc } from 'drizzle-orm';
+import { getWeightEntriesByDateRange } from '$lib/server/weight';
+import { maintenanceDateSchema, maintenanceMuscleRatioSchema } from '$lib/server/validation';
 import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
 import { calculateEntryMacros } from '$lib/utils/nutrition';
 import { daysBetween } from '$lib/utils/dates';
-import { z } from 'zod';
-
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const muscleRatioSchema = z.coerce.number().min(0).max(1);
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -24,12 +19,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'startDate and endDate parameters are required');
 		}
 
-		const startDateResult = dateSchema.safeParse(startDateRaw);
+		const startDateResult = maintenanceDateSchema.safeParse(startDateRaw);
 		if (!startDateResult.success) {
 			throw new ApiError(400, 'startDate must be in YYYY-MM-DD format');
 		}
 
-		const endDateResult = dateSchema.safeParse(endDateRaw);
+		const endDateResult = maintenanceDateSchema.safeParse(endDateRaw);
 		if (!endDateResult.success) {
 			throw new ApiError(400, 'endDate must be in YYYY-MM-DD format');
 		}
@@ -39,31 +34,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		let muscleRatio = DEFAULT_MUSCLE_RATIO;
 		if (muscleRatioParam) {
-			const ratioResult = muscleRatioSchema.safeParse(muscleRatioParam);
+			const ratioResult = maintenanceMuscleRatioSchema.safeParse(muscleRatioParam);
 			if (!ratioResult.success) {
 				throw new ApiError(400, 'muscleRatio must be a number between 0 and 1');
 			}
 			muscleRatio = ratioResult.data;
 		}
 
-		const db = getDB();
-
 		const [entries, weights] = await Promise.all([
 			listEntriesByDateRange(userId, startDate, endDate),
-			db
-				.select({
-					entryDate: weightEntries.entryDate,
-					weightKg: weightEntries.weightKg
-				})
-				.from(weightEntries)
-				.where(
-					and(
-						eq(weightEntries.userId, userId),
-						gte(weightEntries.entryDate, startDate),
-						lte(weightEntries.entryDate, endDate)
-					)
-				)
-				.orderBy(asc(weightEntries.entryDate))
+			getWeightEntriesByDateRange(userId, startDate, endDate)
 		]);
 
 		if (weights.length < 2) {

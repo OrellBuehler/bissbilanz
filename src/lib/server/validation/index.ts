@@ -7,3 +7,4 @@ export * from './recipes';
 export * from './supplements';
 export * from './preferences';
 export * from './weight';
+export * from './maintenance';
