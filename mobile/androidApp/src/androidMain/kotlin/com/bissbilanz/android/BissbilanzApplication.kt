@@ -1,6 +1,7 @@
 package com.bissbilanz.android
 
 import android.app.Application
+import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
@@ -9,6 +10,7 @@ import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
+import com.bissbilanz.health.HealthConnectService
 import io.sentry.android.core.SentryAndroid
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -37,6 +39,7 @@ class BissbilanzApplication : Application() {
                 single(named("clientId")) { "bissbilanz-android" }
                 single { SecureStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
+                single<HealthSyncService> { HealthConnectService(androidContext()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)

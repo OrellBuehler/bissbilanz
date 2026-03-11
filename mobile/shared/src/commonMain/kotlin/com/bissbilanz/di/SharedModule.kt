@@ -14,10 +14,10 @@ val sharedModule =
         single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
         single { BissbilanzDatabase(get<DatabaseDriverFactory>().createDriver()) }
         single { FoodRepository(get(), get()) }
-        single { EntryRepository(get(), get()) }
+        single { EntryRepository(get(), get(), get()) }
         single { RecipeRepository(get()) }
         single { GoalsRepository(get(), get()) }
-        single { WeightRepository(get()) }
+        single { WeightRepository(get(), get()) }
         single { SupplementRepository(get()) }
         single { StatsRepository(get()) }
         single { PreferencesRepository(get()) }

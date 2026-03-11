@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="health_permissions">
+        <item>androidx.health.permission.Weight.WRITE</item>
+        <item>androidx.health.permission.Nutrition.WRITE</item>
+    </string-array>
+</resources>

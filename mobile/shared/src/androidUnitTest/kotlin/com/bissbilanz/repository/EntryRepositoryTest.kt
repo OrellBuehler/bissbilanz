@@ -1,5 +1,6 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
@@ -19,6 +20,7 @@ class EntryRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
     private lateinit var queries: BissbilanzDatabaseQueries
+    private lateinit var healthSync: HealthSyncService
     private lateinit var repository: EntryRepository
 
     @BeforeTest
@@ -29,7 +31,8 @@ class EntryRepositoryTest {
             mockk {
                 every { bissbilanzDatabaseQueries } returns queries
             }
-        repository = EntryRepository(api, db)
+        healthSync = mockk(relaxed = true)
+        repository = EntryRepository(api, db, healthSync)
     }
 
     @Test

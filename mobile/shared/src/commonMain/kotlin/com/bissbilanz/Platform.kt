@@ -7,7 +7,9 @@ expect fun createHttpEngine(): HttpClientEngine
 interface HealthSyncService {
     suspend fun isAvailable(): Boolean
 
-    suspend fun requestPermissions(): Boolean
+    suspend fun hasPermissions(): Boolean
+
+    fun getRequiredPermissions(): Set<String>
 
     suspend fun syncWeight(entries: List<com.bissbilanz.model.WeightEntry>)
 

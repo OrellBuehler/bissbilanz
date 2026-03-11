@@ -30,6 +30,13 @@
                     android:host="oauth"
                     android:path="/callback" />
             </intent-filter>
+            <!-- Health Connect permissions rationale -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <meta-data
+                android:name="health_permissions"
+                android:resource="@xml/health_permissions" />
         </activity>
     </application>
 </manifest>

@@ -1,5 +1,6 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.Json
 class EntryRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
+    private val healthSync: HealthSyncService,
 ) {
     private val _entries = MutableStateFlow<List<Entry>>(emptyList())
     val entries: StateFlow<List<Entry>> = _entries.asStateFlow()
@@ -44,6 +46,7 @@ class EntryRepository(
     suspend fun createEntry(entry: EntryCreate): Entry {
         val created = api.createEntry(entry)
         currentDate?.let { loadEntries(it) }
+        syncNutritionForCurrentDate()
         return created
     }
 
@@ -53,6 +56,7 @@ class EntryRepository(
     ): Entry {
         val updated = api.updateEntry(id, entry)
         currentDate?.let { loadEntries(it) }
+        syncNutritionForCurrentDate()
         return updated
     }
 
@@ -60,6 +64,7 @@ class EntryRepository(
         api.deleteEntry(id)
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         _entries.value = _entries.value.filter { it.id != id }
+        syncNutritionForCurrentDate()
     }
 
     suspend fun copyEntries(
@@ -68,7 +73,55 @@ class EntryRepository(
     ): Int {
         val result = api.copyEntries(fromDate, toDate)
         loadEntries(toDate)
+        syncNutritionForCurrentDate()
         return result.count
+    }
+
+    private suspend fun syncNutritionForCurrentDate() {
+        val date = currentDate ?: return
+        try {
+            val totals = calculateTotals(_entries.value)
+            healthSync.syncNutrition(date, totals)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun calculateTotals(entries: List<Entry>): MacroTotals {
+        var calories = 0.0
+        var protein = 0.0
+        var carbs = 0.0
+        var fat = 0.0
+        var fiber = 0.0
+        for (entry in entries) {
+            val s = entry.servings
+            val food = entry.food
+            val recipe = entry.recipe
+            if (food != null) {
+                calories += food.calories * s
+                protein += food.protein * s
+                carbs += food.carbs * s
+                fat += food.fat * s
+                fiber += food.fiber * s
+            } else if (recipe != null) {
+                val servings = recipe.totalServings.coerceAtLeast(1.0)
+                recipe.ingredients?.forEach { ing ->
+                    val f = ing.food ?: return@forEach
+                    val q = ing.quantity / servings
+                    calories += f.calories * q * s
+                    protein += f.protein * q * s
+                    carbs += f.carbs * q * s
+                    fat += f.fat * q * s
+                    fiber += f.fiber * q * s
+                }
+            } else {
+                calories += (entry.quickCalories ?: 0.0) * s
+                protein += (entry.quickProtein ?: 0.0) * s
+                carbs += (entry.quickCarbs ?: 0.0) * s
+                fat += (entry.quickFat ?: 0.0) * s
+                fiber += (entry.quickFiber ?: 0.0) * s
+            }
+        }
+        return MacroTotals(calories, protein, carbs, fat, fiber)
     }
 
     private fun cacheEntries(

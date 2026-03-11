@@ -1,5 +1,7 @@
 package com.bissbilanz.android.ui.screens
 
+import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,11 +14,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.*
@@ -37,6 +42,7 @@ fun SettingsScreen(navController: NavController) {
     val goalsRepo: GoalsRepository = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val api: BissbilanzApi = koinInject()
+    val healthSync: HealthSyncService = koinInject()
     val goals by goalsRepo.goals.collectAsStateWithLifecycle()
     val prefs by prefsRepo.preferences.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -48,6 +54,19 @@ fun SettingsScreen(navController: NavController) {
     var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val healthPrefs = context.getSharedPreferences("health_connect", Context.MODE_PRIVATE)
+    var healthAvailable by remember { mutableStateOf(false) }
+    var healthPermGranted by remember { mutableStateOf(false) }
+    var healthSyncEnabled by remember { mutableStateOf(healthPrefs.getBoolean("sync_enabled", false)) }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            PermissionController.createRequestPermissionResultContract(),
+        ) {
+            scope.launch {
+                healthPermGranted = healthSync.hasPermissions()
+            }
+        }
 
     LaunchedEffect(prefs) {
         if (editedNutrients == null && prefs != null) {
@@ -62,6 +81,10 @@ fun SettingsScreen(navController: NavController) {
             val response = api.getMealTypes()
             customMealTypes = response.mealTypes
         } catch (_: Exception) {
+        }
+        healthAvailable = healthSync.isAvailable()
+        if (healthAvailable) {
+            healthPermGranted = healthSync.hasPermissions()
         }
     }
 
@@ -197,6 +220,61 @@ fun SettingsScreen(navController: NavController) {
                     HorizontalDivider()
                     SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
                         navController.navigate("maintenance")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Health Connect
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Health Connect",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (!healthAvailable) {
+                        Text(
+                            "Health Connect is not available on this device",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("Sync to Health Connect")
+                            Switch(
+                                checked = healthSyncEnabled,
+                                onCheckedChange = { enabled ->
+                                    healthSyncEnabled = enabled
+                                    healthPrefs.edit().putBoolean("sync_enabled", enabled).apply()
+                                },
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (healthPermGranted) {
+                            Text(
+                                "Permissions granted",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    permissionLauncher.launch(healthSync.getRequiredPermissions())
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Default.HealthAndSafety, "Permissions", modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Grant Permissions")
+                            }
+                        }
                     }
                 }
             }
