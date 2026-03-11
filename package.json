@@ -41,7 +41,7 @@
 		"embla-carousel-svelte": "^8.6.0",
 		"fake-indexeddb": "^6.2.5",
 		"formsnap": "^2.0.1",
-		"layerchart": "2.0.0-next.43",
+		"layerchart": "2.0.0-next.46",
 		"mode-watcher": "^1.1.0",
 		"paneforge": "^1.0.2",
 		"prettier": "^3.8.1",
