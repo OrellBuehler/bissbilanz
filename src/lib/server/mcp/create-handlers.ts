@@ -56,11 +56,11 @@ import type {
 	unlogSupplement,
 	getLogsForDate,
 	logSupplement,
-	getSupplementById
+	getSupplementById,
+	getSupplementChecklist
 } from '$lib/server/supplements';
 import type { formatDailyStatus } from '$lib/server/mcp/format';
 import type { today } from '$lib/utils/dates';
-import type { isSupplementDue } from '$lib/utils/supplements';
 
 export type HandlerDeps = {
 	// Foods
@@ -111,10 +111,10 @@ export type HandlerDeps = {
 	getLogsForDate: typeof getLogsForDate;
 	logSupplement: typeof logSupplement;
 	getSupplementById: typeof getSupplementById;
+	getSupplementChecklist: typeof getSupplementChecklist;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	today: typeof today;
-	isSupplementDue: typeof isSupplementDue;
 };
 
 export function createHandlers(d: HandlerDeps) {
@@ -150,26 +150,17 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleGetSupplementStatus = async (userId: string) => {
 		const targetDate = d.today();
-		const now = new Date();
+		const items = await d.getSupplementChecklist(userId, targetDate);
 
-		const [allSupplements, logs] = await Promise.all([
-			d.listSupplements(userId, true),
-			d.getLogsForDate(userId, targetDate)
-		]);
-
-		const logMap = new Map(logs.map((l) => [l.supplementId, l] as const));
-
-		const checklist = allSupplements
-			.filter((s) => d.isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, now))
-			.map((s) => ({
-				id: s.id,
-				name: s.name,
-				dosage: s.dosage,
-				dosageUnit: s.dosageUnit,
-				ingredients: s.ingredients ?? [],
-				taken: logMap.has(s.id),
-				takenAt: logMap.get(s.id)?.takenAt ?? null
-			}));
+		const checklist = items.map((item) => ({
+			id: item.supplement.id,
+			name: item.supplement.name,
+			dosage: item.supplement.dosage,
+			dosageUnit: item.supplement.dosageUnit,
+			ingredients: item.supplement.ingredients ?? [],
+			taken: item.taken,
+			takenAt: item.takenAt
+		}));
 
 		const taken = checklist.filter((c) => c.taken).length;
 		return {

@@ -139,7 +139,14 @@ const mockDeps = {
 		goals
 	}),
 	today: () => '2026-02-10',
-	isSupplementDue: () => true
+	getSupplementChecklist: async () => {
+		const logMap = new Map(mockSupplementLogs.map((l: any) => [l.supplementId, l]));
+		return mockSupplements.map((s: any) => ({
+			supplement: s,
+			taken: logMap.has(s.id),
+			takenAt: logMap.get(s.id)?.takenAt ?? null
+		}));
+	}
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
