@@ -33,7 +33,8 @@ export const listRecipes = async (userId: string) => {
 			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
 			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
 			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))

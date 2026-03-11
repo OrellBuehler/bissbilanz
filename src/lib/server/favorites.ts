@@ -44,7 +44,8 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`,
 			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`,
 			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`,
-			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`
+			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`,
+			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0), 0)`
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipes.id, recipeIngredients.recipeId))
@@ -66,6 +67,7 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 		protein: Math.round(Number(r.protein) * 10) / 10,
 		carbs: Math.round(Number(r.carbs) * 10) / 10,
 		fat: Math.round(Number(r.fat) * 10) / 10,
+		fiber: Math.round(Number(r.fiber) * 10) / 10,
 		type: 'recipe' as const,
 		logCount: Number(r.logCount)
 	}));
