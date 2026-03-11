@@ -148,24 +148,25 @@ export const deleteRecipe = async (
 	force = false
 ): Promise<DeleteResult> => {
 	const db = getDB();
-	const entries = await db
-		.select({ count: count() })
-		.from(foodEntries)
-		.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
-	const entryCount = entries[0].count;
 
-	if (entryCount > 0 && !force) {
-		return { blocked: true, entryCount };
-	}
+	return db.transaction(async (tx) => {
+		const entries = await tx
+			.select({ count: count() })
+			.from(foodEntries)
+			.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
+		const entryCount = entries[0].count;
 
-	await db.transaction(async (tx) => {
+		if (entryCount > 0 && !force) {
+			return { blocked: true, entryCount } as DeleteResult;
+		}
+
 		if (entryCount > 0) {
 			await tx
 				.delete(foodEntries)
 				.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
 		}
 		await tx.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
-	});
 
-	return { blocked: false };
+		return { blocked: false } as DeleteResult;
+	});
 };
