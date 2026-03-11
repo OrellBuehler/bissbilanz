@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { weightEntries } from '$lib/server/schema';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation';
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, gte, lte, asc, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 
 export const createWeightEntry = async (
@@ -33,6 +33,28 @@ export const createWeightEntry = async (
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
+};
+
+export const getWeightEntriesByDateRange = async (
+	userId: string,
+	startDate: string,
+	endDate: string
+) => {
+	const db = getDB();
+	return db
+		.select({
+			entryDate: weightEntries.entryDate,
+			weightKg: weightEntries.weightKg
+		})
+		.from(weightEntries)
+		.where(
+			and(
+				eq(weightEntries.userId, userId),
+				gte(weightEntries.entryDate, startDate),
+				lte(weightEntries.entryDate, endDate)
+			)
+		)
+		.orderBy(asc(weightEntries.entryDate));
 };
 
 export const getWeightEntries = async (userId: string) => {
