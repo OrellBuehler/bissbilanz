@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -126,61 +127,63 @@ fun FavoritesScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (isLoading) {
-                LoadingScreen()
-            } else if (selectedTab == 0) {
-                if (favorites.isEmpty()) {
-                    EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(favorites) { food ->
-                            FavoriteCard(
-                                name = food.name,
-                                subtitle = "${food.calories.toInt()} cal",
-                                secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
-                                imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                onClick = { navController.navigate("food/${food.id}") },
-                                onQuickLog = {
-                                    handleQuickLog(
-                                        viewModel = viewModel,
-                                        onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
-                                        onShowServingsPicker = { pendingServingsFood = food },
-                                        onShowMealPicker = { foodToLog = food },
-                                    )
-                                },
-                            )
+            Crossfade(targetState = isLoading, label = "favorites") { loading ->
+                if (loading) {
+                    LoadingScreen()
+                } else if (selectedTab == 0) {
+                    if (favorites.isEmpty()) {
+                        EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(favorites) { food ->
+                                FavoriteCard(
+                                    name = food.name,
+                                    subtitle = "${food.calories.toInt()} cal",
+                                    secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
+                                    imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                    onClick = { navController.navigate("food/${food.id}") },
+                                    onQuickLog = {
+                                        handleQuickLog(
+                                            viewModel = viewModel,
+                                            onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
+                                            onShowServingsPicker = { pendingServingsFood = food },
+                                            onShowMealPicker = { foodToLog = food },
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
-                }
-            } else {
-                if (favoriteRecipes.isEmpty()) {
-                    EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(favoriteRecipes) { recipe ->
-                            FavoriteCard(
-                                name = recipe.name,
-                                subtitle = "${recipe.totalServings.toInt()} servings",
-                                secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
-                                imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                onClick = { navController.navigate("recipe/${recipe.id}") },
-                                onQuickLog = {
-                                    handleQuickLog(
-                                        viewModel = viewModel,
-                                        onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
-                                        onShowServingsPicker = { pendingServingsRecipe = recipe },
-                                        onShowMealPicker = { recipeToLog = recipe },
-                                    )
-                                },
-                            )
+                    if (favoriteRecipes.isEmpty()) {
+                        EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(favoriteRecipes) { recipe ->
+                                FavoriteCard(
+                                    name = recipe.name,
+                                    subtitle = "${recipe.totalServings.toInt()} servings",
+                                    secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
+                                    imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                    onClick = { navController.navigate("recipe/${recipe.id}") },
+                                    onQuickLog = {
+                                        handleQuickLog(
+                                            viewModel = viewModel,
+                                            onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
+                                            onShowServingsPicker = { pendingServingsRecipe = recipe },
+                                            onShowMealPicker = { recipeToLog = recipe },
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -101,21 +102,23 @@ fun FoodSearchScreen(navController: NavController) {
 
             if (query.length >= 2) {
                 Spacer(modifier = Modifier.height(8.dp))
-                if (isSearching) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else if (searchResults.isEmpty()) {
-                    EmptyState("No foods found for \"$query\"")
-                } else {
-                    LazyColumn {
-                        items(searchResults) { food ->
-                            FoodListItem(
-                                food = food,
-                                baseUrl = baseUrl,
-                                onClick = { navController.navigate("food/${food.id}") },
-                                onQuickLog = { foodToLog = food },
-                            )
+                Crossfade(targetState = isSearching, label = "search") { searching ->
+                    if (searching) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (searchResults.isEmpty()) {
+                        EmptyState("No foods found for \"$query\"")
+                    } else {
+                        LazyColumn {
+                            items(searchResults) { food ->
+                                FoodListItem(
+                                    food = food,
+                                    baseUrl = baseUrl,
+                                    onClick = { navController.navigate("food/${food.id}") },
+                                    onQuickLog = { foodToLog = food },
+                                )
+                            }
                         }
                     }
                 }

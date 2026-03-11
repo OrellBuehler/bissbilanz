@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -96,22 +97,24 @@ fun RecipeListScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        if (isLoading) {
-            LoadingScreen()
-        } else if (recipes.isEmpty()) {
-            EmptyState("No recipes yet.\nTap + to create one.")
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
-            ) {
-                items(recipes) { recipe ->
-                    RecipeListItem(
-                        recipe = recipe,
-                        onClick = { navController.navigate("recipe/${recipe.id}") },
-                        onQuickLog = { recipeToLog = recipe },
-                    )
+        Crossfade(targetState = isLoading, label = "recipes") { loading ->
+            if (loading) {
+                LoadingScreen()
+            } else if (recipes.isEmpty()) {
+                EmptyState("No recipes yet.\nTap + to create one.")
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                ) {
+                    items(recipes) { recipe ->
+                        RecipeListItem(
+                            recipe = recipe,
+                            onClick = { navController.navigate("recipe/${recipe.id}") },
+                            onQuickLog = { recipeToLog = recipe },
+                        )
+                    }
                 }
             }
         }

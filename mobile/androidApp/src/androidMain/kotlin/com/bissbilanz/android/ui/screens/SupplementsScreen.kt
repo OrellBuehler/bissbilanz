@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -96,90 +97,97 @@ fun SupplementsScreen(navController: NavController) {
             )
         }
 
-        if (isLoading) {
-            LoadingScreen()
-        } else if (supplements.isEmpty()) {
-            EmptyState("No supplements yet.\nTap + to add a supplement.")
-        } else {
-            val activeSupplements = supplements.filter { it.isActive }
+        Crossfade(targetState = isLoading, label = "supplements") { loading ->
+            if (loading) {
+                LoadingScreen()
+            } else if (supplements.isEmpty()) {
+                EmptyState("No supplements yet.\nTap + to add a supplement.")
+            } else {
+                val activeSupplements = supplements.filter { it.isActive }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
-            ) {
-                item {
-                    Text(
-                        "Today's Checklist",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "${takenIds.size} / ${activeSupplements.size} taken",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (activeSupplements.isNotEmpty()) {
-                        LinearProgressIndicator(
-                            progress = { takenIds.size.toFloat() / activeSupplements.size.toFloat() },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = FiberGreen,
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                items(activeSupplements) { supplement ->
-                    val isTaken = takenIds.contains(supplement.id)
-                    SupplementChecklistItem(
-                        supplement = supplement,
-                        isTaken = isTaken,
-                        onEdit = { editingSupplementId = supplement.id },
-                        onToggle = {
-                            scope.launch {
-                                try {
-                                    if (isTaken) {
-                                        supplementRepo.unlogSupplement(supplement.id, today)
-                                        takenIds = takenIds - supplement.id
-                                    } else {
-                                        supplementRepo.logSupplement(supplement.id, today)
-                                        takenIds = takenIds + supplement.id
-                                    }
-                                } catch (_: Exception) {
-                                    snackbarHostState.showSnackbar("Failed to update supplement")
-                                }
-                            }
-                        },
-                    )
-                }
-
-                val inactiveSupplements = supplements.filter { !it.isActive }
-                if (inactiveSupplements.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                ) {
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "Inactive",
-                            style = MaterialTheme.typography.titleSmall,
+                            "Today's Checklist",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            "${takenIds.size} / ${activeSupplements.size} taken",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                    items(inactiveSupplements) { supplement ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                        ) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(supplement.name, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                },
-                                supportingContent = {
-                                    Text(
-                                        "${supplement.dosage.toInt()} ${supplement.dosageUnit}",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    )
-                                },
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (activeSupplements.isNotEmpty()) {
+                            LinearProgressIndicator(
+                                progress = { takenIds.size.toFloat() / activeSupplements.size.toFloat() },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = FiberGreen,
                             )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    items(activeSupplements) { supplement ->
+                        val isTaken = takenIds.contains(supplement.id)
+                        SupplementChecklistItem(
+                            supplement = supplement,
+                            isTaken = isTaken,
+                            onEdit = { editingSupplementId = supplement.id },
+                            onToggle = {
+                                scope.launch {
+                                    try {
+                                        if (isTaken) {
+                                            supplementRepo.unlogSupplement(supplement.id, today)
+                                            takenIds = takenIds - supplement.id
+                                        } else {
+                                            supplementRepo.logSupplement(supplement.id, today)
+                                            takenIds = takenIds + supplement.id
+                                        }
+                                    } catch (_: Exception) {
+                                        snackbarHostState.showSnackbar("Failed to update supplement")
+                                    }
+                                }
+                            },
+                        )
+                    }
+
+                    val inactiveSupplements = supplements.filter { !it.isActive }
+                    if (inactiveSupplements.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Inactive",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        items(inactiveSupplements) { supplement ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor =
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                                .copy(alpha = 0.5f),
+                                    ),
+                            ) {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(supplement.name, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            "${supplement.dosage.toInt()} ${supplement.dosageUnit}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }

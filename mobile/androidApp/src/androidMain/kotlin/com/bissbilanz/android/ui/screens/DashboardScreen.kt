@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -164,61 +165,65 @@ fun DashboardScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                val mealOrder = listOf("breakfast", "lunch", "dinner", "snack")
-                val mealGroups = entries.groupBy { it.mealType }
-                val sortedMeals =
-                    mealOrder.filter { mealGroups.containsKey(it) } +
-                        mealGroups.keys.filter { it !in mealOrder }
-
-                sortedMeals.forEach { meal ->
-                    val mealEntries = mealGroups[meal] ?: return@forEach
-                    MealCard(meal, mealEntries) {
-                        navController.navigate("daylog/$selectedDate")
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                if (entries.isEmpty()) {
+            Crossfade(targetState = isLoading, label = "dashboard") { loading ->
+                if (loading) {
                     Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "No entries yet.\nTap + to add food.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(
-                                onClick = {
-                                    scope.launch {
-                                        try {
-                                            val yesterday = selectedDate.minus(1, DateTimeUnit.DAY).toString()
-                                            val count = entryRepo.copyEntries(yesterday, selectedDate.toString())
-                                            snackbarHostState.showSnackbar("Copied $count entries from yesterday")
-                                            viewModel.loadData()
-                                        } catch (_: Exception) {
-                                            snackbarHostState.showSnackbar("No entries to copy from yesterday")
-                                        }
-                                    }
-                                },
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Column {
+                        val mealOrder = listOf("breakfast", "lunch", "dinner", "snack")
+                        val mealGroups = entries.groupBy { it.mealType }
+                        val sortedMeals =
+                            mealOrder.filter { mealGroups.containsKey(it) } +
+                                mealGroups.keys.filter { it !in mealOrder }
+
+                        sortedMeals.forEach { meal ->
+                            val mealEntries = mealGroups[meal] ?: return@forEach
+                            MealCard(meal, mealEntries) {
+                                navController.navigate("daylog/$selectedDate")
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        if (entries.isEmpty()) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Copy from yesterday")
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        "No entries yet.\nTap + to add food.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    OutlinedButton(
+                                        onClick = {
+                                            scope.launch {
+                                                try {
+                                                    val yesterday = selectedDate.minus(1, DateTimeUnit.DAY).toString()
+                                                    val count = entryRepo.copyEntries(yesterday, selectedDate.toString())
+                                                    snackbarHostState.showSnackbar("Copied $count entries from yesterday")
+                                                    viewModel.loadData()
+                                                } catch (_: Exception) {
+                                                    snackbarHostState.showSnackbar("No entries to copy from yesterday")
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Copy from yesterday")
+                                    }
+                                }
                             }
                         }
                     }
