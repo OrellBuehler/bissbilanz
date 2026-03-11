@@ -53,3 +53,6 @@ mobile/build/
 mobile/shared/build/
 mobile/androidApp/build/
 *.zip
+
+# iOS generated Xcode project
+mobile/iosApp/*.xcodeproj

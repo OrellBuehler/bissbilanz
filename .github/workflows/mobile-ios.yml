@@ -39,16 +39,22 @@ jobs:
           restore-keys: |
             gradle-ios-${{ runner.os }}-
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
       - name: Build shared iOS framework
         run: ./gradlew shared:linkDebugFrameworkIosSimulatorArm64
 
+      - name: Generate Xcode project
+        working-directory: mobile/iosApp
+        run: xcodegen generate
+
       - name: Build iOS app
-        if: hashFiles('mobile/iosApp/iosApp.xcodeproj') != ''
         working-directory: mobile/iosApp
         run: |
           xcodebuild build \
-            -project iosApp.xcodeproj \
-            -scheme iosApp \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
