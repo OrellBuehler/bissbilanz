@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # Build stage - install dependencies
-FROM oven/bun:1-alpine AS deps
+FROM oven/bun:1.3.5-alpine AS deps
 WORKDIR /app
 
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # Build stage - build the app
-FROM oven/bun:1-alpine AS builder
+FROM oven/bun:1.3.5-alpine AS builder
 WORKDIR /app
 
 ARG APP_VERSION=dev
@@ -28,13 +28,13 @@ RUN echo "GIT_HASH=${GIT_HASH}" > /app/version.txt && \
     echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> /app/version.txt
 
 # Production deps - install only production dependencies
-FROM oven/bun:1-alpine AS prod-deps
+FROM oven/bun:1.3.5-alpine AS prod-deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
 # Production stage - minimal runtime
-FROM oven/bun:1-alpine AS runner
+FROM oven/bun:1.3.5-alpine AS runner
 WORKDIR /app
 
 RUN addgroup --system --gid 1001 nodejs && \
