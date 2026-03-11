@@ -37,8 +37,7 @@ class FavoritesViewModel(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
-    private val _preferences = MutableStateFlow<Preferences?>(null)
-    val preferences: StateFlow<Preferences?> = _preferences.asStateFlow()
+    val preferences: StateFlow<Preferences?> = prefsRepo.preferences
 
     init {
         viewModelScope.launch {
@@ -47,7 +46,6 @@ class FavoritesViewModel(
                 foodRepo.loadFavorites()
                 recipeRepo.loadRecipes()
                 prefsRepo.loadPreferences()
-                _preferences.value = prefsRepo.preferences.value
             } catch (_: Exception) {
             }
             _isLoading.value = false
@@ -59,7 +57,7 @@ class FavoritesViewModel(
     }
 
     fun resolveDefaultMeal(): String? {
-        val prefs = _preferences.value ?: return null
+        val prefs = preferences.value ?: return null
         if (prefs.favoriteMealAssignmentMode == "ask_meal") return null
 
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -74,7 +72,7 @@ class FavoritesViewModel(
     }
 
     val tapAction: String
-        get() = _preferences.value?.favoriteTapAction ?: "instant"
+        get() = preferences.value?.favoriteTapAction ?: "instant"
 
     fun logFood(
         food: Food,

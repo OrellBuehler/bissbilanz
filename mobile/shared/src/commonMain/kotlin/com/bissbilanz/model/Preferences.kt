@@ -43,6 +43,7 @@ data class PreferencesUpdate(
     val startPage: String? = null,
     val favoriteTapAction: String? = null,
     val favoriteMealAssignmentMode: String? = null,
+    val favoriteMealTimeframes: List<FavoriteMealTimeframe>? = null,
     val visibleNutrients: List<String>? = null,
     val locale: String? = null,
 )

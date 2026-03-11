@@ -152,7 +152,7 @@ fun FoodSearchScreen(navController: NavController) {
 @Composable
 fun FoodListItem(
     food: Food,
-    baseUrl: String = "",
+    baseUrl: String,
     onClick: () -> Unit,
     onQuickLog: (() -> Unit)? = null,
 ) {

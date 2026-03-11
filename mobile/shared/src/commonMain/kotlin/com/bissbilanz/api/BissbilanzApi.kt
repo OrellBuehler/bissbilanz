@@ -239,6 +239,15 @@ class BissbilanzApi(
     suspend fun getMealBreakdown(date: String): MealBreakdownResponse =
         authenticatedGet("/api/stats/meal-breakdown") { parameter("date", date) }
 
+    suspend fun getMealBreakdown(
+        startDate: String,
+        endDate: String,
+    ): MealBreakdownResponse =
+        authenticatedGet("/api/stats/meal-breakdown") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
     suspend fun getStreaks(): StreaksResponse = authenticatedGet("/api/stats/streaks")
 
     suspend fun getTopFoods(
@@ -256,7 +265,10 @@ class BissbilanzApi(
         return response.preferences
     }
 
-    suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences = authenticatedPut("/api/preferences", prefs)
+    suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences {
+        val response: PreferencesResponse = authenticatedPut("/api/preferences", prefs)
+        return response.preferences
+    }
 
     // Meal types
     suspend fun getMealTypes(): MealTypesResponse = authenticatedGet("/api/meal-types")

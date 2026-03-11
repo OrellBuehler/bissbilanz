@@ -65,7 +65,7 @@ private fun isSupplementDue(
             if (scheduleDays.isNullOrEmpty()) {
                 false
             } else {
-                val dow = date.dayOfWeek.ordinal % 7
+                val dow = date.dayOfWeek.value % 7
                 scheduleDays.contains(dow)
             }
         }
@@ -120,7 +120,7 @@ fun SupplementHistoryScreen(navController: NavController) {
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var fromDate by remember { mutableStateOf(today.minus(DatePeriod(days = 30))) }
-    var toDate by remember { mutableStateOf(today.plus(DatePeriod(days = 1))) }
+    var toDate by remember { mutableStateOf(today) }
     var adherence by remember { mutableStateOf<List<DayAdherence>>(emptyList()) }
     var expandedItems by remember { mutableStateOf(setOf<String>()) }
 

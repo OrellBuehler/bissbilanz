@@ -106,7 +106,7 @@ class InsightsViewModel(
                     val mealBreakdownDeferred =
                         async {
                             try {
-                                statsRepo.getMealBreakdown(today.toString()).data
+                                statsRepo.getMealBreakdown(startDate, endDate).data
                             } catch (_: Exception) {
                                 emptyList()
                             }

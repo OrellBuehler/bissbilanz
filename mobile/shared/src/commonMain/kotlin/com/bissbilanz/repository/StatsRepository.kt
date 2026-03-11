@@ -17,6 +17,11 @@ class StatsRepository(
 
     suspend fun getMealBreakdown(date: String): MealBreakdownResponse = api.getMealBreakdown(date)
 
+    suspend fun getMealBreakdown(
+        startDate: String,
+        endDate: String,
+    ): MealBreakdownResponse = api.getMealBreakdown(startDate, endDate)
+
     suspend fun getStreaks(): StreaksResponse = api.getStreaks()
 
     suspend fun getTopFoods(
