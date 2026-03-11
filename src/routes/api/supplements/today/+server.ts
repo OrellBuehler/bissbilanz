@@ -7,7 +7,9 @@ import { handleApiError, requireAuth } from '$lib/server/errors';
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		const userId = requireAuth(locals);
-		return json(await getSupplementChecklist(userId, today()));
+		const date = today();
+		const checklist = await getSupplementChecklist(userId, date);
+		return json({ checklist, date });
 	} catch (error) {
 		return handleApiError(error);
 	}

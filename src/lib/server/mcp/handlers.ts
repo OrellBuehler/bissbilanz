@@ -48,9 +48,9 @@ import {
 	unlogSupplement,
 	getLogsForDate,
 	logSupplement,
-	getSupplementById
+	getSupplementById,
+	getSupplementChecklist
 } from '$lib/server/supplements';
-import { isSupplementDue } from '$lib/utils/supplements';
 import { createHandlers } from './create-handlers';
 
 export { createHandlers, type HandlerDeps } from './create-handlers';
@@ -137,5 +137,5 @@ export const {
 	getLogsForDate,
 	logSupplement,
 	getSupplementById,
-	isSupplementDue
+	getSupplementChecklist
 });

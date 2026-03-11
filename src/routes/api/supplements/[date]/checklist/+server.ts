@@ -10,7 +10,8 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 			return json({ error: 'Invalid date format' }, { status: 400 });
 		}
-		return json(await getSupplementChecklist(userId, date));
+		const checklist = await getSupplementChecklist(userId, date);
+		return json({ checklist, date });
 	} catch (error) {
 		return handleApiError(error);
 	}

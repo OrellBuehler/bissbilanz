@@ -253,26 +253,6 @@ export const unlogSupplement = async (userId: string, supplementId: string, date
 		);
 };
 
-export const getSupplementChecklist = async (userId: string, date: string) => {
-	const dateObj = new Date(date + 'T00:00:00');
-	const [allSupplements, logs] = await Promise.all([
-		listSupplements(userId, true),
-		getLogsForDate(userId, date)
-	]);
-
-	const logMap = new Map(logs.map((l) => [l.supplementId, l]));
-
-	const checklist = allSupplements
-		.filter((s) => isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, dateObj))
-		.map((s) => ({
-			supplement: s,
-			taken: logMap.has(s.id),
-			takenAt: logMap.get(s.id)?.takenAt ?? null
-		}));
-
-	return { checklist, date };
-};
-
 export const getLogsForDate = async (userId: string, date: string) => {
 	const db = getDB();
 	return db
@@ -300,4 +280,23 @@ export const getLogsForRange = async (userId: string, from: string, to: string) 
 			)
 		)
 		.orderBy(desc(supplementLogs.date), supplements.name);
+};
+
+export const getSupplementChecklist = async (userId: string, date: string) => {
+	const dateObj = new Date(date + 'T00:00:00');
+
+	const [allSupplements, logs] = await Promise.all([
+		listSupplements(userId, true),
+		getLogsForDate(userId, date)
+	]);
+
+	const logMap = new Map(logs.map((l) => [l.supplementId, l]));
+
+	return allSupplements
+		.filter((s) => isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, dateObj))
+		.map((s) => ({
+			supplement: s,
+			taken: logMap.has(s.id),
+			takenAt: logMap.get(s.id)?.takenAt ?? null
+		}));
 };

@@ -38,7 +38,9 @@ vi.mock('$lib/server/supplements', () => ({
 	getSupplementIngredients: async () => [],
 	getIngredientsForSupplements: async () => [],
 	unlogSupplement: async () => {},
-	getLogsForRange: async () => []
+	getLogsForRange: async () => [],
+	getSupplementChecklist: async () =>
+		mockListResult.map((s: any) => ({ supplement: s, taken: false, takenAt: null }))
 }));
 
 vi.mock('$lib/utils/supplements', () => ({
