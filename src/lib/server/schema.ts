@@ -11,6 +11,7 @@ import {
 	index,
 	primaryKey,
 	uniqueIndex,
+	unique,
 	check
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -442,6 +443,7 @@ export const weightEntries = pgTable(
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
+		unique('weight_entries_user_date_unique').on(table.userId, table.entryDate),
 		index('idx_weight_entries_user_date').on(table.userId, table.entryDate),
 		index('idx_weight_entries_user_logged').on(table.userId, table.loggedAt),
 		check('weight_entries_valid', sql`${table.weightKg} > 0 AND ${table.weightKg} <= 500`)

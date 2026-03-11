@@ -15,14 +15,24 @@ export const createWeightEntry = async (
 
 	try {
 		const db = getDB();
+		const now = new Date();
 		const [created] = await db
 			.insert(weightEntries)
 			.values({
 				userId,
 				weightKg: result.data.weightKg,
 				entryDate: result.data.entryDate,
-				loggedAt: new Date(),
+				loggedAt: now,
 				notes: result.data.notes ?? null
+			})
+			.onConflictDoUpdate({
+				target: [weightEntries.userId, weightEntries.entryDate],
+				set: {
+					weightKg: result.data.weightKg,
+					loggedAt: now,
+					notes: result.data.notes ?? null,
+					updatedAt: now
+				}
 			})
 			.returning();
 

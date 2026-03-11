@@ -183,6 +183,13 @@
       "when": 1773186230947,
       "tag": "0025_tiny_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773265914876,
+      "tag": "0026_windy_korath",
+      "breakpoints": true
     }
   ]
 }
