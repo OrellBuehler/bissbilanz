@@ -53,7 +53,7 @@
 	const updateSupplement = async (payload: Record<string, unknown>) => {
 		if (!editingSupplement) return;
 		await apiFetch(`/api/supplements/${editingSupplement.id}`, {
-			method: 'PUT',
+			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(payload)
 		});
@@ -69,7 +69,7 @@
 
 	const toggleActive = async (supplement: SupplementWithIngredients) => {
 		await apiFetch(`/api/supplements/${supplement.id}`, {
-			method: 'PUT',
+			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ isActive: !supplement.isActive })
 		});

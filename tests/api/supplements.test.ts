@@ -184,7 +184,7 @@ describe('api/supplements', () => {
 				params: { id: TEST_SUPPLEMENT.id },
 				body: { name: 'Updated D3' }
 			});
-			const response = await supplementIdModule.PUT(event);
+			const response = await supplementIdModule.PATCH(event);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.supplement.name).toBe('Updated D3');
@@ -197,7 +197,7 @@ describe('api/supplements', () => {
 				params: { id: 'nonexistent' },
 				body: { name: 'Updated' }
 			});
-			const response = await supplementIdModule.PUT(event);
+			const response = await supplementIdModule.PATCH(event);
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toBe('Supplement not found');
