@@ -104,6 +104,7 @@ fun SupplementEditSheet(
                     Modifier
                         .padding(horizontal = 24.dp)
                         .padding(bottom = 32.dp)
+                        .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.components
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -184,6 +185,7 @@ fun FoodEditSheet(
                     Modifier
                         .padding(horizontal = 24.dp)
                         .padding(bottom = 32.dp)
+                        .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -285,22 +287,24 @@ fun FoodEditSheet(
                 ) {
                     Text(if (showAdvanced) "Hide advanced nutrients" else "Show advanced nutrients")
                 }
-                if (showAdvanced) {
-                    Text("Fat Breakdown", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    NutrientTextField("Saturated Fat (g)", saturatedFat) { saturatedFat = it }
+                AnimatedVisibility(visible = showAdvanced) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Fat Breakdown", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                        NutrientTextField("Saturated Fat (g)", saturatedFat) { saturatedFat = it }
 
-                    Text("Sugar & Carbs", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    NutrientTextField("Sugar (g)", sugar) { sugar = it }
+                        Text("Sugar & Carbs", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                        NutrientTextField("Sugar (g)", sugar) { sugar = it }
 
-                    Text("Minerals", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    NutrientTextField("Sodium (mg)", sodium) { sodium = it }
-                    NutrientTextField("Potassium (mg)", potassium) { potassium = it }
-                    NutrientTextField("Calcium (mg)", calcium) { calcium = it }
-                    NutrientTextField("Iron (mg)", iron) { iron = it }
+                        Text("Minerals", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                        NutrientTextField("Sodium (mg)", sodium) { sodium = it }
+                        NutrientTextField("Potassium (mg)", potassium) { potassium = it }
+                        NutrientTextField("Calcium (mg)", calcium) { calcium = it }
+                        NutrientTextField("Iron (mg)", iron) { iron = it }
 
-                    Text("Vitamins", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    NutrientTextField("Vitamin C (mg)", vitaminC) { vitaminC = it }
-                    NutrientTextField("Vitamin D (mcg)", vitaminD) { vitaminD = it }
+                        Text("Vitamins", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                        NutrientTextField("Vitamin C (mg)", vitaminC) { vitaminC = it }
+                        NutrientTextField("Vitamin D (mcg)", vitaminD) { vitaminD = it }
+                    }
                 }
 
                 errorMessage?.let {

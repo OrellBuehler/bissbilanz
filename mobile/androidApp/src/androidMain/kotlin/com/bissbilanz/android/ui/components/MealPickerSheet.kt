@@ -28,7 +28,7 @@ fun MealPickerSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp).imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
