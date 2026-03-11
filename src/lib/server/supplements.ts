@@ -201,9 +201,12 @@ export const logSupplement = async (
 	try {
 		const db = getDB();
 
-		// Verify supplement belongs to user
-		const supplement = await getSupplementById(userId, supplementId);
-		if (!supplement) {
+		// Verify supplement belongs to user (lightweight ownership check)
+		const [owned] = await db
+			.select({ id: supplements.id })
+			.from(supplements)
+			.where(and(eq(supplements.id, supplementId), eq(supplements.userId, userId)));
+		if (!owned) {
 			return { success: false, error: new Error('Supplement not found') };
 		}
 
