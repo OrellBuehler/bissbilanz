@@ -3,6 +3,7 @@ import { supplements, supplementLogs, supplementIngredients } from '$lib/server/
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { and, eq, desc, inArray, gte, lte } from 'drizzle-orm';
 import { today } from '$lib/utils/dates';
+import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
 
 type IngredientRow = {
@@ -247,6 +248,26 @@ export const unlogSupplement = async (userId: string, supplementId: string, date
 				eq(supplementLogs.date, date)
 			)
 		);
+};
+
+export const getSupplementChecklist = async (userId: string, date: string) => {
+	const dateObj = new Date(date + 'T00:00:00');
+	const [allSupplements, logs] = await Promise.all([
+		listSupplements(userId, true),
+		getLogsForDate(userId, date)
+	]);
+
+	const logMap = new Map(logs.map((l) => [l.supplementId, l]));
+
+	const checklist = allSupplements
+		.filter((s) => isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, dateObj))
+		.map((s) => ({
+			supplement: s,
+			taken: logMap.has(s.id),
+			takenAt: logMap.get(s.id)?.takenAt ?? null
+		}));
+
+	return { checklist, date };
 };
 
 export const getLogsForDate = async (userId: string, date: string) => {
