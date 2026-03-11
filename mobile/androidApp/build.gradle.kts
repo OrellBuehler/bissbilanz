@@ -30,10 +30,12 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        buildConfigField("String", "SENTRY_DSN", "\"${System.getenv("SENTRY_DSN") ?: ""}\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -66,6 +68,8 @@ android {
         implementation(libs.camerax.view)
         implementation(libs.mlkit.barcode)
         implementation(libs.health.connect)
+        implementation(libs.sentry.android)
+        implementation(libs.coil.compose)
         implementation("com.google.guava:guava:33.3.1-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)

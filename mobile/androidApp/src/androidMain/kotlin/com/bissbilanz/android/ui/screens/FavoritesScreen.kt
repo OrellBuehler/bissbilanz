@@ -5,16 +5,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -23,10 +27,13 @@ import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import org.koin.core.qualifier.named
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val viewModel: FavoritesViewModel = koinViewModel()
+    val baseUrl: String = koinInject(named("baseUrl"))
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -135,6 +142,7 @@ fun FavoritesScreen(navController: NavController) {
                                 name = food.name,
                                 subtitle = "${food.calories.toInt()} cal",
                                 secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
+                                imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
                                 onClick = { navController.navigate("food/${food.id}") },
                                 onQuickLog = {
                                     handleQuickLog(
@@ -162,6 +170,7 @@ fun FavoritesScreen(navController: NavController) {
                                 name = recipe.name,
                                 subtitle = "${recipe.totalServings.toInt()} servings",
                                 secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
+                                imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
                                 onClick = { navController.navigate("recipe/${recipe.id}") },
                                 onQuickLog = {
                                     handleQuickLog(
@@ -209,38 +218,53 @@ fun FavoriteCard(
     name: String,
     subtitle: String,
     secondaryText: String,
+    imageUrl: String? = null,
     onClick: () -> Unit,
     onQuickLog: () -> Unit,
 ) {
     Card(modifier = Modifier.clickable(onClick = onClick)) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = CaloriesBlue,
-            )
-            Text(
-                secondaryText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            FilledTonalButton(
-                onClick = onQuickLog,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Icon(Icons.Default.Add, "Log", modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Quick log", style = MaterialTheme.typography.labelSmall)
+        Column {
+            imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = name,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CaloriesBlue,
+                )
+                Text(
+                    secondaryText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FilledTonalButton(
+                    onClick = onQuickLog,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                ) {
+                    Icon(Icons.Default.Add, "Log", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Quick log", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }

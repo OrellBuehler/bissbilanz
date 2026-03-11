@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.model.*
+import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -14,6 +15,7 @@ import kotlinx.datetime.*
 
 class InsightsViewModel(
     private val statsRepo: StatsRepository,
+    private val goalsRepo: GoalsRepository,
 ) : ViewModel() {
     private val _weeklyStats = MutableStateFlow<MacroTotals?>(null)
     val weeklyStats: StateFlow<MacroTotals?> = _weeklyStats.asStateFlow()
@@ -29,6 +31,12 @@ class InsightsViewModel(
 
     private val _dailyStats = MutableStateFlow<List<DailyStatsEntry>>(emptyList())
     val dailyStats: StateFlow<List<DailyStatsEntry>> = _dailyStats.asStateFlow()
+
+    private val _mealBreakdown = MutableStateFlow<List<MealBreakdownEntry>>(emptyList())
+    val mealBreakdown: StateFlow<List<MealBreakdownEntry>> = _mealBreakdown.asStateFlow()
+
+    private val _goals = MutableStateFlow<Goals?>(null)
+    val goals: StateFlow<Goals?> = _goals.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -95,12 +103,31 @@ class InsightsViewModel(
                                 emptyList()
                             }
                         }
+                    val mealBreakdownDeferred =
+                        async {
+                            try {
+                                statsRepo.getMealBreakdown(today.toString()).data
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                        }
+                    val goalsDeferred =
+                        async {
+                            try {
+                                goalsRepo.loadGoals()
+                                goalsRepo.goals.value
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
 
                     _weeklyStats.value = weeklyDeferred.await()
                     _monthlyStats.value = monthlyDeferred.await()
                     _streaks.value = streaksDeferred.await()
                     _topFoods.value = topFoodsDeferred.await()
                     _dailyStats.value = dailyStatsDeferred.await()
+                    _mealBreakdown.value = mealBreakdownDeferred.await()
+                    _goals.value = goalsDeferred.await()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

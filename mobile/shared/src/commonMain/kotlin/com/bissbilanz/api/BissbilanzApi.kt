@@ -294,6 +294,20 @@ class BissbilanzApi(
         supplement: SupplementCreate,
     ): Supplement = authenticatedPut("/api/supplements/$id", supplement)
 
+    suspend fun getSupplementHistory(
+        from: String,
+        to: String,
+    ): SupplementHistoryResponse =
+        authenticatedGet("/api/supplements/history") {
+            parameter("from", from)
+            parameter("to", to)
+        }
+
+    suspend fun getAllSupplements(): SupplementsResponse =
+        authenticatedGet("/api/supplements") {
+            parameter("all", true)
+        }
+
     // Supplement checklist for a date
     suspend fun getSupplementChecklist(date: String): List<SupplementLog> = authenticatedGet("/api/supplements/$date/checklist")
 }

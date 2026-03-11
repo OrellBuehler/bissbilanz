@@ -28,7 +28,6 @@ class BissbilanzApplication : Application() {
                 options.isAttachViewHierarchy = true
                 options.tracesSampleRate = 0.2
                 options.environment = if (BuildConfig.DEBUG) "development" else "production"
-                options.release = "com.bissbilanz.android@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
             }
         }
 

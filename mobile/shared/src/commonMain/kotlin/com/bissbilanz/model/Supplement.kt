@@ -77,3 +77,30 @@ data class SupplementLog(
     val takenAt: String,
     val createdAt: String? = null,
 )
+
+@Serializable
+data class SupplementHistoryEntry(
+    val log: SupplementHistoryLog,
+    val supplementName: String,
+    val dosage: Double,
+    val dosageUnit: String,
+)
+
+@Serializable
+data class SupplementHistoryLog(
+    val id: String,
+    val supplementId: String,
+    val userId: String,
+    val date: String,
+    val takenAt: String,
+)
+
+@Serializable
+data class SupplementHistoryResponse(
+    val history: List<SupplementHistoryEntry>,
+)
+
+@Serializable
+data class SupplementsResponse(
+    val supplements: List<Supplement>,
+)

@@ -36,8 +36,7 @@ class SupplementRepository(
         _supplements.value = _supplements.value.filter { it.id != id }
     }
 
-    suspend fun getChecklist(date: String): List<SupplementLog> =
-        api.getSupplementChecklist(date)
+    suspend fun getChecklist(date: String): List<SupplementLog> = api.getSupplementChecklist(date)
 
     suspend fun logSupplement(
         supplementId: String,
@@ -48,4 +47,11 @@ class SupplementRepository(
         supplementId: String,
         date: String,
     ) = api.unlogSupplement(supplementId, date)
+
+    suspend fun getHistory(
+        from: String,
+        to: String,
+    ): List<SupplementHistoryEntry> = api.getSupplementHistory(from, to).history
+
+    suspend fun getAllSupplements(): List<Supplement> = api.getAllSupplements().supplements
 }

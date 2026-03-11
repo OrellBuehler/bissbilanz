@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -11,20 +12,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import org.koin.core.qualifier.named
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
+    val baseUrl: String = koinInject(named("baseUrl"))
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -105,6 +112,7 @@ fun FoodSearchScreen(navController: NavController) {
                         items(searchResults) { food ->
                             FoodListItem(
                                 food = food,
+                                baseUrl = baseUrl,
                                 onClick = { navController.navigate("food/${food.id}") },
                                 onQuickLog = { foodToLog = food },
                             )
@@ -129,6 +137,7 @@ fun FoodSearchScreen(navController: NavController) {
                         items(displayFoods) { food ->
                             FoodListItem(
                                 food = food,
+                                baseUrl = baseUrl,
                                 onClick = { navController.navigate("food/${food.id}") },
                                 onQuickLog = { foodToLog = food },
                             )
@@ -143,11 +152,27 @@ fun FoodSearchScreen(navController: NavController) {
 @Composable
 fun FoodListItem(
     food: Food,
+    baseUrl: String = "",
     onClick: () -> Unit,
     onQuickLog: (() -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = { Text(food.name) },
+        leadingContent =
+            food.imageUrl?.let { url ->
+                {
+                    val imageUrl = if (url.startsWith("/")) "$baseUrl$url" else url
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = food.name,
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            },
         supportingContent = {
             Text(
                 "${food.calories.toInt()} cal  ·  P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",

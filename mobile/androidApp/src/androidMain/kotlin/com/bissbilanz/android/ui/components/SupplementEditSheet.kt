@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,13 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import android.util.Log
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private data class SupplementSupplementIngredientRow(
+private data class SupplementIngredientRow(
     val name: String = "",
     val dosage: String = "",
     val dosageUnit: String = "mg",
@@ -57,9 +57,10 @@ fun SupplementEditSheet(
                 val found = supplements.find { it.id == supplementId }
                 if (found != null) {
                     name = found.name
-                    dosage = found.dosage.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
+                    dosage =
+                        found.dosage.let {
+                            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                        }
                     dosageUnit = found.dosageUnit
                     scheduleType = found.scheduleType
                     timeOfDay = found.timeOfDay ?: "morning"
@@ -67,9 +68,10 @@ fun SupplementEditSheet(
                     ingredients = found.ingredients?.map { ing ->
                         SupplementIngredientRow(
                             name = ing.name,
-                            dosage = ing.dosage.let {
-                                if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                            },
+                            dosage =
+                                ing.dosage.let {
+                                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                                },
                             dosageUnit = ing.dosageUnit,
                         )
                     } ?: emptyList()
@@ -98,10 +100,11 @@ fun SupplementEditSheet(
             }
         } else {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -178,16 +181,18 @@ fun SupplementEditSheet(
                 )
                 Text("Frequency", style = MaterialTheme.typography.labelLarge)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val displayOptions = listOf(
-                        "Daily" to ScheduleType.DAILY,
-                        "Every 2d" to ScheduleType.EVERY_OTHER_DAY,
-                    )
+                    val displayOptions =
+                        listOf(
+                            "Daily" to ScheduleType.DAILY,
+                            "Every 2d" to ScheduleType.EVERY_OTHER_DAY,
+                        )
                     displayOptions.forEachIndexed { index, (label, type) ->
                         SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index,
-                                displayOptions.size,
-                            ),
+                            shape =
+                                SegmentedButtonDefaults.itemShape(
+                                    index,
+                                    displayOptions.size,
+                                ),
                             onClick = { scheduleType = type },
                             selected = scheduleType == type,
                         ) {
@@ -200,10 +205,11 @@ fun SupplementEditSheet(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     timeOptions.forEachIndexed { index, option ->
                         SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index,
-                                timeOptions.size,
-                            ),
+                            shape =
+                                SegmentedButtonDefaults.itemShape(
+                                    index,
+                                    timeOptions.size,
+                                ),
                             onClick = { timeOfDay = option },
                             selected = timeOfDay == option,
                         ) {
@@ -237,9 +243,10 @@ fun SupplementEditSheet(
                 ingredients.forEachIndexed { index, ingredient ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Row(
@@ -253,9 +260,10 @@ fun SupplementEditSheet(
                                 )
                                 IconButton(
                                     onClick = {
-                                        ingredients = ingredients.toMutableList().apply {
-                                            removeAt(index)
-                                        }
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                removeAt(index)
+                                            }
                                     },
                                     modifier = Modifier.size(32.dp),
                                 ) {
@@ -269,9 +277,10 @@ fun SupplementEditSheet(
                             OutlinedTextField(
                                 value = ingredient.name,
                                 onValueChange = { newName ->
-                                    ingredients = ingredients.toMutableList().apply {
-                                        set(index, ingredient.copy(name = newName))
-                                    }
+                                    ingredients =
+                                        ingredients.toMutableList().apply {
+                                            set(index, ingredient.copy(name = newName))
+                                        }
                                 },
                                 label = { Text("Name") },
                                 modifier = Modifier.fillMaxWidth(),
@@ -281,23 +290,26 @@ fun SupplementEditSheet(
                                 OutlinedTextField(
                                     value = ingredient.dosage,
                                     onValueChange = { newDosage ->
-                                        ingredients = ingredients.toMutableList().apply {
-                                            set(index, ingredient.copy(dosage = newDosage))
-                                        }
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                set(index, ingredient.copy(dosage = newDosage))
+                                            }
                                     },
                                     label = { Text("Dosage") },
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Decimal,
-                                    ),
+                                    keyboardOptions =
+                                        KeyboardOptions(
+                                            keyboardType = KeyboardType.Decimal,
+                                        ),
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                 )
                                 OutlinedTextField(
                                     value = ingredient.dosageUnit,
                                     onValueChange = { newUnit ->
-                                        ingredients = ingredients.toMutableList().apply {
-                                            set(index, ingredient.copy(dosageUnit = newUnit))
-                                        }
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                set(index, ingredient.copy(dosageUnit = newUnit))
+                                            }
                                     },
                                     label = { Text("Unit") },
                                     modifier = Modifier.weight(0.6f),
@@ -334,24 +346,26 @@ fun SupplementEditSheet(
                             isSaving = true
                             scope.launch {
                                 try {
-                                    val create = SupplementCreate(
-                                        name = name.trim(),
-                                        dosage = dosage.toDoubleOrNull() ?: 0.0,
-                                        dosageUnit = dosageUnit,
-                                        scheduleType = scheduleType,
-                                        timeOfDay = timeOfDay,
-                                        isActive = isActive,
-                                        ingredients = ingredients
-                                            .filter { it.name.isNotBlank() }
-                                            .mapIndexed { idx, ing ->
-                                                SupplementIngredientInput(
-                                                    name = ing.name.trim(),
-                                                    dosage = ing.dosage.toDoubleOrNull() ?: 0.0,
-                                                    dosageUnit = ing.dosageUnit,
-                                                    sortOrder = idx,
-                                                )
-                                            },
-                                    )
+                                    val create =
+                                        SupplementCreate(
+                                            name = name.trim(),
+                                            dosage = dosage.toDoubleOrNull() ?: 0.0,
+                                            dosageUnit = dosageUnit,
+                                            scheduleType = scheduleType,
+                                            timeOfDay = timeOfDay,
+                                            isActive = isActive,
+                                            ingredients =
+                                                ingredients
+                                                    .filter { it.name.isNotBlank() }
+                                                    .mapIndexed { idx, ing ->
+                                                        SupplementIngredientInput(
+                                                            name = ing.name.trim(),
+                                                            dosage = ing.dosage.toDoubleOrNull() ?: 0.0,
+                                                            dosageUnit = ing.dosageUnit,
+                                                            sortOrder = idx,
+                                                        )
+                                                    },
+                                        )
                                     if (isEditing) {
                                         val id = supplementId ?: return@launch
                                         supplementRepo.updateSupplement(id, create)

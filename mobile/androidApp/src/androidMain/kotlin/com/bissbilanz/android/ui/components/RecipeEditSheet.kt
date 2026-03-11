@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import android.util.Log
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private data class RecipeRecipeIngredientRow(
+private data class RecipeIngredientRow(
     val food: Food? = null,
     val foodId: String = "",
     val quantity: String = "100",
@@ -63,17 +63,19 @@ fun RecipeEditSheet(
             try {
                 val recipe = recipeRepo.getRecipe(recipeId)
                 name = recipe.name
-                totalServings = recipe.totalServings.let {
-                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                }
+                totalServings =
+                    recipe.totalServings.let {
+                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                    }
                 isFavorite = recipe.isFavorite
                 ingredients = recipe.ingredients?.map { ing ->
                     RecipeIngredientRow(
                         food = ing.food,
                         foodId = ing.foodId,
-                        quantity = ing.quantity.let {
-                            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                        },
+                        quantity =
+                            ing.quantity.let {
+                                if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+                            },
                         unit = ing.servingUnit,
                     )
                 } ?: emptyList()
@@ -98,16 +100,17 @@ fun RecipeEditSheet(
                             searchJob?.cancel()
                             if (query.length >= 2) {
                                 isSearching = true
-                                searchJob = scope.launch {
-                                    delay(300)
-                                    try {
-                                        foodSearchResults = foodRepo.searchFoods(query)
-                                    } catch (e: Exception) {
-                                        Log.e("RecipeEditSheet", "Food search failed", e)
-                                        foodSearchResults = emptyList()
+                                searchJob =
+                                    scope.launch {
+                                        delay(300)
+                                        try {
+                                            foodSearchResults = foodRepo.searchFoods(query)
+                                        } catch (e: Exception) {
+                                            Log.e("RecipeEditSheet", "Food search failed", e)
+                                            foodSearchResults = emptyList()
+                                        }
+                                        isSearching = false
                                     }
-                                    isSearching = false
-                                }
                             }
                         },
                         label = { Text("Search food") },
@@ -124,18 +127,20 @@ fun RecipeEditSheet(
                         foodSearchResults.take(5).forEach { food ->
                             TextButton(
                                 onClick = {
-                                    ingredients = ingredients + RecipeIngredientRow(
-                                        food = food,
-                                        foodId = food.id,
-                                        quantity = food.servingSize.let {
-                                            if (it == it.toLong().toDouble()) {
-                                                it.toLong().toString()
-                                            } else {
-                                                it.toString()
-                                            }
-                                        },
-                                        unit = food.servingUnit,
-                                    )
+                                    ingredients = ingredients +
+                                        RecipeIngredientRow(
+                                            food = food,
+                                            foodId = food.id,
+                                            quantity =
+                                                food.servingSize.let {
+                                                    if (it == it.toLong().toDouble()) {
+                                                        it.toLong().toString()
+                                                    } else {
+                                                        it.toString()
+                                                    }
+                                                },
+                                            unit = food.servingUnit,
+                                        )
                                     showFoodPicker = false
                                     foodSearchQuery = ""
                                     foodSearchResults = emptyList()
@@ -170,10 +175,11 @@ fun RecipeEditSheet(
             }
         } else {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -241,9 +247,10 @@ fun RecipeEditSheet(
                                 )
                                 IconButton(
                                     onClick = {
-                                        ingredients = ingredients.toMutableList().apply {
-                                            removeAt(index)
-                                        }
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                removeAt(index)
+                                            }
                                     },
                                 ) {
                                     Icon(
@@ -257,14 +264,16 @@ fun RecipeEditSheet(
                                 OutlinedTextField(
                                     value = ingredient.quantity,
                                     onValueChange = { newQty ->
-                                        ingredients = ingredients.toMutableList().apply {
-                                            set(index, ingredient.copy(quantity = newQty))
-                                        }
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                set(index, ingredient.copy(quantity = newQty))
+                                            }
                                     },
                                     label = { Text("Amount") },
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Decimal,
-                                    ),
+                                    keyboardOptions =
+                                        KeyboardOptions(
+                                            keyboardType = KeyboardType.Decimal,
+                                        ),
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                 )
@@ -313,21 +322,23 @@ fun RecipeEditSheet(
                             isSaving = true
                             scope.launch {
                                 try {
-                                    val ingredientInputs = ingredients.map { ing ->
-                                        RecipeIngredientInput(
-                                            foodId = ing.foodId,
-                                            quantity = ing.quantity.toDoubleOrNull() ?: 100.0,
-                                            servingUnit = ing.unit,
-                                        )
-                                    }
+                                    val ingredientInputs =
+                                        ingredients.map { ing ->
+                                            RecipeIngredientInput(
+                                                foodId = ing.foodId,
+                                                quantity = ing.quantity.toDoubleOrNull() ?: 100.0,
+                                                servingUnit = ing.unit,
+                                            )
+                                        }
                                     if (isEditing) {
                                         val id = recipeId ?: return@launch
                                         recipeRepo.updateRecipe(
                                             id,
                                             RecipeUpdate(
                                                 name = nameVal,
-                                                totalServings = totalServings.toDoubleOrNull()
-                                                    ?: 1.0,
+                                                totalServings =
+                                                    totalServings.toDoubleOrNull()
+                                                        ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
                                             ),
@@ -336,8 +347,9 @@ fun RecipeEditSheet(
                                         recipeRepo.createRecipe(
                                             RecipeCreate(
                                                 name = nameVal,
-                                                totalServings = totalServings.toDoubleOrNull()
-                                                    ?: 1.0,
+                                                totalServings =
+                                                    totalServings.toDoubleOrNull()
+                                                        ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
                                             ),

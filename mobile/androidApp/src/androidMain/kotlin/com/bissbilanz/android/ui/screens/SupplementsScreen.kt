@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -57,6 +58,11 @@ fun SupplementsScreen(navController: NavController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { navController.navigate("supplement-history") }) {
+                        Icon(Icons.Default.DateRange, "History")
                     }
                 },
             )
@@ -231,7 +237,13 @@ fun SupplementChecklistItem(
                 Row {
                     onEdit?.let {
                         IconButton(onClick = it) {
-                            Icon(Icons.Default.Edit, "Edit", modifier = androidx.compose.ui.Modifier.size(20.dp))
+                            Icon(
+                                Icons.Default.Edit,
+                                "Edit",
+                                modifier =
+                                    androidx.compose.ui.Modifier
+                                        .size(20.dp),
+                            )
                         }
                     }
                     if (isTaken) {
@@ -239,7 +251,9 @@ fun SupplementChecklistItem(
                             Icons.Default.Check,
                             "Taken",
                             tint = FiberGreen,
-                            modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.CenterVertically),
+                            modifier =
+                                androidx.compose.ui.Modifier
+                                    .align(androidx.compose.ui.Alignment.CenterVertically),
                         )
                     }
                 }
