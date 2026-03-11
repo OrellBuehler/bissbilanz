@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
-import { getSessionWithUser, getUserById } from '$lib/server/session';
+import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/server/session';
 import { validateAccessToken } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
@@ -22,6 +22,8 @@ if (env.PUBLIC_SENTRY_DSN) {
 // Run migrations on server startup
 export async function init() {
 	await runMigrations();
+	cleanExpiredSessions().catch(() => {});
+	setInterval(() => cleanExpiredSessions().catch(() => {}), 3600000);
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>
