@@ -3,7 +3,7 @@
 	import { beforeNavigate } from '$app/navigation';
 	import { getNavItems } from '$lib/config/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
+
 	import X from '@lucide/svelte/icons/x';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -69,11 +69,11 @@
 					>
 						{#snippet child({ props })}
 							<a href="/" {...withMobileCloseClick(props)}>
-								<span
-									class="flex size-10 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-primary md:size-8 md:rounded-lg"
-								>
-									<UtensilsCrossed class="size-5 md:size-4.5" />
-								</span>
+								<img
+									src="/icon.svg"
+									alt="Bissbilanz"
+									class="size-10 rounded-xl md:size-8 md:rounded-lg"
+								/>
 								<span class="grid min-w-0 text-left leading-tight">
 									<span class="truncate text-[0.95rem] font-semibold md:text-base">
 										{m.app_title()}
