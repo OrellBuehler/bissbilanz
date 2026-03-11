@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 };
 
-export const PUT: RequestHandler = async ({ locals, params, request }) => {
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
