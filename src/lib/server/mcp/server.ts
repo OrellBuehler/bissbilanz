@@ -44,6 +44,11 @@ import {
 import { today } from '$lib/utils/dates';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 
+const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
+const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
+const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
+const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
+
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
 
@@ -80,7 +85,8 @@ export function createMcpServer(userId: string): McpServer {
 				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed and daily goals.",
 			inputSchema: {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ date }) => handleGetDailyStatus(userId, date))
 	);
@@ -92,7 +98,8 @@ export function createMcpServer(userId: string): McpServer {
 				"Search the user's food database by name. Returns matching foods with nutritional information.",
 			inputSchema: {
 				query: z.string().describe('Search query to match against food names')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ query }) => handleSearchFoods(userId, query))
 	);
@@ -154,7 +161,8 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleCreateFood(userId, args))
 	);
@@ -182,7 +190,8 @@ export function createMcpServer(userId: string): McpServer {
 					.nullable()
 					.optional()
 					.describe('Image URL or relative path (null to clear)')
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleCreateRecipe(userId, args))
 	);
@@ -223,7 +232,8 @@ export function createMcpServer(userId: string): McpServer {
 					.describe(
 						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.'
 					)
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
 	);
@@ -233,7 +243,8 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description:
 				"Get today's supplement checklist showing which supplements are due and whether they've been taken.",
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleGetSupplementStatus(userId))
 	);
@@ -247,7 +258,8 @@ export function createMcpServer(userId: string): McpServer {
 				name: z.string().optional().describe('Supplement name to search for (fuzzy match)'),
 				supplementId: z.string().optional().describe('Exact supplement ID'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleLogSupplement(userId, args))
 	);
@@ -259,7 +271,8 @@ export function createMcpServer(userId: string): McpServer {
 				'List all food entries for a given date with food names, meal types, servings, and macros.',
 			inputSchema: {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ date }) => handleListEntries(userId, date))
 	);
@@ -311,7 +324,8 @@ export function createMcpServer(userId: string): McpServer {
 					.describe(
 						'When the food was eaten, as ISO 8601 datetime with timezone. Set to null to clear.'
 					)
-			}
+			},
+			annotations: UPDATE
 		},
 		safe((args) => handleUpdateEntry(userId, args))
 	);
@@ -322,7 +336,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Delete a food entry from the diary.',
 			inputSchema: {
 				entryId: z.string().describe('ID of the entry to delete')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe(({ entryId }) => handleDeleteEntry(userId, entryId))
 	);
@@ -332,7 +347,8 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description:
 				"Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber.",
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleGetGoals(userId))
 	);
@@ -354,7 +370,8 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.describe('Daily sodium goal in mg'),
 				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
-			}
+			},
+			annotations: UPDATE
 		},
 		safe((args) => handleUpdateGoals(userId, args))
 	);
@@ -363,7 +380,8 @@ export function createMcpServer(userId: string): McpServer {
 		'list_recipes',
 		{
 			description: "List all recipes in the user's database with total macros per serving.",
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleListRecipes(userId))
 	);
@@ -374,7 +392,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Get a recipe with its full ingredient list and macros.',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ recipeId }) => handleGetRecipe(userId, recipeId))
 	);
@@ -385,7 +404,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Get full nutritional details for a specific food by ID.',
 			inputSchema: {
 				foodId: z.string().describe('ID of the food')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ foodId }) => handleGetFood(userId, foodId))
 	);
@@ -394,7 +414,8 @@ export function createMcpServer(userId: string): McpServer {
 		'list_favorites',
 		{
 			description: "List the user's favorite foods and recipes, sorted by most frequently logged.",
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleListFavorites(userId))
 	);
@@ -407,7 +428,8 @@ export function createMcpServer(userId: string): McpServer {
 				weightKg: z.number().describe('Weight in kilograms'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
 				notes: z.string().optional().describe('Optional notes')
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleLogWeight(userId, args))
 	);
@@ -419,7 +441,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				from: z.string().optional().describe('Start date in YYYY-MM-DD format (for trend)'),
 				to: z.string().optional().describe('End date in YYYY-MM-DD format (for trend)')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleGetWeight(userId, args))
 	);
@@ -428,7 +451,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_weekly_stats',
 		{
 			description: 'Get average daily nutrition over the past 7 days.',
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleGetWeeklyStats(userId))
 	);
@@ -437,7 +461,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_monthly_stats',
 		{
 			description: 'Get average daily nutrition over the past 30 days.',
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleGetMonthlyStats(userId))
 	);
@@ -453,7 +478,8 @@ export function createMcpServer(userId: string): McpServer {
 					.string()
 					.optional()
 					.describe('Target date in YYYY-MM-DD format. Defaults to today.')
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleCopyEntries(userId, args))
 	);
@@ -464,7 +490,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: "Look up a food in the user's database by barcode number.",
 			inputSchema: {
 				barcode: z.string().describe('Barcode number to search for')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe(({ barcode }) => handleFindFoodByBarcode(userId, barcode))
 	);
@@ -516,7 +543,8 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.describe('Image URL or relative path (null to clear)'),
 				...nutrientInputSchema
-			}
+			},
+			annotations: UPDATE
 		},
 		safe(({ foodId, ...rest }) => handleUpdateFood(userId, { foodId, ...rest }))
 	);
@@ -529,7 +557,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				foodId: z.string().describe('The food ID to delete'),
 				force: z.boolean().optional().describe('Force delete even if food has diary entries')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteFood(userId, args))
 	);
@@ -540,7 +569,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'List recently logged foods, ordered by most recent.',
 			inputSchema: {
 				limit: z.number().optional().describe('Max number of foods to return. Defaults to 25.')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleListRecentFoods(userId, args))
 	);
@@ -570,7 +600,8 @@ export function createMcpServer(userId: string): McpServer {
 					.nullable()
 					.optional()
 					.describe('Image URL or relative path (null to clear)')
-			}
+			},
+			annotations: UPDATE
 		},
 		safe(({ recipeId, ...rest }) => handleUpdateRecipe(userId, { recipeId, ...rest }))
 	);
@@ -583,7 +614,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				recipeId: z.string().describe('The recipe ID to delete'),
 				force: z.boolean().optional().describe('Force delete even if recipe has diary entries')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteRecipe(userId, args))
 	);
@@ -622,7 +654,8 @@ export function createMcpServer(userId: string): McpServer {
 					.boolean()
 					.optional()
 					.describe('Whether the supplement is active. Defaults to true.')
-			}
+			},
+			annotations: WRITE
 		},
 		safe((args) => handleCreateSupplement(userId, args))
 	);
@@ -636,7 +669,8 @@ export function createMcpServer(userId: string): McpServer {
 					.boolean()
 					.optional()
 					.describe('Only show active supplements. Defaults to true.')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleListSupplements(userId, args))
 	);
@@ -673,7 +707,8 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.nullable()
 					.describe('New ingredients (replaces all; null to clear)')
-			}
+			},
+			annotations: UPDATE
 		},
 		safe(({ supplementId, ...rest }) => handleUpdateSupplement(userId, { supplementId, ...rest }))
 	);
@@ -684,7 +719,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Delete a supplement.',
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to delete')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteSupplement(userId, args))
 	);
@@ -696,7 +732,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to unlog'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleUnlogSupplement(userId, args))
 	);
@@ -710,7 +747,8 @@ export function createMcpServer(userId: string): McpServer {
 				weightKg: z.number().optional().describe('New weight in kilograms'),
 				entryDate: z.string().optional().describe('New date in YYYY-MM-DD format'),
 				notes: z.string().optional().nullable().describe('New notes')
-			}
+			},
+			annotations: UPDATE
 		},
 		safe(({ weightId, ...rest }) => handleUpdateWeight(userId, { weightId, ...rest }))
 	);
@@ -721,7 +759,8 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Delete a weight entry.',
 			inputSchema: {
 				weightId: z.string().describe('The weight entry ID to delete')
-			}
+			},
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteWeight(userId, args))
 	);
@@ -733,7 +772,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
 				endDate: z.string().describe('End date in YYYY-MM-DD format')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleGetDailyBreakdown(userId, args))
 	);
@@ -745,7 +785,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
 				endDate: z.string().describe('End date in YYYY-MM-DD format')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleGetMealBreakdown(userId, args))
 	);
@@ -757,7 +798,8 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				days: z.number().optional().describe('Number of days to look back. Defaults to 7.'),
 				limit: z.number().optional().describe('Max number of foods to return. Defaults to 10.')
-			}
+			},
+			annotations: READ_ONLY
 		},
 		safe((args) => handleGetTopFoods(userId, args))
 	);
@@ -766,7 +808,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_streaks',
 		{
 			description: 'Get current and longest logging streaks (consecutive days with entries).',
-			inputSchema: {}
+			inputSchema: {},
+			annotations: READ_ONLY
 		},
 		safe(() => handleGetStreaks(userId))
 	);
