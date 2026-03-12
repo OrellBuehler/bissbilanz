@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { sweepExpiredSessions, type SessionEntry } from '../../src/routes/api/mcp/+server';
+import { sweepExpiredSessions, type SessionEntry } from '../../src/lib/server/mcp/sweep';
 
 describe('MCP session cleanup', () => {
 	it('removes sessions older than TTL', () => {

@@ -5,17 +5,12 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { config } from '$lib/server/env';
 import { validateAccessToken } from '$lib/server/oauth';
 import { createMcpServer } from '$lib/server/mcp/server';
+import { sweepExpiredSessions } from '$lib/server/mcp/sweep';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const REQUIRED_SCOPE = 'mcp:access';
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
-
-export type SessionEntry = {
-	transport: { close(): void };
-	userId: string;
-	lastActivity: number;
-};
 
 type SessionState = {
 	transport: WebStandardStreamableHTTPServerTransport;
@@ -24,20 +19,6 @@ type SessionState = {
 };
 
 const sessionTransports = new Map<string, SessionState>();
-
-export function sweepExpiredSessions(sessions: Map<string, SessionEntry>, ttlMs: number): void {
-	const now = Date.now();
-	for (const [id, session] of sessions) {
-		if (now - session.lastActivity > ttlMs) {
-			try {
-				session.transport.close();
-			} catch {
-				// ignore close errors
-			}
-			sessions.delete(id);
-		}
-	}
-}
 
 setInterval(() => sweepExpiredSessions(sessionTransports, SESSION_TTL_MS), CLEANUP_INTERVAL_MS);
 
