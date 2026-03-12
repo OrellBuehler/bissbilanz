@@ -65,3 +65,38 @@ struct SupplementLogResponse: Codable {
 struct SupplementChecklistResponse: Codable {
     let checklist: [SupplementChecklist]
 }
+
+struct SupplementCreate: Codable {
+    let name: String
+    let dosage: Double
+    let dosageUnit: String
+    let scheduleType: ScheduleType
+    var scheduleDays: [Int]?
+    var scheduleStartDate: String?
+    var isActive: Bool?
+    var sortOrder: Int?
+    var timeOfDay: String?
+    var ingredients: [SupplementIngredientInput]?
+}
+
+struct SupplementUpdate: Codable {
+    var name: String?
+    var dosage: Double?
+    var dosageUnit: String?
+    var scheduleType: ScheduleType?
+    var scheduleDays: [Int]?
+    var scheduleStartDate: String?
+    var isActive: Bool?
+    var sortOrder: Int?
+    var timeOfDay: String?
+    var ingredients: [SupplementIngredientInput]?
+}
+
+struct SupplementIngredientInput: Codable {
+    let name: String
+    let dosage: Double
+    let dosageUnit: String
+    var sortOrder: Int?
+}
+
+

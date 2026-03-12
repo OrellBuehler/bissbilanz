@@ -167,8 +167,56 @@ struct FoodCreate: Codable {
     let carbs: Double
     let fat: Double
     let fiber: Double
+    var saturatedFat: Double?
+    var monounsaturatedFat: Double?
+    var polyunsaturatedFat: Double?
+    var transFat: Double?
+    var cholesterol: Double?
+    var omega3: Double?
+    var omega6: Double?
+    var sugar: Double?
+    var addedSugars: Double?
+    var sugarAlcohols: Double?
+    var starch: Double?
+    var sodium: Double?
+    var potassium: Double?
+    var calcium: Double?
+    var iron: Double?
+    var magnesium: Double?
+    var phosphorus: Double?
+    var zinc: Double?
+    var copper: Double?
+    var manganese: Double?
+    var selenium: Double?
+    var iodine: Double?
+    var fluoride: Double?
+    var chromium: Double?
+    var molybdenum: Double?
+    var chloride: Double?
+    var vitaminA: Double?
+    var vitaminC: Double?
+    var vitaminD: Double?
+    var vitaminE: Double?
+    var vitaminK: Double?
+    var vitaminB1: Double?
+    var vitaminB2: Double?
+    var vitaminB3: Double?
+    var vitaminB5: Double?
+    var vitaminB6: Double?
+    var vitaminB7: Double?
+    var vitaminB9: Double?
+    var vitaminB12: Double?
+    var caffeine: Double?
+    var alcohol: Double?
+    var water: Double?
+    var salt: Double?
     var barcode: String?
     var isFavorite: Bool?
+    var nutriScore: String?
+    var novaGroup: Int?
+    var additives: [String]?
+    var ingredientsText: String?
+    var imageUrl: String?
 }
 
 struct FoodsResponse: Codable {
@@ -181,4 +229,5 @@ struct FoodResponse: Codable {
 
 struct FavoritesResponse: Codable {
     let foods: [Food]
+    let recipes: [Recipe]?
 }

@@ -49,6 +49,14 @@ struct RecipeIngredientInput: Codable {
     let servingUnit: ServingUnit
 }
 
+struct RecipeUpdate: Codable {
+    var name: String?
+    var totalServings: Double?
+    var ingredients: [RecipeIngredientInput]?
+    var isFavorite: Bool?
+    var imageUrl: String?
+}
+
 struct RecipesResponse: Codable {
     let recipes: [Recipe]
 }

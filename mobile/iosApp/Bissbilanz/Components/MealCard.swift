@@ -9,10 +9,6 @@ struct MealCard: View {
         entries.reduce(0) { $0 + $1.totalCalories }
     }
 
-    private var mealProtein: Double {
-        entries.reduce(0) { $0 + $1.totalProtein }
-    }
-
     private var mealColor: Color {
         switch mealType.lowercased() {
         case "breakfast": return .orange

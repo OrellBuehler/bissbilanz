@@ -7,6 +7,9 @@ struct Preferences: Codable {
     let showWeightWidget: Bool
     let showMealBreakdownWidget: Bool
     let showTopFoodsWidget: Bool
+    let showSummaryWidget: Bool
+    let showDayLogWidget: Bool
+    let showStreakWidget: Bool
     let widgetOrder: [String]
     let startPage: String
     let favoriteTapAction: String
@@ -21,6 +24,9 @@ struct Preferences: Codable {
         showWeightWidget: true,
         showMealBreakdownWidget: true,
         showTopFoodsWidget: true,
+        showSummaryWidget: true,
+        showDayLogWidget: true,
+        showStreakWidget: true,
         widgetOrder: [],
         startPage: "dashboard",
         favoriteTapAction: "instant",
@@ -37,16 +43,22 @@ struct PreferencesUpdate: Codable {
     var showWeightWidget: Bool?
     var showMealBreakdownWidget: Bool?
     var showTopFoodsWidget: Bool?
+    var showSummaryWidget: Bool?
+    var showDayLogWidget: Bool?
+    var showStreakWidget: Bool?
     var widgetOrder: [String]?
     var startPage: String?
     var favoriteTapAction: String?
     var favoriteMealAssignmentMode: String?
     var visibleNutrients: [String]?
     var locale: String?
+    var favoriteMealTimeframes: [FavoriteMealTimeframe]?
 }
 
-struct PreferencesResponse: Codable {
-    let preferences: Preferences
+struct FavoriteMealTimeframe: Codable {
+    let mealType: String
+    let startTime: String
+    let endTime: String
 }
 
 struct MealType: Codable, Identifiable {

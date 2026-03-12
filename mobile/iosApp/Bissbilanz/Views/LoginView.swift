@@ -1,8 +1,9 @@
-import SwiftUI
 import AuthenticationServices
+import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) private var authManager
+    @State private var authSession: ASWebAuthenticationSession?
 
     var body: some View {
         VStack(spacing: 48) {
@@ -13,12 +14,12 @@ struct LoginView: View {
                     .font(.system(size: 72))
                     .foregroundStyle(MacroColors.calories)
 
-                Text("Bissbilanz")
+                Text(L10n.appName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundStyle(MacroColors.calories)
 
-                Text("Track your nutrition")
+                Text(L10n.trackNutrition)
                     .font(.body)
                     .foregroundStyle(.secondary)
             }
@@ -26,7 +27,7 @@ struct LoginView: View {
             Button {
                 signIn()
             } label: {
-                Label("Sign in", systemImage: "person.crop.circle")
+                Label(L10n.signIn, systemImage: "person.crop.circle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -51,11 +52,12 @@ struct LoginView: View {
         }
         session.prefersEphemeralWebBrowserSession = false
         session.presentationContextProvider = ASWebAuthenticationPresentationContextProvider.shared
+        authSession = session
         session.start()
     }
 }
 
-class ASWebAuthenticationPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class ASWebAuthenticationPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
     static let shared = ASWebAuthenticationPresentationContextProvider()
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {

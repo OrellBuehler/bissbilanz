@@ -1,14 +1,16 @@
-import SwiftUI
 import AVFoundation
+import SwiftUI
 
 struct BarcodeScannerView: View {
-    @EnvironmentObject var api: BissbilanzAPI
-    @Environment(\.dismiss) var dismiss
+    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.dismiss) private var dismiss
 
     @State private var scannedBarcode: String?
     @State private var foundFood: Food?
     @State private var isSearching = false
     @State private var notFound = false
+    @State private var notFoundBarcode: String?
+    @State private var showCreateFood = false
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
 
     var body: some View {
@@ -29,7 +31,7 @@ struct BarcodeScannerView: View {
                     Spacer()
                     HStack {
                         ProgressView()
-                        Text("Looking up barcode...")
+                        Text(L10n.lookingUp)
                             .foregroundStyle(.white)
                     }
                     .padding()
@@ -42,20 +44,32 @@ struct BarcodeScannerView: View {
             if notFound {
                 VStack {
                     Spacer()
-                    Text("No food found for this barcode")
-                        .foregroundStyle(.white)
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                        .padding(.bottom, 40)
+                    VStack(spacing: 12) {
+                        Text(L10n.notFound)
+                            .foregroundStyle(.white)
+
+                        Button {
+                            notFound = false
+                            showCreateFood = true
+                        } label: {
+                            Label(L10n.createFoodForBarcode, systemImage: "plus.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
                 }
             }
         }
-        .navigationTitle("Scan Barcode")
+        .navigationTitle(L10n.scanBarcode)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Close") { dismiss() }
+                Button(L10n.close) { dismiss() }
             }
         }
         .task {
@@ -68,6 +82,19 @@ struct BarcodeScannerView: View {
         .sheet(item: $foundFood) { food in
             NavigationStack {
                 FoodDetailView(foodId: food.id)
+            }
+        }
+        .onChange(of: foundFood) { _, newValue in
+            if newValue == nil { resetScanner() }
+        }
+        .sheet(isPresented: $showCreateFood) {
+            NavigationStack {
+                FoodEditSheet(barcode: notFoundBarcode) { food in
+                    foundFood = food
+                    showCreateFood = false
+                    scannedBarcode = nil
+                    notFoundBarcode = nil
+                }
             }
         }
     }
@@ -84,13 +111,13 @@ struct BarcodeScannerView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("Camera access required")
+            Text(L10n.cameraRequired)
                 .font(.headline)
-            Text("Enable camera access in Settings to scan barcodes.")
+            Text(L10n.enableCameraHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Open Settings") {
+            Button(L10n.openSettings) {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
@@ -111,19 +138,21 @@ struct BarcodeScannerView: View {
                 if let food = try await api.findFoodByBarcode(barcode) {
                     foundFood = food
                 } else {
+                    notFoundBarcode = barcode
                     notFound = true
-                    try? await Task.sleep(for: .seconds(2))
-                    notFound = false
-                    scannedBarcode = nil
                 }
             } catch {
+                notFoundBarcode = barcode
                 notFound = true
-                try? await Task.sleep(for: .seconds(2))
-                notFound = false
-                scannedBarcode = nil
             }
             isSearching = false
         }
+    }
+
+    private func resetScanner() {
+        scannedBarcode = nil
+        notFound = false
+        notFoundBarcode = nil
     }
 }
 
@@ -135,7 +164,8 @@ struct CameraPreviewView: UIViewRepresentable {
         let coordinator = context.coordinator
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let input = try? AVCaptureDeviceInput(device: device) else {
+              let input = try? AVCaptureDeviceInput(device: device)
+        else {
             return view
         }
 
@@ -162,7 +192,7 @@ struct CameraPreviewView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_: UIView, context _: Context) {}
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onBarcodeScanned: onBarcodeScanned)
@@ -176,14 +206,19 @@ struct CameraPreviewView: UIViewRepresentable {
             self.onBarcodeScanned = onBarcodeScanned
         }
 
-        func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        func metadataOutput(
+            _: AVCaptureMetadataOutput,
+            didOutput metadataObjects: [AVMetadataObject],
+            from _: AVCaptureConnection
+        ) {
             guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-                  let barcode = object.stringValue else { return }
+                  let barcode = object.stringValue
+            else { return }
             onBarcodeScanned(barcode)
         }
     }
 
-    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+    static func dismantleUIView(_: UIView, coordinator: Coordinator) {
         coordinator.session?.stopRunning()
     }
 }

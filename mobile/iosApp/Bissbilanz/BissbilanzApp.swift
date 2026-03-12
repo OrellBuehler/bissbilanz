@@ -2,13 +2,13 @@ import SwiftUI
 
 @main
 struct BissbilanzApp: App {
-    @StateObject private var authManager = AuthManager()
-    @StateObject private var api: BissbilanzAPI
+    @State private var authManager: AuthManager
+    @State private var api: BissbilanzAPI
 
     init() {
         let auth = AuthManager()
-        _authManager = StateObject(wrappedValue: auth)
-        _api = StateObject(wrappedValue: BissbilanzAPI(authManager: auth))
+        _authManager = State(wrappedValue: auth)
+        _api = State(wrappedValue: BissbilanzAPI(authManager: auth))
     }
 
     var body: some Scene {
@@ -20,8 +20,8 @@ struct BissbilanzApp: App {
                     LoginView()
                 }
             }
-            .environmentObject(authManager)
-            .environmentObject(api)
+            .environment(authManager)
+            .environment(api)
             .onOpenURL { url in
                 Task {
                     await authManager.handleCallback(url: url)

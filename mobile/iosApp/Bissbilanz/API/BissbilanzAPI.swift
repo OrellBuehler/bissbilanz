@@ -1,8 +1,10 @@
 import Foundation
+import Observation
 
 enum APIError: Error, LocalizedError {
     case unauthorized
     case notFound
+    case badRequest(String?)
     case serverError(Int, String?)
     case networkError(Error)
     case decodingError(Error)
@@ -11,6 +13,7 @@ enum APIError: Error, LocalizedError {
         switch self {
         case .unauthorized: return "Not authenticated"
         case .notFound: return "Not found"
+        case .badRequest(let msg): return msg ?? "Bad request"
         case .serverError(let code, let msg): return msg ?? "Server error (\(code))"
         case .networkError(let err): return err.localizedDescription
         case .decodingError(let err): return "Failed to parse response: \(err.localizedDescription)"
@@ -19,7 +22,8 @@ enum APIError: Error, LocalizedError {
 }
 
 @MainActor
-class BissbilanzAPI: ObservableObject {
+@Observable
+final class BissbilanzAPI {
     private let baseURL: String
     private let authManager: AuthManager
     private let session: URLSession
@@ -46,9 +50,8 @@ class BissbilanzAPI: ObservableObject {
         return response.foods
     }
 
-    func getFavorites() async throws -> [Food] {
-        let response: FavoritesResponse = try await get("/api/favorites")
-        return response.foods
+    func getFavorites() async throws -> FavoritesResponse {
+        try await get("/api/favorites")
     }
 
     func getFood(id: String) async throws -> Food {
@@ -61,13 +64,24 @@ class BissbilanzAPI: ObservableObject {
         return response.food
     }
 
+    func updateFood(id: String, _ food: FoodCreate) async throws -> Food {
+        let response: FoodResponse = try await patch("/api/foods/\(id)", body: food)
+        return response.food
+    }
+
     func deleteFood(id: String) async throws {
-        try await delete("/api/foods/\(id)")
+        try await deleteRequest("/api/foods/\(id)")
     }
 
     func findFoodByBarcode(_ barcode: String) async throws -> Food? {
         let response: FoodsResponse = try await get("/api/foods", params: ["barcode": barcode])
         return response.foods.first
+    }
+
+    func toggleFavorite(foodId: String, isFavorite: Bool) async throws -> Food {
+        let body = ["isFavorite": isFavorite]
+        let response: FoodResponse = try await patch("/api/foods/\(foodId)", body: body)
+        return response.food
     }
 
     // MARK: - Entries
@@ -83,12 +97,18 @@ class BissbilanzAPI: ObservableObject {
     }
 
     func updateEntry(id: String, _ update: EntryUpdate) async throws -> Entry {
-        let response: EntryResponse = try await put("/api/entries/\(id)", body: update)
+        let response: EntryResponse = try await patch("/api/entries/\(id)", body: update)
         return response.entry
     }
 
     func deleteEntry(id: String) async throws {
-        try await delete("/api/entries/\(id)")
+        try await deleteRequest("/api/entries/\(id)")
+    }
+
+    func copyEntries(fromDate: String, toDate: String) async throws -> [Entry] {
+        let body = ["fromDate": fromDate, "toDate": toDate]
+        let response: EntriesResponse = try await post("/api/entries/copy", body: body)
+        return response.entries
     }
 
     // MARK: - Recipes
@@ -103,8 +123,18 @@ class BissbilanzAPI: ObservableObject {
         return response.recipe
     }
 
+    func createRecipe(_ recipe: RecipeCreate) async throws -> Recipe {
+        let response: RecipeResponse = try await post("/api/recipes", body: recipe)
+        return response.recipe
+    }
+
+    func updateRecipe(id: String, _ update: RecipeUpdate) async throws -> Recipe {
+        let response: RecipeResponse = try await patch("/api/recipes/\(id)", body: update)
+        return response.recipe
+    }
+
     func deleteRecipe(id: String) async throws {
-        try await delete("/api/recipes/\(id)")
+        try await deleteRequest("/api/recipes/\(id)")
     }
 
     // MARK: - Goals
@@ -126,13 +156,23 @@ class BissbilanzAPI: ObservableObject {
         return response.entries
     }
 
+    func getLatestWeight() async throws -> WeightEntry? {
+        let response: WeightEntryResponse? = try? await get("/api/weight/latest")
+        return response?.entry
+    }
+
     func createWeightEntry(_ entry: WeightCreate) async throws -> WeightEntry {
         let response: WeightEntryResponse = try await post("/api/weight", body: entry)
         return response.entry
     }
 
+    func updateWeightEntry(id: String, _ update: WeightUpdate) async throws -> WeightEntry {
+        let response: WeightEntryResponse = try await patch("/api/weight/\(id)", body: update)
+        return response.entry
+    }
+
     func deleteWeightEntry(id: String) async throws {
-        try await delete("/api/weight/\(id)")
+        try await deleteRequest("/api/weight/\(id)")
     }
 
     // MARK: - Supplements
@@ -140,6 +180,20 @@ class BissbilanzAPI: ObservableObject {
     func getSupplements() async throws -> [Supplement] {
         let response: SupplementsResponse = try await get("/api/supplements")
         return response.supplements
+    }
+
+    func createSupplement(_ supplement: SupplementCreate) async throws -> Supplement {
+        let response: SupplementResponse = try await post("/api/supplements", body: supplement)
+        return response.supplement
+    }
+
+    func updateSupplement(id: String, _ update: SupplementUpdate) async throws -> Supplement {
+        let response: SupplementResponse = try await patch("/api/supplements/\(id)", body: update)
+        return response.supplement
+    }
+
+    func deleteSupplement(id: String) async throws {
+        try await deleteRequest("/api/supplements/\(id)")
     }
 
     func getSupplementChecklist(date: String) async throws -> [SupplementChecklist] {
@@ -153,7 +207,15 @@ class BissbilanzAPI: ObservableObject {
     }
 
     func unlogSupplement(id: String, date: String) async throws {
-        try await delete("/api/supplements/\(id)/log/\(date)")
+        try await deleteRequest("/api/supplements/\(id)/log/\(date)")
+    }
+
+    func getSupplementHistory(startDate: String, endDate: String) async throws -> [SupplementHistoryEntry] {
+        let response: SupplementHistoryResponse = try await get("/api/supplements/history", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return response.history
     }
 
     // MARK: - Stats
@@ -187,6 +249,27 @@ class BissbilanzAPI: ObservableObject {
         ])
     }
 
+    func getCalendarStats(month: Int, year: Int) async throws -> [CalendarDay] {
+        let response: CalendarResponse = try await get("/api/stats/calendar", params: [
+            "month": "\(month)",
+            "year": "\(year)",
+        ])
+        return response.data
+    }
+
+    func getMealBreakdown(days: Int = 7) async throws -> [MealBreakdownEntry] {
+        let response: MealBreakdownResponse = try await get("/api/stats/meal-breakdown", params: [
+            "days": "\(days)",
+        ])
+        return response.data
+    }
+
+    // MARK: - Maintenance
+
+    func calculateMaintenance(_ request: MaintenanceRequest) async throws -> MaintenanceResponse {
+        try await post("/api/maintenance", body: request)
+    }
+
     // MARK: - Preferences
 
     func getPreferences() async throws -> Preferences {
@@ -194,7 +277,23 @@ class BissbilanzAPI: ObservableObject {
     }
 
     func updatePreferences(_ prefs: PreferencesUpdate) async throws -> Preferences {
-        try await put("/api/preferences", body: prefs)
+        try await patch("/api/preferences", body: prefs)
+    }
+
+    // MARK: - Meal Types
+
+    func getMealTypes() async throws -> [MealType] {
+        let response: MealTypesResponse = try await get("/api/meal-types")
+        return response.mealTypes
+    }
+
+    func createMealType(name: String) async throws -> MealType {
+        let response: MealTypeResponse = try await post("/api/meal-types", body: MealTypeCreate(name: name))
+        return response.mealType
+    }
+
+    func deleteMealType(id: String) async throws {
+        try await deleteRequest("/api/meal-types/\(id)")
     }
 
     // MARK: - Open Food Facts proxy
@@ -224,15 +323,15 @@ class BissbilanzAPI: ObservableObject {
         return try await performRequest(request)
     }
 
-    private func put<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    private func patch<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
-        request.httpMethod = "PUT"
+        request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
         return try await performRequest(request)
     }
 
-    private func delete(_ path: String) async throws {
+    private func deleteRequest(_ path: String) async throws {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "DELETE"
         let _: EmptyResponse = try await performRequest(request)
@@ -244,7 +343,14 @@ class BissbilanzAPI: ObservableObject {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await session.data(for: req)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw APIError.networkError(error)
+        }
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.networkError(URLError(.badServerResponse))
         }
@@ -269,6 +375,11 @@ class BissbilanzAPI: ObservableObject {
 
         if httpResponse.statusCode == 404 {
             throw APIError.notFound
+        }
+
+        if httpResponse.statusCode == 400 {
+            let errorMsg = String(data: data, encoding: .utf8)
+            throw APIError.badRequest(errorMsg)
         }
 
         if httpResponse.statusCode >= 400 {

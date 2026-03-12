@@ -1,13 +1,19 @@
 import SwiftUI
 
 struct FoodDetailView: View {
-    @EnvironmentObject var api: BissbilanzAPI
+    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.dismiss) private var dismiss
 
     let foodId: String
 
     @State private var food: Food?
     @State private var isLoading = true
     @State private var error: Error?
+    @State private var showEditSheet = false
+    @State private var showLogSheet = false
+    @State private var showDeleteConfirmation = false
+    @State private var isTogglingFavorite = false
+    @State private var errorMessage: String?
 
     var body: some View {
         Group {
@@ -19,9 +25,69 @@ struct FoodDetailView: View {
                 foodContent(food)
             }
         }
-        .navigationTitle(food?.name ?? "Food")
+        .navigationTitle(food?.name ?? L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let food {
+                    Button {
+                        Task { await toggleFavorite() }
+                    } label: {
+                        Image(systemName: food.isFavorite ? "star.fill" : "star")
+                            .foregroundStyle(food.isFavorite ? .yellow : .secondary)
+                    }
+                    .disabled(isTogglingFavorite)
+
+                    Menu {
+                        Button {
+                            showLogSheet = true
+                        } label: {
+                            Label(L10n.logFood, systemImage: "plus.circle")
+                        }
+
+                        Button {
+                            showEditSheet = true
+                        } label: {
+                            Label(L10n.edit, systemImage: "pencil")
+                        }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label(L10n.delete, systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            if let food {
+                FoodEditSheet(food: food) { updated in
+                    self.food = updated
+                }
+            }
+        }
+        .sheet(isPresented: $showLogSheet) {
+            if let food {
+                LogFoodSheet(food: food, date: DateFormatting.today)
+            }
+        }
+        .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button(L10n.delete, role: .destructive) {
+                Task { await deleteFood() }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        }
         .task { await loadFood() }
+        .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
     }
 
     private func foodContent(_ food: Food) -> some View {
@@ -29,21 +95,21 @@ struct FoodDetailView: View {
             Section {
                 if let brand = food.brand {
                     HStack {
-                        Text("Brand")
+                        Text(L10n.brand)
                         Spacer()
                         Text(brand)
                             .foregroundStyle(.secondary)
                     }
                 }
                 HStack {
-                    Text("Serving Size")
+                    Text(L10n.servingSize)
                     Spacer()
                     Text("\(Int(food.servingSize)) \(food.servingUnit.displayName)")
                         .foregroundStyle(.secondary)
                 }
                 if let barcode = food.barcode {
                     HStack {
-                        Text("Barcode")
+                        Text(L10n.barcode)
                         Spacer()
                         Text(barcode)
                             .foregroundStyle(.secondary)
@@ -52,22 +118,22 @@ struct FoodDetailView: View {
                 }
             }
 
-            Section("Main Macros") {
-                NutrientRow(label: "Calories", value: food.calories, unit: "kcal", color: MacroColors.calories)
-                NutrientRow(label: "Protein", value: food.protein, unit: "g", color: MacroColors.protein)
-                NutrientRow(label: "Carbs", value: food.carbs, unit: "g", color: MacroColors.carbs)
-                NutrientRow(label: "Fat", value: food.fat, unit: "g", color: MacroColors.fat)
-                NutrientRow(label: "Fiber", value: food.fiber, unit: "g", color: MacroColors.fiber)
+            Section(L10n.mainMacros) {
+                NutrientRow(label: L10n.calories, value: food.calories, unit: "kcal", color: MacroColors.calories)
+                NutrientRow(label: L10n.protein, value: food.protein, unit: "g", color: MacroColors.protein)
+                NutrientRow(label: L10n.carbs, value: food.carbs, unit: "g", color: MacroColors.carbs)
+                NutrientRow(label: L10n.fat, value: food.fat, unit: "g", color: MacroColors.fat)
+                NutrientRow(label: L10n.fiber, value: food.fiber, unit: "g", color: MacroColors.fiber)
             }
 
-            NutrientSection(title: "Fat Breakdown", nutrients: food.fatBreakdownNutrients)
-            NutrientSection(title: "Sugars & Carbs", nutrients: food.sugarCarbNutrients)
-            NutrientSection(title: "Minerals", nutrients: food.mineralNutrients)
-            NutrientSection(title: "Vitamins", nutrients: food.vitaminNutrients)
-            NutrientSection(title: "Other", nutrients: food.otherNutrients)
+            NutrientSection(title: L10n.fatBreakdown, nutrients: food.fatBreakdownNutrients)
+            NutrientSection(title: L10n.sugarsCarbs, nutrients: food.sugarCarbNutrients)
+            NutrientSection(title: L10n.minerals, nutrients: food.mineralNutrients)
+            NutrientSection(title: L10n.vitamins, nutrients: food.vitaminNutrients)
+            NutrientSection(title: L10n.other, nutrients: food.otherNutrients)
 
             if let nutriScore = food.nutriScore {
-                Section("Quality") {
+                Section(L10n.quality) {
                     HStack {
                         Text("Nutri-Score")
                         Spacer()
@@ -87,7 +153,7 @@ struct FoodDetailView: View {
             }
 
             if let ingredients = food.ingredientsText, !ingredients.isEmpty {
-                Section("Ingredients") {
+                Section(L10n.ingredients) {
                     Text(ingredients)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -108,6 +174,17 @@ struct FoodDetailView: View {
         }
     }
 
+    private func toggleFavorite() async {
+        guard let food else { return }
+        isTogglingFavorite = true
+        do {
+            self.food = try await api.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isTogglingFavorite = false
+    }
+
     private func loadFood() async {
         isLoading = true
         error = nil
@@ -117,5 +194,14 @@ struct FoodDetailView: View {
             self.error = error
         }
         isLoading = false
+    }
+
+    private func deleteFood() async {
+        do {
+            try await api.deleteFood(id: foodId)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
