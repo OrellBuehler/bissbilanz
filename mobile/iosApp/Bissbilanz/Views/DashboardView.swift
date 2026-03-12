@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @EnvironmentObject var api: BissbilanzAPI
+    @Environment(BissbilanzAPI.self) private var api
 
     @State private var entries: [Entry] = []
     @State private var goals: Goals = .defaults
@@ -9,16 +9,11 @@ struct DashboardView: View {
     @State private var isLoading = false
     @State private var showFoodSearch = false
     @State private var showScanner = false
+    @State private var showQuickEntry = false
+    @State private var showCopyConfirmation = false
+    @State private var toastMessage: String?
 
-    private var dateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: selectedDate)
-    }
-
-    private var isToday: Bool {
-        Calendar.current.isDateInToday(selectedDate)
-    }
+    private var dateString: String { selectedDate.isoDateString }
 
     private var totalCalories: Double { entries.reduce(0) { $0 + $1.totalCalories } }
     private var totalProtein: Double { entries.reduce(0) { $0 + $1.totalProtein } }
@@ -40,24 +35,28 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     dateNavigator
-
                     macroRings
 
                     if mealGroups.isEmpty && !isLoading {
                         emptyState
                     } else {
                         ForEach(mealGroups, id: \.0) { meal, mealEntries in
-                            MealCard(mealType: meal, entries: mealEntries) {
-                                // tap navigates to day log
+                            NavigationLink(value: dateString) {
+                                MealCard(mealType: meal, entries: mealEntries) {}
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
                 .padding()
             }
-            .navigationTitle("Bissbilanz")
+            .navigationTitle(L10n.appName)
+            .navigationDestination(for: String.self) { date in
+                DayLogView(date: date)
+            }
             .refreshable { await loadData() }
             .overlay(alignment: .bottomTrailing) { fab }
+            .overlay(alignment: .bottom) { toastOverlay }
             .sheet(isPresented: $showFoodSearch) {
                 NavigationStack {
                     FoodSearchView(date: dateString)
@@ -67,6 +66,18 @@ struct DashboardView: View {
                 NavigationStack {
                     BarcodeScannerView()
                 }
+            }
+            .sheet(isPresented: $showQuickEntry) {
+                QuickEntrySheet(date: dateString) {
+                    Task { await loadData() }
+                }
+            }
+            .confirmationDialog(L10n.copyYesterday, isPresented: $showCopyConfirmation) {
+                Button(L10n.copyYesterday) {
+                    Task { await copyYesterday() }
+                }
+            } message: {
+                Text("Copy all entries from yesterday to \(selectedDate.isToday ? L10n.today.lowercased() : dateString)?")
             }
             .task { await loadData() }
             .onChange(of: selectedDate) { _, _ in
@@ -78,19 +89,21 @@ struct DashboardView: View {
     private var dateNavigator: some View {
         HStack {
             Button {
-                selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                selectedDate = selectedDate.adding(days: -1)
             } label: {
                 Image(systemName: "chevron.left")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
             }
 
             Spacer()
 
-            VStack {
-                Text(isToday ? "Today" : dateString)
+            VStack(spacing: 2) {
+                Text(selectedDate.isToday ? L10n.today : DateFormatting.displayString(from: selectedDate))
                     .font(.title3)
                     .fontWeight(.semibold)
-                if !isToday {
-                    Button("Go to Today") {
+                if !selectedDate.isToday {
+                    Button(L10n.goToToday) {
                         selectedDate = Date()
                     }
                     .font(.caption)
@@ -100,11 +113,13 @@ struct DashboardView: View {
             Spacer()
 
             Button {
-                selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                selectedDate = selectedDate.adding(days: 1)
             } label: {
                 Image(systemName: "chevron.right")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
             }
-            .disabled(isToday)
+            .disabled(selectedDate.isToday)
         }
         .padding(.horizontal)
     }
@@ -112,22 +127,30 @@ struct DashboardView: View {
     private var macroRings: some View {
         HStack(spacing: 16) {
             MacroRingView(label: "Cal", current: totalCalories, goal: goals.calorieGoal, color: MacroColors.calories, showGoal: true)
-            MacroRingView(label: "Protein", current: totalProtein, goal: goals.proteinGoal, color: MacroColors.protein, showGoal: true)
-            MacroRingView(label: "Carbs", current: totalCarbs, goal: goals.carbGoal, color: MacroColors.carbs, showGoal: true)
-            MacroRingView(label: "Fat", current: totalFat, goal: goals.fatGoal, color: MacroColors.fat, showGoal: true)
-            MacroRingView(label: "Fiber", current: totalFiber, goal: goals.fiberGoal, color: MacroColors.fiber, showGoal: true)
+            MacroRingView(label: "P", current: totalProtein, goal: goals.proteinGoal, color: MacroColors.protein, showGoal: true)
+            MacroRingView(label: "C", current: totalCarbs, goal: goals.carbGoal, color: MacroColors.carbs, showGoal: true)
+            MacroRingView(label: "F", current: totalFat, goal: goals.fatGoal, color: MacroColors.fat, showGoal: true)
+            MacroRingView(label: "Fb", current: totalFiber, goal: goals.fiberGoal, color: MacroColors.fiber, showGoal: true)
         }
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Image(systemName: "fork.knife.circle")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("No entries yet today.")
+            Text(L10n.noEntriesYet)
                 .foregroundStyle(.secondary)
-            Text("Tap + to add food.")
+            Text(L10n.tapToAdd)
                 .foregroundStyle(.secondary)
+
+            if !selectedDate.isToday {
+                Button(L10n.copyYesterday) {
+                    showCopyConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 8)
+            }
         }
         .padding(.vertical, 48)
     }
@@ -138,6 +161,16 @@ struct DashboardView: View {
                 showScanner = true
             } label: {
                 Image(systemName: "barcode.viewfinder")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(.thinMaterial)
+                    .clipShape(Circle())
+            }
+
+            Button {
+                showQuickEntry = true
+            } label: {
+                Image(systemName: "bolt")
                     .font(.title3)
                     .frame(width: 44, height: 44)
                     .background(.thinMaterial)
@@ -160,6 +193,20 @@ struct DashboardView: View {
         .padding()
     }
 
+    @ViewBuilder
+    private var toastOverlay: some View {
+        if let message = toastMessage {
+            Text(message)
+                .font(.subheadline)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(.bottom, 80)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
@@ -177,6 +224,25 @@ struct DashboardView: View {
             goals = try await goalsTask ?? .defaults
         } catch {
             goals = .defaults
+        }
+    }
+
+    private func copyYesterday() async {
+        let yesterday = selectedDate.adding(days: -1).isoDateString
+        do {
+            let copied = try await api.copyEntries(fromDate: yesterday, toDate: dateString)
+            entries.append(contentsOf: copied)
+            showToast("\(copied.count) entries copied")
+        } catch {
+            showToast("Failed to copy entries")
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation { toastMessage = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { toastMessage = nil }
         }
     }
 }

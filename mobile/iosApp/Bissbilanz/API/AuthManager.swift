@@ -1,21 +1,22 @@
 import Foundation
 import AuthenticationServices
+import Observation
 import Security
 
-enum AuthState {
+enum AuthState: Sendable {
     case unauthenticated
     case authenticated
     case refreshing
 }
 
 @MainActor
-class AuthManager: ObservableObject {
-    @Published var authState: AuthState = .unauthenticated
+@Observable
+final class AuthManager {
+    var authState: AuthState = .unauthenticated
 
     private let baseURL: String
     private let clientId: String
     private let redirectURI = "bissbilanz://oauth/callback"
-
     private var codeVerifier: String?
 
     private static let accessTokenKey = "bissbilanz_access_token"
@@ -53,6 +54,7 @@ class AuthManager: ObservableObject {
         return components?.url
     }
 
+    @discardableResult
     func handleCallback(url: URL) async -> Bool {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
@@ -90,6 +92,7 @@ class AuthManager: ObservableObject {
         }
     }
 
+    @discardableResult
     func refreshAccessToken() async -> Bool {
         guard let refreshToken = KeychainHelper.load(key: Self.refreshTokenKey) else {
             authState = .unauthenticated

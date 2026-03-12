@@ -63,3 +63,66 @@ struct TopFoodEntry: Codable, Identifiable {
 struct TopFoodsResponse: Codable {
     let data: [TopFoodEntry]
 }
+
+struct CalendarDay: Codable {
+    let date: String
+    let calories: Double
+    let hasGoal: Bool
+    let metGoal: Bool
+}
+
+struct CalendarResponse: Codable {
+    let data: [CalendarDay]
+}
+
+struct MaintenanceRequest: Codable {
+    let startDate: String
+    let endDate: String
+    let bodyFatChangeRatio: Double?
+}
+
+struct MaintenanceResponse: Codable {
+    let maintenanceCalories: Double
+    let avgDailyCalories: Double
+    let dailyDeficitSurplus: Double
+    let weightChange: Double
+    let startWeight: Double
+    let endWeight: Double
+    let totalDays: Int
+    let weightEntryCount: Int
+    let foodEntryDays: Int
+    let coveragePercent: Double
+    let fatChange: Double?
+    let muscleChange: Double?
+}
+
+struct SupplementHistoryResponse: Codable {
+    let history: [SupplementHistoryEntry]
+}
+
+struct SupplementHistoryEntry: Codable, Identifiable {
+    let date: String
+    let supplements: [SupplementHistoryItem]
+
+    var id: String { date }
+}
+
+struct SupplementHistoryItem: Codable, Identifiable {
+    let supplement: Supplement
+    let taken: Bool
+    let log: SupplementLog?
+
+    var id: String { supplement.id }
+}
+
+struct MealTypeCreate: Codable {
+    let name: String
+}
+
+struct MealTypesResponse: Codable {
+    let mealTypes: [MealType]
+}
+
+struct MealTypeResponse: Codable {
+    let mealType: MealType
+}

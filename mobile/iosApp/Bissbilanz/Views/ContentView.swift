@@ -3,30 +3,25 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            DashboardView()
-                .tabItem {
-                    Label("Home", systemImage: "house")
-                }
+            Tab(L10n.home, systemImage: "house") {
+                DashboardView()
+            }
 
-            FoodSearchView()
-                .tabItem {
-                    Label("Foods", systemImage: "fork.knife")
-                }
+            Tab(L10n.foods, systemImage: "fork.knife") {
+                FoodSearchView()
+            }
 
-            FavoritesView()
-                .tabItem {
-                    Label("Favorites", systemImage: "star")
-                }
+            Tab(L10n.favorites, systemImage: "star") {
+                FavoritesView()
+            }
 
-            InsightsView()
-                .tabItem {
-                    Label("Insights", systemImage: "chart.bar")
-                }
+            Tab(L10n.insights, systemImage: "chart.bar") {
+                InsightsView()
+            }
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+            Tab(L10n.settings, systemImage: "gear") {
+                SettingsView()
+            }
         }
     }
 }

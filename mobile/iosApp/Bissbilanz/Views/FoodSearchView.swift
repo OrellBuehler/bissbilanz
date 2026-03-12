@@ -1,64 +1,85 @@
 import SwiftUI
 
 struct FoodSearchView: View {
-    @EnvironmentObject var api: BissbilanzAPI
-    @Environment(\.dismiss) var dismiss
+    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.dismiss) private var dismiss
 
     var date: String?
 
     @State private var query = ""
     @State private var searchResults: [Food] = []
     @State private var recentFoods: [Food] = []
+    @State private var favoriteFoods: [Food] = []
     @State private var selectedTab = 0
     @State private var isSearching = false
     @State private var selectedFood: Food?
     @State private var showLogSheet = false
+    @State private var showCreateFood = false
 
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab) {
-                Text("Search").tag(0)
-                Text("Recent").tag(1)
+                Text(L10n.search).tag(0)
+                Text(L10n.recent).tag(1)
+                Text(L10n.favorites).tag(2)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 8)
 
-            if selectedTab == 0 {
+            switch selectedTab {
+            case 0:
                 searchTab
-            } else {
+            case 1:
                 recentTab
+            case 2:
+                favoritesTab
+            default:
+                EmptyView()
             }
         }
-        .navigationTitle("Foods")
+        .navigationTitle(L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 if date != nil {
-                    Button("Close") { dismiss() }
+                    Button(L10n.close) { dismiss() }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showCreateFood = true
+                } label: {
+                    Image(systemName: "plus")
                 }
             }
         }
-        .searchable(text: $query, prompt: "Search foods...")
+        .searchable(text: $query, prompt: L10n.searchFoods)
         .onChange(of: query) { _, newValue in
             Task { await search(newValue) }
         }
         .sheet(item: $selectedFood) { food in
-            LogFoodSheet(food: food, date: date ?? todayString())
+            LogFoodSheet(food: food, date: date ?? DateFormatting.today)
+        }
+        .sheet(isPresented: $showCreateFood) {
+            FoodEditSheet { _ in
+                Task { await loadRecent() }
+            }
         }
         .task {
             await loadRecent()
+            await loadFavorites()
         }
     }
 
     private var searchTab: some View {
         Group {
             if query.count < 2 {
-                ContentUnavailableView("Search for foods", systemImage: "magnifyingglass", description: Text("Type at least 2 characters"))
+                ContentUnavailableView(L10n.search, systemImage: "magnifyingglass", description: Text(L10n.searchFoods))
             } else if isSearching {
-                LoadingView(message: "Searching...")
+                LoadingView(message: L10n.loading)
             } else if searchResults.isEmpty {
-                ContentUnavailableView("No results", systemImage: "magnifyingglass", description: Text("No foods found for \"\(query)\""))
+                ContentUnavailableView(L10n.noResults, systemImage: "magnifyingglass", description: Text("\(L10n.noResults): \"\(query)\""))
             } else {
                 List(searchResults) { food in
                     foodRow(food)
@@ -71,9 +92,22 @@ struct FoodSearchView: View {
     private var recentTab: some View {
         Group {
             if recentFoods.isEmpty {
-                ContentUnavailableView("No recent foods", systemImage: "clock", description: Text("Foods you log will appear here"))
+                ContentUnavailableView(L10n.recent, systemImage: "clock", description: Text(L10n.noRecentFoods))
             } else {
                 List(recentFoods) { food in
+                    foodRow(food)
+                }
+                .listStyle(.plain)
+            }
+        }
+    }
+
+    private var favoritesTab: some View {
+        Group {
+            if favoriteFoods.isEmpty {
+                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.noRecentFoods))
+            } else {
+                List(favoriteFoods) { food in
                     foodRow(food)
                 }
                 .listStyle(.plain)
@@ -149,16 +183,17 @@ struct FoodSearchView: View {
         } catch {}
     }
 
-    private func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+    private func loadFavorites() async {
+        do {
+            let response = try await api.getFavorites()
+            favoriteFoods = response.foods
+        } catch {}
     }
 }
 
 struct LogFoodSheet: View {
-    @EnvironmentObject var api: BissbilanzAPI
-    @Environment(\.dismiss) var dismiss
+    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.dismiss) private var dismiss
 
     let food: Food
     let date: String
@@ -185,7 +220,7 @@ struct LogFoodSheet: View {
                     }
                 }
 
-                Section("Servings") {
+                Section(L10n.servings) {
                     HStack {
                         Text("\(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)")
                             .foregroundStyle(.secondary)
@@ -197,31 +232,31 @@ struct LogFoodSheet: View {
                     }
                 }
 
-                Section("Meal") {
-                    Picker("Meal", selection: $mealType) {
+                Section(L10n.meal) {
+                    Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
-                            Text(meal.capitalized).tag(meal)
+                            Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
                     .pickerStyle(.segmented)
                 }
 
-                Section("Nutrition") {
-                    NutrientRow(label: "Calories", value: food.calories * servings, unit: "kcal", color: MacroColors.calories)
-                    NutrientRow(label: "Protein", value: food.protein * servings, unit: "g", color: MacroColors.protein)
-                    NutrientRow(label: "Carbs", value: food.carbs * servings, unit: "g", color: MacroColors.carbs)
-                    NutrientRow(label: "Fat", value: food.fat * servings, unit: "g", color: MacroColors.fat)
-                    NutrientRow(label: "Fiber", value: food.fiber * servings, unit: "g", color: MacroColors.fiber)
+                Section(L10n.nutrition) {
+                    NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal", color: MacroColors.calories)
+                    NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g", color: MacroColors.protein)
+                    NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g", color: MacroColors.carbs)
+                    NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g", color: MacroColors.fat)
+                    NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g", color: MacroColors.fiber)
                 }
             }
-            .navigationTitle("Log Food")
+            .navigationTitle(L10n.logFood)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Log") {
+                    Button(L10n.log) {
                         Task { await logFood() }
                     }
                     .disabled(isLogging)

@@ -2,12 +2,12 @@ name: Bissbilanz
 options:
   bundleIdPrefix: com.bissbilanz
   deploymentTarget:
-    iOS: '16.0'
-  xcodeVersion: '15.0'
+    iOS: '17.0'
+  xcodeVersion: '16.0'
 
 settings:
   base:
-    SWIFT_VERSION: '5.9'
+    SWIFT_VERSION: '6.0'
     CODE_SIGNING_ALLOWED: 'NO'
     GENERATE_INFOPLIST_FILE: 'YES'
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: 'YES'
@@ -36,6 +36,23 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - bissbilanz
+        NSCameraUsageDescription: 'Bissbilanz needs camera access to scan food barcodes'
+        NSHealthShareUsageDescription: 'Bissbilanz reads your weight data to track trends'
+        NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition and weight data to Health'
+    entitlements:
+      path: Bissbilanz/Bissbilanz.entitlements
     dependencies:
       - framework: '../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/shared.framework'
         embed: false
+      - sdk: HealthKit.framework
+
+  BissbilanzTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: BissbilanzTests
+    dependencies:
+      - target: Bissbilanz
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.tests

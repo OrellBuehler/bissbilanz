@@ -1,11 +1,14 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @EnvironmentObject var api: BissbilanzAPI
+    @Environment(BissbilanzAPI.self) private var api
 
-    @State private var favorites: [Food] = []
+    @State private var favoriteFoods: [Food] = []
+    @State private var favoriteRecipes: [Recipe] = []
     @State private var isLoading = true
+    @State private var selectedTab = 0
     @State private var selectedFood: Food?
+    @State private var selectedRecipe: Recipe?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -14,69 +17,130 @@ struct FavoritesView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                Picker("", selection: $selectedTab) {
+                    Text(L10n.foods).tag(0)
+                    Text(L10n.recipes).tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
                 if isLoading {
                     LoadingView()
-                } else if favorites.isEmpty {
-                    ContentUnavailableView(
-                        "No favorites",
-                        systemImage: "star",
-                        description: Text("Mark foods as favorites to see them here")
-                    )
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(favorites) { food in
-                                FavoriteCard(food: food) {
-                                    selectedFood = food
-                                }
-                            }
-                        }
-                        .padding()
+                    switch selectedTab {
+                    case 0:
+                        foodsTab
+                    case 1:
+                        recipesTab
+                    default:
+                        EmptyView()
                     }
                 }
             }
-            .navigationTitle("Favorites")
+            .navigationTitle(L10n.favorites)
             .refreshable { await loadFavorites() }
             .sheet(item: $selectedFood) { food in
-                LogFoodSheet(food: food, date: todayString())
+                LogFoodSheet(food: food, date: DateFormatting.today)
+            }
+            .sheet(item: $selectedRecipe) { recipe in
+                LogRecipeSheet(recipe: recipe) {
+                    Task { await loadFavorites() }
+                }
             }
             .task { await loadFavorites() }
+        }
+    }
+
+    private var foodsTab: some View {
+        Group {
+            if favoriteFoods.isEmpty {
+                ContentUnavailableView(
+                    L10n.noFavorites,
+                    systemImage: "star",
+                    description: Text(L10n.markFavoritesHint)
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(favoriteFoods) { food in
+                            FavoriteCard(
+                                name: food.name,
+                                brand: food.brand,
+                                calories: Int(food.calories),
+                                protein: Int(food.protein)
+                            ) {
+                                selectedFood = food
+                            }
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+    }
+
+    private var recipesTab: some View {
+        Group {
+            if favoriteRecipes.isEmpty {
+                ContentUnavailableView(
+                    L10n.noFavorites,
+                    systemImage: "star",
+                    description: Text(L10n.markRecipeFavoritesHint)
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(favoriteRecipes) { recipe in
+                            FavoriteCard(
+                                name: recipe.name,
+                                brand: nil,
+                                calories: recipe.calories.map { Int($0) } ?? 0,
+                                protein: recipe.protein.map { Int($0) } ?? 0
+                            ) {
+                                selectedRecipe = recipe
+                            }
+                        }
+                    }
+                    .padding()
+                }
+            }
         }
     }
 
     private func loadFavorites() async {
         isLoading = true
         do {
-            favorites = try await api.getFavorites()
+            let response = try await api.getFavorites()
+            favoriteFoods = response.foods
+            favoriteRecipes = response.recipes ?? []
         } catch {
-            favorites = []
+            favoriteFoods = []
+            favoriteRecipes = []
         }
         isLoading = false
-    }
-
-    private func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
     }
 }
 
 struct FavoriteCard: View {
-    let food: Food
+    let name: String
+    let brand: String?
+    let calories: Int
+    let protein: Int
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(food.name)
+                Text(name)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(.primary)
 
-                if let brand = food.brand {
+                if let brand {
                     Text(brand)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -86,12 +150,12 @@ struct FavoriteCard: View {
                 Spacer(minLength: 0)
 
                 HStack {
-                    Text("\(Int(food.calories)) cal")
+                    Text("\(calories) cal")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundStyle(MacroColors.calories)
                     Spacer()
-                    Text("P\(Int(food.protein))")
+                    Text("P\(protein)")
                         .font(.caption2)
                         .foregroundStyle(MacroColors.protein)
                 }
@@ -104,3 +168,5 @@ struct FavoriteCard: View {
         .buttonStyle(.plain)
     }
 }
+
+// LogRecipeSheet is defined in RecipeListView.swift
