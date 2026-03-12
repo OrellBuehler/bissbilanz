@@ -10,6 +10,7 @@ struct EntryEditSheet: View {
     @State private var servings: Double
     @State private var mealType: String
     @State private var isSaving = false
+    @State private var errorMessage: String?
 
     private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
 
@@ -58,6 +59,11 @@ struct EntryEditSheet: View {
                     .fontWeight(.semibold)
                 }
             }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -68,7 +74,9 @@ struct EntryEditSheet: View {
             let updated = try await api.updateEntry(id: entry.id, update)
             onSaved(updated)
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isSaving = false
     }
 }

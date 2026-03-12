@@ -32,6 +32,8 @@ enum L10n {
     static var done: String { localized("done", en: "Done", de: "Fertig") }
     static var today: String { localized("today", en: "Today", de: "Heute") }
     static var log: String { localized("log", en: "Log", de: "Eintragen") }
+    static var error: String { localized("error", en: "Error", de: "Fehler") }
+    static var ok: String { localized("ok", en: "OK", de: "OK") }
 
     // MARK: - Tabs
 

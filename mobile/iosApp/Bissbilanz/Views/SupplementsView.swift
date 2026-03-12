@@ -9,6 +9,7 @@ struct SupplementsView: View {
     @State private var showCreateSheet = false
     @State private var editingSupplement: Supplement?
     @State private var expandedIds: Set<String> = []
+    @State private var errorMessage: String?
 
     private var takenCount: Int { loggedIds.count }
     private var totalCount: Int { supplements.count }
@@ -67,6 +68,11 @@ struct SupplementsView: View {
             }
             .refreshable { await loadData() }
             .task { await loadData() }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -243,12 +249,16 @@ struct SupplementsView: View {
             do {
                 try await api.unlogSupplement(id: supplement.id, date: dateString)
                 loggedIds.remove(supplement.id)
-            } catch {}
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         } else {
             do {
                 _ = try await api.logSupplement(id: supplement.id, date: dateString)
                 loggedIds.insert(supplement.id)
-            } catch {}
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -257,7 +267,9 @@ struct SupplementsView: View {
             try await api.deleteSupplement(id: supplement.id)
             supplements.removeAll { $0.id == supplement.id }
             loggedIds.remove(supplement.id)
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadData() async {

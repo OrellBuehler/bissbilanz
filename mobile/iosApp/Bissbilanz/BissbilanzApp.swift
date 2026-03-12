@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct BissbilanzApp: App {
-    @State private var authManager = AuthManager()
+    @State private var authManager: AuthManager
     @State private var api: BissbilanzAPI
 
     init() {

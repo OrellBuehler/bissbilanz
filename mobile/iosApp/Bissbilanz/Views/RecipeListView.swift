@@ -9,6 +9,7 @@ struct RecipeListView: View {
     @State private var searchQuery = ""
     @State private var showCreateSheet = false
     @State private var loggingRecipe: Recipe?
+    @State private var errorMessage: String?
 
     private var filteredRecipes: [Recipe] {
         guard !searchQuery.isEmpty else { return recipes }
@@ -84,6 +85,11 @@ struct RecipeListView: View {
             }
             .refreshable { await loadRecipes() }
             .task { await loadRecipes() }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -121,7 +127,9 @@ struct RecipeListView: View {
         do {
             try await api.deleteRecipe(id: recipe.id)
             recipes.removeAll { $0.id == recipe.id }
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadRecipes() async {
@@ -149,6 +157,7 @@ struct LogRecipeSheet: View {
     @State private var mealType = "lunch"
     @State private var date = Date()
     @State private var isSaving = false
+    @State private var errorMessage: String?
 
     private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
 
@@ -215,6 +224,11 @@ struct LogRecipeSheet: View {
                     .fontWeight(.semibold)
                 }
             }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -230,7 +244,9 @@ struct LogRecipeSheet: View {
             _ = try await api.createEntry(entry)
             onLogged()
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isSaving = false
     }
 }

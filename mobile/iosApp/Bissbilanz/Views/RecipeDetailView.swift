@@ -12,6 +12,7 @@ struct RecipeDetailView: View {
     @State private var showEditSheet = false
     @State private var showDeleteConfirmation = false
     @State private var showLogSheet = false
+    @State private var errorMessage: String?
 
     var body: some View {
         Group {
@@ -79,6 +80,11 @@ struct RecipeDetailView: View {
             Button(L10n.cancel, role: .cancel) {}
         }
         .task { await loadRecipe() }
+        .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
     }
 
     private func recipeContent(_ recipe: Recipe) -> some View {
@@ -171,6 +177,8 @@ struct RecipeDetailView: View {
         do {
             try await api.deleteRecipe(id: recipeId)
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

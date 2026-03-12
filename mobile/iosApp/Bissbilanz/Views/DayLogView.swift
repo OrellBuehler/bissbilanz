@@ -10,6 +10,7 @@ struct DayLogView: View {
     @State private var showFoodSearch = false
     @State private var editingEntry: Entry?
     @State private var isCopying = false
+    @State private var errorMessage: String?
 
     private var mealGroups: [(String, [Entry])] {
         let grouped = Dictionary(grouping: entries, by: \.mealType)
@@ -18,11 +19,6 @@ struct DayLogView: View {
             guard let items = grouped[meal], !items.isEmpty else { return nil }
             return (meal, items)
         } + grouped.filter { !order.contains($0.key) }.sorted(by: { $0.key < $1.key }).map { ($0.key, $0.value) }
-    }
-
-    private var isYesterday: Bool {
-        let yesterday = Date().adding(days: -1).isoDateString
-        return yesterday == date
     }
 
     var body: some View {
@@ -65,6 +61,11 @@ struct DayLogView: View {
             }
         }
         .task { await loadEntries() }
+        .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
     }
 
     private var displayDate: String {
@@ -180,7 +181,9 @@ struct DayLogView: View {
         do {
             try await api.deleteEntry(id: entry.id)
             entries.removeAll { $0.id == entry.id }
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func copyYesterday() async {
@@ -189,7 +192,9 @@ struct DayLogView: View {
         do {
             let copied = try await api.copyEntries(fromDate: yesterday, toDate: date)
             entries = copied
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isCopying = false
     }
 }

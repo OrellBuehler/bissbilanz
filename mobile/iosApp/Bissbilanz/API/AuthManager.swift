@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import AuthenticationServices
 import Observation
@@ -146,8 +147,7 @@ final class AuthManager {
 
     private func generateCodeChallenge(verifier: String) -> String? {
         guard let data = verifier.data(using: .ascii) else { return nil }
-        var hash = [UInt8](repeating: 0, count: 32)
-        _ = CC_SHA256(Array(data), CC_LONG(data.count), &hash)
+        let hash = SHA256.hash(data: data)
         return Data(hash).base64URLEncoded
     }
 }

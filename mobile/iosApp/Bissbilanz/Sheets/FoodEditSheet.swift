@@ -21,8 +21,11 @@ struct FoodEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    init(food: Food? = nil, onSaved: @escaping (Food) -> Void = { _ in }) {
+    let initialBarcode: String?
+
+    init(food: Food? = nil, barcode: String? = nil, onSaved: @escaping (Food) -> Void = { _ in }) {
         self.existingFood = food
+        self.initialBarcode = barcode
         self.onSaved = onSaved
     }
 
@@ -102,6 +105,9 @@ struct FoodEditSheet: View {
     }
 
     private func prefill() {
+        if let bc = initialBarcode, existingFood == nil {
+            barcode = bc
+        }
         guard let food = existingFood else { return }
         name = food.name
         brand = food.brand ?? ""

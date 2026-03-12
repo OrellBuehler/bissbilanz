@@ -3,6 +3,7 @@ import SwiftUI
 
 struct LoginView: View {
     @Environment(AuthManager.self) private var authManager
+    @State private var authSession: ASWebAuthenticationSession?
 
     var body: some View {
         VStack(spacing: 48) {
@@ -51,6 +52,7 @@ struct LoginView: View {
         }
         session.prefersEphemeralWebBrowserSession = false
         session.presentationContextProvider = ASWebAuthenticationPresentationContextProvider.shared
+        authSession = session
         session.start()
     }
 }

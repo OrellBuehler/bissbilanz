@@ -55,10 +55,6 @@ struct PreferencesUpdate: Codable {
     var favoriteMealTimeframes: [FavoriteMealTimeframe]?
 }
 
-struct PreferencesResponse: Codable {
-    let preferences: Preferences
-}
-
 struct FavoriteMealTimeframe: Codable {
     let mealType: String
     let startTime: String

@@ -15,6 +15,7 @@ struct QuickEntrySheet: View {
     @State private var fiber = ""
     @State private var mealType = "snacks"
     @State private var isSaving = false
+    @State private var errorMessage: String?
 
     private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
 
@@ -56,6 +57,11 @@ struct QuickEntrySheet: View {
                     .fontWeight(.semibold)
                 }
             }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -90,7 +96,9 @@ struct QuickEntrySheet: View {
             _ = try await api.createEntry(entry)
             onSaved()
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isSaving = false
     }
 }

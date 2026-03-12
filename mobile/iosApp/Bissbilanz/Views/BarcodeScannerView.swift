@@ -84,9 +84,12 @@ struct BarcodeScannerView: View {
                 FoodDetailView(foodId: food.id)
             }
         }
+        .onChange(of: foundFood) { _, newValue in
+            if newValue == nil { resetScanner() }
+        }
         .sheet(isPresented: $showCreateFood) {
             NavigationStack {
-                FoodEditSheet(food: nil) { food in
+                FoodEditSheet(barcode: notFoundBarcode) { food in
                     foundFood = food
                     showCreateFood = false
                     scannedBarcode = nil

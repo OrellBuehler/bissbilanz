@@ -14,7 +14,6 @@ struct RecipeEditSheet: View {
     @State private var showFoodPicker = false
     @State private var isSaving = false
     @State private var errorMessage: String?
-    @State private var availableFoods: [Food] = []
 
     struct IngredientRow: Identifiable {
         let id = UUID()
@@ -167,6 +166,7 @@ struct FoodPickerSheet: View {
     @State private var query = ""
     @State private var results: [Food] = []
     @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -199,7 +199,12 @@ struct FoodPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: L10n.searchFoods)
             .onChange(of: query) { _, newValue in
-                Task { await search(newValue) }
+                searchTask?.cancel()
+                searchTask = Task {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    guard !Task.isCancelled else { return }
+                    await search(newValue)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

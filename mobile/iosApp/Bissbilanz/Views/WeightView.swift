@@ -9,6 +9,7 @@ struct WeightView: View {
     @State private var showAddSheet = false
     @State private var editingEntry: WeightEntry?
     @State private var selectedRange = 30
+    @State private var errorMessage: String?
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
@@ -114,6 +115,11 @@ struct WeightView: View {
             }
             .refreshable { await loadEntries() }
             .task { await loadEntries() }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -290,7 +296,9 @@ struct WeightView: View {
         do {
             try await api.deleteWeightEntry(id: entry.id)
             entries.removeAll { $0.id == entry.id }
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -307,6 +315,7 @@ struct AddWeightSheet: View {
     @State private var date = Date()
     @State private var notes = ""
     @State private var isSaving = false
+    @State private var errorMessage: String?
 
     init(existingEntry: WeightEntry? = nil, onSaved: @escaping () -> Void) {
         self.existingEntry = existingEntry
@@ -348,6 +357,11 @@ struct AddWeightSheet: View {
                 }
             }
             .onAppear { prefill() }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -383,7 +397,9 @@ struct AddWeightSheet: View {
             }
             onSaved()
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isSaving = false
     }
 }

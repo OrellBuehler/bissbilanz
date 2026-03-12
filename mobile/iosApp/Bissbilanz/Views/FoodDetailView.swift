@@ -13,6 +13,7 @@ struct FoodDetailView: View {
     @State private var showLogSheet = false
     @State private var showDeleteConfirmation = false
     @State private var isTogglingFavorite = false
+    @State private var errorMessage: String?
 
     var body: some View {
         Group {
@@ -82,6 +83,11 @@ struct FoodDetailView: View {
             Button(L10n.cancel, role: .cancel) {}
         }
         .task { await loadFood() }
+        .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
     }
 
     private func foodContent(_ food: Food) -> some View {
@@ -173,7 +179,9 @@ struct FoodDetailView: View {
         isTogglingFavorite = true
         do {
             self.food = try await api.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isTogglingFavorite = false
     }
 
@@ -192,6 +200,8 @@ struct FoodDetailView: View {
         do {
             try await api.deleteFood(id: foodId)
             dismiss()
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

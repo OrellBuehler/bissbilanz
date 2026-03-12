@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var isEditingGoals = false
     @State private var showLogoutConfirmation = false
     @State private var newMealTypeName = ""
+    @State private var errorMessage: String?
 
     // Goal editing fields
     @State private var editCalories = ""
@@ -131,6 +132,11 @@ struct SettingsView: View {
                 goalsEditor
             }
             .task { await loadData() }
+            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                if let errorMessage { Text(errorMessage) }
+            }
         }
     }
 
@@ -227,7 +233,9 @@ struct SettingsView: View {
         )
         do {
             goals = try await api.setGoals(newGoals)
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isEditingGoals = false
     }
 
@@ -248,13 +256,17 @@ struct SettingsView: View {
             let mealType = try await api.createMealType(name: name)
             mealTypes.append(mealType)
             newMealTypeName = ""
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func deleteMealType(_ mealType: MealType) async {
         do {
             try await api.deleteMealType(id: mealType.id)
             mealTypes.removeAll { $0.id == mealType.id }
-        } catch {}
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
