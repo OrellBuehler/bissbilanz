@@ -75,12 +75,16 @@ private fun NSData.toByteArray(): ByteArray =
         }
     }
 
+// Security framework constants (kSecClass, kSecAttrService, etc.) are CFStringRef,
+// which is toll-free bridged with NSString and thus conforms to NSCopying.
 @OptIn(ExperimentalForeignApi::class)
-private fun cfDictionary(vararg entries: Pair<Any?, Any?>): CFDictionaryRef? {
+private fun cfDictionary(vararg entries: Pair<Any?, Any?>): CFDictionaryRef {
     val dict = NSMutableDictionary()
     for ((key, value) in entries) {
+        @Suppress("UNCHECKED_CAST")
         dict.setValue(value, forKey = key as platform.Foundation.NSCopying)
     }
+    // NSMutableDictionary is toll-free bridged with CFMutableDictionaryRef
     @Suppress("UNCHECKED_CAST")
-    return dict as? CFDictionaryRef
+    return dict as CFDictionaryRef
 }
