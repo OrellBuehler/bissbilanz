@@ -1,12 +1,17 @@
 package com.bissbilanz.auth
 
 import kotlinx.cinterop.*
+import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFTypeRefVar
+import platform.Foundation.CFBridgingRelease
+import platform.Foundation.NSData
+import platform.Foundation.NSMutableDictionary
 import platform.Security.*
 
 actual class SecureStorage {
     private val serviceName = "com.bissbilanz"
 
-    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+    @OptIn(ExperimentalForeignApi::class)
     actual fun save(
         key: String,
         value: String,
@@ -14,19 +19,19 @@ actual class SecureStorage {
         delete(key)
         val data = value.encodeToByteArray().toNSData()
         val query =
-            mapOf(
+            cfDictionary(
                 kSecClass to kSecClassGenericPassword,
                 kSecAttrService to serviceName,
                 kSecAttrAccount to key,
                 kSecValueData to data,
             )
-        SecItemAdd(query.toCFDictionary(), null)
+        SecItemAdd(query, null)
     }
 
-    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+    @OptIn(ExperimentalForeignApi::class)
     actual fun load(key: String): String? {
         val query =
-            mapOf(
+            cfDictionary(
                 kSecClass to kSecClassGenericPassword,
                 kSecAttrService to serviceName,
                 kSecAttrAccount to key,
@@ -34,53 +39,48 @@ actual class SecureStorage {
                 kSecMatchLimit to kSecMatchLimitOne,
             )
         memScoped {
-            val result = alloc<ObjCObjectVar<Any?>>()
-            val status = SecItemCopyMatching(query.toCFDictionary(), result.ptr)
+            val result = alloc<CFTypeRefVar>()
+            val status = SecItemCopyMatching(query, result.ptr)
             if (status == errSecSuccess) {
-                val data = result.value as? platform.Foundation.NSData ?: return null
+                val data = CFBridgingRelease(result.value) as? NSData ?: return null
                 return data.toByteArray().decodeToString()
             }
         }
         return null
     }
 
-    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+    @OptIn(ExperimentalForeignApi::class)
     actual fun delete(key: String) {
         val query =
-            mapOf(
+            cfDictionary(
                 kSecClass to kSecClassGenericPassword,
                 kSecAttrService to serviceName,
                 kSecAttrAccount to key,
             )
-        SecItemDelete(query.toCFDictionary())
+        SecItemDelete(query)
     }
 }
 
-@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-private fun ByteArray.toNSData(): platform.Foundation.NSData =
+@OptIn(ExperimentalForeignApi::class)
+private fun ByteArray.toNSData(): NSData =
     usePinned { pinned ->
-        platform.Foundation.NSData.create(
-            bytes = pinned.addressOf(0),
-            length = this.size.toULong(),
-        )
+        NSData(bytes = pinned.addressOf(0), length = this.size.toULong())
     }
 
-@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-private fun platform.Foundation.NSData.toByteArray(): ByteArray =
+@OptIn(ExperimentalForeignApi::class)
+private fun NSData.toByteArray(): ByteArray =
     ByteArray(this.length.toInt()).apply {
         usePinned { pinned ->
             platform.posix.memcpy(pinned.addressOf(0), this@toByteArray.bytes, this@toByteArray.length)
         }
     }
 
-@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-private fun Map<Any?, Any?>.toCFDictionary(): platform.CoreFoundation.CFDictionaryRef? {
-    // Simplified — in production use proper CFDictionary creation
-    val nsDict =
-        platform.Foundation.NSDictionary.dictionaryWithObjects(
-            this.values.toList(),
-            this.keys.toList(),
-        )
+@OptIn(ExperimentalForeignApi::class)
+private fun cfDictionary(vararg entries: Pair<Any?, Any?>): CFDictionaryRef? {
+    val dict = NSMutableDictionary()
+    for ((key, value) in entries) {
+        dict.setValue(value, forKey = key as platform.Foundation.NSCopying)
+    }
     @Suppress("UNCHECKED_CAST")
-    return nsDict as? platform.CoreFoundation.CFDictionaryRef
+    return dict as? CFDictionaryRef
 }
