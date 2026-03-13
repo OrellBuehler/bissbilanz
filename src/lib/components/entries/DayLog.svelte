@@ -16,6 +16,7 @@
 		onMutation?: () => void;
 		onTotalsChange?: (totals: MacroTotals) => void;
 		scanModalOpen?: boolean;
+		addModalOpen?: boolean;
 	};
 
 	let {
@@ -24,13 +25,13 @@
 		dashboardStyle = false,
 		onMutation,
 		onTotalsChange,
-		scanModalOpen = $bindable(false)
+		scanModalOpen = $bindable(false),
+		addModalOpen = $bindable(false)
 	}: Props = $props();
 
 	let foods: Array<any> = $state([]);
 	let recipes: Array<any> = $state([]);
 	let entries: Array<any> = $state([]);
-	let addModalOpen = $state(false);
 	let editModalOpen = $state(false);
 	let activeMeal = $state('Breakfast');
 	let editingEntry: {

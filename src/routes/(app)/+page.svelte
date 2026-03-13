@@ -44,6 +44,7 @@
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
+	let addModalOpen = $state(false);
 	let userGoals: {
 		calorieGoal: number;
 		proteinGoal: number;
@@ -141,6 +142,16 @@
 	onMount(() => {
 		checkStartPage();
 
+		// Handle PWA shortcut query params
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('scan') === 'true') {
+			scanModalOpen = true;
+			goto('/', { replaceState: true });
+		} else if (params.get('add') === 'true') {
+			addModalOpen = true;
+			goto('/', { replaceState: true });
+		}
+
 		const onSynced = () => {
 			refreshKey++;
 			loadSupplements(activeDate);
@@ -204,6 +215,7 @@
 					dashboardStyle={true}
 					onTotalsChange={(t) => (daylogTotals = t)}
 					bind:scanModalOpen
+					bind:addModalOpen
 				/>
 			{/if}
 		{/each}

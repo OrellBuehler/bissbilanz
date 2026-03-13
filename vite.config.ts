@@ -46,6 +46,32 @@ export default defineConfig({
 						type: 'image/png',
 						purpose: 'maskable'
 					}
+				],
+				shortcuts: [
+					{
+						name: 'Add Entry',
+						short_name: 'Add',
+						url: '/?add=true',
+						icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }]
+					},
+					{
+						name: 'Scan Barcode',
+						short_name: 'Scan',
+						url: '/?scan=true',
+						icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }]
+					},
+					{
+						name: 'Foods',
+						short_name: 'Foods',
+						url: '/foods',
+						icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }]
+					},
+					{
+						name: 'Recipes',
+						short_name: 'Recipes',
+						url: '/recipes',
+						icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }]
+					}
 				]
 			},
 			workbox: {

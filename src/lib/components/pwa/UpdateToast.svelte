@@ -2,6 +2,9 @@
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { browser } from '$app/environment';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import X from '@lucide/svelte/icons/x';
 
 	useRegisterSW();
 
@@ -26,16 +29,18 @@
 
 {#if updated}
 	<div
-		class="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm rounded-lg border bg-background p-4 shadow-lg"
+		class="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[calc(100%-2rem)] max-w-sm items-center gap-3 rounded-lg border bg-background p-3 shadow-lg sm:bottom-6"
 	>
-		<p class="text-sm font-medium">{m.pwa_update_available()}</p>
-		<div class="mt-2 flex gap-3">
-			<button onclick={reload} class="text-sm font-medium text-primary underline">
+		<RefreshCw class="h-4 w-4 shrink-0 text-primary" />
+		<p class="flex-1 text-sm font-medium">{m.pwa_update_available()}</p>
+		<div class="flex shrink-0 items-center gap-1">
+			<Button variant="default" size="sm" onclick={reload}>
 				{m.pwa_update_refresh()}
-			</button>
-			<button onclick={() => (updated = false)} class="text-sm text-muted-foreground">
-				{m.pwa_update_dismiss()}
-			</button>
+			</Button>
+			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => (updated = false)}>
+				<X class="h-4 w-4" />
+				<span class="sr-only">{m.pwa_update_dismiss()}</span>
+			</Button>
 		</div>
 	</div>
 {/if}
