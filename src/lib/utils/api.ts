@@ -66,7 +66,7 @@ export function isOffline(response: Response): boolean {
 	return response.headers.get('x-offline') === 'true';
 }
 
-function urlToMeta(url: string): { affectedTable?: string; affectedId?: string } | undefined {
+export function urlToMeta(url: string): { affectedTable?: string; affectedId?: string } | undefined {
 	const parsed = new URL(url, 'http://localhost');
 	const parts = parsed.pathname.split('/').filter(Boolean); // ['api', 'foods', 'abc-123']
 	if (parts.length < 2 || parts[0] !== 'api') return undefined;

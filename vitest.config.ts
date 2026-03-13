@@ -7,6 +7,10 @@ export default defineConfig({
 	resolve: {
 		alias: [
 			{ find: '$lib', replacement: path.resolve(__dirname, 'src/lib') },
+			{
+				find: '$app/environment',
+				replacement: path.resolve(__dirname, 'tests/helpers/__mocks__/app-environment.ts')
+			},
 			{ find: /^@lucide\/svelte\/icons\/.*/, replacement: lucideStub }
 		]
 	},
