@@ -14,6 +14,7 @@ struct FoodDetailView: View {
     @State private var showDeleteConfirmation = false
     @State private var isTogglingFavorite = false
     @State private var errorMessage: String?
+    @State private var ingredientsExpanded = false
 
     var body: some View {
         Group {
@@ -132,46 +133,141 @@ struct FoodDetailView: View {
             NutrientSection(title: L10n.vitamins, nutrients: food.vitaminNutrients)
             NutrientSection(title: L10n.other, nutrients: food.otherNutrients)
 
-            if let nutriScore = food.nutriScore {
+            if food.nutriScore != nil || food.novaGroup != nil || !(food.additives?.isEmpty ?? true) || !(food.ingredientsText?.isEmpty ?? true) {
                 Section(L10n.quality) {
-                    HStack {
-                        Text("Nutri-Score")
-                        Spacer()
-                        Text(nutriScore.uppercased())
-                            .fontWeight(.bold)
-                            .foregroundStyle(nutriScoreColor(nutriScore))
+                    if let nutriScore = food.nutriScore {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Nutri-Score")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            nutriScoreBadge(nutriScore)
+                        }
+                        .padding(.vertical, 4)
                     }
                     if let novaGroup = food.novaGroup {
-                        HStack {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("NOVA Group")
-                            Spacer()
-                            Text("\(novaGroup)")
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                            novaGroupBadge(novaGroup)
                         }
+                        .padding(.vertical, 4)
                     }
-                }
-            }
-
-            if let ingredients = food.ingredientsText, !ingredients.isEmpty {
-                Section(L10n.ingredients) {
-                    Text(ingredients)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let additives = food.additives, !additives.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text(L10n.additives)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text("\(additives.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red.opacity(0.15))
+                                    .foregroundStyle(.red)
+                                    .clipShape(Capsule())
+                            }
+                            ForEach(additives, id: \.self) { additive in
+                                Text(formatAdditive(additive))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    if let ingredients = food.ingredientsText, !ingredients.isEmpty {
+                        ingredientsRow(ingredients)
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
     }
 
-    private func nutriScoreColor(_ score: String) -> Color {
-        switch score.lowercased() {
-        case "a": return .green
-        case "b": return Color(red: 0.5, green: 0.8, blue: 0.2)
-        case "c": return .yellow
-        case "d": return .orange
-        case "e": return .red
-        default: return .secondary
+    private func nutriScoreBadge(_ score: String) -> some View {
+        let letters = ["A", "B", "C", "D", "E"]
+        let colors: [Color] = [
+            Color(red: 0.01, green: 0.51, blue: 0.25),
+            Color(red: 0.52, green: 0.73, blue: 0.18),
+            Color(red: 1.0, green: 0.80, blue: 0.01),
+            Color(red: 0.93, green: 0.51, blue: 0.0),
+            Color(red: 0.90, green: 0.24, blue: 0.07),
+        ]
+        let activeIndex = letters.firstIndex(where: { $0.caseInsensitiveCompare(score) == .orderedSame }) ?? -1
+
+        return HStack(spacing: 4) {
+            ForEach(Array(zip(letters.indices, letters)), id: \.0) { index, letter in
+                let isActive = index == activeIndex
+                Text(letter)
+                    .font(isActive ? .body : .caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(isActive ? .white : colors[index].opacity(0.5))
+                    .frame(width: isActive ? 36 : 28, height: isActive ? 36 : 28)
+                    .background(isActive ? colors[index] : colors[index].opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
         }
+    }
+
+    private func novaGroupBadge(_ group: Int) -> some View {
+        let info: (String, Color) = switch group {
+        case 1: ("Unprocessed or minimally processed", Color(red: 0.01, green: 0.51, blue: 0.25))
+        case 2: ("Processed culinary ingredients", Color(red: 1.0, green: 0.80, blue: 0.01))
+        case 3: ("Processed foods", Color(red: 0.93, green: 0.51, blue: 0.0))
+        case 4: ("Ultra-processed", Color(red: 0.90, green: 0.24, blue: 0.07))
+        default: ("Unknown", Color.secondary)
+        }
+
+        return HStack(spacing: 10) {
+            Text("\(group)")
+                .font(.body)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(info.1)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            Text(info.0)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(info.1)
+        }
+    }
+
+    private func formatAdditive(_ raw: String) -> String {
+        var text = raw.trimmingCharacters(in: .whitespaces)
+        if text.hasPrefix("en:") { text = String(text.dropFirst(3)) }
+        let parts = text.components(separatedBy: " - ")
+        if parts.count >= 2 {
+            return "\(parts[0].trimmingCharacters(in: .whitespaces).uppercased()) - \(parts[1].trimmingCharacters(in: .whitespaces).capitalized)"
+        }
+        return text.uppercased()
+    }
+
+    private func ingredientsRow(_ text: String) -> some View {
+        let isLong = text.count > 150
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(L10n.ingredients)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if isLong {
+                    Image(systemName: ingredientsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isLong { withAnimation { ingredientsExpanded.toggle() } }
+            }
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(isLong && !ingredientsExpanded ? 3 : nil)
+        }
+        .padding(.vertical, 4)
     }
 
     private func toggleFavorite() async {

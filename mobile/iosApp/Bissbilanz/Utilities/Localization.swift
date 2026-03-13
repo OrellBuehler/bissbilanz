@@ -174,6 +174,8 @@ enum L10n {
     static var autoAssignByTime: String { localized("auto_assign_by_time", en: "Auto-assign by time", de: "Automatisch nach Uhrzeit") }
     static var alwaysAsk: String { localized("always_ask", en: "Always ask", de: "Immer nachfragen") }
     static var quickLog: String { localized("quick_log", en: "Quick Log", de: "Schnelleintrag") }
+    static var additives: String { localized("additives", en: "Additives", de: "Zusatzstoffe") }
+    static var inactive: String { localized("inactive", en: "Inactive", de: "Inaktiv") }
 
     // MARK: - Calendar
 

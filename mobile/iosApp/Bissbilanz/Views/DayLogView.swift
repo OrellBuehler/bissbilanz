@@ -10,6 +10,7 @@ struct DayLogView: View {
     @State private var showFoodSearch = false
     @State private var editingEntry: Entry?
     @State private var isCopying = false
+    @State private var showQuickEntry = false
     @State private var errorMessage: String?
 
     private var mealGroups: [(String, [Entry])] {
@@ -36,7 +37,20 @@ struct DayLogView: View {
         .navigationTitle(displayDate)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    Task { await copyYesterday() }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .disabled(isCopying)
+
+                Button {
+                    showQuickEntry = true
+                } label: {
+                    Image(systemName: "pencil")
+                }
+
                 Button {
                     showFoodSearch = true
                 } label: {
@@ -50,6 +64,11 @@ struct DayLogView: View {
                 FoodSearchView(date: date)
             }
             .onDisappear {
+                Task { await loadEntries() }
+            }
+        }
+        .sheet(isPresented: $showQuickEntry) {
+            QuickEntrySheet(date: date) {
                 Task { await loadEntries() }
             }
         }
@@ -126,13 +145,30 @@ struct DayLogView: View {
                             }
                     }
                 } header: {
-                    HStack {
-                        Text(L10n.mealName(mealType))
-                        Spacer()
-                        let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
-                        Text("\(Int(cal)) cal")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(L10n.mealName(mealType))
+                            Spacer()
+                            let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
+                            Text("\(Int(cal)) cal")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(MacroColors.calories)
+                        }
+                        HStack(spacing: 12) {
+                            let p = mealEntries.reduce(0.0) { $0 + $1.totalProtein }
+                            let c = mealEntries.reduce(0.0) { $0 + $1.totalCarbs }
+                            let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
+                            Text("P \(Int(p))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.protein)
+                            Text("C \(Int(c))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.carbs)
+                            Text("F \(Int(f))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.fat)
+                        }
                     }
                 }
             }
