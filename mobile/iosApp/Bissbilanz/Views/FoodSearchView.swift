@@ -57,6 +57,9 @@ struct FoodSearchView: View {
                 }
             }
         }
+        .navigationDestination(for: Food.self) { food in
+            FoodDetailView(foodId: food.id)
+        }
         .searchable(text: $query, prompt: L10n.searchFoods)
         .onChange(of: query) { _, newValue in
             searchTask?.cancel()
@@ -110,9 +113,6 @@ struct FoodSearchView: View {
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -126,9 +126,6 @@ struct FoodSearchView: View {
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -136,15 +133,12 @@ struct FoodSearchView: View {
     private var favoritesTab: some View {
         Group {
             if favoriteFoods.isEmpty {
-                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.noRecentFoods))
+                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.markFavoritesHint))
             } else {
                 List(favoriteFoods) { food in
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -255,9 +249,9 @@ struct FoodSearchView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(food.name) logged")
+            showToast("\(food.name) \(L10n.logged)")
         } catch {
-            showToast("Failed to log")
+            showToast(L10n.failedToLog)
         }
     }
 

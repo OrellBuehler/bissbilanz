@@ -153,9 +153,9 @@ struct FavoritesView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(food.name) logged")
+            showToast("\(food.name) \(L10n.logged)")
         } catch {
-            showToast("Failed to log")
+            showToast(L10n.failedToLog)
         }
     }
 
@@ -169,9 +169,9 @@ struct FavoritesView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(recipe.name) logged")
+            showToast("\(recipe.name) \(L10n.logged)")
         } catch {
-            showToast("Failed to log")
+            showToast(L10n.failedToLog)
         }
     }
 

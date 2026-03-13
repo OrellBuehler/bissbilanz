@@ -98,6 +98,10 @@ enum L10n {
     static var nutrition: String { localized("nutrition", en: "Nutrition", de: "Nährwerte") }
     static var quality: String { localized("quality", en: "Quality", de: "Qualität") }
     static var ingredients: String { localized("ingredients", en: "Ingredients", de: "Zutaten") }
+    static var nutriScore: String { localized("nutri_score", en: "Nutri-Score", de: "Nutri-Score") }
+    static var novaGroup: String { localized("nova_group", en: "NOVA Group", de: "NOVA-Gruppe") }
+    static var logged: String { localized("logged", en: "logged", de: "eingetragen") }
+    static var failedToLog: String { localized("failed_to_log", en: "Failed to log", de: "Eintragung fehlgeschlagen") }
 
     // MARK: - Entries
 

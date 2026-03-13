@@ -137,7 +137,7 @@ struct FoodDetailView: View {
                 Section(L10n.quality) {
                     if let nutriScore = food.nutriScore {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Nutri-Score")
+                            Text(L10n.nutriScore)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             nutriScoreBadge(nutriScore)
@@ -146,7 +146,7 @@ struct FoodDetailView: View {
                     }
                     if let novaGroup = food.novaGroup {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("NOVA Group")
+                            Text(L10n.novaGroup)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             novaGroupBadge(novaGroup)

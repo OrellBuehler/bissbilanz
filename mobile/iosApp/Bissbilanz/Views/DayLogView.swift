@@ -79,7 +79,7 @@ struct DayLogView: View {
                 }
             }
         }
-        .task { await loadEntries() }
+        .task { await loadEntries(showSpinner: true) }
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}
         } message: {
@@ -185,7 +185,7 @@ struct DayLogView: View {
                     Text(entry.displayName)
                         .font(.body)
                         .foregroundStyle(.primary)
-                    Text("\(entry.servings, specifier: "%.1g")x \u{00B7} \(Int(entry.totalCalories)) cal")
+                    Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -202,8 +202,8 @@ struct DayLogView: View {
         }
     }
 
-    private func loadEntries() async {
-        isLoading = true
+    private func loadEntries(showSpinner: Bool = false) async {
+        if showSpinner { isLoading = true }
         error = nil
         do {
             entries = try await api.getEntries(date: date)
@@ -224,10 +224,11 @@ struct DayLogView: View {
 
     private func copyYesterday() async {
         isCopying = true
-        let yesterday = Date().adding(days: -1).isoDateString
+        let viewedDate = DateFormatting.date(from: date) ?? Date()
+        let yesterday = viewedDate.adding(days: -1).isoDateString
         do {
             let copied = try await api.copyEntries(fromDate: yesterday, toDate: date)
-            entries = copied
+            entries.append(contentsOf: copied)
         } catch {
             errorMessage = error.localizedDescription
         }

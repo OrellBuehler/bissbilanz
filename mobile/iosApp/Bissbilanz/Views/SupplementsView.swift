@@ -296,14 +296,14 @@ struct SupplementsView: View {
         let dateString = DateFormatting.today
         do {
             supplements = try await api.getSupplements()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        do {
             let checklist = try await api.getSupplementChecklist(date: dateString)
             loggedIds = Set(checklist.filter(\.taken).map(\.supplement.id))
         } catch {
-            if supplements.isEmpty {
-                do {
-                    supplements = try await api.getSupplements()
-                } catch {}
-            }
+            // Checklist fetch failed — keep loggedIds as-is rather than showing incorrect state
         }
         isLoading = false
     }
