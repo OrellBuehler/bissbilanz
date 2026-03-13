@@ -164,6 +164,16 @@ enum L10n {
     static var topFoods: String { localized("top_foods", en: "Top Foods", de: "Top-Lebensmittel") }
     static var mealBreakdown: String { localized("meal_breakdown", en: "Meal Breakdown", de: "Mahlzeitenverteilung") }
     static var caloriesTrend: String { localized("calories_trend", en: "Calorie Trend", de: "Kalorientrend") }
+    static var macroTrends: String { localized("macro_trends", en: "Macro Trends", de: "Makro-Trends") }
+    static var goalAchievement: String { localized("goal_achievement", en: "Goal Achievement", de: "Zielerreichung") }
+    static var daysWithinGoal: String { localized("days_within_goal", en: "Days within goal range", de: "Tage im Zielbereich") }
+    static var dayPeriod: String { localized("day_period", en: "day period", de: "Tage Zeitraum") }
+    static var avgComparison: String { localized("avg_comparison", en: "Average Comparison", de: "Durchschnittsvergleich") }
+    static var quickActions: String { localized("quick_actions", en: "Quick Actions", de: "Schnellaktionen") }
+    static var favoriteLogging: String { localized("favorite_logging", en: "Favorite Logging", de: "Favoriten-Eintragung") }
+    static var autoAssignByTime: String { localized("auto_assign_by_time", en: "Auto-assign by time", de: "Automatisch nach Uhrzeit") }
+    static var alwaysAsk: String { localized("always_ask", en: "Always ask", de: "Immer nachfragen") }
+    static var quickLog: String { localized("quick_log", en: "Quick Log", de: "Schnelleintrag") }
 
     // MARK: - Calendar
 
