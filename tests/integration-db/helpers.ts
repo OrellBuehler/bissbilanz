@@ -35,9 +35,12 @@ export async function runTestMigrations(url: string) {
 export async function createTestDatabase(name: string): Promise<string> {
 	const rootUrl = process.env.TEST_DATABASE_URL!;
 	const client = new SQL(rootUrl);
-	await client.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
-	await client.unsafe(`CREATE DATABASE "${name}"`);
-	await client.close();
+	try {
+		await client.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
+		await client.unsafe(`CREATE DATABASE "${name}"`);
+	} finally {
+		await client.close();
+	}
 
 	const url = new URL(rootUrl);
 	url.pathname = `/${name}`;
@@ -47,6 +50,9 @@ export async function createTestDatabase(name: string): Promise<string> {
 export async function dropTestDatabase(name: string) {
 	const rootUrl = process.env.TEST_DATABASE_URL!;
 	const client = new SQL(rootUrl);
-	await client.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-	await client.close();
+	try {
+		await client.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+	} finally {
+		await client.close();
+	}
 }
