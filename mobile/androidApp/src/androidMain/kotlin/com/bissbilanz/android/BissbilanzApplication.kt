@@ -37,7 +37,7 @@ class BissbilanzApplication : Application() {
 
         val androidModule =
             module {
-                single(named("baseUrl")) { "https://bissbilanz.app" }
+                single(named("baseUrl")) { "https://bissbilanz.orellbuehler.ch" }
                 single(named("clientId")) { "bissbilanz-android" }
                 single { SecureStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
@@ -57,7 +57,10 @@ class BissbilanzApplication : Application() {
         }
 
         // Start sync manager to auto-sync queued writes when connectivity is restored
-        val syncManager = org.koin.java.KoinJavaComponent.getKoin().get<SyncManager>()
+        val syncManager =
+            org.koin.java.KoinJavaComponent
+                .getKoin()
+                .get<SyncManager>()
         syncManager.startNetworkListener()
     }
 }
