@@ -1,7 +1,7 @@
 package com.bissbilanz.android.ui.screens
 
-import android.content.Intent
 import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -42,8 +42,9 @@ fun LoginScreen(authManager: AuthManager) {
                         java.util.UUID
                             .randomUUID()
                             .toString()
-                    val url = authManager.buildAuthorizationUrl(state)
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    val url = authManager.buildLoginUrl(state)
+                    val customTabsIntent = CustomTabsIntent.Builder().build()
+                    customTabsIntent.launchUrl(context, Uri.parse(url))
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

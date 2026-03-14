@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import AuthenticationServices
 import Observation
@@ -16,18 +15,15 @@ final class AuthManager {
     var authState: AuthState = .unauthenticated
 
     private let baseURL: String
-    private let clientId: String
-    private let redirectURI = "bissbilanz://oauth/callback"
-    private var codeVerifier: String?
+    private var pendingState: String?
 
     private static let accessTokenKey = "bissbilanz_access_token"
     private static let refreshTokenKey = "bissbilanz_refresh_token"
 
     var isAuthenticated: Bool { authState == .authenticated }
 
-    init(baseURL: String = "https://bissbilanz.orell.ch", clientId: String = "bissbilanz-ios") {
+    init(baseURL: String = "https://bissbilanz.orellbuehler.ch") {
         self.baseURL = baseURL
-        self.clientId = clientId
         if KeychainHelper.load(key: Self.accessTokenKey) != nil {
             authState = .authenticated
         }
@@ -37,47 +33,27 @@ final class AuthManager {
         KeychainHelper.load(key: Self.accessTokenKey)
     }
 
-    func buildAuthorizationURL() -> URL? {
-        let verifier = generateCodeVerifier()
-        codeVerifier = verifier
-        guard let challenge = generateCodeChallenge(verifier: verifier) else { return nil }
+    func buildLoginURL() -> URL? {
         let state = UUID().uuidString
-
-        var components = URLComponents(string: "\(baseURL)/api/oauth/authorize")
-        components?.queryItems = [
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "client_id", value: clientId),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-            URLQueryItem(name: "state", value: state),
-            URLQueryItem(name: "code_challenge", value: challenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-        ]
-        return components?.url
+        pendingState = state
+        return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)")
     }
 
     @discardableResult
     func handleCallback(url: URL) async -> Bool {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
-              let verifier = codeVerifier else {
+              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
             return false
         }
-        codeVerifier = nil
 
-        guard let tokenURL = URL(string: "\(baseURL)/api/oauth/token") else { return false }
+        guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else { return false }
 
         var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = [
-            "grant_type=authorization_code",
-            "code=\(code)",
-            "redirect_uri=\(redirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? redirectURI)",
-            "client_id=\(clientId)",
-            "code_verifier=\(verifier)",
-        ].joined(separator: "&")
-        request.httpBody = body.data(using: .utf8)
+        let body = ["code": code]
+        request.httpBody = try? JSONEncoder().encode(body)
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
@@ -102,21 +78,17 @@ final class AuthManager {
 
         authState = .refreshing
 
-        guard let tokenURL = URL(string: "\(baseURL)/api/oauth/token") else {
+        guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else {
             authState = .unauthenticated
             return false
         }
 
         var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = [
-            "grant_type=refresh_token",
-            "refresh_token=\(refreshToken)",
-            "client_id=\(clientId)",
-        ].joined(separator: "&")
-        request.httpBody = body.data(using: .utf8)
+        let body = ["refresh_token": refreshToken]
+        request.httpBody = try? JSONEncoder().encode(body)
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
@@ -138,18 +110,6 @@ final class AuthManager {
         KeychainHelper.delete(key: Self.refreshTokenKey)
         authState = .unauthenticated
     }
-
-    private func generateCodeVerifier() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return Data(bytes).base64URLEncoded
-    }
-
-    private func generateCodeChallenge(verifier: String) -> String? {
-        guard let data = verifier.data(using: .ascii) else { return nil }
-        let hash = SHA256.hash(data: data)
-        return Data(hash).base64URLEncoded
-    }
 }
 
 private struct TokenResponse: Codable {
@@ -163,15 +123,6 @@ private struct TokenResponse: Codable {
         case refreshToken = "refresh_token"
         case tokenType = "token_type"
         case expiresIn = "expires_in"
-    }
-}
-
-extension Data {
-    var base64URLEncoded: String {
-        base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }
 

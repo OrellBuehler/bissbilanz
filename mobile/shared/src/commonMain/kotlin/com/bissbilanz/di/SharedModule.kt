@@ -5,7 +5,6 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.repository.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncQueue
 import org.koin.core.qualifier.named
@@ -13,7 +12,7 @@ import org.koin.dsl.module
 
 val sharedModule =
     module {
-        single { AuthManager(get<String>(named("baseUrl")), get<String>(named("clientId")), get()) }
+        single { AuthManager(get<String>(named("baseUrl")), get()) }
         single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
         single { BissbilanzDatabase(get<DatabaseDriverFactory>().createDriver()) }
         single { SyncQueue(get()) }

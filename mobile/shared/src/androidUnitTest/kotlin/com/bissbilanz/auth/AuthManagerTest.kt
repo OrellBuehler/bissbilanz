@@ -20,7 +20,6 @@ class AuthManagerTest {
         authManager =
             AuthManager(
                 baseUrl = "https://test.example.com",
-                clientId = "test-client-id",
                 secureStorage = secureStorage,
             )
     }
@@ -46,13 +45,13 @@ class AuthManagerTest {
 
     @Test
     fun validateStateReturnsTrueForMatchingState() {
-        authManager.buildAuthorizationUrl("test-state-123")
+        authManager.buildLoginUrl("test-state-123")
         assertTrue(authManager.validateState("test-state-123"))
     }
 
     @Test
     fun validateStateReturnsFalseForNonMatchingState() {
-        authManager.buildAuthorizationUrl("expected-state")
+        authManager.buildLoginUrl("expected-state")
         assertFalse(authManager.validateState("wrong-state"))
     }
 
@@ -63,13 +62,13 @@ class AuthManagerTest {
 
     @Test
     fun validateStateReturnsFalseForNullState() {
-        authManager.buildAuthorizationUrl("some-state")
+        authManager.buildLoginUrl("some-state")
         assertFalse(authManager.validateState(null))
     }
 
     @Test
     fun validateStateClearsPendingStateAfterCheck() {
-        authManager.buildAuthorizationUrl("one-time-state")
+        authManager.buildLoginUrl("one-time-state")
         assertTrue(authManager.validateState("one-time-state"))
         assertFalse(authManager.validateState("one-time-state"))
     }
@@ -88,24 +87,9 @@ class AuthManagerTest {
     }
 
     @Test
-    fun buildAuthorizationUrlContainsRequiredParameters() {
-        val url = authManager.buildAuthorizationUrl("my-state")
-        assertTrue(url.startsWith("https://test.example.com/api/oauth/authorize?"))
-        assertTrue(url.contains("response_type=code"))
-        assertTrue(url.contains("client_id=test-client-id"))
-        assertTrue(url.contains("state=my-state"))
-        assertTrue(url.contains("code_challenge_method=S256"))
-        assertTrue(url.contains("code_challenge="))
-        assertTrue(url.contains("redirect_uri="))
-    }
-
-    @Test
-    fun buildAuthorizationUrlGeneratesDifferentChallengesEachTime() {
-        val url1 = authManager.buildAuthorizationUrl("state1")
-        val url2 = authManager.buildAuthorizationUrl("state2")
-        val challenge1 = extractParam(url1, "code_challenge")
-        val challenge2 = extractParam(url2, "code_challenge")
-        assertTrue(challenge1 != challenge2)
+    fun buildLoginUrlReturnsCorrectUrl() {
+        val url = authManager.buildLoginUrl("my-state")
+        assertEquals("https://test.example.com/api/auth/mobile/login?state=my-state", url)
     }
 
     @Test
@@ -120,12 +104,6 @@ class AuthManagerTest {
         runTest {
             every { secureStorage.load("access_token") } returns null
             assertEquals(null, authManager.getAccessToken())
-        }
-
-    @Test
-    fun handleCallbackReturnsFalseWithoutCodeVerifier() =
-        runTest {
-            assertFalse(authManager.handleCallback("some-code"))
         }
 
     private fun extractParam(

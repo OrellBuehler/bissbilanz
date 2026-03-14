@@ -4,7 +4,6 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class StatsRepository(
@@ -101,15 +100,16 @@ class StatsRepository(
             current = incrementDate(current)
         }
 
-        val goals = db.bissbilanzDatabaseQueries.selectGoals().executeAsOneOrNull()?.let {
-            Goals(
-                calorieGoal = it.calorieGoal,
-                proteinGoal = it.proteinGoal,
-                carbGoal = it.carbGoal,
-                fatGoal = it.fatGoal,
-                fiberGoal = it.fiberGoal,
-            )
-        }
+        val goals =
+            db.bissbilanzDatabaseQueries.selectGoals().executeAsOneOrNull()?.let {
+                Goals(
+                    calorieGoal = it.calorieGoal,
+                    proteinGoal = it.proteinGoal,
+                    carbGoal = it.carbGoal,
+                    fatGoal = it.fatGoal,
+                    fiberGoal = it.fiberGoal,
+                )
+            }
         return DailyStatsResponse(data = data, goals = goals)
     }
 

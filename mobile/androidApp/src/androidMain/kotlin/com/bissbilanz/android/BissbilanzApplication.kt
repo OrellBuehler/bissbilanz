@@ -38,7 +38,6 @@ class BissbilanzApplication : Application() {
         val androidModule =
             module {
                 single(named("baseUrl")) { "https://bissbilanz.orellbuehler.ch" }
-                single(named("clientId")) { "bissbilanz-android" }
                 single { SecureStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }

@@ -89,6 +89,7 @@ android {
         implementation(libs.camerax.view)
         implementation(libs.mlkit.barcode)
         implementation(libs.health.connect)
+        implementation(libs.browser)
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
         implementation("com.google.guava:guava:33.3.1-android")

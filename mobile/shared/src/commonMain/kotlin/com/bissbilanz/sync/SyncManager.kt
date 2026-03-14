@@ -149,7 +149,9 @@ class SyncManager(
                     pendingCount = pending,
                     lastSyncedAt =
                         if (synced > 0) {
-                            kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+                            kotlinx.datetime.Clock.System
+                                .now()
+                                .toEpochMilliseconds()
                         } else {
                             _state.value.lastSyncedAt
                         },

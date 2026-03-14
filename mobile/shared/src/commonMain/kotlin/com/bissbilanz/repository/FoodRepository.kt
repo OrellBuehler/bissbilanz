@@ -141,7 +141,9 @@ class FoodRepository(
             api.searchFoods(query)
         } catch (_: Exception) {
             val pattern = "%$query%"
-            db.bissbilanzDatabaseQueries.searchFoods(pattern, pattern, 50).executeAsList()
+            db.bissbilanzDatabaseQueries
+                .searchFoods(pattern, pattern, 50)
+                .executeAsList()
                 .map { json.decodeFromString<Food>(it.jsonData) }
         }
 
@@ -149,7 +151,9 @@ class FoodRepository(
         try {
             api.getFoodByBarcode(barcode)
         } catch (_: Exception) {
-            db.bissbilanzDatabaseQueries.selectFoodByBarcode(barcode).executeAsOneOrNull()
+            db.bissbilanzDatabaseQueries
+                .selectFoodByBarcode(barcode)
+                .executeAsOneOrNull()
                 ?.let { json.decodeFromString<Food>(it.jsonData) }
         }
 

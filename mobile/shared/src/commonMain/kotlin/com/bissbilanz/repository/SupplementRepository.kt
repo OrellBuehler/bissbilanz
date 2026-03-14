@@ -178,10 +178,13 @@ class SupplementRepository(
         } catch (_: Exception) {
             // Build from cached data
             val logs =
-                db.bissbilanzDatabaseQueries.selectSupplementLogsByDateRange(from, to)
+                db.bissbilanzDatabaseQueries
+                    .selectSupplementLogsByDateRange(from, to)
                     .executeAsList()
             val supplements =
-                db.bissbilanzDatabaseQueries.selectAllSupplements().executeAsList()
+                db.bissbilanzDatabaseQueries
+                    .selectAllSupplements()
+                    .executeAsList()
                     .associate { it.id to json.decodeFromString<Supplement>(it.jsonData) }
             logs.map { log ->
                 val supplement = supplements[log.supplementId]

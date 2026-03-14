@@ -37,7 +37,8 @@ class WeightRepository(
             _entries.value = entries
         } catch (e: Exception) {
             val cached =
-                db.bissbilanzDatabaseQueries.selectWeightEntriesLimited(limit.toLong())
+                db.bissbilanzDatabaseQueries
+                    .selectWeightEntriesLimited(limit.toLong())
                     .executeAsList()
             if (cached.isNotEmpty()) {
                 _entries.value = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }

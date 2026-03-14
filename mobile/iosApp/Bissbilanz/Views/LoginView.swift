@@ -39,7 +39,7 @@ struct LoginView: View {
     }
 
     private func signIn() {
-        guard let url = authManager.buildAuthorizationURL() else { return }
+        guard let url = authManager.buildLoginURL() else { return }
 
         let session = ASWebAuthenticationSession(
             url: url,

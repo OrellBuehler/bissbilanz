@@ -4,7 +4,6 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,9 +15,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.concurrent.Volatile
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
-import kotlin.random.Random
 
 sealed class AuthState {
     data object Unauthenticated : AuthState()
@@ -38,7 +34,6 @@ data class TokenResponse(
 
 class AuthManager(
     private val baseUrl: String,
-    private val clientId: String,
     private val secureStorage: SecureStorage,
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
@@ -54,13 +49,11 @@ class AuthManager(
     private val refreshMutex = Mutex()
 
     @Volatile
-    private var codeVerifier: String? = null
     private var pendingState: String? = null
 
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
-        private const val REDIRECT_URI = "bissbilanz://oauth/callback"
     }
 
     fun initialize() {
@@ -70,20 +63,9 @@ class AuthManager(
         }
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
-    fun buildAuthorizationUrl(state: String): String {
-        val verifier = generateCodeVerifier()
-        codeVerifier = verifier
+    fun buildLoginUrl(state: String): String {
         pendingState = state
-        val challenge = generateCodeChallenge(verifier)
-
-        return "$baseUrl/api/oauth/authorize?" +
-            "response_type=code&" +
-            "client_id=$clientId&" +
-            "redirect_uri=${REDIRECT_URI.encodeURLParameter()}&" +
-            "state=$state&" +
-            "code_challenge=$challenge&" +
-            "code_challenge_method=S256"
+        return "$baseUrl/api/auth/mobile/login?state=$state"
     }
 
     fun validateState(state: String?): Boolean {
@@ -92,24 +74,14 @@ class AuthManager(
         return state != null && state == expected
     }
 
-    suspend fun handleCallback(code: String): Boolean {
-        val verifier = codeVerifier ?: return false
-        codeVerifier = null
-
-        return try {
+    suspend fun handleCallback(code: String): Boolean =
+        try {
             val response: TokenResponse =
                 client
-                    .submitForm(
-                        url = "$baseUrl/api/oauth/token",
-                        formParameters =
-                            parameters {
-                                append("grant_type", "authorization_code")
-                                append("code", code)
-                                append("redirect_uri", REDIRECT_URI)
-                                append("client_id", clientId)
-                                append("code_verifier", verifier)
-                            },
-                    ).body()
+                    .post("$baseUrl/api/auth/mobile/token") {
+                        contentType(ContentType.Application.Json)
+                        setBody(mapOf("code" to code))
+                    }.body()
 
             secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
             response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
@@ -118,7 +90,6 @@ class AuthManager(
         } catch (e: Exception) {
             false
         }
-    }
 
     suspend fun getAccessToken(): String? = secureStorage.load(KEY_ACCESS_TOKEN)
 
@@ -137,15 +108,10 @@ class AuthManager(
             try {
                 val response: TokenResponse =
                     client
-                        .submitForm(
-                            url = "$baseUrl/api/oauth/token",
-                            formParameters =
-                                parameters {
-                                    append("grant_type", "refresh_token")
-                                    append("refresh_token", refreshToken)
-                                    append("client_id", clientId)
-                                },
-                        ).body()
+                        .post("$baseUrl/api/auth/mobile/token") {
+                            contentType(ContentType.Application.Json)
+                            setBody(mapOf("refresh_token" to refreshToken))
+                        }.body()
 
                 secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
                 response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
@@ -163,18 +129,4 @@ class AuthManager(
         secureStorage.delete(KEY_REFRESH_TOKEN)
         _authState.value = AuthState.Unauthenticated
     }
-
-    @OptIn(ExperimentalEncodingApi::class)
-    private fun generateCodeVerifier(): String {
-        val bytes = Random.nextBytes(32)
-        return Base64.UrlSafe.encode(bytes).trimEnd('=')
-    }
-
-    @OptIn(ExperimentalEncodingApi::class)
-    private fun generateCodeChallenge(verifier: String): String {
-        val bytes = sha256(verifier.encodeToByteArray())
-        return Base64.UrlSafe.encode(bytes).trimEnd('=')
-    }
 }
-
-expect fun sha256(input: ByteArray): ByteArray
