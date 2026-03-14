@@ -80,7 +80,7 @@ Each test file gets its own database within the shared container:
 
 - Run migrations, then perform basic CRUD on each major table via Drizzle ORM
 - Insert a row, select it back, update it, delete it
-- Tables: `users`, `sessions`, `foods`, `food_entries`, `recipes`, `recipe_ingredients`, `weight`, `supplements`, `supplement_logs`, `user_goals`, `user_preferences`, `custom_meal_types`, `oauth_clients`, `oauth_tokens`, `mcp_sessions`
+- Tables: `users`, `sessions`, `foods`, `food_entries`, `recipes`, `recipe_ingredients`, `weight_entries`, `supplements`, `supplement_logs`, `user_goals`, `user_preferences`, `custom_meal_types`, `favorite_meal_timeframes`, `oauth_clients`, `oauth_tokens`, `oauth_authorizations`, `oauth_authorization_codes`
 - Verify foreign key cascades work (e.g., delete user → entries cascade)
 - Catches column type mismatches, missing defaults, broken foreign keys
 
