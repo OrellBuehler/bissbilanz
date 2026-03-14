@@ -12,8 +12,8 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 	const state = url.searchParams.get('state');
-	if (!state) {
-		throw error(400, 'Missing state parameter');
+	if (!state || state.length > 128) {
+		throw error(400, 'Missing or invalid state parameter');
 	}
 
 	try {

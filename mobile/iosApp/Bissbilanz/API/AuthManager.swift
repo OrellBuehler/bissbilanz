@@ -42,9 +42,12 @@ final class AuthManager {
     @discardableResult
     func handleCallback(url: URL) async -> Bool {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+              let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+              let state = components.queryItems?.first(where: { $0.name == "state" })?.value,
+              state == pendingState else {
             return false
         }
+        pendingState = nil
 
         guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else { return false }
 

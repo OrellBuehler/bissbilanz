@@ -8,6 +8,7 @@ import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations } from '$lib/server/db';
+import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config } from '$lib/server/env';
 import { env } from '$env/dynamic/public';
 
@@ -22,6 +23,7 @@ if (env.PUBLIC_SENTRY_DSN) {
 // Run migrations on server startup
 export async function init() {
 	await runMigrations();
+	await ensureMobileClient();
 	cleanExpiredSessions().catch(() => {});
 	setInterval(() => cleanExpiredSessions().catch(() => {}), 3600000);
 }

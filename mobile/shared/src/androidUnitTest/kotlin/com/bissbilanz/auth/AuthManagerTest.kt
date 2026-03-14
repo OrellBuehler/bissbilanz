@@ -105,12 +105,4 @@ class AuthManagerTest {
             every { secureStorage.load("access_token") } returns null
             assertEquals(null, authManager.getAccessToken())
         }
-
-    private fun extractParam(
-        url: String,
-        param: String,
-    ): String? {
-        val regex = Regex("$param=([^&]+)")
-        return regex.find(url)?.groupValues?.get(1)
-    }
 }

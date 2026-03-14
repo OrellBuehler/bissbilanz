@@ -60,11 +60,15 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 
 	const tokens: TokenResponse = await tokenResponse.json();
 
-	await verifyIdToken(tokens.id_token, {
-		issuer: 'https://login.infomaniak.com',
-		audience: config.infomaniak.clientId,
-		nonce: pending.nonce
-	});
+	try {
+		await verifyIdToken(tokens.id_token, {
+			issuer: 'https://login.infomaniak.com',
+			audience: config.infomaniak.clientId,
+			nonce: pending.nonce
+		});
+	} catch {
+		throw error(401, 'ID token verification failed');
+	}
 
 	const userInfoResponse = await fetch('https://login.infomaniak.com/oauth2/userinfo', {
 		headers: { Authorization: `Bearer ${tokens.access_token}` }

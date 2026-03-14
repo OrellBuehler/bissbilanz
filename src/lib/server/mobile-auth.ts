@@ -1,7 +1,11 @@
+import { eq } from 'drizzle-orm';
 import { generateToken } from './oauth';
+import { getDB, oauthClients } from './db';
+
+export const MOBILE_CLIENT_ID = 'bissbilanz-mobile';
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_TTL_MS = 60 * 1000; // 1 minute
 
 type PendingState = {
 	codeVerifier: string;
@@ -57,4 +61,18 @@ export function consumeOneTimeCode(code: string): string | undefined {
 	oneTimeCodes.delete(code);
 	if (!entry || entry.expiresAt < Date.now()) return undefined;
 	return entry.userId;
+}
+
+export async function ensureMobileClient() {
+	const db = getDB();
+	const existing = await db.query.oauthClients.findFirst({
+		where: eq(oauthClients.clientId, MOBILE_CLIENT_ID)
+	});
+	if (existing) return;
+	await db.insert(oauthClients).values({
+		clientId: MOBILE_CLIENT_ID,
+		clientName: 'Bissbilanz Mobile',
+		tokenEndpointAuthMethod: 'none',
+		allowedRedirectUris: []
+	});
 }

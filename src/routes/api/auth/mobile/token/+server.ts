@@ -1,10 +1,10 @@
 import { json, error } from '@sveltejs/kit';
-import { consumeOneTimeCode } from '$lib/server/mobile-auth';
-import { createAccessToken, refreshAccessToken } from '$lib/server/oauth';
+import { consumeOneTimeCode, MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
+import { createAccessToken, refreshAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 
-const MOBILE_CLIENT_ID = 'bissbilanz-mobile';
+const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	try {
@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			access_token: accessToken,
 			refresh_token: refreshToken,
 			token_type: 'Bearer',
-			expires_in: 3600
+			expires_in: EXPIRES_IN_SECONDS
 		});
 	}
 
@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			access_token: result.accessToken,
 			refresh_token: result.refreshToken,
 			token_type: 'Bearer',
-			expires_in: 3600
+			expires_in: EXPIRES_IN_SECONDS
 		});
 	}
 
