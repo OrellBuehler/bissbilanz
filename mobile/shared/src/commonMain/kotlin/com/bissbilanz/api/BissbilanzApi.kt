@@ -229,12 +229,16 @@ class BissbilanzApi(
     // Goals
     suspend fun getGoals(): Goals? =
         try {
-            authenticatedGet("/api/goals")
+            val response: GoalsResponse = authenticatedGet("/api/goals")
+            response.goals
         } catch (_: Exception) {
             null
         }
 
-    suspend fun setGoals(goals: Goals): Goals = authenticatedPut("/api/goals", goals)
+    suspend fun setGoals(goals: Goals): Goals {
+        val response: GoalsResponse = authenticatedPut("/api/goals", goals)
+        return response.goals!!
+    }
 
     // Weight
     suspend fun getWeightEntries(limit: Int = 30): List<WeightEntry> {

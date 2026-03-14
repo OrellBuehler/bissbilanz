@@ -50,7 +50,18 @@ class StatsRepository(
         limit: Int = 10,
     ): TopFoodsResponse = api.getTopFoods(days, limit)
 
-    suspend fun getCalendarStats(month: String): CalendarResponse = api.getCalendarStats(month)
+    suspend fun getCalendarStats(month: String): List<CalendarDay> {
+        val response = api.getCalendarStats(month)
+        val days =
+            response.days.map { (date, raw) ->
+                CalendarDay(
+                    date = date,
+                    calories = raw.calories,
+                    hasEntries = raw.hasEntries,
+                )
+            }
+        return days.sortedBy { it.date }
+    }
 
     private fun computeDailyStatsFromCache(
         startDate: String,

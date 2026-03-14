@@ -45,8 +45,7 @@ fun CalendarScreen(navController: NavController) {
             isLoading = true
             try {
                 val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
-                val response = statsRepo.getCalendarStats(monthStr)
-                calendarDays = response.days
+                calendarDays = statsRepo.getCalendarStats(monthStr)
             } catch (_: Exception) {
                 calendarDays = emptyList()
             }

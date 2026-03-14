@@ -191,9 +191,21 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 	return db
 		.select({
 			id: foods.id,
+			userId: foods.userId,
 			name: foods.name,
 			brand: foods.brand,
-			isFavorite: foods.isFavorite
+			servingSize: foods.servingSize,
+			servingUnit: foods.servingUnit,
+			calories: foods.calories,
+			protein: foods.protein,
+			carbs: foods.carbs,
+			fat: foods.fat,
+			fiber: foods.fiber,
+			barcode: foods.barcode,
+			isFavorite: foods.isFavorite,
+			imageUrl: foods.imageUrl,
+			createdAt: foods.createdAt,
+			updatedAt: foods.updatedAt
 		})
 		.from(foodEntries)
 		.innerJoin(foods, eq(foodEntries.foodId, foods.id))

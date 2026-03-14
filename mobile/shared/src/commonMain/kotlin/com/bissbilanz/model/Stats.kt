@@ -75,13 +75,19 @@ data class TopFoodEntry(
 data class CalendarDay(
     val date: String,
     val calories: Double,
-    val goalMet: Boolean,
+    val goalMet: Boolean = false,
     val hasEntries: Boolean,
 )
 
 @Serializable
+data class CalendarDayRaw(
+    val calories: Double = 0.0,
+    val hasEntries: Boolean = false,
+)
+
+@Serializable
 data class CalendarResponse(
-    val days: List<CalendarDay>,
+    val days: Map<String, CalendarDayRaw>,
 )
 
 @Serializable

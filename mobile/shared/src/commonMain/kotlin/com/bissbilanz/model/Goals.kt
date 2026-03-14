@@ -12,3 +12,8 @@ data class Goals(
     val sodiumGoal: Double? = null,
     val sugarGoal: Double? = null,
 )
+
+@Serializable
+data class GoalsResponse(
+    val goals: Goals? = null,
+)
