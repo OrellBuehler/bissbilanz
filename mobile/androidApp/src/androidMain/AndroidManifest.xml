@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
+        android:name=".BissbilanzApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -38,5 +39,6 @@
                 android:name="health_permissions"
                 android:resource="@xml/health_permissions" />
         </activity>
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
     </application>
 </manifest>

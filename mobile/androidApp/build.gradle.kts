@@ -20,7 +20,7 @@ kotlin {
 
 android {
     namespace = "com.bissbilanz.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.bissbilanz.android"
