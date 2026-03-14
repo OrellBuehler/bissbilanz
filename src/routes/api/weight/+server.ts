@@ -10,6 +10,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const to = url.searchParams.get('to');
 
 		if (from && to) {
+			const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+			if (!dateRegex.test(from) || !dateRegex.test(to)) {
+				return json({ error: 'Invalid date format, expected YYYY-MM-DD' }, { status: 400 });
+			}
 			const data = await getWeightWithTrend(userId, from, to);
 			return json({ data });
 		}

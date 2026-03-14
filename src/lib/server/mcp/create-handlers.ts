@@ -287,7 +287,7 @@ export function createHandlers(d: HandlerDeps) {
 	) => {
 		const result = await d.createWeightEntry(userId, {
 			weightKg: args.weightKg,
-			date: args.date,
+			entryDate: args.date,
 			notes: args.notes
 		});
 		if (!result.success) return { error: result.error.message };
