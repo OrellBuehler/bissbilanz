@@ -17,6 +17,7 @@ struct FoodSearchView: View {
     @State private var showCreateFood = false
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
+    @State private var toastMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +57,9 @@ struct FoodSearchView: View {
                 }
             }
         }
+        .navigationDestination(for: Food.self) { food in
+            FoodDetailView(foodId: food.id)
+        }
         .searchable(text: $query, prompt: L10n.searchFoods)
         .onChange(of: query) { _, newValue in
             searchTask?.cancel()
@@ -69,6 +73,18 @@ struct FoodSearchView: View {
             Button(L10n.ok, role: .cancel) {}
         } message: {
             if let errorMessage { Text(errorMessage) }
+        }
+        .overlay(alignment: .bottom) {
+            if let message = toastMessage {
+                Text(message)
+                    .font(.subheadline)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .sheet(item: $selectedFood) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
@@ -97,9 +113,6 @@ struct FoodSearchView: View {
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -113,9 +126,6 @@ struct FoodSearchView: View {
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -123,15 +133,12 @@ struct FoodSearchView: View {
     private var favoritesTab: some View {
         Group {
             if favoriteFoods.isEmpty {
-                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.noRecentFoods))
+                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.markFavoritesHint))
             } else {
                 List(favoriteFoods) { food in
                     foodRow(food)
                 }
                 .listStyle(.plain)
-                .navigationDestination(for: Food.self) { food in
-                    FoodDetailView(foodId: food.id)
-                }
             }
         }
     }
@@ -172,6 +179,16 @@ struct FoodSearchView: View {
                         .font(.caption)
                         .foregroundStyle(.yellow)
                 }
+                if date != nil {
+                    Button {
+                        Task { await quickLogFood(food) }
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
                 NavigationLink(value: food) {
                     EmptyView()
                 }
@@ -209,6 +226,40 @@ struct FoodSearchView: View {
             favoriteFoods = response.foods
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func mealForCurrentTime() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<11: return "breakfast"
+        case 11..<14: return "lunch"
+        case 14..<17: return "snacks"
+        default: return "dinner"
+        }
+    }
+
+    private func quickLogFood(_ food: Food) async {
+        guard let date else { return }
+        let entry = EntryCreate(
+            foodId: food.id,
+            mealType: mealForCurrentTime(),
+            servings: 1,
+            date: date
+        )
+        do {
+            _ = try await api.createEntry(entry)
+            showToast("\(food.name) \(L10n.logged)")
+        } catch {
+            showToast(L10n.failedToLog)
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation { toastMessage = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { toastMessage = nil }
         }
     }
 }

@@ -12,7 +12,7 @@ struct SupplementsView: View {
     @State private var errorMessage: String?
 
     private var takenCount: Int { loggedIds.count }
-    private var totalCount: Int { supplements.count }
+    private var totalCount: Int { supplements.filter(\.isActive).count }
     private var progress: Double {
         guard totalCount > 0 else { return 0 }
         return Double(takenCount) / Double(totalCount)
@@ -97,28 +97,47 @@ struct SupplementsView: View {
         }
     }
 
-    // MARK: - Supplements Section
+    // MARK: - Supplements Sections
+
+    private var activeSupplements: [Supplement] { supplements.filter(\.isActive) }
+    private var inactiveSupplements: [Supplement] { supplements.filter { !$0.isActive } }
 
     private var supplementsSection: some View {
-        Section {
-            ForEach(supplements) { supplement in
-                supplementRow(supplement)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            Task { await deleteSupplement(supplement) }
-                        } label: {
-                            Label(L10n.delete, systemImage: "trash")
-                        }
-
-                        Button {
-                            editingSupplement = supplement
-                        } label: {
-                            Label(L10n.edit, systemImage: "pencil")
-                        }
-                        .tint(.orange)
+        Group {
+            if !activeSupplements.isEmpty {
+                Section {
+                    ForEach(activeSupplements) { supplement in
+                        supplementRowWithSwipe(supplement)
                     }
+                }
+            }
+
+            if !inactiveSupplements.isEmpty {
+                Section(L10n.inactive) {
+                    ForEach(inactiveSupplements) { supplement in
+                        supplementRowWithSwipe(supplement)
+                    }
+                }
             }
         }
+    }
+
+    private func supplementRowWithSwipe(_ supplement: Supplement) -> some View {
+        supplementRow(supplement)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    Task { await deleteSupplement(supplement) }
+                } label: {
+                    Label(L10n.delete, systemImage: "trash")
+                }
+
+                Button {
+                    editingSupplement = supplement
+                } label: {
+                    Label(L10n.edit, systemImage: "pencil")
+                }
+                .tint(.orange)
+            }
     }
 
     private func supplementRow(_ supplement: Supplement) -> some View {
@@ -277,14 +296,14 @@ struct SupplementsView: View {
         let dateString = DateFormatting.today
         do {
             supplements = try await api.getSupplements()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        do {
             let checklist = try await api.getSupplementChecklist(date: dateString)
             loggedIds = Set(checklist.filter(\.taken).map(\.supplement.id))
         } catch {
-            if supplements.isEmpty {
-                do {
-                    supplements = try await api.getSupplements()
-                } catch {}
-            }
+            // Checklist fetch failed — keep loggedIds as-is rather than showing incorrect state
         }
         isLoading = false
     }

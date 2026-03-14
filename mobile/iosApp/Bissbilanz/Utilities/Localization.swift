@@ -98,6 +98,10 @@ enum L10n {
     static var nutrition: String { localized("nutrition", en: "Nutrition", de: "Nährwerte") }
     static var quality: String { localized("quality", en: "Quality", de: "Qualität") }
     static var ingredients: String { localized("ingredients", en: "Ingredients", de: "Zutaten") }
+    static var nutriScore: String { localized("nutri_score", en: "Nutri-Score", de: "Nutri-Score") }
+    static var novaGroup: String { localized("nova_group", en: "NOVA Group", de: "NOVA-Gruppe") }
+    static var logged: String { localized("logged", en: "logged", de: "eingetragen") }
+    static var failedToLog: String { localized("failed_to_log", en: "Failed to log", de: "Eintragung fehlgeschlagen") }
 
     // MARK: - Entries
 
@@ -164,6 +168,18 @@ enum L10n {
     static var topFoods: String { localized("top_foods", en: "Top Foods", de: "Top-Lebensmittel") }
     static var mealBreakdown: String { localized("meal_breakdown", en: "Meal Breakdown", de: "Mahlzeitenverteilung") }
     static var caloriesTrend: String { localized("calories_trend", en: "Calorie Trend", de: "Kalorientrend") }
+    static var macroTrends: String { localized("macro_trends", en: "Macro Trends", de: "Makro-Trends") }
+    static var goalAchievement: String { localized("goal_achievement", en: "Goal Achievement", de: "Zielerreichung") }
+    static var daysWithinGoal: String { localized("days_within_goal", en: "Days within goal range", de: "Tage im Zielbereich") }
+    static var dayPeriod: String { localized("day_period", en: "day period", de: "Tage Zeitraum") }
+    static var avgComparison: String { localized("avg_comparison", en: "Average Comparison", de: "Durchschnittsvergleich") }
+    static var quickActions: String { localized("quick_actions", en: "Quick Actions", de: "Schnellaktionen") }
+    static var favoriteLogging: String { localized("favorite_logging", en: "Favorite Logging", de: "Favoriten-Eintragung") }
+    static var autoAssignByTime: String { localized("auto_assign_by_time", en: "Auto-assign by time", de: "Automatisch nach Uhrzeit") }
+    static var alwaysAsk: String { localized("always_ask", en: "Always ask", de: "Immer nachfragen") }
+    static var quickLog: String { localized("quick_log", en: "Quick Log", de: "Schnelleintrag") }
+    static var additives: String { localized("additives", en: "Additives", de: "Zusatzstoffe") }
+    static var inactive: String { localized("inactive", en: "Inactive", de: "Inaktiv") }
 
     // MARK: - Calendar
 

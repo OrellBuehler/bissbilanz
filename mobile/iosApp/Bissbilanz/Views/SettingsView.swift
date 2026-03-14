@@ -9,8 +9,12 @@ struct SettingsView: View {
     @State private var mealTypes: [MealType] = []
     @State private var isEditingGoals = false
     @State private var showLogoutConfirmation = false
+    @State private var showCreateFood = false
+    @State private var showCreateRecipe = false
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
+    @State private var healthKitService = HealthKitService()
+    @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "healthkit_sync_enabled")
 
     // Goal editing fields
     @State private var editCalories = ""
@@ -58,6 +62,58 @@ struct SettingsView: View {
                     }
                 }
 
+                // HealthKit section
+                if healthKitService.isAvailable {
+                    Section(L10n.healthKit) {
+                        Toggle(L10n.healthKit, isOn: $healthSyncEnabled)
+                            .onChange(of: healthSyncEnabled) { _, enabled in
+                                UserDefaults.standard.set(enabled, forKey: "healthkit_sync_enabled")
+                                if enabled {
+                                    Task {
+                                        _ = await healthKitService.requestAuthorization()
+                                    }
+                                }
+                            }
+                        if healthKitService.isAuthorized {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Permissions granted")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else if healthSyncEnabled {
+                            Button {
+                                Task { _ = await healthKitService.requestAuthorization() }
+                            } label: {
+                                Label("Grant Permissions", systemImage: "heart.circle")
+                            }
+                        }
+                    }
+                }
+
+                // Quick actions
+                Section(L10n.quickActions) {
+                    HStack(spacing: 12) {
+                        Button {
+                            showCreateFood = true
+                        } label: {
+                            Label(L10n.foods, systemImage: "plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            showCreateRecipe = true
+                        } label: {
+                            Label(L10n.recipes, systemImage: "plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+
                 // Language section
                 Section(L10n.language) {
                     Picker(L10n.language, selection: Binding(
@@ -101,6 +157,41 @@ struct SettingsView: View {
                     Toggle(L10n.topFoods, isOn: widgetBinding(\.showTopFoodsWidget, key: "showTopFoodsWidget"))
                 }
 
+                // Favorite logging behavior
+                Section(L10n.favoriteLogging) {
+                    Picker(L10n.favoriteLogging, selection: Binding(
+                        get: { preferences.favoriteMealAssignmentMode },
+                        set: { newValue in
+                            Task {
+                                var update = PreferencesUpdate()
+                                update.favoriteMealAssignmentMode = newValue
+                                if let updated = try? await api.updatePreferences(update) {
+                                    preferences = updated
+                                }
+                            }
+                        }
+                    )) {
+                        Text(L10n.autoAssignByTime).tag("time_based")
+                        Text(L10n.alwaysAsk).tag("ask_meal")
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                // Visible nutrients
+                Section(L10n.visibleNutrients) {
+                    NavigationLink {
+                        VisibleNutrientsView(preferences: $preferences)
+                    } label: {
+                        HStack {
+                            Text(L10n.visibleNutrients)
+                            Spacer()
+                            Text("\(preferences.visibleNutrients.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // Account
                 Section(L10n.account) {
                     Button(role: .destructive) {
@@ -130,6 +221,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $isEditingGoals) {
                 goalsEditor
+            }
+            .sheet(isPresented: $showCreateFood) {
+                FoodEditSheet()
+            }
+            .sheet(isPresented: $showCreateRecipe) {
+                RecipeEditSheet()
             }
             .task { await loadData() }
             .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -268,5 +365,116 @@ struct SettingsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+// MARK: - Visible Nutrients View
+
+struct VisibleNutrientsView: View {
+    @Environment(BissbilanzAPI.self) private var api
+    @Binding var preferences: Preferences
+
+    @State private var selectedNutrients: Set<String> = []
+    @State private var isDirty = false
+    @State private var isSaving = false
+
+    private static let nutrientCategories: [(String, [(String, String)])] = [
+        ("Fat Breakdown", [
+            ("saturatedFat", "Saturated Fat"), ("monounsaturatedFat", "Monounsaturated Fat"),
+            ("polyunsaturatedFat", "Polyunsaturated Fat"), ("transFat", "Trans Fat"),
+            ("cholesterol", "Cholesterol"), ("omega3", "Omega-3"), ("omega6", "Omega-6"),
+        ]),
+        ("Sugar & Carbs", [
+            ("sugar", "Sugar"), ("addedSugars", "Added Sugars"),
+            ("sugarAlcohols", "Sugar Alcohols"), ("starch", "Starch"),
+        ]),
+        ("Minerals", [
+            ("sodium", "Sodium"), ("potassium", "Potassium"), ("calcium", "Calcium"),
+            ("iron", "Iron"), ("magnesium", "Magnesium"), ("phosphorus", "Phosphorus"),
+            ("zinc", "Zinc"), ("copper", "Copper"), ("manganese", "Manganese"),
+            ("selenium", "Selenium"), ("iodine", "Iodine"), ("fluoride", "Fluoride"),
+            ("chromium", "Chromium"), ("molybdenum", "Molybdenum"), ("chloride", "Chloride"),
+        ]),
+        ("Vitamins", [
+            ("vitaminA", "Vitamin A"), ("vitaminC", "Vitamin C"), ("vitaminD", "Vitamin D"),
+            ("vitaminE", "Vitamin E"), ("vitaminK", "Vitamin K"), ("vitaminB1", "Vitamin B1"),
+            ("vitaminB2", "Vitamin B2"), ("vitaminB3", "Vitamin B3"), ("vitaminB5", "Vitamin B5"),
+            ("vitaminB6", "Vitamin B6"), ("vitaminB7", "Vitamin B7"), ("vitaminB9", "Vitamin B9"),
+            ("vitaminB12", "Vitamin B12"),
+        ]),
+        ("Other", [
+            ("caffeine", "Caffeine"), ("alcohol", "Alcohol"), ("water", "Water"), ("salt", "Salt"),
+        ]),
+    ]
+
+    private static var allNutrientKeys: [String] {
+        nutrientCategories.flatMap { $0.1.map(\.0) }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                HStack(spacing: 12) {
+                    Button("Select All") {
+                        selectedNutrients = Set(Self.allNutrientKeys)
+                        isDirty = true
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+
+                    Button("Deselect All") {
+                        selectedNutrients = []
+                        isDirty = true
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+
+            ForEach(Self.nutrientCategories, id: \.0) { category, nutrients in
+                Section(category) {
+                    ForEach(nutrients, id: \.0) { key, label in
+                        Toggle(label, isOn: Binding(
+                            get: { selectedNutrients.contains(key) },
+                            set: { checked in
+                                if checked {
+                                    selectedNutrients.insert(key)
+                                } else {
+                                    selectedNutrients.remove(key)
+                                }
+                                isDirty = true
+                            }
+                        ))
+                    }
+                }
+            }
+        }
+        .navigationTitle(L10n.visibleNutrients)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isDirty {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.save) {
+                        Task { await saveNutrients() }
+                    }
+                    .disabled(isSaving)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .onAppear {
+            selectedNutrients = Set(preferences.visibleNutrients)
+        }
+    }
+
+    private func saveNutrients() async {
+        isSaving = true
+        var update = PreferencesUpdate()
+        update.visibleNutrients = Array(selectedNutrients)
+        if let updated = try? await api.updatePreferences(update) {
+            preferences = updated
+        }
+        isDirty = false
+        isSaving = false
     }
 }

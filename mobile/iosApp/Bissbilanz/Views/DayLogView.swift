@@ -10,6 +10,7 @@ struct DayLogView: View {
     @State private var showFoodSearch = false
     @State private var editingEntry: Entry?
     @State private var isCopying = false
+    @State private var showQuickEntry = false
     @State private var errorMessage: String?
 
     private var mealGroups: [(String, [Entry])] {
@@ -36,7 +37,20 @@ struct DayLogView: View {
         .navigationTitle(displayDate)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    Task { await copyYesterday() }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .disabled(isCopying)
+
+                Button {
+                    showQuickEntry = true
+                } label: {
+                    Image(systemName: "pencil")
+                }
+
                 Button {
                     showFoodSearch = true
                 } label: {
@@ -53,6 +67,11 @@ struct DayLogView: View {
                 Task { await loadEntries() }
             }
         }
+        .sheet(isPresented: $showQuickEntry) {
+            QuickEntrySheet(date: date) {
+                Task { await loadEntries() }
+            }
+        }
         .sheet(item: $editingEntry) { entry in
             EntryEditSheet(entry: entry) { updated in
                 if let index = entries.firstIndex(where: { $0.id == updated.id }) {
@@ -60,7 +79,7 @@ struct DayLogView: View {
                 }
             }
         }
-        .task { await loadEntries() }
+        .task { await loadEntries(showSpinner: true) }
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}
         } message: {
@@ -126,13 +145,30 @@ struct DayLogView: View {
                             }
                     }
                 } header: {
-                    HStack {
-                        Text(L10n.mealName(mealType))
-                        Spacer()
-                        let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
-                        Text("\(Int(cal)) cal")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(L10n.mealName(mealType))
+                            Spacer()
+                            let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
+                            Text("\(Int(cal)) cal")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(MacroColors.calories)
+                        }
+                        HStack(spacing: 12) {
+                            let p = mealEntries.reduce(0.0) { $0 + $1.totalProtein }
+                            let c = mealEntries.reduce(0.0) { $0 + $1.totalCarbs }
+                            let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
+                            Text("P \(Int(p))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.protein)
+                            Text("C \(Int(c))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.carbs)
+                            Text("F \(Int(f))g")
+                                .font(.caption2)
+                                .foregroundStyle(MacroColors.fat)
+                        }
                     }
                 }
             }
@@ -149,7 +185,7 @@ struct DayLogView: View {
                     Text(entry.displayName)
                         .font(.body)
                         .foregroundStyle(.primary)
-                    Text("\(entry.servings, specifier: "%.1g")x \u{00B7} \(Int(entry.totalCalories)) cal")
+                    Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -166,8 +202,8 @@ struct DayLogView: View {
         }
     }
 
-    private func loadEntries() async {
-        isLoading = true
+    private func loadEntries(showSpinner: Bool = false) async {
+        if showSpinner { isLoading = true }
         error = nil
         do {
             entries = try await api.getEntries(date: date)
@@ -188,10 +224,11 @@ struct DayLogView: View {
 
     private func copyYesterday() async {
         isCopying = true
-        let yesterday = Date().adding(days: -1).isoDateString
+        let viewedDate = DateFormatting.date(from: date) ?? Date()
+        let yesterday = viewedDate.adding(days: -1).isoDateString
         do {
             let copied = try await api.copyEntries(fromDate: yesterday, toDate: date)
-            entries = copied
+            entries.append(contentsOf: copied)
         } catch {
             errorMessage = error.localizedDescription
         }
