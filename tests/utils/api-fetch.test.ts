@@ -370,9 +370,7 @@ describe('apiFetch', () => {
 
 		test('does not cache POST response', async () => {
 			setOnline(true);
-			vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-				new Response('{}', { status: 201 })
-			);
+			vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 201 }));
 
 			await apiFetch('/api/foods', {
 				method: 'POST',

@@ -15,21 +15,27 @@ beforeEach(async () => {
 
 describe('startSyncListener pattern', () => {
 	let listeners: Map<string, EventListener[]>;
-	let mockAddEventListener: ReturnType<typeof vi.fn>;
+	let mockAddEventListener: ReturnType<
+		typeof vi.fn<(event: string, handler: EventListener) => void>
+	>;
 
 	beforeEach(() => {
 		listeners = new Map();
-		mockAddEventListener = vi.fn((event: string, handler: EventListener) => {
-			const existing = listeners.get(event) ?? [];
-			existing.push(handler);
-			listeners.set(event, existing);
-		});
+		mockAddEventListener = vi.fn<(event: string, handler: EventListener) => void>(
+			(event, handler) => {
+				const existing = listeners.get(event) ?? [];
+				existing.push(handler);
+				listeners.set(event, existing);
+			}
+		);
 	});
 
 	test('registers online event listener', () => {
 		let started = false;
 
-		function startSyncListener(win: { addEventListener: typeof mockAddEventListener }) {
+		function startSyncListener(win: {
+			addEventListener: (event: string, handler: EventListener) => void;
+		}) {
 			if (started) return;
 			started = true;
 			win.addEventListener('online', () => {});
@@ -44,7 +50,9 @@ describe('startSyncListener pattern', () => {
 	test('does not re-register on second call', () => {
 		let started = false;
 
-		function startSyncListener(win: { addEventListener: typeof mockAddEventListener }) {
+		function startSyncListener(win: {
+			addEventListener: (event: string, handler: EventListener) => void;
+		}) {
 			if (started) return;
 			started = true;
 			win.addEventListener('online', () => {});
@@ -62,7 +70,9 @@ describe('startSyncListener pattern', () => {
 		const onSynced = vi.fn();
 		let started = false;
 
-		function startSyncListener(win: { addEventListener: typeof mockAddEventListener }) {
+		function startSyncListener(win: {
+			addEventListener: (event: string, handler: EventListener) => void;
+		}) {
 			if (started) return;
 			started = true;
 			win.addEventListener('online', async () => {
@@ -86,7 +96,9 @@ describe('startSyncListener pattern', () => {
 		const onSynced = vi.fn();
 		let started = false;
 
-		function startSyncListener(win: { addEventListener: typeof mockAddEventListener }) {
+		function startSyncListener(win: {
+			addEventListener: (event: string, handler: EventListener) => void;
+		}) {
 			if (started) return;
 			started = true;
 			win.addEventListener('online', async () => {

@@ -1,7 +1,12 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, test, beforeEach, vi } from 'vitest';
 import { db } from '../../src/lib/db/index';
-import { enqueue, drainQueue, removeFromQueue, clearQueue } from '../../src/lib/stores/offline-queue';
+import {
+	enqueue,
+	drainQueue,
+	removeFromQueue,
+	clearQueue
+} from '../../src/lib/stores/offline-queue';
 
 beforeEach(async () => {
 	await Promise.all(db.tables.map((t) => t.clear()));
@@ -29,10 +34,15 @@ describe('enqueue', () => {
 	});
 
 	test('stores metadata when provided', async () => {
-		await enqueue('POST', '/api/foods', { name: 'Apple' }, {
-			affectedTable: 'foods',
-			affectedId: 'f1'
-		});
+		await enqueue(
+			'POST',
+			'/api/foods',
+			{ name: 'Apple' },
+			{
+				affectedTable: 'foods',
+				affectedId: 'f1'
+			}
+		);
 
 		const items = await db.syncQueue.toArray();
 		expect(items[0].affectedTable).toBe('foods');
@@ -48,9 +58,14 @@ describe('enqueue', () => {
 	});
 
 	test('stores partial metadata', async () => {
-		await enqueue('POST', '/api/foods', { name: 'Apple' }, {
-			affectedTable: 'foods'
-		});
+		await enqueue(
+			'POST',
+			'/api/foods',
+			{ name: 'Apple' },
+			{
+				affectedTable: 'foods'
+			}
+		);
 
 		const items = await db.syncQueue.toArray();
 		expect(items[0].affectedTable).toBe('foods');
