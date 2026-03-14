@@ -5,12 +5,25 @@
 
 ## Infrastructure
 
-- **Framework:** Vitest with `@testcontainers/postgresql` (PostgreSQL 18)
+- **Framework:** Vitest with `testcontainers` + `@testcontainers/postgresql` (PostgreSQL 18)
 - **Directory:** `tests/integration-db/`
 - **Config:** `vitest.integration.config.ts` (separate from unit test config)
 - **Script:** `bun run test:integration-db`
 
 Separate from existing unit/mock tests. Integration tests hit a real PostgreSQL instance; unit tests continue using mocked DB.
+
+### Vitest Config (`vitest.integration.config.ts`)
+
+- `include`: `tests/integration-db/**/*.test.ts`
+- `globalSetup`: `tests/integration-db/setup.ts`
+- `testTimeout`: 60000 (migrations and container ops are slow)
+- Same `$lib` alias as main `vitest.config.ts`
+
+### Dependencies
+
+```bash
+bun add -d testcontainers @testcontainers/postgresql
+```
 
 ## Container Lifecycle
 
@@ -22,8 +35,18 @@ Separate from existing unit/mock tests. Integration tests hit a real PostgreSQL 
 
 **Helpers** (`tests/integration-db/helpers.ts`):
 
-- `getTestDB()` — creates a Drizzle instance connected to the test container
-- `runTestMigrations()` — runs Drizzle migrations from `./drizzle` against the test DB
+- `getTestDB()` — creates a Drizzle instance using `bun:sql` (`new SQL(url)`) connected to the test container URL from `DATABASE_URL` env var. This uses the same driver as production.
+- `runTestMigrations(db)` — calls `migrate(db, { migrationsFolder: './drizzle' })` from `drizzle-orm/bun-sql/migrator` directly against the provided DB instance (avoids coupling to the singleton in `db.ts`).
+- `createTestDatabase(name)` — runs `CREATE DATABASE` via the container's root connection, returns a new connection URL. Used for per-test-file isolation.
+
+### Test Isolation
+
+Each test file gets its own database within the shared container:
+
+- Global setup starts one PostgreSQL container
+- Each test file's `beforeAll` calls `createTestDatabase('test_<suitename>')` to create a fresh database
+- Each test file's `afterAll` drops its database
+- This ensures test execution order doesn't matter
 
 ## Test Suites
 
@@ -31,20 +54,21 @@ Separate from existing unit/mock tests. Integration tests hit a real PostgreSQL 
 
 - Run all migrations from scratch on a clean DB
 - Verify no errors thrown
-- Query `drizzle.__drizzle_migrations` to confirm all migrations are recorded
-- Verify key tables exist (`users`, `foods`, `food_entries`, `recipes`, etc.)
+- Query `__drizzle_migrations` table (in `public` schema) to confirm all 28 migrations are recorded
+- Verify key tables exist (`users`, `foods`, `food_entries`, `recipes`, `sessions`, `oauth_clients`, etc.)
 
 ### 2. Migration Idempotency (`migrations-idempotency.test.ts`)
 
 - Run all migrations once
-- Run `runMigrations()` again (simulating server restart)
+- Run `migrate()` again (simulating server restart)
 - Verify no errors — matches production behavior where `runMigrations()` runs on every startup
 
 ### 3. Server Startup (`server-startup.test.ts`)
 
-- Run the init sequence: `runMigrations()` then `cleanExpiredSessions()`
-- Verify both complete without errors against a real DB
+- Run the full init sequence: `runMigrations()`, `ensureMobileClient()`, `cleanExpiredSessions()`
+- Verify all three complete without errors against a real DB
 - Insert an expired session, run cleanup, verify it's deleted
+- Verify `ensureMobileClient()` creates the expected OAuth client row
 
 ### 4. Seed Data Integrity (`seed-data.test.ts`)
 
@@ -56,18 +80,16 @@ Separate from existing unit/mock tests. Integration tests hit a real PostgreSQL 
 
 - Run migrations, then perform basic CRUD on each major table via Drizzle ORM
 - Insert a row, select it back, update it, delete it
-- Tables: `users`, `foods`, `food_entries`, `recipes`, `recipe_ingredients`, `weight`, `supplements`, `supplement_logs`, `user_goals`, `user_preferences`, `custom_meal_types`
+- Tables: `users`, `sessions`, `foods`, `food_entries`, `recipes`, `recipe_ingredients`, `weight`, `supplements`, `supplement_logs`, `user_goals`, `user_preferences`, `custom_meal_types`, `oauth_clients`, `oauth_tokens`, `mcp_sessions`
+- Verify foreign key cascades work (e.g., delete user → entries cascade)
 - Catches column type mismatches, missing defaults, broken foreign keys
 
 ## CI Integration
 
 **Workflow:** `.github/workflows/integration-tests.yml`
 
-- **Trigger:** `pull_request` with `types: [ready_for_review]` + label-based re-trigger
+- **Trigger:** `pull_request` with `types: [opened, synchronize, ready_for_review]`
+- **Condition:** `if: github.event.pull_request.draft == false` (skip draft PRs)
 - **Runner:** `ubuntu-latest` (Docker available by default)
 - **Steps:** Checkout → Setup Bun → `bun install` → `bun run test:integration-db`
 - No Docker Compose or services block — Testcontainers handles container lifecycle
-
-## Dependency
-
-- `@testcontainers/postgresql` (dev dependency)
