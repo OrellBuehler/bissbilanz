@@ -27,3 +27,13 @@ data class WeightUpdate(
     val entryDate: String? = null,
     val notes: String? = null,
 )
+
+@Serializable
+data class WeightEntriesResponse(
+    val entries: List<WeightEntry>,
+)
+
+@Serializable
+data class WeightEntryResponse(
+    val entry: WeightEntry,
+)

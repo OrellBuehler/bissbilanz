@@ -58,3 +58,14 @@ data class EntryUpdate(
     val quickFiber: Double? = null,
     val eatenAt: String? = null,
 )
+
+@Serializable
+data class EntriesResponse(
+    val entries: List<Entry>,
+    val total: Int = 0,
+)
+
+@Serializable
+data class EntryResponse(
+    val entry: Entry,
+)

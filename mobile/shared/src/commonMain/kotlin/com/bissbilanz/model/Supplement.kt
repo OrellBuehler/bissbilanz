@@ -101,6 +101,22 @@ data class SupplementHistoryResponse(
 )
 
 @Serializable
+data class SupplementResponse(
+    val supplement: Supplement,
+)
+
+@Serializable
+data class SupplementLogResponse(
+    val log: SupplementLog,
+)
+
+@Serializable
+data class SupplementChecklistResponse(
+    val checklist: List<SupplementLog>,
+    val date: String,
+)
+
+@Serializable
 data class SupplementsResponse(
     val supplements: List<Supplement>,
 )

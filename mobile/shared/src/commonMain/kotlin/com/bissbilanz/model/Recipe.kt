@@ -50,3 +50,14 @@ data class RecipeUpdate(
     val isFavorite: Boolean? = null,
     val imageUrl: String? = null,
 )
+
+@Serializable
+data class RecipesResponse(
+    val recipes: List<Recipe>,
+    val total: Int = 0,
+)
+
+@Serializable
+data class RecipeResponse(
+    val recipe: Recipe,
+)

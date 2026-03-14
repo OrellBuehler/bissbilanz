@@ -127,59 +127,102 @@ class BissbilanzApi(
     suspend fun getFoods(
         limit: Int = 100,
         offset: Int = 0,
-    ): List<Food> =
-        authenticatedGet("/api/foods") {
-            parameter("limit", limit)
-            parameter("offset", offset)
-        }
+    ): List<Food> {
+        val response: FoodsResponse =
+            authenticatedGet("/api/foods") {
+                parameter("limit", limit)
+                parameter("offset", offset)
+            }
+        return response.foods
+    }
 
-    suspend fun getFood(id: String): Food = authenticatedGet("/api/foods/$id")
+    suspend fun getFood(id: String): Food {
+        val response: FoodResponse = authenticatedGet("/api/foods/$id")
+        return response.food!!
+    }
 
-    suspend fun createFood(food: FoodCreate): Food = authenticatedPost("/api/foods", food)
+    suspend fun createFood(food: FoodCreate): Food {
+        val response: FoodResponse = authenticatedPost("/api/foods", food)
+        return response.food!!
+    }
 
     suspend fun updateFood(
         id: String,
         food: FoodCreate,
-    ): Food = authenticatedPut("/api/foods/$id", food)
+    ): Food {
+        val response: FoodResponse = authenticatedPut("/api/foods/$id", food)
+        return response.food!!
+    }
 
     suspend fun deleteFood(id: String) = authenticatedDelete("/api/foods/$id")
 
-    suspend fun searchFoods(query: String): List<Food> = authenticatedGet("/api/foods") { parameter("search", query) }
+    suspend fun searchFoods(query: String): List<Food> {
+        val response: FoodsResponse = authenticatedGet("/api/foods") { parameter("q", query) }
+        return response.foods
+    }
 
-    suspend fun getRecentFoods(limit: Int = 20): List<Food> = authenticatedGet("/api/foods/recent") { parameter("limit", limit) }
+    suspend fun getRecentFoods(limit: Int = 20): List<Food> {
+        val response: FoodsResponse = authenticatedGet("/api/foods/recent") { parameter("limit", limit) }
+        return response.foods
+    }
 
-    suspend fun getFavorites(): List<Food> = authenticatedGet("/api/foods") { parameter("favorites", true) }
+    suspend fun getFavorites(): List<Food> {
+        val response: FoodsResponse = authenticatedGet("/api/favorites") { parameter("type", "foods") }
+        return response.foods
+    }
 
     suspend fun getFoodByBarcode(barcode: String): Food? =
         try {
-            authenticatedGet("/api/foods") { parameter("barcode", barcode) }
+            val response: FoodResponse = authenticatedGet("/api/foods") { parameter("barcode", barcode) }
+            response.food
         } catch (_: Exception) {
             null
         }
 
     // Entries
-    suspend fun getEntries(date: String): List<Entry> = authenticatedGet("/api/entries") { parameter("date", date) }
+    suspend fun getEntries(date: String): List<Entry> {
+        val response: EntriesResponse = authenticatedGet("/api/entries") { parameter("date", date) }
+        return response.entries
+    }
 
-    suspend fun createEntry(entry: EntryCreate): Entry = authenticatedPost("/api/entries", entry)
+    suspend fun createEntry(entry: EntryCreate): Entry {
+        val response: EntryResponse = authenticatedPost("/api/entries", entry)
+        return response.entry
+    }
 
     suspend fun updateEntry(
         id: String,
         entry: EntryUpdate,
-    ): Entry = authenticatedPut("/api/entries/$id", entry)
+    ): Entry {
+        val response: EntryResponse = authenticatedPut("/api/entries/$id", entry)
+        return response.entry
+    }
 
     suspend fun deleteEntry(id: String) = authenticatedDelete("/api/entries/$id")
 
     // Recipes
-    suspend fun getRecipes(): List<Recipe> = authenticatedGet("/api/recipes")
+    suspend fun getRecipes(): List<Recipe> {
+        val response: RecipesResponse = authenticatedGet("/api/recipes")
+        return response.recipes
+    }
 
-    suspend fun getRecipe(id: String): Recipe = authenticatedGet("/api/recipes/$id")
+    suspend fun getRecipe(id: String): Recipe {
+        val response: RecipeResponse = authenticatedGet("/api/recipes/$id")
+        return response.recipe
+    }
 
-    suspend fun createRecipe(recipe: RecipeCreate): Recipe = authenticatedPost("/api/recipes", recipe)
+    suspend fun createRecipe(recipe: RecipeCreate): Recipe {
+        val response: RecipeResponse = authenticatedPost("/api/recipes", recipe)
+        return response.recipe
+    }
 
     suspend fun updateRecipe(
         id: String,
         recipe: RecipeUpdate,
-    ): Recipe = authenticatedPut("/api/recipes/$id", recipe)
+    ): Recipe {
+        val response: RecipeResponse = authenticatedPut("/api/recipes/$id", recipe)
+        return response.recipe
+    }
 
     suspend fun deleteRecipe(id: String) = authenticatedDelete("/api/recipes/$id")
 
@@ -194,28 +237,46 @@ class BissbilanzApi(
     suspend fun setGoals(goals: Goals): Goals = authenticatedPut("/api/goals", goals)
 
     // Weight
-    suspend fun getWeightEntries(limit: Int = 30): List<WeightEntry> = authenticatedGet("/api/weight") { parameter("limit", limit) }
+    suspend fun getWeightEntries(limit: Int = 30): List<WeightEntry> {
+        val response: WeightEntriesResponse = authenticatedGet("/api/weight") { parameter("limit", limit) }
+        return response.entries
+    }
 
-    suspend fun createWeightEntry(entry: WeightCreate): WeightEntry = authenticatedPost("/api/weight", entry)
+    suspend fun createWeightEntry(entry: WeightCreate): WeightEntry {
+        val response: WeightEntryResponse = authenticatedPost("/api/weight", entry)
+        return response.entry
+    }
 
     suspend fun updateWeightEntry(
         id: String,
         entry: WeightUpdate,
-    ): WeightEntry = authenticatedPut("/api/weight/$id", entry)
+    ): WeightEntry {
+        val response: WeightEntryResponse = authenticatedPut("/api/weight/$id", entry)
+        return response.entry
+    }
 
     suspend fun deleteWeightEntry(id: String) = authenticatedDelete("/api/weight/$id")
 
     // Supplements
-    suspend fun getSupplements(): List<Supplement> = authenticatedGet("/api/supplements")
+    suspend fun getSupplements(): List<Supplement> {
+        val response: SupplementsResponse = authenticatedGet("/api/supplements")
+        return response.supplements
+    }
 
-    suspend fun createSupplement(supplement: SupplementCreate): Supplement = authenticatedPost("/api/supplements", supplement)
+    suspend fun createSupplement(supplement: SupplementCreate): Supplement {
+        val response: SupplementResponse = authenticatedPost("/api/supplements", supplement)
+        return response.supplement
+    }
 
     suspend fun deleteSupplement(id: String) = authenticatedDelete("/api/supplements/$id")
 
     suspend fun logSupplement(
         supplementId: String,
         date: String? = null,
-    ): SupplementLog = authenticatedPost("/api/supplements/$supplementId/log", mapOf("date" to date))
+    ): SupplementLog {
+        val response: SupplementLogResponse = authenticatedPost("/api/supplements/$supplementId/log", mapOf("date" to date))
+        return response.log
+    }
 
     suspend fun unlogSupplement(
         supplementId: String,
@@ -304,7 +365,10 @@ class BissbilanzApi(
     suspend fun updateSupplement(
         id: String,
         supplement: SupplementCreate,
-    ): Supplement = authenticatedPut("/api/supplements/$id", supplement)
+    ): Supplement {
+        val response: SupplementResponse = authenticatedPut("/api/supplements/$id", supplement)
+        return response.supplement
+    }
 
     suspend fun getSupplementHistory(
         from: String,
@@ -321,7 +385,10 @@ class BissbilanzApi(
         }
 
     // Supplement checklist for a date
-    suspend fun getSupplementChecklist(date: String): List<SupplementLog> = authenticatedGet("/api/supplements/$date/checklist")
+    suspend fun getSupplementChecklist(date: String): List<SupplementLog> {
+        val response: SupplementChecklistResponse = authenticatedGet("/api/supplements/$date/checklist")
+        return response.checklist
+    }
 }
 
 class UnauthorizedException : Exception("Not authenticated")

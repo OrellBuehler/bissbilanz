@@ -133,3 +133,14 @@ data class FoodCreate(
     val ingredientsText: String? = null,
     val imageUrl: String? = null,
 )
+
+@Serializable
+data class FoodsResponse(
+    val foods: List<Food>,
+    val total: Int = 0,
+)
+
+@Serializable
+data class FoodResponse(
+    val food: Food? = null,
+)
