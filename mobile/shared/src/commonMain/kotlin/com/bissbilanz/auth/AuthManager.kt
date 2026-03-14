@@ -17,11 +17,15 @@ import kotlinx.serialization.json.Json
 import kotlin.concurrent.Volatile
 
 sealed class AuthState {
+    data object Loading : AuthState()
+
     data object Unauthenticated : AuthState()
 
     data object Authenticated : AuthState()
 
     data object Refreshing : AuthState()
+
+    data object SessionExpired : AuthState()
 }
 
 @Serializable
@@ -36,7 +40,7 @@ class AuthManager(
     private val baseUrl: String,
     private val secureStorage: SecureStorage,
 ) {
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     private val client =
@@ -58,9 +62,7 @@ class AuthManager(
 
     fun initialize() {
         val token = secureStorage.load(KEY_ACCESS_TOKEN)
-        if (token != null) {
-            _authState.value = AuthState.Authenticated
-        }
+        _authState.value = if (token != null) AuthState.Authenticated else AuthState.Unauthenticated
     }
 
     fun buildLoginUrl(state: String): String {
@@ -106,21 +108,34 @@ class AuthManager(
 
             _authState.value = AuthState.Refreshing
             try {
-                val response: TokenResponse =
-                    client
-                        .post("$baseUrl/api/auth/mobile/token") {
-                            contentType(ContentType.Application.Json)
-                            setBody(mapOf("refresh_token" to refreshToken))
-                        }.body()
+                val httpResponse =
+                    client.post("$baseUrl/api/auth/mobile/token") {
+                        contentType(ContentType.Application.Json)
+                        setBody(mapOf("refresh_token" to refreshToken))
+                    }
 
+                if (httpResponse.status.value !in 200..299) {
+                    secureStorage.delete(KEY_ACCESS_TOKEN)
+                    secureStorage.delete(KEY_REFRESH_TOKEN)
+                    _authState.value = AuthState.SessionExpired
+                    return@withLock false
+                }
+
+                val response: TokenResponse = httpResponse.body()
                 secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
                 response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
                 _authState.value = AuthState.Authenticated
                 true
             } catch (e: Exception) {
-                _authState.value = AuthState.Unauthenticated
-                false
+                _authState.value = AuthState.Authenticated
+                throw e
             }
+        }
+    }
+
+    fun clearSessionExpired() {
+        if (_authState.value is AuthState.SessionExpired) {
+            _authState.value = AuthState.Unauthenticated
         }
     }
 
