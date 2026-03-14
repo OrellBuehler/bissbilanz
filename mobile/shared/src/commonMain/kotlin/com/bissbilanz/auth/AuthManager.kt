@@ -126,9 +126,9 @@ class AuthManager(
                 response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
                 _authState.value = AuthState.Authenticated
                 true
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _authState.value = AuthState.Authenticated
-                throw e
+                false
             }
         }
     }
