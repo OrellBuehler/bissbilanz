@@ -6,11 +6,13 @@ import { config } from '$lib/server/env';
 import { validateAccessToken } from '$lib/server/oauth';
 import { createMcpServer } from '$lib/server/mcp/server';
 import { sweepExpiredSessions } from '$lib/server/mcp/sweep';
+import { rateLimitMcp } from '$lib/server/rate-limit';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const REQUIRED_SCOPE = 'mcp:access';
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+const MAX_SESSIONS = 1000;
 
 type SessionState = {
 	transport: WebStandardStreamableHTTPServerTransport;
@@ -146,6 +148,12 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		return unauthorizedResponse(url, 'Missing or invalid bearer token.');
 	}
 
+	try {
+		rateLimitMcp(auth.userId);
+	} catch {
+		return jsonRpcError(429, -32000, 'Rate limit exceeded');
+	}
+
 	const sessionId = request.headers.get('mcp-session-id');
 
 	if (sessionId) {
@@ -166,6 +174,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 	if (!containsInitializeRequest(body)) {
 		return jsonRpcError(400, -32600, 'Invalid Request: Initialization required');
+	}
+
+	if (sessionTransports.size >= MAX_SESSIONS) {
+		return jsonRpcError(503, -32000, 'Too many active sessions');
 	}
 
 	const transport = await createSessionTransport(auth.userId);

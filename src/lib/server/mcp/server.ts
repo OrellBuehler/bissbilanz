@@ -204,7 +204,11 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z.string().describe('Meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
+				mealType: z
+					.string()
+					.describe(
+						'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
+					),
 				servings: z.number().describe('Number of servings'),
 				notes: z.string().optional().describe('Optional notes for the entry'),
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
@@ -288,7 +292,9 @@ export function createMcpServer(userId: string): McpServer {
 				mealType: z
 					.string()
 					.optional()
-					.describe('New meal type (e.g., "Breakfast", "Lunch", "Dinner", "Snacks")'),
+					.describe(
+						'New meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
+					),
 				notes: z.string().optional().describe('New notes'),
 				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
 				quickCalories: z

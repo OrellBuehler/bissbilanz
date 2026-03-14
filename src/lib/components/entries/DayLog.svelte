@@ -144,6 +144,13 @@
 
 	const totals = $derived(sumEntries(entries));
 
+	const mealTypes = $derived(() => {
+		const custom = entries
+			.map((e: { mealType: string }) => e.mealType)
+			.filter((mt: string) => !(DEFAULT_MEAL_TYPES as readonly string[]).includes(mt));
+		return [...DEFAULT_MEAL_TYPES, ...new Set(custom)];
+	});
+
 	$effect(() => {
 		onTotalsChange?.(totals);
 	});
@@ -160,7 +167,7 @@
 
 <div class="space-y-4">
 	<div class="grid gap-4">
-		{#each DEFAULT_MEAL_TYPES as mealType}
+		{#each mealTypes() as mealType}
 			<MealSection
 				title={mealType}
 				{dashboardStyle}
