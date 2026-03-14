@@ -5,11 +5,14 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
+import com.bissbilanz.sync.ConnectivityProvider
+import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -21,6 +24,8 @@ class FoodRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
     private lateinit var queries: BissbilanzDatabaseQueries
+    private lateinit var connectivity: ConnectivityProvider
+    private lateinit var syncQueue: SyncQueue
     private lateinit var repository: FoodRepository
 
     @BeforeTest
@@ -31,7 +36,12 @@ class FoodRepositoryTest {
             mockk {
                 every { bissbilanzDatabaseQueries } returns queries
             }
-        repository = FoodRepository(api, db)
+        connectivity =
+            mockk {
+                every { isOnline } returns MutableStateFlow(true)
+            }
+        syncQueue = mockk(relaxed = true)
+        repository = FoodRepository(api, db, connectivity, syncQueue)
     }
 
     @Test

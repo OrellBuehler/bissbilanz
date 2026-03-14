@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS CachedFood (
     fat REAL NOT NULL DEFAULT 0,
     fiber REAL NOT NULL DEFAULT 0,
     isFavorite INTEGER NOT NULL DEFAULT 0,
+    barcode TEXT,
     jsonData TEXT NOT NULL
 );
 
@@ -34,6 +35,63 @@ CREATE TABLE IF NOT EXISTS CachedGoals (
     carbGoal REAL NOT NULL,
     fatGoal REAL NOT NULL,
     fiberGoal REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedRecipe (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    totalServings REAL NOT NULL DEFAULT 1,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedSupplement (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    sortOrder INTEGER NOT NULL DEFAULT 0,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedSupplementLog (
+    id TEXT NOT NULL PRIMARY KEY,
+    supplementId TEXT NOT NULL,
+    date TEXT NOT NULL,
+    takenAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedWeightEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    entryDate TEXT NOT NULL,
+    weightKg REAL NOT NULL,
+    loggedAt TEXT,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedPreferences (
+    id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedMealType (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    sortOrder INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS SyncQueue (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    method TEXT NOT NULL,
+    url TEXT NOT NULL,
+    body TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    affectedTable TEXT,
+    affectedId TEXT
 );
 
 CREATE TABLE IF NOT EXISTS SyncMeta (
@@ -59,15 +117,27 @@ DELETE FROM CachedEntry WHERE date = ?;
 selectAllFoods:
 SELECT * FROM CachedFood ORDER BY name;
 
+selectFoodById:
+SELECT * FROM CachedFood WHERE id = ?;
+
+selectFoodByBarcode:
+SELECT * FROM CachedFood WHERE barcode = ? LIMIT 1;
+
 selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
+searchFoods:
+SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY name LIMIT ?;
+
 insertFood:
-INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, jsonData)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, barcode, jsonData)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteFood:
 DELETE FROM CachedFood WHERE id = ?;
+
+deleteAllFoods:
+DELETE FROM CachedFood;
 
 -- Goals
 selectGoals:
@@ -77,9 +147,160 @@ insertGoals:
 INSERT OR REPLACE INTO CachedGoals(id, calorieGoal, proteinGoal, carbGoal, fatGoal, fiberGoal)
 VALUES (1, ?, ?, ?, ?, ?);
 
+-- Recipes
+selectAllRecipes:
+SELECT * FROM CachedRecipe ORDER BY name;
+
+selectRecipeById:
+SELECT * FROM CachedRecipe WHERE id = ?;
+
+selectFavoriteRecipes:
+SELECT * FROM CachedRecipe WHERE isFavorite = 1 ORDER BY name;
+
+insertRecipe:
+INSERT OR REPLACE INTO CachedRecipe(id, name, totalServings, isFavorite, calories, protein, carbs, fat, fiber, jsonData)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteRecipe:
+DELETE FROM CachedRecipe WHERE id = ?;
+
+deleteAllRecipes:
+DELETE FROM CachedRecipe;
+
+-- Supplements
+selectAllSupplements:
+SELECT * FROM CachedSupplement ORDER BY sortOrder;
+
+selectActiveSupplements:
+SELECT * FROM CachedSupplement WHERE isActive = 1 ORDER BY sortOrder;
+
+selectSupplementById:
+SELECT * FROM CachedSupplement WHERE id = ?;
+
+insertSupplement:
+INSERT OR REPLACE INTO CachedSupplement(id, name, isActive, sortOrder, jsonData)
+VALUES (?, ?, ?, ?, ?);
+
+deleteSupplement:
+DELETE FROM CachedSupplement WHERE id = ?;
+
+deleteAllSupplements:
+DELETE FROM CachedSupplement;
+
+-- Supplement Logs
+selectSupplementLogsByDate:
+SELECT * FROM CachedSupplementLog WHERE date = ?;
+
+selectSupplementLogsByDateRange:
+SELECT * FROM CachedSupplementLog WHERE date >= ? AND date <= ?;
+
+selectSupplementLogBySupplementAndDate:
+SELECT * FROM CachedSupplementLog WHERE supplementId = ? AND date = ? LIMIT 1;
+
+insertSupplementLog:
+INSERT OR REPLACE INTO CachedSupplementLog(id, supplementId, date, takenAt)
+VALUES (?, ?, ?, ?);
+
+deleteSupplementLog:
+DELETE FROM CachedSupplementLog WHERE supplementId = ? AND date = ?;
+
+deleteSupplementLogById:
+DELETE FROM CachedSupplementLog WHERE id = ?;
+
+-- Weight
+selectAllWeightEntries:
+SELECT * FROM CachedWeightEntry ORDER BY entryDate DESC;
+
+selectWeightEntriesLimited:
+SELECT * FROM CachedWeightEntry ORDER BY loggedAt DESC LIMIT ?;
+
+selectLatestWeightEntry:
+SELECT * FROM CachedWeightEntry ORDER BY entryDate DESC LIMIT 1;
+
+selectWeightEntriesByDateRange:
+SELECT * FROM CachedWeightEntry WHERE entryDate >= ? AND entryDate <= ? ORDER BY entryDate;
+
+insertWeightEntry:
+INSERT OR REPLACE INTO CachedWeightEntry(id, entryDate, weightKg, loggedAt, jsonData)
+VALUES (?, ?, ?, ?, ?);
+
+deleteWeightEntry:
+DELETE FROM CachedWeightEntry WHERE id = ?;
+
+deleteAllWeightEntries:
+DELETE FROM CachedWeightEntry;
+
+-- Preferences
+selectPreferences:
+SELECT * FROM CachedPreferences WHERE id = 1;
+
+insertPreferences:
+INSERT OR REPLACE INTO CachedPreferences(id, jsonData) VALUES (1, ?);
+
+-- Meal Types
+selectAllMealTypes:
+SELECT * FROM CachedMealType ORDER BY sortOrder;
+
+insertMealType:
+INSERT OR REPLACE INTO CachedMealType(id, name, sortOrder) VALUES (?, ?, ?);
+
+deleteAllMealTypes:
+DELETE FROM CachedMealType;
+
+-- Sync Queue
+selectSyncQueue:
+SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
+
+insertSyncQueueItem:
+INSERT INTO SyncQueue(method, url, body, createdAt, affectedTable, affectedId)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteSyncQueueItem:
+DELETE FROM SyncQueue WHERE id = ?;
+
+countSyncQueue:
+SELECT COUNT(*) FROM SyncQueue;
+
+clearSyncQueue:
+DELETE FROM SyncQueue;
+
 -- Sync meta
 selectSyncMeta:
 SELECT lastSyncedAt FROM SyncMeta WHERE entityType = ?;
 
 upsertSyncMeta:
 INSERT OR REPLACE INTO SyncMeta(entityType, lastSyncedAt) VALUES (?, ?);
+
+-- Clear all data (for logout)
+clearAllData:
+DELETE FROM CachedEntry;
+
+clearAllFoods:
+DELETE FROM CachedFood;
+
+clearAllGoals:
+DELETE FROM CachedGoals;
+
+clearAllRecipes:
+DELETE FROM CachedRecipe;
+
+clearAllSupplements:
+DELETE FROM CachedSupplement;
+
+clearAllSupplementLogs:
+DELETE FROM CachedSupplementLog;
+
+clearAllWeightEntries:
+DELETE FROM CachedWeightEntry;
+
+clearAllPreferences:
+DELETE FROM CachedPreferences;
+
+clearAllMealTypes:
+DELETE FROM CachedMealType;
+
+clearAllSyncQueue:
+DELETE FROM SyncQueue;
+
+clearAllSyncMeta:
+DELETE FROM SyncMeta;

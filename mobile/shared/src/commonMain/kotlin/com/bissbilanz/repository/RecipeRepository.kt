@@ -1,26 +1,76 @@
 package com.bissbilanz.repository
 
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.ConnectivityProvider
+import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Clock
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class RecipeRepository(
     private val api: BissbilanzApi,
+    private val db: BissbilanzDatabase,
+    private val connectivity: ConnectivityProvider,
+    private val syncQueue: SyncQueue,
 ) {
     private val _recipes = MutableStateFlow<List<Recipe>>(emptyList())
     val recipes: StateFlow<List<Recipe>> = _recipes.asStateFlow()
 
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+        }
+
     suspend fun loadRecipes() {
-        _recipes.value = api.getRecipes()
+        try {
+            val recipes = api.getRecipes()
+            cacheRecipes(recipes)
+            _recipes.value = recipes
+        } catch (e: Exception) {
+            val cached = db.bissbilanzDatabaseQueries.selectAllRecipes().executeAsList()
+            if (cached.isNotEmpty()) {
+                _recipes.value = cached.map { json.decodeFromString<Recipe>(it.jsonData) }
+            } else {
+                throw e
+            }
+        }
     }
 
-    suspend fun getRecipe(id: String): Recipe = api.getRecipe(id)
+    suspend fun getRecipe(id: String): Recipe =
+        try {
+            val recipe = api.getRecipe(id)
+            cacheRecipe(recipe)
+            recipe
+        } catch (e: Exception) {
+            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            if (cached != null) {
+                json.decodeFromString<Recipe>(cached.jsonData)
+            } else {
+                throw e
+            }
+        }
 
     suspend fun createRecipe(recipe: RecipeCreate): Recipe {
+        if (!connectivity.isOnline.value) {
+            val url = "/api/recipes"
+            val body = json.encodeToString(recipe)
+            val meta = urlToMeta(url)
+            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+            val temp = recipeCreateToRecipe(recipe)
+            cacheRecipe(temp)
+            _recipes.value = _recipes.value + temp
+            return temp
+        }
         val created = api.createRecipe(recipe)
-        loadRecipes()
+        cacheRecipe(created)
+        _recipes.value = _recipes.value + created
         return created
     }
 
@@ -28,13 +78,97 @@ class RecipeRepository(
         id: String,
         recipe: RecipeUpdate,
     ): Recipe {
+        if (!connectivity.isOnline.value) {
+            val url = "/api/recipes/$id"
+            val body = json.encodeToString(recipe)
+            val meta = urlToMeta(url)
+            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+            val existing = _recipes.value.find { it.id == id }
+            if (existing != null) {
+                val updated =
+                    existing.copy(
+                        name = recipe.name ?: existing.name,
+                        totalServings = recipe.totalServings ?: existing.totalServings,
+                        isFavorite = recipe.isFavorite ?: existing.isFavorite,
+                        imageUrl = recipe.imageUrl ?: existing.imageUrl,
+                    )
+                cacheRecipe(updated)
+                _recipes.value = _recipes.value.map { if (it.id == id) updated else it }
+                return updated
+            }
+            return existing ?: Recipe(
+                id = id,
+                userId = "",
+                name = recipe.name ?: "",
+                totalServings = recipe.totalServings ?: 1.0,
+            )
+        }
         val updated = api.updateRecipe(id, recipe)
-        loadRecipes()
+        cacheRecipe(updated)
+        _recipes.value = _recipes.value.map { if (it.id == updated.id) updated else it }
         return updated
     }
 
     suspend fun deleteRecipe(id: String) {
-        api.deleteRecipe(id)
+        if (!connectivity.isOnline.value) {
+            val url = "/api/recipes/$id"
+            val meta = urlToMeta(url)
+            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        } else {
+            api.deleteRecipe(id)
+        }
+        db.bissbilanzDatabaseQueries.deleteRecipe(id)
         _recipes.value = _recipes.value.filter { it.id != id }
     }
+
+    private fun cacheRecipe(recipe: Recipe) {
+        // Compute macros from ingredients for indexed columns
+        var calories = 0.0
+        var protein = 0.0
+        var carbs = 0.0
+        var fat = 0.0
+        var fiber = 0.0
+        recipe.ingredients?.forEach { ing ->
+            val food = ing.food ?: return@forEach
+            val q = ing.quantity
+            calories += food.calories * q
+            protein += food.protein * q
+            carbs += food.carbs * q
+            fat += food.fat * q
+            fiber += food.fiber * q
+        }
+        db.bissbilanzDatabaseQueries.insertRecipe(
+            id = recipe.id,
+            name = recipe.name,
+            totalServings = recipe.totalServings,
+            isFavorite = if (recipe.isFavorite) 1L else 0L,
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = fiber,
+            jsonData = json.encodeToString(recipe),
+        )
+    }
+
+    private fun cacheRecipes(recipes: List<Recipe>) {
+        db.bissbilanzDatabaseQueries.transaction {
+            db.bissbilanzDatabaseQueries.deleteAllRecipes()
+            recipes.forEach { recipe -> cacheRecipe(recipe) }
+            db.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "recipes",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
+        }
+    }
+
+    private fun recipeCreateToRecipe(recipe: RecipeCreate): Recipe =
+        Recipe(
+            id = "temp_${Clock.System.now().toEpochMilliseconds()}",
+            userId = "",
+            name = recipe.name,
+            totalServings = recipe.totalServings,
+            isFavorite = recipe.isFavorite ?: false,
+            imageUrl = recipe.imageUrl,
+        )
 }

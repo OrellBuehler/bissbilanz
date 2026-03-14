@@ -11,6 +11,8 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
+import com.bissbilanz.sync.ConnectivityProvider
+import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -40,6 +42,7 @@ class BissbilanzApplication : Application() {
                 single { SecureStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
+                single { ConnectivityProvider(androidContext()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -52,5 +55,9 @@ class BissbilanzApplication : Application() {
             androidContext(this@BissbilanzApplication)
             modules(androidModule, sharedModule)
         }
+
+        // Start sync manager to auto-sync queued writes when connectivity is restored
+        val syncManager = org.koin.java.KoinJavaComponent.getKoin().get<SyncManager>()
+        syncManager.startNetworkListener()
     }
 }
