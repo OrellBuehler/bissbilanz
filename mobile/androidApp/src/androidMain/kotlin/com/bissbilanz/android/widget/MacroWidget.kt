@@ -3,6 +3,7 @@ package com.bissbilanz.android.widget
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -27,6 +28,11 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.FatYellow
+import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MacroTotals
 import com.bissbilanz.repository.EntryRepository
@@ -68,6 +74,12 @@ class MacroWidget : GlanceAppWidget() {
         val ShowFatKey = booleanPreferencesKey("show_fat")
         val ShowFiberKey = booleanPreferencesKey("show_fiber")
 
+        val CaloriesColor = CaloriesBlue.toArgb()
+        val ProteinColor = ProteinRed.toArgb()
+        val CarbsColor = CarbsOrange.toArgb()
+        val FatColor = FatYellow.toArgb()
+        val FiberColor = FiberGreen.toArgb()
+
         suspend fun updateAllWidgets(context: Context) {
             val manager = GlanceAppWidgetManager(context)
             val ids = manager.getGlanceIds(MacroWidget::class.java)
@@ -107,19 +119,19 @@ private fun MacroWidgetContent(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showCalories) {
-            RingImage(totals.calories, goals?.calorieGoal ?: 0.0, 0xFF3B82F6.toInt(), "Cal", ringPx, density, isDark)
+            RingImage(totals.calories, goals?.calorieGoal ?: 0.0, MacroWidget.CaloriesColor, "Cal", ringPx, density, isDark)
         }
         if (showProtein) {
-            RingImage(totals.protein, goals?.proteinGoal ?: 0.0, 0xFFEF4444.toInt(), "Prot", ringPx, density, isDark)
+            RingImage(totals.protein, goals?.proteinGoal ?: 0.0, MacroWidget.ProteinColor, "Prot", ringPx, density, isDark)
         }
         if (showCarbs) {
-            RingImage(totals.carbs, goals?.carbGoal ?: 0.0, 0xFFF97316.toInt(), "Carbs", ringPx, density, isDark)
+            RingImage(totals.carbs, goals?.carbGoal ?: 0.0, MacroWidget.CarbsColor, "Carbs", ringPx, density, isDark)
         }
         if (showFat) {
-            RingImage(totals.fat, goals?.fatGoal ?: 0.0, 0xFFEAB308.toInt(), "Fat", ringPx, density, isDark)
+            RingImage(totals.fat, goals?.fatGoal ?: 0.0, MacroWidget.FatColor, "Fat", ringPx, density, isDark)
         }
         if (showFiber) {
-            RingImage(totals.fiber, goals?.fiberGoal ?: 0.0, 0xFF22C55E.toInt(), "Fiber", ringPx, density, isDark)
+            RingImage(totals.fiber, goals?.fiberGoal ?: 0.0, MacroWidget.FiberColor, "Fiber", ringPx, density, isDark)
         }
     }
 }
@@ -135,8 +147,10 @@ private fun RingImage(
     isDark: Boolean,
 ) {
     val bitmap = MacroRingRenderer.render(current, goal, color, label, ringPx, density, isDark)
+    val provider = ImageProvider(bitmap)
+    bitmap.recycle()
     Image(
-        provider = ImageProvider(bitmap),
+        provider = provider,
         contentDescription = label,
         contentScale = ContentScale.Fit,
         modifier = GlanceModifier.padding(horizontal = 2.dp),

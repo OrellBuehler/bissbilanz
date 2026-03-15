@@ -1,9 +1,6 @@
 package com.bissbilanz.android
 
 import android.app.Application
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
@@ -12,7 +9,6 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.MacroWidget
-import com.bissbilanz.android.widget.MacroWidgetWorker
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
@@ -29,7 +25,6 @@ import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import java.util.concurrent.TimeUnit
 
 class BissbilanzApplication : Application() {
     override fun onCreate() {
@@ -82,15 +77,5 @@ class BissbilanzApplication : Application() {
             koin.get<PreferencesRepository>().refresh()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }
-
-        // Schedule periodic widget refresh
-        val widgetWork =
-            PeriodicWorkRequestBuilder<MacroWidgetWorker>(30, TimeUnit.MINUTES, 15, TimeUnit.MINUTES)
-                .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "macro_widget_refresh",
-            ExistingPeriodicWorkPolicy.KEEP,
-            widgetWork,
-        )
     }
 }
