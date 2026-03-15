@@ -27,7 +27,7 @@ class SyncManager(
     private val api: BissbilanzApi,
     private val json: Json,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _state = MutableStateFlow(SyncState())
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -69,7 +69,7 @@ class SyncManager(
 
         try {
             val queued = syncQueue.drain()
-            _state.value = _state.value.copy(pendingCount = queued.size.toLong())
+            _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
             for (req in queued) {
                 try {
@@ -77,7 +77,7 @@ class SyncManager(
                     syncQueue.remove(req.id)
                     synced++
                 } catch (e: UnauthorizedException) {
-                    syncQueue.markDone(req.id)
+                    syncQueue.releaseForRetry(req.id)
                     addError("Session expired. Please log in again to sync pending changes.")
                     break
                 } catch (e: ApiException) {
@@ -88,9 +88,8 @@ class SyncManager(
                             addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
                         }
                         else -> {
-                            syncQueue.markDone(req.id)
-                            syncQueue.incrementRetryCount(req.id)
-                            val count = syncQueue.getRetryCount(req.id)
+                            syncQueue.releaseForRetry(req.id)
+                            val count = syncQueue.incrementAndGetRetryCount(req.id)
                             if (count >= MAX_RETRIES) {
                                 syncQueue.remove(req.id)
                                 synced++
@@ -104,7 +103,7 @@ class SyncManager(
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
-                    syncQueue.markDone(req.id)
+                    syncQueue.releaseForRetry(req.id)
                     break
                 }
 

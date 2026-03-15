@@ -60,18 +60,14 @@ class SyncQueue(
             db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
         }
 
-    suspend fun markDone(id: Long) =
+    suspend fun releaseForRetry(id: Long) =
         mutex.withLock {
             inProgress.remove(id)
         }
 
-    suspend fun incrementRetryCount(id: Long) =
+    suspend fun incrementAndGetRetryCount(id: Long): Long =
         mutex.withLock {
             db.bissbilanzDatabaseQueries.incrementSyncQueueRetryCount(id)
-        }
-
-    suspend fun getRetryCount(id: Long): Long =
-        mutex.withLock {
             db.bissbilanzDatabaseQueries
                 .selectSyncQueueItemRetryCount(id)
                 .executeAsOneOrNull() ?: 0

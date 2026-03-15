@@ -4,15 +4,14 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
 import com.bissbilanz.model.Goals
-import com.bissbilanz.sync.ConnectivityProvider
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,9 +20,9 @@ class GoalsRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
     private lateinit var queries: BissbilanzDatabaseQueries
-    private lateinit var connectivity: ConnectivityProvider
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: GoalsRepository
+    private val json = Json { ignoreUnknownKeys = true }
 
     @BeforeTest
     fun setup() {
@@ -33,19 +32,15 @@ class GoalsRepositoryTest {
             mockk {
                 every { bissbilanzDatabaseQueries } returns queries
             }
-        connectivity =
-            mockk {
-                every { isOnline } returns MutableStateFlow(true)
-            }
         syncQueue = mockk(relaxed = true)
-        repository = GoalsRepository(api, db, connectivity, syncQueue)
+        repository = GoalsRepository(api, db, syncQueue, json)
     }
 
     @Test
     fun refreshCachesGoalsOnSuccess() =
         runTest {
             val goals = TestFixtures.goals()
-            coEvery { api.getGoals() } returns goals
+            io.mockk.coEvery { api.getGoals() } returns goals
 
             repository.refresh()
 
@@ -55,7 +50,7 @@ class GoalsRepositoryTest {
     @Test
     fun refreshDoesNotThrowWhenApiReturnsNull() =
         runTest {
-            coEvery { api.getGoals() } returns null
+            io.mockk.coEvery { api.getGoals() } returns null
 
             repository.refresh()
         }
@@ -64,7 +59,6 @@ class GoalsRepositoryTest {
     fun setGoalsCachesAndReturns() =
         runTest {
             val goals = TestFixtures.goals()
-            coEvery { api.setGoals(goals) } returns goals
 
             val result = repository.setGoals(goals)
 
@@ -73,7 +67,7 @@ class GoalsRepositoryTest {
         }
 
     @Test
-    fun setGoalsCallsApiWithCorrectValues() =
+    fun setGoalsEnqueuesSyncOperation() =
         runTest {
             val goals =
                 Goals(
@@ -83,10 +77,9 @@ class GoalsRepositoryTest {
                     fatGoal = 55.0,
                     fiberGoal = 25.0,
                 )
-            coEvery { api.setGoals(goals) } returns goals
 
             repository.setGoals(goals)
 
-            coVerify { api.setGoals(goals) }
+            coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.SetGoals }) }
         }
 }

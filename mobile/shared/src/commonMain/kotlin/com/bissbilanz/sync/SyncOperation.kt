@@ -27,7 +27,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "foods"
         override val affectedId get() = id
-        override val description = "update food $id"
+        override val description get() = "update food $id"
     }
 
     @Serializable
@@ -37,7 +37,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "foods"
         override val affectedId get() = id
-        override val description = "delete food $id"
+        override val description get() = "delete food $id"
     }
 
     @Serializable
@@ -58,7 +58,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "entries"
         override val affectedId get() = id
-        override val description = "update entry $id"
+        override val description get() = "update entry $id"
     }
 
     @Serializable
@@ -68,7 +68,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "entries"
         override val affectedId get() = id
-        override val description = "delete entry $id"
+        override val description get() = "delete entry $id"
     }
 
     @Serializable
@@ -89,7 +89,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "recipes"
         override val affectedId get() = id
-        override val description = "update recipe $id"
+        override val description get() = "update recipe $id"
     }
 
     @Serializable
@@ -99,7 +99,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "recipes"
         override val affectedId get() = id
-        override val description = "delete recipe $id"
+        override val description get() = "delete recipe $id"
     }
 
     @Serializable
@@ -130,7 +130,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "weight"
         override val affectedId get() = id
-        override val description = "update weight entry $id"
+        override val description get() = "update weight entry $id"
     }
 
     @Serializable
@@ -140,7 +140,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "weight"
         override val affectedId get() = id
-        override val description = "delete weight entry $id"
+        override val description get() = "delete weight entry $id"
     }
 
     @Serializable
@@ -161,7 +161,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "supplements"
         override val affectedId get() = id
-        override val description = "update supplement $id"
+        override val description get() = "update supplement $id"
     }
 
     @Serializable
@@ -171,7 +171,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "supplements"
         override val affectedId get() = id
-        override val description = "delete supplement $id"
+        override val description get() = "delete supplement $id"
     }
 
     @Serializable
@@ -182,7 +182,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "supplements"
         override val affectedId get() = supplementId
-        override val description = "log supplement $supplementId"
+        override val description get() = "log supplement $supplementId"
     }
 
     @Serializable
@@ -193,7 +193,7 @@ sealed class SyncOperation {
     ) : SyncOperation() {
         override val affectedTable = "supplements"
         override val affectedId get() = supplementId
-        override val description = "unlog supplement $supplementId"
+        override val description get() = "unlog supplement $supplementId"
     }
 
     @Serializable
