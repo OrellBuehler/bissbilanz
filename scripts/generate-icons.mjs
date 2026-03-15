@@ -95,6 +95,7 @@ async function generateWeb() {
 	await generatePng(192, join(staticDir, 'icon-192.png'));
 	await generatePng(512, join(staticDir, 'icon-512.png'));
 	await generatePng(180, join(staticDir, 'apple-touch-icon.png'));
+	await generatePng(180, join(staticDir, 'apple-touch-icon-precomposed.png'));
 }
 
 async function generateAndroid() {
