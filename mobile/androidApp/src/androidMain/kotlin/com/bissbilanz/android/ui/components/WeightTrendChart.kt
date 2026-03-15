@@ -66,8 +66,13 @@ fun WeightTrendChart(
 
     val chartState =
         remember(trendData, projectionDays) {
-            computeChartState(trendData, projectionDays)
+            try {
+                computeChartState(trendData, projectionDays)
+            } catch (_: Exception) {
+                null
+            }
         }
+    if (chartState == null) return
 
     val revealFraction = remember { Animatable(0f) }
     LaunchedEffect(chartState) {
@@ -223,11 +228,11 @@ private fun computeChartState(
     trendData: List<WeightTrendEntry>,
     projectionDays: Int,
 ): ChartState {
-    val firstDate = LocalDate.parse(trendData.first().entryDate)
+    val firstDate = LocalDate.parse(trendData.first().entryDate.take(10))
 
     val actualPoints =
         trendData.map { entry ->
-            val date = LocalDate.parse(entry.entryDate)
+            val date = LocalDate.parse(entry.entryDate.take(10))
             val dayIndex = (date.toEpochDays() - firstDate.toEpochDays()).toFloat()
             ProjectionPoint(dayIndex, entry.weightKg.toFloat())
         }
@@ -235,7 +240,7 @@ private fun computeChartState(
     val movingAvgPoints =
         trendData.mapNotNull { entry ->
             entry.movingAvg?.let {
-                val date = LocalDate.parse(entry.entryDate)
+                val date = LocalDate.parse(entry.entryDate.take(10))
                 val dayIndex = (date.toEpochDays() - firstDate.toEpochDays()).toFloat()
                 ProjectionPoint(dayIndex, it.toFloat())
             }
@@ -261,12 +266,12 @@ private fun computeChartState(
     // Date labels paired with their dayIndex for correct positioning
     val dateLabels = mutableListOf<Pair<Float, String>>()
     for (entry in trendData) {
-        val date = LocalDate.parse(entry.entryDate)
+        val date = LocalDate.parse(entry.entryDate.take(10))
         val dayIndex = (date.toEpochDays() - firstDate.toEpochDays()).toFloat()
         dateLabels.add(dayIndex to "${date.dayOfMonth}/${date.monthNumber}")
     }
     if (projectionDays > 0 && trendData.isNotEmpty()) {
-        val lastDate = LocalDate.parse(trendData.last().entryDate)
+        val lastDate = LocalDate.parse(trendData.last().entryDate.take(10))
         for (d in 1..projectionDays) {
             val futureDate = lastDate.plus(d, DateTimeUnit.DAY)
             dateLabels.add((lastDayIndex + d) to "${futureDate.dayOfMonth}/${futureDate.monthNumber}")

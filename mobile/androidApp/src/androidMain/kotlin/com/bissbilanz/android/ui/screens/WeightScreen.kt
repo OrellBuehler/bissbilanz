@@ -314,28 +314,34 @@ private fun WeightStatsRow(
         }
 
         if (projectionDays > 0 && trendData.size >= 3) {
-            // Compute projected weight using date-based indices to match PWA algorithm
-            val firstDate = LocalDate.parse(trendData.first().entryDate)
-            val regressionPoints =
-                trendData.map { entry ->
-                    val date = LocalDate.parse(entry.entryDate)
-                    (date.toEpochDays() - firstDate.toEpochDays()).toFloat() to entry.weightKg.toFloat()
+            val projectedWeight =
+                try {
+                    val firstDate = LocalDate.parse(trendData.first().entryDate.take(10))
+                    val regressionPoints =
+                        trendData.map { entry ->
+                            val date = LocalDate.parse(entry.entryDate.take(10))
+                            (date.toEpochDays() - firstDate.toEpochDays()).toFloat() to entry.weightKg.toFloat()
+                        }
+                    val lastDayIndex = regressionPoints.last().first
+                    val (slope, intercept) = linearRegression(regressionPoints) ?: (0f to trendData.last().weightKg.toFloat())
+                    slope * (lastDayIndex + projectionDays) + intercept
+                } catch (_: Exception) {
+                    null
                 }
-            val lastDayIndex = regressionPoints.last().first
-            val (slope, intercept) = linearRegression(regressionPoints) ?: (0f to trendData.last().weightKg.toFloat())
-            val projectedWeight = slope * (lastDayIndex + projectionDays) + intercept
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = ProjectionPurple.copy(alpha = 0.1f),
-                contentColor = ProjectionPurple,
-            ) {
-                Text(
-                    "Projected ${"%.1f".format(projectedWeight)} kg",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+            if (projectedWeight != null) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = ProjectionPurple.copy(alpha = 0.1f),
+                    contentColor = ProjectionPurple,
+                ) {
+                    Text(
+                        "Projected ${"%.1f".format(projectedWeight)} kg",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
             }
         }
     }
