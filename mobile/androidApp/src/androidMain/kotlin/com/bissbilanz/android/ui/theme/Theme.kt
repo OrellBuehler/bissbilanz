@@ -13,6 +13,9 @@ val ProteinRed = Color(0xFFEF4444)
 val CarbsOrange = Color(0xFFF97316)
 val FatYellow = Color(0xFFEAB308)
 val FiberGreen = Color(0xFF22C55E)
+val WeightBlue = Color(0xFF2563EB)
+val TrendGreen = Color(0xFF059669)
+val ProjectionPurple = Color(0xFF8B5CF6)
 
 private val DarkColorScheme =
     darkColorScheme(
