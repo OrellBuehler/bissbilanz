@@ -7,10 +7,15 @@ function mealTypes() {
 	return liveQuery(() => db.customMealTypes.orderBy('sortOrder').toArray());
 }
 
-async function refresh() {
-	const { data } = await api.GET('/api/meal-types');
-	if (!data?.mealTypes) return;
-	await db.customMealTypes.bulkPut(data.mealTypes as DexieCustomMealType[]);
+function refresh() {
+	api
+		.GET('/api/meal-types')
+		.then(({ data }) => {
+			if (data?.mealTypes) {
+				db.customMealTypes.bulkPut(data.mealTypes as DexieCustomMealType[]).catch(() => {});
+			}
+		})
+		.catch(() => {});
 }
 
 export const mealTypeService = {

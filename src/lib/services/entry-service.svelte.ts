@@ -15,8 +15,15 @@ async function refresh(date: string) {
 	});
 	if (!data?.entries) return;
 	const entries = data.entries.map((e) => ({ ...e, date }));
-	await db.foodEntries.where('date').equals(date).delete();
-	await db.foodEntries.bulkPut(entries as DexieFoodEntry[]);
+	await db.transaction('rw', db.foodEntries, async () => {
+		const serverIds = new Set(entries.map((e) => e.id));
+		const existing = await db.foodEntries.where('date').equals(date).toArray();
+		const toDelete = existing.filter((e) => !serverIds.has(e.id) && !e.id.startsWith('temp_'));
+		if (toDelete.length > 0) {
+			await db.foodEntries.bulkDelete(toDelete.map((e) => e.id));
+		}
+		await db.foodEntries.bulkPut(entries as DexieFoodEntry[]);
+	});
 }
 
 async function create(entry: {
@@ -71,6 +78,13 @@ async function create(entry: {
 			fat = (recipe.fat ?? 0) * servings;
 			fiber = (recipe.fiber ?? 0) * servings;
 		}
+	} else if (entry.quickName) {
+		foodName = entry.quickName;
+		calories = (entry.quickCalories ?? 0) * servings;
+		protein = (entry.quickProtein ?? 0) * servings;
+		carbs = (entry.quickCarbs ?? 0) * servings;
+		fat = (entry.quickFat ?? 0) * servings;
+		fiber = (entry.quickFiber ?? 0) * servings;
 	}
 
 	await db.foodEntries.put({

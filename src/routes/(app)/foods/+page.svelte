@@ -39,31 +39,29 @@
 	let forceDeleteCount = $state(0);
 	let qualityOpen = $state(false);
 
-	const allFoodsQuery = useLiveQuery(() => foodService.allFoods());
-	let searchQuery = $state<ReturnType<typeof useLiveQuery<any[]>> | null>(null);
-
-	const foods = $derived(
-		query && searchQuery ? (searchQuery.value ?? []) : (allFoodsQuery.value ?? [])
-	);
-
-	$effect(() => {
-		if (browser) {
-			foodService.refresh();
-		}
-	});
-
+	let debouncedQuery = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	$effect(() => {
 		const q = query;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
-			if (q) {
-				searchQuery = useLiveQuery(() => foodService.search(q));
-			} else {
-				searchQuery = null;
-			}
+			debouncedQuery = q;
 		}, 300);
+	});
+
+	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
+	const searchResults = useLiveQuery(
+		() => (debouncedQuery ? foodService.search(debouncedQuery) : foodService.allFoods()),
+		[]
+	);
+
+	const foods = $derived(debouncedQuery ? searchResults.value : allFoodsQuery.value);
+
+	$effect(() => {
+		if (browser) {
+			foodService.refresh();
+		}
 	});
 
 	const createFood = async (payload: any) => {

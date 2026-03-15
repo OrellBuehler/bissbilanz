@@ -12,14 +12,12 @@
 	const date = $derived($page.params.date ?? '');
 	let scanModalOpen = $state(false);
 
-	const entries = $derived(
-		useLiveQuery(() => entryService.entriesByDate(date), [] as DexieFoodEntry[])
-	);
+	const entries = useLiveQuery(() => entryService.entriesByDate(date), [] as DexieFoodEntry[]);
 
 	$effect(() => {
 		if (date) {
 			entryService.refresh(date).catch(() => {});
-			mealTypeService.refresh().catch(() => {});
+			mealTypeService.refresh();
 		}
 	});
 </script>
