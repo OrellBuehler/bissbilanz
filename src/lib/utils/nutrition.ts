@@ -38,9 +38,6 @@ export const scaleTotals = (t: MacroTotals, factor: number): MacroTotals => ({
 	fiber: t.fiber * factor
 });
 
-export const calculateEntryTotals = (food: MacroTotals, servings: number): MacroTotals =>
-	scaleTotals(food, servings);
-
 type NutritionEntry = {
 	calories: number | null;
 	protein: number | null;

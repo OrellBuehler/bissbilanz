@@ -1,16 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import {
-	calculateEntryMacros,
-	calculateEntryTotals,
-	sumEntries
-} from '../../src/lib/utils/nutrition';
+import { calculateEntryMacros, scaleTotals, sumEntries } from '../../src/lib/utils/nutrition';
 
 describe('nutrition utilities', () => {
-	test('calculateEntryTotals scales macros by servings', () => {
-		const totals = calculateEntryTotals(
-			{ calories: 100, protein: 10, carbs: 20, fat: 5, fiber: 3 },
-			2
-		);
+	test('scaleTotals scales macros by factor', () => {
+		const totals = scaleTotals({ calories: 100, protein: 10, carbs: 20, fat: 5, fiber: 3 }, 2);
 		expect(totals).toEqual({ calories: 200, protein: 20, carbs: 40, fat: 10, fiber: 6 });
 	});
 

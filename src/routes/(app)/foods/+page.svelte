@@ -87,7 +87,7 @@
 			toast.error(m.detail_create_failed());
 			return;
 		}
-		closeForm();
+		resetFormState();
 		foodService.refresh();
 	};
 
@@ -106,7 +106,7 @@
 			return;
 		}
 		toast.success(m.detail_saved());
-		closeForm();
+		resetFormState();
 		foodService.refreshById(editingFood.id);
 	};
 
@@ -184,10 +184,6 @@
 		} finally {
 			uploading = false;
 		}
-	};
-
-	const closeForm = () => {
-		resetFormState();
 	};
 
 	const handleBarcodeScan = (barcode: string) => {
