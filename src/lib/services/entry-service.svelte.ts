@@ -106,15 +106,10 @@ async function create(entry: {
 		createdAt: now
 	});
 
-	if (navigator.onLine) {
-		try {
-			await api.POST('/api/entries', { body: entry });
-			refresh(entry.date).catch(() => {});
-		} catch {
-			const url = '/api/entries';
-			await enqueue('POST', url, entry, urlToMeta(url));
-		}
-	} else {
+	try {
+		await api.POST('/api/entries', { body: entry });
+		refresh(entry.date).catch(() => {});
+	} catch {
 		const url = '/api/entries';
 		await enqueue('POST', url, entry, urlToMeta(url));
 	}
@@ -204,18 +199,13 @@ async function update(
 
 	await db.foodEntries.update(id, dexieUpdate);
 
-	if (navigator.onLine) {
-		try {
-			await api.PATCH('/api/entries/{id}', {
-				params: { path: { id } },
-				body: entry
-			});
-			refresh(date).catch(() => {});
-		} catch {
-			const url = `/api/entries/${id}`;
-			await enqueue('PATCH', url, entry, urlToMeta(url));
-		}
-	} else {
+	try {
+		await api.PATCH('/api/entries/{id}', {
+			params: { path: { id } },
+			body: entry
+		});
+		refresh(date).catch(() => {});
+	} catch {
 		const url = `/api/entries/${id}`;
 		await enqueue('PATCH', url, entry, urlToMeta(url));
 	}
@@ -227,17 +217,12 @@ async function del(id: string) {
 
 	await db.foodEntries.delete(id);
 
-	if (navigator.onLine) {
-		try {
-			await api.DELETE('/api/entries/{id}', {
-				params: { path: { id } }
-			});
-			refresh(date).catch(() => {});
-		} catch {
-			const url = `/api/entries/${id}`;
-			await enqueue('DELETE', url, {}, urlToMeta(url));
-		}
-	} else {
+	try {
+		await api.DELETE('/api/entries/{id}', {
+			params: { path: { id } }
+		});
+		refresh(date).catch(() => {});
+	} catch {
 		const url = `/api/entries/${id}`;
 		await enqueue('DELETE', url, {}, urlToMeta(url));
 	}

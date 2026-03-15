@@ -14,6 +14,10 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 		method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
 
 	if (browser && !navigator.onLine && isWrite) {
+		const contentType = request.headers.get('content-type') ?? '';
+		if (contentType.includes('multipart/form-data')) {
+			throw new TypeError('Failed to fetch');
+		}
 		const bodyText = await request.clone().text();
 		const body = bodyText ? JSON.parse(bodyText) : {};
 		const meta = urlToMeta(request.url);

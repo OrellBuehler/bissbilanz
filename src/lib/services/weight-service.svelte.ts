@@ -23,11 +23,11 @@ async function refresh(): Promise<void> {
 			const serverIds = new Set(serverEntries.map((e) => e.id));
 			const localIds = await db.weightEntries.toCollection().primaryKeys();
 			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
-			await db.transaction('rw', db.weightEntries, async () => {
+			await db.transaction('rw', db.weightEntries, db.syncMeta, async () => {
 				if (staleIds.length > 0) await db.weightEntries.bulkDelete(staleIds as string[]);
 				await db.weightEntries.bulkPut(serverEntries);
+				await db.syncMeta.put({ tableName: 'weightEntries', lastSyncedAt: Date.now() });
 			});
-			await db.syncMeta.put({ tableName: 'weightEntries', lastSyncedAt: Date.now() });
 		}
 	} catch {
 		// fire-and-forget — offline or network error is fine

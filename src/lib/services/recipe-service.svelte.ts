@@ -25,11 +25,17 @@ async function refresh() {
 			const serverIds = new Set(serverRecipes.map((r) => r.id));
 			const localIds = await db.recipes.toCollection().primaryKeys();
 			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
-			await db.transaction('rw', db.recipes, async () => {
-				if (staleIds.length > 0) await db.recipes.bulkDelete(staleIds as string[]);
+			await db.transaction('rw', db.recipes, db.recipeIngredients, db.syncMeta, async () => {
+				if (staleIds.length > 0) {
+					await db.recipeIngredients
+						.where('recipeId')
+						.anyOf(staleIds as string[])
+						.delete();
+					await db.recipes.bulkDelete(staleIds as string[]);
+				}
 				await db.recipes.bulkPut(serverRecipes);
+				await db.syncMeta.put({ tableName: 'recipes', lastSyncedAt: Date.now() });
 			});
-			await db.syncMeta.put({ tableName: 'recipes', lastSyncedAt: Date.now() });
 		}
 	} catch {
 		// fire-and-forget

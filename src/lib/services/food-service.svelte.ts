@@ -34,11 +34,11 @@ async function refresh() {
 			const serverIds = new Set(serverFoods.map((f) => f.id));
 			const localIds = await db.foods.toCollection().primaryKeys();
 			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
-			await db.transaction('rw', db.foods, async () => {
+			await db.transaction('rw', db.foods, db.syncMeta, async () => {
 				if (staleIds.length > 0) await db.foods.bulkDelete(staleIds as string[]);
 				await db.foods.bulkPut(serverFoods);
+				await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: Date.now() });
 			});
-			await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: Date.now() });
 		}
 	} catch {
 		// fire-and-forget
