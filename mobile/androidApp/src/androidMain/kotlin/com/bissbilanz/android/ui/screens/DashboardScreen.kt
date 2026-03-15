@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
@@ -84,7 +85,15 @@ fun DashboardScreen(navController: NavController) {
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 FloatingActionButton(
-                    onClick = { navController.navigate("foods") },
+                    onClick = {
+                        navController.navigate("foods") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 ) {
                     Icon(Icons.Default.Add, "Add food")
                 }
