@@ -299,9 +299,10 @@ function hashAccessToken(token: string): string {
 
 export async function createAccessToken(
 	userId: string,
-	clientId: string
+	clientId: string,
+	conn?: Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0]
 ): Promise<{ accessToken: string; refreshToken: string }> {
-	const db = getDB();
+	const db = conn ?? getDB();
 
 	const accessToken = generateToken(32);
 	const refreshToken = generateToken(32);
@@ -344,7 +345,7 @@ export async function refreshAccessToken(
 
 		await tx.delete(oauthTokens).where(eq(oauthTokens.id, tokenRecord.id));
 
-		const result = await createAccessToken(tokenRecord.userId, clientId);
+		const result = await createAccessToken(tokenRecord.userId, clientId, tx);
 		return { ...result, userId: tokenRecord.userId };
 	});
 }
