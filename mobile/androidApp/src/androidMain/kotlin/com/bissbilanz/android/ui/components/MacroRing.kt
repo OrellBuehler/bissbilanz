@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.GentleSpring
+import com.bissbilanz.android.ui.theme.Motion
 import kotlin.math.min
 
 @Composable
@@ -41,7 +42,7 @@ fun MacroRing(
 
     val animatedCounter by animateIntAsState(
         targetValue = current.toInt(),
-        animationSpec = spring(dampingRatio = 0.9f, stiffness = 200f),
+        animationSpec = spring(dampingRatio = Motion.GENTLE_DAMPING, stiffness = Motion.GENTLE_STIFFNESS),
         label = "counter",
     )
 

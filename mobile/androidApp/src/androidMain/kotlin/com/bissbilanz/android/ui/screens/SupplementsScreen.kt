@@ -26,6 +26,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
+import com.bissbilanz.android.ui.theme.Motion
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
@@ -217,7 +218,7 @@ fun SupplementChecklistItem(
     val defaultCardColor = CardDefaults.cardColors().containerColor
     val cardColor by animateColorAsState(
         targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
-        animationSpec = spring(dampingRatio = 1.0f, stiffness = 800f),
+        animationSpec = spring(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS),
         label = "supp-card",
     )
     Card(

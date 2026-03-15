@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.bissbilanz.android.ui.theme.Motion
 
 sealed class Screen(
     val route: String,
@@ -107,7 +108,7 @@ fun AppNavigation() {
             enterTransition = {
                 fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
                     slideInHorizontally(
-                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
                     ) { it / 5 }
             },
             exitTransition = {
@@ -116,13 +117,13 @@ fun AppNavigation() {
             popEnterTransition = {
                 fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
                     slideInHorizontally(
-                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
                     ) { -it / 5 }
             },
             popExitTransition = {
                 fadeOut(spring(stiffness = Spring.StiffnessHigh)) +
                     slideOutHorizontally(
-                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
                     ) { it / 5 }
             },
         ) {
