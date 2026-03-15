@@ -23,6 +23,7 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.WeightTrendChart
 import com.bissbilanz.android.ui.components.linearRegression
+import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
@@ -213,8 +214,8 @@ fun WeightScreen(navController: NavController) {
                     }
 
                     // Entry list
-                    items(entries) { entry ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                    items(entries, key = { it.id }) { entry ->
+                        Card(modifier = Modifier.fillMaxWidth().animateItem()) {
                             ListItem(
                                 headlineContent = {
                                     Text("${"%.1f".format(entry.weightKg)} kg", fontWeight = FontWeight.Bold)
@@ -261,7 +262,7 @@ private fun WeightStatsRow(
     val delta = latest.weightKg - first.weightKg
     val deltaColor =
         when {
-            delta > 0 -> com.bissbilanz.android.ui.theme.CarbsOrange
+            delta > 0 -> CarbsOrange
             delta < 0 -> TrendGreen
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
