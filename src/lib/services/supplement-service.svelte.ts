@@ -139,7 +139,10 @@ async function create(supplement: {
 			.POST('/api/supplements', { body })
 			.then(({ data }) => {
 				if (data) {
-					db.supplements.put(data.supplement as unknown as DexieSupplement).catch(() => {});
+					db.supplements
+						.delete(id)
+						.then(() => db.supplements.put(data.supplement as unknown as DexieSupplement))
+						.catch(() => {});
 				}
 			})
 			.catch(() => {});
