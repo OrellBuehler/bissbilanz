@@ -1,12 +1,37 @@
 import { browser } from '$app/environment';
 import { enqueue } from '$lib/stores/offline-queue';
 
-export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function apiFetch(input: Request | string, init?: RequestInit): Promise<Response> {
+	if (input instanceof Request) {
+		return apiFetchRequest(input);
+	}
+	return apiFetchString(input, init);
+}
+
+async function apiFetchRequest(request: Request): Promise<Response> {
+	const method = request.method.toUpperCase();
+	const isWrite =
+		method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
+
+	if (browser && !navigator.onLine && isWrite) {
+		const bodyText = await request.clone().text();
+		const body = bodyText ? JSON.parse(bodyText) : {};
+		const meta = urlToMeta(request.url);
+		await enqueue(method, request.url, body, meta);
+		return new Response(JSON.stringify({ queued: true }), {
+			status: 200,
+			headers: { 'content-type': 'application/json', 'x-queued': 'true' }
+		});
+	}
+
+	return fetch(request);
+}
+
+async function apiFetchString(url: string, options: RequestInit = {}): Promise<Response> {
 	const method = options.method?.toUpperCase() ?? 'GET';
 	const isWrite =
 		method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
 
-	// Offline writes → queue for later sync
 	if (browser && !navigator.onLine && isWrite) {
 		if (options.body instanceof FormData) {
 			throw new TypeError('Failed to fetch');
