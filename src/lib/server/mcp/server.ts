@@ -39,7 +39,8 @@ import {
 	handleGetTopFoods,
 	handleGetStreaks,
 	handleCopyEntries,
-	handleFindFoodByBarcode
+	handleFindFoodByBarcode,
+	handleSearchOpenFoodFacts
 } from './handlers';
 import { today } from '$lib/utils/dates';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
@@ -82,20 +83,24 @@ export function createMcpServer(userId: string): McpServer {
 		'get_daily_status',
 		{
 			description:
-				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed and daily goals.",
+				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown.",
 			inputSchema: {
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				includeEntries: z
+					.boolean()
+					.optional()
+					.describe('Include individual food entries in the response.')
 			},
 			annotations: READ_ONLY
 		},
-		safe(({ date }) => handleGetDailyStatus(userId, date))
+		safe(({ date, includeEntries }) => handleGetDailyStatus(userId, date, includeEntries))
 	);
 
 	server.registerTool(
 		'search_foods',
 		{
 			description:
-				"Search the user's food database by name. Returns matching foods with nutritional information.",
+				"Search the user's food database by name. Returns matching foods with nutritional information, sorted by recent usage.",
 			inputSchema: {
 				query: z.string().describe('Search query to match against food names')
 			},
@@ -200,7 +205,7 @@ export function createMcpServer(userId: string): McpServer {
 		'log_food',
 		{
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today.",
+				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
 			inputSchema: {
 				foodId: z.string().optional().describe('Food ID to log'),
 				recipeId: z.string().optional().describe('Recipe ID to log'),
@@ -339,13 +344,20 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_entry',
 		{
-			description: 'Delete a food entry from the diary.',
+			description:
+				'Delete a food entry from the diary. Returns the updated daily nutrition status.',
 			inputSchema: {
-				entryId: z.string().describe('ID of the entry to delete')
+				entryId: z.string().describe('ID of the entry to delete'),
+				date: z
+					.string()
+					.optional()
+					.describe(
+						'Date of the entry in YYYY-MM-DD format. Used to return updated daily status. Defaults to today.'
+					)
 			},
 			annotations: DESTRUCTIVE
 		},
-		safe(({ entryId }) => handleDeleteEntry(userId, entryId))
+		safe(({ entryId, date }) => handleDeleteEntry(userId, entryId, date))
 	);
 
 	server.registerTool(
@@ -493,13 +505,28 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'find_food_by_barcode',
 		{
-			description: "Look up a food in the user's database by barcode number.",
+			description:
+				"Look up a food in the user's database by barcode number. Falls back to Open Food Facts if not found locally.",
 			inputSchema: {
 				barcode: z.string().describe('Barcode number to search for')
 			},
 			annotations: READ_ONLY
 		},
 		safe(({ barcode }) => handleFindFoodByBarcode(userId, barcode))
+	);
+
+	server.registerTool(
+		'search_openfoodfacts',
+		{
+			description:
+				'Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database.',
+			inputSchema: {
+				query: z.string().describe('Search query for product name'),
+				limit: z.number().optional().describe('Max results to return. Defaults to 5.')
+			},
+			annotations: READ_ONLY
+		},
+		safe(({ query, limit }) => handleSearchOpenFoodFacts(query, limit))
 	);
 
 	server.registerTool(

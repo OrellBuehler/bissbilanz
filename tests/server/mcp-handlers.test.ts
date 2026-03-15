@@ -9,8 +9,7 @@ import {
 } from '../helpers/fixtures';
 import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
 
-// Mock state — each variable is referenced by the mock deps via closure,
-// so resetting them in beforeEach changes what handlers see.
+// Mock state
 let mockFoods: any[] = [];
 let mockCreateFoodResult: any = null;
 let mockUpdateFoodResult: any = null;
@@ -48,9 +47,9 @@ let mockLogSupplementResult: any = null;
 let mockSupplementById: any = null;
 let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
+let mockOFFProduct: any = null;
+let mockOFFSearchResults: any[] = [];
 
-// Create handlers with mock deps — no vi.mock needed!
-// Uses type assertion because mock functions return `any`-typed test state variables.
 const mockDeps = {
 	listFoods: async () => ({ items: mockFoods, total: mockFoods.length }),
 	createFood: async () =>
@@ -136,7 +135,10 @@ const mockDeps = {
 			fat: 0,
 			fiber: 0
 		},
-		goals
+		goals,
+		progress: goals ? { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 } : null,
+		entryCount: entries.length,
+		byMeal: {}
 	}),
 	today: () => '2026-02-10',
 	getSupplementChecklist: async () => {
@@ -146,7 +148,9 @@ const mockDeps = {
 			taken: logMap.has(s.id),
 			takenAt: logMap.get(s.id)?.takenAt ?? null
 		}));
-	}
+	},
+	fetchProduct: async () => mockOFFProduct,
+	searchProducts: async () => mockOFFSearchResults
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
@@ -187,7 +191,8 @@ const {
 	handleListSupplements,
 	handleUpdateSupplement,
 	handleDeleteSupplement,
-	handleUnlogSupplement
+	handleUnlogSupplement,
+	handleSearchOpenFoodFacts
 } = createHandlers(mockDeps);
 
 describe('MCP handlers', () => {
@@ -229,25 +234,37 @@ describe('MCP handlers', () => {
 		mockSupplementById = null;
 		mockCreateSupplementResult = null;
 		mockUpdateSupplementResult = null;
+		mockOFFProduct = null;
+		mockOFFSearchResults = [];
 	});
 
 	describe('handleSearchFoods', () => {
-		test('returns matching foods', async () => {
+		test('returns matching foods with per-food recentlyUsed annotation', async () => {
 			mockFoods = [TEST_FOOD];
+			mockRecentFoods = [{ id: TEST_FOOD.id }];
 			const result = await handleSearchFoods(TEST_USER.id, 'Oats');
 			expect(result.foods).toHaveLength(1);
-			expect(result.foods[0].name).toBe('Oats');
+			expect((result.foods[0] as any).name).toBe('Oats');
+			expect(result.foods[0].recentlyUsed).toBe(true);
 		});
 
 		test('returns empty array when no match', async () => {
 			mockFoods = [];
+			mockRecentFoods = [];
 			const result = await handleSearchFoods(TEST_USER.id, 'nonexistent');
 			expect(result.foods).toHaveLength(0);
+		});
+
+		test('marks non-recent foods as recentlyUsed false', async () => {
+			mockFoods = [TEST_FOOD];
+			mockRecentFoods = [];
+			const result = await handleSearchFoods(TEST_USER.id, 'Oats');
+			expect(result.foods[0].recentlyUsed).toBe(false);
 		});
 	});
 
 	describe('handleCreateFood', () => {
-		test('returns foodId on success', async () => {
+		test('returns foodId and food on success', async () => {
 			mockCreateFoodResult = { ...TEST_FOOD, id: 'new-food-id' };
 			const result = await handleCreateFood(TEST_USER.id, {
 				name: 'Oats',
@@ -261,6 +278,7 @@ describe('MCP handlers', () => {
 			});
 			expect(result.success).toBe(true);
 			expect(result.foodId).toBe('new-food-id');
+			expect(result.food).toBeDefined();
 		});
 
 		test('returns error on validation failure', async () => {
@@ -271,7 +289,7 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleCreateRecipe', () => {
-		test('returns recipeId on success', async () => {
+		test('returns recipeId and recipe on success', async () => {
 			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'new-recipe-id' };
 			const result = await handleCreateRecipe(TEST_USER.id, {
 				name: 'Shake',
@@ -280,6 +298,7 @@ describe('MCP handlers', () => {
 			});
 			expect(result.success).toBe(true);
 			expect(result.recipeId).toBe('new-recipe-id');
+			expect(result.recipe).toBeDefined();
 		});
 
 		test('returns error on failure', async () => {
@@ -290,8 +309,9 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleLogFood', () => {
-		test('returns entryId on success', async () => {
+		test('returns entryId and dailyStatus on success', async () => {
 			mockCreateEntryResult = { ...TEST_ENTRY, id: 'new-entry-id' };
+			mockGoals = TEST_GOALS;
 			const result = await handleLogFood(TEST_USER.id, {
 				foodId: TEST_FOOD.id,
 				mealType: 'breakfast',
@@ -300,6 +320,7 @@ describe('MCP handlers', () => {
 			});
 			expect(result.success).toBe(true);
 			expect(result.entryId).toBe('new-entry-id');
+			expect(result.dailyStatus).toBeDefined();
 		});
 
 		test('returns error on failure', async () => {
@@ -310,20 +331,33 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleGetDailyStatus', () => {
-		test('returns totals and goals', async () => {
+		test('returns totals, goals, progress, entryCount, byMeal, and date', async () => {
 			mockEntries = [];
 			mockGoals = TEST_GOALS;
 			const result = await handleGetDailyStatus(TEST_USER.id, '2026-02-10');
 			expect(result.totals).toBeDefined();
 			expect(result.goals).toBeDefined();
 			expect(result.goals?.calorieGoal).toBe(2000);
+			expect(result.progress).toBeDefined();
+			expect(result.entryCount).toBeDefined();
+			expect(result.byMeal).toBeDefined();
+			expect(result.date).toBe('2026-02-10');
 		});
 
-		test('returns null goals when user has none', async () => {
+		test('returns null goals and progress when user has none', async () => {
 			mockEntries = [];
 			mockGoals = null;
 			const result = await handleGetDailyStatus(TEST_USER.id, '2026-02-10');
 			expect(result.goals).toBeNull();
+			expect(result.progress).toBeNull();
+		});
+
+		test('includes entries when includeEntries is true', async () => {
+			mockEntries = [TEST_ENTRY];
+			mockGoals = TEST_GOALS;
+			const result = await handleGetDailyStatus(TEST_USER.id, '2026-02-10', true);
+			expect((result as any).entries).toBeDefined();
+			expect((result as any).entries).toHaveLength(1);
 		});
 	});
 
@@ -332,7 +366,7 @@ describe('MCP handlers', () => {
 			mockEntries = [TEST_ENTRY];
 			const result = await handleListEntries(TEST_USER.id, '2026-02-10');
 			expect(result.date).toBe('2026-02-10');
-			expect(result.entries).toHaveLength(1);
+			expect((result as any).entries).toHaveLength(1);
 		});
 
 		test('defaults to today when no date', async () => {
@@ -344,7 +378,7 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleUpdateEntry', () => {
-		test('returns success on valid update', async () => {
+		test('returns success and dailyStatus on valid update', async () => {
 			mockUpdateEntryResult = { ...TEST_ENTRY, servings: 2 };
 			const result = await handleUpdateEntry(TEST_USER.id, {
 				entryId: TEST_ENTRY.id,
@@ -352,6 +386,7 @@ describe('MCP handlers', () => {
 			});
 			expect(result.success).toBe(true);
 			expect(result.entryId).toBe(TEST_ENTRY.id);
+			expect(result.dailyStatus).toBeDefined();
 		});
 
 		test('returns error on failure', async () => {
@@ -365,9 +400,10 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleDeleteEntry', () => {
-		test('returns success', async () => {
+		test('returns success and dailyStatus', async () => {
 			const result = await handleDeleteEntry(TEST_USER.id, TEST_ENTRY.id);
 			expect(result.success).toBe(true);
+			expect(result.dailyStatus).toBeDefined();
 		});
 	});
 
@@ -386,7 +422,7 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleUpdateGoals', () => {
-		test('returns success on valid update', async () => {
+		test('returns success and goals on valid update', async () => {
 			mockUpsertGoalsResult = TEST_GOALS;
 			const result = await handleUpdateGoals(TEST_USER.id, {
 				calorieGoal: 2000,
@@ -396,6 +432,7 @@ describe('MCP handlers', () => {
 				fiberGoal: 30
 			});
 			expect(result.success).toBe(true);
+			expect(result.goals).toBeDefined();
 		});
 
 		test('returns error on failure', async () => {
@@ -458,11 +495,27 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleLogWeight', () => {
-		test('returns success with entryId', async () => {
-			mockCreateWeightResult = { id: 'weight-1', weightKg: 75.5 };
+		test('returns success with weight details and structured change', async () => {
+			mockLatestWeight = { id: 'weight-0', weightKg: 76.0, entryDate: '2026-02-09' };
+			mockCreateWeightResult = { id: 'weight-1', weightKg: 75.5, entryDate: '2026-02-10' };
 			const result = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
 			expect(result.success).toBe(true);
 			expect(result.entryId).toBe('weight-1');
+			expect(result.weightKg).toBe(75.5);
+			expect(result.date).toBe('2026-02-10');
+			expect(result.change).toEqual({
+				previousKg: 76.0,
+				previousDate: '2026-02-09',
+				deltaKg: -0.5
+			});
+		});
+
+		test('returns null change when no previous weight', async () => {
+			mockLatestWeight = null;
+			mockCreateWeightResult = { id: 'weight-1', weightKg: 75.5, entryDate: '2026-02-10' };
+			const result = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
+			expect(result.success).toBe(true);
+			expect(result.change).toBeNull();
 		});
 
 		test('returns error on failure', async () => {
@@ -522,7 +575,7 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleCopyEntries', () => {
-		test('returns copied count', async () => {
+		test('returns copied count and dailyStatus', async () => {
 			mockCopyResult = [TEST_ENTRY, { ...TEST_ENTRY, id: 'entry-2' }];
 			const result = await handleCopyEntries(TEST_USER.id, {
 				fromDate: '2026-02-09',
@@ -530,6 +583,7 @@ describe('MCP handlers', () => {
 			});
 			expect(result.success).toBe(true);
 			expect(result.copiedCount).toBe(2);
+			expect(result.dailyStatus).toBeDefined();
 		});
 
 		test('returns zero when no entries to copy', async () => {
@@ -543,15 +597,38 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleFindFoodByBarcode', () => {
-		test('returns food when found', async () => {
+		test('returns food from database when found', async () => {
 			mockBarcodeFood = TEST_FOOD;
 			const result = (await handleFindFoodByBarcode(TEST_USER.id, '1234567890123')) as any;
 			expect(result.found).toBe(true);
+			expect(result.source).toBe('database');
 			expect(result.name).toBe('Oats');
 		});
 
-		test('returns not found when no match', async () => {
+		test('falls back to Open Food Facts when not in database', async () => {
 			mockBarcodeFood = null;
+			mockOFFProduct = {
+				name: 'OFF Product',
+				brand: 'OFF Brand',
+				calories: 200,
+				protein: 10,
+				carbs: 30,
+				fat: 5,
+				fiber: 3,
+				barcode: '0000000000000'
+			};
+			const result = (await handleFindFoodByBarcode(TEST_USER.id, '0000000000000')) as any;
+			expect(result.found).toBe(true);
+			expect(result.source).toBe('openfoodfacts');
+			expect(result.name).toBe('OFF Product');
+			expect(result.hint).toBe(
+				'This food was found in Open Food Facts. Use create_food to save it to your database.'
+			);
+		});
+
+		test('returns not found when no match anywhere', async () => {
+			mockBarcodeFood = null;
+			mockOFFProduct = null;
 			const result = (await handleFindFoodByBarcode(TEST_USER.id, '0000000000000')) as any;
 			expect(result.found).toBe(false);
 		});
@@ -587,20 +664,27 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleLogSupplement', () => {
-		test('logs supplement by ID', async () => {
+		test('logs supplement by ID and returns status', async () => {
 			mockLogSupplementResult = { id: 'log-1' };
 			mockSupplementById = TEST_SUPPLEMENT;
+			// Set up checklist mock state BEFORE calling handler
+			mockSupplements = [TEST_SUPPLEMENT];
+			mockSupplementLogs = [{ supplementId: TEST_SUPPLEMENT.id, takenAt: new Date() }];
 			const result = await handleLogSupplement(TEST_USER.id, {
 				supplementId: TEST_SUPPLEMENT.id
 			});
 			expect(result.success).toBe(true);
 			expect(result.logged?.name).toBe('Vitamin D3');
+			expect(result.status).toBeDefined();
+			expect(result.status?.total).toBe(1);
+			expect(result.status?.taken).toBe(1);
 		});
 
 		test('logs supplement by name search', async () => {
 			mockSupplements = [TEST_SUPPLEMENT];
 			mockLogSupplementResult = { id: 'log-1' };
 			mockSupplementById = TEST_SUPPLEMENT;
+			mockSupplementLogs = [{ supplementId: TEST_SUPPLEMENT.id, takenAt: new Date() }];
 			const result = await handleLogSupplement(TEST_USER.id, {
 				name: 'vitamin d'
 			});
@@ -909,6 +993,45 @@ describe('MCP handlers', () => {
 			const result = await handleGetStreaks(TEST_USER.id);
 			expect(result.currentStreak).toBe(0);
 			expect(result.longestStreak).toBe(0);
+		});
+	});
+
+	describe('handleSearchOpenFoodFacts', () => {
+		test('returns products from search', async () => {
+			mockOFFSearchResults = [
+				{
+					name: 'Nutella',
+					brand: 'Ferrero',
+					calories: 539,
+					protein: 6.3,
+					carbs: 57.5,
+					fat: 30.9,
+					fiber: 3.4,
+					barcode: '3017620422003'
+				}
+			];
+			const result = await handleSearchOpenFoodFacts('nutella');
+			expect(result.products).toHaveLength(1);
+			expect(result.products[0].name).toBe('Nutella');
+			expect(result.count).toBe(1);
+		});
+
+		test('returns empty array when no results', async () => {
+			mockOFFSearchResults = [];
+			const result = await handleSearchOpenFoodFacts('xyznonexistent');
+			expect(result.products).toEqual([]);
+			expect(result.count).toBe(0);
+		});
+
+		test('respects limit parameter', async () => {
+			mockOFFSearchResults = [
+				{ name: 'A', barcode: '1' },
+				{ name: 'B', barcode: '2' },
+				{ name: 'C', barcode: '3' }
+			];
+			const result = await handleSearchOpenFoodFacts('test', 3);
+			expect(result.products).toHaveLength(3);
+			expect(result.count).toBe(3);
 		});
 	});
 });

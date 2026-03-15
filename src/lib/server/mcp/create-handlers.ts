@@ -61,6 +61,7 @@ import type {
 } from '$lib/server/supplements';
 import type { formatDailyStatus } from '$lib/server/mcp/format';
 import type { today } from '$lib/utils/dates';
+import type { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
 
 export type HandlerDeps = {
 	// Foods
@@ -115,37 +116,64 @@ export type HandlerDeps = {
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	today: typeof today;
+	// Open Food Facts
+	fetchProduct: typeof fetchProduct;
+	searchProducts: typeof searchProducts;
 };
 
 export function createHandlers(d: HandlerDeps) {
-	const handleGetDailyStatus = async (userId: string, date?: string) => {
-		const targetDate = date ?? d.today();
-		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
+	const getDailyStatusForDate = async (userId: string, date: string) => {
+		const { items: entries } = await d.listEntriesByDate(userId, date);
 		const goals = await d.getGoals(userId);
 		return d.formatDailyStatus({ entries, goals });
 	};
 
+	const handleGetDailyStatus = async (userId: string, date?: string, includeEntries?: boolean) => {
+		const targetDate = date ?? d.today();
+		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
+		const goals = await d.getGoals(userId);
+		const status = d.formatDailyStatus({ entries, goals });
+		if (includeEntries) {
+			return { ...status, date: targetDate, entries };
+		}
+		return { ...status, date: targetDate };
+	};
+
 	const handleSearchFoods = async (userId: string, query: string) => {
-		const { items: foods } = await d.listFoods(userId, { query });
-		return { foods };
+		const [{ items: foods }, recentFoods] = await Promise.all([
+			d.listFoods(userId, { query }),
+			d.listRecentFoods(userId, 100)
+		]);
+		const recentIds = new Set(recentFoods.map((f: { id: string }) => f.id));
+		const annotated = foods.map((f: { id: string }) => ({
+			...f,
+			recentlyUsed: recentIds.has(f.id)
+		}));
+		annotated.sort((a: { recentlyUsed: boolean }, b: { recentlyUsed: boolean }) => {
+			if (a.recentlyUsed !== b.recentlyUsed) return a.recentlyUsed ? -1 : 1;
+			return 0;
+		});
+		return { foods: annotated };
 	};
 
 	const handleCreateFood = async (userId: string, payload: unknown) => {
 		const result = await d.createFood(userId, payload);
 		if (!result.success) return { error: result.error.message };
-		return { foodId: result.data.id, success: true };
+		return { foodId: result.data.id, success: true, food: result.data };
 	};
 
 	const handleCreateRecipe = async (userId: string, payload: unknown) => {
 		const result = await d.createRecipe(userId, payload);
 		if (!result.success) return { error: result.error.message };
-		return { recipeId: result.data.id, success: true };
+		return { recipeId: result.data.id, success: true, recipe: result.data };
 	};
 
 	const handleLogFood = async (userId: string, payload: unknown) => {
 		const result = await d.createEntry(userId, payload);
 		if (!result.success) return { error: result.error.message };
-		return { entryId: result.data.id, success: true };
+		const date = result.data.date ?? d.today();
+		const dailyStatus = await getDailyStatusForDate(userId, date);
+		return { entryId: result.data.id, success: true, dailyStatus };
 	};
 
 	const handleGetSupplementStatus = async (userId: string) => {
@@ -200,6 +228,14 @@ export function createHandlers(d: HandlerDeps) {
 		}
 
 		const supplement = await d.getSupplementById(userId, id);
+		const items = await d.getSupplementChecklist(userId, targetDate);
+		const checklist = items.map((item) => ({
+			id: item.supplement.id,
+			name: item.supplement.name,
+			taken: item.taken
+		}));
+		const takenCount = checklist.filter((c) => c.taken).length;
+
 		return {
 			success: true,
 			logged: {
@@ -208,6 +244,11 @@ export function createHandlers(d: HandlerDeps) {
 				dosageUnit: supplement?.dosageUnit,
 				ingredients: supplement?.ingredients ?? [],
 				date: targetDate
+			},
+			status: {
+				total: checklist.length,
+				taken: takenCount,
+				pending: checklist.length - takenCount
 			}
 		};
 	};
@@ -237,12 +278,16 @@ export function createHandlers(d: HandlerDeps) {
 		const { entryId, ...rest } = args;
 		const result = await d.updateEntry(userId, entryId, rest);
 		if (!result.success) return { error: result.error.message };
-		return { success: true, entryId };
+		const date = result.data?.date ?? d.today();
+		const dailyStatus = await getDailyStatusForDate(userId, date);
+		return { success: true, entryId, dailyStatus };
 	};
 
-	const handleDeleteEntry = async (userId: string, entryId: string) => {
+	const handleDeleteEntry = async (userId: string, entryId: string, date?: string) => {
 		await d.deleteEntry(userId, entryId);
-		return { success: true };
+		const targetDate = date ?? d.today();
+		const dailyStatus = await getDailyStatusForDate(userId, targetDate);
+		return { success: true, dailyStatus };
 	};
 
 	const handleGetGoals = async (userId: string) => {
@@ -253,7 +298,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleUpdateGoals = async (userId: string, payload: unknown) => {
 		const result = await d.upsertGoals(userId, payload);
 		if (!result.success) return { error: result.error.message };
-		return { success: true };
+		return { success: true, goals: result.data };
 	};
 
 	const handleListRecipes = async (userId: string) => {
@@ -285,13 +330,26 @@ export function createHandlers(d: HandlerDeps) {
 		userId: string,
 		args: { weightKg: number; date?: string; notes?: string }
 	) => {
+		const previous = await d.getLatestWeight(userId);
 		const result = await d.createWeightEntry(userId, {
 			weightKg: args.weightKg,
 			entryDate: args.date,
 			notes: args.notes
 		});
 		if (!result.success) return { error: result.error.message };
-		return { success: true, entryId: result.data.id };
+		return {
+			success: true,
+			entryId: result.data.id,
+			weightKg: result.data.weightKg,
+			date: result.data.entryDate,
+			change: previous
+				? {
+						previousKg: previous.weightKg,
+						previousDate: previous.entryDate,
+						deltaKg: Math.round((result.data.weightKg - previous.weightKg) * 100) / 100
+					}
+				: null
+		};
 	};
 
 	const handleGetWeight = async (userId: string, args: { from?: string; to?: string }) => {
@@ -318,13 +376,23 @@ export function createHandlers(d: HandlerDeps) {
 	const handleCopyEntries = async (userId: string, args: { fromDate: string; toDate?: string }) => {
 		const targetDate = args.toDate ?? d.today();
 		const copied = await d.copyEntries(userId, args.fromDate, targetDate);
-		return { success: true, copiedCount: copied.length };
+		const dailyStatus = await getDailyStatusForDate(userId, targetDate);
+		return { success: true, copiedCount: copied.length, dailyStatus };
 	};
 
 	const handleFindFoodByBarcode = async (userId: string, barcode: string) => {
 		const food = await d.findFoodByBarcode(userId, barcode);
-		if (!food) return { found: false };
-		return { found: true, ...food };
+		if (food) return { found: true, source: 'database' as const, ...food };
+		const offProduct = await d.fetchProduct(barcode);
+		if (offProduct) {
+			return {
+				found: true,
+				source: 'openfoodfacts' as const,
+				...offProduct,
+				hint: 'This food was found in Open Food Facts. Use create_food to save it to your database.'
+			};
+		}
+		return { found: false };
 	};
 
 	const handleUpdateFood = async (
@@ -447,6 +515,11 @@ export function createHandlers(d: HandlerDeps) {
 		return d.getStreaks(userId);
 	};
 
+	const handleSearchOpenFoodFacts = async (query: string, limit?: number) => {
+		const results = await d.searchProducts(query, limit ?? 5);
+		return { products: results, count: results.length };
+	};
+
 	return {
 		handleGetDailyStatus,
 		handleSearchFoods,
@@ -485,6 +558,7 @@ export function createHandlers(d: HandlerDeps) {
 		handleGetDailyBreakdown,
 		handleGetMealBreakdown,
 		handleGetTopFoods,
-		handleGetStreaks
+		handleGetStreaks,
+		handleSearchOpenFoodFacts
 	};
 }

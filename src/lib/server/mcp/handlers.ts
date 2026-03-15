@@ -51,6 +51,7 @@ import {
 	getSupplementById,
 	getSupplementChecklist
 } from '$lib/server/supplements';
+import { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
 import { createHandlers } from './create-handlers';
 
 export { createHandlers, type HandlerDeps } from './create-handlers';
@@ -93,7 +94,8 @@ export const {
 	handleGetDailyBreakdown,
 	handleGetMealBreakdown,
 	handleGetTopFoods,
-	handleGetStreaks
+	handleGetStreaks,
+	handleSearchOpenFoodFacts
 } = createHandlers({
 	listFoods,
 	createFood,
@@ -137,5 +139,7 @@ export const {
 	getLogsForDate,
 	logSupplement,
 	getSupplementById,
-	getSupplementChecklist
+	getSupplementChecklist,
+	fetchProduct,
+	searchProducts
 });

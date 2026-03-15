@@ -36,5 +36,6 @@ export const toolNames = [
 	'get_top_foods',
 	'get_streaks',
 	'copy_entries',
-	'find_food_by_barcode'
+	'find_food_by_barcode',
+	'search_openfoodfacts'
 ] as const;

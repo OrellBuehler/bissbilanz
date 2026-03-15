@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 
 const OFF_API_BASE = 'https://world.openfoodfacts.net/api/v2/product';
+const OFF_SEARCH_BASE = 'https://world.openfoodfacts.net/cgi/search.pl';
 const USER_AGENT = 'Bissbilanz/1.0 (https://github.com/bissbilanz)';
 
 const OFF_FIELDS = [
@@ -36,6 +37,14 @@ const offResponseSchema = z.object({
 	product: offProductSchema.optional()
 });
 
+const offSearchResponseSchema = z.object({
+	products: z.array(
+		offProductSchema.extend({
+			code: z.string().optional().default('')
+		})
+	)
+});
+
 export type OFFProduct = {
 	name: string;
 	brand: string;
@@ -52,14 +61,9 @@ export type OFFProduct = {
 	ingredientsText: string | null;
 	imageUrl: string | null;
 	barcode: string;
-	// All extended nutrients are included dynamically
 	[key: string]: unknown;
 };
 
-/**
- * Extract a nutrient value from OFF nutriments, applying unit conversion.
- * OFF stores everything per 100g in grams; conversion multiplier converts to our unit.
- */
 function extractNutrient(
 	nutriments: Record<string, number | string | undefined>,
 	offKey: string | undefined,
@@ -74,25 +78,10 @@ function extractNutrient(
 	return Math.round(num * 100) / 100;
 }
 
-export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
-	const url = `${OFF_API_BASE}/${barcode}?fields=${OFF_FIELDS}`;
-
-	const response = await fetch(url, {
-		headers: { 'User-Agent': USER_AGENT }
-	});
-
-	if (!response.ok) {
-		return null;
-	}
-
-	const json = await response.json();
-	const parsed = offResponseSchema.safeParse(json);
-
-	if (!parsed.success || parsed.data.status !== 1 || !parsed.data.product) {
-		return null;
-	}
-
-	const p = parsed.data.product;
+function mapSearchProduct(
+	p: z.infer<typeof offProductSchema> & { code?: string },
+	barcode: string
+): OFFProduct {
 	const n = p.nutriments as Record<string, number | string | undefined>;
 	const num = (v: number | string | undefined): number =>
 		typeof v === 'string' ? parseFloat(v) || 0 : (v ?? 0);
@@ -115,10 +104,60 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 		barcode
 	};
 
-	// Map all extended nutrients from the catalog
 	for (const nutrient of ALL_NUTRIENTS) {
 		result[nutrient.key] = extractNutrient(n, nutrient.offKey, nutrient.offConversion);
 	}
 
 	return result;
+}
+
+export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
+	const url = `${OFF_API_BASE}/${barcode}?fields=${OFF_FIELDS}`;
+
+	const response = await fetch(url, {
+		headers: { 'User-Agent': USER_AGENT }
+	});
+
+	if (!response.ok) {
+		return null;
+	}
+
+	const json = await response.json();
+	const parsed = offResponseSchema.safeParse(json);
+
+	if (!parsed.success || parsed.data.status !== 1 || !parsed.data.product) {
+		return null;
+	}
+
+	return mapSearchProduct(parsed.data.product, barcode);
+}
+
+export async function searchProducts(query: string, limit?: number): Promise<OFFProduct[]> {
+	const pageSize = Math.min(limit ?? 5, 20);
+	const params = new URLSearchParams({
+		search_terms: query,
+		search_simple: '1',
+		action: 'process',
+		json: '1',
+		page_size: String(pageSize),
+		fields: `code,${OFF_FIELDS}`
+	});
+
+	try {
+		const response = await fetch(`${OFF_SEARCH_BASE}?${params}`, {
+			headers: { 'User-Agent': USER_AGENT }
+		});
+
+		if (!response.ok) return [];
+
+		const json = await response.json();
+		const parsed = offSearchResponseSchema.safeParse(json);
+		if (!parsed.success) return [];
+
+		return parsed.data.products
+			.filter((p) => p.product_name.length > 0)
+			.map((p) => mapSearchProduct(p, p.code ?? ''));
+	} catch {
+		return [];
+	}
 }
