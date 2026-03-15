@@ -426,6 +426,8 @@
 	"dashboard_weight_latest": "{value} kg",
 	"dashboard_weight_no_entries": "No entries yet",
 	"dashboard_weight_log_first": "Log your first weight",
+	"dashboard_weight_log": "Log",
+	"dashboard_weight_placeholder": "kg",
 	"dashboard_weight_view_all": "Weight",
 
 	"nav_weight": "Weight",
