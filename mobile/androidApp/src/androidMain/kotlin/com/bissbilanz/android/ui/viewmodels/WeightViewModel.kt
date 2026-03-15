@@ -63,13 +63,14 @@ class WeightViewModel(
                     0 -> today.minus(7, DateTimeUnit.DAY)
                     1 -> today.minus(30, DateTimeUnit.DAY)
                     2 -> today.minus(90, DateTimeUnit.DAY)
-                    else -> kotlinx.datetime.LocalDate(2020, 1, 1)
+                    else -> kotlinx.datetime.LocalDate(2000, 1, 1)
                 }
             try {
                 val trend = weightRepo.getTrend(from.toString(), today.toString())
                 _trendData.value = trend
                 weightRepo.refresh()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
             } finally {
                 _isLoading.value = false
             }

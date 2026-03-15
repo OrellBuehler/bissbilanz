@@ -22,6 +22,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.WeightTrendChart
+import com.bissbilanz.android.ui.components.linearRegression
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
@@ -32,6 +33,7 @@ import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -68,7 +70,8 @@ fun WeightScreen(navController: NavController) {
                         weightRepo.createEntry(WeightCreate(weightKg = weight, entryDate = today, notes = notes.ifBlank { null }))
                         viewModel.refresh()
                         snackbarHostState.showSnackbar("Weight logged")
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         snackbarHostState.showSnackbar("Failed to log weight")
                     }
                 }
@@ -90,7 +93,8 @@ fun WeightScreen(navController: NavController) {
                         )
                         viewModel.refresh()
                         snackbarHostState.showSnackbar("Weight updated")
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         snackbarHostState.showSnackbar("Failed to update weight")
                     }
                 }
@@ -111,7 +115,8 @@ fun WeightScreen(navController: NavController) {
                             try {
                                 weightRepo.deleteEntry(entryToDelete!!.id)
                                 viewModel.refresh()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 snackbarHostState.showSnackbar("Failed to delete")
                             }
                         }
@@ -201,7 +206,7 @@ fun WeightScreen(navController: NavController) {
                                 WeightTrendChart(
                                     trendData = trendData,
                                     projectionDays = projectionDays,
-                                    modifier = Modifier.fillMaxWidth().height(200.dp).padding(12.dp),
+                                    modifier = Modifier.fillMaxWidth().height(240.dp).padding(12.dp),
                                 )
                             }
                         }
@@ -308,18 +313,16 @@ private fun WeightStatsRow(
         }
 
         if (projectionDays > 0 && trendData.size >= 3) {
-            // Compute projected weight
-            val n = trendData.size
-            val xs = (0 until n).map { it.toFloat() }
-            val ys = trendData.map { it.weightKg.toFloat() }
-            val sumX = xs.sum()
-            val sumY = ys.sum()
-            val sumXY = xs.zip(ys).sumOf { (it.first * it.second).toDouble() }.toFloat()
-            val sumX2 = xs.sumOf { (it * it).toDouble() }.toFloat()
-            val denom = n * sumX2 - sumX * sumX
-            val slope = if (denom != 0f) (n * sumXY - sumX * sumY) / denom else 0f
-            val intercept = if (denom != 0f) (sumY - slope * sumX) / n else sumY / n
-            val projectedWeight = slope * (n - 1 + projectionDays) + intercept
+            // Compute projected weight using date-based indices to match PWA algorithm
+            val firstDate = LocalDate.parse(trendData.first().entryDate)
+            val regressionPoints =
+                trendData.map { entry ->
+                    val date = LocalDate.parse(entry.entryDate)
+                    (date.toEpochDays() - firstDate.toEpochDays()).toFloat() to entry.weightKg.toFloat()
+                }
+            val lastDayIndex = regressionPoints.last().first
+            val (slope, intercept) = linearRegression(regressionPoints) ?: (0f to trendData.last().weightKg.toFloat())
+            val projectedWeight = slope * (lastDayIndex + projectionDays) + intercept
 
             Surface(
                 shape = RoundedCornerShape(20.dp),

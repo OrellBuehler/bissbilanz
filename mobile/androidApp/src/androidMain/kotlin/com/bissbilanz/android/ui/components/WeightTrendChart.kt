@@ -20,12 +20,32 @@ import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
 import com.bissbilanz.model.WeightTrendEntry
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import kotlin.math.ceil
 
-data class ProjectionPoint(
+internal data class ProjectionPoint(
     val dayIndex: Float,
     val weight: Float,
 )
+
+internal fun linearRegression(points: List<Pair<Float, Float>>): Pair<Float, Float>? {
+    if (points.size < 3) return null
+    val n = points.size
+    val sumX = points.sumOf { it.first.toDouble() }.toFloat()
+    val sumY = points.sumOf { it.second.toDouble() }.toFloat()
+    val sumXY = points.sumOf { (it.first * it.second).toDouble() }.toFloat()
+    val sumX2 = points.sumOf { (it.first * it.first).toDouble() }.toFloat()
+    val denom = n * sumX2 - sumX * sumX
+    return if (denom != 0f) {
+        val slope = (n * sumXY - sumX * sumY) / denom
+        val intercept = (sumY - slope * sumX) / n
+        slope to intercept
+    } else {
+        0f to (sumY / n)
+    }
+}
 
 @Composable
 fun WeightTrendChart(
@@ -183,79 +203,52 @@ private fun computeChartState(
     trendData: List<WeightTrendEntry>,
     projectionDays: Int,
 ): ChartState {
+    val firstDate = LocalDate.parse(trendData.first().entryDate)
+
     val actualPoints =
-        trendData.mapIndexed { i, entry ->
-            ProjectionPoint(i.toFloat(), entry.weightKg.toFloat())
+        trendData.map { entry ->
+            val date = LocalDate.parse(entry.entryDate)
+            val dayIndex = (date.toEpochDays() - firstDate.toEpochDays()).toFloat()
+            ProjectionPoint(dayIndex, entry.weightKg.toFloat())
         }
 
     val movingAvgPoints =
-        trendData.mapIndexedNotNull { i, entry ->
-            entry.movingAvg?.let { ProjectionPoint(i.toFloat(), it.toFloat()) }
+        trendData.mapNotNull { entry ->
+            entry.movingAvg?.let {
+                val date = LocalDate.parse(entry.entryDate)
+                val dayIndex = (date.toEpochDays() - firstDate.toEpochDays()).toFloat()
+                ProjectionPoint(dayIndex, it.toFloat())
+            }
         }
 
     // Linear regression for projection
     val projectionPoints = mutableListOf<ProjectionPoint>()
     if (projectionDays > 0 && trendData.size >= 3) {
-        val n = trendData.size
-        val xs = (0 until n).map { it.toFloat() }
-        val ys = trendData.map { it.weightKg.toFloat() }
-        val sumX = xs.sum()
-        val sumY = ys.sum()
-        val sumXY = xs.zip(ys).sumOf { (it.first * it.second).toDouble() }.toFloat()
-        val sumX2 = xs.sumOf { (it * it).toDouble() }.toFloat()
-        val denom = n * sumX2 - sumX * sumX
-        val slope: Float
-        val intercept: Float
-        if (denom != 0f) {
-            slope = (n * sumXY - sumX * sumY) / denom
-            intercept = (sumY - slope * sumX) / n
-        } else {
-            slope = 0f
-            intercept = sumY / n
-        }
+        val regressionPoints = actualPoints.map { it.dayIndex to it.weight }
+        val (slope, intercept) = linearRegression(regressionPoints) ?: (0f to actualPoints.last().weight)
 
-        // Start projection from last actual point
-        val lastIndex = n - 1
-        projectionPoints.add(ProjectionPoint(lastIndex.toFloat(), slope * lastIndex + intercept))
+        val lastDayIndex = actualPoints.last().dayIndex
+        projectionPoints.add(ProjectionPoint(lastDayIndex, slope * lastDayIndex + intercept))
         for (d in 1..projectionDays) {
-            val idx = lastIndex + d
-            projectionPoints.add(ProjectionPoint(idx.toFloat(), slope * idx + intercept))
+            val idx = lastDayIndex + d
+            projectionPoints.add(ProjectionPoint(idx, slope * idx + intercept))
         }
     }
 
-    val totalPoints = trendData.size + projectionDays.coerceAtLeast(0)
+    val lastDayIndex = actualPoints.lastOrNull()?.dayIndex ?: 0f
+    val totalPoints = (lastDayIndex + projectionDays.coerceAtLeast(0) + 1).toInt()
 
     // Date labels
     val dateLabels = mutableListOf<String>()
     for (entry in trendData) {
-        val parts = entry.entryDate.split("-")
-        dateLabels.add("${parts[2].toInt()}/${parts[1].toInt()}")
+        val date = LocalDate.parse(entry.entryDate)
+        dateLabels.add("${date.dayOfMonth}/${date.monthNumber}")
     }
     if (projectionDays > 0 && trendData.isNotEmpty()) {
-        // Parse last date and generate future labels
-        val lastDate = trendData.last().entryDate
-        val parts = lastDate.split("-")
-        var year = parts[0].toInt()
-        var month = parts[1].toInt()
-        var day = parts[2].toInt()
+        val lastDate = LocalDate.parse(trendData.last().entryDate)
         for (d in 1..projectionDays) {
-            day++
-            val daysInMonth =
-                when (month) {
-                    1, 3, 5, 7, 8, 10, 12 -> 31
-                    4, 6, 9, 11 -> 30
-                    2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
-                    else -> 30
-                }
-            if (day > daysInMonth) {
-                day = 1
-                month++
-                if (month > 12) {
-                    month = 1
-                    year++
-                }
-            }
-            dateLabels.add("$day/$month")
+            val futureDate = lastDate.plus(d, DateTimeUnit.DAY)
+            dateLabels.add("${futureDate.dayOfMonth}/${futureDate.monthNumber}")
         }
     }
 
