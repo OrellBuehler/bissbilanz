@@ -1,5 +1,4 @@
-import 'zod-openapi';
-import { createDocument } from 'zod-openapi';
+import { createDocument, type ZodOpenApiResponseObject } from 'zod-openapi';
 import { z } from 'zod';
 import { goalsSchema } from './validation/goals';
 import { foodCreateSchema, foodUpdateSchema } from './validation/foods';
@@ -63,30 +62,30 @@ import { imageUploadResponseSchema } from './validation/responses/images';
 import { openfoodfactsResponseSchema } from './validation/responses/openfoodfacts';
 import { goalsResponseSchema, goalsSetResponseSchema } from './validation/responses/goals';
 
-const res401 = {
-	'401': {
-		description: 'Unauthorized',
-		content: { 'application/json': { schema: errorResponseSchema } }
-	}
-} as const;
+const uuidPathId = z.object({ id: z.string().uuid() });
 
-const res400 = {
-	'400': {
-		description: 'Validation error',
-		content: { 'application/json': { schema: validationErrorResponseSchema } }
-	}
-} as const;
+const res401: ZodOpenApiResponseObject = {
+	id: 'UnauthorizedResponse',
+	description: 'Unauthorized',
+	content: { 'application/json': { schema: errorResponseSchema } }
+};
 
-const res409 = {
-	'409': {
-		description: 'Conflict',
-		content: { 'application/json': { schema: conflictErrorResponseSchema } }
-	}
-} as const;
+const res400: ZodOpenApiResponseObject = {
+	id: 'ValidationErrorResponse',
+	description: 'Validation error',
+	content: { 'application/json': { schema: validationErrorResponseSchema } }
+};
 
-const res204 = {
-	'204': { description: 'Deleted' }
-} as const;
+const res409: ZodOpenApiResponseObject = {
+	id: 'ConflictResponse',
+	description: 'Conflict',
+	content: { 'application/json': { schema: conflictErrorResponseSchema } }
+};
+
+const res204: ZodOpenApiResponseObject = {
+	id: 'DeletedResponse',
+	description: 'Deleted'
+};
 
 export function generateSpec() {
 	return createDocument({
@@ -111,16 +110,23 @@ export function generateSpec() {
 			// ── Goals ─────────────────────────────────────────────
 			'/api/goals': {
 				get: {
+					operationId: 'getGoals',
+					tags: ['Goals'],
+					description: 'Get daily nutrition goals.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: goalsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'setGoals',
+					tags: ['Goals'],
+					description: 'Set daily nutrition goals.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: goalsSchema } }
 					},
 					responses: {
@@ -128,8 +134,8 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: goalsSetResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
@@ -137,22 +143,31 @@ export function generateSpec() {
 			// ── Foods ─────────────────────────────────────────────
 			'/api/foods': {
 				get: {
-					parameters: [
-						{ name: 'q', in: 'query', schema: { type: 'string' }, required: false },
-						{ name: 'barcode', in: 'query', schema: { type: 'string' }, required: false },
-						{ name: 'limit', in: 'query', schema: { type: 'integer' }, required: false },
-						{ name: 'offset', in: 'query', schema: { type: 'integer' }, required: false }
-					],
+					operationId: 'listFoods',
+					tags: ['Foods'],
+					description: 'Search or list foods in the personal database.',
+					requestParams: {
+						query: z.object({
+							q: z.string().optional(),
+							barcode: z.string().optional(),
+							limit: z.number().int().optional(),
+							offset: z.number().int().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: foodsListResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createFood',
+					tags: ['Foods'],
+					description: 'Create a new food in the personal database.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: foodCreateSchema } }
 					},
 					responses: {
@@ -160,40 +175,46 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: foodResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/foods/recent': {
 				get: {
+					operationId: 'listRecentFoods',
+					tags: ['Foods'],
+					description: 'List recently logged foods.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: foodsRecentResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/foods/{id}': {
 				get: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'getFood',
+					tags: ['Foods'],
+					description: 'Get a single food by ID.',
+					requestParams: { path: uuidPathId },
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: foodResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateFood',
+					tags: ['Foods'],
+					description: 'Update a food in the personal database.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: foodUpdateSchema } }
 					},
 					responses: {
@@ -201,19 +222,23 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: foodResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-						{ name: 'force', in: 'query', schema: { type: 'boolean' }, required: false }
-					],
+					operationId: 'deleteFood',
+					tags: ['Foods'],
+					description:
+						'Delete a food. Pass force=true to delete even if diary entries reference it.',
+					requestParams: {
+						path: uuidPathId,
+						query: z.object({ force: z.boolean().optional() })
+					},
 					responses: {
-						...res204,
-						...res409,
-						...res401
+						'204': res204,
+						'401': res401,
+						'409': res409
 					}
 				}
 			},
@@ -221,24 +246,26 @@ export function generateSpec() {
 			// ── Entries ───────────────────────────────────────────
 			'/api/entries': {
 				get: {
-					parameters: [
-						{
-							name: 'date',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						}
-					],
+					operationId: 'listEntries',
+					tags: ['Entries'],
+					description: 'List diary entries for a given date.',
+					requestParams: {
+						query: z.object({ date: z.string().date() })
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: entriesListResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createEntry',
+					tags: ['Entries'],
+					description: 'Log a food entry.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: entryCreateSchema } }
 					},
 					responses: {
@@ -246,68 +273,60 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: entryResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/entries/copy': {
 				post: {
-					parameters: [
-						{
-							name: 'fromDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						},
-						{
-							name: 'toDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						}
-					],
+					operationId: 'copyEntries',
+					tags: ['Entries'],
+					description: 'Copy all diary entries from one date to another.',
+					requestParams: {
+						query: z.object({
+							fromDate: z.string().date(),
+							toDate: z.string().date()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: entriesCopyResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/entries/range': {
 				get: {
-					parameters: [
-						{
-							name: 'startDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						},
-						{
-							name: 'endDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						}
-					],
+					operationId: 'getEntriesRange',
+					tags: ['Entries'],
+					description: 'Get diary entries for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: entriesRangeResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/entries/{id}': {
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateEntry',
+					tags: ['Entries'],
+					description: 'Update a diary entry.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: entryUpdateSchema } }
 					},
 					responses: {
@@ -315,17 +334,18 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: entryResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'deleteEntry',
+					tags: ['Entries'],
+					description: 'Delete a diary entry.',
+					requestParams: { path: uuidPathId },
 					responses: {
-						...res204,
-						...res401
+						'204': res204,
+						'401': res401
 					}
 				}
 			},
@@ -333,20 +353,29 @@ export function generateSpec() {
 			// ── Recipes ───────────────────────────────────────────
 			'/api/recipes': {
 				get: {
-					parameters: [
-						{ name: 'limit', in: 'query', schema: { type: 'integer' }, required: false },
-						{ name: 'offset', in: 'query', schema: { type: 'integer' }, required: false }
-					],
+					operationId: 'listRecipes',
+					tags: ['Recipes'],
+					description: 'List recipes.',
+					requestParams: {
+						query: z.object({
+							limit: z.number().int().optional(),
+							offset: z.number().int().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: recipesListResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createRecipe',
+					tags: ['Recipes'],
+					description: 'Create a new recipe.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: recipeCreateSchema } }
 					},
 					responses: {
@@ -354,29 +383,32 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: recipeResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/recipes/{id}': {
 				get: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'getRecipe',
+					tags: ['Recipes'],
+					description: 'Get a single recipe by ID.',
+					requestParams: { path: uuidPathId },
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: recipeResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateRecipe',
+					tags: ['Recipes'],
+					description: 'Update a recipe.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: recipeUpdateSchema } }
 					},
 					responses: {
@@ -384,19 +416,23 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: recipeResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-						{ name: 'force', in: 'query', schema: { type: 'boolean' }, required: false }
-					],
+					operationId: 'deleteRecipe',
+					tags: ['Recipes'],
+					description:
+						'Delete a recipe. Pass force=true to delete even if diary entries reference it.',
+					requestParams: {
+						path: uuidPathId,
+						query: z.object({ force: z.boolean().optional() })
+					},
 					responses: {
-						...res204,
-						...res409,
-						...res401
+						'204': res204,
+						'401': res401,
+						'409': res409
 					}
 				}
 			},
@@ -404,17 +440,26 @@ export function generateSpec() {
 			// ── Supplements ───────────────────────────────────────
 			'/api/supplements': {
 				get: {
-					parameters: [{ name: 'all', in: 'query', schema: { type: 'boolean' }, required: false }],
+					operationId: 'listSupplements',
+					tags: ['Supplements'],
+					description: 'List supplements. Pass all=true to include inactive ones.',
+					requestParams: {
+						query: z.object({ all: z.boolean().optional() })
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementsListResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createSupplement',
+					tags: ['Supplements'],
+					description: 'Create a new supplement.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: supplementCreateSchema } }
 					},
 					responses: {
@@ -422,60 +467,66 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: supplementResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/today': {
 				get: {
+					operationId: 'getTodaySupplementChecklist',
+					tags: ['Supplements'],
+					description: "Get today's supplement checklist.",
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementChecklistResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/history': {
 				get: {
-					parameters: [
-						{
-							name: 'from',
-							in: 'query',
-							schema: { type: 'string', format: 'date' },
-							required: false
-						},
-						{ name: 'to', in: 'query', schema: { type: 'string', format: 'date' }, required: false }
-					],
+					operationId: 'getSupplementHistory',
+					tags: ['Supplements'],
+					description: 'Get supplement log history.',
+					requestParams: {
+						query: z.object({
+							from: z.string().date().optional(),
+							to: z.string().date().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementHistoryResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/{id}': {
 				get: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'getSupplement',
+					tags: ['Supplements'],
+					description: 'Get a single supplement by ID.',
+					requestParams: { path: uuidPathId },
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateSupplement',
+					tags: ['Supplements'],
+					description: 'Update a supplement.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: supplementUpdateSchema } }
 					},
 					responses: {
@@ -483,26 +534,29 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'deleteSupplement',
+					tags: ['Supplements'],
+					description: 'Delete a supplement.',
+					requestParams: { path: uuidPathId },
 					responses: {
-						...res204,
-						...res401
+						'204': res204,
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/{id}/log': {
 				post: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'logSupplement',
+					tags: ['Supplements'],
+					description: 'Log a supplement as taken today.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: supplementLogSchema } }
 					},
 					responses: {
@@ -510,46 +564,53 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: supplementLogResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/{id}/log/{date}': {
 				post: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-						{ name: 'date', in: 'path', required: true, schema: { type: 'string', format: 'date' } }
-					],
+					operationId: 'logSupplementForDate',
+					tags: ['Supplements'],
+					description: 'Log a supplement as taken on a specific date.',
+					requestParams: {
+						path: z.object({ id: z.string().uuid(), date: z.string().date() })
+					},
 					responses: {
 						'201': {
 							description: 'Created',
 							content: { 'application/json': { schema: supplementLogResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-						{ name: 'date', in: 'path', required: true, schema: { type: 'string', format: 'date' } }
-					],
+					operationId: 'unlogSupplementForDate',
+					tags: ['Supplements'],
+					description: 'Remove a supplement log entry for a specific date.',
+					requestParams: {
+						path: z.object({ id: z.string().uuid(), date: z.string().date() })
+					},
 					responses: {
-						...res204,
-						...res401
+						'204': res204,
+						'401': res401
 					}
 				}
 			},
 			'/api/supplements/{date}/checklist': {
 				get: {
-					parameters: [
-						{ name: 'date', in: 'path', required: true, schema: { type: 'string', format: 'date' } }
-					],
+					operationId: 'getSupplementChecklist',
+					tags: ['Supplements'],
+					description: 'Get supplement checklist for a specific date.',
+					requestParams: {
+						path: z.object({ date: z.string().date() })
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: supplementChecklistResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
@@ -557,31 +618,34 @@ export function generateSpec() {
 			// ── Weight ────────────────────────────────────────────
 			'/api/weight': {
 				get: {
+					operationId: 'listWeightEntries',
+					tags: ['Weight'],
 					description:
 						'Returns weight entries. When from/to query params are provided, returns trend data instead.',
-					parameters: [
-						{
-							name: 'from',
-							in: 'query',
-							schema: { type: 'string', format: 'date' },
-							required: false
-						},
-						{ name: 'to', in: 'query', schema: { type: 'string', format: 'date' }, required: false }
-					],
+					requestParams: {
+						query: z.object({
+							from: z.string().date().optional(),
+							to: z.string().date().optional()
+						})
+					},
 					responses: {
 						'200': {
-							description: 'Success',
+							description: 'Weight entries or trend data',
 							content: {
 								'application/json': {
 									schema: z.union([weightEntriesResponseSchema, weightTrendResponseSchema])
 								}
 							}
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createWeightEntry',
+					tags: ['Weight'],
+					description: 'Log a new weight measurement.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: weightCreateSchema } }
 					},
 					responses: {
@@ -589,28 +653,33 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: weightEntryResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/weight/latest': {
 				get: {
+					operationId: 'getLatestWeight',
+					tags: ['Weight'],
+					description: 'Get the most recent weight entry.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: weightLatestResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/weight/{id}': {
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateWeightEntry',
+					tags: ['Weight'],
+					description: 'Update a weight entry.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: weightUpdateSchema } }
 					},
 					responses: {
@@ -618,17 +687,18 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: weightEntryResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'deleteWeightEntry',
+					tags: ['Weight'],
+					description: 'Delete a weight entry.',
+					requestParams: { path: uuidPathId },
 					responses: {
-						...res204,
-						...res401
+						'204': res204,
+						'401': res401
 					}
 				}
 			},
@@ -636,117 +706,121 @@ export function generateSpec() {
 			// ── Stats ─────────────────────────────────────────────
 			'/api/stats/daily': {
 				get: {
-					parameters: [
-						{
-							name: 'startDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						},
-						{
-							name: 'endDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						}
-					],
+					operationId: 'getDailyStats',
+					tags: ['Stats'],
+					description: 'Get daily nutrition totals for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: dailyStatsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/weekly': {
 				get: {
+					operationId: 'getWeeklyStats',
+					tags: ['Stats'],
+					description: 'Get average daily nutrition over the past 7 days.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: weeklyStatsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/monthly': {
 				get: {
+					operationId: 'getMonthlyStats',
+					tags: ['Stats'],
+					description: 'Get average daily nutrition over the past 30 days.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: monthlyStatsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/meal-breakdown': {
 				get: {
-					parameters: [
-						{
-							name: 'date',
-							in: 'query',
-							schema: { type: 'string', format: 'date' },
-							required: false
-						},
-						{
-							name: 'startDate',
-							in: 'query',
-							schema: { type: 'string', format: 'date' },
-							required: false
-						},
-						{
-							name: 'endDate',
-							in: 'query',
-							schema: { type: 'string', format: 'date' },
-							required: false
-						}
-					],
+					operationId: 'getMealBreakdown',
+					tags: ['Stats'],
+					description: 'Get nutrition totals broken down by meal type.',
+					requestParams: {
+						query: z.object({
+							date: z.string().date().optional(),
+							startDate: z.string().date().optional(),
+							endDate: z.string().date().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: mealBreakdownResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/top-foods': {
 				get: {
-					parameters: [
-						{ name: 'days', in: 'query', schema: { type: 'integer' }, required: false },
-						{ name: 'limit', in: 'query', schema: { type: 'integer' }, required: false }
-					],
+					operationId: 'getTopFoods',
+					tags: ['Stats'],
+					description: 'Get most frequently logged foods.',
+					requestParams: {
+						query: z.object({
+							days: z.number().int().optional(),
+							limit: z.number().int().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: topFoodsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/streaks': {
 				get: {
+					operationId: 'getStreaks',
+					tags: ['Stats'],
+					description: 'Get current and longest logging streaks.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: streaksResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
 			'/api/stats/calendar': {
 				get: {
-					parameters: [{ name: 'month', in: 'query', required: true, schema: { type: 'string' } }],
+					operationId: 'getCalendar',
+					tags: ['Stats'],
+					description: 'Get calendar view of logged days for a month.',
+					requestParams: {
+						query: z.object({ month: z.string() })
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: calendarResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
@@ -754,16 +828,23 @@ export function generateSpec() {
 			// ── Preferences ───────────────────────────────────────
 			'/api/preferences': {
 				get: {
+					operationId: 'getPreferences',
+					tags: ['Preferences'],
+					description: 'Get user preferences.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: preferencesResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				patch: {
+					operationId: 'updatePreferences',
+					tags: ['Preferences'],
+					description: 'Update user preferences.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: preferencesUpdateSchema } }
 					},
 					responses: {
@@ -771,8 +852,8 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: preferencesResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
@@ -780,16 +861,23 @@ export function generateSpec() {
 			// ── Meal Types ────────────────────────────────────────
 			'/api/meal-types': {
 				get: {
+					operationId: 'listMealTypes',
+					tags: ['MealTypes'],
+					description: 'List meal types.',
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: mealTypesListResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				},
 				post: {
+					operationId: 'createMealType',
+					tags: ['MealTypes'],
+					description: 'Create a new meal type.',
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: mealTypeCreateSchema } }
 					},
 					responses: {
@@ -797,17 +885,19 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: mealTypeResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
 			'/api/meal-types/{id}': {
 				patch: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'updateMealType',
+					tags: ['MealTypes'],
+					description: 'Update a meal type.',
+					requestParams: { path: uuidPathId },
 					requestBody: {
+						required: true,
 						content: { 'application/json': { schema: mealTypeUpdateSchema } }
 					},
 					responses: {
@@ -815,17 +905,18 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: mealTypeResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				},
 				delete: {
-					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
-					],
+					operationId: 'deleteMealType',
+					tags: ['MealTypes'],
+					description: 'Delete a meal type.',
+					requestParams: { path: uuidPathId },
 					responses: {
-						...res204,
-						...res401
+						'204': res204,
+						'401': res401
 					}
 				}
 			},
@@ -833,20 +924,20 @@ export function generateSpec() {
 			// ── Favorites ─────────────────────────────────────────
 			'/api/favorites': {
 				get: {
-					parameters: [
-						{
-							name: 'type',
-							in: 'query',
-							schema: { type: 'string', enum: ['foods', 'recipes'] },
-							required: false
-						}
-					],
+					operationId: 'listFavorites',
+					tags: ['Favorites'],
+					description: 'List favorite foods and recipes.',
+					requestParams: {
+						query: z.object({
+							type: z.enum(['foods', 'recipes']).optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: favoritesResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			},
@@ -854,28 +945,23 @@ export function generateSpec() {
 			// ── Maintenance ───────────────────────────────────────
 			'/api/maintenance': {
 				get: {
-					parameters: [
-						{
-							name: 'startDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						},
-						{
-							name: 'endDate',
-							in: 'query',
-							required: true,
-							schema: { type: 'string', format: 'date' }
-						},
-						{ name: 'muscleRatio', in: 'query', schema: { type: 'number' }, required: false }
-					],
+					operationId: 'getMaintenance',
+					tags: ['Maintenance'],
+					description: 'Calculate maintenance calories for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date(),
+							muscleRatio: z.number().optional()
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: maintenanceResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
@@ -883,7 +969,11 @@ export function generateSpec() {
 			// ── Images ────────────────────────────────────────────
 			'/api/images/upload': {
 				post: {
+					operationId: 'uploadImage',
+					tags: ['Images'],
+					description: 'Upload an image file.',
 					requestBody: {
+						required: true,
 						content: {
 							'multipart/form-data': {
 								schema: {
@@ -901,8 +991,8 @@ export function generateSpec() {
 							description: 'Created',
 							content: { 'application/json': { schema: imageUploadResponseSchema } }
 						},
-						...res400,
-						...res401
+						'400': res400,
+						'401': res401
 					}
 				}
 			},
@@ -910,13 +1000,18 @@ export function generateSpec() {
 			// ── Open Food Facts ───────────────────────────────────
 			'/api/openfoodfacts/{barcode}': {
 				get: {
-					parameters: [{ name: 'barcode', in: 'path', required: true, schema: { type: 'string' } }],
+					operationId: 'lookupOpenFoodFacts',
+					tags: ['OpenFoodFacts'],
+					description: 'Look up a product by barcode in Open Food Facts.',
+					requestParams: {
+						path: z.object({ barcode: z.string() })
+					},
 					responses: {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: openfoodfactsResponseSchema } }
 						},
-						...res401
+						'401': res401
 					}
 				}
 			}
