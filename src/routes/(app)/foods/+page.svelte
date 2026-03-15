@@ -11,13 +11,12 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
-	import { apiFetch } from '$lib/utils/api';
 	import { api } from '$lib/api/client';
 
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
-	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
+	import { uploadImage } from '$lib/utils/image-upload';
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -179,35 +178,9 @@
 	const handleImageUpload = async (file: File) => {
 		if (!editingFood || uploading) return;
 		uploading = true;
-		const formData = new FormData();
-		formData.append('image', file);
 		try {
-			const uploadRes = await apiFetch('/api/images/upload', {
-				method: 'POST',
-				body: formData
-			});
-			if (!uploadRes.ok) {
-				const body = await uploadRes.text().catch(() => '');
-				Sentry.logger.error('Image upload failed', {
-					status: uploadRes.status,
-					body: body.slice(0, 500),
-					fileSize: file.size,
-					fileType: file.type,
-					context: 'food-edit'
-				});
-				toast.error(m.image_upload_failed());
-				return;
-			}
-			const { imageUrl: newUrl } = await uploadRes.json();
-			editImageUrl = newUrl;
-			await api.PATCH('/api/foods/{id}', {
-				params: { path: { id: editingFood.id } },
-				body: { imageUrl: newUrl }
-			});
-			toast.success(m.image_uploaded());
-		} catch (err) {
-			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
-			toast.error(m.image_upload_failed());
+			const newUrl = await uploadImage(file, { type: 'food', id: editingFood.id });
+			if (newUrl) editImageUrl = newUrl;
 		} finally {
 			uploading = false;
 		}

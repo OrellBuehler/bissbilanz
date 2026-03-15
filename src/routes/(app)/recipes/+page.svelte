@@ -8,11 +8,10 @@
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
-	import { apiFetch } from '$lib/utils/api';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
-	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
+	import { uploadImage } from '$lib/utils/image-upload';
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
@@ -99,35 +98,8 @@
 
 	const handleImageUpload = async (file: File) => {
 		if (!editingRecipe) return;
-		const formData = new FormData();
-		formData.append('image', file);
-		try {
-			const uploadRes = await apiFetch('/api/images/upload', {
-				method: 'POST',
-				body: formData
-			});
-			if (!uploadRes.ok) {
-				const body = await uploadRes.text().catch(() => '');
-				Sentry.logger.error('Image upload failed', {
-					status: uploadRes.status,
-					body: body.slice(0, 500),
-					fileSize: file.size,
-					fileType: file.type,
-					context: 'recipe-edit'
-				});
-				toast.error(m.image_upload_failed());
-				return;
-			}
-			const { imageUrl: newUrl } = await uploadRes.json();
-			editImageUrl = newUrl;
-			await api.PATCH('/api/recipes/{id}', {
-				params: { path: { id: editingRecipe.id } },
-				body: { imageUrl: newUrl }
-			});
-		} catch (err) {
-			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
-			toast.error(m.image_upload_failed());
-		}
+		const newUrl = await uploadImage(file, { type: 'recipe', id: editingRecipe.id });
+		if (newUrl) editImageUrl = newUrl;
 	};
 
 	const closeForm = () => {
