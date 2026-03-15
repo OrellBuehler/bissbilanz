@@ -108,11 +108,12 @@ fun RecipeListScreen(navController: NavController) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
-                    items(recipes) { recipe ->
+                    items(recipes, key = { it.id }) { recipe ->
                         RecipeListItem(
                             recipe = recipe,
                             onClick = { navController.navigate("recipe/${recipe.id}") },
                             onQuickLog = { recipeToLog = recipe },
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -126,8 +127,9 @@ fun RecipeListItem(
     recipe: Recipe,
     onClick: () -> Unit,
     onQuickLog: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Card(modifier = modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

@@ -111,12 +111,13 @@ fun FoodSearchScreen(navController: NavController) {
                         EmptyState("No foods found for \"$query\"")
                     } else {
                         LazyColumn {
-                            items(searchResults) { food ->
+                            items(searchResults, key = { it.id }) { food ->
                                 FoodListItem(
                                     food = food,
                                     baseUrl = baseUrl,
                                     onClick = { navController.navigate("food/${food.id}") },
                                     onQuickLog = { foodToLog = food },
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
@@ -137,12 +138,13 @@ fun FoodSearchScreen(navController: NavController) {
                     EmptyState(if (selectedTab == 0) "No recent foods" else "No favorites yet")
                 } else {
                     LazyColumn {
-                        items(displayFoods) { food ->
+                        items(displayFoods, key = { it.id }) { food ->
                             FoodListItem(
                                 food = food,
                                 baseUrl = baseUrl,
                                 onClick = { navController.navigate("food/${food.id}") },
                                 onQuickLog = { foodToLog = food },
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }
@@ -158,6 +160,7 @@ fun FoodListItem(
     baseUrl: String,
     onClick: () -> Unit,
     onQuickLog: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     ListItem(
         headlineContent = { Text(food.name) },
@@ -195,6 +198,6 @@ fun FoodListItem(
                 }
             }
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
     )
 }

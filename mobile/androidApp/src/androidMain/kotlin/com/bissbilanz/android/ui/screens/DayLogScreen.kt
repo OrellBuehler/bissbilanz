@@ -210,13 +210,15 @@ fun DayLogScreen(
                         }
                     }
                     items(mealEntries, key = { it.id }) { entry ->
-                        SwipeToDismissEntry(
-                            entry = entry,
-                            onDelete = { entryToDelete = entry },
-                            onClick = {
-                                editingEntryId = entry.id
-                            },
-                        )
+                        Box(modifier = Modifier.animateItem()) {
+                            SwipeToDismissEntry(
+                                entry = entry,
+                                onDelete = { entryToDelete = entry },
+                                onClick = {
+                                    editingEntryId = entry.id
+                                },
+                            )
+                        }
                     }
                 }
             }

@@ -282,6 +282,7 @@ fun SupplementHistoryScreen(navController: NavController) {
                                     expandedItems + key
                                 }
                         },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -294,9 +295,10 @@ private fun DayAdherenceCard(
     day: DayAdherence,
     expandedItems: Set<String>,
     onToggleExpand: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val total = day.taken.size + day.missed.size
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

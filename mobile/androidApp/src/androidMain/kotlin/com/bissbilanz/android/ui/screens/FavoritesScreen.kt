@@ -139,7 +139,7 @@ fun FavoritesScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(favorites) { food ->
+                            items(favorites, key = { it.id }) { food ->
                                 FavoriteCard(
                                     name = food.name,
                                     subtitle = "${food.calories.toInt()} cal",
@@ -154,6 +154,7 @@ fun FavoritesScreen(navController: NavController) {
                                             onShowMealPicker = { foodToLog = food },
                                         )
                                     },
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
@@ -167,7 +168,7 @@ fun FavoritesScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(favoriteRecipes) { recipe ->
+                            items(favoriteRecipes, key = { it.id }) { recipe ->
                                 FavoriteCard(
                                     name = recipe.name,
                                     subtitle = "${recipe.totalServings.toInt()} servings",
@@ -182,6 +183,7 @@ fun FavoritesScreen(navController: NavController) {
                                             onShowMealPicker = { recipeToLog = recipe },
                                         )
                                     },
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
@@ -224,8 +226,9 @@ fun FavoriteCard(
     imageUrl: String? = null,
     onClick: () -> Unit,
     onQuickLog: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(modifier = Modifier.clickable(onClick = onClick)) {
+    Card(modifier = modifier.clickable(onClick = onClick)) {
         Column {
             imageUrl?.let { url ->
                 AsyncImage(
