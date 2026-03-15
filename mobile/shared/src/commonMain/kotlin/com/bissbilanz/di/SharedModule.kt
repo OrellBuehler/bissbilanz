@@ -29,6 +29,7 @@ val sharedModule =
             Json {
                 ignoreUnknownKeys = true
                 encodeDefaults = false
+                isLenient = true
             }
         }
         single { FoodRepository(get(), get(), get(), get()) }

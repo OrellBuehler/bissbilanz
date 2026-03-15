@@ -6,5 +6,66 @@ CREATE TABLE SyncQueue_new (
     affectedId TEXT,
     retryCount INTEGER NOT NULL DEFAULT 0
 );
+
+INSERT INTO SyncQueue_new (operation, createdAt, affectedTable, affectedId, retryCount)
+SELECT operation, createdAt, affectedTable, affectedId, retryCount
+FROM (
+    SELECT
+        CASE
+            -- Foods
+            WHEN method = 'POST' AND url = '/api/foods'
+                THEN '{"type":"create_food","body":' || json_quote(body) || '}'
+            WHEN method = 'PUT' AND url LIKE '/api/foods/%'
+                THEN '{"type":"update_food","id":' || json_quote(substr(url, 12)) || ',"body":' || json_quote(body) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/foods/%'
+                THEN '{"type":"delete_food","id":' || json_quote(substr(url, 12)) || '}'
+            -- Entries
+            WHEN method = 'POST' AND url = '/api/entries'
+                THEN '{"type":"create_entry","body":' || json_quote(body) || '}'
+            WHEN method = 'PUT' AND url LIKE '/api/entries/%'
+                THEN '{"type":"update_entry","id":' || json_quote(substr(url, 14)) || ',"body":' || json_quote(body) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/entries/%'
+                THEN '{"type":"delete_entry","id":' || json_quote(substr(url, 14)) || '}'
+            -- Recipes
+            WHEN method = 'POST' AND url = '/api/recipes'
+                THEN '{"type":"create_recipe","body":' || json_quote(body) || '}'
+            WHEN method = 'PUT' AND url LIKE '/api/recipes/%'
+                THEN '{"type":"update_recipe","id":' || json_quote(substr(url, 14)) || ',"body":' || json_quote(body) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/recipes/%'
+                THEN '{"type":"delete_recipe","id":' || json_quote(substr(url, 14)) || '}'
+            -- Goals
+            WHEN method = 'PUT' AND url = '/api/goals'
+                THEN '{"type":"set_goals","body":' || json_quote(body) || '}'
+            -- Weight
+            WHEN method = 'POST' AND url = '/api/weight'
+                THEN '{"type":"create_weight","body":' || json_quote(body) || '}'
+            WHEN method = 'PUT' AND url LIKE '/api/weight/%'
+                THEN '{"type":"update_weight","id":' || json_quote(substr(url, 13)) || ',"body":' || json_quote(body) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/weight/%'
+                THEN '{"type":"delete_weight","id":' || json_quote(substr(url, 13)) || '}'
+            -- Supplement log/unlog (MUST come before generic supplement CRUD)
+            WHEN method = 'POST' AND url LIKE '/api/supplements/%/log'
+                THEN '{"type":"log_supplement","supplementId":' || json_quote(substr(url, 18, instr(substr(url, 18), '/') - 1)) || ',"date":' || substr(body, 9, length(body) - 9) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/supplements/%/log%'
+                THEN '{"type":"unlog_supplement","supplementId":' || json_quote(substr(url, 18, instr(substr(url, 18), '/') - 1)) || ',"date":' || json_quote(substr(url, instr(url, '?date=') + 6)) || '}'
+            -- Supplements
+            WHEN method = 'POST' AND url = '/api/supplements'
+                THEN '{"type":"create_supplement","body":' || json_quote(body) || '}'
+            WHEN method = 'PUT' AND url LIKE '/api/supplements/%'
+                THEN '{"type":"update_supplement","id":' || json_quote(substr(url, 18)) || ',"body":' || json_quote(body) || '}'
+            WHEN method = 'DELETE' AND url LIKE '/api/supplements/%'
+                THEN '{"type":"delete_supplement","id":' || json_quote(substr(url, 18)) || '}'
+            -- Preferences
+            WHEN method = 'PUT' AND url = '/api/preferences'
+                THEN '{"type":"update_preferences","body":' || json_quote(body) || '}'
+        END AS operation,
+        createdAt,
+        affectedTable,
+        affectedId,
+        retryCount
+    FROM SyncQueue
+)
+WHERE operation IS NOT NULL;
+
 DROP TABLE SyncQueue;
 ALTER TABLE SyncQueue_new RENAME TO SyncQueue;
