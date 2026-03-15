@@ -105,8 +105,9 @@
 			return;
 		}
 		toast.success(m.detail_saved());
+		const updatedId = editingFood.id;
 		resetFormState();
-		foodService.refreshById(editingFood.id);
+		foodService.refreshById(updatedId);
 	};
 
 	const deleteFood = async (id: string) => {
@@ -331,7 +332,7 @@
 					/>
 				</Collapsible.Content>
 			</Collapsible.Root>
-		{:else if editingFood}
+		{:else if editingFood && (editingFood.novaGroup || editingFood.additives?.length > 0 || editingFood.ingredientsText)}
 			<div class="mb-3">
 				<Collapsible.Root bind:open={qualityOpen}>
 					<Collapsible.Trigger
