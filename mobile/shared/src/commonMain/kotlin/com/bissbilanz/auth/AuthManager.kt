@@ -39,7 +39,7 @@ data class TokenResponse(
 class AuthManager(
     private val baseUrl: String,
     private val secureStorage: SecureStorage,
-) {
+) : java.io.Closeable {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
@@ -143,5 +143,9 @@ class AuthManager(
         secureStorage.delete(KEY_ACCESS_TOKEN)
         secureStorage.delete(KEY_REFRESH_TOKEN)
         _authState.value = AuthState.Unauthenticated
+    }
+
+    override fun close() {
+        client.close()
     }
 }
