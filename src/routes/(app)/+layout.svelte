@@ -10,7 +10,6 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -54,10 +53,7 @@
 		}
 		// Migrate any pending items from the old bissbilanz-offline IndexedDB
 		migrateOldOfflineQueue().then(() => refreshPendingCount());
-		startSyncListener(() => {
-			invalidateAll();
-			window.dispatchEvent(new CustomEvent('queue-synced'));
-		});
+		startSyncListener();
 	});
 </script>
 
