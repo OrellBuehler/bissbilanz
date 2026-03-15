@@ -266,6 +266,18 @@ class BissbilanzApi(
 
     suspend fun deleteWeightEntry(id: String) = delete("/api/weight/$id")
 
+    suspend fun getWeightTrend(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> {
+        val response: WeightTrendResponse =
+            get("/api/weight") {
+                parameter("from", from)
+                parameter("to", to)
+            }
+        return response.data
+    }
+
     // Supplements
     suspend fun getSupplements(): List<Supplement> {
         val response: SupplementsResponse = get("/api/supplements")
