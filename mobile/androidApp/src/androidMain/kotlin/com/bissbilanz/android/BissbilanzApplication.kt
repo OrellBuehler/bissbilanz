@@ -11,9 +11,13 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
+import com.bissbilanz.repository.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -37,7 +41,7 @@ class BissbilanzApplication : Application() {
 
         val androidModule =
             module {
-                single(named("baseUrl")) { "https://bissbilanz.orellbuehler.ch" }
+                single(named("baseUrl")) { BuildConfig.BASE_URL }
                 single { SecureStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
@@ -56,10 +60,18 @@ class BissbilanzApplication : Application() {
         }
 
         // Start sync manager to auto-sync queued writes when connectivity is restored
-        val syncManager =
+        val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
-                .get<SyncManager>()
-        syncManager.startNetworkListener()
+        koin.get<SyncManager>().startNetworkListener {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+            koin.get<EntryRepository>().refresh(today)
+            koin.get<FoodRepository>().refreshFoods()
+            koin.get<RecipeRepository>().refresh()
+            koin.get<WeightRepository>().refresh()
+            koin.get<SupplementRepository>().refresh()
+            koin.get<GoalsRepository>().refresh()
+            koin.get<PreferencesRepository>().refresh()
+        }
     }
 }

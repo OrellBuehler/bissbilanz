@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 data class SyncState(
     val isSyncing: Boolean = false,
@@ -41,14 +42,18 @@ class SyncManager(
     private val _state = MutableStateFlow(SyncState())
     val state: StateFlow<SyncState> = _state.asStateFlow()
 
-    fun startNetworkListener(onSynced: (() -> Unit)? = null) {
+    private val syncMutex = Mutex()
+    private var onSynced: (suspend () -> Unit)? = null
+
+    fun startNetworkListener(onSynced: (suspend () -> Unit)? = null) {
+        this.onSynced = onSynced
         scope.launch {
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
             connectivityProvider.isOnline.collect { online ->
                 if (online) {
                     val count = syncPendingQueue()
-                    if (count > 0) onSynced?.invoke()
+                    if (count > 0) this@SyncManager.onSynced?.invoke()
                 }
             }
         }
@@ -56,14 +61,18 @@ class SyncManager(
             syncQueue.enqueueSignal.collect {
                 if (connectivityProvider.isOnline.value) {
                     val count = syncPendingQueue()
-                    if (count > 0) onSynced?.invoke()
+                    if (count > 0) this@SyncManager.onSynced?.invoke()
                 }
             }
         }
     }
 
     suspend fun syncPendingQueue(): Int {
-        if (_state.value.isSyncing || !connectivityProvider.isOnline.value) return 0
+        if (!syncMutex.tryLock()) return 0
+        if (!connectivityProvider.isOnline.value) {
+            syncMutex.unlock()
+            return 0
+        }
 
         _state.value = _state.value.copy(isSyncing = true, errors = emptyList())
         var synced = 0
@@ -163,6 +172,7 @@ class SyncManager(
                             _state.value.lastSyncedAt
                         },
                 )
+            syncMutex.unlock()
         }
 
         return synced

@@ -37,6 +37,6 @@ val sharedModule =
         single { GoalsRepository(get(), get(), get(), get()) }
         single { WeightRepository(get(), get(), get(), get(), get()) }
         single { SupplementRepository(get(), get(), get(), get()) }
-        single { StatsRepository(get(), get(), get(), get()) }
+        single { StatsRepository(get(), get(), get()) }
         single { PreferencesRepository(get(), get(), get(), get()) }
     }

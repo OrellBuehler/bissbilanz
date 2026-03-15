@@ -3,7 +3,6 @@ package com.bissbilanz.repository
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -13,7 +12,6 @@ import kotlinx.serialization.json.Json
 class StatsRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val json: Json,
 ) {
     suspend fun getDailyStats(
@@ -24,12 +22,7 @@ class StatsRepository(
             api.getDailyStats(startDate, endDate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            // Compute basic daily stats from cached entries
-            if (!connectivity.isOnline.value) {
-                computeDailyStatsFromCache(startDate, endDate)
-            } else {
-                throw e
-            }
+            computeDailyStatsFromCache(startDate, endDate)
         }
 
     suspend fun getWeeklyStats(): WeeklyMonthlyStatsResponse = api.getWeeklyStats()
