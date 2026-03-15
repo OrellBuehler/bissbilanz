@@ -124,7 +124,7 @@
 
 	const totals = $derived(sumEntries(entries));
 
-	const mealTypes = $derived(() => {
+	const mealTypes = $derived.by(() => {
 		const custom = entries
 			.map((e: { mealType: string }) => e.mealType)
 			.filter((mt: string) => !(DEFAULT_MEAL_TYPES as readonly string[]).includes(mt));
@@ -138,7 +138,7 @@
 
 <div class="space-y-4">
 	<div class="grid gap-4">
-		{#each mealTypes() as mealType}
+		{#each mealTypes as mealType}
 			<MealSection
 				title={mealType}
 				{dashboardStyle}
