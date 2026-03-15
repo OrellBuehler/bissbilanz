@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.screens
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +26,6 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
-import com.bissbilanz.android.ui.theme.SnapSpring
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
@@ -217,7 +217,7 @@ fun SupplementChecklistItem(
     val defaultCardColor = CardDefaults.cardColors().containerColor
     val cardColor by animateColorAsState(
         targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
-        animationSpec = SnapSpring,
+        animationSpec = spring(dampingRatio = 1.0f, stiffness = 800f),
         label = "supp-card",
     )
     Card(

@@ -2,7 +2,8 @@ package com.bissbilanz.android.navigation
 
 import android.content.Context
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -103,10 +104,27 @@ fun AppNavigation() {
             navController = navController,
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding).imePadding(),
-            enterTransition = { fadeIn(tween(200)) + slideInHorizontally { it / 4 } },
-            exitTransition = { fadeOut(tween(200)) },
-            popEnterTransition = { fadeIn(tween(200)) + slideInHorizontally { -it / 4 } },
-            popExitTransition = { fadeOut(tween(200)) + slideOutHorizontally { it / 4 } },
+            enterTransition = {
+                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                    slideInHorizontally(
+                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                    ) { it / 5 }
+            },
+            exitTransition = {
+                fadeOut(spring(stiffness = Spring.StiffnessHigh))
+            },
+            popEnterTransition = {
+                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                    slideInHorizontally(
+                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                    ) { -it / 5 }
+            },
+            popExitTransition = {
+                fadeOut(spring(stiffness = Spring.StiffnessHigh)) +
+                    slideOutHorizontally(
+                        spring(dampingRatio = 0.85f, stiffness = 400f),
+                    ) { it / 5 }
+            },
         ) {
             composable(Screen.Dashboard.route) {
                 com.bissbilanz.android.ui.screens
