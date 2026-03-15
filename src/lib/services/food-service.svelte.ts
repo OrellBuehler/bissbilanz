@@ -3,6 +3,10 @@ import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { enqueue } from '$lib/stores/offline-queue';
+import type { paths } from '$lib/api/generated/schema';
+
+type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
+type FoodUpdate = paths['/api/foods/{id}']['patch']['requestBody']['content']['application/json'];
 
 function allFoods() {
 	return liveQuery(() => db.foods.orderBy('name').toArray());
@@ -47,73 +51,72 @@ async function refreshById(id: string) {
 	}
 }
 
-async function create(food: Record<string, unknown>) {
+async function create(food: FoodCreate) {
 	const now = new Date().toISOString();
-	const id = (food.id as string) ?? crypto.randomUUID();
-	const n = (k: string) => (food[k] as number) ?? null;
+	const id = crypto.randomUUID();
 
 	const dexieFood: DexieFood = {
 		id,
 		userId: '',
-		name: (food.name as string) ?? '',
-		brand: (food.brand as string) ?? null,
-		servingSize: (food.servingSize as number) ?? 100,
-		servingUnit: (food.servingUnit as string) ?? 'g',
-		calories: (food.calories as number) ?? 0,
-		protein: (food.protein as number) ?? 0,
-		carbs: (food.carbs as number) ?? 0,
-		fat: (food.fat as number) ?? 0,
-		fiber: (food.fiber as number) ?? 0,
-		saturatedFat: n('saturatedFat'),
-		monounsaturatedFat: n('monounsaturatedFat'),
-		polyunsaturatedFat: n('polyunsaturatedFat'),
-		transFat: n('transFat'),
-		cholesterol: n('cholesterol'),
-		omega3: n('omega3'),
-		omega6: n('omega6'),
-		sugar: n('sugar'),
-		addedSugars: n('addedSugars'),
-		sugarAlcohols: n('sugarAlcohols'),
-		starch: n('starch'),
-		sodium: n('sodium'),
-		potassium: n('potassium'),
-		calcium: n('calcium'),
-		iron: n('iron'),
-		magnesium: n('magnesium'),
-		phosphorus: n('phosphorus'),
-		zinc: n('zinc'),
-		copper: n('copper'),
-		manganese: n('manganese'),
-		selenium: n('selenium'),
-		iodine: n('iodine'),
-		fluoride: n('fluoride'),
-		chromium: n('chromium'),
-		molybdenum: n('molybdenum'),
-		chloride: n('chloride'),
-		vitaminA: n('vitaminA'),
-		vitaminC: n('vitaminC'),
-		vitaminD: n('vitaminD'),
-		vitaminE: n('vitaminE'),
-		vitaminK: n('vitaminK'),
-		vitaminB1: n('vitaminB1'),
-		vitaminB2: n('vitaminB2'),
-		vitaminB3: n('vitaminB3'),
-		vitaminB5: n('vitaminB5'),
-		vitaminB6: n('vitaminB6'),
-		vitaminB7: n('vitaminB7'),
-		vitaminB9: n('vitaminB9'),
-		vitaminB12: n('vitaminB12'),
-		caffeine: n('caffeine'),
-		alcohol: n('alcohol'),
-		water: n('water'),
-		salt: n('salt'),
-		barcode: (food.barcode as string) ?? null,
-		isFavorite: (food.isFavorite as boolean) ?? false,
-		nutriScore: (food.nutriScore as string) ?? null,
-		novaGroup: (food.novaGroup as number) ?? null,
-		additives: (food.additives as string[]) ?? null,
-		ingredientsText: (food.ingredientsText as string) ?? null,
-		imageUrl: (food.imageUrl as string) ?? null,
+		name: food.name,
+		brand: food.brand ?? null,
+		servingSize: food.servingSize,
+		servingUnit: food.servingUnit,
+		calories: food.calories,
+		protein: food.protein,
+		carbs: food.carbs,
+		fat: food.fat,
+		fiber: food.fiber,
+		saturatedFat: food.saturatedFat ?? null,
+		monounsaturatedFat: food.monounsaturatedFat ?? null,
+		polyunsaturatedFat: food.polyunsaturatedFat ?? null,
+		transFat: food.transFat ?? null,
+		cholesterol: food.cholesterol ?? null,
+		omega3: food.omega3 ?? null,
+		omega6: food.omega6 ?? null,
+		sugar: food.sugar ?? null,
+		addedSugars: food.addedSugars ?? null,
+		sugarAlcohols: food.sugarAlcohols ?? null,
+		starch: food.starch ?? null,
+		sodium: food.sodium ?? null,
+		potassium: food.potassium ?? null,
+		calcium: food.calcium ?? null,
+		iron: food.iron ?? null,
+		magnesium: food.magnesium ?? null,
+		phosphorus: food.phosphorus ?? null,
+		zinc: food.zinc ?? null,
+		copper: food.copper ?? null,
+		manganese: food.manganese ?? null,
+		selenium: food.selenium ?? null,
+		iodine: food.iodine ?? null,
+		fluoride: food.fluoride ?? null,
+		chromium: food.chromium ?? null,
+		molybdenum: food.molybdenum ?? null,
+		chloride: food.chloride ?? null,
+		vitaminA: food.vitaminA ?? null,
+		vitaminC: food.vitaminC ?? null,
+		vitaminD: food.vitaminD ?? null,
+		vitaminE: food.vitaminE ?? null,
+		vitaminK: food.vitaminK ?? null,
+		vitaminB1: food.vitaminB1 ?? null,
+		vitaminB2: food.vitaminB2 ?? null,
+		vitaminB3: food.vitaminB3 ?? null,
+		vitaminB5: food.vitaminB5 ?? null,
+		vitaminB6: food.vitaminB6 ?? null,
+		vitaminB7: food.vitaminB7 ?? null,
+		vitaminB9: food.vitaminB9 ?? null,
+		vitaminB12: food.vitaminB12 ?? null,
+		caffeine: food.caffeine ?? null,
+		alcohol: food.alcohol ?? null,
+		water: food.water ?? null,
+		salt: food.salt ?? null,
+		barcode: food.barcode ?? null,
+		isFavorite: food.isFavorite ?? false,
+		nutriScore: food.nutriScore ?? null,
+		novaGroup: food.novaGroup ?? null,
+		additives: food.additives ?? null,
+		ingredientsText: food.ingredientsText ?? null,
+		imageUrl: food.imageUrl ?? null,
 		createdAt: now,
 		updatedAt: now
 	};
@@ -121,7 +124,7 @@ async function create(food: Record<string, unknown>) {
 	await db.foods.put(dexieFood);
 
 	try {
-		const { data } = await api.POST('/api/foods', { body: food as never });
+		const { data } = await api.POST('/api/foods', { body: food });
 		if (data) {
 			await db.foods.put(data.food as unknown as DexieFood);
 		}
@@ -133,14 +136,14 @@ async function create(food: Record<string, unknown>) {
 	}
 }
 
-async function update(id: string, food: Record<string, unknown>) {
+async function update(id: string, food: FoodUpdate) {
 	const now = new Date().toISOString();
 	await db.foods.update(id, { ...food, updatedAt: now });
 
 	try {
 		const { data } = await api.PATCH('/api/foods/{id}', {
 			params: { path: { id } },
-			body: food as never
+			body: food
 		});
 		if (data) {
 			await db.foods.put(data.food as unknown as DexieFood);

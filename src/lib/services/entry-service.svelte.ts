@@ -139,7 +139,70 @@ async function update(
 	const existing = await db.foodEntries.get(id);
 	const date = entry.date ?? existing?.date ?? new Date().toISOString().slice(0, 10);
 
-	await db.foodEntries.update(id, entry);
+	const dexieUpdate: Record<string, unknown> = { ...entry };
+
+	if (existing && entry.servings != null && entry.servings !== existing.servings) {
+		const servings = entry.servings;
+		if (existing.foodId) {
+			const food = await db.foods.get(existing.foodId);
+			if (food) {
+				dexieUpdate.calories = food.calories * servings;
+				dexieUpdate.protein = food.protein * servings;
+				dexieUpdate.carbs = food.carbs * servings;
+				dexieUpdate.fat = food.fat * servings;
+				dexieUpdate.fiber = food.fiber * servings;
+			}
+		} else if (existing.recipeId) {
+			const recipe = await db.recipes.get(existing.recipeId);
+			if (recipe) {
+				dexieUpdate.calories = (recipe.calories ?? 0) * servings;
+				dexieUpdate.protein = (recipe.protein ?? 0) * servings;
+				dexieUpdate.carbs = (recipe.carbs ?? 0) * servings;
+				dexieUpdate.fat = (recipe.fat ?? 0) * servings;
+				dexieUpdate.fiber = (recipe.fiber ?? 0) * servings;
+			}
+		} else if (existing.calories != null) {
+			const oldServings = existing.servings || 1;
+			const perServing = (val: number | null) =>
+				val != null ? (val / oldServings) * servings : null;
+			dexieUpdate.calories = perServing(existing.calories);
+			dexieUpdate.protein = perServing(existing.protein);
+			dexieUpdate.carbs = perServing(existing.carbs);
+			dexieUpdate.fat = perServing(existing.fat);
+			dexieUpdate.fiber = perServing(existing.fiber);
+		}
+	}
+
+	if (
+		existing &&
+		!existing.foodId &&
+		!existing.recipeId &&
+		(entry.quickCalories !== undefined ||
+			entry.quickProtein !== undefined ||
+			entry.quickCarbs !== undefined ||
+			entry.quickFat !== undefined ||
+			entry.quickFiber !== undefined ||
+			entry.quickName !== undefined)
+	) {
+		const servings = entry.servings ?? existing.servings ?? 1;
+		if (entry.quickCalories !== undefined)
+			dexieUpdate.calories = (entry.quickCalories ?? 0) * servings;
+		if (entry.quickProtein !== undefined)
+			dexieUpdate.protein = (entry.quickProtein ?? 0) * servings;
+		if (entry.quickCarbs !== undefined) dexieUpdate.carbs = (entry.quickCarbs ?? 0) * servings;
+		if (entry.quickFat !== undefined) dexieUpdate.fat = (entry.quickFat ?? 0) * servings;
+		if (entry.quickFiber !== undefined) dexieUpdate.fiber = (entry.quickFiber ?? 0) * servings;
+		if (entry.quickName !== undefined) dexieUpdate.foodName = entry.quickName;
+	}
+
+	delete dexieUpdate.quickName;
+	delete dexieUpdate.quickCalories;
+	delete dexieUpdate.quickProtein;
+	delete dexieUpdate.quickCarbs;
+	delete dexieUpdate.quickFat;
+	delete dexieUpdate.quickFiber;
+
+	await db.foodEntries.update(id, dexieUpdate);
 
 	if (navigator.onLine) {
 		try {

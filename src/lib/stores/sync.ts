@@ -8,6 +8,14 @@ import {
 	addSyncError,
 	clearSyncErrors
 } from '$lib/stores/sync-state.svelte';
+import { foodService } from '$lib/services/food-service.svelte';
+import { recipeService } from '$lib/services/recipe-service.svelte';
+import { goalsService } from '$lib/services/goals-service.svelte';
+import { preferencesService } from '$lib/services/preferences-service.svelte';
+import { supplementService } from '$lib/services/supplement-service.svelte';
+import { weightService } from '$lib/services/weight-service.svelte';
+import { mealTypeService } from '$lib/services/meal-type-service.svelte';
+import { favoritesService } from '$lib/services/favorites-service.svelte';
 
 let syncing = false;
 let listenerStarted = false;
@@ -102,6 +110,22 @@ export async function syncQueue(): Promise<number> {
 		}
 		// Refresh from DB to account for items added during sync
 		await refreshPendingCount();
+	}
+
+	if (synced > 0 && affectedTables.size > 0) {
+		const refreshMap: Record<string, () => void> = {
+			foods: () => foodService.refresh(),
+			recipes: () => recipeService.refresh(),
+			userGoals: () => goalsService.refresh(),
+			userPreferences: () => preferencesService.refresh(),
+			supplements: () => supplementService.refresh(),
+			weightEntries: () => weightService.refresh(),
+			customMealTypes: () => mealTypeService.refresh(),
+			favorites: () => favoritesService.refresh()
+		};
+		for (const table of affectedTables) {
+			refreshMap[table]?.();
+		}
 	}
 
 	return synced;

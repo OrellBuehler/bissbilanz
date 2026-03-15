@@ -15,19 +15,21 @@ async function refresh() {
 		const { data } = await api.GET('/api/favorites');
 		if (!data) return;
 
-		await db.foods.toCollection().modify({ isFavorite: false });
-		await db.recipes.toCollection().modify({ isFavorite: false });
+		await db.transaction('rw', db.foods, db.recipes, async () => {
+			await db.foods.toCollection().modify({ isFavorite: false });
+			await db.recipes.toCollection().modify({ isFavorite: false });
 
-		if (Array.isArray(data.foods)) {
-			for (const fav of data.foods) {
-				await db.foods.update(fav.id, { isFavorite: true }).catch(() => {});
+			if (Array.isArray(data.foods)) {
+				for (const fav of data.foods) {
+					await db.foods.update(fav.id, { isFavorite: true }).catch(() => {});
+				}
 			}
-		}
-		if (Array.isArray(data.recipes)) {
-			for (const fav of data.recipes) {
-				await db.recipes.update(fav.id, { isFavorite: true }).catch(() => {});
+			if (Array.isArray(data.recipes)) {
+				for (const fav of data.recipes) {
+					await db.recipes.update(fav.id, { isFavorite: true }).catch(() => {});
+				}
 			}
-		}
+		});
 	} catch {
 		// fire-and-forget
 	}

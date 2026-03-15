@@ -4,6 +4,10 @@ import type { DexieSupplement, DexieSupplementLog } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { enqueue } from '$lib/stores/offline-queue';
 import { browser } from '$app/environment';
+import type { paths } from '$lib/api/generated/schema';
+
+type SupplementUpdate =
+	paths['/api/supplements/{id}']['patch']['requestBody']['content']['application/json'];
 
 type ChecklistItem = {
 	supplement: DexieSupplement;
@@ -142,7 +146,7 @@ async function create(supplement: {
 	}
 }
 
-async function update(id: string, supplement: Record<string, unknown>) {
+async function update(id: string, supplement: SupplementUpdate) {
 	const now = new Date().toISOString();
 	const { ingredients: _ingredients, ...updates } = supplement;
 	await db.supplements.update(id, { ...updates, updatedAt: now });
@@ -153,13 +157,12 @@ async function update(id: string, supplement: Record<string, unknown>) {
 			affectedId: id
 		});
 	} else {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		api
 			.PATCH('/api/supplements/{id}', {
 				params: { path: { id } },
 				body: supplement
-			} as any)
-			.then(({ data }: { data?: { supplement: unknown } }) => {
+			})
+			.then(({ data }) => {
 				if (data) {
 					db.supplements.put(data.supplement as unknown as DexieSupplement).catch(() => {});
 				}
