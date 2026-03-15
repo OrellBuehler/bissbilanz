@@ -20,13 +20,8 @@ class GoalsRepository(
     private val db: BissbilanzDatabase,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
-
     fun goals(): Flow<Goals?> =
         db.bissbilanzDatabaseQueries
             .selectGoals()
@@ -50,7 +45,8 @@ class GoalsRepository(
             if (goals != null) {
                 cacheGoals(goals)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 

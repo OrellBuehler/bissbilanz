@@ -7,6 +7,7 @@ import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.repository.*
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncQueue
+import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -24,12 +25,18 @@ val sharedModule =
                 baseUrl = get<String>(named("baseUrl")),
             )
         }
-        single { FoodRepository(get(), get(), get(), get()) }
-        single { EntryRepository(get(), get(), get(), get(), get()) }
-        single { RecipeRepository(get(), get(), get(), get()) }
-        single { GoalsRepository(get(), get(), get(), get()) }
-        single { WeightRepository(get(), get(), get(), get(), get()) }
-        single { SupplementRepository(get(), get(), get(), get()) }
-        single { StatsRepository(get(), get(), get()) }
-        single { PreferencesRepository(get(), get(), get(), get()) }
+        single {
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = false
+            }
+        }
+        single { FoodRepository(get(), get(), get(), get(), get()) }
+        single { EntryRepository(get(), get(), get(), get(), get(), get()) }
+        single { RecipeRepository(get(), get(), get(), get(), get()) }
+        single { GoalsRepository(get(), get(), get(), get(), get()) }
+        single { WeightRepository(get(), get(), get(), get(), get(), get()) }
+        single { SupplementRepository(get(), get(), get(), get(), get()) }
+        single { StatsRepository(get(), get(), get(), get()) }
+        single { PreferencesRepository(get(), get(), get(), get(), get()) }
     }

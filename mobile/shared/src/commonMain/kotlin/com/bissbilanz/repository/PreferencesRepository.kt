@@ -21,13 +21,8 @@ class PreferencesRepository(
     private val db: BissbilanzDatabase,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
-
     fun preferences(): Flow<Preferences?> =
         db.bissbilanzDatabaseQueries
             .selectPreferences()
@@ -41,7 +36,8 @@ class PreferencesRepository(
         try {
             val prefs = api.getPreferences()
             cachePreferences(prefs)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 

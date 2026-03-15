@@ -1,3 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-val mealTypes = listOf("breakfast", "lunch", "dinner", "snack")
+import com.bissbilanz.util.mealTypes as sharedMealTypes
+
+val mealTypes = sharedMealTypes

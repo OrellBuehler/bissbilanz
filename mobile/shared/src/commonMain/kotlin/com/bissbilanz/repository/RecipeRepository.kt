@@ -20,13 +20,8 @@ class RecipeRepository(
     private val db: BissbilanzDatabase,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
-
     fun allRecipes(): Flow<List<Recipe>> =
         db.bissbilanzDatabaseQueries
             .selectAllRecipes()
@@ -38,7 +33,8 @@ class RecipeRepository(
         try {
             val recipes = api.getRecipes()
             cacheRecipes(recipes)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 

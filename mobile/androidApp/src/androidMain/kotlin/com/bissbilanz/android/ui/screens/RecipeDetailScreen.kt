@@ -22,6 +22,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -230,12 +231,7 @@ fun RecipeDetailScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 ingredients.sortedBy { it.sortOrder }.forEach { ing ->
                                     val foodName = ing.food?.name ?: "Unknown"
-                                    val qty =
-                                        if (ing.quantity == ing.quantity.toLong().toDouble()) {
-                                            ing.quantity.toLong().toString()
-                                        } else {
-                                            "%.1f".format(ing.quantity)
-                                        }
+                                    val qty = ing.quantity.toDisplayString()
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,

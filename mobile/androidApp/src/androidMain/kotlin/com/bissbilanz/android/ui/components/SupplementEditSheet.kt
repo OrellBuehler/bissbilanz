@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -58,10 +59,7 @@ fun SupplementEditSheet(
                 val found = supplements.find { it.id == supplementId }
                 if (found != null) {
                     name = found.name
-                    dosage =
-                        found.dosage.let {
-                            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                        }
+                    dosage = found.dosage.toDisplayString()
                     dosageUnit = found.dosageUnit
                     scheduleType = found.scheduleType
                     timeOfDay = found.timeOfDay ?: "morning"
@@ -69,10 +67,7 @@ fun SupplementEditSheet(
                     ingredients = found.ingredients?.map { ing ->
                         SupplementIngredientRow(
                             name = ing.name,
-                            dosage =
-                                ing.dosage.let {
-                                    if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                                },
+                            dosage = ing.dosage.toDisplayString(),
                             dosageUnit = ing.dosageUnit,
                         )
                     } ?: emptyList()

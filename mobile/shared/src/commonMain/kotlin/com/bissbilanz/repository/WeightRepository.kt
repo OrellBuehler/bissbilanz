@@ -22,13 +22,8 @@ class WeightRepository(
     private val healthSync: HealthSyncService,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
-
     fun entries(): Flow<List<WeightEntry>> =
         db.bissbilanzDatabaseQueries
             .selectAllWeightEntries()
@@ -40,7 +35,8 @@ class WeightRepository(
         try {
             val entries = api.getWeightEntries(limit)
             cacheWeightEntries(entries)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
@@ -59,7 +55,8 @@ class WeightRepository(
         refresh()
         try {
             healthSync.syncWeight(listOf(created))
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
         return created
     }

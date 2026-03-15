@@ -16,6 +16,7 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -66,31 +67,13 @@ fun FoodEditSheet(
                 val food = foodRepo.getFood(foodId)
                 name = food.name
                 brand = food.brand ?: ""
-                servingSize =
-                    food.servingSize.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
+                servingSize = food.servingSize.toDisplayString()
                 servingUnit = food.servingUnit
-                calories =
-                    food.calories.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
-                protein =
-                    food.protein.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
-                carbs =
-                    food.carbs.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
-                fat =
-                    food.fat.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
-                fiber =
-                    food.fiber.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
+                calories = food.calories.toDisplayString()
+                protein = food.protein.toDisplayString()
+                carbs = food.carbs.toDisplayString()
+                fat = food.fat.toDisplayString()
+                fiber = food.fiber.toDisplayString()
                 barcode = food.barcode ?: ""
                 isFavorite = food.isFavorite
                 saturatedFat = food.saturatedFat?.toString() ?: ""

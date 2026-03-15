@@ -20,13 +20,8 @@ class SupplementRepository(
     private val db: BissbilanzDatabase,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
-
     fun supplements(): Flow<List<Supplement>> =
         db.bissbilanzDatabaseQueries
             .selectActiveSupplements()
@@ -38,7 +33,8 @@ class SupplementRepository(
         try {
             val supplements = api.getSupplements()
             cacheSupplements(supplements)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
@@ -167,7 +163,8 @@ class SupplementRepository(
     ): List<SupplementHistoryEntry> =
         try {
             api.getSupplementHistory(from, to).history
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val logs =
                 db.bissbilanzDatabaseQueries
                     .selectSupplementLogsByDateRange(from, to)

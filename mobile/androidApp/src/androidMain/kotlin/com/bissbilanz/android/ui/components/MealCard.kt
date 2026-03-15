@@ -9,6 +9,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
+import com.bissbilanz.util.resolvedCalories
+import com.bissbilanz.util.resolvedCarbs
+import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedProtein
+import com.bissbilanz.util.toDisplayString
 
 @Composable
 fun MealCard(
@@ -16,22 +21,10 @@ fun MealCard(
     entries: List<Entry>,
     onClick: () -> Unit,
 ) {
-    val totalCalories =
-        entries.sumOf {
-            it.food?.calories?.times(it.servings) ?: it.quickCalories?.times(it.servings) ?: 0.0
-        }
-    val totalProtein =
-        entries.sumOf {
-            it.food?.protein?.times(it.servings) ?: it.quickProtein?.times(it.servings) ?: 0.0
-        }
-    val totalCarbs =
-        entries.sumOf {
-            it.food?.carbs?.times(it.servings) ?: it.quickCarbs?.times(it.servings) ?: 0.0
-        }
-    val totalFat =
-        entries.sumOf {
-            it.food?.fat?.times(it.servings) ?: it.quickFat?.times(it.servings) ?: 0.0
-        }
+    val totalCalories = entries.sumOf { it.resolvedCalories() }
+    val totalProtein = entries.sumOf { it.resolvedProtein() }
+    val totalCarbs = entries.sumOf { it.resolvedCarbs() }
+    val totalFat = entries.sumOf { it.resolvedFat() }
 
     Card(
         modifier =
@@ -75,18 +68,10 @@ fun MealCard(
 
             entries.forEach { entry ->
                 val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
-                val cal =
-                    entry.food?.calories?.times(entry.servings)
-                        ?: entry.quickCalories?.times(entry.servings) ?: 0.0
+                val cal = entry.resolvedCalories()
                 val servingsText =
                     if (entry.servings != 1.0) {
-                        "${if (entry.servings == entry.servings.toLong().toDouble()) {
-                            entry.servings.toLong().toString()
-                        } else {
-                            "%.1f".format(
-                                entry.servings,
-                            )
-                        }}x "
+                        "${entry.servings.toDisplayString()}x "
                     } else {
                         ""
                     }

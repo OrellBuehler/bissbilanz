@@ -37,6 +37,7 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -434,7 +435,7 @@ fun MacroRow(
     ) {
         Text(label, color = color)
         Text(
-            "${if (value == value.toLong().toDouble()) value.toLong().toString() else "%.1f".format(value)} $unit",
+            "${value.toDisplayString()} $unit",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

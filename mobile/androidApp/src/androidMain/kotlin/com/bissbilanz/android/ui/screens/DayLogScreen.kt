@@ -25,6 +25,11 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.mealTypes
+import com.bissbilanz.util.resolvedCalories
+import com.bissbilanz.util.resolvedCarbs
+import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -58,11 +63,10 @@ fun DayLogScreen(
         }
     }
 
-    val mealOrder = listOf("breakfast", "lunch", "dinner", "snack")
     val mealGroups = entries.groupBy { it.mealType }
     val sortedMeals =
-        mealOrder.filter { mealGroups.containsKey(it) } +
-            mealGroups.keys.filter { it !in mealOrder }
+        mealTypes.filter { mealGroups.containsKey(it) } +
+            mealGroups.keys.filter { it !in mealTypes }
 
     if (entryToDelete != null) {
         val entry = entryToDelete!!
@@ -172,22 +176,10 @@ fun DayLogScreen(
                 sortedMeals.forEach { meal ->
                     val mealEntries = mealGroups[meal] ?: return@forEach
 
-                    val mealCalories =
-                        mealEntries.sumOf {
-                            it.food?.calories?.times(it.servings) ?: it.quickCalories?.times(it.servings) ?: 0.0
-                        }
-                    val mealProtein =
-                        mealEntries.sumOf {
-                            it.food?.protein?.times(it.servings) ?: it.quickProtein?.times(it.servings) ?: 0.0
-                        }
-                    val mealCarbs =
-                        mealEntries.sumOf {
-                            it.food?.carbs?.times(it.servings) ?: it.quickCarbs?.times(it.servings) ?: 0.0
-                        }
-                    val mealFat =
-                        mealEntries.sumOf {
-                            it.food?.fat?.times(it.servings) ?: it.quickFat?.times(it.servings) ?: 0.0
-                        }
+                    val mealCalories = mealEntries.sumOf { it.resolvedCalories() }
+                    val mealProtein = mealEntries.sumOf { it.resolvedProtein() }
+                    val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
+                    val mealFat = mealEntries.sumOf { it.resolvedFat() }
 
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -285,12 +277,8 @@ fun EntryListItem(
     onClick: () -> Unit,
 ) {
     val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
-    val calories =
-        entry.food?.calories?.times(entry.servings)
-            ?: entry.quickCalories?.times(entry.servings) ?: 0.0
-    val protein =
-        entry.food?.protein?.times(entry.servings)
-            ?: entry.quickProtein?.times(entry.servings) ?: 0.0
+    val calories = entry.resolvedCalories()
+    val protein = entry.resolvedProtein()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
