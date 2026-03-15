@@ -95,7 +95,7 @@ class WeightRepository(
         try {
             healthSync.syncWeight(listOf(updated))
         } catch (e: Exception) {
-            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
         return updated
     }

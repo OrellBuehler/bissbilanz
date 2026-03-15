@@ -90,6 +90,7 @@ class AuthManager(
             _authState.value = AuthState.Authenticated
             true
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             false
         }
 
@@ -126,7 +127,8 @@ class AuthManager(
                 response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
                 _authState.value = AuthState.Authenticated
                 true
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _authState.value = AuthState.Authenticated
                 false
             }

@@ -135,7 +135,7 @@ class SyncManager(
 
                     _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
                 } catch (e: Exception) {
-                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     syncQueue.markDone(req.id)
                     break
                 }

@@ -179,7 +179,7 @@ class BissbilanzApi(
             val response: FoodResponse = get("/api/foods") { parameter("barcode", barcode) }
             response.food
         } catch (e: Exception) {
-            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
 
@@ -236,7 +236,7 @@ class BissbilanzApi(
             val response: GoalsResponse = get("/api/goals")
             response.goals
         } catch (e: Exception) {
-            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
 
