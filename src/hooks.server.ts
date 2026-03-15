@@ -20,12 +20,19 @@ if (env.PUBLIC_SENTRY_DSN) {
 	});
 }
 
-// Run migrations on server startup
 export async function init() {
-	await runMigrations();
+	try {
+		await runMigrations();
+	} catch (err) {
+		console.error('[startup] Migration failed:', err);
+		throw err;
+	}
 	await ensureMobileClient();
-	cleanExpiredSessions().catch(() => {});
-	setInterval(() => cleanExpiredSessions().catch(() => {}), 3600000);
+	cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
+	setInterval(
+		() => cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err)),
+		3600000
+	);
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>
@@ -126,9 +133,10 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			const tokenResult = await validateAccessToken(token);
 			if (tokenResult) {
 				const user = await getUserById(tokenResult.userId);
-				if (user) {
-					event.locals.user = user;
+				if (!user) {
+					return json({ error: 'Unauthorized' }, { status: 401 });
 				}
+				event.locals.user = user;
 			}
 		}
 	}
