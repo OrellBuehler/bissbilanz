@@ -1,5 +1,6 @@
 package com.bissbilanz.android.navigation
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.imePadding
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -27,21 +29,25 @@ sealed class Screen(
 
     data object Insights : Screen("insights", "Insights", Icons.Default.BarChart)
 
+    data object Weight : Screen("weight", "Weight", Icons.Default.MonitorWeight)
+
+    data object Supplements : Screen("supplements", "Supplements", Icons.Default.Medication)
+
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
-
-val bottomNavItems =
-    listOf(
-        Screen.Dashboard,
-        Screen.Foods,
-        Screen.Favorites,
-        Screen.Insights,
-        Screen.Settings,
-    )
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
+
+    val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
+    val defaultTabs = setOf("foods", "favorites", "insights")
+    val selectedTabRoutes = tabPrefs.getStringSet("selected_tabs", defaultTabs) ?: defaultTabs
+
+    val middleTabs = allMiddleTabs.filter { it.route in selectedTabRoutes }
+    val bottomNavItems = listOf(Screen.Dashboard) + middleTabs + listOf(Screen.Settings)
 
     Scaffold(
         bottomBar = {
@@ -50,16 +56,9 @@ fun AppNavigation() {
             val currentRoute = currentDestination?.route
 
             val hideBottomBar =
-                currentRoute in
-                    listOf(
-                        "scanner",
-                        "weight",
-                        "supplements",
-                        "supplement-history",
-                        "recipes",
-                        "calendar",
-                        "maintenance",
-                    ) ||
+                currentRoute in listOf("scanner", "supplement-history", "recipes", "calendar", "maintenance") ||
+                    (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
+                    (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true

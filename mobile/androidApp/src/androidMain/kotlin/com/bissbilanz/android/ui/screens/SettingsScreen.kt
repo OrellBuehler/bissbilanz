@@ -54,6 +54,11 @@ fun SettingsScreen(navController: NavController) {
     var healthAvailable by remember { mutableStateOf(false) }
     var healthPermGranted by remember { mutableStateOf(false) }
     var healthSyncEnabled by remember { mutableStateOf(healthPrefs.getBoolean("sync_enabled", false)) }
+    val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
+    val defaultTabs = setOf("foods", "favorites", "insights")
+    var selectedTabs by remember {
+        mutableStateOf(tabPrefs.getStringSet("selected_tabs", defaultTabs) ?: defaultTabs)
+    }
     val permissionLauncher =
         rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract(),
@@ -155,6 +160,54 @@ fun SettingsScreen(navController: NavController) {
                     HorizontalDivider()
                     SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
                         navController.navigate("maintenance")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Navigation Tabs
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Navigation Tabs",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Choose 3 tabs for the bottom navigation",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val tabOptions =
+                        listOf(
+                            "foods" to "Foods",
+                            "favorites" to "Favorites",
+                            "insights" to "Insights",
+                            "weight" to "Weight",
+                            "supplements" to "Supplements",
+                        )
+
+                    tabOptions.forEach { (route, label) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = route in selectedTabs,
+                                onCheckedChange = { checked ->
+                                    selectedTabs = if (checked) selectedTabs + route else selectedTabs - route
+                                    if (selectedTabs.size == 3) {
+                                        tabPrefs.edit().putStringSet("selected_tabs", selectedTabs).apply()
+                                    }
+                                },
+                                enabled = route in selectedTabs || selectedTabs.size < 3,
+                            )
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
