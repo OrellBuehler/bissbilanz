@@ -238,6 +238,73 @@ describe('apiFetch', () => {
 		});
 	});
 
+	// ── Request object tests ─────────────────────────────────────────────
+
+	describe('Request object input', () => {
+		test('passes Request through to fetch when online', async () => {
+			setOnline(true);
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+			const request = new Request('http://localhost/api/foods', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ name: 'Apple' })
+			});
+			const response = await apiFetch(request);
+
+			expect(response.status).toBe(200);
+			expect(fetchSpy).toHaveBeenCalledWith(request);
+		});
+
+		test('queues Request when offline', async () => {
+			setOnline(false);
+
+			const request = new Request('http://localhost/api/foods', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ name: 'Banana' })
+			});
+			const response = await apiFetch(request);
+
+			expect(enqueue).toHaveBeenCalledWith(
+				'POST',
+				'http://localhost/api/foods',
+				{ name: 'Banana' },
+				{ affectedTable: 'foods', affectedId: undefined }
+			);
+			expect(isQueued(response)).toBe(true);
+		});
+
+		test('throws TypeError for FormData Request when offline', async () => {
+			setOnline(false);
+
+			const form = new FormData();
+			form.append('file', new Blob(['test']), 'test.png');
+			const request = new Request('http://localhost/api/images/upload', {
+				method: 'POST',
+				body: form
+			});
+
+			await expect(apiFetch(request)).rejects.toThrow(TypeError);
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('does not queue GET Request when offline', async () => {
+			setOnline(false);
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+			const request = new Request('http://localhost/api/foods');
+			await apiFetch(request);
+
+			expect(fetchSpy).toHaveBeenCalledWith(request);
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+	});
+
 	// ── Online tests ─────────────────────────────────────────────────────
 
 	describe('online behavior', () => {
