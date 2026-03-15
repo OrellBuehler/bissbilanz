@@ -10,13 +10,18 @@
 	import { today } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import StreakWidget from '$lib/components/dashboard/StreakWidget.svelte';
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { goalsService } from '$lib/services/goals-service.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { weightService } from '$lib/services/weight-service.svelte';
+	import { supplementService } from '$lib/services/supplement-service.svelte';
+	import { statsService } from '$lib/services/stats-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -25,122 +30,52 @@
 	let { data } = $props();
 	const activeDate = $derived(data.date);
 
-	let refreshKey = $state(0);
-	type ChecklistItem = {
-		supplement: {
-			id: string;
-			name: string;
-			dosage: number;
-			dosageUnit: string;
-			timeOfDay: string | null;
-		};
-		taken: boolean;
-		takenAt: string | null;
-	};
-	let supplementChecklist: ChecklistItem[] = $state([]);
-	let latestWeight: { weightKg: number; entryDate: string } | null = $state(null);
+	const goalsQuery = useLiveQuery(() => goalsService.goals(), undefined);
+	const prefsQuery = useLiveQuery(() => preferencesService.preferences(), undefined);
+	const latestWeightQuery = useLiveQuery(() => weightService.latest(), undefined);
+	const checklistQuery = useLiveQuery(() => supplementService.checklist(activeDate), []);
+
+	let userGoals = $derived(goalsQuery.value ?? null);
+	let userPrefs = $derived(prefsQuery.value ?? null);
+	let latestWeight = $derived(latestWeightQuery.value ?? null);
+	let supplementChecklist = $derived(checklistQuery.value);
+
 	let streaks: { currentStreak: number; longestStreak: number } | null = $state(null);
-	let userPrefs: Record<string, any> | null = $state(null);
 	let ready = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
-	let userGoals: {
-		calorieGoal: number;
-		proteinGoal: number;
-		carbGoal: number;
-		fatGoal: number;
-		fiberGoal: number;
-	} | null = $state(null);
 
 	const isToday = $derived(activeDate === today());
 
-	$effect(() => {
-		if (ready) loadSupplements(activeDate);
-	});
-
-	const loadLatestWeight = async () => {
-		try {
-			const { data } = await api.GET('/api/weight/latest');
-			if (data) {
-				latestWeight = data.entry;
-			}
-		} catch {
-			// silently ignore
-		}
-	};
-
-	const loadSupplements = async (date: string = activeDate) => {
-		try {
-			const { data } = await api.GET('/api/supplements/{date}/checklist', {
-				params: { path: { date } }
-			});
-			if (data) {
-				supplementChecklist = data.checklist;
-			}
-		} catch {
-			// silently ignore
-		}
-	};
-
 	const toggleSupplement = async (supplementId: string, taken: boolean) => {
 		if (taken) {
-			await api.POST('/api/supplements/{id}/log', {
-				params: { path: { id: supplementId } },
-				body: { date: activeDate }
-			});
+			await supplementService.log(supplementId, activeDate);
 		} else {
-			await api.DELETE('/api/supplements/{id}/log/{date}', {
-				params: { path: { id: supplementId, date: activeDate } }
-			});
+			await supplementService.unlog(supplementId, activeDate);
 		}
-		await loadSupplements(activeDate);
 	};
 
 	const loadStreaks = async () => {
-		try {
-			const { data } = await api.GET('/api/stats/streaks');
-			if (data) {
-				streaks = data;
-			}
-		} catch {
-			// silently ignore
-		}
+		const data = await statsService.getStreaks();
+		if (data) streaks = data;
 	};
 
-	const loadGoals = async () => {
-		try {
-			const { data } = await api.GET('/api/goals');
-			if (data) {
-				userGoals = data.goals;
-			}
-		} catch {
-			// silently ignore
-		}
-	};
-
-	const checkStartPage = async () => {
-		try {
-			const { data } = await api.GET('/api/preferences');
-			if (data) {
-				userPrefs = data.preferences;
-				if (data.preferences.startPage === 'favorites') {
-					goto('/favorites', { replaceState: true });
-					return;
-				}
-			}
-		} catch {
-			// Silently ignore -- show dashboard as fallback
+	onMount(async () => {
+		// Check start page preference from cache
+		const prefs = prefsQuery.value;
+		if (prefs?.startPage === 'favorites') {
+			goto('/favorites', { replaceState: true });
+			return;
 		}
 		ready = true;
 
-		loadLatestWeight();
+		// Fire background refreshes
+		goalsService.refresh();
+		preferencesService.refresh();
+		weightService.refresh();
+		supplementService.refreshChecklist(activeDate);
 		loadStreaks();
-		loadGoals();
-	};
-
-	onMount(() => {
-		checkStartPage();
 
 		// Handle PWA shortcut query params
 		const params = new URLSearchParams(window.location.search);
@@ -151,15 +86,20 @@
 			addModalOpen = true;
 			goto('/', { replaceState: true });
 		}
+	});
 
-		const onSynced = () => {
-			refreshKey++;
-			loadSupplements(activeDate);
-			loadLatestWeight();
-			loadStreaks();
-		};
-		window.addEventListener('queue-synced', onSynced);
-		return () => window.removeEventListener('queue-synced', onSynced);
+	// Re-check startPage once preferences load from network
+	$effect(() => {
+		const prefs = prefsQuery.value;
+		if (prefs?.startPage === 'favorites' && !ready) {
+			goto('/favorites', { replaceState: true });
+		}
+		if (prefs && !ready) ready = true;
+	});
+
+	// Refresh supplement checklist when date changes
+	$effect(() => {
+		supplementService.refreshChecklist(activeDate);
 	});
 </script>
 
@@ -190,9 +130,11 @@
 				<StreakWidget currentStreak={streaks.currentStreak} longestStreak={streaks.longestStreak} />
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
-					onEntryLogged={() => refreshKey++}
-					favoriteTapAction={userPrefs?.favoriteTapAction ?? 'instant'}
-					favoriteMealAssignmentMode={userPrefs?.favoriteMealAssignmentMode ?? 'time_based'}
+					onEntryLogged={() => {}}
+					favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
+					favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
+						| 'time_based'
+						| 'ask_meal'}
 					favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
 				/>
 			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
@@ -211,7 +153,6 @@
 			{:else if sectionKey === 'daylog'}
 				<DayLog
 					date={activeDate}
-					{refreshKey}
 					dashboardStyle={true}
 					onTotalsChange={(t) => (daylogTotals = t)}
 					bind:scanModalOpen

@@ -6,14 +6,15 @@
 	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
-	import { api } from '$lib/api/client';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { entryService } from '$lib/services/entry-service.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
+	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		date: string;
-		refreshKey?: number;
 		dashboardStyle?: boolean;
-		onMutation?: () => void;
 		onTotalsChange?: (totals: MacroTotals) => void;
 		scanModalOpen?: boolean;
 		addModalOpen?: boolean;
@@ -21,17 +22,20 @@
 
 	let {
 		date,
-		refreshKey = 0,
 		dashboardStyle = false,
-		onMutation,
 		onTotalsChange,
 		scanModalOpen = $bindable(false),
 		addModalOpen = $bindable(false)
 	}: Props = $props();
 
-	let foods: Array<any> = $state([]);
-	let recipes: Array<any> = $state([]);
-	let entries: Array<any> = $state([]);
+	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
+	const foodsQuery = useLiveQuery(() => foodService.allFoods(), []);
+	const recipesQuery = useLiveQuery(() => recipeService.allRecipes(), []);
+
+	let entries = $derived(entriesQuery.value);
+	let foods = $derived(foodsQuery.value);
+	let recipes = $derived(recipesQuery.value);
+
 	let editModalOpen = $state(false);
 	let activeMeal = $state('Breakfast');
 	let editingEntry: {
@@ -51,31 +55,18 @@
 		quickName?: string | null;
 	} | null = $state(null);
 
-	let foodsLoaded = false;
-
-	const loadFoodsAndRecipes = async () => {
-		if (foodsLoaded) return;
-		const [foodsResult, recipesResult] = await Promise.all([
-			api.GET('/api/foods'),
-			api.GET('/api/recipes')
-		]);
-		foods = foodsResult.data?.foods ?? [];
-		recipes = recipesResult.data?.recipes ?? [];
-		foodsLoaded = true;
-	};
-
-	const loadEntries = async () => {
-		const { data } = await api.GET('/api/entries', {
-			params: { query: { date } }
-		});
-		entries = data?.entries ?? [];
-	};
+	// Fire background refreshes
+	$effect(() => {
+		entryService.refresh(date);
+	});
+	$effect(() => {
+		foodService.refresh();
+		recipeService.refresh();
+	});
 
 	const addEntry = async (payload: any) => {
-		await api.POST('/api/entries', { body: { ...payload, date } });
+		await entryService.create({ ...payload, date });
 		addModalOpen = false;
-		await loadEntries();
-		onMutation?.();
 	};
 
 	const updateEntry = async (payload: {
@@ -91,24 +82,15 @@
 		quickFiber?: number | null;
 	}) => {
 		const { id, ...body } = payload;
-		await api.PATCH('/api/entries/{id}', {
-			params: { path: { id } },
-			body
-		});
+		await entryService.update(id, body);
 		editModalOpen = false;
 		editingEntry = null;
-		await loadEntries();
-		onMutation?.();
 	};
 
 	const deleteEntry = async (id: string) => {
-		await api.DELETE('/api/entries/{id}', {
-			params: { path: { id } }
-		});
+		await entryService.delete(id);
 		editModalOpen = false;
 		editingEntry = null;
-		await loadEntries();
-		onMutation?.();
 	};
 
 	const openEditModal = (entry: {
@@ -132,10 +114,8 @@
 	};
 
 	const handleBarcodeScan = async (barcode: string) => {
-		const { data } = await api.GET('/api/foods', {
-			params: { query: { barcode } }
-		});
-		if (data?.foods?.length) {
+		const food = await foodService.findByBarcode(barcode);
+		if (food) {
 			addModalOpen = true;
 		} else {
 			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
@@ -153,15 +133,6 @@
 
 	$effect(() => {
 		onTotalsChange?.(totals);
-	});
-
-	loadFoodsAndRecipes();
-
-	$effect(() => {
-		if (date) {
-			loadEntries();
-		}
-		refreshKey;
 	});
 </script>
 
