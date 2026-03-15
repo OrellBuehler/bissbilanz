@@ -10,6 +10,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
@@ -35,21 +36,17 @@
 	let forceDeleteCount = $state(0);
 
 	const loadFoods = async () => {
-		const res = await apiFetch('/api/foods');
-		foods = (await res.json()).foods;
+		const { data } = await api.GET('/api/foods');
+		if (data) foods = data.foods;
 	};
 
 	const loadRecipes = async () => {
-		const res = await apiFetch('/api/recipes');
-		recipes = (await res.json()).recipes;
+		const { data } = await api.GET('/api/recipes');
+		if (data) recipes = data.recipes;
 	};
 
 	const createRecipe = async (payload: any) => {
-		await apiFetch('/api/recipes', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
+		await api.POST('/api/recipes', { body: payload });
 		closeForm();
 		await loadRecipes();
 	};
@@ -61,12 +58,11 @@
 		imageUrl: string | null;
 	}) => {
 		if (!editingRecipe) return;
-		const res = await apiFetch(`/api/recipes/${editingRecipe.id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
+		const { error } = await api.PATCH('/api/recipes/{id}', {
+			params: { path: { id: editingRecipe.id } },
+			body: payload
 		});
-		if (res.ok) {
+		if (!error) {
 			toast.success(m.detail_saved());
 		} else {
 			toast.error(m.detail_save_failed());
@@ -76,11 +72,12 @@
 	};
 
 	const deleteRecipe = async (id: string) => {
-		const res = await apiFetch(`/api/recipes/${id}`, { method: 'DELETE' });
-		if (res.status === 409) {
-			const { entryCount } = await res.json();
+		const { error, response } = await api.DELETE('/api/recipes/{id}', {
+			params: { path: { id } }
+		});
+		if (response.status === 409 && error) {
 			forceDeleteId = id;
-			forceDeleteCount = entryCount;
+			forceDeleteCount = (error as any).entryCount ?? 0;
 			return;
 		}
 		await loadRecipes();
@@ -94,9 +91,10 @@
 	};
 
 	const openEdit = async (id: string) => {
-		const res = await apiFetch(`/api/recipes/${id}`);
-		if (!res.ok) return;
-		const data = await res.json();
+		const { data, error } = await api.GET('/api/recipes/{id}', {
+			params: { path: { id } }
+		});
+		if (error || !data) return;
 		editingRecipe = data.recipe;
 		editImageUrl = data.recipe.imageUrl;
 		showForm = true;
@@ -125,10 +123,9 @@
 			}
 			const { imageUrl: newUrl } = await uploadRes.json();
 			editImageUrl = newUrl;
-			await apiFetch(`/api/recipes/${editingRecipe.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ imageUrl: newUrl })
+			await api.PATCH('/api/recipes/{id}', {
+				params: { path: { id: editingRecipe.id } },
+				body: { imageUrl: newUrl }
 			});
 		} catch (err) {
 			Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });

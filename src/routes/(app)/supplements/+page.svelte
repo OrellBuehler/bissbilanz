@@ -11,7 +11,7 @@
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 
 	type SupplementWithIngredients = {
@@ -34,28 +34,25 @@
 	let showForm = $state(false);
 	let editingSupplement: SupplementWithIngredients | null = $state(null);
 	const loadSupplements = async () => {
-		const res = await apiFetch('/api/supplements?all=true');
-		if (res.ok) {
-			supplements = (await res.json()).supplements;
+		const { data } = await api.GET('/api/supplements', {
+			params: { query: { all: true } }
+		});
+		if (data) {
+			supplements = data.supplements;
 		}
 	};
 
 	const createSupplement = async (payload: Record<string, unknown>) => {
-		await apiFetch('/api/supplements', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
+		await api.POST('/api/supplements', { body: payload as any });
 		showForm = false;
 		await loadSupplements();
 	};
 
 	const updateSupplement = async (payload: Record<string, unknown>) => {
 		if (!editingSupplement) return;
-		await apiFetch(`/api/supplements/${editingSupplement.id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
+		await api.PATCH('/api/supplements/{id}', {
+			params: { path: { id: editingSupplement.id } },
+			body: payload as any
 		});
 		editingSupplement = null;
 		showForm = false;
@@ -63,15 +60,16 @@
 	};
 
 	const deleteSupplement = async (id: string) => {
-		await apiFetch(`/api/supplements/${id}`, { method: 'DELETE' });
+		await api.DELETE('/api/supplements/{id}', {
+			params: { path: { id } }
+		});
 		await loadSupplements();
 	};
 
 	const toggleActive = async (supplement: SupplementWithIngredients) => {
-		await apiFetch(`/api/supplements/${supplement.id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ isActive: !supplement.isActive })
+		await api.PATCH('/api/supplements/{id}', {
+			params: { path: { id: supplement.id } },
+			body: { isActive: !supplement.isActive }
 		});
 		await loadSupplements();
 	};

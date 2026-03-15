@@ -2,7 +2,7 @@
 	import { today } from '$lib/utils/dates';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onLogged }: { onLogged: () => void } = $props();
@@ -27,14 +27,11 @@
 
 		saving = true;
 		try {
-			const res = await apiFetch('/api/weight', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ weightKg: kg, entryDate, notes: notes || undefined })
+			const { error: apiError } = await api.POST('/api/weight', {
+				body: { weightKg: kg, entryDate, notes: notes || undefined }
 			});
-			if (!res.ok) {
-				const data = await res.json();
-				error = data.error || m.error_generic();
+			if (apiError) {
+				error = apiError.error || m.error_generic();
 				return;
 			}
 			weightKg = '';

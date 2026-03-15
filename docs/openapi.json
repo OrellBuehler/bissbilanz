@@ -1,0 +1,7129 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Bissbilanz API",
+		"version": "1.0.0",
+		"description": "Food tracking application API"
+	},
+	"servers": [
+		{
+			"url": "/"
+		}
+	],
+	"security": [
+		{
+			"bearerAuth": []
+		}
+	],
+	"paths": {
+		"/api/goals": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GoalsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"calorieGoal": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"proteinGoal": {
+										"type": "number",
+										"minimum": 0
+									},
+									"carbGoal": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fatGoal": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fiberGoal": {
+										"type": "number",
+										"minimum": 0
+									},
+									"sodiumGoal": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sugarGoal": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GoalsSetResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/foods": {
+			"get": {
+				"parameters": [
+					{
+						"name": "search",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"required": false
+					},
+					{
+						"name": "barcode",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"required": false
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodsListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"brand": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"servingSize": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"servingUnit": {
+										"type": "string",
+										"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+									},
+									"calories": {
+										"type": "number",
+										"minimum": 0
+									},
+									"protein": {
+										"type": "number",
+										"minimum": 0
+									},
+									"carbs": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fat": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fiber": {
+										"type": "number",
+										"minimum": 0
+									},
+									"saturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"monounsaturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"polyunsaturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"transFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"cholesterol": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"omega3": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"omega6": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sugar": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"addedSugars": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sugarAlcohols": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"starch": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sodium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"potassium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"calcium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"iron": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"magnesium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"phosphorus": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"zinc": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"copper": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"manganese": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"selenium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"iodine": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"fluoride": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"chromium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"molybdenum": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"chloride": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminA": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminC": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminD": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminE": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminK": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB1": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB2": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB3": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB5": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB6": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB7": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB9": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB12": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"caffeine": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"alcohol": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"water": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"salt": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"barcode": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isFavorite": {
+										"type": "boolean"
+									},
+									"nutriScore": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": ["a", "b", "c", "d", "e"]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"novaGroup": {
+										"anyOf": [
+											{
+												"type": "integer",
+												"minimum": 1,
+												"maximum": 4
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"additives": {
+										"anyOf": [
+											{
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"ingredientsText": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"imageUrl": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"name",
+									"servingSize",
+									"servingUnit",
+									"calories",
+									"protein",
+									"carbs",
+									"fat",
+									"fiber"
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/foods/recent": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodsRecentResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/foods/{id}": {
+			"get": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"brand": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"servingSize": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"servingUnit": {
+										"type": "string",
+										"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+									},
+									"calories": {
+										"type": "number",
+										"minimum": 0
+									},
+									"protein": {
+										"type": "number",
+										"minimum": 0
+									},
+									"carbs": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fat": {
+										"type": "number",
+										"minimum": 0
+									},
+									"fiber": {
+										"type": "number",
+										"minimum": 0
+									},
+									"saturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"monounsaturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"polyunsaturatedFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"transFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"cholesterol": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"omega3": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"omega6": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sugar": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"addedSugars": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sugarAlcohols": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"starch": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"sodium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"potassium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"calcium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"iron": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"magnesium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"phosphorus": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"zinc": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"copper": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"manganese": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"selenium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"iodine": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"fluoride": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"chromium": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"molybdenum": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"chloride": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminA": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminC": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminD": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminE": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminK": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB1": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB2": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB3": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB5": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB6": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB7": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB9": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"vitaminB12": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"caffeine": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"alcohol": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"water": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"salt": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"barcode": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isFavorite": {
+										"type": "boolean"
+									},
+									"nutriScore": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": ["a", "b", "c", "d", "e"]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"novaGroup": {
+										"anyOf": [
+											{
+												"type": "integer",
+												"minimum": 1,
+												"maximum": 4
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"additives": {
+										"anyOf": [
+											{
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"ingredientsText": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"imageUrl": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "force",
+						"in": "query",
+						"schema": {
+							"type": "boolean"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConflictErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/entries": {
+			"get": {
+				"parameters": [
+					{
+						"name": "date",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EntriesListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"recipeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"mealType": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"servings": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"notes": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"date": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"quickName": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickCalories": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickProtein": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickCarbs": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickFiber": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"eatenAt": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": ["mealType", "servings", "date"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/entries/copy": {
+			"post": {
+				"parameters": [
+					{
+						"name": "fromDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"name": "toDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EntriesCopyResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/entries/range": {
+			"get": {
+				"parameters": [
+					{
+						"name": "startDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"name": "endDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EntriesRangeResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/entries/{id}": {
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"recipeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"mealType": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"servings": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"notes": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"date": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"quickName": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickCalories": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickProtein": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickCarbs": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickFat": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"quickFiber": {
+										"anyOf": [
+											{
+												"type": "number",
+												"minimum": 0
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"eatenAt": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/recipes": {
+			"get": {
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipesListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"totalServings": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"ingredients": {
+										"minItems": 1,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"quantity": {
+													"type": "number",
+													"exclusiveMinimum": 0
+												},
+												"servingUnit": {
+													"type": "string",
+													"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+												}
+											},
+											"required": ["foodId", "quantity", "servingUnit"]
+										}
+									},
+									"isFavorite": {
+										"type": "boolean"
+									},
+									"imageUrl": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": ["name", "totalServings", "ingredients"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/recipes/{id}": {
+			"get": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"totalServings": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"ingredients": {
+										"minItems": 1,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"quantity": {
+													"type": "number",
+													"exclusiveMinimum": 0
+												},
+												"servingUnit": {
+													"type": "string",
+													"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+												}
+											},
+											"required": ["foodId", "quantity", "servingUnit"]
+										}
+									},
+									"isFavorite": {
+										"type": "boolean"
+									},
+									"imageUrl": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConflictErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements": {
+			"get": {
+				"parameters": [
+					{
+						"name": "all",
+						"in": "query",
+						"schema": {
+							"type": "boolean"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementsListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"dosage": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"dosageUnit": {
+										"type": "string",
+										"minLength": 1
+									},
+									"scheduleType": {
+										"type": "string",
+										"enum": ["daily", "every_other_day", "weekly", "specific_days"]
+									},
+									"scheduleDays": {
+										"anyOf": [
+											{
+												"type": "array",
+												"items": {
+													"type": "integer",
+													"minimum": 0,
+													"maximum": 6
+												}
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"scheduleStartDate": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isActive": {
+										"type": "boolean"
+									},
+									"sortOrder": {
+										"type": "integer",
+										"minimum": -9007199254740991,
+										"maximum": 9007199254740991
+									},
+									"timeOfDay": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": ["morning", "noon", "evening"]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"ingredients": {
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"name": {
+													"type": "string",
+													"minLength": 1
+												},
+												"dosage": {
+													"type": "number",
+													"exclusiveMinimum": 0
+												},
+												"dosageUnit": {
+													"type": "string",
+													"minLength": 1
+												},
+												"sortOrder": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												}
+											},
+											"required": ["name", "dosage", "dosageUnit"]
+										}
+									}
+								},
+								"required": ["name", "dosage", "dosageUnit", "scheduleType"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/today": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementChecklistResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/history": {
+			"get": {
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementHistoryResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/{id}": {
+			"get": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"dosage": {
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"dosageUnit": {
+										"type": "string",
+										"minLength": 1
+									},
+									"scheduleType": {
+										"type": "string",
+										"enum": ["daily", "every_other_day", "weekly", "specific_days"]
+									},
+									"scheduleDays": {
+										"anyOf": [
+											{
+												"type": "array",
+												"items": {
+													"type": "integer",
+													"minimum": 0,
+													"maximum": 6
+												}
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"scheduleStartDate": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isActive": {
+										"type": "boolean"
+									},
+									"sortOrder": {
+										"type": "integer",
+										"minimum": -9007199254740991,
+										"maximum": 9007199254740991
+									},
+									"timeOfDay": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": ["morning", "noon", "evening"]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"ingredients": {
+										"anyOf": [
+											{
+												"maxItems": 50,
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"name": {
+															"type": "string",
+															"minLength": 1
+														},
+														"dosage": {
+															"type": "number",
+															"exclusiveMinimum": 0
+														},
+														"dosageUnit": {
+															"type": "string",
+															"minLength": 1
+														},
+														"sortOrder": {
+															"type": "integer",
+															"minimum": -9007199254740991,
+															"maximum": 9007199254740991
+														}
+													},
+													"required": ["name", "dosage", "dosageUnit"]
+												}
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/{id}/log": {
+			"post": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementLogResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/{id}/log/{date}": {
+			"post": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "date",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementLogResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "date",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supplements/{date}/checklist": {
+			"get": {
+				"parameters": [
+					{
+						"name": "date",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SupplementChecklistResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/weight": {
+			"get": {
+				"description": "Returns weight entries. When from/to query params are provided, returns trend data instead.",
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WeightEntriesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"weightKg": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"maximum": 500
+									},
+									"entryDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"notes": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": ["weightKg", "entryDate"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WeightEntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/weight/latest": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WeightLatestResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/weight/{id}": {
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"weightKg": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"maximum": 500
+									},
+									"entryDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"notes": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WeightEntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/daily": {
+			"get": {
+				"parameters": [
+					{
+						"name": "startDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"name": "endDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DailyStatsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/weekly": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WeeklyStatsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/monthly": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MonthlyStatsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/meal-breakdown": {
+			"get": {
+				"parameters": [
+					{
+						"name": "date",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					},
+					{
+						"name": "startDate",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					},
+					{
+						"name": "endDate",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MealBreakdownResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/top-foods": {
+			"get": {
+				"parameters": [
+					{
+						"name": "days",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TopFoodsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/streaks": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/StreaksResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/stats/calendar": {
+			"get": {
+				"parameters": [
+					{
+						"name": "month",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CalendarResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/preferences": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PreferencesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"showChartWidget": {
+										"type": "boolean"
+									},
+									"showFavoritesWidget": {
+										"type": "boolean"
+									},
+									"showSupplementsWidget": {
+										"type": "boolean"
+									},
+									"showWeightWidget": {
+										"type": "boolean"
+									},
+									"showMealBreakdownWidget": {
+										"type": "boolean"
+									},
+									"showTopFoodsWidget": {
+										"type": "boolean"
+									},
+									"widgetOrder": {
+										"type": "array",
+										"items": {
+											"type": "string",
+											"enum": [
+												"chart",
+												"favorites",
+												"supplements",
+												"weight",
+												"meal-breakdown",
+												"top-foods",
+												"summary",
+												"daylog"
+											]
+										}
+									},
+									"startPage": {
+										"type": "string",
+										"enum": ["dashboard", "favorites"]
+									},
+									"favoriteTapAction": {
+										"type": "string",
+										"enum": ["instant", "picker"]
+									},
+									"favoriteMealAssignmentMode": {
+										"type": "string",
+										"enum": ["time_based", "ask_meal"]
+									},
+									"favoriteMealTimeframes": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"mealType": {
+													"type": "string",
+													"minLength": 1
+												},
+												"customMealTypeId": {
+													"anyOf": [
+														{
+															"type": "string",
+															"format": "uuid",
+															"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+														},
+														{
+															"type": "null"
+														}
+													]
+												},
+												"startTime": {
+													"type": "string",
+													"pattern": "^\\d{2}:\\d{2}$"
+												},
+												"endTime": {
+													"type": "string",
+													"pattern": "^\\d{2}:\\d{2}$"
+												}
+											},
+											"required": ["mealType", "startTime", "endTime"],
+											"additionalProperties": false
+										}
+									},
+									"visibleNutrients": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									},
+									"locale": {
+										"type": "string",
+										"enum": ["en", "de"]
+									}
+								},
+								"additionalProperties": false
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PreferencesResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/meal-types": {
+			"get": {
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MealTypesListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"sortOrder": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": ["name", "sortOrder"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MealTypeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/meal-types/{id}": {
+			"patch": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"sortOrder": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MealTypeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted"
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/favorites": {
+			"get": {
+				"parameters": [
+					{
+						"name": "type",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"enum": ["foods", "recipes"]
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FavoritesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/maintenance": {
+			"get": {
+				"parameters": [
+					{
+						"name": "startDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"name": "endDate",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"name": "muscleRatio",
+						"in": "query",
+						"schema": {
+							"type": "number"
+						},
+						"required": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MaintenanceResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/images/upload": {
+			"post": {
+				"requestBody": {
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									}
+								},
+								"required": ["file"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ImageUploadResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/openfoodfacts/{barcode}": {
+			"get": {
+				"parameters": [
+					{
+						"name": "barcode",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/OpenFoodFactsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"GoalsResponse": {
+				"type": "object",
+				"properties": {
+					"goals": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/Goals"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["goals"],
+				"additionalProperties": false
+			},
+			"Goals": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"calorieGoal": {
+						"type": "number"
+					},
+					"proteinGoal": {
+						"type": "number"
+					},
+					"carbGoal": {
+						"type": "number"
+					},
+					"fatGoal": {
+						"type": "number"
+					},
+					"fiberGoal": {
+						"type": "number"
+					},
+					"sodiumGoal": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarGoal": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"calorieGoal",
+					"proteinGoal",
+					"carbGoal",
+					"fatGoal",
+					"fiberGoal",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"ErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string"
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
+			"GoalsSetResponse": {
+				"type": "object",
+				"properties": {
+					"goals": {
+						"$ref": "#/components/schemas/Goals"
+					}
+				},
+				"required": ["goals"],
+				"additionalProperties": false
+			},
+			"ValidationErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string"
+					},
+					"details": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						}
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
+			"FoodsListResponse": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Food"
+						}
+					},
+					"total": {
+						"type": "number"
+					}
+				},
+				"required": ["foods", "total"],
+				"additionalProperties": false
+			},
+			"Food": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string",
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"saturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"monounsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"polyunsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"transFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cholesterol": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega3": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega6": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugar": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"addedSugars": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarAlcohols": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"starch": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sodium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"potassium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calcium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iron": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"magnesium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"phosphorus": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"zinc": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"copper": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"manganese": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"selenium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iodine": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"fluoride": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chromium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"molybdenum": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chloride": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminA": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminC": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminD": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminE": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminK": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB1": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB2": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB3": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB5": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB6": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB7": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB9": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB12": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"caffeine": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"alcohol": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"water": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"salt": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"nutriScore": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"novaGroup": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"additives": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"name",
+					"brand",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"barcode",
+					"isFavorite",
+					"nutriScore",
+					"novaGroup",
+					"additives",
+					"ingredientsText",
+					"imageUrl",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"FoodResponse": {
+				"type": "object",
+				"properties": {
+					"food": {
+						"$ref": "#/components/schemas/Food"
+					}
+				},
+				"required": ["food"],
+				"additionalProperties": false
+			},
+			"FoodsRecentResponse": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodRecent"
+						}
+					}
+				},
+				"required": ["foods"],
+				"additionalProperties": false
+			},
+			"FoodRecent": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string",
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"name",
+					"brand",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"barcode",
+					"isFavorite",
+					"imageUrl",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"ConflictErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string"
+					},
+					"entryCount": {
+						"type": "number"
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
+			"EntriesListResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/EntryListItem"
+						}
+					},
+					"total": {
+						"type": "number"
+					}
+				},
+				"required": ["entries", "total"],
+				"additionalProperties": false
+			},
+			"EntryListItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"mealType": {
+						"type": "string"
+					},
+					"servings": {
+						"type": "number"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCalories": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickProtein": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCarbs": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFiber": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"foodName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"eatenAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"servingSize": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingUnit": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"mealType",
+					"servings",
+					"notes",
+					"foodId",
+					"recipeId",
+					"quickName",
+					"quickCalories",
+					"quickProtein",
+					"quickCarbs",
+					"quickFat",
+					"quickFiber",
+					"foodName",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"eatenAt",
+					"createdAt",
+					"servingSize",
+					"servingUnit"
+				],
+				"additionalProperties": false
+			},
+			"EntryResponse": {
+				"type": "object",
+				"properties": {
+					"entry": {
+						"$ref": "#/components/schemas/Entry"
+					}
+				},
+				"required": ["entry"],
+				"additionalProperties": false
+			},
+			"Entry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string"
+					},
+					"mealType": {
+						"type": "string"
+					},
+					"servings": {
+						"type": "number"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCalories": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickProtein": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCarbs": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFiber": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"eatenAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"foodId",
+					"recipeId",
+					"date",
+					"mealType",
+					"servings",
+					"notes",
+					"quickName",
+					"quickCalories",
+					"quickProtein",
+					"quickCarbs",
+					"quickFat",
+					"quickFiber",
+					"eatenAt",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"EntriesCopyResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Entry"
+						}
+					},
+					"count": {
+						"type": "number"
+					}
+				},
+				"required": ["entries", "count"],
+				"additionalProperties": false
+			},
+			"EntriesRangeResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/EntryRangeItem"
+						}
+					}
+				},
+				"required": ["entries"],
+				"additionalProperties": false
+			},
+			"EntryRangeItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"date": {
+						"type": "string"
+					},
+					"mealType": {
+						"type": "string"
+					},
+					"servings": {
+						"type": "number"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"foodName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"id",
+					"date",
+					"mealType",
+					"servings",
+					"notes",
+					"foodId",
+					"recipeId",
+					"foodName",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
+				"additionalProperties": false
+			},
+			"RecipesListResponse": {
+				"type": "object",
+				"properties": {
+					"recipes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeSummary"
+						}
+					},
+					"total": {
+						"type": "number"
+					}
+				},
+				"required": ["recipes", "total"],
+				"additionalProperties": false
+			},
+			"RecipeSummary": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"totalServings": {
+						"type": "number"
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"totalServings",
+					"isFavorite",
+					"imageUrl",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
+				"additionalProperties": false
+			},
+			"RecipeResponse": {
+				"type": "object",
+				"properties": {
+					"recipe": {
+						"$ref": "#/components/schemas/RecipeDetail"
+					}
+				},
+				"required": ["recipe"],
+				"additionalProperties": false
+			},
+			"RecipeDetail": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"totalServings": {
+						"type": "number"
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"ingredients": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeIngredient"
+						}
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"name",
+					"totalServings",
+					"isFavorite",
+					"imageUrl",
+					"createdAt",
+					"updatedAt",
+					"ingredients"
+				],
+				"additionalProperties": false
+			},
+			"RecipeIngredient": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"recipeId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"quantity": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string"
+					},
+					"sortOrder": {
+						"type": "number"
+					}
+				},
+				"required": ["id", "recipeId", "foodId", "quantity", "servingUnit", "sortOrder"],
+				"additionalProperties": false
+			},
+			"SupplementsListResponse": {
+				"type": "object",
+				"properties": {
+					"supplements": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Supplement"
+						}
+					}
+				},
+				"required": ["supplements"],
+				"additionalProperties": false
+			},
+			"Supplement": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"dosage": {
+						"type": "number"
+					},
+					"dosageUnit": {
+						"type": "string"
+					},
+					"scheduleType": {
+						"type": "string"
+					},
+					"scheduleDays": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "number"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"scheduleStartDate": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isActive": {
+						"type": "boolean"
+					},
+					"sortOrder": {
+						"type": "number"
+					},
+					"timeOfDay": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"ingredients": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SupplementIngredient"
+						}
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"name",
+					"dosage",
+					"dosageUnit",
+					"scheduleType",
+					"scheduleDays",
+					"scheduleStartDate",
+					"isActive",
+					"sortOrder",
+					"timeOfDay",
+					"createdAt",
+					"updatedAt",
+					"ingredients"
+				],
+				"additionalProperties": false
+			},
+			"SupplementIngredient": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"supplementId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"dosage": {
+						"type": "number"
+					},
+					"dosageUnit": {
+						"type": "string"
+					},
+					"sortOrder": {
+						"type": "number"
+					}
+				},
+				"required": ["id", "supplementId", "name", "dosage", "dosageUnit", "sortOrder"],
+				"additionalProperties": false
+			},
+			"SupplementResponse": {
+				"type": "object",
+				"properties": {
+					"supplement": {
+						"$ref": "#/components/schemas/Supplement"
+					}
+				},
+				"required": ["supplement"],
+				"additionalProperties": false
+			},
+			"SupplementChecklistResponse": {
+				"type": "object",
+				"properties": {
+					"checklist": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SupplementChecklistItem"
+						}
+					},
+					"date": {
+						"type": "string"
+					}
+				},
+				"required": ["checklist", "date"],
+				"additionalProperties": false
+			},
+			"SupplementChecklistItem": {
+				"type": "object",
+				"properties": {
+					"supplement": {
+						"$ref": "#/components/schemas/Supplement"
+					},
+					"taken": {
+						"type": "boolean"
+					},
+					"takenAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["supplement", "taken", "takenAt"],
+				"additionalProperties": false
+			},
+			"SupplementHistoryResponse": {
+				"type": "object",
+				"properties": {
+					"history": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SupplementHistoryItem"
+						}
+					}
+				},
+				"required": ["history"],
+				"additionalProperties": false
+			},
+			"SupplementHistoryItem": {
+				"type": "object",
+				"properties": {
+					"log": {
+						"$ref": "#/components/schemas/SupplementLog"
+					},
+					"supplementName": {
+						"type": "string"
+					},
+					"dosage": {
+						"type": "number"
+					},
+					"dosageUnit": {
+						"type": "string"
+					}
+				},
+				"required": ["log", "supplementName", "dosage", "dosageUnit"],
+				"additionalProperties": false
+			},
+			"SupplementLog": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"supplementId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"date": {
+						"type": "string"
+					},
+					"takenAt": {
+						"type": "string"
+					},
+					"createdAt": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "supplementId", "userId", "date", "takenAt", "createdAt"],
+				"additionalProperties": false
+			},
+			"SupplementLogResponse": {
+				"type": "object",
+				"properties": {
+					"log": {
+						"$ref": "#/components/schemas/SupplementLog"
+					}
+				},
+				"required": ["log"],
+				"additionalProperties": false
+			},
+			"WeightEntriesResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/WeightEntry"
+						}
+					}
+				},
+				"required": ["entries"],
+				"additionalProperties": false
+			},
+			"WeightEntry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"weightKg": {
+						"type": "number"
+					},
+					"entryDate": {
+						"type": "string"
+					},
+					"loggedAt": {
+						"type": "string"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"weightKg",
+					"entryDate",
+					"loggedAt",
+					"notes",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"WeightEntryResponse": {
+				"type": "object",
+				"properties": {
+					"entry": {
+						"$ref": "#/components/schemas/WeightEntry"
+					}
+				},
+				"required": ["entry"],
+				"additionalProperties": false
+			},
+			"WeightLatestResponse": {
+				"type": "object",
+				"properties": {
+					"entry": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/WeightEntry"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["entry"],
+				"additionalProperties": false
+			},
+			"DailyStatsResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/DailyStat"
+						}
+					},
+					"goals": {
+						"$ref": "#/components/schemas/GoalsSummary"
+					}
+				},
+				"required": ["data", "goals"],
+				"additionalProperties": false
+			},
+			"DailyStat": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": ["date", "calories", "protein", "carbs", "fat", "fiber"],
+				"additionalProperties": false
+			},
+			"GoalsSummary": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"calorieGoal": {
+								"type": "number"
+							},
+							"proteinGoal": {
+								"type": "number"
+							},
+							"carbGoal": {
+								"type": "number"
+							},
+							"fatGoal": {
+								"type": "number"
+							},
+							"fiberGoal": {
+								"type": "number"
+							}
+						},
+						"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
+						"additionalProperties": false
+					},
+					{
+						"type": "null"
+					}
+				]
+			},
+			"WeeklyStatsResponse": {
+				"type": "object",
+				"properties": {
+					"stats": {
+						"$ref": "#/components/schemas/MacroSummary"
+					}
+				},
+				"required": ["stats"],
+				"additionalProperties": false
+			},
+			"MacroSummary": {
+				"type": "object",
+				"properties": {
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": ["calories", "protein", "carbs", "fat", "fiber"],
+				"additionalProperties": false
+			},
+			"MonthlyStatsResponse": {
+				"type": "object",
+				"properties": {
+					"stats": {
+						"$ref": "#/components/schemas/MacroSummary"
+					}
+				},
+				"required": ["stats"],
+				"additionalProperties": false
+			},
+			"MealBreakdownResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/MealBreakdownItem"
+						}
+					}
+				},
+				"required": ["data"],
+				"additionalProperties": false
+			},
+			"MealBreakdownItem": {
+				"type": "object",
+				"properties": {
+					"mealType": {
+						"type": "string"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": ["mealType", "calories", "protein", "carbs", "fat", "fiber"],
+				"additionalProperties": false
+			},
+			"TopFoodsResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TopFoodItem"
+						}
+					}
+				},
+				"required": ["data"],
+				"additionalProperties": false
+			},
+			"TopFoodItem": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"foodName": {
+						"type": "string"
+					},
+					"count": {
+						"type": "number"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"foodId",
+					"recipeId",
+					"foodName",
+					"count",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
+				"additionalProperties": false
+			},
+			"StreaksResponse": {
+				"type": "object",
+				"properties": {
+					"currentStreak": {
+						"type": "number"
+					},
+					"longestStreak": {
+						"type": "number"
+					}
+				},
+				"required": ["currentStreak", "longestStreak"],
+				"additionalProperties": false
+			},
+			"CalendarResponse": {
+				"type": "object",
+				"properties": {
+					"days": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"$ref": "#/components/schemas/CalendarDay"
+						}
+					}
+				},
+				"required": ["days"],
+				"additionalProperties": false
+			},
+			"CalendarDay": {
+				"type": "object",
+				"properties": {
+					"calories": {
+						"type": "number"
+					},
+					"hasEntries": {
+						"type": "boolean"
+					}
+				},
+				"required": ["calories", "hasEntries"],
+				"additionalProperties": false
+			},
+			"PreferencesResponse": {
+				"type": "object",
+				"properties": {
+					"preferences": {
+						"$ref": "#/components/schemas/Preferences"
+					}
+				},
+				"required": ["preferences"],
+				"additionalProperties": false
+			},
+			"Preferences": {
+				"type": "object",
+				"properties": {
+					"showChartWidget": {
+						"type": "boolean"
+					},
+					"showFavoritesWidget": {
+						"type": "boolean"
+					},
+					"showSupplementsWidget": {
+						"type": "boolean"
+					},
+					"showWeightWidget": {
+						"type": "boolean"
+					},
+					"showMealBreakdownWidget": {
+						"type": "boolean"
+					},
+					"showTopFoodsWidget": {
+						"type": "boolean"
+					},
+					"widgetOrder": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"startPage": {
+						"type": "string"
+					},
+					"favoriteTapAction": {
+						"type": "string"
+					},
+					"favoriteMealAssignmentMode": {
+						"type": "string"
+					},
+					"visibleNutrients": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"locale": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"favoriteMealTimeframes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FavoriteMealTimeframe"
+						}
+					}
+				},
+				"required": [
+					"showChartWidget",
+					"showFavoritesWidget",
+					"showSupplementsWidget",
+					"showWeightWidget",
+					"showMealBreakdownWidget",
+					"showTopFoodsWidget",
+					"widgetOrder",
+					"startPage",
+					"favoriteTapAction",
+					"favoriteMealAssignmentMode",
+					"visibleNutrients",
+					"locale",
+					"updatedAt",
+					"favoriteMealTimeframes"
+				],
+				"additionalProperties": false
+			},
+			"FavoriteMealTimeframe": {
+				"type": "object",
+				"properties": {
+					"mealType": {
+						"type": "string"
+					},
+					"customMealTypeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"startTime": {
+						"type": "string"
+					},
+					"endTime": {
+						"type": "string"
+					}
+				},
+				"required": ["mealType", "startTime", "endTime"],
+				"additionalProperties": false
+			},
+			"MealTypesListResponse": {
+				"type": "object",
+				"properties": {
+					"mealTypes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/MealType"
+						}
+					}
+				},
+				"required": ["mealTypes"],
+				"additionalProperties": false
+			},
+			"MealType": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"sortOrder": {
+						"type": "number"
+					},
+					"createdAt": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "userId", "name", "sortOrder", "createdAt"],
+				"additionalProperties": false
+			},
+			"MealTypeResponse": {
+				"type": "object",
+				"properties": {
+					"mealType": {
+						"$ref": "#/components/schemas/MealType"
+					}
+				},
+				"required": ["mealType"],
+				"additionalProperties": false
+			},
+			"FavoritesResponse": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FavoriteFood"
+						}
+					},
+					"recipes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FavoriteRecipe"
+						}
+					}
+				},
+				"additionalProperties": false
+			},
+			"FavoriteFood": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"logCount": {
+						"type": "number"
+					},
+					"type": {
+						"type": "string",
+						"const": "food"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"imageUrl",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"logCount",
+					"type"
+				],
+				"additionalProperties": false
+			},
+			"FavoriteRecipe": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"logCount": {
+						"type": "number"
+					},
+					"totalServings": {
+						"type": "number"
+					},
+					"type": {
+						"type": "string",
+						"const": "recipe"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"imageUrl",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"logCount",
+					"totalServings",
+					"type"
+				],
+				"additionalProperties": false
+			},
+			"MaintenanceResponse": {
+				"type": "object",
+				"properties": {
+					"result": {
+						"$ref": "#/components/schemas/MaintenanceResult"
+					},
+					"meta": {
+						"$ref": "#/components/schemas/MaintenanceMeta"
+					}
+				},
+				"required": ["result", "meta"],
+				"additionalProperties": false
+			},
+			"MaintenanceResult": {
+				"type": "object",
+				"properties": {
+					"maintenanceCalories": {
+						"type": "number"
+					},
+					"deficit": {
+						"type": "number"
+					},
+					"surplus": {
+						"type": "number"
+					}
+				},
+				"required": ["maintenanceCalories", "deficit", "surplus"],
+				"additionalProperties": false
+			},
+			"MaintenanceMeta": {
+				"type": "object",
+				"properties": {
+					"weightEntries": {
+						"type": "number"
+					},
+					"foodEntryDays": {
+						"type": "number"
+					},
+					"totalDays": {
+						"type": "number"
+					},
+					"coverage": {
+						"type": "number"
+					},
+					"firstWeight": {
+						"type": "number"
+					},
+					"lastWeight": {
+						"type": "number"
+					},
+					"startDate": {
+						"type": "string"
+					},
+					"endDate": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"weightEntries",
+					"foodEntryDays",
+					"totalDays",
+					"coverage",
+					"firstWeight",
+					"lastWeight",
+					"startDate",
+					"endDate"
+				],
+				"additionalProperties": false
+			},
+			"ImageUploadResponse": {
+				"type": "object",
+				"properties": {
+					"imageUrl": {
+						"type": "string"
+					}
+				},
+				"required": ["imageUrl"],
+				"additionalProperties": false
+			},
+			"OpenFoodFactsResponse": {
+				"type": "object",
+				"properties": {
+					"product": {
+						"$ref": "#/components/schemas/OpenFoodFactsProduct"
+					}
+				},
+				"required": ["product"],
+				"additionalProperties": false
+			},
+			"OpenFoodFactsProduct": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"type": "string"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"nutriScore": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"novaGroup": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingUnit": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"saturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"monounsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"polyunsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"transFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cholesterol": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega3": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega6": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugar": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"addedSugars": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarAlcohols": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"starch": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sodium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"potassium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calcium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iron": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"magnesium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"phosphorus": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"zinc": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"copper": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"manganese": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"selenium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iodine": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"fluoride": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chromium": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"molybdenum": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chloride": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminA": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminC": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminD": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminE": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminK": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB1": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB2": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB3": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB5": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB6": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB7": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB9": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB12": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"caffeine": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"alcohol": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"water": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"salt": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"additives": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"brand",
+					"barcode",
+					"imageUrl",
+					"nutriScore",
+					"novaGroup",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"additives",
+					"ingredientsText"
+				],
+				"additionalProperties": false
+			}
+		},
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	}
+}

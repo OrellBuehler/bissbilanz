@@ -56,3 +56,6 @@ mobile/androidApp/build/
 
 # iOS generated Xcode project
 mobile/iosApp/*.xcodeproj
+
+# OpenAPI generator temp output
+.openapi-gen-tmp/

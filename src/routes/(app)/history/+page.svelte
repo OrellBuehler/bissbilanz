@@ -11,7 +11,7 @@
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { today, daysAgo } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
@@ -65,12 +65,12 @@
 
 	const loadStats = async () => {
 		try {
-			const [weeklyRes, monthlyRes] = await Promise.all([
-				apiFetch('/api/stats/weekly'),
-				apiFetch('/api/stats/monthly')
+			const [weeklyResult, monthlyResult] = await Promise.all([
+				api.GET('/api/stats/weekly'),
+				api.GET('/api/stats/monthly')
 			]);
-			if (weeklyRes.ok) weeklyStats = (await weeklyRes.json()).stats;
-			if (monthlyRes.ok) monthlyStats = (await monthlyRes.json()).stats;
+			if (weeklyResult.data) weeklyStats = weeklyResult.data.stats;
+			if (monthlyResult.data) monthlyStats = monthlyResult.data.stats;
 		} catch {
 			// Silently ignore — stats are unavailable offline
 		}
@@ -79,11 +79,12 @@
 	const loadChartData = async (startDate: string, endDate: string) => {
 		chartLoading = true;
 		try {
-			const res = await apiFetch(`/api/stats/daily?startDate=${startDate}&endDate=${endDate}`);
-			if (!res.ok) return;
-			const json = await res.json();
-			chartData = json.data ?? [];
-			calorieGoal = json.goals?.calorieGoal ?? undefined;
+			const { data } = await api.GET('/api/stats/daily', {
+				params: { query: { startDate, endDate } }
+			});
+			if (!data) return;
+			chartData = data.data ?? [];
+			calorieGoal = data.goals?.calorieGoal ?? undefined;
 		} catch {
 			// Silently ignore — chart data is unavailable offline
 		} finally {
@@ -93,10 +94,9 @@
 
 	const loadGoals = async () => {
 		try {
-			const res = await apiFetch('/api/goals');
-			if (!res.ok) return;
-			const json = await res.json();
-			goalsCalorieGoal = json.goals?.calorieGoal ?? null;
+			const { data } = await api.GET('/api/goals');
+			if (!data) return;
+			goalsCalorieGoal = data.goals?.calorieGoal ?? null;
 		} catch {
 			// Silently ignore — goals may be unavailable offline
 		}
@@ -105,10 +105,11 @@
 	const loadCalendarData = async (y: number, mo: number) => {
 		try {
 			const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
-			const res = await apiFetch(`/api/stats/calendar?month=${monthStr}`);
-			if (!res.ok) return;
-			const json = await res.json();
-			calendarDays = json.days ?? {};
+			const { data } = await api.GET('/api/stats/calendar', {
+				params: { query: { month: monthStr } }
+			});
+			if (!data) return;
+			calendarDays = data.days ?? {};
 		} catch {
 			// Silently ignore — calendar data is unavailable offline
 		}

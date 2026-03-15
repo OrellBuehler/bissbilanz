@@ -5,7 +5,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { round2 } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
@@ -38,17 +38,18 @@
 		const kg = parseFloat(editWeight);
 		if (isNaN(kg) || kg < 20 || kg > 500) return;
 
-		await apiFetch(`/api/weight/${editingId}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ weightKg: kg, notes: editNotes || undefined })
+		await api.PATCH('/api/weight/{id}', {
+			params: { path: { id: editingId } },
+			body: { weightKg: kg, notes: editNotes || undefined }
 		});
 		editingId = null;
 		onChanged();
 	};
 
 	const deleteEntry = async (id: string) => {
-		await apiFetch(`/api/weight/${id}`, { method: 'DELETE' });
+		await api.DELETE('/api/weight/{id}', {
+			params: { path: { id } }
+		});
 		onChanged();
 	};
 

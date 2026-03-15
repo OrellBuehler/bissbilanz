@@ -19,7 +19,13 @@
 		"test:watch": "bun --bun vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"test:integration-db": "bun --bun vitest run --config vitest.integration.config.ts",
-		"security": "./scripts/security/scan-all.sh"
+		"security": "./scripts/security/scan-all.sh",
+		"api:spec": "bun run scripts/generate-openapi.ts",
+		"api:client:ts": "bunx openapi-typescript docs/openapi.json -o src/lib/api/generated/schema.d.ts",
+		"api:client:kt": "scripts/generate-kotlin-dtos.sh",
+		"api:generate": "bun run api:spec && bun run api:client:ts && bun run api:client:kt",
+		"api:generate:ts": "bun run api:spec && bun run api:client:ts",
+		"api:check": "bun run api:generate:ts && git diff --exit-code docs/openapi.json src/lib/api/generated/"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.0",
@@ -44,6 +50,7 @@
 		"formsnap": "^2.0.1",
 		"layerchart": "2.0.0-next.46",
 		"mode-watcher": "^1.1.0",
+		"openapi-typescript": "^7.13.0",
 		"paneforge": "^1.0.2",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.0",
@@ -60,7 +67,8 @@
 		"typescript": "^5.9.3",
 		"vaul-svelte": "^1.0.0-next.7",
 		"vite": "^7.3.1",
-		"vitest": "^4.0.18"
+		"vitest": "^4.0.18",
+		"zod-openapi": "^5.4.6"
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.19.11",
@@ -76,6 +84,7 @@
 		"express-rate-limit": "^8.3.1",
 		"hono": "^4.12.5",
 		"jose": "^6.1.3",
+		"openapi-fetch": "^0.17.0",
 		"sharp": "^0.34.5",
 		"tw-animate-css": "^1.4.0",
 		"zod": "^4.3.6"

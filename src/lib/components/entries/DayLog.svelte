@@ -6,7 +6,7 @@
 	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -55,26 +55,24 @@
 
 	const loadFoodsAndRecipes = async () => {
 		if (foodsLoaded) return;
-		const [foodsRes, recipesRes] = await Promise.all([
-			apiFetch('/api/foods'),
-			apiFetch('/api/recipes')
+		const [foodsResult, recipesResult] = await Promise.all([
+			api.GET('/api/foods'),
+			api.GET('/api/recipes')
 		]);
-		foods = (await foodsRes.json()).foods ?? [];
-		recipes = (await recipesRes.json()).recipes ?? [];
+		foods = foodsResult.data?.foods ?? [];
+		recipes = recipesResult.data?.recipes ?? [];
 		foodsLoaded = true;
 	};
 
 	const loadEntries = async () => {
-		const res = await apiFetch(`/api/entries?date=${date}`);
-		entries = (await res.json()).entries ?? [];
+		const { data } = await api.GET('/api/entries', {
+			params: { query: { date } }
+		});
+		entries = data?.entries ?? [];
 	};
 
 	const addEntry = async (payload: any) => {
-		await apiFetch('/api/entries', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ ...payload, date })
-		});
+		await api.POST('/api/entries', { body: { ...payload, date } });
 		addModalOpen = false;
 		await loadEntries();
 		onMutation?.();
@@ -93,10 +91,9 @@
 		quickFiber?: number | null;
 	}) => {
 		const { id, ...body } = payload;
-		await apiFetch(`/api/entries/${id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
+		await api.PATCH('/api/entries/{id}', {
+			params: { path: { id } },
+			body
 		});
 		editModalOpen = false;
 		editingEntry = null;
@@ -105,7 +102,9 @@
 	};
 
 	const deleteEntry = async (id: string) => {
-		await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
+		await api.DELETE('/api/entries/{id}', {
+			params: { path: { id } }
+		});
 		editModalOpen = false;
 		editingEntry = null;
 		await loadEntries();
@@ -133,9 +132,10 @@
 	};
 
 	const handleBarcodeScan = async (barcode: string) => {
-		const res = await apiFetch(`/api/foods?barcode=${encodeURIComponent(barcode)}`);
-		const data = await res.json();
-		if (data.food) {
+		const { data } = await api.GET('/api/foods', {
+			params: { query: { barcode } }
+		});
+		if (data?.foods?.length) {
 			addModalOpen = true;
 		} else {
 			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);

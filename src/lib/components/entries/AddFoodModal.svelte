@@ -13,7 +13,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { timeToIsoString } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
@@ -218,9 +218,8 @@
 		if (recentFoods.length > 0) return;
 		loadingRecent = true;
 		try {
-			const res = await apiFetch('/api/foods/recent');
-			if (!res.ok) return;
-			const data = await res.json();
+			const { data } = await api.GET('/api/foods/recent');
+			if (!data) return;
 			recentFoods = data.foods ?? [];
 		} catch {
 			// Silently ignore — recent foods unavailable offline
@@ -233,9 +232,10 @@
 		if (favoriteRecipes.length > 0) return;
 		loadingFavorites = true;
 		try {
-			const res = await apiFetch('/api/favorites?type=recipes');
-			if (res.ok) {
-				const data = await res.json();
+			const { data } = await api.GET('/api/favorites', {
+				params: { query: { type: 'recipes' } }
+			});
+			if (data) {
 				favoriteRecipes = (data.recipes ?? []).map(
 					(r: any): FavoriteItem => ({
 						id: r.id,

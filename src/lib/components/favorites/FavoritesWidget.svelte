@@ -6,7 +6,7 @@
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { DEFAULT_MEAL_TYPES, mergeMealTypes, resolveMealTypeForMinute } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import Star from '@lucide/svelte/icons/star';
@@ -51,9 +51,8 @@
 
 	const loadFavorites = async () => {
 		try {
-			const res = await apiFetch('/api/favorites?limit=5');
-			if (!res.ok) return;
-			const data = await res.json();
+			const { data } = await api.GET('/api/favorites');
+			if (!data) return;
 			const allItems: FavoriteItem[] = [...(data.foods ?? []), ...(data.recipes ?? [])];
 			allItems.sort((a, b) => b.logCount - a.logCount);
 			items = allItems.slice(0, 5);
@@ -64,9 +63,8 @@
 
 	const loadMealOptions = async () => {
 		try {
-			const res = await apiFetch('/api/meal-types');
-			if (!res.ok) return;
-			const data = await res.json();
+			const { data } = await api.GET('/api/meal-types');
+			if (!data) return;
 			mealOptions = mergeMealTypes(
 				[...DEFAULT_MEAL_TYPES],
 				(data.mealTypes ?? []).map((meal: { name: string }) => meal.name)
@@ -97,22 +95,18 @@
 			payload.recipeId = item.id;
 		}
 
-		const res = await apiFetch('/api/entries', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
+		const { data, error } = await api.POST('/api/entries', { body: payload as any });
 
-		if (!res.ok) return;
-
-		const data = await res.json();
+		if (error) return;
 
 		toast.info(m.favorites_logged_toast({ name: item.name, meal }), {
-			action: data.entry
+			action: data?.entry
 				? {
 						label: m.favorites_undo(),
 						onClick: async () => {
-							await apiFetch(`/api/entries/${data.entry.id}`, { method: 'DELETE' });
+							await api.DELETE('/api/entries/{id}', {
+								params: { path: { id: data.entry.id } }
+							});
 							onEntryLogged();
 						}
 					}

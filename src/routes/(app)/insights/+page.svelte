@@ -5,7 +5,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { onMount } from 'svelte';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
@@ -46,18 +46,19 @@
 		mealLoading = true;
 		try {
 			const todayStr = today();
-			let url: string;
+			const query: { date?: string; startDate?: string; endDate?: string } = {};
 			if (r === 'today') {
-				url = `/api/stats/meal-breakdown?date=${todayStr}`;
+				query.date = todayStr;
 			} else {
 				const days = r === '7d' ? 6 : 29;
-				const startDate = shiftDate(todayStr, -days);
-				url = `/api/stats/meal-breakdown?startDate=${startDate}&endDate=${todayStr}`;
+				query.startDate = shiftDate(todayStr, -days);
+				query.endDate = todayStr;
 			}
-			const res = await apiFetch(url);
-			if (res.ok) {
-				const json = await res.json();
-				data = json.data;
+			const { data: result } = await api.GET('/api/stats/meal-breakdown', {
+				params: { query }
+			});
+			if (result) {
+				data = result.data;
 			}
 		} catch {
 			data = [];
@@ -69,10 +70,11 @@
 	const loadTopFoods = async () => {
 		topFoodsLoading = true;
 		try {
-			const res = await apiFetch(`/api/stats/top-foods?days=${topFoodsDays}&limit=10`);
-			if (res.ok) {
-				const json = await res.json();
-				foods = json.data;
+			const { data: result } = await api.GET('/api/stats/top-foods', {
+				params: { query: { days: topFoodsDays, limit: 10 } }
+			});
+			if (result) {
+				foods = result.data;
 			}
 		} catch {
 			// silently ignore

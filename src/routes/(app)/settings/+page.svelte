@@ -14,7 +14,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { getUser } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { DEFAULT_MEAL_TYPES, validateFavoriteMealTimeframes } from '$lib/utils/meals';
 	import * as m from '$lib/paraglide/messages';
 	import {
@@ -81,12 +81,10 @@
 	async function saveVisibleNutrients() {
 		savingNutrients = true;
 		try {
-			const res = await apiFetch('/api/preferences', {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ visibleNutrients: [...visibleNutrients] })
+			const { error } = await api.PATCH('/api/preferences', {
+				body: { visibleNutrients: [...visibleNutrients] }
 			});
-			if (res.ok) {
+			if (!error) {
 				toast.success(m.settings_saved(), { duration: 1500 });
 			} else {
 				toast.error(m.settings_save_failed());
@@ -252,10 +250,8 @@
 		if (!timeframeValidation.valid) return;
 		savingFavoriteLogging = true;
 		try {
-			const res = await apiFetch('/api/preferences', {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
+			const { data, error } = await api.PATCH('/api/preferences', {
+				body: {
 					favoriteMealAssignmentMode,
 					favoriteMealTimeframes: favoriteMealTimeframes.map((row) => ({
 						mealType: row.mealType,
@@ -263,12 +259,13 @@
 						startTime: row.startTime,
 						endTime: row.endTime
 					}))
-				})
+				}
 			});
-			if (res.ok) {
+			if (!error && data) {
 				toast.success(m.settings_saved(), { duration: 1500 });
-				const { preferences } = await res.json();
-				favoriteMealAssignmentMode = preferences.favoriteMealAssignmentMode ?? 'time_based';
+				const { preferences } = data;
+				favoriteMealAssignmentMode = (preferences.favoriteMealAssignmentMode ??
+					'time_based') as typeof favoriteMealAssignmentMode;
 				favoriteMealTimeframes =
 					(preferences.favoriteMealTimeframes ?? []).map((row: any) => ({
 						id: row.id ?? crypto.randomUUID(),
@@ -278,8 +275,7 @@
 						endTime: row.endTime
 					})) ?? [];
 			} else {
-				const data = await res.json().catch(() => ({}));
-				toast.error(data.error ?? m.settings_save_failed());
+				toast.error((error as any)?.error ?? m.settings_save_failed());
 			}
 		} catch {
 			toast.error(m.settings_save_failed());
@@ -290,12 +286,10 @@
 
 	const savePreference = async (key: string, value: unknown) => {
 		try {
-			const res = await apiFetch('/api/preferences', {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ [key]: value })
+			const { error } = await api.PATCH('/api/preferences', {
+				body: { [key]: value }
 			});
-			if (res.ok) {
+			if (!error) {
 				toast.success(m.settings_saved(), { duration: 1500 });
 			} else {
 				toast.error(m.settings_save_failed());
@@ -307,9 +301,9 @@
 
 	const loadPreferences = async () => {
 		try {
-			const res = await apiFetch('/api/preferences');
-			if (res.ok) {
-				const { preferences } = await res.json();
+			const { data } = await api.GET('/api/preferences');
+			if (data) {
+				const { preferences } = data;
 				showChartWidget = preferences.showChartWidget ?? true;
 				showFavoritesWidget = preferences.showFavoritesWidget ?? true;
 				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
@@ -327,7 +321,8 @@
 					]
 				);
 				startPage = preferences.startPage ?? 'dashboard';
-				favoriteMealAssignmentMode = preferences.favoriteMealAssignmentMode ?? 'time_based';
+				favoriteMealAssignmentMode = (preferences.favoriteMealAssignmentMode ??
+					'time_based') as typeof favoriteMealAssignmentMode;
 				favoriteMealTimeframes = (preferences.favoriteMealTimeframes ?? []).map((row: any) => ({
 					id: row.id ?? crypto.randomUUID(),
 					mealType: row.mealType,
@@ -347,16 +342,14 @@
 
 	// Meal type helpers (preserved)
 	const loadMealTypes = async () => {
-		const res = await apiFetch('/api/meal-types');
-		mealTypes = (await res.json()).mealTypes;
+		const { data } = await api.GET('/api/meal-types');
+		if (data) mealTypes = data.mealTypes;
 	};
 
 	const addMealType = async () => {
 		if (!newName.trim()) return;
-		await apiFetch('/api/meal-types', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ name: newName, sortOrder: mealTypes.length + 1 })
+		await api.POST('/api/meal-types', {
+			body: { name: newName, sortOrder: mealTypes.length + 1 }
 		});
 		newName = '';
 		await loadMealTypes();
@@ -367,13 +360,14 @@
 			toast.error('Remove the favorites timeframe configuration for this meal first.');
 			return;
 		}
-		const res = await apiFetch(`/api/meal-types/${id}`, { method: 'DELETE' });
-		if (res.ok) {
+		const { error } = await api.DELETE('/api/meal-types/{id}', {
+			params: { path: { id } }
+		});
+		if (!error) {
 			await loadMealTypes();
 			return;
 		}
-		const data = await res.json().catch(() => ({}));
-		toast.error(data.error ?? m.settings_save_failed());
+		toast.error((error as any)?.error ?? m.settings_save_failed());
 	};
 
 	const handleWidgetSort = (event: CustomEvent | { detail?: unknown } | any) => {

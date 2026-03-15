@@ -11,6 +11,7 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -87,14 +88,15 @@
 	const initial = $derived(name.charAt(0).toUpperCase());
 
 	const loadFood = async () => {
-		const id = $page.params.id;
+		const id = $page.params.id!;
 		try {
-			const res = await apiFetch(`/api/foods/${id}`);
-			if (!res.ok) {
+			const { data, error } = await api.GET('/api/foods/{id}', {
+				params: { path: { id } }
+			});
+			if (error || !data) {
 				goto('/foods');
 				return;
 			}
-			const data = await res.json();
 			food = data.food;
 			if (food) {
 				name = food.name;
@@ -148,10 +150,9 @@
 			const { imageUrl: newUrl } = await uploadRes.json();
 			imageUrl = newUrl;
 
-			await apiFetch(`/api/foods/${food.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ imageUrl: newUrl })
+			await api.PATCH('/api/foods/{id}', {
+				params: { path: { id: food.id } },
+				body: { imageUrl: newUrl }
 			});
 			toast.success(m.image_uploaded());
 		} catch (err) {
@@ -165,10 +166,9 @@
 	const toggleFavorite = async () => {
 		if (!food) return;
 		isFavorite = !isFavorite;
-		await apiFetch(`/api/foods/${food.id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ isFavorite })
+		await api.PATCH('/api/foods/{id}', {
+			params: { path: { id: food.id } },
+			body: { isFavorite }
 		});
 	};
 
@@ -176,10 +176,9 @@
 		if (!food) return;
 		saving = true;
 		try {
-			const res = await apiFetch(`/api/foods/${food.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
+			const { error } = await api.PATCH('/api/foods/{id}', {
+				params: { path: { id: food.id } },
+				body: {
 					name,
 					brand: brand || null,
 					servingSize,
@@ -191,9 +190,9 @@
 					isFavorite,
 					imageUrl,
 					nutriScore
-				})
+				}
 			});
-			if (res.ok) {
+			if (!error) {
 				toast.success(m.detail_saved());
 			} else {
 				toast.error(m.detail_save_failed());
@@ -209,24 +208,25 @@
 		if (!food?.barcode) return;
 		enriching = true;
 		try {
-			const res = await apiFetch(`/api/openfoodfacts/${food.barcode}`);
-			if (!res.ok) {
+			const { data: offData, error: offError } = await api.GET('/api/openfoodfacts/{barcode}', {
+				params: { path: { barcode: food.barcode } }
+			});
+			if (offError || !offData) {
 				toast.error(m.quality_enrich_failed());
 				return;
 			}
-			const { product } = await res.json();
-			const patchRes = await apiFetch(`/api/foods/${food.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
-					nutriScore: product.nutriScore,
+			const { product } = offData;
+			const { error: patchError } = await api.PATCH('/api/foods/{id}', {
+				params: { path: { id: food.id } },
+				body: {
+					nutriScore: product.nutriScore as any,
 					novaGroup: product.novaGroup,
 					additives: product.additives,
 					ingredientsText: product.ingredientsText,
 					imageUrl: product.imageUrl
-				})
+				}
 			});
-			if (!patchRes.ok) {
+			if (patchError) {
 				toast.error(m.quality_enrich_failed());
 				return;
 			}

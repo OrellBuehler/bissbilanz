@@ -7,7 +7,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { DEFAULT_MEAL_TYPES, mergeMealTypes, resolveMealTypeForMinute } from '$lib/utils/meals';
 	import { today } from '$lib/utils/dates';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import Heart from '@lucide/svelte/icons/heart';
@@ -41,27 +41,27 @@
 
 	const loadData = async () => {
 		try {
-			const [favRes, prefRes, mealTypesRes] = await Promise.all([
-				apiFetch('/api/favorites'),
-				apiFetch('/api/preferences'),
-				apiFetch('/api/meal-types')
+			const [favResult, prefResult, mealTypesResult] = await Promise.all([
+				api.GET('/api/favorites'),
+				api.GET('/api/preferences'),
+				api.GET('/api/meal-types')
 			]);
-			if (favRes.ok) {
-				const data = await favRes.json();
-				foods = data.foods ?? [];
-				recipes = data.recipes ?? [];
+			if (favResult.data) {
+				foods = favResult.data.foods ?? [];
+				recipes = favResult.data.recipes ?? [];
 			}
-			if (prefRes.ok) {
-				const prefData = await prefRes.json();
-				tapAction = prefData.preferences?.favoriteTapAction ?? 'instant';
-				mealAssignmentMode = prefData.preferences?.favoriteMealAssignmentMode ?? 'time_based';
-				favoriteMealTimeframes = prefData.preferences?.favoriteMealTimeframes ?? [];
+			if (prefResult.data) {
+				tapAction = (prefResult.data.preferences?.favoriteTapAction ??
+					'instant') as typeof tapAction;
+				mealAssignmentMode = (prefResult.data.preferences?.favoriteMealAssignmentMode ??
+					'time_based') as typeof mealAssignmentMode;
+				favoriteMealTimeframes = (prefResult.data.preferences?.favoriteMealTimeframes ??
+					[]) as unknown as typeof favoriteMealTimeframes;
 			}
-			if (mealTypesRes.ok) {
-				const mealTypeData = await mealTypesRes.json();
+			if (mealTypesResult.data) {
 				mealOptions = mergeMealTypes(
 					[...DEFAULT_MEAL_TYPES],
-					(mealTypeData.mealTypes ?? []).map((meal: { name: string }) => meal.name)
+					(mealTypesResult.data.mealTypes ?? []).map((meal: { name: string }) => meal.name)
 				);
 			}
 		} catch {
@@ -92,22 +92,18 @@
 			payload.recipeId = item.id;
 		}
 
-		const res = await apiFetch('/api/entries', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
+		const { data, error } = await api.POST('/api/entries', { body: payload as any });
 
-		if (!res.ok) return;
-
-		const data = await res.json();
+		if (error) return;
 
 		toast.info(m.favorites_logged_toast({ name: item.name, meal }), {
-			action: data.entry
+			action: data?.entry
 				? {
 						label: m.favorites_undo(),
 						onClick: async () => {
-							await apiFetch(`/api/entries/${data.entry.id}`, { method: 'DELETE' });
+							await api.DELETE('/api/entries/{id}', {
+								params: { path: { id: data.entry.id } }
+							});
 							await loadData();
 						}
 					}

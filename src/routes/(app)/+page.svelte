@@ -10,7 +10,7 @@
 	import { today } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
@@ -61,9 +61,8 @@
 
 	const loadLatestWeight = async () => {
 		try {
-			const res = await apiFetch('/api/weight/latest');
-			if (res.ok) {
-				const data = await res.json();
+			const { data } = await api.GET('/api/weight/latest');
+			if (data) {
 				latestWeight = data.entry;
 			}
 		} catch {
@@ -73,9 +72,11 @@
 
 	const loadSupplements = async (date: string = activeDate) => {
 		try {
-			const res = await apiFetch(`/api/supplements/${date}/checklist`);
-			if (res.ok) {
-				supplementChecklist = (await res.json()).checklist;
+			const { data } = await api.GET('/api/supplements/{date}/checklist', {
+				params: { path: { date } }
+			});
+			if (data) {
+				supplementChecklist = data.checklist;
 			}
 		} catch {
 			// silently ignore
@@ -84,22 +85,23 @@
 
 	const toggleSupplement = async (supplementId: string, taken: boolean) => {
 		if (taken) {
-			await apiFetch(`/api/supplements/${supplementId}/log`, {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ date: activeDate })
+			await api.POST('/api/supplements/{id}/log', {
+				params: { path: { id: supplementId } },
+				body: { date: activeDate } as any
 			});
 		} else {
-			await apiFetch(`/api/supplements/${supplementId}/log/${activeDate}`, { method: 'DELETE' });
+			await api.DELETE('/api/supplements/{id}/log/{date}', {
+				params: { path: { id: supplementId, date: activeDate } }
+			});
 		}
 		await loadSupplements(activeDate);
 	};
 
 	const loadStreaks = async () => {
 		try {
-			const res = await apiFetch('/api/stats/streaks');
-			if (res.ok) {
-				streaks = await res.json();
+			const { data } = await api.GET('/api/stats/streaks');
+			if (data) {
+				streaks = data;
 			}
 		} catch {
 			// silently ignore
@@ -108,9 +110,8 @@
 
 	const loadGoals = async () => {
 		try {
-			const res = await apiFetch('/api/goals');
-			if (res.ok) {
-				const data = await res.json();
+			const { data } = await api.GET('/api/goals');
+			if (data) {
 				userGoals = data.goals;
 			}
 		} catch {
@@ -120,11 +121,10 @@
 
 	const checkStartPage = async () => {
 		try {
-			const res = await apiFetch('/api/preferences');
-			if (res.ok) {
-				const { preferences } = await res.json();
-				userPrefs = preferences;
-				if (preferences.startPage === 'favorites') {
+			const { data } = await api.GET('/api/preferences');
+			if (data) {
+				userPrefs = data.preferences;
+				if (data.preferences.startPage === 'favorites') {
 					goto('/favorites', { replaceState: true });
 					return;
 				}

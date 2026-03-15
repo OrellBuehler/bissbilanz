@@ -4,7 +4,7 @@
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
@@ -29,10 +29,11 @@
 	const fetchData = async (d: string) => {
 		loading = true;
 		try {
-			const res = await apiFetch(`/api/stats/meal-breakdown?date=${d}`);
-			if (res.ok) {
-				const json = await res.json();
-				data = json.data;
+			const { data: result } = await api.GET('/api/stats/meal-breakdown', {
+				params: { query: { date: d } }
+			});
+			if (result) {
+				data = result.data;
 			}
 		} catch {
 			data = [];

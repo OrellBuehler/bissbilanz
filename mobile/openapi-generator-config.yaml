@@ -1,0 +1,10 @@
+generatorName: kotlin
+library: multiplatform
+globalProperties:
+  models: ''
+additionalProperties:
+  serializationLibrary: kotlinx_serialization
+  packageName: com.bissbilanz.api.generated
+  modelPackage: com.bissbilanz.api.generated.model
+  dateLibrary: string
+  enumPropertyNaming: UPPERCASE

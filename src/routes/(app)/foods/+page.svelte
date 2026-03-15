@@ -13,6 +13,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
+
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
@@ -38,11 +40,10 @@
 	let qualityOpen = $state(false);
 
 	const loadFoods = async (q?: string) => {
-		const params = new URLSearchParams();
-		if (q) params.set('q', q);
-		const res = await apiFetch(`/api/foods?${params}`);
-		const data = await res.json();
-		foods = data.foods;
+		const { data } = await api.GET('/api/foods', {
+			params: { query: q ? { search: q } : {} }
+		});
+		if (data) foods = data.foods;
 	};
 
 	const createFood = async (payload: any) => {
@@ -55,14 +56,9 @@
 					imageUrl: offData.imageUrl
 				}
 			: payload;
-		const res = await apiFetch('/api/foods', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
-		});
-		if (!res.ok) {
-			const data = await res.json().catch(() => ({}));
-			if (data.error === 'duplicate_barcode') {
+		const { error } = await api.POST('/api/foods', { body });
+		if (error) {
+			if (error.error === 'duplicate_barcode') {
 				toast.error(m.detail_duplicate_barcode());
 			} else {
 				toast.error(m.detail_create_failed());
@@ -75,14 +71,12 @@
 
 	const updateFood = async (payload: any) => {
 		if (!editingFood) return;
-		const res = await apiFetch(`/api/foods/${editingFood.id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ ...payload, imageUrl: editImageUrl })
+		const { error } = await api.PATCH('/api/foods/{id}', {
+			params: { path: { id: editingFood.id } },
+			body: { ...payload, imageUrl: editImageUrl }
 		});
-		if (!res.ok) {
-			const data = await res.json().catch(() => ({}));
-			if (data.error === 'duplicate_barcode') {
+		if (error) {
+			if (error.error === 'duplicate_barcode') {
 				toast.error(m.detail_duplicate_barcode());
 			} else {
 				toast.error(m.detail_save_failed());
@@ -95,11 +89,12 @@
 	};
 
 	const deleteFood = async (id: string) => {
-		const res = await apiFetch(`/api/foods/${id}`, { method: 'DELETE' });
-		if (res.status === 409) {
-			const { entryCount } = await res.json();
+		const { error, response } = await api.DELETE('/api/foods/{id}', {
+			params: { path: { id } }
+		});
+		if (response.status === 409 && error) {
 			forceDeleteId = id;
-			forceDeleteCount = entryCount;
+			forceDeleteCount = (error as any).entryCount ?? 0;
 			return;
 		}
 		await loadFoods(query);
@@ -107,26 +102,29 @@
 
 	const confirmForceDelete = async () => {
 		if (!forceDeleteId) return;
-		await apiFetch(`/api/foods/${forceDeleteId}?force=true`, { method: 'DELETE' });
+		await api.DELETE('/api/foods/{id}', {
+			params: { path: { id: forceDeleteId }, query: { force: true } }
+		});
 		forceDeleteId = null;
 		await loadFoods(query);
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
-		const res = await apiFetch(`/api/openfoodfacts/${barcode}`);
-		if (!res.ok) return;
-		const { product } = await res.json();
-		await apiFetch(`/api/foods/${id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				nutriScore: product.nutriScore,
+		const { data, error } = await api.GET('/api/openfoodfacts/{barcode}', {
+			params: { path: { barcode } }
+		});
+		if (error || !data) return;
+		const { product } = data;
+		await api.PATCH('/api/foods/{id}', {
+			params: { path: { id } },
+			body: {
+				nutriScore: product.nutriScore as any,
 				novaGroup: product.novaGroup,
 				additives: product.additives,
 				ingredientsText: product.ingredientsText,
 				imageUrl: product.imageUrl,
 				...pickNonNullNutrients(product)
-			})
+			}
 		});
 		await loadFoods(query);
 	};
@@ -145,9 +143,10 @@
 	};
 
 	const openEdit = async (id: string) => {
-		const res = await apiFetch(`/api/foods/${id}`);
-		if (!res.ok) return;
-		const data = await res.json();
+		const { data, error } = await api.GET('/api/foods/{id}', {
+			params: { path: { id } }
+		});
+		if (error || !data) return;
 		resetFormState();
 		editingFood = data.food;
 		editImageUrl = data.food.imageUrl;
@@ -178,10 +177,9 @@
 			}
 			const { imageUrl: newUrl } = await uploadRes.json();
 			editImageUrl = newUrl;
-			await apiFetch(`/api/foods/${editingFood.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ imageUrl: newUrl })
+			await api.PATCH('/api/foods/{id}', {
+				params: { path: { id: editingFood.id } },
+				body: { imageUrl: newUrl }
 			});
 			toast.success(m.image_uploaded());
 		} catch (err) {
@@ -206,11 +204,13 @@
 		offLoading = true;
 		offNotFound = false;
 		try {
-			const res = await apiFetch(`/api/openfoodfacts/${code}`);
-			if (res.ok) {
-				offData = (await res.json()).product;
-			} else {
+			const { data, error } = await api.GET('/api/openfoodfacts/{barcode}', {
+				params: { path: { barcode: code } }
+			});
+			if (error || !data) {
 				offNotFound = true;
+			} else {
+				offData = data.product;
 			}
 		} catch {
 			offNotFound = true;
@@ -222,12 +222,9 @@
 	// Load visible nutrients preference (once on mount)
 	onMount(async () => {
 		try {
-			const res = await apiFetch('/api/preferences');
-			if (res.ok) {
-				const { preferences } = await res.json();
-				if (preferences?.visibleNutrients?.length) {
-					visibleNutrients = preferences.visibleNutrients;
-				}
+			const { data } = await api.GET('/api/preferences');
+			if (data?.preferences?.visibleNutrients?.length) {
+				visibleNutrients = data.preferences.visibleNutrients;
 			}
 		} catch {
 			// Use defaults

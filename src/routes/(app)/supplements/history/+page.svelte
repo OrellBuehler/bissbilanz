@@ -12,7 +12,7 @@
 	import { isSupplementDue } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { round2 } from '$lib/utils/number';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 
 	type IngredientInfo = {
@@ -74,15 +74,19 @@
 
 	const loadHistory = async () => {
 		try {
-			const [histRes, suppRes] = await Promise.all([
-				apiFetch(`/api/supplements/history?from=${from}&to=${to}`),
-				apiFetch('/api/supplements?all=true')
+			const [histResult, suppResult] = await Promise.all([
+				api.GET('/api/supplements/history', {
+					params: { query: { from, to } }
+				}),
+				api.GET('/api/supplements', {
+					params: { query: { all: true } }
+				})
 			]);
-			if (histRes.ok) {
-				history = (await histRes.json()).history;
+			if (histResult.data) {
+				history = histResult.data.history;
 			}
-			if (suppRes.ok) {
-				allSupplements = (await suppRes.json()).supplements;
+			if (suppResult.data) {
+				allSupplements = suppResult.data.supplements as unknown as Supplement[];
 			}
 		} catch {
 			// Silently ignore — history data may be unavailable offline

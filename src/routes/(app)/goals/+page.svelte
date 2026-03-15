@@ -7,7 +7,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import MacroSliders from '$lib/components/MacroSliders.svelte';
 	import { toast } from 'svelte-sonner';
-	import { apiFetch } from '$lib/utils/api';
+	import { api } from '$lib/api/client';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
@@ -29,16 +29,13 @@
 	});
 
 	onMount(async () => {
-		const res = await apiFetch('/api/goals');
-		if (res.ok) {
-			const data = await res.json();
-			if (data.goals) {
-				form.calorieGoal = round2(data.goals.calorieGoal ?? 2000);
-				form.proteinGoal = round2(data.goals.proteinGoal ?? 150);
-				form.carbGoal = round2(data.goals.carbGoal ?? 220);
-				form.fatGoal = round2(data.goals.fatGoal ?? 60);
-				form.fiberGoal = round2(data.goals.fiberGoal ?? 30);
-			}
+		const { data } = await api.GET('/api/goals');
+		if (data?.goals) {
+			form.calorieGoal = round2(data.goals.calorieGoal ?? 2000);
+			form.proteinGoal = round2(data.goals.proteinGoal ?? 150);
+			form.carbGoal = round2(data.goals.carbGoal ?? 220);
+			form.fatGoal = round2(data.goals.fatGoal ?? 60);
+			form.fiberGoal = round2(data.goals.fiberGoal ?? 30);
 		}
 		loaded = true;
 	});
@@ -46,12 +43,8 @@
 	const saveGoals = async () => {
 		saving = true;
 		try {
-			const res = await apiFetch('/api/goals', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(form)
-			});
-			if (res.ok) {
+			const { error } = await api.POST('/api/goals', { body: form });
+			if (!error) {
 				toast.success(m.goals_saved());
 			} else {
 				toast.error(m.goals_save_failed());
