@@ -176,23 +176,19 @@
 </script>
 
 {#if onImageUpload}
-	<div class="mb-4 space-y-2">
-		<div class="relative aspect-video w-full overflow-hidden rounded-xl border">
-			{#if imageUrl}
+	{#if imageUrl}
+		<div class="mb-4">
+			<div class="relative aspect-video w-full overflow-hidden rounded-xl border">
 				<img src={imageUrl} alt={form.name} class="h-full w-full object-cover" />
-			{:else}
-				<div class="flex h-full w-full items-center justify-center bg-muted">
-					<span class="text-4xl font-bold text-muted-foreground"
-						>{form.name.charAt(0).toUpperCase()}</span
-					>
-				</div>
-			{/if}
-			{#if uploading}
-				<div class="absolute inset-0 flex items-center justify-center bg-background/60">
-					<Spinner class="size-8" />
-				</div>
-			{/if}
+				{#if uploading}
+					<div class="absolute inset-0 flex items-center justify-center bg-background/60">
+						<Spinner class="size-8" />
+					</div>
+				{/if}
+			</div>
 		</div>
+	{/if}
+	<div class="mb-4">
 		<Label for="food-image-upload">{m.image_upload_label()}</Label>
 		<input
 			id="food-image-upload"
