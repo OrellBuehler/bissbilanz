@@ -23,15 +23,10 @@ class FoodRepository(
     private val db: BissbilanzDatabase,
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
+    private val json: Json,
 ) {
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
-
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-        }
 
     fun allFoods(): Flow<List<Food>> =
         db.bissbilanzDatabaseQueries
@@ -54,7 +49,8 @@ class FoodRepository(
         try {
             val foods = api.getFoods(limit, offset)
             cacheFoods(foods)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
@@ -62,14 +58,16 @@ class FoodRepository(
         try {
             val favs = api.getFavorites()
             favs.forEach { cacheFood(it) }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
         try {
             _recentFoods.value = api.getRecentFoods(limit)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
@@ -132,7 +130,8 @@ class FoodRepository(
     suspend fun searchFoods(query: String): List<Food> =
         try {
             api.searchFoods(query)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val pattern = "%$query%"
             db.bissbilanzDatabaseQueries
                 .searchFoods(pattern, pattern, 50)
@@ -143,7 +142,8 @@ class FoodRepository(
     suspend fun findByBarcode(barcode: String): Food? =
         try {
             api.getFoodByBarcode(barcode)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             db.bissbilanzDatabaseQueries
                 .selectFoodByBarcode(barcode)
                 .executeAsOneOrNull()

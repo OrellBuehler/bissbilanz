@@ -10,6 +10,7 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.resolveDefaultMeal
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 
 class FavoritesViewModel(
@@ -68,20 +68,7 @@ class FavoritesViewModel(
         _selectedTab.value = index
     }
 
-    fun resolveDefaultMeal(): String? {
-        val prefs = preferences.value ?: return null
-        if (prefs.favoriteMealAssignmentMode == "ask_meal") return null
-
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val minuteOfDay = now.hour * 60 + now.minute
-
-        for (timeframe in prefs.favoriteMealTimeframes) {
-            if (minuteOfDay >= timeframe.startMinute && minuteOfDay < timeframe.endMinute) {
-                return timeframe.mealType
-            }
-        }
-        return null
-    }
+    fun resolveDefaultMeal(): String? = resolveDefaultMeal(preferences.value)
 
     val tapAction: String
         get() = preferences.value?.favoriteTapAction ?: "instant"

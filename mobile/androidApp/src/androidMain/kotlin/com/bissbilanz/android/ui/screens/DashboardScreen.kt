@@ -25,6 +25,12 @@ import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.mealTypes
+import com.bissbilanz.util.resolvedCalories
+import com.bissbilanz.util.resolvedCarbs
+import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedFiber
+import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -44,34 +50,11 @@ fun DashboardScreen(navController: NavController) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
 
-    fun entryCalories(entry: com.bissbilanz.model.Entry): Double {
-        val food = entry.food
-        val recipe = entry.recipe
-        return when {
-            food != null -> food.calories * entry.servings
-            recipe != null -> {
-                val ings = recipe.ingredients ?: emptyList()
-                val totalCals = ings.sumOf { ing -> ing.food?.calories?.times(ing.quantity / (ing.food?.servingSize ?: 1.0)) ?: 0.0 }
-                (totalCals / recipe.totalServings) * entry.servings
-            }
-            else -> (entry.quickCalories ?: 0.0) * entry.servings
-        }
-    }
-
-    fun entryMacro(
-        entry: com.bissbilanz.model.Entry,
-        getter: (com.bissbilanz.model.Food) -> Double,
-        quick: Double?,
-    ): Double {
-        val food = entry.food
-        return if (food != null) getter(food) * entry.servings else (quick ?: 0.0) * entry.servings
-    }
-
-    val totalCalories = entries.sumOf { it.food?.calories?.times(it.servings) ?: it.quickCalories?.times(it.servings) ?: 0.0 }
-    val totalProtein = entries.sumOf { it.food?.protein?.times(it.servings) ?: it.quickProtein?.times(it.servings) ?: 0.0 }
-    val totalCarbs = entries.sumOf { it.food?.carbs?.times(it.servings) ?: it.quickCarbs?.times(it.servings) ?: 0.0 }
-    val totalFat = entries.sumOf { it.food?.fat?.times(it.servings) ?: it.quickFat?.times(it.servings) ?: 0.0 }
-    val totalFiber = entries.sumOf { it.food?.fiber?.times(it.servings) ?: it.quickFiber?.times(it.servings) ?: 0.0 }
+    val totalCalories = entries.sumOf { it.resolvedCalories() }
+    val totalProtein = entries.sumOf { it.resolvedProtein() }
+    val totalCarbs = entries.sumOf { it.resolvedCarbs() }
+    val totalFat = entries.sumOf { it.resolvedFat() }
+    val totalFiber = entries.sumOf { it.resolvedFiber() }
 
     val dateLabel =
         when (selectedDate) {
@@ -175,11 +158,10 @@ fun DashboardScreen(navController: NavController) {
                     }
                 } else {
                     Column {
-                        val mealOrder = listOf("breakfast", "lunch", "dinner", "snack")
                         val mealGroups = entries.groupBy { it.mealType }
                         val sortedMeals =
-                            mealOrder.filter { mealGroups.containsKey(it) } +
-                                mealGroups.keys.filter { it !in mealOrder }
+                            mealTypes.filter { mealGroups.containsKey(it) } +
+                                mealGroups.keys.filter { it !in mealTypes }
 
                         sortedMeals.forEach { meal ->
                             val mealEntries = mealGroups[meal] ?: return@forEach

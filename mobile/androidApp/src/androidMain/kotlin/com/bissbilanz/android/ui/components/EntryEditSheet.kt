@@ -18,6 +18,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -61,10 +62,7 @@ fun EntryEditSheet(
             val found = entries.find { it.id == entryId }
             if (found != null) {
                 entry = found
-                servings =
-                    found.servings.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
+                servings = found.servings.toDisplayString()
                 mealType = found.mealType
                 notes = found.notes ?: ""
             }

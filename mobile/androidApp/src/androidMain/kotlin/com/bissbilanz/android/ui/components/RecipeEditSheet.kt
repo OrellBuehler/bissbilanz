@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,19 +64,13 @@ fun RecipeEditSheet(
             try {
                 val recipe = recipeRepo.getRecipe(recipeId)
                 name = recipe.name
-                totalServings =
-                    recipe.totalServings.let {
-                        if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                    }
+                totalServings = recipe.totalServings.toDisplayString()
                 isFavorite = recipe.isFavorite
                 ingredients = recipe.ingredients?.map { ing ->
                     RecipeIngredientRow(
                         food = ing.food,
                         foodId = ing.foodId,
-                        quantity =
-                            ing.quantity.let {
-                                if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
-                            },
+                        quantity = ing.quantity.toDisplayString(),
                         unit = ing.servingUnit,
                     )
                 } ?: emptyList()
@@ -131,14 +126,7 @@ fun RecipeEditSheet(
                                         RecipeIngredientRow(
                                             food = food,
                                             foodId = food.id,
-                                            quantity =
-                                                food.servingSize.let {
-                                                    if (it == it.toLong().toDouble()) {
-                                                        it.toLong().toString()
-                                                    } else {
-                                                        it.toString()
-                                                    }
-                                                },
+                                            quantity = food.servingSize.toDisplayString(),
                                             unit = food.servingUnit,
                                         )
                                     showFoodPicker = false
