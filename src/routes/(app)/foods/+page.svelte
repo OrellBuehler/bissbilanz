@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
@@ -22,8 +21,9 @@
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
 
-	let foods: Array<any> = $state([]);
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
 	let showForm = $state(false);
@@ -39,12 +39,32 @@
 	let forceDeleteCount = $state(0);
 	let qualityOpen = $state(false);
 
-	const loadFoods = async (q?: string) => {
-		const { data } = await api.GET('/api/foods', {
-			params: { query: q ? { q } : {} }
-		});
-		if (data) foods = data.foods;
-	};
+	const allFoodsQuery = useLiveQuery(() => foodService.allFoods());
+	let searchQuery = $state<ReturnType<typeof useLiveQuery<any[]>> | null>(null);
+
+	const foods = $derived(
+		query && searchQuery ? (searchQuery.value ?? []) : (allFoodsQuery.value ?? [])
+	);
+
+	$effect(() => {
+		if (browser) {
+			foodService.refresh();
+		}
+	});
+
+	let debounceTimer: ReturnType<typeof setTimeout>;
+
+	$effect(() => {
+		const q = query;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			if (q) {
+				searchQuery = useLiveQuery(() => foodService.search(q));
+			} else {
+				searchQuery = null;
+			}
+		}, 300);
+	});
 
 	const createFood = async (payload: any) => {
 		const body = offData
@@ -56,17 +76,22 @@
 					imageUrl: offData.imageUrl
 				}
 			: payload;
-		const { error } = await api.POST('/api/foods', { body });
-		if (error) {
-			if (error.error === 'duplicate_barcode') {
-				toast.error(m.detail_duplicate_barcode());
-			} else {
-				toast.error(m.detail_create_failed());
+		try {
+			const { error } = await api.POST('/api/foods', { body });
+			if (error) {
+				if (error.error === 'duplicate_barcode') {
+					toast.error(m.detail_duplicate_barcode());
+				} else {
+					toast.error(m.detail_create_failed());
+				}
+				return;
 			}
+		} catch {
+			toast.error(m.detail_create_failed());
 			return;
 		}
 		closeForm();
-		await loadFoods(query);
+		foodService.refresh();
 	};
 
 	const updateFood = async (payload: any) => {
@@ -85,7 +110,7 @@
 		}
 		toast.success(m.detail_saved());
 		closeForm();
-		await loadFoods(query);
+		foodService.refreshById(editingFood.id);
 	};
 
 	const deleteFood = async (id: string) => {
@@ -97,7 +122,7 @@
 			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
 			return;
 		}
-		await loadFoods(query);
+		foodService.refresh();
 	};
 
 	const confirmForceDelete = async () => {
@@ -106,7 +131,7 @@
 			params: { path: { id: forceDeleteId }, query: { force: true } }
 		});
 		forceDeleteId = null;
-		await loadFoods(query);
+		foodService.refresh();
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
@@ -126,7 +151,7 @@
 				...pickNonNullNutrients(product)
 			}
 		});
-		await loadFoods(query);
+		foodService.refreshById(id);
 	};
 
 	const resetFormState = () => {
@@ -219,15 +244,17 @@
 		}
 	}
 
-	// Load visible nutrients preference (once on mount)
-	onMount(async () => {
-		try {
-			const { data } = await api.GET('/api/preferences');
-			if (data?.preferences?.visibleNutrients?.length) {
-				visibleNutrients = data.preferences.visibleNutrients;
-			}
-		} catch {
-			// Use defaults
+	// Load visible nutrients preference (once)
+	$effect(() => {
+		if (browser) {
+			api
+				.GET('/api/preferences')
+				.then(({ data }) => {
+					if (data?.preferences?.visibleNutrients?.length) {
+						visibleNutrients = data.preferences.visibleNutrients;
+					}
+				})
+				.catch(() => {});
 		}
 	});
 
@@ -240,16 +267,6 @@
 				showForm = true;
 			}
 		}
-	});
-
-	let debounceTimer: ReturnType<typeof setTimeout>;
-
-	$effect(() => {
-		const q = query;
-		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			loadFoods(q);
-		}, 300);
 	});
 
 	const formInitial = $derived(

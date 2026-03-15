@@ -13,6 +13,9 @@
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { round2 } from '$lib/utils/number';
 	import { api } from '$lib/api/client';
+	import { supplementService } from '$lib/services/supplement-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import type { DexieSupplement } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
 
 	type IngredientInfo = {
@@ -34,18 +37,6 @@
 		dosageUnit: string;
 	};
 
-	type Supplement = {
-		id: string;
-		name: string;
-		dosage: number;
-		dosageUnit: string;
-		scheduleType: ScheduleType;
-		scheduleDays: number[] | null;
-		scheduleStartDate: string | null;
-		isActive: boolean;
-		ingredients: IngredientInfo[];
-	};
-
 	type DayItem = {
 		name: string;
 		dosage: number;
@@ -62,8 +53,13 @@
 	let from = $state(daysAgo(30));
 	let to = $state(shiftDate(today(), 1));
 	let history: HistoryEntry[] = $state([]);
-	let allSupplements: Supplement[] = $state([]);
 	let expandedItems = $state(new Set<string>());
+
+	const allSupplementsQuery = useLiveQuery(
+		() => supplementService.supplements(true),
+		[] as DexieSupplement[]
+	);
+	let allSupplements = $derived(allSupplementsQuery.value);
 
 	const toggleExpand = (key: string) => {
 		const next = new Set(expandedItems);
@@ -74,27 +70,19 @@
 
 	const loadHistory = async () => {
 		try {
-			const [histResult, suppResult] = await Promise.all([
-				api.GET('/api/supplements/history', {
-					params: { query: { from, to } }
-				}),
-				api.GET('/api/supplements', {
-					params: { query: { all: true } }
-				})
-			]);
-			if (histResult.data) {
-				history = histResult.data.history;
-			}
-			if (suppResult.data) {
-				allSupplements = suppResult.data.supplements;
+			const { data } = await api.GET('/api/supplements/history', {
+				params: { query: { from, to } }
+			});
+			if (data) {
+				history = data.history;
 			}
 		} catch {
-			// Silently ignore — history data may be unavailable offline
+			// Silently ignore -- history data may be unavailable offline
 		}
 	};
 
 	const adherenceByDay = $derived.by(() => {
-		const activeSupplements = allSupplements.filter((s) => s.isActive);
+		const activeSupplements = allSupplements.filter((s: DexieSupplement) => s.isActive);
 		if (activeSupplements.length === 0) return [];
 
 		const logsByDate = new Map<string, Set<string>>();
@@ -110,9 +98,9 @@
 
 		for (let d = new Date(toDate); d >= fromDate; d.setDate(d.getDate() - 1)) {
 			const dateStr = d.toISOString().slice(0, 10);
-			const due = activeSupplements.filter((s) =>
+			const due = activeSupplements.filter((s: DexieSupplement) =>
 				isSupplementDue(
-					s.scheduleType,
+					s.scheduleType as ScheduleType,
 					s.scheduleDays,
 					s.scheduleStartDate,
 					new Date(dateStr + 'T00:00:00')
@@ -121,7 +109,7 @@
 			if (due.length === 0) continue;
 
 			const takenIds = logsByDate.get(dateStr) ?? new Set();
-			const toItem = (s: Supplement): DayItem => ({
+			const toItem = (s: DexieSupplement): DayItem => ({
 				name: s.name,
 				dosage: s.dosage,
 				dosageUnit: s.dosageUnit,
@@ -129,15 +117,18 @@
 			});
 			days.push({
 				date: dateStr,
-				taken: due.filter((s) => takenIds.has(s.id)).map(toItem),
-				missed: due.filter((s) => !takenIds.has(s.id)).map(toItem)
+				taken: due.filter((s: DexieSupplement) => takenIds.has(s.id)).map(toItem),
+				missed: due.filter((s: DexieSupplement) => !takenIds.has(s.id)).map(toItem)
 			});
 		}
 
 		return days;
 	});
 
-	onMount(loadHistory);
+	onMount(() => {
+		supplementService.refresh();
+		loadHistory();
+	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">

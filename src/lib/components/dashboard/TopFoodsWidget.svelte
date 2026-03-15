@@ -2,7 +2,7 @@
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import TrendingUp from '@lucide/svelte/icons/trending-up';
-	import { api } from '$lib/api/client';
+	import { statsService } from '$lib/services/stats-service.svelte';
 	import { onMount } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
@@ -23,11 +23,9 @@
 
 	const loadTopFoods = async () => {
 		try {
-			const { data } = await api.GET('/api/stats/top-foods', {
-				params: { query: { days: 7, limit: 3 } }
-			});
-			if (data) {
-				foods = data.data;
+			const result = await statsService.getTopFoods(7, 3);
+			if (result) {
+				foods = result.data;
 			}
 		} catch {
 			// silently ignore

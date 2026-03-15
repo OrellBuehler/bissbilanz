@@ -2,10 +2,10 @@
 	import { today } from '$lib/utils/dates';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { api } from '$lib/api/client';
+	import { weightService } from '$lib/services/weight-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	let { onLogged }: { onLogged: () => void } = $props();
+	let { onLogged }: { onLogged?: () => void } = $props();
 
 	let weightKg = $state('');
 	let entryDate = $state(today());
@@ -27,17 +27,11 @@
 
 		saving = true;
 		try {
-			const { error: apiError } = await api.POST('/api/weight', {
-				body: { weightKg: kg, entryDate, notes: notes || undefined }
-			});
-			if (apiError) {
-				error = apiError.error || m.error_generic();
-				return;
-			}
+			await weightService.create({ weightKg: kg, entryDate, notes: notes || undefined });
 			weightKg = '';
 			entryDate = today();
 			notes = '';
-			onLogged();
+			onLogged?.();
 		} catch {
 			error = m.error_generic();
 		} finally {

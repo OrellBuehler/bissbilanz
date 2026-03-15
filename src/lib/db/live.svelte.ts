@@ -1,4 +1,4 @@
-import { liveQuery, type Observable } from 'dexie';
+import type { Observable } from 'dexie';
 import { browser } from '$app/environment';
 
 type LiveQueryResult<T> = {
@@ -6,10 +6,12 @@ type LiveQueryResult<T> = {
 	readonly loading: boolean;
 };
 
+export function useLiveQuery<T>(factory: () => Observable<T>, initialValue: T): LiveQueryResult<T>;
+export function useLiveQuery<T>(factory: () => Observable<T>): LiveQueryResult<T | undefined>;
 export function useLiveQuery<T>(
-	querier: () => T | Promise<T>,
-	initialValue: T
-): LiveQueryResult<T> {
+	factory: () => Observable<T>,
+	initialValue?: T
+): LiveQueryResult<T | undefined> {
 	let value = $state(initialValue);
 	let loading = $state(true);
 
@@ -19,7 +21,7 @@ export function useLiveQuery<T>(
 		$effect(() => {
 			sub?.unsubscribe();
 			loading = true;
-			const obs: Observable<T> = liveQuery(querier);
+			const obs = factory();
 			sub = obs.subscribe({
 				next: (result) => {
 					value = result;

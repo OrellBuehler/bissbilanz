@@ -4,9 +4,24 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import * as m from '$lib/paraglide/messages';
+	import { entryService } from '$lib/services/entry-service.svelte';
+	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import type { DexieFoodEntry } from '$lib/db/types';
 
 	const date = $derived($page.params.date ?? '');
 	let scanModalOpen = $state(false);
+
+	const entries = $derived(
+		useLiveQuery(() => entryService.entriesByDate(date), [] as DexieFoodEntry[])
+	);
+
+	$effect(() => {
+		if (date) {
+			entryService.refresh(date).catch(() => {});
+			mealTypeService.refresh().catch(() => {});
+		}
+	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 pb-6">

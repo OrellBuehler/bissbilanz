@@ -4,7 +4,7 @@
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
-	import { api } from '$lib/api/client';
+	import { statsService } from '$lib/services/stats-service.svelte';
 	import { MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
 
@@ -29,9 +29,7 @@
 	const fetchData = async (d: string) => {
 		loading = true;
 		try {
-			const { data: result } = await api.GET('/api/stats/meal-breakdown', {
-				params: { query: { date: d } }
-			});
+			const result = await statsService.getMealBreakdown({ date: d });
 			if (result) {
 				data = result.data;
 			}

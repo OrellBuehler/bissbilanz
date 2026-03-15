@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { today, daysAgo } from '$lib/utils/dates';
+	import { daysAgo, today } from '$lib/utils/dates';
 	import WeightLogForm from '$lib/components/weight/WeightLogForm.svelte';
 	import WeightChart from '$lib/components/weight/WeightChart.svelte';
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
@@ -8,15 +7,10 @@
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
 	import { api } from '$lib/api/client';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { weightService } from '$lib/services/weight-service.svelte';
+	import type { DexieWeightEntry } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
-
-	type WeightEntry = {
-		id: string;
-		weightKg: number;
-		entryDate: string;
-		notes: string | null;
-		loggedAt?: string;
-	};
 
 	type ChartPoint = {
 		entry_date: string;
@@ -24,7 +18,9 @@
 		moving_avg: number | null;
 	};
 
-	let entries: WeightEntry[] = $state([]);
+	const live = useLiveQuery(() => weightService.entries(), [] as DexieWeightEntry[]);
+	const entries = $derived(live.value);
+
 	let chartData: ChartPoint[] = $state([]);
 	let loading = $state(true);
 
@@ -37,13 +33,6 @@
 	);
 	const formatKg = (value: number | null) => (value == null ? '—' : `${value.toFixed(1)} kg`);
 
-	const loadEntries = async () => {
-		const { data } = await api.GET('/api/weight');
-		if (data && 'entries' in data) {
-			entries = data.entries;
-		}
-	};
-
 	const loadChart = async () => {
 		const { data } = await api.GET('/api/weight', {
 			params: { query: { from: chartFrom, to: chartTo } }
@@ -53,19 +42,17 @@
 		}
 	};
 
-	const refreshAll = async () => {
-		await Promise.all([loadEntries(), loadChart()]);
-	};
-
 	const handleRangeChange = (from: string, to: string) => {
 		chartFrom = from;
 		chartTo = to;
 		loadChart();
 	};
 
-	onMount(async () => {
-		await refreshAll();
-		loading = false;
+	$effect(() => {
+		weightService.refresh();
+		loadChart().then(() => {
+			loading = false;
+		});
 	});
 </script>
 
@@ -137,7 +124,7 @@
 			</div>
 		</Card.Header>
 		<Card.Content class="p-4 pt-0 sm:p-5 sm:pt-0">
-			<WeightLogForm onLogged={refreshAll} />
+			<WeightLogForm onLogged={() => loadChart()} />
 		</Card.Content>
 	</Card.Root>
 
@@ -179,7 +166,7 @@
 				</div>
 			</Card.Header>
 			<Card.Content class="pt-0">
-				<WeightHistoryList {entries} onChanged={refreshAll} />
+				<WeightHistoryList {entries} onChanged={() => loadChart()} />
 			</Card.Content>
 		</Card.Root>
 	{/if}

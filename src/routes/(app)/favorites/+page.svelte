@@ -9,9 +9,11 @@
 	import { today } from '$lib/utils/dates';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
 	import Heart from '@lucide/svelte/icons/heart';
 	import * as m from '$lib/paraglide/messages';
+	import { browser } from '$app/environment';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { favoritesService } from '$lib/services/favorites-service.svelte';
 
 	type FavoriteItem = {
 		id: string;
@@ -25,9 +27,6 @@
 		logCount: number;
 	};
 
-	let foods: FavoriteItem[] = $state([]);
-	let recipes: FavoriteItem[] = $state([]);
-	let loading = $state(true);
 	let tapAction: 'instant' | 'picker' = $state('instant');
 	let mealAssignmentMode: 'time_based' | 'ask_meal' = $state('time_based');
 	let favoriteMealTimeframes: Array<{ mealType: string; startMinute: number; endMinute: number }> =
@@ -38,18 +37,53 @@
 	let pickerItem: FavoriteItem | null = $state(null);
 	let mealPickerOpen = $state(false);
 	let pendingLog: { item: FavoriteItem; servings: number } | null = $state(null);
+	let prefsLoaded = $state(false);
 
-	const loadData = async () => {
+	const favQuery = useLiveQuery(() => favoritesService.favorites());
+
+	const foods = $derived<FavoriteItem[]>(
+		(favQuery.value?.foods ?? []).map((f) => ({
+			id: f.id,
+			name: f.name,
+			imageUrl: f.imageUrl,
+			calories: f.calories,
+			protein: f.protein,
+			carbs: f.carbs,
+			fat: f.fat,
+			type: 'food' as const,
+			logCount: 0
+		}))
+	);
+
+	const recipes = $derived<FavoriteItem[]>(
+		(favQuery.value?.recipes ?? []).map((r) => ({
+			id: r.id,
+			name: r.name,
+			imageUrl: r.imageUrl,
+			calories: r.calories ?? 0,
+			protein: r.protein ?? 0,
+			carbs: r.carbs ?? 0,
+			fat: r.fat ?? 0,
+			type: 'recipe' as const,
+			logCount: 0
+		}))
+	);
+
+	const loading = $derived(!favQuery.value && !prefsLoaded);
+
+	$effect(() => {
+		if (browser) {
+			favoritesService.refresh();
+			loadPreferences();
+		}
+	});
+
+	const loadPreferences = async () => {
 		try {
-			const [favResult, prefResult, mealTypesResult] = await Promise.all([
-				api.GET('/api/favorites'),
+			const [prefResult, mealTypesResult] = await Promise.all([
 				api.GET('/api/preferences'),
 				api.GET('/api/meal-types')
 			]);
-			if (favResult.data) {
-				foods = favResult.data.foods ?? [];
-				recipes = favResult.data.recipes ?? [];
-			}
 			if (prefResult.data) {
 				tapAction = (prefResult.data.preferences?.favoriteTapAction ??
 					'instant') as typeof tapAction;
@@ -64,9 +98,9 @@
 				);
 			}
 		} catch {
-			// silently ignore load failures
+			// silently ignore
 		} finally {
-			loading = false;
+			prefsLoaded = true;
 		}
 	};
 
@@ -96,7 +130,6 @@
 							await api.DELETE('/api/entries/{id}', {
 								params: { path: { id: data.entry.id } }
 							});
-							await loadData();
 						}
 					}
 				: undefined,
@@ -142,10 +175,6 @@
 		mealPickerOpen = false;
 		pendingLog = null;
 	};
-
-	onMount(() => {
-		loadData();
-	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-4">

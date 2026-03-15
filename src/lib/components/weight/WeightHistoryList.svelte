@@ -5,25 +5,18 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
-	import { api } from '$lib/api/client';
+	import { weightService } from '$lib/services/weight-service.svelte';
 	import { round2 } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import type { DexieWeightEntry } from '$lib/db/types';
 
-	type WeightEntry = {
-		id: string;
-		weightKg: number;
-		entryDate: string;
-		notes: string | null;
-		loggedAt?: string;
-	};
-
-	let { entries, onChanged }: { entries: WeightEntry[]; onChanged: () => void } = $props();
+	let { entries, onChanged }: { entries: DexieWeightEntry[]; onChanged?: () => void } = $props();
 
 	let editingId: string | null = $state(null);
 	let editWeight = $state('');
 	let editNotes = $state('');
-	const startEdit = (entry: WeightEntry) => {
+	const startEdit = (entry: DexieWeightEntry) => {
 		editingId = entry.id;
 		editWeight = String(round2(entry.weightKg));
 		editNotes = entry.notes ?? '';
@@ -38,19 +31,14 @@
 		const kg = parseFloat(editWeight);
 		if (isNaN(kg) || kg < 20 || kg > 500) return;
 
-		await api.PATCH('/api/weight/{id}', {
-			params: { path: { id: editingId } },
-			body: { weightKg: kg, notes: editNotes || undefined }
-		});
+		await weightService.update(editingId, { weightKg: kg, notes: editNotes || undefined });
 		editingId = null;
-		onChanged();
+		onChanged?.();
 	};
 
 	const deleteEntry = async (id: string) => {
-		await api.DELETE('/api/weight/{id}', {
-			params: { path: { id } }
-		});
-		onChanged();
+		await weightService.delete(id);
+		onChanged?.();
 	};
 
 	const formatDate = (iso: string) =>

@@ -15,6 +15,8 @@
 	import { getUser } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/api/client';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { DEFAULT_MEAL_TYPES, validateFavoriteMealTimeframes } from '$lib/utils/meals';
 	import * as m from '$lib/paraglide/messages';
 	import {
@@ -28,11 +30,9 @@
 	} from '$lib/nutrients';
 	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
 
-	// Meal types state (preserved from existing page)
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let newName = $state('');
 
-	// Preferences state
 	let showChartWidget = $state(true);
 	let showFavoritesWidget = $state(true);
 	let showSupplementsWidget = $state(true);
@@ -57,7 +57,51 @@
 	let visibleNutrients = $state<Set<string>>(new Set(DEFAULT_VISIBLE_NUTRIENTS));
 	let savingNutrients = $state(false);
 
-	// i18n helpers via shared nutrient utilities
+	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
+
+	$effect(() => {
+		preferencesService.refresh();
+	});
+
+	$effect(() => {
+		const p = cachedPrefs.value;
+		if (p) {
+			showChartWidget = p.showChartWidget ?? true;
+			showFavoritesWidget = p.showFavoritesWidget ?? true;
+			showSupplementsWidget = p.showSupplementsWidget ?? true;
+			showWeightWidget = p.showWeightWidget ?? true;
+			showMealBreakdownWidget = p.showMealBreakdownWidget ?? true;
+			showTopFoodsWidget = p.showTopFoodsWidget ?? true;
+			widgetOrder = buildWidgetOrder(
+				p.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']
+			);
+			startPage = p.startPage ?? 'dashboard';
+			favoriteMealAssignmentMode = (p.favoriteMealAssignmentMode ??
+				'time_based') as typeof favoriteMealAssignmentMode;
+			favoriteMealTimeframes = (p.favoriteMealTimeframes ?? []).map((row) => {
+				const startH = Math.floor(row.startMinute / 60)
+					.toString()
+					.padStart(2, '0');
+				const startM = (row.startMinute % 60).toString().padStart(2, '0');
+				const endH = Math.floor(row.endMinute / 60)
+					.toString()
+					.padStart(2, '0');
+				const endM = (row.endMinute % 60).toString().padStart(2, '0');
+				return {
+					id: row.id ?? crypto.randomUUID(),
+					mealType: row.mealType,
+					customMealTypeId: row.customMealTypeId ?? null,
+					startTime: `${startH}:${startM}`,
+					endTime: `${endH}:${endM}`
+				};
+			});
+			if (p.visibleNutrients) {
+				visibleNutrients = new Set(p.visibleNutrients);
+			}
+			prefsLoaded = true;
+		}
+	});
+
 	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	function toggleNutrient(key: string) {
@@ -81,10 +125,8 @@
 	async function saveVisibleNutrients() {
 		savingNutrients = true;
 		try {
-			const { error } = await api.PATCH('/api/preferences', {
-				body: { visibleNutrients: [...visibleNutrients] }
-			});
-			if (!error) {
+			const ok = await preferencesService.update({ visibleNutrients: [...visibleNutrients] });
+			if (ok) {
 				toast.success(m.settings_saved(), { duration: 1500 });
 			} else {
 				toast.error(m.settings_save_failed());
@@ -250,32 +292,19 @@
 		if (!timeframeValidation.valid) return;
 		savingFavoriteLogging = true;
 		try {
-			const { data, error } = await api.PATCH('/api/preferences', {
-				body: {
-					favoriteMealAssignmentMode,
-					favoriteMealTimeframes: favoriteMealTimeframes.map((row) => ({
-						mealType: row.mealType,
-						customMealTypeId: row.customMealTypeId,
-						startTime: row.startTime,
-						endTime: row.endTime
-					}))
-				}
+			const ok = await preferencesService.update({
+				favoriteMealAssignmentMode,
+				favoriteMealTimeframes: favoriteMealTimeframes.map((row) => ({
+					mealType: row.mealType,
+					customMealTypeId: row.customMealTypeId,
+					startTime: row.startTime,
+					endTime: row.endTime
+				}))
 			});
-			if (!error && data) {
+			if (ok) {
 				toast.success(m.settings_saved(), { duration: 1500 });
-				const { preferences } = data;
-				favoriteMealAssignmentMode = (preferences.favoriteMealAssignmentMode ??
-					'time_based') as typeof favoriteMealAssignmentMode;
-				favoriteMealTimeframes =
-					(preferences.favoriteMealTimeframes ?? []).map((row: any) => ({
-						id: row.id ?? crypto.randomUUID(),
-						mealType: row.mealType,
-						customMealTypeId: row.customMealTypeId ?? null,
-						startTime: row.startTime,
-						endTime: row.endTime
-					})) ?? [];
 			} else {
-				toast.error((error as { error?: string })?.error ?? m.settings_save_failed());
+				toast.error(m.settings_save_failed());
 			}
 		} catch {
 			toast.error(m.settings_save_failed());
@@ -286,10 +315,10 @@
 
 	const savePreference = async (key: string, value: unknown) => {
 		try {
-			const { error } = await api.PATCH('/api/preferences', {
-				body: { [key]: value }
-			});
-			if (!error) {
+			const ok = await preferencesService.update({ [key]: value } as Parameters<
+				typeof preferencesService.update
+			>[0]);
+			if (ok) {
 				toast.success(m.settings_saved(), { duration: 1500 });
 			} else {
 				toast.error(m.settings_save_failed());
@@ -299,48 +328,6 @@
 		}
 	};
 
-	const loadPreferences = async () => {
-		try {
-			const { data } = await api.GET('/api/preferences');
-			if (data) {
-				const { preferences } = data;
-				showChartWidget = preferences.showChartWidget ?? true;
-				showFavoritesWidget = preferences.showFavoritesWidget ?? true;
-				showSupplementsWidget = preferences.showSupplementsWidget ?? true;
-				showWeightWidget = preferences.showWeightWidget ?? true;
-				showMealBreakdownWidget = preferences.showMealBreakdownWidget ?? true;
-				showTopFoodsWidget = preferences.showTopFoodsWidget ?? true;
-				widgetOrder = buildWidgetOrder(
-					preferences.widgetOrder ?? [
-						'chart',
-						'favorites',
-						'supplements',
-						'weight',
-						'summary',
-						'daylog'
-					]
-				);
-				startPage = preferences.startPage ?? 'dashboard';
-				favoriteMealAssignmentMode = (preferences.favoriteMealAssignmentMode ??
-					'time_based') as typeof favoriteMealAssignmentMode;
-				favoriteMealTimeframes = (preferences.favoriteMealTimeframes ?? []).map((row: any) => ({
-					id: row.id ?? crypto.randomUUID(),
-					mealType: row.mealType,
-					customMealTypeId: row.customMealTypeId ?? null,
-					startTime: row.startTime,
-					endTime: row.endTime
-				}));
-				if (preferences.visibleNutrients) {
-					visibleNutrients = new Set(preferences.visibleNutrients);
-				}
-			}
-		} catch {
-			// Use defaults
-		}
-		prefsLoaded = true;
-	};
-
-	// Meal type helpers (preserved)
 	const loadMealTypes = async () => {
 		const { data } = await api.GET('/api/meal-types');
 		if (data) mealTypes = data.mealTypes;
@@ -371,7 +358,6 @@
 	};
 
 	const handleWidgetSort = (event: CustomEvent | { detail?: unknown } | any) => {
-		// The ondrop event from svelte-sortable-list provides draggedItemIndex and targetItemIndex
 		const { draggedItemIndex, targetItemIndex } = event;
 		if (draggedItemIndex == null || targetItemIndex == null) return;
 		widgetOrder = sortItems(widgetOrder, draggedItemIndex, targetItemIndex);
@@ -383,7 +369,6 @@
 	const user = $derived(getUser());
 
 	onMount(() => {
-		loadPreferences();
 		loadMealTypes();
 	});
 </script>

@@ -11,74 +11,46 @@
 	import History from '@lucide/svelte/icons/history';
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
-	import { api } from '$lib/api/client';
 	import type { SupplementPayload } from '$lib/components/supplements/SupplementForm.svelte';
+	import { supplementService } from '$lib/services/supplement-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import type { DexieSupplement } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
 
-	type SupplementWithIngredients = {
-		id: string;
-		name: string;
-		dosage: number;
-		dosageUnit: string;
-		scheduleType: string;
-		scheduleDays: number[] | null;
-		scheduleStartDate: string | null;
-		timeOfDay: string | null;
-		isActive: boolean;
-		sortOrder: number;
-		ingredients: { name: string; dosage: number; dosageUnit: string }[];
-		createdAt?: string;
-		updatedAt?: string;
-	};
+	const allSupplements = useLiveQuery(
+		() => supplementService.supplements(true),
+		[] as DexieSupplement[]
+	);
+	let supplements = $derived(allSupplements.value);
 
-	let supplements: SupplementWithIngredients[] = $state([]);
 	let showForm = $state(false);
-	let editingSupplement: SupplementWithIngredients | null = $state(null);
-	const loadSupplements = async () => {
-		const { data } = await api.GET('/api/supplements', {
-			params: { query: { all: true } }
-		});
-		if (data) {
-			supplements = data.supplements;
-		}
-	};
+	let editingSupplement: DexieSupplement | null = $state(null);
 
 	const createSupplement = async (payload: SupplementPayload) => {
 		const { ingredients, ...rest } = payload;
-		await api.POST('/api/supplements', {
-			body: { ...rest, ...(ingredients ? { ingredients } : {}) }
+		await supplementService.create({
+			...rest,
+			...(ingredients ? { ingredients } : {})
 		});
 		showForm = false;
-		await loadSupplements();
 	};
 
 	const updateSupplement = async (payload: SupplementPayload) => {
 		if (!editingSupplement) return;
-		await api.PATCH('/api/supplements/{id}', {
-			params: { path: { id: editingSupplement.id } },
-			body: payload
-		});
+		await supplementService.update(editingSupplement.id, payload);
 		editingSupplement = null;
 		showForm = false;
-		await loadSupplements();
 	};
 
 	const deleteSupplement = async (id: string) => {
-		await api.DELETE('/api/supplements/{id}', {
-			params: { path: { id } }
-		});
-		await loadSupplements();
+		await supplementService.delete(id);
 	};
 
-	const toggleActive = async (supplement: SupplementWithIngredients) => {
-		await api.PATCH('/api/supplements/{id}', {
-			params: { path: { id: supplement.id } },
-			body: { isActive: !supplement.isActive }
-		});
-		await loadSupplements();
+	const toggleActive = async (supplement: DexieSupplement) => {
+		await supplementService.update(supplement.id, { isActive: !supplement.isActive });
 	};
 
-	const openEdit = (supplement: SupplementWithIngredients) => {
+	const openEdit = (supplement: DexieSupplement) => {
 		editingSupplement = supplement;
 		showForm = true;
 	};
@@ -88,7 +60,9 @@
 		editingSupplement = null;
 	};
 
-	onMount(loadSupplements);
+	onMount(() => {
+		supplementService.refresh();
+	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4">

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -19,26 +18,9 @@
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
-
-	type Food = {
-		id: string;
-		name: string;
-		brand: string | null;
-		servingSize: number;
-		servingUnit: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-		isFavorite: boolean;
-		imageUrl: string | null;
-		barcode: string | null;
-		nutriScore: string | null;
-		novaGroup: number | null;
-		additives: string[] | null;
-		ingredientsText: string | null;
-	};
+	import { browser } from '$app/environment';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
 
 	const VALID_GRADES = ['a', 'b', 'c', 'd', 'e'] as const;
 	type Grade = (typeof VALID_GRADES)[number];
@@ -47,14 +29,12 @@
 		return VALID_GRADES.includes(v as Grade) ? (v as Grade) : null;
 	}
 
-	let food: Food | null = $state(null);
-	let loading = $state(true);
 	let saving = $state(false);
 	let uploading = $state(false);
 	let enriching = $state(false);
 	let qualityOpen = $state(false);
+	let initialized = $state(false);
 
-	// Editable fields
 	let name = $state('');
 	let brand = $state('');
 	let servingSize = $state(0);
@@ -69,6 +49,36 @@
 	let novaGroup = $state<1 | 2 | 3 | 4 | null>(null);
 	let additives = $state<string[] | null>(null);
 	let ingredientsText = $state<string | null>(null);
+
+	const foodId = $derived($page.params.id!);
+	const foodQuery = useLiveQuery(() => foodService.foodById(foodId));
+	const food = $derived(foodQuery.value);
+
+	$effect(() => {
+		if (browser) {
+			foodService.refreshById(foodId);
+		}
+	});
+
+	$effect(() => {
+		if (food && !initialized) {
+			name = food.name;
+			brand = food.brand ?? '';
+			servingSize = round2(food.servingSize);
+			calories = round2(food.calories);
+			protein = round2(food.protein);
+			carbs = round2(food.carbs);
+			fat = round2(food.fat);
+			fiber = round2(food.fiber);
+			isFavorite = food.isFavorite;
+			imageUrl = food.imageUrl;
+			nutriScore = toGrade(food.nutriScore);
+			novaGroup = food.novaGroup as 1 | 2 | 3 | 4 | null;
+			additives = food.additives;
+			ingredientsText = food.ingredientsText;
+			initialized = true;
+		}
+	});
 
 	const PALETTE = [
 		{ bg: 'bg-rose-200', text: 'text-rose-700' },
@@ -86,40 +96,6 @@
 	);
 	const placeholderColor = $derived(PALETTE[colorIndex]);
 	const initial = $derived(name.charAt(0).toUpperCase());
-
-	const loadFood = async () => {
-		const id = $page.params.id!;
-		try {
-			const { data, error } = await api.GET('/api/foods/{id}', {
-				params: { path: { id } }
-			});
-			if (error || !data) {
-				goto('/foods');
-				return;
-			}
-			food = data.food;
-			if (food) {
-				name = food.name;
-				brand = food.brand ?? '';
-				servingSize = round2(food.servingSize);
-				calories = round2(food.calories);
-				protein = round2(food.protein);
-				carbs = round2(food.carbs);
-				fat = round2(food.fat);
-				fiber = round2(food.fiber);
-				isFavorite = food.isFavorite;
-				imageUrl = food.imageUrl;
-				nutriScore = toGrade(food.nutriScore);
-				novaGroup = food.novaGroup as 1 | 2 | 3 | 4 | null;
-				additives = food.additives;
-				ingredientsText = food.ingredientsText;
-			}
-		} catch {
-			goto('/foods');
-		} finally {
-			loading = false;
-		}
-	};
 
 	const handleImageUpload = async (e: Event) => {
 		const input = e.target as HTMLInputElement;
@@ -194,6 +170,7 @@
 			});
 			if (!error) {
 				toast.success(m.detail_saved());
+				foodService.refreshById(food.id);
 			} else {
 				toast.error(m.detail_save_failed());
 			}
@@ -230,7 +207,8 @@
 				toast.error(m.quality_enrich_failed());
 				return;
 			}
-			await loadFood();
+			initialized = false;
+			foodService.refreshById(food.id);
 			toast.success(m.quality_enrich_success());
 		} catch {
 			toast.error(m.quality_enrich_failed());
@@ -238,10 +216,6 @@
 			enriching = false;
 		}
 	};
-
-	onMount(() => {
-		loadFood();
-	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6 pb-6">
@@ -267,7 +241,7 @@
 		{/if}
 	</div>
 
-	{#if loading}
+	{#if !food && !initialized}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if food}
 		<!-- Image section -->

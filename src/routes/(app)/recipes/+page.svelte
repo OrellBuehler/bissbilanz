@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import RecipeEditForm from '$lib/components/recipes/RecipeEditForm.svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
@@ -14,41 +13,37 @@
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
-
-	type Recipe = {
-		id: string;
-		name: string;
-		totalServings: number;
-		isFavorite: boolean;
-		imageUrl: string | null;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-	};
+	import { browser } from '$app/environment';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { recipeService } from '$lib/services/recipe-service.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
-	let recipes: Recipe[] = $state([]);
 	let showForm = $state(false);
 	let editingRecipe: any | null = $state(null);
 	let editImageUrl: string | null = $state(null);
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
 
+	const recipesQuery = useLiveQuery(() => recipeService.allRecipes());
+	const recipes = $derived(recipesQuery.value ?? []);
+
+	$effect(() => {
+		if (browser) {
+			recipeService.refresh();
+			loadFoods();
+		}
+	});
+
 	const loadFoods = async () => {
 		const { data } = await api.GET('/api/foods');
 		if (data) foods = data.foods;
 	};
 
-	const loadRecipes = async () => {
-		const { data } = await api.GET('/api/recipes');
-		if (data) recipes = data.recipes;
-	};
-
 	const createRecipe = async (payload: any) => {
 		await api.POST('/api/recipes', { body: payload });
 		closeForm();
-		await loadRecipes();
+		recipeService.refresh();
 	};
 
 	const updateRecipe = async (payload: {
@@ -68,7 +63,7 @@
 			toast.error(m.detail_save_failed());
 		}
 		closeForm();
-		await loadRecipes();
+		recipeService.refresh();
 	};
 
 	const deleteRecipe = async (id: string) => {
@@ -80,7 +75,7 @@
 			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
 			return;
 		}
-		await loadRecipes();
+		recipeService.refresh();
 	};
 
 	const confirmForceDelete = async () => {
@@ -89,7 +84,7 @@
 			params: { path: { id: forceDeleteId }, query: { force: true } }
 		});
 		forceDeleteId = null;
-		await loadRecipes();
+		recipeService.refresh();
 	};
 
 	const openEdit = async (id: string) => {
@@ -141,11 +136,6 @@
 		editImageUrl = null;
 	};
 
-	onMount(() => {
-		loadFoods();
-		loadRecipes();
-	});
-
 	const fmt = (n: number) => Math.round(n);
 </script>
 
@@ -168,10 +158,10 @@
 								</span>
 							</div>
 							<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-								<span class="font-medium text-blue-500">{fmt(recipe.calories)} kcal</span>
-								<span class="text-red-500">{fmt(recipe.protein)}g P</span>
-								<span class="text-orange-500">{fmt(recipe.carbs)}g C</span>
-								<span class="text-yellow-600">{fmt(recipe.fat)}g F</span>
+								<span class="font-medium text-blue-500">{fmt(recipe.calories ?? 0)} kcal</span>
+								<span class="text-red-500">{fmt(recipe.protein ?? 0)}g P</span>
+								<span class="text-orange-500">{fmt(recipe.carbs ?? 0)}g C</span>
+								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
 						</div>
 						<DeleteButton
