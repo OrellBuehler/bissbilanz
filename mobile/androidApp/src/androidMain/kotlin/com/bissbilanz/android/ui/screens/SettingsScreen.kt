@@ -22,7 +22,6 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.HealthSyncService
-import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.model.Goals
@@ -33,6 +32,7 @@ import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -45,7 +45,6 @@ fun SettingsScreen(navController: NavController) {
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showGoalsDialog by remember { mutableStateOf(false) }
     var showMealTypeDialog by remember { mutableStateOf(false) }
     var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
@@ -82,24 +81,6 @@ fun SettingsScreen(navController: NavController) {
         if (healthAvailable) {
             healthPermGranted = healthSync.hasPermissions()
         }
-    }
-
-    if (showGoalsDialog) {
-        GoalsEditDialog(
-            currentGoals = goals,
-            onDismiss = { showGoalsDialog = false },
-            onSave = { newGoals ->
-                scope.launch {
-                    try {
-                        goalsRepo.setGoals(newGoals)
-                        snackbarHostState.showSnackbar("Goals updated")
-                    } catch (_: Exception) {
-                        snackbarHostState.showSnackbar("Failed to update goals")
-                    }
-                }
-                showGoalsDialog = false
-            },
-        )
     }
 
     if (showMealTypeDialog) {
@@ -185,21 +166,136 @@ fun SettingsScreen(navController: NavController) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Daily Goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(12.dp))
-                    goals?.let { g ->
-                        GoalRow("Calories", g.calorieGoal, "kcal", CaloriesBlue)
-                        GoalRow("Protein", g.proteinGoal, "g", ProteinRed)
-                        GoalRow("Carbs", g.carbGoal, "g", CarbsOrange)
-                        GoalRow("Fat", g.fatGoal, "g", FatYellow)
-                        GoalRow("Fiber", g.fiberGoal, "g", FiberGreen)
-                    } ?: Text("No goals set", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { showGoalsDialog = true },
+
+                    fun calcGrams(
+                        pct: Int,
+                        cals: Int,
+                        calsPerGram: Int,
+                    ): Int = ((pct / 100.0) * cals / calsPerGram).roundToInt()
+
+                    fun calcPct(
+                        grams: Double,
+                        cals: Double,
+                        calsPerGram: Int,
+                    ): Int = if (cals <= 0) 0 else ((grams * calsPerGram) / cals * 100).roundToInt()
+
+                    var editCalories by remember(goals) {
+                        mutableStateOf(goals?.calorieGoal?.toInt()?.toString() ?: "2000")
+                    }
+                    var editProteinPct by remember(goals) {
+                        mutableStateOf(
+                            goals?.let { g -> calcPct(g.proteinGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 30,
+                        )
+                    }
+                    var editCarbsPct by remember(goals) {
+                        mutableStateOf(
+                            goals?.let { g -> calcPct(g.carbGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 40,
+                        )
+                    }
+                    var editFiberG by remember(goals) {
+                        mutableStateOf(goals?.fiberGoal?.toInt() ?: 30)
+                    }
+
+                    val cals = editCalories.toIntOrNull() ?: 2000
+                    val fatPct = (100 - editProteinPct - editCarbsPct).coerceAtLeast(0)
+                    val totalPct = editProteinPct + editCarbsPct + fatPct
+                    val isValid = totalPct == 100
+
+                    val proteinG = calcGrams(editProteinPct, cals, 4)
+                    val carbsG = calcGrams(editCarbsPct, cals, 4)
+                    val fatG = calcGrams(fatPct, cals, 9)
+                    val maxFiberG = carbsG.coerceAtLeast(1)
+
+                    OutlinedTextField(
+                        value = editCalories,
+                        onValueChange = { editCalories = it },
+                        label = { Text("Calories (kcal)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Protein: $editProteinPct% - ${proteinG}g", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = editProteinPct.toFloat(),
+                        onValueChange = { editProteinPct = it.roundToInt() },
+                        valueRange = 5f..80f,
+                        steps = 74,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Carbs: $editCarbsPct% - ${carbsG}g", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = editCarbsPct.toFloat(),
+                        onValueChange = { editCarbsPct = it.roundToInt() },
+                        valueRange = 5f..80f,
+                        steps = 74,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    GoalRow("Fat (auto)", fatG.toDouble(), "g ($fatPct%)")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Fiber: ${editFiberG}g", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = editFiberG.toFloat(),
+                        onValueChange = { editFiberG = it.roundToInt() },
+                        valueRange = 0f..maxFiberG.toFloat(),
+                        steps = (maxFiberG - 1).coerceAtLeast(0),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Goals")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isValid) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                contentDescription = null,
+                                tint = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Total: $totalPct%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        goalsRepo.setGoals(
+                                            Goals(
+                                                calorieGoal = cals.toDouble(),
+                                                proteinGoal = proteinG.toDouble(),
+                                                carbGoal = carbsG.toDouble(),
+                                                fatGoal = fatG.toDouble(),
+                                                fiberGoal = editFiberG.toDouble(),
+                                            ),
+                                        )
+                                        snackbarHostState.showSnackbar("Goals updated")
+                                    } catch (_: Exception) {
+                                        snackbarHostState.showSnackbar("Failed to update goals")
+                                    }
+                                }
+                            },
+                            enabled = isValid,
+                        ) {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -533,13 +629,12 @@ fun GoalRow(
     label: String,
     value: Double,
     unit: String,
-    color: androidx.compose.ui.graphics.Color,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = color)
+        Text(label, color = MaterialTheme.colorScheme.onSurface)
         Text("${value.toInt()} $unit", fontWeight = FontWeight.Medium)
     }
 }
@@ -555,68 +650,6 @@ fun SettingsNavItem(
         leadingContent = { Icon(icon, title, tint = MaterialTheme.colorScheme.primary) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Go", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GoalsEditDialog(
-    currentGoals: Goals?,
-    onDismiss: () -> Unit,
-    onSave: (Goals) -> Unit,
-) {
-    var calories by remember { mutableStateOf(currentGoals?.calorieGoal?.toInt()?.toString() ?: "2000") }
-    var protein by remember { mutableStateOf(currentGoals?.proteinGoal?.toInt()?.toString() ?: "150") }
-    var carbs by remember { mutableStateOf(currentGoals?.carbGoal?.toInt()?.toString() ?: "250") }
-    var fat by remember { mutableStateOf(currentGoals?.fatGoal?.toInt()?.toString() ?: "65") }
-    var fiber by remember { mutableStateOf(currentGoals?.fiberGoal?.toInt()?.toString() ?: "30") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Goals") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                GoalTextField("Calories (kcal)", calories, CaloriesBlue) { calories = it }
-                GoalTextField("Protein (g)", protein, ProteinRed) { protein = it }
-                GoalTextField("Carbs (g)", carbs, CarbsOrange) { carbs = it }
-                GoalTextField("Fat (g)", fat, FatYellow) { fat = it }
-                GoalTextField("Fiber (g)", fiber, FiberGreen) { fiber = it }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(
-                    Goals(
-                        calorieGoal = calories.toDoubleOrNull() ?: 2000.0,
-                        proteinGoal = protein.toDoubleOrNull() ?: 150.0,
-                        carbGoal = carbs.toDoubleOrNull() ?: 250.0,
-                        fatGoal = fat.toDoubleOrNull() ?: 65.0,
-                        fiberGoal = fiber.toDoubleOrNull() ?: 30.0,
-                    ),
-                )
-            }) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
-}
-
-@Composable
-fun GoalTextField(
-    label: String,
-    value: String,
-    color: androidx.compose.ui.graphics.Color,
-    onValueChange: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = color, focusedLabelColor = color),
     )
 }
 
