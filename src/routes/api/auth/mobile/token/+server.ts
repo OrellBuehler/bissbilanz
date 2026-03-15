@@ -8,8 +8,8 @@ import type { RequestHandler } from './$types';
 const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
 
 const tokenRequestSchema = z.union([
-	z.object({ code: z.string().min(1) }),
-	z.object({ refresh_token: z.string().min(1) })
+	z.object({ code: z.string().min(1).max(2048) }),
+	z.object({ refresh_token: z.string().min(1).max(2048) })
 ]);
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {

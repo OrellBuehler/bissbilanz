@@ -22,13 +22,13 @@ class SyncQueue(
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
-    fun enqueue(
+    suspend fun enqueue(
         method: String,
         url: String,
         body: String,
         affectedTable: String? = null,
         affectedId: String? = null,
-    ) {
+    ) = mutex.withLock {
         db.bissbilanzDatabaseQueries.insertSyncQueueItem(
             method = method,
             url = url,
@@ -71,16 +71,22 @@ class SyncQueue(
             inProgress.remove(id)
         }
 
-    fun incrementRetryCount(id: Long) {
-        db.bissbilanzDatabaseQueries.incrementSyncQueueRetryCount(id)
-    }
+    suspend fun incrementRetryCount(id: Long) =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.incrementSyncQueueRetryCount(id)
+        }
 
-    fun getRetryCount(id: Long): Long =
-        db.bissbilanzDatabaseQueries
-            .selectSyncQueueItemRetryCount(id)
-            .executeAsOneOrNull() ?: 0
+    suspend fun getRetryCount(id: Long): Long =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectSyncQueueItemRetryCount(id)
+                .executeAsOneOrNull() ?: 0
+        }
 
-    fun pendingCount(): Long = db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()
+    suspend fun pendingCount(): Long =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()
+        }
 
     suspend fun clear() =
         mutex.withLock {
