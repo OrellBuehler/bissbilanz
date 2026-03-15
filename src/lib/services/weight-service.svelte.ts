@@ -19,7 +19,14 @@ async function refresh(): Promise<void> {
 	try {
 		const { data } = await api.GET('/api/weight');
 		if (data && 'entries' in data) {
-			await db.weightEntries.bulkPut(data.entries as DexieWeightEntry[]);
+			const serverEntries = data.entries as DexieWeightEntry[];
+			const serverIds = new Set(serverEntries.map((e) => e.id));
+			const localIds = await db.weightEntries.toCollection().primaryKeys();
+			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
+			await db.transaction('rw', db.weightEntries, async () => {
+				if (staleIds.length > 0) await db.weightEntries.bulkDelete(staleIds as string[]);
+				await db.weightEntries.bulkPut(serverEntries);
+			});
 			await db.syncMeta.put({ tableName: 'weightEntries', lastSyncedAt: Date.now() });
 		}
 	} catch {

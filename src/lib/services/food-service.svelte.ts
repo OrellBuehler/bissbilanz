@@ -30,7 +30,14 @@ async function refresh() {
 	try {
 		const { data } = await api.GET('/api/foods');
 		if (data) {
-			await db.foods.bulkPut(data.foods as unknown as DexieFood[]);
+			const serverFoods = data.foods as unknown as DexieFood[];
+			const serverIds = new Set(serverFoods.map((f) => f.id));
+			const localIds = await db.foods.toCollection().primaryKeys();
+			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
+			await db.transaction('rw', db.foods, async () => {
+				if (staleIds.length > 0) await db.foods.bulkDelete(staleIds as string[]);
+				await db.foods.bulkPut(serverFoods);
+			});
 			await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: Date.now() });
 		}
 	} catch {

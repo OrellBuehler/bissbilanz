@@ -21,7 +21,14 @@ async function refresh() {
 	try {
 		const { data } = await api.GET('/api/recipes');
 		if (data) {
-			await db.recipes.bulkPut(data.recipes as unknown as DexieRecipe[]);
+			const serverRecipes = data.recipes as unknown as DexieRecipe[];
+			const serverIds = new Set(serverRecipes.map((r) => r.id));
+			const localIds = await db.recipes.toCollection().primaryKeys();
+			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
+			await db.transaction('rw', db.recipes, async () => {
+				if (staleIds.length > 0) await db.recipes.bulkDelete(staleIds as string[]);
+				await db.recipes.bulkPut(serverRecipes);
+			});
 			await db.syncMeta.put({ tableName: 'recipes', lastSyncedAt: Date.now() });
 		}
 	} catch {
