@@ -1,5 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { JOSEError } from 'jose/errors';
 import { config } from '$lib/server/env';
 import { getDB, users } from '$lib/server/db';
 import { createSession } from '$lib/server/session';
@@ -55,7 +56,8 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, requ
 			client_secret: config.infomaniak.clientSecret,
 			redirect_uri: config.infomaniak.redirectUri,
 			code_verifier: codeVerifier ?? ''
-		})
+		}),
+		signal: AbortSignal.timeout(10000)
 	});
 
 	if (!tokenResponse.ok) {
@@ -64,11 +66,16 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, requ
 
 	const tokens: TokenResponse = await tokenResponse.json();
 
-	await verifyIdToken(tokens.id_token, {
-		issuer: 'https://login.infomaniak.com',
-		audience: config.infomaniak.clientId,
-		nonce: expectedNonce ?? ''
-	});
+	try {
+		await verifyIdToken(tokens.id_token, {
+			issuer: 'https://login.infomaniak.com',
+			audience: config.infomaniak.clientId,
+			nonce: expectedNonce ?? ''
+		});
+	} catch (e) {
+		if (e instanceof JOSEError) throw error(401, 'ID token verification failed');
+		throw error(500, 'Failed to verify ID token');
+	}
 
 	cookies.delete('oidc_state', { path: '/' });
 	cookies.delete('oidc_nonce', { path: '/' });
@@ -78,7 +85,8 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, requ
 	const userInfoResponse = await fetch('https://login.infomaniak.com/oauth2/userinfo', {
 		headers: {
 			Authorization: `Bearer ${tokens.access_token}`
-		}
+		},
+		signal: AbortSignal.timeout(10000)
 	});
 
 	if (!userInfoResponse.ok) {
