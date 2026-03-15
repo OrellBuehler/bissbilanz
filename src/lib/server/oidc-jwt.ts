@@ -14,9 +14,9 @@ export const verifyIdToken = async (
 	idToken: string,
 	expected: { issuer: string; audience: string; nonce: string }
 ) => {
-	const discovery = await fetch(`${expected.issuer}/.well-known/openid-configuration`).then((r) =>
-		r.json()
-	);
+	const discovery = await fetch(`${expected.issuer}/.well-known/openid-configuration`, {
+		signal: AbortSignal.timeout(10000)
+	}).then((r) => r.json());
 	const jwks = createRemoteJWKSet(new URL(discovery.jwks_uri));
 	const { payload } = await jwtVerify(idToken, jwks, {
 		issuer: expected.issuer,

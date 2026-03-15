@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { JOSEError } from 'jose/errors';
 import { config } from '$lib/server/env';
 import { getDB, users } from '$lib/server/db';
 import { verifyIdToken } from '$lib/server/oidc-jwt';
@@ -51,7 +52,8 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 			client_secret: config.infomaniak.clientSecret,
 			redirect_uri: `${config.app.url}/api/auth/mobile/callback`,
 			code_verifier: pending.codeVerifier
-		})
+		}),
+		signal: AbortSignal.timeout(10000)
 	});
 
 	if (!tokenResponse.ok) {
@@ -66,12 +68,14 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 			audience: config.infomaniak.clientId,
 			nonce: pending.nonce
 		});
-	} catch {
-		throw error(401, 'ID token verification failed');
+	} catch (e) {
+		if (e instanceof JOSEError) throw error(401, 'ID token verification failed');
+		throw error(500, 'Failed to verify ID token');
 	}
 
 	const userInfoResponse = await fetch('https://login.infomaniak.com/oauth2/userinfo', {
-		headers: { Authorization: `Bearer ${tokens.access_token}` }
+		headers: { Authorization: `Bearer ${tokens.access_token}` },
+		signal: AbortSignal.timeout(10000)
 	});
 
 	if (!userInfoResponse.ok) {
