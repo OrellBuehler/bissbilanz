@@ -9,7 +9,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
@@ -76,13 +74,6 @@ fun DashboardScreen(navController: NavController) {
         floatingActionButton = {
             Column {
                 SmallFloatingActionButton(
-                    onClick = { showQuickAddSheet = true },
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                ) {
-                    Icon(Icons.Default.Edit, "Quick add")
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                SmallFloatingActionButton(
                     onClick = { navController.navigate("scanner") },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
@@ -90,17 +81,9 @@ fun DashboardScreen(navController: NavController) {
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 FloatingActionButton(
-                    onClick = {
-                        navController.navigate("foods") {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onClick = { showQuickAddSheet = true },
                 ) {
-                    Icon(Icons.Default.Add, "Add food")
+                    Icon(Icons.Default.Add, "Add entry")
                 }
             }
         },
