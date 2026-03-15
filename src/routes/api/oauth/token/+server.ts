@@ -10,6 +10,12 @@ import {
 	isValidCodeVerifier
 } from '$lib/server/oauth';
 
+const MAX_FIELD_LENGTH = 2048;
+
+function isValidField(value: FormDataEntryValue | null): value is string {
+	return typeof value === 'string' && value.length > 0 && value.length <= MAX_FIELD_LENGTH;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	const formData = await request.formData();
 	const grantType = formData.get('grant_type');
@@ -36,12 +42,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Handle refresh_token grant
 	if (grantType === 'refresh_token') {
 		const refreshTokenValue = formData.get('refresh_token');
-		if (
-			!refreshTokenValue ||
-			typeof refreshTokenValue !== 'string' ||
-			!clientId ||
-			typeof clientId !== 'string'
-		) {
+		if (!isValidField(refreshTokenValue) || !isValidField(clientId)) {
 			return json(
 				{ error: 'invalid_request', error_description: 'Missing refresh_token or client_id' },
 				{ status: 400 }
@@ -49,7 +50,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		let client;
-		if (clientSecret && typeof clientSecret === 'string') {
+		if (isValidField(clientSecret)) {
 			client = await verifyOAuthClient(clientId, clientSecret);
 		} else {
 			client = await getPublicOAuthClient(clientId);
@@ -89,14 +90,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	const codeVerifier = formData.get('code_verifier');
 
 	if (
-		!code ||
-		!redirectUri ||
-		!clientId ||
-		!codeVerifier ||
-		typeof code !== 'string' ||
-		typeof redirectUri !== 'string' ||
-		typeof clientId !== 'string' ||
-		typeof codeVerifier !== 'string'
+		!isValidField(code) ||
+		!isValidField(redirectUri) ||
+		!isValidField(clientId) ||
+		!isValidField(codeVerifier)
 	) {
 		return json(
 			{
@@ -119,7 +116,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	let client;
-	if (clientSecret && typeof clientSecret === 'string') {
+	if (isValidField(clientSecret)) {
 		client = await verifyOAuthClient(clientId, clientSecret);
 	} else {
 		client = await getPublicOAuthClient(clientId);

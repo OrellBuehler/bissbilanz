@@ -122,6 +122,10 @@ export type HandlerDeps = {
 };
 
 export function createHandlers(d: HandlerDeps) {
+	function wrapError(op: string, e: unknown): never {
+		throw new Error(`Failed to ${op}: ${e instanceof Error ? e.message : String(e)}`);
+	}
+
 	const getDailyStatusForDate = async (userId: string, date: string) => {
 		const { items: entries } = await d.listEntriesByDate(userId, date);
 		const goals = await d.getGoals(userId);
@@ -129,134 +133,166 @@ export function createHandlers(d: HandlerDeps) {
 	};
 
 	const handleGetDailyStatus = async (userId: string, date?: string, includeEntries?: boolean) => {
-		const targetDate = date ?? d.today();
-		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
-		const goals = await d.getGoals(userId);
-		const status = d.formatDailyStatus({ entries, goals });
-		if (includeEntries) {
-			return { ...status, date: targetDate, entries };
+		try {
+			const targetDate = date ?? d.today();
+			const { items: entries } = await d.listEntriesByDate(userId, targetDate);
+			const goals = await d.getGoals(userId);
+			const status = d.formatDailyStatus({ entries, goals });
+			if (includeEntries) {
+				return { ...status, date: targetDate, entries };
+			}
+			return { ...status, date: targetDate };
+		} catch (e) {
+			wrapError('get daily status', e);
 		}
-		return { ...status, date: targetDate };
 	};
 
 	const handleSearchFoods = async (userId: string, query: string) => {
-		const [{ items: foods }, recentFoods] = await Promise.all([
-			d.listFoods(userId, { query }),
-			d.listRecentFoods(userId, 100)
-		]);
-		const recentIds = new Set(recentFoods.map((f: { id: string }) => f.id));
-		const annotated = foods.map((f: { id: string }) => ({
-			...f,
-			recentlyUsed: recentIds.has(f.id)
-		}));
-		annotated.sort((a: { recentlyUsed: boolean }, b: { recentlyUsed: boolean }) => {
-			if (a.recentlyUsed !== b.recentlyUsed) return a.recentlyUsed ? -1 : 1;
-			return 0;
-		});
-		return { foods: annotated };
+		try {
+			const [{ items: foods }, recentFoods] = await Promise.all([
+				d.listFoods(userId, { query }),
+				d.listRecentFoods(userId, 100)
+			]);
+			const recentIds = new Set(recentFoods.map((f: { id: string }) => f.id));
+			const annotated = foods.map((f: { id: string }) => ({
+				...f,
+				recentlyUsed: recentIds.has(f.id)
+			}));
+			annotated.sort((a: { recentlyUsed: boolean }, b: { recentlyUsed: boolean }) => {
+				if (a.recentlyUsed !== b.recentlyUsed) return a.recentlyUsed ? -1 : 1;
+				return 0;
+			});
+			return { foods: annotated };
+		} catch (e) {
+			wrapError('search foods', e);
+		}
 	};
 
 	const handleCreateFood = async (userId: string, payload: unknown) => {
-		const result = await d.createFood(userId, payload);
-		if (!result.success) return { error: result.error.message };
-		return { foodId: result.data.id, success: true, food: result.data };
+		try {
+			const result = await d.createFood(userId, payload);
+			if (!result.success) return { error: result.error.message };
+			return { foodId: result.data.id, success: true, food: result.data };
+		} catch (e) {
+			wrapError('create food', e);
+		}
 	};
 
 	const handleCreateRecipe = async (userId: string, payload: unknown) => {
-		const result = await d.createRecipe(userId, payload);
-		if (!result.success) return { error: result.error.message };
-		return { recipeId: result.data.id, success: true, recipe: result.data };
+		try {
+			const result = await d.createRecipe(userId, payload);
+			if (!result.success) return { error: result.error.message };
+			return { recipeId: result.data.id, success: true, recipe: result.data };
+		} catch (e) {
+			wrapError('create recipe', e);
+		}
 	};
 
 	const handleLogFood = async (userId: string, payload: unknown) => {
-		const result = await d.createEntry(userId, payload);
-		if (!result.success) return { error: result.error.message };
-		const date = result.data.date ?? d.today();
-		const dailyStatus = await getDailyStatusForDate(userId, date);
-		return { entryId: result.data.id, success: true, dailyStatus };
+		try {
+			const result = await d.createEntry(userId, payload);
+			if (!result.success) return { error: result.error.message };
+			const date = result.data.date ?? d.today();
+			const dailyStatus = await getDailyStatusForDate(userId, date);
+			return { entryId: result.data.id, success: true, dailyStatus };
+		} catch (e) {
+			wrapError('log food', e);
+		}
 	};
 
 	const handleGetSupplementStatus = async (userId: string) => {
-		const targetDate = d.today();
-		const items = await d.getSupplementChecklist(userId, targetDate);
+		try {
+			const targetDate = d.today();
+			const items = await d.getSupplementChecklist(userId, targetDate);
 
-		const checklist = items.map((item) => ({
-			id: item.supplement.id,
-			name: item.supplement.name,
-			dosage: item.supplement.dosage,
-			dosageUnit: item.supplement.dosageUnit,
-			ingredients: item.supplement.ingredients ?? [],
-			taken: item.taken,
-			takenAt: item.takenAt
-		}));
+			const checklist = items.map((item) => ({
+				id: item.supplement.id,
+				name: item.supplement.name,
+				dosage: item.supplement.dosage,
+				dosageUnit: item.supplement.dosageUnit,
+				ingredients: item.supplement.ingredients ?? [],
+				taken: item.taken,
+				takenAt: item.takenAt
+			}));
 
-		const taken = checklist.filter((c) => c.taken).length;
-		return {
-			date: targetDate,
-			total: checklist.length,
-			taken,
-			pending: checklist.length - taken,
-			supplements: checklist
-		};
+			const taken = checklist.filter((c) => c.taken).length;
+			return {
+				date: targetDate,
+				total: checklist.length,
+				taken,
+				pending: checklist.length - taken,
+				supplements: checklist
+			};
+		} catch (e) {
+			wrapError('get supplement status', e);
+		}
 	};
 
 	const handleLogSupplement = async (
 		userId: string,
 		args: { name?: string; supplementId?: string; date?: string }
 	) => {
-		const targetDate = args.date ?? d.today();
-		let id = args.supplementId;
+		try {
+			const targetDate = args.date ?? d.today();
+			let id = args.supplementId;
 
-		if (!id && args.name) {
-			const allSupplements = await d.listSupplements(userId, true);
-			const match = allSupplements.find((s) =>
-				s.name.toLowerCase().includes(args.name!.toLowerCase())
-			);
-			if (!match) {
-				return { success: false, error: `No supplement found matching "${args.name}"` };
+			if (!id && args.name) {
+				const allSupplements = await d.listSupplements(userId, true);
+				const match = allSupplements.find((s) =>
+					s.name.toLowerCase().includes(args.name!.toLowerCase())
+				);
+				if (!match) {
+					return { success: false, error: `No supplement found matching "${args.name}"` };
+				}
+				id = match.id;
 			}
-			id = match.id;
-		}
 
-		if (!id) {
-			return { success: false, error: 'Provide either name or supplementId' };
-		}
-
-		const result = await d.logSupplement(userId, id, targetDate);
-		if (!result.success) {
-			return { success: false, error: result.error.message };
-		}
-
-		const supplement = await d.getSupplementById(userId, id);
-		const items = await d.getSupplementChecklist(userId, targetDate);
-		const checklist = items.map((item) => ({
-			id: item.supplement.id,
-			name: item.supplement.name,
-			taken: item.taken
-		}));
-		const takenCount = checklist.filter((c) => c.taken).length;
-
-		return {
-			success: true,
-			logged: {
-				name: supplement?.name ?? 'Unknown',
-				dosage: supplement?.dosage,
-				dosageUnit: supplement?.dosageUnit,
-				ingredients: supplement?.ingredients ?? [],
-				date: targetDate
-			},
-			status: {
-				total: checklist.length,
-				taken: takenCount,
-				pending: checklist.length - takenCount
+			if (!id) {
+				return { success: false, error: 'Provide either name or supplementId' };
 			}
-		};
+
+			const result = await d.logSupplement(userId, id, targetDate);
+			if (!result.success) {
+				return { success: false, error: result.error.message };
+			}
+
+			const supplement = await d.getSupplementById(userId, id);
+			const items = await d.getSupplementChecklist(userId, targetDate);
+			const checklist = items.map((item) => ({
+				id: item.supplement.id,
+				name: item.supplement.name,
+				taken: item.taken
+			}));
+			const takenCount = checklist.filter((c) => c.taken).length;
+
+			return {
+				success: true,
+				logged: {
+					name: supplement?.name ?? 'Unknown',
+					dosage: supplement?.dosage,
+					dosageUnit: supplement?.dosageUnit,
+					ingredients: supplement?.ingredients ?? [],
+					date: targetDate
+				},
+				status: {
+					total: checklist.length,
+					taken: takenCount,
+					pending: checklist.length - takenCount
+				}
+			};
+		} catch (e) {
+			wrapError('log supplement', e);
+		}
 	};
 
 	const handleListEntries = async (userId: string, date?: string) => {
-		const targetDate = date ?? d.today();
-		const { items: entries } = await d.listEntriesByDate(userId, targetDate);
-		return { date: targetDate, entries };
+		try {
+			const targetDate = date ?? d.today();
+			const { items: entries } = await d.listEntriesByDate(userId, targetDate);
+			return { date: targetDate, entries };
+		} catch (e) {
+			wrapError('list entries', e);
+		}
 	};
 
 	const handleUpdateEntry = async (
@@ -275,249 +311,373 @@ export function createHandlers(d: HandlerDeps) {
 			quickFiber?: number | null;
 		}
 	) => {
-		const { entryId, ...rest } = args;
-		const result = await d.updateEntry(userId, entryId, rest);
-		if (!result.success) return { error: result.error.message };
-		const date = result.data?.date ?? d.today();
-		const dailyStatus = await getDailyStatusForDate(userId, date);
-		return { success: true, entryId, dailyStatus };
+		try {
+			const { entryId, ...rest } = args;
+			const result = await d.updateEntry(userId, entryId, rest);
+			if (!result.success) return { error: result.error.message };
+			const date = result.data?.date ?? d.today();
+			const dailyStatus = await getDailyStatusForDate(userId, date);
+			return { success: true, entryId, dailyStatus };
+		} catch (e) {
+			wrapError('update entry', e);
+		}
 	};
 
 	const handleDeleteEntry = async (userId: string, entryId: string, date?: string) => {
-		await d.deleteEntry(userId, entryId);
-		const targetDate = date ?? d.today();
-		const dailyStatus = await getDailyStatusForDate(userId, targetDate);
-		return { success: true, dailyStatus };
+		try {
+			await d.deleteEntry(userId, entryId);
+			const targetDate = date ?? d.today();
+			const dailyStatus = await getDailyStatusForDate(userId, targetDate);
+			return { success: true, dailyStatus };
+		} catch (e) {
+			wrapError('delete entry', e);
+		}
 	};
 
 	const handleGetGoals = async (userId: string) => {
-		const goals = await d.getGoals(userId);
-		return { goals };
+		try {
+			const goals = await d.getGoals(userId);
+			return { goals };
+		} catch (e) {
+			wrapError('get goals', e);
+		}
 	};
 
 	const handleUpdateGoals = async (userId: string, payload: unknown) => {
-		const result = await d.upsertGoals(userId, payload);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, goals: result.data };
+		try {
+			const result = await d.upsertGoals(userId, payload);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, goals: result.data };
+		} catch (e) {
+			wrapError('update goals', e);
+		}
 	};
 
 	const handleListRecipes = async (userId: string) => {
-		const { items: recipes } = await d.listRecipes(userId);
-		return { recipes };
+		try {
+			const { items: recipes } = await d.listRecipes(userId);
+			return { recipes };
+		} catch (e) {
+			wrapError('list recipes', e);
+		}
 	};
 
 	const handleGetRecipe = async (userId: string, recipeId: string) => {
-		const recipe = await d.getRecipe(userId, recipeId);
-		if (!recipe) return { error: 'Recipe not found' };
-		return recipe;
+		try {
+			const recipe = await d.getRecipe(userId, recipeId);
+			if (!recipe) return { error: 'Recipe not found' };
+			return recipe;
+		} catch (e) {
+			wrapError('get recipe', e);
+		}
 	};
 
 	const handleGetFood = async (userId: string, foodId: string) => {
-		const food = await d.getFood(userId, foodId);
-		if (!food) return { error: 'Food not found' };
-		return food;
+		try {
+			const food = await d.getFood(userId, foodId);
+			if (!food) return { error: 'Food not found' };
+			return food;
+		} catch (e) {
+			wrapError('get food', e);
+		}
 	};
 
 	const handleListFavorites = async (userId: string) => {
-		const [foods, recipes] = await Promise.all([
-			d.listFavoriteFoods(userId),
-			d.listFavoriteRecipes(userId)
-		]);
-		return { foods, recipes };
+		try {
+			const [foods, recipes] = await Promise.all([
+				d.listFavoriteFoods(userId),
+				d.listFavoriteRecipes(userId)
+			]);
+			return { foods, recipes };
+		} catch (e) {
+			wrapError('list favorites', e);
+		}
 	};
 
 	const handleLogWeight = async (
 		userId: string,
 		args: { weightKg: number; date?: string; notes?: string }
 	) => {
-		const previous = await d.getLatestWeight(userId);
-		const result = await d.createWeightEntry(userId, {
-			weightKg: args.weightKg,
-			entryDate: args.date,
-			notes: args.notes
-		});
-		if (!result.success) return { error: result.error.message };
-		return {
-			success: true,
-			entryId: result.data.id,
-			weightKg: result.data.weightKg,
-			date: result.data.entryDate,
-			change: previous
-				? {
-						previousKg: previous.weightKg,
-						previousDate: previous.entryDate,
-						deltaKg: Math.round((result.data.weightKg - previous.weightKg) * 100) / 100
-					}
-				: null
-		};
+		try {
+			const previous = await d.getLatestWeight(userId);
+			const result = await d.createWeightEntry(userId, {
+				weightKg: args.weightKg,
+				entryDate: args.date,
+				notes: args.notes
+			});
+			if (!result.success) return { error: result.error.message };
+			return {
+				success: true,
+				entryId: result.data.id,
+				weightKg: result.data.weightKg,
+				date: result.data.entryDate,
+				change: previous
+					? {
+							previousKg: previous.weightKg,
+							previousDate: previous.entryDate,
+							deltaKg: Math.round((result.data.weightKg - previous.weightKg) * 100) / 100
+						}
+					: null
+			};
+		} catch (e) {
+			wrapError('log weight', e);
+		}
 	};
 
 	const handleGetWeight = async (userId: string, args: { from?: string; to?: string }) => {
-		if (args.from || args.to) {
-			if (!args.from || !args.to) {
-				return {
-					error: 'Provide both "from" and "to" for a date range, or omit both for latest weight'
-				};
+		try {
+			if (args.from || args.to) {
+				if (!args.from || !args.to) {
+					return {
+						error: 'Provide both "from" and "to" for a date range, or omit both for latest weight'
+					};
+				}
+				return await d.getWeightWithTrend(userId, args.from, args.to);
 			}
-			return await d.getWeightWithTrend(userId, args.from, args.to);
+			const latest = await d.getLatestWeight(userId);
+			return latest ?? { error: 'No weight entries found' };
+		} catch (e) {
+			wrapError('get weight', e);
 		}
-		const latest = await d.getLatestWeight(userId);
-		return latest ?? { error: 'No weight entries found' };
 	};
 
 	const handleGetWeeklyStats = async (userId: string) => {
-		return await d.getWeeklyStats(userId);
+		try {
+			return await d.getWeeklyStats(userId);
+		} catch (e) {
+			wrapError('get weekly stats', e);
+		}
 	};
 
 	const handleGetMonthlyStats = async (userId: string) => {
-		return await d.getMonthlyStats(userId);
+		try {
+			return await d.getMonthlyStats(userId);
+		} catch (e) {
+			wrapError('get monthly stats', e);
+		}
 	};
 
 	const handleCopyEntries = async (userId: string, args: { fromDate: string; toDate?: string }) => {
-		const targetDate = args.toDate ?? d.today();
-		const copied = await d.copyEntries(userId, args.fromDate, targetDate);
-		const dailyStatus = await getDailyStatusForDate(userId, targetDate);
-		return { success: true, copiedCount: copied.length, dailyStatus };
+		try {
+			const targetDate = args.toDate ?? d.today();
+			const copied = await d.copyEntries(userId, args.fromDate, targetDate);
+			const dailyStatus = await getDailyStatusForDate(userId, targetDate);
+			return { success: true, copiedCount: copied.length, dailyStatus };
+		} catch (e) {
+			wrapError('copy entries', e);
+		}
 	};
 
 	const handleFindFoodByBarcode = async (userId: string, barcode: string) => {
-		const food = await d.findFoodByBarcode(userId, barcode);
-		if (food) return { found: true, source: 'database' as const, ...food };
-		const offProduct = await d.fetchProduct(barcode);
-		if (offProduct) {
-			return {
-				found: true,
-				source: 'openfoodfacts' as const,
-				...offProduct,
-				hint: 'This food was found in Open Food Facts. Use create_food to save it to your database.'
-			};
+		try {
+			const food = await d.findFoodByBarcode(userId, barcode);
+			if (food) return { found: true, source: 'database' as const, ...food };
+			const offProduct = await d.fetchProduct(barcode);
+			if (offProduct) {
+				return {
+					found: true,
+					source: 'openfoodfacts' as const,
+					...offProduct,
+					hint: 'This food was found in Open Food Facts. Use create_food to save it to your database.'
+				};
+			}
+			return { found: false };
+		} catch (e) {
+			wrapError('find food by barcode', e);
 		}
-		return { found: false };
 	};
 
 	const handleUpdateFood = async (
 		userId: string,
 		args: { foodId: string; [key: string]: unknown }
 	) => {
-		const { foodId, ...rest } = args;
-		const result = await d.updateFood(userId, foodId, rest);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, foodId };
+		try {
+			const { foodId, ...rest } = args;
+			const result = await d.updateFood(userId, foodId, rest);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, foodId };
+		} catch (e) {
+			wrapError('update food', e);
+		}
 	};
 
 	const handleDeleteFood = async (userId: string, args: { foodId: string; force?: boolean }) => {
-		const result = await d.deleteFood(userId, args.foodId, args.force ?? false);
-		if (result.blocked)
-			return {
-				blocked: true,
-				entryCount: result.entryCount,
-				hint: 'Use force=true to delete with all entries'
-			};
-		return { success: true };
+		try {
+			const result = await d.deleteFood(userId, args.foodId, args.force ?? false);
+			if (result.blocked)
+				return {
+					blocked: true,
+					entryCount: result.entryCount,
+					hint: 'Use force=true to delete with all entries'
+				};
+			return { success: true };
+		} catch (e) {
+			wrapError('delete food', e);
+		}
 	};
 
 	const handleListRecentFoods = async (userId: string, args: { limit?: number }) => {
-		return d.listRecentFoods(userId, args.limit ?? 25);
+		try {
+			return d.listRecentFoods(userId, args.limit ?? 25);
+		} catch (e) {
+			wrapError('list recent foods', e);
+		}
 	};
 
 	const handleUpdateRecipe = async (
 		userId: string,
 		args: { recipeId: string; [key: string]: unknown }
 	) => {
-		const { recipeId, ...rest } = args;
-		const result = await d.updateRecipe(userId, recipeId, rest);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, recipeId };
+		try {
+			const { recipeId, ...rest } = args;
+			const result = await d.updateRecipe(userId, recipeId, rest);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, recipeId };
+		} catch (e) {
+			wrapError('update recipe', e);
+		}
 	};
 
 	const handleDeleteRecipe = async (
 		userId: string,
 		args: { recipeId: string; force?: boolean }
 	) => {
-		const result = await d.deleteRecipe(userId, args.recipeId, args.force ?? false);
-		if (result.blocked)
-			return {
-				blocked: true,
-				entryCount: result.entryCount,
-				hint: 'Use force=true to delete with all entries'
-			};
-		return { success: true };
+		try {
+			const result = await d.deleteRecipe(userId, args.recipeId, args.force ?? false);
+			if (result.blocked)
+				return {
+					blocked: true,
+					entryCount: result.entryCount,
+					hint: 'Use force=true to delete with all entries'
+				};
+			return { success: true };
+		} catch (e) {
+			wrapError('delete recipe', e);
+		}
 	};
 
 	const handleCreateSupplement = async (userId: string, args: unknown) => {
-		const result = await d.createSupplement(userId, args);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, supplementId: result.data.id };
+		try {
+			const result = await d.createSupplement(userId, args);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, supplementId: result.data.id };
+		} catch (e) {
+			wrapError('create supplement', e);
+		}
 	};
 
 	const handleListSupplements = async (userId: string, args: { activeOnly?: boolean }) => {
-		return { supplements: await d.listSupplements(userId, args.activeOnly ?? true) };
+		try {
+			return { supplements: await d.listSupplements(userId, args.activeOnly ?? true) };
+		} catch (e) {
+			wrapError('list supplements', e);
+		}
 	};
 
 	const handleUpdateSupplement = async (
 		userId: string,
 		args: { supplementId: string; [key: string]: unknown }
 	) => {
-		const { supplementId, ...rest } = args;
-		const result = await d.updateSupplement(userId, supplementId, rest);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, supplementId };
+		try {
+			const { supplementId, ...rest } = args;
+			const result = await d.updateSupplement(userId, supplementId, rest);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, supplementId };
+		} catch (e) {
+			wrapError('update supplement', e);
+		}
 	};
 
 	const handleDeleteSupplement = async (userId: string, args: { supplementId: string }) => {
-		await d.deleteSupplement(userId, args.supplementId);
-		return { success: true };
+		try {
+			await d.deleteSupplement(userId, args.supplementId);
+			return { success: true };
+		} catch (e) {
+			wrapError('delete supplement', e);
+		}
 	};
 
 	const handleUnlogSupplement = async (
 		userId: string,
 		args: { supplementId: string; date?: string }
 	) => {
-		await d.unlogSupplement(userId, args.supplementId, args.date ?? d.today());
-		return { success: true };
+		try {
+			await d.unlogSupplement(userId, args.supplementId, args.date ?? d.today());
+			return { success: true };
+		} catch (e) {
+			wrapError('unlog supplement', e);
+		}
 	};
 
 	const handleUpdateWeight = async (
 		userId: string,
 		args: { weightId: string; [key: string]: unknown }
 	) => {
-		const { weightId, ...rest } = args;
-		const result = await d.updateWeightEntry(userId, weightId, rest);
-		if (!result.success) return { error: result.error.message };
-		return { success: true, weightId };
+		try {
+			const { weightId, ...rest } = args;
+			const result = await d.updateWeightEntry(userId, weightId, rest);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, weightId };
+		} catch (e) {
+			wrapError('update weight', e);
+		}
 	};
 
 	const handleDeleteWeight = async (userId: string, args: { weightId: string }) => {
-		const deleted = await d.deleteWeightEntry(userId, args.weightId);
-		if (!deleted) return { error: 'Weight entry not found' };
-		return { success: true };
+		try {
+			const deleted = await d.deleteWeightEntry(userId, args.weightId);
+			if (!deleted) return { error: 'Weight entry not found' };
+			return { success: true };
+		} catch (e) {
+			wrapError('delete weight', e);
+		}
 	};
 
 	const handleGetDailyBreakdown = async (
 		userId: string,
 		args: { startDate: string; endDate: string }
 	) => {
-		return d.getDailyBreakdown(userId, args.startDate, args.endDate);
+		try {
+			return d.getDailyBreakdown(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get daily breakdown', e);
+		}
 	};
 
 	const handleGetMealBreakdown = async (
 		userId: string,
 		args: { startDate: string; endDate: string }
 	) => {
-		return d.getMealBreakdown(userId, args.startDate, args.endDate);
+		try {
+			return d.getMealBreakdown(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get meal breakdown', e);
+		}
 	};
 
 	const handleGetTopFoods = async (userId: string, args: { days?: number; limit?: number }) => {
-		return d.getTopFoods(userId, args.days ?? 7, args.limit ?? 10);
+		try {
+			return d.getTopFoods(userId, args.days ?? 7, args.limit ?? 10);
+		} catch (e) {
+			wrapError('get top foods', e);
+		}
 	};
 
 	const handleGetStreaks = async (userId: string) => {
-		return d.getStreaks(userId);
+		try {
+			return d.getStreaks(userId);
+		} catch (e) {
+			wrapError('get streaks', e);
+		}
 	};
 
 	const handleSearchOpenFoodFacts = async (query: string, limit?: number) => {
-		const results = await d.searchProducts(query, limit ?? 5);
-		return { products: results, count: results.length };
+		try {
+			const results = await d.searchProducts(query, limit ?? 5);
+			return { products: results, count: results.length };
+		} catch (e) {
+			wrapError('search Open Food Facts', e);
+		}
 	};
 
 	return {
