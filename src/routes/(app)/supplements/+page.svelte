@@ -12,6 +12,7 @@
 	import { formatSchedule } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
 	import { api } from '$lib/api/client';
+	import type { SupplementPayload } from '$lib/components/supplements/SupplementForm.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type SupplementWithIngredients = {
@@ -42,17 +43,20 @@
 		}
 	};
 
-	const createSupplement = async (payload: Record<string, unknown>) => {
-		await api.POST('/api/supplements', { body: payload as any });
+	const createSupplement = async (payload: SupplementPayload) => {
+		const { ingredients, ...rest } = payload;
+		await api.POST('/api/supplements', {
+			body: { ...rest, ...(ingredients ? { ingredients } : {}) }
+		});
 		showForm = false;
 		await loadSupplements();
 	};
 
-	const updateSupplement = async (payload: Record<string, unknown>) => {
+	const updateSupplement = async (payload: SupplementPayload) => {
 		if (!editingSupplement) return;
 		await api.PATCH('/api/supplements/{id}', {
 			params: { path: { id: editingSupplement.id } },
-			body: payload as any
+			body: payload
 		});
 		editingSupplement = null;
 		showForm = false;

@@ -19,6 +19,17 @@
 		dosageUnit: string;
 	};
 
+	export type SupplementPayload = {
+		name: string;
+		dosage: number;
+		dosageUnit: string;
+		scheduleType: ScheduleType;
+		scheduleDays?: number[];
+		scheduleStartDate?: string;
+		timeOfDay?: 'morning' | 'noon' | 'evening' | null;
+		ingredients?: { name: string; dosage: number; dosageUnit: string; sortOrder: number }[] | null;
+	};
+
 	type SupplementWithIngredients = {
 		id: string;
 		name: string;
@@ -37,7 +48,7 @@
 		onCancel
 	}: {
 		supplement?: SupplementWithIngredients | null;
-		onSave: (payload: Record<string, unknown>) => void;
+		onSave: (payload: SupplementPayload) => void;
 		onCancel: () => void;
 	} = $props();
 
@@ -54,7 +65,9 @@
 	// svelte-ignore state_referenced_locally
 	let scheduleStartDate = $state(supplement?.scheduleStartDate ?? today());
 	// svelte-ignore state_referenced_locally
-	let timeOfDay = $state<string | null>(supplement?.timeOfDay ?? null);
+	let timeOfDay = $state<'morning' | 'noon' | 'evening' | null>(
+		(supplement?.timeOfDay as 'morning' | 'noon' | 'evening' | null) ?? null
+	);
 	// svelte-ignore state_referenced_locally
 	let ingredients = $state<IngredientInput[]>(
 		supplement?.ingredients?.map((i) => ({
@@ -107,11 +120,12 @@
 	};
 
 	const handleSubmit = () => {
-		const payload: Record<string, unknown> = {
+		const payload: SupplementPayload = {
 			name,
 			dosage,
 			dosageUnit,
-			scheduleType
+			scheduleType,
+			timeOfDay: timeOfDay || null
 		};
 		if (scheduleType === 'weekly' || scheduleType === 'specific_days') {
 			payload.scheduleDays = scheduleDays;
@@ -119,7 +133,6 @@
 		if (scheduleType === 'every_other_day') {
 			payload.scheduleStartDate = scheduleStartDate;
 		}
-		payload.timeOfDay = timeOfDay || null;
 
 		if (ingredients.length > 0) {
 			payload.ingredients = ingredients.map((ing, i) => ({
@@ -277,7 +290,7 @@
 		<Select.Root
 			type="single"
 			value={timeOfDay ?? ''}
-			onValueChange={(v) => (timeOfDay = v || null)}
+			onValueChange={(v) => (timeOfDay = (v || null) as typeof timeOfDay)}
 		>
 			<Select.Trigger class="w-full">
 				<span
