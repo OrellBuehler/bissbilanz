@@ -12,6 +12,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (!startDate || !endDate) {
 			return json({ error: 'startDate and endDate parameters are required' }, { status: 400 });
 		}
+		const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+		if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+			return json({ error: 'Invalid date format, expected YYYY-MM-DD' }, { status: 400 });
+		}
 
 		const entries = await listEntriesByDateRange(userId, startDate, endDate);
 		return json({ entries });

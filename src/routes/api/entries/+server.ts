@@ -17,6 +17,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (!date) {
 			return json({ error: 'Missing date parameter' }, { status: 400 });
 		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return json({ error: 'Invalid date format, expected YYYY-MM-DD' }, { status: 400 });
+		}
 
 		const paginationResult = paginationSchema.safeParse({
 			limit: url.searchParams.get('limit'),
