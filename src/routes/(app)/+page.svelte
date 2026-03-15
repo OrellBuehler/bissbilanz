@@ -22,6 +22,7 @@
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
 	import { statsService } from '$lib/services/stats-service.svelte';
+	import { entryService } from '$lib/services/entry-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -130,7 +131,7 @@
 				<StreakWidget currentStreak={streaks.currentStreak} longestStreak={streaks.longestStreak} />
 			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 				<FavoritesWidget
-					onEntryLogged={() => {}}
+					onEntryLogged={() => entryService.refresh(activeDate)}
 					favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
 					favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
 						| 'time_based'
