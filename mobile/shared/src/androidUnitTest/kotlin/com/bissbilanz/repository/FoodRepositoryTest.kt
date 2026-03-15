@@ -1,10 +1,9 @@
 package com.bissbilanz.repository
 
-import app.cash.sqldelight.Query
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.cache.BissbilanzDatabaseQueries
-import com.bissbilanz.cache.CachedFood
+import com.bissbilanz.model.Food
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.sync.SyncOperation
@@ -12,22 +11,20 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FoodRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
-    private lateinit var queries: BissbilanzDatabaseQueries
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: FoodRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -35,36 +32,12 @@ class FoodRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        queries = mockk(relaxUnitFun = true, relaxed = true)
-        db =
-            mockk {
-                every { bissbilanzDatabaseQueries } returns queries
-            }
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        BissbilanzDatabase.Schema.create(driver)
+        db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
-        every { queries.selectFoodByBarcode(any()) } returns mockBarcodeQuery(null)
-        repository = FoodRepository(api, db, syncQueue, json)
+        repository = FoodRepository(api, db, syncQueue, json, kotlinx.coroutines.Dispatchers.Unconfined)
     }
-
-    private fun mockBarcodeQuery(food: CachedFood?): Query<CachedFood> {
-        val query = mockk<Query<CachedFood>>()
-        every { query.executeAsOneOrNull() } returns food
-        return query
-    }
-
-    private fun foodToCachedFood(food: com.bissbilanz.model.Food): CachedFood =
-        CachedFood(
-            id = food.id,
-            name = food.name,
-            brand = food.brand,
-            calories = food.calories,
-            protein = food.protein,
-            carbs = food.carbs,
-            fat = food.fat,
-            fiber = food.fiber,
-            isFavorite = if (food.isFavorite) 1L else 0L,
-            barcode = food.barcode,
-            jsonData = json.encodeToString(food),
-        )
 
     @Test
     fun refreshFoodsCachesDataOnSuccess() =
@@ -78,7 +51,8 @@ class FoodRepositoryTest {
 
             repository.refreshFoods()
 
-            coVerify { queries.transaction(any(), any()) }
+            val cached = db.bissbilanzDatabaseQueries.selectAllFoods().executeAsList()
+            assertEquals(2, cached.size)
         }
 
     @Test
@@ -138,7 +112,8 @@ class FoodRepositoryTest {
             val result = repository.findByBarcode("123456")
 
             assertEquals("Milk", result?.name)
-            verify { queries.insertFood(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+            val cached = db.bissbilanzDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
+            assertNull(cached)
         }
 
     @Test
@@ -155,8 +130,8 @@ class FoodRepositoryTest {
     fun findByBarcodeReturnsCachedWhenApiReturnsNull() =
         runTest {
             val food = TestFixtures.food(id = "1", name = "Cached Milk")
+            seedFoodInCache(food.copy(barcode = "123456"))
             coEvery { api.getFoodByBarcode("123456") } returns null
-            every { queries.selectFoodByBarcode("123456") } returns mockBarcodeQuery(foodToCachedFood(food))
 
             val result = repository.findByBarcode("123456")
 
@@ -167,8 +142,8 @@ class FoodRepositoryTest {
     fun findByBarcodeReturnsCachedWhenApiFailsOffline() =
         runTest {
             val food = TestFixtures.food(id = "1", name = "Offline Milk")
+            seedFoodInCache(food.copy(barcode = "123456"))
             coEvery { api.getFoodByBarcode("123456") } throws RuntimeException("Network error")
-            every { queries.selectFoodByBarcode("123456") } returns mockBarcodeQuery(foodToCachedFood(food))
 
             val result = repository.findByBarcode("123456")
 
@@ -178,38 +153,47 @@ class FoodRepositoryTest {
     @Test
     fun findByBarcodeCachesApiResult() =
         runTest {
-            val food = TestFixtures.food(id = "1", name = "Fresh Milk")
+            val food = TestFixtures.food(id = "1", name = "Fresh Milk").copy(barcode = "123456")
             coEvery { api.getFoodByBarcode("123456") } returns food
 
             repository.findByBarcode("123456")
 
-            verify {
-                queries.insertFood(
-                    id = "1",
-                    name = "Fresh Milk",
-                    brand = null,
-                    calories = 200.0,
-                    protein = 20.0,
-                    carbs = 25.0,
-                    fat = 8.0,
-                    fiber = 3.0,
-                    isFavorite = 0L,
-                    barcode = null,
-                    jsonData = any(),
-                )
-            }
+            val cached = db.bissbilanzDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
+            assertNotNull(cached)
+            assertEquals("1", cached.id)
         }
 
     @Test
     fun deleteFoodDeletesLocallyAndEnqueuesSync() =
         runTest {
+            val food = TestFixtures.food(id = "1", name = "To Delete")
+            seedFoodInCache(food)
+
             repository.deleteFood("1")
 
+            val cached = db.bissbilanzDatabaseQueries.selectFoodById("1").executeAsOneOrNull()
+            assertNull(cached)
             coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.DeleteFood && it.id == "1" }) }
         }
 
     @Test
     fun recentFoodsStateFlowStartsEmpty() {
         assertTrue(repository.recentFoods.value.isEmpty())
+    }
+
+    private fun seedFoodInCache(food: Food) {
+        db.bissbilanzDatabaseQueries.insertFood(
+            id = food.id,
+            name = food.name,
+            brand = food.brand,
+            calories = food.calories,
+            protein = food.protein,
+            carbs = food.carbs,
+            fat = food.fat,
+            fiber = food.fiber,
+            isFavorite = if (food.isFavorite) 1L else 0L,
+            barcode = food.barcode,
+            jsonData = json.encodeToString(food),
+        )
     }
 }

@@ -55,6 +55,7 @@ kotlin {
                 implementation(libs.mockk)
                 implementation(libs.ktor.client.mock)
                 implementation(libs.turbine)
+                implementation(libs.sqldelight.jvm)
             }
         }
     }

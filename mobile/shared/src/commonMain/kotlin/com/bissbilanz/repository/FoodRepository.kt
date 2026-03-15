@@ -8,6 +8,8 @@ import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +24,7 @@ class FoodRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
@@ -71,8 +74,11 @@ class FoodRepository(
 
     suspend fun getFood(id: String): Food =
         try {
-            api.getFood(id)
+            val food = api.getFood(id)
+            cacheFood(food)
+            food
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
             if (cached != null) {
                 json.decodeFromString<Food>(cached.jsonData)
@@ -116,14 +122,33 @@ class FoodRepository(
         }
 
     suspend fun findByBarcode(barcode: String): Food? =
-        try {
-            api.getFoodByBarcode(barcode)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            db.bissbilanzDatabaseQueries
-                .selectFoodByBarcode(barcode)
-                .executeAsOneOrNull()
-                ?.let { json.decodeFromString<Food>(it.jsonData) }
+        coroutineScope {
+            val apiResult =
+                async {
+                    try {
+                        api.getFoodByBarcode(barcode)
+                    } catch (e: Exception) {
+                        if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                        null
+                    }
+                }
+            val cacheResult =
+                async(ioDispatcher) {
+                    db.bissbilanzDatabaseQueries
+                        .selectFoodByBarcode(barcode)
+                        .executeAsOneOrNull()
+                        ?.let { json.decodeFromString<Food>(it.jsonData) }
+                }
+
+            val apiFood = apiResult.await()
+            val cachedFood = cacheResult.await()
+
+            if (apiFood != null) {
+                cacheFood(apiFood)
+                apiFood
+            } else {
+                cachedFood
+            }
         }
 
     private fun cacheFood(food: Food) {
