@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from 'crypto';
 import { compareSync, hashSync } from 'bcrypt';
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, and, gt, lt, isNull } from 'drizzle-orm';
 import {
 	getDB,
 	oauthClients,
@@ -271,23 +271,24 @@ export async function consumeAuthorizationCode(
 
 	const codeHash = hashAuthorizationCode(code);
 
-	const authCode = await db.query.oauthAuthorizationCodes.findFirst({
-		where: eq(oauthAuthorizationCodes.code, codeHash)
-	});
+	const [authCode] = await db
+		.update(oauthAuthorizationCodes)
+		.set({ usedAt: new Date() })
+		.where(
+			and(
+				eq(oauthAuthorizationCodes.code, codeHash),
+				isNull(oauthAuthorizationCodes.usedAt),
+				gt(oauthAuthorizationCodes.expiresAt, new Date()),
+				eq(oauthAuthorizationCodes.clientId, clientId),
+				eq(oauthAuthorizationCodes.redirectUri, redirectUri)
+			)
+		)
+		.returning();
 
 	if (!authCode) return undefined;
-	if (authCode.usedAt) return undefined;
-	if (authCode.expiresAt < new Date()) return undefined;
-	if (authCode.clientId !== clientId) return undefined;
-	if (authCode.redirectUri !== redirectUri) return undefined;
 
 	const pkceValid = verifyPKCE(codeVerifier, authCode.codeChallenge);
 	if (!pkceValid) return undefined;
-
-	await db
-		.update(oauthAuthorizationCodes)
-		.set({ usedAt: new Date() })
-		.where(eq(oauthAuthorizationCodes.code, codeHash));
 
 	return authCode.userId;
 }
@@ -330,20 +331,22 @@ export async function refreshAccessToken(
 	const tokenHash = hashAccessToken(refreshToken);
 	const now = new Date();
 
-	const tokenRecord = await db.query.oauthTokens.findFirst({
-		where: and(
-			eq(oauthTokens.refreshTokenHash, tokenHash),
-			eq(oauthTokens.clientId, clientId),
-			gt(oauthTokens.refreshTokenExpiresAt, now)
-		)
+	return db.transaction(async (tx) => {
+		const tokenRecord = await tx.query.oauthTokens.findFirst({
+			where: and(
+				eq(oauthTokens.refreshTokenHash, tokenHash),
+				eq(oauthTokens.clientId, clientId),
+				gt(oauthTokens.refreshTokenExpiresAt, now)
+			)
+		});
+
+		if (!tokenRecord) return undefined;
+
+		await tx.delete(oauthTokens).where(eq(oauthTokens.id, tokenRecord.id));
+
+		const result = await createAccessToken(tokenRecord.userId, clientId);
+		return { ...result, userId: tokenRecord.userId };
 	});
-
-	if (!tokenRecord) return undefined;
-
-	await db.delete(oauthTokens).where(eq(oauthTokens.id, tokenRecord.id));
-
-	const result = await createAccessToken(tokenRecord.userId, clientId);
-	return { ...result, userId: tokenRecord.userId };
 }
 
 export async function validateAccessToken(

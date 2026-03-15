@@ -417,7 +417,7 @@ describe('oauth-db', () => {
 				expiresAt: new Date(Date.now() + 60000),
 				usedAt: null
 			};
-			setResult(authCode);
+			setResult([authCode]);
 
 			const result = await consumeAuthorizationCode(
 				'raw-code',
@@ -429,54 +429,8 @@ describe('oauth-db', () => {
 			expect(result).toBe(TEST_USER.id);
 		});
 
-		test('returns undefined when code not found', async () => {
-			setResult(undefined);
-
-			const result = await consumeAuthorizationCode(
-				'code',
-				'test-client',
-				'http://localhost:3000/callback',
-				'verifier'
-			);
-
-			expect(result).toBeUndefined();
-		});
-
-		test('returns undefined when code already used', async () => {
-			const usedCode = {
-				code: 'hashed-code',
-				clientId: 'test-client',
-				userId: TEST_USER.id,
-				redirectUri: 'http://localhost:3000/callback',
-				codeChallenge: 'challenge',
-				codeChallengeMethod: 'S256' as const,
-				expiresAt: new Date(Date.now() + 60000),
-				usedAt: new Date()
-			};
-			setResult(usedCode);
-
-			const result = await consumeAuthorizationCode(
-				'code',
-				'test-client',
-				'http://localhost:3000/callback',
-				'verifier'
-			);
-
-			expect(result).toBeUndefined();
-		});
-
-		test('returns undefined when code expired', async () => {
-			const expiredCode = {
-				code: 'hashed-code',
-				clientId: 'test-client',
-				userId: TEST_USER.id,
-				redirectUri: 'http://localhost:3000/callback',
-				codeChallenge: 'challenge',
-				codeChallengeMethod: 'S256' as const,
-				expiresAt: new Date(Date.now() - 1000),
-				usedAt: null
-			};
-			setResult(expiredCode);
+		test('returns undefined when no rows updated', async () => {
+			setResult([]);
 
 			const result = await consumeAuthorizationCode(
 				'code',
