@@ -18,6 +18,9 @@
 	"paths": {
 		"/api/goals": {
 			"get": {
+				"operationId": "getGoals",
+				"tags": ["Goals"],
+				"description": "Get daily nutrition goals.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -30,19 +33,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "setGoals",
+				"tags": ["Goals"],
+				"description": "Set daily nutrition goals.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -108,62 +108,51 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/foods": {
 			"get": {
+				"operationId": "listFoods",
+				"tags": ["Foods"],
+				"description": "Search or list foods in the personal database.",
 				"parameters": [
 					{
+						"in": "query",
 						"name": "q",
-						"in": "query",
 						"schema": {
 							"type": "string"
-						},
-						"required": false
+						}
 					},
 					{
+						"in": "query",
 						"name": "barcode",
-						"in": "query",
 						"schema": {
 							"type": "string"
-						},
-						"required": false
+						}
 					},
 					{
+						"in": "query",
 						"name": "limit",
-						"in": "query",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					},
 					{
-						"name": "offset",
 						"in": "query",
+						"name": "offset",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					}
 				],
 				"responses": {
@@ -178,19 +167,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createFood",
+				"tags": ["Foods"],
+				"description": "Create a new food in the personal database.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -807,30 +793,19 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/foods/recent": {
 			"get": {
+				"operationId": "listRecentFoods",
+				"tags": ["Foods"],
+				"description": "List recently logged foods.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -843,29 +818,26 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/foods/{id}": {
 			"get": {
+				"operationId": "getFood",
+				"tags": ["Foods"],
+				"description": "Get a single food by ID.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -880,30 +852,28 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"patch": {
+				"operationId": "updateFood",
+				"tags": ["Foods"],
+				"description": "Update a food in the personal database.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -1510,85 +1480,64 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteFood",
+				"tags": ["Foods"],
+				"description": "Delete a food. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					},
 					{
-						"name": "force",
 						"in": "query",
+						"name": "force",
 						"schema": {
 							"type": "boolean"
-						},
-						"required": false
+						}
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
 					"409": {
-						"description": "Conflict",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ConflictErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
 		},
 		"/api/entries": {
 			"get": {
+				"operationId": "listEntries",
+				"tags": ["Entries"],
+				"description": "List diary entries for a given date.",
 				"parameters": [
 					{
-						"name": "date",
 						"in": "query",
-						"required": true,
+						"name": "date",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -1603,19 +1552,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createEntry",
+				"tags": ["Entries"],
+				"description": "Log a food entry.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -1749,48 +1695,39 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/entries/copy": {
 			"post": {
+				"operationId": "copyEntries",
+				"tags": ["Entries"],
+				"description": "Copy all diary entries from one date to another.",
 				"parameters": [
 					{
-						"name": "fromDate",
 						"in": "query",
-						"required": true,
+						"name": "fromDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					},
 					{
-						"name": "toDate",
 						"in": "query",
-						"required": true,
+						"name": "toDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -1805,48 +1742,39 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/entries/range": {
 			"get": {
+				"operationId": "getEntriesRange",
+				"tags": ["Entries"],
+				"description": "Get diary entries for a date range.",
 				"parameters": [
 					{
-						"name": "startDate",
 						"in": "query",
-						"required": true,
+						"name": "startDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					},
 					{
-						"name": "endDate",
 						"in": "query",
-						"required": true,
+						"name": "endDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -1861,32 +1789,30 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/entries/{id}": {
 			"patch": {
+				"operationId": "updateEntry",
+				"tags": ["Entries"],
+				"description": "Update a diary entry.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2019,74 +1945,62 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteEntry",
+				"tags": ["Entries"],
+				"description": "Delete a diary entry.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/recipes": {
 			"get": {
+				"operationId": "listRecipes",
+				"tags": ["Recipes"],
+				"description": "List recipes.",
 				"parameters": [
 					{
-						"name": "limit",
 						"in": "query",
+						"name": "limit",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					},
 					{
-						"name": "offset",
 						"in": "query",
+						"name": "offset",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					}
 				],
 				"responses": {
@@ -2101,19 +2015,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createRecipe",
+				"tags": ["Recipes"],
+				"description": "Create a new recipe.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2181,39 +2092,29 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/recipes/{id}": {
 			"get": {
+				"operationId": "getRecipe",
+				"tags": ["Recipes"],
+				"description": "Get a single recipe by ID.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -2228,30 +2129,28 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"patch": {
+				"operationId": "updateRecipe",
+				"tags": ["Recipes"],
+				"description": "Update a recipe.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2318,84 +2217,61 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteRecipe",
+				"tags": ["Recipes"],
+				"description": "Delete a recipe. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					},
 					{
-						"name": "force",
 						"in": "query",
+						"name": "force",
 						"schema": {
 							"type": "boolean"
-						},
-						"required": false
+						}
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
 					"409": {
-						"description": "Conflict",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ConflictErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements": {
 			"get": {
+				"operationId": "listSupplements",
+				"tags": ["Supplements"],
+				"description": "List supplements. Pass all=true to include inactive ones.",
 				"parameters": [
 					{
-						"name": "all",
 						"in": "query",
+						"name": "all",
 						"schema": {
 							"type": "boolean"
-						},
-						"required": false
+						}
 					}
 				],
 				"responses": {
@@ -2410,19 +2286,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createSupplement",
+				"tags": ["Supplements"],
+				"description": "Create a new supplement.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2533,30 +2406,19 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/today": {
 			"get": {
+				"operationId": "getTodaySupplementChecklist",
+				"tags": ["Supplements"],
+				"description": "Get today's supplement checklist.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -2569,38 +2431,34 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/history": {
 			"get": {
+				"operationId": "getSupplementHistory",
+				"tags": ["Supplements"],
+				"description": "Get supplement log history.",
 				"parameters": [
 					{
-						"name": "from",
 						"in": "query",
+						"name": "from",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					},
 					{
-						"name": "to",
 						"in": "query",
+						"name": "to",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					}
 				],
 				"responses": {
@@ -2615,29 +2473,26 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/{id}": {
 			"get": {
+				"operationId": "getSupplement",
+				"tags": ["Supplements"],
+				"description": "Get a single supplement by ID.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -2652,30 +2507,28 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"patch": {
+				"operationId": "updateSupplement",
+				"tags": ["Supplements"],
+				"description": "Update a supplement.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2792,70 +2645,58 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteSupplement",
+				"tags": ["Supplements"],
+				"description": "Delete a supplement.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/{id}/log": {
 			"post": {
+				"operationId": "logSupplement",
+				"tags": ["Supplements"],
+				"description": "Log a supplement as taken today.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -2881,38 +2722,36 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/{id}/log/{date}": {
 			"post": {
+				"operationId": "logSupplementForDate",
+				"tags": ["Supplements"],
+				"description": "Log a supplement as taken on a specific date.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					},
 					{
-						"name": "date",
 						"in": "path",
-						"required": true,
+						"name": "date",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -2927,66 +2766,61 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "unlogSupplementForDate",
+				"tags": ["Supplements"],
+				"description": "Remove a supplement log entry for a specific date.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					},
 					{
-						"name": "date",
 						"in": "path",
-						"required": true,
+						"name": "date",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/supplements/{date}/checklist": {
 			"get": {
+				"operationId": "getSupplementChecklist",
+				"tags": ["Supplements"],
+				"description": "Get supplement checklist for a specific date.",
 				"parameters": [
 					{
-						"name": "date",
 						"in": "path",
-						"required": true,
+						"name": "date",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -3001,44 +2835,39 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/weight": {
 			"get": {
+				"operationId": "listWeightEntries",
+				"tags": ["Weight"],
 				"description": "Returns weight entries. When from/to query params are provided, returns trend data instead.",
 				"parameters": [
 					{
-						"name": "from",
 						"in": "query",
+						"name": "from",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					},
 					{
-						"name": "to",
 						"in": "query",
+						"name": "to",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					}
 				],
 				"responses": {
 					"200": {
-						"description": "Success",
+						"description": "Weight entries or trend data",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -3055,19 +2884,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createWeightEntry",
+				"tags": ["Weight"],
+				"description": "Log a new weight measurement.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -3110,30 +2936,19 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/weight/latest": {
 			"get": {
+				"operationId": "getLatestWeight",
+				"tags": ["Weight"],
+				"description": "Get the most recent weight entry.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3146,32 +2961,30 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/weight/{id}": {
 			"patch": {
+				"operationId": "updateWeightEntry",
+				"tags": ["Weight"],
+				"description": "Update a weight entry.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -3213,76 +3026,64 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteWeightEntry",
+				"tags": ["Weight"],
+				"description": "Delete a weight entry.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/daily": {
 			"get": {
+				"operationId": "getDailyStats",
+				"tags": ["Stats"],
+				"description": "Get daily nutrition totals for a date range.",
 				"parameters": [
 					{
-						"name": "startDate",
 						"in": "query",
-						"required": true,
+						"name": "startDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					},
 					{
-						"name": "endDate",
 						"in": "query",
-						"required": true,
+						"name": "endDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -3297,20 +3098,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/weekly": {
 			"get": {
+				"operationId": "getWeeklyStats",
+				"tags": ["Stats"],
+				"description": "Get average daily nutrition over the past 7 days.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3323,20 +3120,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/monthly": {
 			"get": {
+				"operationId": "getMonthlyStats",
+				"tags": ["Stats"],
+				"description": "Get average daily nutrition over the past 30 days.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3349,47 +3142,43 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/meal-breakdown": {
 			"get": {
+				"operationId": "getMealBreakdown",
+				"tags": ["Stats"],
+				"description": "Get nutrition totals broken down by meal type.",
 				"parameters": [
 					{
+						"in": "query",
 						"name": "date",
-						"in": "query",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					},
 					{
+						"in": "query",
 						"name": "startDate",
-						"in": "query",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					},
 					{
-						"name": "endDate",
 						"in": "query",
+						"name": "endDate",
 						"schema": {
 							"type": "string",
-							"format": "date"
-						},
-						"required": false
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
 					}
 				],
 				"responses": {
@@ -3404,36 +3193,34 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/top-foods": {
 			"get": {
+				"operationId": "getTopFoods",
+				"tags": ["Stats"],
+				"description": "Get most frequently logged foods.",
 				"parameters": [
 					{
-						"name": "days",
 						"in": "query",
+						"name": "days",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					},
 					{
-						"name": "limit",
 						"in": "query",
+						"name": "limit",
 						"schema": {
-							"type": "integer"
-						},
-						"required": false
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
 					}
 				],
 				"responses": {
@@ -3448,20 +3235,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/streaks": {
 			"get": {
+				"operationId": "getStreaks",
+				"tags": ["Stats"],
+				"description": "Get current and longest logging streaks.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3474,28 +3257,24 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/stats/calendar": {
 			"get": {
+				"operationId": "getCalendar",
+				"tags": ["Stats"],
+				"description": "Get calendar view of logged days for a month.",
 				"parameters": [
 					{
-						"name": "month",
 						"in": "query",
-						"required": true,
+						"name": "month",
 						"schema": {
 							"type": "string"
-						}
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -3510,20 +3289,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/preferences": {
 			"get": {
+				"operationId": "getPreferences",
+				"tags": ["Preferences"],
+				"description": "Get user preferences.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3536,19 +3311,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"patch": {
+				"operationId": "updatePreferences",
+				"tags": ["Preferences"],
+				"description": "Update user preferences.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -3662,30 +3434,19 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/meal-types": {
 			"get": {
+				"operationId": "listMealTypes",
+				"tags": ["MealTypes"],
+				"description": "List meal types.",
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -3698,19 +3459,16 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"post": {
+				"operationId": "createMealType",
+				"tags": ["MealTypes"],
+				"description": "Create a new meal type.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -3744,42 +3502,33 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/meal-types/{id}": {
 			"patch": {
+				"operationId": "updateMealType",
+				"tags": ["MealTypes"],
+				"description": "Update a meal type.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"requestBody": {
+					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
@@ -3812,67 +3561,52 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			},
 			"delete": {
+				"operationId": "deleteMealType",
+				"tags": ["MealTypes"],
+				"description": "Delete a meal type.",
 				"parameters": [
 					{
-						"name": "id",
 						"in": "path",
-						"required": true,
+						"name": "id",
 						"schema": {
 							"type": "string",
-							"format": "uuid"
-						}
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
 					}
 				],
 				"responses": {
 					"204": {
-						"description": "Deleted"
+						"$ref": "#/components/responses/DeletedResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/favorites": {
 			"get": {
+				"operationId": "listFavorites",
+				"tags": ["Favorites"],
+				"description": "List favorite foods and recipes.",
 				"parameters": [
 					{
-						"name": "type",
 						"in": "query",
+						"name": "type",
 						"schema": {
 							"type": "string",
 							"enum": ["foods", "recipes"]
-						},
-						"required": false
+						}
 					}
 				],
 				"responses": {
@@ -3887,46 +3621,43 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/maintenance": {
 			"get": {
+				"operationId": "getMaintenance",
+				"tags": ["Maintenance"],
+				"description": "Calculate maintenance calories for a date range.",
 				"parameters": [
 					{
+						"in": "query",
 						"name": "startDate",
-						"in": "query",
-						"required": true,
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					},
 					{
+						"in": "query",
 						"name": "endDate",
-						"in": "query",
-						"required": true,
 						"schema": {
 							"type": "string",
-							"format": "date"
-						}
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
 					},
 					{
-						"name": "muscleRatio",
 						"in": "query",
+						"name": "muscleRatio",
 						"schema": {
 							"type": "number"
-						},
-						"required": false
+						}
 					}
 				],
 				"responses": {
@@ -3941,31 +3672,21 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/images/upload": {
 			"post": {
+				"operationId": "uploadImage",
+				"tags": ["Images"],
+				"description": "Upload an image file.",
 				"requestBody": {
+					"required": true,
 					"content": {
 						"multipart/form-data": {
 							"schema": {
@@ -3993,38 +3714,27 @@
 						}
 					},
 					"400": {
-						"description": "Validation error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidationErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
 		},
 		"/api/openfoodfacts/{barcode}": {
 			"get": {
+				"operationId": "lookupOpenFoodFacts",
+				"tags": ["OpenFoodFacts"],
+				"description": "Look up a product by barcode in Open Food Facts.",
 				"parameters": [
 					{
-						"name": "barcode",
 						"in": "path",
-						"required": true,
+						"name": "barcode",
 						"schema": {
 							"type": "string"
-						}
+						},
+						"required": true
 					}
 				],
 				"responses": {
@@ -4039,14 +3749,7 @@
 						}
 					},
 					"401": {
-						"description": "Unauthorized",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
+						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
 				}
 			}
@@ -7213,6 +6916,41 @@
 					"ingredientsText"
 				],
 				"additionalProperties": false
+			}
+		},
+		"responses": {
+			"UnauthorizedResponse": {
+				"description": "Unauthorized",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
+			},
+			"ValidationErrorResponse": {
+				"description": "Validation error",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ValidationErrorResponse"
+						}
+					}
+				}
+			},
+			"DeletedResponse": {
+				"description": "Deleted"
+			},
+			"ConflictResponse": {
+				"description": "Conflict",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ConflictErrorResponse"
+						}
+					}
+				}
 			}
 		},
 		"securitySchemes": {
