@@ -119,7 +119,7 @@ export const updateRecipe = async (
 	userId: string,
 	id: string,
 	payload: unknown
-): Promise<Result<typeof recipes.$inferSelect | undefined>> => {
+): Promise<Result<typeof recipes.$inferSelect | null>> => {
 	const result = recipeUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
@@ -136,7 +136,9 @@ export const updateRecipe = async (
 				.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
 				.returning();
 
-			if (ingredients && updated) {
+			if (!updated) return null;
+
+			if (ingredients) {
 				await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
 				const rows = ingredients.map((ingredient, index) => ({
 					recipeId: id,
@@ -151,6 +153,7 @@ export const updateRecipe = async (
 			return updated;
 		});
 
+		if (!recipe) return { success: true, data: null };
 		return { success: true, data: recipe };
 	} catch (error) {
 		return { success: false, error: error as Error };

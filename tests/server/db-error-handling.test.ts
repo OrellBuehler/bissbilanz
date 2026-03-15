@@ -199,13 +199,13 @@ describe('Database error handling', () => {
 			}
 		});
 
-		test('updateRecipe returns undefined data when no rows match', async () => {
+		test('updateRecipe returns null data when no rows match', async () => {
 			setResult([]);
 
 			const result = await updateRecipe(TEST_USER.id, 'nonexistent-id', { name: 'New' });
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data).toBeUndefined();
+				expect(result.data).toBeNull();
 			}
 		});
 

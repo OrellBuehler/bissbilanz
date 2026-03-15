@@ -208,25 +208,25 @@ describe('recipes-db', () => {
 			}
 		});
 
-		test('returns undefined when recipe not found', async () => {
+		test('returns null when recipe not found', async () => {
 			setResult([]);
 
 			const payload = { name: 'Updated', totalServings: 1 };
 			const result = await updateRecipe(TEST_USER.id, 'non-existent-id', payload);
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data).toBeUndefined();
+				expect(result.data).toBeNull();
 			}
 		});
 
-		test('returns undefined when recipe belongs to different user', async () => {
+		test('returns null when recipe belongs to different user', async () => {
 			setResult([]);
 
 			const payload = { name: 'Updated', totalServings: 1 };
 			const result = await updateRecipe('different-user-id', TEST_RECIPE.id, payload);
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data).toBeUndefined();
+				expect(result.data).toBeNull();
 			}
 		});
 
