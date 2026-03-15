@@ -89,7 +89,7 @@ data class OpenFoodFactsProduct(
     @SerialName(value = "brand") @Required val brand: kotlin.String?,
     @SerialName(value = "barcode") @Required val barcode: kotlin.String,
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
-    @SerialName(value = "nutriScore") @Required val nutriScore: kotlin.String?,
+    @SerialName(value = "nutriScore") @Required val nutriScore: OpenFoodFactsProduct.NutriScore?,
     @SerialName(value = "novaGroup") @Required val novaGroup: kotlin.Double?,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
     @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
@@ -143,4 +143,29 @@ data class OpenFoodFactsProduct(
     @SerialName(value = "alcohol") val alcohol: kotlin.Double? = null,
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
-)
+) {
+    /**
+     *
+     *
+     * Values: a,b,c,d,e
+     */
+    @Serializable
+    enum class NutriScore(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "a")
+        a("a"),
+
+        @SerialName(value = "b")
+        b("b"),
+
+        @SerialName(value = "c")
+        c("c"),
+
+        @SerialName(value = "d")
+        d("d"),
+
+        @SerialName(value = "e")
+        e("e"),
+    }
+}

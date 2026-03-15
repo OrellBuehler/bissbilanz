@@ -36,5 +36,5 @@ data class SupplementLog(
     @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "takenAt") @Required val takenAt: kotlin.String,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
 )

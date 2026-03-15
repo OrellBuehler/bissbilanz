@@ -21,14 +21,14 @@ const foodSchema = z
 		fiber: z.number(),
 		...nutrientFields,
 		barcode: z.string().nullable(),
-		isFavorite: z.boolean(),
+		isFavorite: z.boolean().default(false),
 		nutriScore: z.string().nullable(),
-		novaGroup: z.number().nullable(),
+		novaGroup: z.number().int().nullable(),
 		additives: z.array(z.string()).nullable(),
 		ingredientsText: z.string().nullable(),
 		imageUrl: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string()
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional()
 	})
 	.meta({ id: 'Food' });
 
@@ -48,15 +48,15 @@ const recentFoodSchema = z
 		barcode: z.string().nullable(),
 		isFavorite: z.boolean(),
 		imageUrl: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string()
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional()
 	})
 	.meta({ id: 'FoodRecent' });
 
 export const foodsListResponseSchema = z
 	.object({
 		foods: z.array(foodSchema),
-		total: z.number()
+		total: z.number().int()
 	})
 	.meta({ id: 'FoodsListResponse' });
 

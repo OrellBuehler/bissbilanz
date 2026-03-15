@@ -47,12 +47,3 @@ data class PreferencesUpdate(
     val visibleNutrients: List<String>? = null,
     val locale: String? = null,
 )
-
-@Serializable
-data class MealType(
-    val id: String,
-    val userId: String,
-    val name: String,
-    val sortOrder: Int,
-    val createdAt: String? = null,
-)

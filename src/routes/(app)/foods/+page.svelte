@@ -41,7 +41,7 @@
 
 	const loadFoods = async (q?: string) => {
 		const { data } = await api.GET('/api/foods', {
-			params: { query: q ? { search: q } : {} }
+			params: { query: q ? { q } : {} }
 		});
 		if (data) foods = data.foods;
 	};
@@ -94,7 +94,7 @@
 		});
 		if (response.status === 409 && error) {
 			forceDeleteId = id;
-			forceDeleteCount = (error as any).entryCount ?? 0;
+			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
 			return;
 		}
 		await loadFoods(query);
@@ -118,7 +118,7 @@
 		await api.PATCH('/api/foods/{id}', {
 			params: { path: { id } },
 			body: {
-				nutriScore: product.nutriScore as any,
+				nutriScore: product.nutriScore,
 				novaGroup: product.novaGroup,
 				additives: product.additives,
 				ingredientsText: product.ingredientsText,

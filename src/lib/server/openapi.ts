@@ -5,7 +5,11 @@ import { goalsSchema } from './validation/goals';
 import { foodCreateSchema, foodUpdateSchema } from './validation/foods';
 import { entryCreateSchema, entryUpdateSchema } from './validation/entries';
 import { recipeCreateSchema, recipeUpdateSchema } from './validation/recipes';
-import { supplementCreateSchema, supplementUpdateSchema } from './validation/supplements';
+import {
+	supplementCreateSchema,
+	supplementUpdateSchema,
+	supplementLogSchema
+} from './validation/supplements';
 import { weightCreateSchema, weightUpdateSchema } from './validation/weight';
 import { preferencesUpdateSchema } from './validation/preferences';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from './validation/meal-types';
@@ -62,8 +66,8 @@ const goalsResponseSchema = z
 	.object({
 		goals: z
 			.object({
-				id: z.string().uuid(),
-				userId: z.string().uuid(),
+				id: z.string().uuid().optional(),
+				userId: z.string().uuid().optional(),
 				calorieGoal: z.number(),
 				proteinGoal: z.number(),
 				carbGoal: z.number(),
@@ -71,8 +75,8 @@ const goalsResponseSchema = z
 				fiberGoal: z.number(),
 				sodiumGoal: z.number().nullable().optional(),
 				sugarGoal: z.number().nullable().optional(),
-				createdAt: z.string(),
-				updatedAt: z.string()
+				createdAt: z.string().optional(),
+				updatedAt: z.string().optional()
 			})
 			.meta({ id: 'Goals' })
 			.nullable()
@@ -160,7 +164,7 @@ export function generateSpec() {
 			'/api/foods': {
 				get: {
 					parameters: [
-						{ name: 'search', in: 'query', schema: { type: 'string' }, required: false },
+						{ name: 'q', in: 'query', schema: { type: 'string' }, required: false },
 						{ name: 'barcode', in: 'query', schema: { type: 'string' }, required: false },
 						{ name: 'limit', in: 'query', schema: { type: 'integer' }, required: false },
 						{ name: 'offset', in: 'query', schema: { type: 'integer' }, required: false }
@@ -412,7 +416,8 @@ export function generateSpec() {
 				},
 				delete: {
 					parameters: [
-						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
+						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+						{ name: 'force', in: 'query', schema: { type: 'boolean' }, required: false }
 					],
 					responses: {
 						...res204,
@@ -523,6 +528,9 @@ export function generateSpec() {
 					parameters: [
 						{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
 					],
+					requestBody: {
+						content: { 'application/json': { schema: supplementLogSchema } }
+					},
 					responses: {
 						'201': {
 							description: 'Created',
@@ -589,7 +597,11 @@ export function generateSpec() {
 					responses: {
 						'200': {
 							description: 'Success',
-							content: { 'application/json': { schema: weightEntriesResponseSchema } }
+							content: {
+								'application/json': {
+									schema: z.union([weightEntriesResponseSchema, weightTrendResponseSchema])
+								}
+							}
 						},
 						...res401
 					}

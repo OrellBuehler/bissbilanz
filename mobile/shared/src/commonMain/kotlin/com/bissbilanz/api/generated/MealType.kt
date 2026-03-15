@@ -33,6 +33,6 @@ data class MealType(
     @SerialName(value = "id") @Required val id: kotlin.String,
     @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "name") @Required val name: kotlin.String,
-    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Double,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
+    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
 )

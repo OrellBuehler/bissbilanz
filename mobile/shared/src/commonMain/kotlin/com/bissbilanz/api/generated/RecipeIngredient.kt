@@ -22,19 +22,59 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param id
- * @param recipeId
  * @param foodId
  * @param quantity
  * @param servingUnit
  * @param sortOrder
+ * @param id
+ * @param recipeId
  */
 @Serializable
 data class RecipeIngredient(
-    @SerialName(value = "id") @Required val id: kotlin.String,
-    @SerialName(value = "recipeId") @Required val recipeId: kotlin.String,
     @SerialName(value = "foodId") @Required val foodId: kotlin.String,
     @SerialName(value = "quantity") @Required val quantity: kotlin.Double,
-    @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String,
-    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Double,
-)
+    @SerialName(value = "servingUnit") @Required val servingUnit: RecipeIngredient.ServingUnit,
+    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
+    @SerialName(value = "id") val id: kotlin.String? = null,
+    @SerialName(value = "recipeId") val recipeId: kotlin.String? = null,
+) {
+    /**
+     *
+     *
+     * Values: g,kg,ml,l,oz,lb,fl_oz,cup,tbsp,tsp
+     */
+    @Serializable
+    enum class ServingUnit(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "g")
+        g("g"),
+
+        @SerialName(value = "kg")
+        kg("kg"),
+
+        @SerialName(value = "ml")
+        ml("ml"),
+
+        @SerialName(value = "l")
+        l("l"),
+
+        @SerialName(value = "oz")
+        oz("oz"),
+
+        @SerialName(value = "lb")
+        lb("lb"),
+
+        @SerialName(value = "fl_oz")
+        fl_oz("fl_oz"),
+
+        @SerialName(value = "cup")
+        cup("cup"),
+
+        @SerialName(value = "tbsp")
+        tbsp("tbsp"),
+
+        @SerialName(value = "tsp")
+        tsp("tsp"),
+    }
+}

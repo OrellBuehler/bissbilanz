@@ -37,7 +37,7 @@ data class TopFoodItem(
     @SerialName(value = "foodId") @Required val foodId: kotlin.String?,
     @SerialName(value = "recipeId") @Required val recipeId: kotlin.String?,
     @SerialName(value = "foodName") @Required val foodName: kotlin.String,
-    @SerialName(value = "count") @Required val count: kotlin.Double,
+    @SerialName(value = "count") @Required val count: kotlin.Int,
     @SerialName(value = "calories") @Required val calories: kotlin.Double,
     @SerialName(value = "protein") @Required val protein: kotlin.Double,
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,

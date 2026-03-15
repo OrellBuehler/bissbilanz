@@ -40,8 +40,6 @@ import kotlinx.serialization.encoding.*
  * @param additives
  * @param ingredientsText
  * @param imageUrl
- * @param createdAt
- * @param updatedAt
  * @param saturatedFat
  * @param monounsaturatedFat
  * @param polyunsaturatedFat
@@ -85,6 +83,8 @@ import kotlinx.serialization.encoding.*
  * @param alcohol
  * @param water
  * @param salt
+ * @param createdAt
+ * @param updatedAt
  */
 @Serializable
 data class Food(
@@ -100,14 +100,12 @@ data class Food(
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
     @SerialName(value = "barcode") @Required val barcode: kotlin.String?,
-    @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean,
+    @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean = false,
     @SerialName(value = "nutriScore") @Required val nutriScore: kotlin.String?,
-    @SerialName(value = "novaGroup") @Required val novaGroup: kotlin.Double?,
+    @SerialName(value = "novaGroup") @Required val novaGroup: kotlin.Int?,
     @SerialName(value = "additives") @Required val additives: kotlin.collections.List<kotlin.String>?,
     @SerialName(value = "ingredientsText") @Required val ingredientsText: kotlin.String?,
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
     @SerialName(value = "saturatedFat") val saturatedFat: kotlin.Double? = null,
     @SerialName(value = "monounsaturatedFat") val monounsaturatedFat: kotlin.Double? = null,
     @SerialName(value = "polyunsaturatedFat") val polyunsaturatedFat: kotlin.Double? = null,
@@ -151,6 +149,8 @@ data class Food(
     @SerialName(value = "alcohol") val alcohol: kotlin.Double? = null,
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
     /**
      *

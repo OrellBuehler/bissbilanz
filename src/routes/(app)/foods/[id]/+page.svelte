@@ -219,7 +219,7 @@
 			const { error: patchError } = await api.PATCH('/api/foods/{id}', {
 				params: { path: { id: food.id } },
 				body: {
-					nutriScore: product.nutriScore as any,
+					nutriScore: product.nutriScore,
 					novaGroup: product.novaGroup,
 					additives: product.additives,
 					ingredientsText: product.ingredientsText,

@@ -26,8 +26,8 @@
 		isActive: boolean;
 		sortOrder: number;
 		ingredients: { name: string; dosage: number; dosageUnit: string }[];
-		createdAt: string | null;
-		updatedAt: string | null;
+		createdAt?: string;
+		updatedAt?: string;
 	};
 
 	let supplements: SupplementWithIngredients[] = $state([]);

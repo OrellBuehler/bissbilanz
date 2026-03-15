@@ -55,8 +55,8 @@ data class FoodRecent(
     @SerialName(value = "barcode") @Required val barcode: kotlin.String?,
     @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean,
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
     /**
      *

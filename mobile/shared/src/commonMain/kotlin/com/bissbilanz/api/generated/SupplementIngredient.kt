@@ -36,5 +36,5 @@ data class SupplementIngredient(
     @SerialName(value = "name") @Required val name: kotlin.String,
     @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
     @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
-    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Double,
+    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
 )

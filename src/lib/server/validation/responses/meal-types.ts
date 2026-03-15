@@ -6,8 +6,8 @@ const mealTypeSchema = z
 		id: z.string().uuid(),
 		userId: z.string().uuid(),
 		name: z.string(),
-		sortOrder: z.number(),
-		createdAt: z.string()
+		sortOrder: z.number().int(),
+		createdAt: z.string().optional()
 	})
 	.meta({ id: 'MealType' });
 

@@ -49,7 +49,7 @@ const topFoodSchema = z
 		foodId: z.string().uuid().nullable(),
 		recipeId: z.string().uuid().nullable(),
 		foodName: z.string(),
-		count: z.number(),
+		count: z.number().int(),
 		calories: z.number(),
 		protein: z.number(),
 		carbs: z.number(),
@@ -98,8 +98,8 @@ export const topFoodsResponseSchema = z
 
 export const streaksResponseSchema = z
 	.object({
-		currentStreak: z.number(),
-		longestStreak: z.number()
+		currentStreak: z.number().int(),
+		longestStreak: z.number().int()
 	})
 	.meta({ id: 'StreaksResponse' });
 

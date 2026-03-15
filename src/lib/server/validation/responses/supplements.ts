@@ -8,7 +8,7 @@ const supplementIngredientSchema = z
 		name: z.string(),
 		dosage: z.number(),
 		dosageUnit: z.string(),
-		sortOrder: z.number()
+		sortOrder: z.number().int()
 	})
 	.meta({ id: 'SupplementIngredient' });
 
@@ -19,14 +19,14 @@ const supplementSchema = z
 		name: z.string(),
 		dosage: z.number(),
 		dosageUnit: z.string(),
-		scheduleType: z.string(),
-		scheduleDays: z.array(z.number()).nullable(),
+		scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']),
+		scheduleDays: z.array(z.number().int()).nullable(),
 		scheduleStartDate: z.string().nullable(),
-		isActive: z.boolean(),
-		sortOrder: z.number(),
-		timeOfDay: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string(),
+		isActive: z.boolean().default(true),
+		sortOrder: z.number().int(),
+		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable(),
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional(),
 		ingredients: z.array(supplementIngredientSchema)
 	})
 	.meta({ id: 'Supplement' });
@@ -46,7 +46,7 @@ const supplementLogSchema = z
 		userId: z.string().uuid(),
 		date: z.string(),
 		takenAt: z.string(),
-		createdAt: z.string()
+		createdAt: z.string().optional()
 	})
 	.meta({ id: 'SupplementLog' });
 

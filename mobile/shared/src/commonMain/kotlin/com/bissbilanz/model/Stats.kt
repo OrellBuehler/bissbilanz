@@ -18,16 +18,6 @@ data class DailyStatsResponse(
 )
 
 @Serializable
-data class DailyStatsEntry(
-    val date: String,
-    val calories: Double,
-    val protein: Double,
-    val carbs: Double,
-    val fat: Double,
-    val fiber: Double,
-)
-
-@Serializable
 data class WeeklyMonthlyStatsResponse(
     val stats: MacroTotals,
 )
@@ -38,37 +28,8 @@ data class MealBreakdownResponse(
 )
 
 @Serializable
-data class MealBreakdownEntry(
-    val mealType: String,
-    val calories: Double,
-    val protein: Double,
-    val carbs: Double,
-    val fat: Double,
-    val fiber: Double,
-)
-
-@Serializable
-data class StreaksResponse(
-    val currentStreak: Int,
-    val longestStreak: Int,
-)
-
-@Serializable
 data class TopFoodsResponse(
     val data: List<TopFoodEntry>,
-)
-
-@Serializable
-data class TopFoodEntry(
-    val foodId: String? = null,
-    val recipeId: String? = null,
-    val foodName: String,
-    val count: Int,
-    val calories: Double,
-    val protein: Double,
-    val carbs: Double,
-    val fat: Double,
-    val fiber: Double,
 )
 
 @Serializable
@@ -106,18 +67,6 @@ data class MaintenanceResult(
     val fatEnergyKcal: Double,
     val muscleEnergyKcal: Double,
     val avgDailyCalories: Double,
-)
-
-@Serializable
-data class MaintenanceMeta(
-    val weightEntries: Int,
-    val foodEntryDays: Int,
-    val totalDays: Int,
-    val coverage: Double,
-    val firstWeight: Double,
-    val lastWeight: Double,
-    val startDate: String,
-    val endDate: String,
 )
 
 @Serializable

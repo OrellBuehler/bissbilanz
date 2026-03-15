@@ -87,7 +87,7 @@
 		if (taken) {
 			await api.POST('/api/supplements/{id}/log', {
 				params: { path: { id: supplementId } },
-				body: { date: activeDate } as any
+				body: { date: activeDate }
 			});
 		} else {
 			await api.DELETE('/api/supplements/{id}/log/{date}', {

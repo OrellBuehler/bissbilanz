@@ -83,7 +83,8 @@ describe('api/foods', () => {
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
-			expect(data.food).toBeTruthy();
+			expect(data.foods).toHaveLength(1);
+			expect(data.total).toBe(1);
 		});
 
 		test('searches by query string when provided', async () => {

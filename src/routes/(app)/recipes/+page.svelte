@@ -77,7 +77,7 @@
 		});
 		if (response.status === 409 && error) {
 			forceDeleteId = id;
-			forceDeleteCount = (error as any).entryCount ?? 0;
+			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
 			return;
 		}
 		await loadRecipes();
@@ -85,7 +85,9 @@
 
 	const confirmForceDelete = async () => {
 		if (!forceDeleteId) return;
-		await apiFetch(`/api/recipes/${forceDeleteId}?force=true`, { method: 'DELETE' });
+		await api.DELETE('/api/recipes/{id}', {
+			params: { path: { id: forceDeleteId }, query: { force: true } }
+		});
 		forceDeleteId = null;
 		await loadRecipes();
 	};

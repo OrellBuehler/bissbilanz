@@ -34,9 +34,9 @@ import kotlinx.serialization.encoding.*
  * @param isActive
  * @param sortOrder
  * @param timeOfDay
+ * @param ingredients
  * @param createdAt
  * @param updatedAt
- * @param ingredients
  */
 @Serializable
 data class Supplement(
@@ -45,13 +45,54 @@ data class Supplement(
     @SerialName(value = "name") @Required val name: kotlin.String,
     @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
     @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
-    @SerialName(value = "scheduleType") @Required val scheduleType: kotlin.String,
-    @SerialName(value = "scheduleDays") @Required val scheduleDays: kotlin.collections.List<kotlin.Double>?,
+    @SerialName(value = "scheduleType") @Required val scheduleType: Supplement.ScheduleType,
+    @SerialName(value = "scheduleDays") @Required val scheduleDays: kotlin.collections.List<kotlin.Int>?,
     @SerialName(value = "scheduleStartDate") @Required val scheduleStartDate: kotlin.String?,
-    @SerialName(value = "isActive") @Required val isActive: kotlin.Boolean,
-    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Double,
-    @SerialName(value = "timeOfDay") @Required val timeOfDay: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
+    @SerialName(value = "isActive") @Required val isActive: kotlin.Boolean = true,
+    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
+    @SerialName(value = "timeOfDay") @Required val timeOfDay: Supplement.TimeOfDay?,
     @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<SupplementIngredient>,
-)
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
+) {
+    /**
+     *
+     *
+     * Values: daily,every_other_day,weekly,specific_days
+     */
+    @Serializable
+    enum class ScheduleType(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "daily")
+        daily("daily"),
+
+        @SerialName(value = "every_other_day")
+        every_other_day("every_other_day"),
+
+        @SerialName(value = "weekly")
+        weekly("weekly"),
+
+        @SerialName(value = "specific_days")
+        specific_days("specific_days"),
+    }
+
+    /**
+     *
+     *
+     * Values: morning,noon,evening
+     */
+    @Serializable
+    enum class TimeOfDay(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "morning")
+        morning("morning"),
+
+        @SerialName(value = "noon")
+        noon("noon"),
+
+        @SerialName(value = "evening")
+        evening("evening"),
+    }
+}

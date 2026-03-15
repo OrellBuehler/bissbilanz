@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				return json({ error: 'Invalid barcode format' }, { status: 400 });
 			}
 			const food = await findFoodByBarcode(userId, barcode);
-			return json({ food });
+			return json({ foods: food ? [food] : [], total: food ? 1 : 0 });
 		}
 
 		const paginationResult = paginationSchema.safeParse({

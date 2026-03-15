@@ -15,20 +15,6 @@ data class WeightEntry(
 )
 
 @Serializable
-data class WeightCreate(
-    val weightKg: Double,
-    val entryDate: String,
-    val notes: String? = null,
-)
-
-@Serializable
-data class WeightUpdate(
-    val weightKg: Double? = null,
-    val entryDate: String? = null,
-    val notes: String? = null,
-)
-
-@Serializable
 data class WeightEntriesResponse(
     val entries: List<WeightEntry>,
 )

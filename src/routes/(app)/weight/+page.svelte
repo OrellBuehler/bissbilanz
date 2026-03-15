@@ -15,7 +15,7 @@
 		weightKg: number;
 		entryDate: string;
 		notes: string | null;
-		loggedAt: string;
+		loggedAt?: string;
 	};
 
 	type ChartPoint = {
@@ -39,7 +39,7 @@
 
 	const loadEntries = async () => {
 		const { data } = await api.GET('/api/weight');
-		if (data) {
+		if (data && 'entries' in data) {
 			entries = data.entries;
 		}
 	};
@@ -48,8 +48,8 @@
 		const { data } = await api.GET('/api/weight', {
 			params: { query: { from: chartFrom, to: chartTo } }
 		});
-		if (data) {
-			chartData = (data as any).data;
+		if (data && 'data' in data) {
+			chartData = data.data;
 		}
 	};
 

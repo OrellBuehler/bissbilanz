@@ -22,11 +22,13 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param currentStreak
- * @param longestStreak
+ * @param entryDate
+ * @param weightKg
+ * @param movingAvg
  */
 @Serializable
-data class StreaksResponse(
-    @SerialName(value = "currentStreak") @Required val currentStreak: kotlin.Int,
-    @SerialName(value = "longestStreak") @Required val longestStreak: kotlin.Int,
+data class WeightTrendEntry(
+    @SerialName(value = "entry_date") @Required val entryDate: kotlin.String,
+    @SerialName(value = "weight_kg") @Required val weightKg: kotlin.Double,
+    @SerialName(value = "moving_avg") @Required val movingAvg: kotlin.Double,
 )

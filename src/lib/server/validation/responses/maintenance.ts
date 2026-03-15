@@ -12,9 +12,9 @@ export const maintenanceResponseSchema = z
 			.meta({ id: 'MaintenanceResult' }),
 		meta: z
 			.object({
-				weightEntries: z.number(),
-				foodEntryDays: z.number(),
-				totalDays: z.number(),
+				weightEntries: z.number().int(),
+				foodEntryDays: z.number().int(),
+				totalDays: z.number().int(),
 				coverage: z.number(),
 				firstWeight: z.number(),
 				lastWeight: z.number(),

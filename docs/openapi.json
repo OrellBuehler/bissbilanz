@@ -134,7 +134,7 @@
 			"get": {
 				"parameters": [
 					{
-						"name": "search",
+						"name": "q",
 						"in": "query",
 						"schema": {
 							"type": "string"
@@ -2349,6 +2349,14 @@
 							"type": "string",
 							"format": "uuid"
 						}
+					},
+					{
+						"name": "force",
+						"in": "query",
+						"schema": {
+							"type": "boolean"
+						},
+						"required": false
 					}
 				],
 				"responses": {
@@ -2847,6 +2855,20 @@
 						}
 					}
 				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
 				"responses": {
 					"201": {
 						"description": "Created",
@@ -3020,7 +3042,14 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/WeightEntriesResponse"
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/WeightEntriesResponse"
+										},
+										{
+											"$ref": "#/components/schemas/WeightTrendResponse"
+										}
+									]
 								}
 							}
 						}
@@ -4097,17 +4126,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"id",
-					"userId",
-					"calorieGoal",
-					"proteinGoal",
-					"carbGoal",
-					"fatGoal",
-					"fiberGoal",
-					"createdAt",
-					"updatedAt"
-				],
+				"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
 				"additionalProperties": false
 			},
 			"ErrorResponse": {
@@ -4162,7 +4181,9 @@
 						}
 					},
 					"total": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["foods", "total"],
@@ -4657,6 +4678,7 @@
 						]
 					},
 					"isFavorite": {
+						"default": false,
 						"type": "boolean"
 					},
 					"nutriScore": {
@@ -4672,7 +4694,9 @@
 					"novaGroup": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -4737,9 +4761,7 @@
 					"novaGroup",
 					"additives",
 					"ingredientsText",
-					"imageUrl",
-					"createdAt",
-					"updatedAt"
+					"imageUrl"
 				],
 				"additionalProperties": false
 			},
@@ -4858,9 +4880,7 @@
 					"fiber",
 					"barcode",
 					"isFavorite",
-					"imageUrl",
-					"createdAt",
-					"updatedAt"
+					"imageUrl"
 				],
 				"additionalProperties": false
 			},
@@ -4887,7 +4907,9 @@
 						}
 					},
 					"total": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["entries", "total"],
@@ -5080,7 +5102,6 @@
 					"fat",
 					"fiber",
 					"eatenAt",
-					"createdAt",
 					"servingSize",
 					"servingUnit"
 				],
@@ -5244,9 +5265,7 @@
 					"quickCarbs",
 					"quickFat",
 					"quickFiber",
-					"eatenAt",
-					"createdAt",
-					"updatedAt"
+					"eatenAt"
 				],
 				"additionalProperties": false
 			},
@@ -5260,7 +5279,9 @@
 						}
 					},
 					"count": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["entries", "count"],
@@ -5383,7 +5404,9 @@
 						}
 					},
 					"total": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["recipes", "total"],
@@ -5508,8 +5531,6 @@
 					"totalServings",
 					"isFavorite",
 					"imageUrl",
-					"createdAt",
-					"updatedAt",
 					"ingredients"
 				],
 				"additionalProperties": false
@@ -5536,13 +5557,16 @@
 						"type": "number"
 					},
 					"servingUnit": {
-						"type": "string"
+						"type": "string",
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"sortOrder": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
-				"required": ["id", "recipeId", "foodId", "quantity", "servingUnit", "sortOrder"],
+				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {
@@ -5581,14 +5605,17 @@
 						"type": "string"
 					},
 					"scheduleType": {
-						"type": "string"
+						"type": "string",
+						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
 					},
 					"scheduleDays": {
 						"anyOf": [
 							{
 								"type": "array",
 								"items": {
-									"type": "number"
+									"type": "integer",
+									"minimum": -9007199254740991,
+									"maximum": 9007199254740991
 								}
 							},
 							{
@@ -5607,15 +5634,19 @@
 						]
 					},
 					"isActive": {
+						"default": true,
 						"type": "boolean"
 					},
 					"sortOrder": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"timeOfDay": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"enum": ["morning", "noon", "evening"]
 							},
 							{
 								"type": "null"
@@ -5647,8 +5678,6 @@
 					"isActive",
 					"sortOrder",
 					"timeOfDay",
-					"createdAt",
-					"updatedAt",
 					"ingredients"
 				],
 				"additionalProperties": false
@@ -5676,7 +5705,9 @@
 						"type": "string"
 					},
 					"sortOrder": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["id", "supplementId", "name", "dosage", "dosageUnit", "sortOrder"],
@@ -5791,7 +5822,7 @@
 						"type": "string"
 					}
 				},
-				"required": ["id", "supplementId", "userId", "date", "takenAt", "createdAt"],
+				"required": ["id", "supplementId", "userId", "date", "takenAt"],
 				"additionalProperties": false
 			},
 			"SupplementLogResponse": {
@@ -5856,16 +5887,36 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"id",
-					"userId",
-					"weightKg",
-					"entryDate",
-					"loggedAt",
-					"notes",
-					"createdAt",
-					"updatedAt"
-				],
+				"required": ["id", "userId", "weightKg", "entryDate", "notes"],
+				"additionalProperties": false
+			},
+			"WeightTrendResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/WeightTrendEntry"
+						}
+					}
+				},
+				"required": ["data"],
+				"additionalProperties": false
+			},
+			"WeightTrendEntry": {
+				"type": "object",
+				"properties": {
+					"entry_date": {
+						"type": "string"
+					},
+					"weight_kg": {
+						"type": "number"
+					},
+					"moving_avg": {
+						"type": "number"
+					}
+				},
+				"required": ["entry_date", "weight_kg", "moving_avg"],
 				"additionalProperties": false
 			},
 			"WeightEntryResponse": {
@@ -6089,7 +6140,9 @@
 						"type": "string"
 					},
 					"count": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"calories": {
 						"type": "number"
@@ -6124,10 +6177,14 @@
 				"type": "object",
 				"properties": {
 					"currentStreak": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"longestStreak": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["currentStreak", "longestStreak"],
@@ -6247,7 +6304,6 @@
 					"favoriteMealAssignmentMode",
 					"visibleNutrients",
 					"locale",
-					"updatedAt",
 					"favoriteMealTimeframes"
 				],
 				"additionalProperties": false
@@ -6255,6 +6311,11 @@
 			"FavoriteMealTimeframe": {
 				"type": "object",
 				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
 					"mealType": {
 						"type": "string"
 					},
@@ -6270,14 +6331,37 @@
 							}
 						]
 					},
+					"startMinute": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"endMinute": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
 					"startTime": {
 						"type": "string"
 					},
 					"endTime": {
 						"type": "string"
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
-				"required": ["mealType", "startTime", "endTime"],
+				"required": [
+					"id",
+					"mealType",
+					"startMinute",
+					"endMinute",
+					"startTime",
+					"endTime",
+					"sortOrder"
+				],
 				"additionalProperties": false
 			},
 			"MealTypesListResponse": {
@@ -6310,13 +6394,15 @@
 						"type": "string"
 					},
 					"sortOrder": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"createdAt": {
 						"type": "string"
 					}
 				},
-				"required": ["id", "userId", "name", "sortOrder", "createdAt"],
+				"required": ["id", "userId", "name", "sortOrder"],
 				"additionalProperties": false
 			},
 			"MealTypeResponse": {
@@ -6384,7 +6470,9 @@
 						"type": "number"
 					},
 					"logCount": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"type": {
 						"type": "string",
@@ -6442,7 +6530,9 @@
 						"type": "number"
 					},
 					"logCount": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"totalServings": {
 						"type": "number"
@@ -6500,13 +6590,19 @@
 				"type": "object",
 				"properties": {
 					"weightEntries": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"foodEntryDays": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"totalDays": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"coverage": {
 						"type": "number"
@@ -6591,7 +6687,8 @@
 					"nutriScore": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"enum": ["a", "b", "c", "d", "e"]
 							},
 							{
 								"type": "null"

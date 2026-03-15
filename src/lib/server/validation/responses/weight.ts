@@ -7,10 +7,10 @@ const weightEntrySchema = z
 		userId: z.string().uuid(),
 		weightKg: z.number(),
 		entryDate: z.string(),
-		loggedAt: z.string(),
+		loggedAt: z.string().optional(),
 		notes: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string()
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional()
 	})
 	.meta({ id: 'WeightEntry' });
 

@@ -29,5 +29,5 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class EntriesCopyResponse(
     @SerialName(value = "entries") @Required val propertyEntries: kotlin.collections.List<Entry>,
-    @SerialName(value = "count") @Required val count: kotlin.Double,
+    @SerialName(value = "count") @Required val count: kotlin.Int,
 )

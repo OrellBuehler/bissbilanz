@@ -12,7 +12,7 @@ const productSchema = z
 		brand: z.string().nullable(),
 		barcode: z.string(),
 		imageUrl: z.string().nullable(),
-		nutriScore: z.string().nullable(),
+		nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).nullable(),
 		novaGroup: z.number().nullable(),
 		servingSize: z.number().nullable(),
 		servingUnit: z.string().nullable(),

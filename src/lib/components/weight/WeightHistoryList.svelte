@@ -15,7 +15,7 @@
 		weightKg: number;
 		entryDate: string;
 		notes: string | null;
-		loggedAt: string;
+		loggedAt?: string;
 	};
 
 	let { entries, onChanged }: { entries: WeightEntry[]; onChanged: () => void } = $props();

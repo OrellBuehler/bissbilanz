@@ -41,9 +41,9 @@ import kotlinx.serialization.encoding.*
  * @param fat
  * @param fiber
  * @param eatenAt
- * @param createdAt
  * @param servingSize
  * @param servingUnit
+ * @param createdAt
  */
 @Serializable
 data class EntryListItem(
@@ -66,7 +66,7 @@ data class EntryListItem(
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
     @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
     @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
 )

@@ -69,16 +69,6 @@ data class SupplementIngredientInput(
 )
 
 @Serializable
-data class SupplementLog(
-    val id: String,
-    val supplementId: String,
-    val userId: String,
-    val date: String,
-    val takenAt: String,
-    val createdAt: String? = null,
-)
-
-@Serializable
 data class SupplementHistoryEntry(
     val log: SupplementHistoryLog,
     val supplementName: String,

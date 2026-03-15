@@ -44,7 +44,7 @@ data class FavoriteRecipe(
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
-    @SerialName(value = "logCount") @Required val logCount: kotlin.Double,
+    @SerialName(value = "logCount") @Required val logCount: kotlin.Int,
     @SerialName(value = "totalServings") @Required val totalServings: kotlin.Double,
     @SerialName(value = "type") @Required val type: FavoriteRecipe.Type,
 ) {

@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.WeightTrendEntry
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -22,11 +23,9 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param currentStreak
- * @param longestStreak
+ * @param `data`
  */
 @Serializable
-data class StreaksResponse(
-    @SerialName(value = "currentStreak") @Required val currentStreak: kotlin.Int,
-    @SerialName(value = "longestStreak") @Required val longestStreak: kotlin.Int,
+data class WeightTrendResponse(
+    @SerialName(value = "data") @Required val `data`: kotlin.collections.List<WeightTrendEntry>,
 )

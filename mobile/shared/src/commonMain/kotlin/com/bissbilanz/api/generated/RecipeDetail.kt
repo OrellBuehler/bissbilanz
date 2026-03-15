@@ -29,9 +29,9 @@ import kotlinx.serialization.encoding.*
  * @param totalServings
  * @param isFavorite
  * @param imageUrl
+ * @param ingredients
  * @param createdAt
  * @param updatedAt
- * @param ingredients
  */
 @Serializable
 data class RecipeDetail(
@@ -41,7 +41,7 @@ data class RecipeDetail(
     @SerialName(value = "totalServings") @Required val totalServings: kotlin.Double,
     @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean,
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
     @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<RecipeIngredient>,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

@@ -29,5 +29,5 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class RecipesListResponse(
     @SerialName(value = "recipes") @Required val recipes: kotlin.collections.List<RecipeSummary>,
-    @SerialName(value = "total") @Required val total: kotlin.Double,
+    @SerialName(value = "total") @Required val total: kotlin.Int,
 )

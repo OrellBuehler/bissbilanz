@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { servingUnitValues } from '$lib/units';
 
 const recipeSummarySchema = z
 	.object({
@@ -18,12 +19,12 @@ const recipeSummarySchema = z
 
 const recipeIngredientResponseSchema = z
 	.object({
-		id: z.string().uuid(),
-		recipeId: z.string().uuid(),
+		id: z.string().uuid().optional(),
+		recipeId: z.string().uuid().optional(),
 		foodId: z.string().uuid(),
 		quantity: z.number(),
-		servingUnit: z.string(),
-		sortOrder: z.number()
+		servingUnit: z.enum(servingUnitValues),
+		sortOrder: z.number().int()
 	})
 	.meta({ id: 'RecipeIngredient' });
 
@@ -35,8 +36,8 @@ const recipeDetailSchema = z
 		totalServings: z.number(),
 		isFavorite: z.boolean(),
 		imageUrl: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string(),
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional(),
 		ingredients: z.array(recipeIngredientResponseSchema)
 	})
 	.meta({ id: 'RecipeDetail' });
@@ -44,7 +45,7 @@ const recipeDetailSchema = z
 export const recipesListResponseSchema = z
 	.object({
 		recipes: z.array(recipeSummarySchema),
-		total: z.number()
+		total: z.number().int()
 	})
 	.meta({ id: 'RecipesListResponse' });
 

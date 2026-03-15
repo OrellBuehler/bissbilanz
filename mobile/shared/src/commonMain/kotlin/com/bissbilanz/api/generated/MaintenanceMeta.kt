@@ -33,9 +33,9 @@ import kotlinx.serialization.encoding.*
  */
 @Serializable
 data class MaintenanceMeta(
-    @SerialName(value = "weightEntries") @Required val weightEntries: kotlin.Double,
-    @SerialName(value = "foodEntryDays") @Required val foodEntryDays: kotlin.Double,
-    @SerialName(value = "totalDays") @Required val totalDays: kotlin.Double,
+    @SerialName(value = "weightEntries") @Required val weightEntries: kotlin.Int,
+    @SerialName(value = "foodEntryDays") @Required val foodEntryDays: kotlin.Int,
+    @SerialName(value = "totalDays") @Required val totalDays: kotlin.Int,
     @SerialName(value = "coverage") @Required val coverage: kotlin.Double,
     @SerialName(value = "firstWeight") @Required val firstWeight: kotlin.Double,
     @SerialName(value = "lastWeight") @Required val lastWeight: kotlin.Double,

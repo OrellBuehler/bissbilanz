@@ -275,7 +275,7 @@
 						endTime: row.endTime
 					})) ?? [];
 			} else {
-				toast.error((error as any)?.error ?? m.settings_save_failed());
+				toast.error((error as { error?: string })?.error ?? m.settings_save_failed());
 			}
 		} catch {
 			toast.error(m.settings_save_failed());
@@ -367,7 +367,7 @@
 			await loadMealTypes();
 			return;
 		}
-		toast.error((error as any)?.error ?? m.settings_save_failed());
+		toast.error((error as { error?: string })?.error ?? m.settings_save_failed());
 	};
 
 	const handleWidgetSort = (event: CustomEvent | { detail?: unknown } | any) => {

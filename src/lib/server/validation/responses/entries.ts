@@ -22,7 +22,7 @@ const entryListItemSchema = z
 		fat: z.number(),
 		fiber: z.number(),
 		eatenAt: z.string().nullable(),
-		createdAt: z.string(),
+		createdAt: z.string().optional(),
 		servingSize: z.number().nullable(),
 		servingUnit: z.string().nullable()
 	})
@@ -45,8 +45,8 @@ const entryRawSchema = z
 		quickFat: z.number().nullable(),
 		quickFiber: z.number().nullable(),
 		eatenAt: z.string().nullable(),
-		createdAt: z.string(),
-		updatedAt: z.string()
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional()
 	})
 	.meta({ id: 'Entry' });
 
@@ -71,7 +71,7 @@ const entryRangeSchema = z
 export const entriesListResponseSchema = z
 	.object({
 		entries: z.array(entryListItemSchema),
-		total: z.number()
+		total: z.number().int()
 	})
 	.meta({ id: 'EntriesListResponse' });
 
@@ -84,7 +84,7 @@ export const entryResponseSchema = z
 export const entriesCopyResponseSchema = z
 	.object({
 		entries: z.array(entryRawSchema),
-		count: z.number()
+		count: z.number().int()
 	})
 	.meta({ id: 'EntriesCopyResponse' });
 

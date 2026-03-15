@@ -22,15 +22,23 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
+ * @param id
  * @param mealType
+ * @param startMinute
+ * @param endMinute
  * @param startTime
  * @param endTime
+ * @param sortOrder
  * @param customMealTypeId
  */
 @Serializable
 data class FavoriteMealTimeframe(
+    @SerialName(value = "id") @Required val id: kotlin.String,
     @SerialName(value = "mealType") @Required val mealType: kotlin.String,
+    @SerialName(value = "startMinute") @Required val startMinute: kotlin.Int,
+    @SerialName(value = "endMinute") @Required val endMinute: kotlin.Int,
     @SerialName(value = "startTime") @Required val startTime: kotlin.String,
     @SerialName(value = "endTime") @Required val endTime: kotlin.String,
+    @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
     @SerialName(value = "customMealTypeId") val customMealTypeId: kotlin.String? = null,
 )

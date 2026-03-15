@@ -26,8 +26,8 @@ import kotlinx.serialization.encoding.*
  * @param userId
  * @param weightKg
  * @param entryDate
- * @param loggedAt
  * @param notes
+ * @param loggedAt
  * @param createdAt
  * @param updatedAt
  */
@@ -37,8 +37,8 @@ data class WeightEntry(
     @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "weightKg") @Required val weightKg: kotlin.Double,
     @SerialName(value = "entryDate") @Required val entryDate: kotlin.String,
-    @SerialName(value = "loggedAt") @Required val loggedAt: kotlin.String,
     @SerialName(value = "notes") @Required val notes: kotlin.String?,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
+    @SerialName(value = "loggedAt") val loggedAt: kotlin.String? = null,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

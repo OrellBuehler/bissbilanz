@@ -107,7 +107,7 @@ export interface paths {
 		get: {
 			parameters: {
 				query?: {
-					search?: string;
+					q?: string;
 					barcode?: string;
 					limit?: number;
 					offset?: number;
@@ -932,7 +932,9 @@ export interface paths {
 		post?: never;
 		delete: {
 			parameters: {
-				query?: never;
+				query?: {
+					force?: boolean;
+				};
 				header?: never;
 				path: {
 					id: string;
@@ -1377,7 +1379,13 @@ export interface paths {
 				};
 				cookie?: never;
 			};
-			requestBody?: never;
+			requestBody?: {
+				content: {
+					'application/json': {
+						date?: string;
+					};
+				};
+			};
 			responses: {
 				/** @description Created */
 				201: {
@@ -1553,7 +1561,9 @@ export interface paths {
 						[name: string]: unknown;
 					};
 					content: {
-						'application/json': components['schemas']['WeightEntriesResponse'];
+						'application/json':
+							| components['schemas']['WeightEntriesResponse']
+							| components['schemas']['WeightTrendResponse'];
 					};
 				};
 				/** @description Unauthorized */
@@ -2588,9 +2598,9 @@ export interface components {
 		};
 		Goals: {
 			/** Format: uuid */
-			id: string;
+			id?: string;
 			/** Format: uuid */
-			userId: string;
+			userId?: string;
 			calorieGoal: number;
 			proteinGoal: number;
 			carbGoal: number;
@@ -2598,8 +2608,8 @@ export interface components {
 			fiberGoal: number;
 			sodiumGoal?: number | null;
 			sugarGoal?: number | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
 		};
 		ErrorResponse: {
 			error: string;
@@ -2676,14 +2686,15 @@ export interface components {
 			water?: number | null;
 			salt?: number | null;
 			barcode: string | null;
+			/** @default false */
 			isFavorite: boolean;
 			nutriScore: string | null;
 			novaGroup: number | null;
 			additives: string[] | null;
 			ingredientsText: string | null;
 			imageUrl: string | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
 		};
 		FoodResponse: {
 			food: components['schemas']['Food'];
@@ -2709,8 +2720,8 @@ export interface components {
 			barcode: string | null;
 			isFavorite: boolean;
 			imageUrl: string | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
 		};
 		ConflictErrorResponse: {
 			error: string;
@@ -2741,7 +2752,7 @@ export interface components {
 			fat: number;
 			fiber: number;
 			eatenAt: string | null;
-			createdAt: string;
+			createdAt?: string;
 			servingSize: number | null;
 			servingUnit: string | null;
 		};
@@ -2766,8 +2777,8 @@ export interface components {
 			quickFat: number | null;
 			quickFiber: number | null;
 			eatenAt: string | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
 		};
 		EntriesCopyResponse: {
 			entries: components['schemas']['Entry'][];
@@ -2821,19 +2832,20 @@ export interface components {
 			totalServings: number;
 			isFavorite: boolean;
 			imageUrl: string | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
 			ingredients: components['schemas']['RecipeIngredient'][];
 		};
 		RecipeIngredient: {
 			/** Format: uuid */
-			id: string;
+			id?: string;
 			/** Format: uuid */
-			recipeId: string;
+			recipeId?: string;
 			/** Format: uuid */
 			foodId: string;
 			quantity: number;
-			servingUnit: string;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			sortOrder: number;
 		};
 		SupplementsListResponse: {
@@ -2847,14 +2859,16 @@ export interface components {
 			name: string;
 			dosage: number;
 			dosageUnit: string;
-			scheduleType: string;
+			/** @enum {string} */
+			scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
 			scheduleDays: number[] | null;
 			scheduleStartDate: string | null;
+			/** @default true */
 			isActive: boolean;
 			sortOrder: number;
-			timeOfDay: string | null;
-			createdAt: string;
-			updatedAt: string;
+			timeOfDay: ('morning' | 'noon' | 'evening') | null;
+			createdAt?: string;
+			updatedAt?: string;
 			ingredients: components['schemas']['SupplementIngredient'][];
 		};
 		SupplementIngredient: {
@@ -2897,7 +2911,7 @@ export interface components {
 			userId: string;
 			date: string;
 			takenAt: string;
-			createdAt: string;
+			createdAt?: string;
 		};
 		SupplementLogResponse: {
 			log: components['schemas']['SupplementLog'];
@@ -2912,10 +2926,18 @@ export interface components {
 			userId: string;
 			weightKg: number;
 			entryDate: string;
-			loggedAt: string;
+			loggedAt?: string;
 			notes: string | null;
-			createdAt: string;
-			updatedAt: string;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		WeightTrendResponse: {
+			data: components['schemas']['WeightTrendEntry'][];
+		};
+		WeightTrendEntry: {
+			entry_date: string;
+			weight_kg: number;
+			moving_avg: number;
 		};
 		WeightEntryResponse: {
 			entry: components['schemas']['WeightEntry'];
@@ -3009,14 +3031,19 @@ export interface components {
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
 			locale: string | null;
-			updatedAt: string;
+			updatedAt?: string;
 			favoriteMealTimeframes: components['schemas']['FavoriteMealTimeframe'][];
 		};
 		FavoriteMealTimeframe: {
+			/** Format: uuid */
+			id: string;
 			mealType: string;
 			customMealTypeId?: string | null;
+			startMinute: number;
+			endMinute: number;
 			startTime: string;
 			endTime: string;
+			sortOrder: number;
 		};
 		MealTypesListResponse: {
 			mealTypes: components['schemas']['MealType'][];
@@ -3028,7 +3055,7 @@ export interface components {
 			userId: string;
 			name: string;
 			sortOrder: number;
-			createdAt: string;
+			createdAt?: string;
 		};
 		MealTypeResponse: {
 			mealType: components['schemas']['MealType'];
@@ -3097,7 +3124,7 @@ export interface components {
 			brand: string | null;
 			barcode: string;
 			imageUrl: string | null;
-			nutriScore: string | null;
+			nutriScore: ('a' | 'b' | 'c' | 'd' | 'e') | null;
 			novaGroup: number | null;
 			servingSize: number | null;
 			servingUnit: string | null;

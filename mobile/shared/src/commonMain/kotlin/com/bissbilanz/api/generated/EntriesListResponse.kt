@@ -29,5 +29,5 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class EntriesListResponse(
     @SerialName(value = "entries") @Required val propertyEntries: kotlin.collections.List<EntryListItem>,
-    @SerialName(value = "total") @Required val total: kotlin.Double,
+    @SerialName(value = "total") @Required val total: kotlin.Int,
 )

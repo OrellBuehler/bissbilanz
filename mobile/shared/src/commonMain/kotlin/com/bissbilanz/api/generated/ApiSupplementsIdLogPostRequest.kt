@@ -22,11 +22,9 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param currentStreak
- * @param longestStreak
+ * @param date
  */
 @Serializable
-data class StreaksResponse(
-    @SerialName(value = "currentStreak") @Required val currentStreak: kotlin.Int,
-    @SerialName(value = "longestStreak") @Required val longestStreak: kotlin.Int,
+data class ApiSupplementsIdLogPostRequest(
+    @SerialName(value = "date") val date: kotlin.String? = null,
 )

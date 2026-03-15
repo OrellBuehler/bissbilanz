@@ -11,7 +11,7 @@ const favoriteFoodSchema = z
 		carbs: z.number(),
 		fat: z.number(),
 		fiber: z.number(),
-		logCount: z.number(),
+		logCount: z.number().int(),
 		type: z.literal('food')
 	})
 	.meta({ id: 'FavoriteFood' });
@@ -26,7 +26,7 @@ const favoriteRecipeSchema = z
 		carbs: z.number(),
 		fat: z.number(),
 		fiber: z.number(),
-		logCount: z.number(),
+		logCount: z.number().int(),
 		totalServings: z.number(),
 		type: z.literal('recipe')
 	})

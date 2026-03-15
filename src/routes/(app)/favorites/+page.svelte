@@ -55,8 +55,7 @@
 					'instant') as typeof tapAction;
 				mealAssignmentMode = (prefResult.data.preferences?.favoriteMealAssignmentMode ??
 					'time_based') as typeof mealAssignmentMode;
-				favoriteMealTimeframes = (prefResult.data.preferences?.favoriteMealTimeframes ??
-					[]) as unknown as typeof favoriteMealTimeframes;
+				favoriteMealTimeframes = prefResult.data.preferences?.favoriteMealTimeframes ?? [];
 			}
 			if (mealTypesResult.data) {
 				mealOptions = mergeMealTypes(
@@ -81,18 +80,11 @@
 	const logEntry = async (item: FavoriteItem, servings = 1, mealType?: string) => {
 		const meal = mealType;
 		if (!meal) return;
-		const payload: Record<string, unknown> = {
-			mealType: meal,
-			servings,
-			date: today()
-		};
-		if (item.type === 'food') {
-			payload.foodId = item.id;
-		} else {
-			payload.recipeId = item.id;
-		}
+		const base = { mealType: meal, servings, date: today() };
+		const body =
+			item.type === 'food' ? { ...base, foodId: item.id } : { ...base, recipeId: item.id };
 
-		const { data, error } = await api.POST('/api/entries', { body: payload as any });
+		const { data, error } = await api.POST('/api/entries', { body });
 
 		if (error) return;
 

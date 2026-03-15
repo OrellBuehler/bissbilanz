@@ -22,29 +22,29 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param id
- * @param userId
  * @param calorieGoal
  * @param proteinGoal
  * @param carbGoal
  * @param fatGoal
  * @param fiberGoal
- * @param createdAt
- * @param updatedAt
+ * @param id
+ * @param userId
  * @param sodiumGoal
  * @param sugarGoal
+ * @param createdAt
+ * @param updatedAt
  */
 @Serializable
 data class Goals(
-    @SerialName(value = "id") @Required val id: kotlin.String,
-    @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "calorieGoal") @Required val calorieGoal: kotlin.Double,
     @SerialName(value = "proteinGoal") @Required val proteinGoal: kotlin.Double,
     @SerialName(value = "carbGoal") @Required val carbGoal: kotlin.Double,
     @SerialName(value = "fatGoal") @Required val fatGoal: kotlin.Double,
     @SerialName(value = "fiberGoal") @Required val fiberGoal: kotlin.Double,
-    @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    @SerialName(value = "updatedAt") @Required val updatedAt: kotlin.String,
+    @SerialName(value = "id") val id: kotlin.String? = null,
+    @SerialName(value = "userId") val userId: kotlin.String? = null,
     @SerialName(value = "sodiumGoal") val sodiumGoal: kotlin.Double? = null,
     @SerialName(value = "sugarGoal") val sugarGoal: kotlin.Double? = null,
+    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

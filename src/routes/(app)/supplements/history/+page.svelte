@@ -86,7 +86,7 @@
 				history = histResult.data.history;
 			}
 			if (suppResult.data) {
-				allSupplements = suppResult.data.supplements as unknown as Supplement[];
+				allSupplements = suppResult.data.supplements;
 			}
 		} catch {
 			// Silently ignore — history data may be unavailable offline
