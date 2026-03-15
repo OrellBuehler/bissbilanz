@@ -22,8 +22,6 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.HealthSyncService
-import com.bissbilanz.android.ui.components.FoodEditSheet
-import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
@@ -49,8 +47,6 @@ fun SettingsScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showGoalsDialog by remember { mutableStateOf(false) }
     var showMealTypeDialog by remember { mutableStateOf(false) }
-    var showCreateFoodSheet by remember { mutableStateOf(false) }
-    var showCreateRecipeSheet by remember { mutableStateOf(false) }
     var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
@@ -143,22 +139,6 @@ fun SettingsScreen(navController: NavController) {
         )
     }
 
-    if (showCreateFoodSheet) {
-        FoodEditSheet(
-            foodId = null,
-            onDismiss = { showCreateFoodSheet = false },
-            onSaved = { showCreateFoodSheet = false },
-        )
-    }
-
-    if (showCreateRecipeSheet) {
-        RecipeEditSheet(
-            recipeId = null,
-            onDismiss = { showCreateRecipeSheet = false },
-            onSaved = { showCreateRecipeSheet = false },
-        )
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -172,32 +152,6 @@ fun SettingsScreen(navController: NavController) {
         ) {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Goals section
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Daily Goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    goals?.let { g ->
-                        GoalRow("Calories", g.calorieGoal, "kcal", CaloriesBlue)
-                        GoalRow("Protein", g.proteinGoal, "g", ProteinRed)
-                        GoalRow("Carbs", g.carbGoal, "g", CarbsOrange)
-                        GoalRow("Fat", g.fatGoal, "g", FatYellow)
-                        GoalRow("Fiber", g.fiberGoal, "g", FiberGreen)
-                    } ?: Text("No goals set", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { showGoalsDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Goals")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             // Navigation items
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -220,6 +174,32 @@ fun SettingsScreen(navController: NavController) {
                     HorizontalDivider()
                     SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
                         navController.navigate("maintenance")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Goals section
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Daily Goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    goals?.let { g ->
+                        GoalRow("Calories", g.calorieGoal, "kcal", CaloriesBlue)
+                        GoalRow("Protein", g.proteinGoal, "g", ProteinRed)
+                        GoalRow("Carbs", g.carbGoal, "g", CarbsOrange)
+                        GoalRow("Fat", g.fatGoal, "g", FatYellow)
+                        GoalRow("Fiber", g.fiberGoal, "g", FiberGreen)
+                    } ?: Text("No goals set", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { showGoalsDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Edit Goals")
                     }
                 }
             }
@@ -274,37 +254,6 @@ fun SettingsScreen(navController: NavController) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Grant Permissions")
                             }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Quick actions
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilledTonalButton(
-                            onClick = { showCreateFoodSheet = true },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.Add, "Create food", modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Food")
-                        }
-                        FilledTonalButton(
-                            onClick = { showCreateRecipeSheet = true },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.Add, "Create recipe", modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Recipe")
                         }
                     }
                 }
