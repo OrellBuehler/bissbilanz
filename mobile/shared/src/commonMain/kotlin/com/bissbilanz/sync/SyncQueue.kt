@@ -11,11 +11,14 @@ data class QueuedRequest(
     val createdAt: Long,
     val affectedTable: String?,
     val affectedId: String?,
+    val retryCount: Long,
 )
 
 class SyncQueue(
     private val db: BissbilanzDatabase,
 ) {
+    private val inProgress = mutableSetOf<Long>()
+
     fun enqueue(
         method: String,
         url: String,
@@ -34,25 +37,46 @@ class SyncQueue(
     }
 
     fun drain(): List<QueuedRequest> =
-        db.bissbilanzDatabaseQueries.selectSyncQueue().executeAsList().map {
-            QueuedRequest(
-                id = it.id,
-                method = it.method,
-                url = it.url,
-                body = it.body,
-                createdAt = it.createdAt,
-                affectedTable = it.affectedTable,
-                affectedId = it.affectedId,
-            )
-        }
+        db.bissbilanzDatabaseQueries
+            .selectSyncQueue()
+            .executeAsList()
+            .filter { it.id !in inProgress }
+            .map {
+                inProgress.add(it.id)
+                QueuedRequest(
+                    id = it.id,
+                    method = it.method,
+                    url = it.url,
+                    body = it.body,
+                    createdAt = it.createdAt,
+                    affectedTable = it.affectedTable,
+                    affectedId = it.affectedId,
+                    retryCount = it.retryCount,
+                )
+            }
 
     fun remove(id: Long) {
+        inProgress.remove(id)
         db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
     }
+
+    fun markDone(id: Long) {
+        inProgress.remove(id)
+    }
+
+    fun incrementRetryCount(id: Long) {
+        db.bissbilanzDatabaseQueries.incrementSyncQueueRetryCount(id)
+    }
+
+    fun getRetryCount(id: Long): Long =
+        db.bissbilanzDatabaseQueries
+            .selectSyncQueueItemRetryCount(id)
+            .executeAsOneOrNull() ?: 0
 
     fun pendingCount(): Long = db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()
 
     fun clear() {
+        inProgress.clear()
         db.bissbilanzDatabaseQueries.clearSyncQueue()
     }
 }

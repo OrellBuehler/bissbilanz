@@ -2,8 +2,10 @@ package com.bissbilanz.sync
 
 import com.bissbilanz.auth.AuthManager
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.http.content.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,22 +26,23 @@ class SyncManager(
     private val connectivityProvider: ConnectivityProvider,
     private val authManager: AuthManager,
     private val baseUrl: String,
-) {
+) : java.io.Closeable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val client =
         HttpClient {
             followRedirects = true
+            install(HttpTimeout) {
+                requestTimeoutMillis = 30_000
+                connectTimeoutMillis = 10_000
+            }
         }
 
     private val _state = MutableStateFlow(SyncState())
     val state: StateFlow<SyncState> = _state.asStateFlow()
 
-    private val retryCounts = mutableMapOf<Long, Int>()
-
     fun startNetworkListener(onSynced: (() -> Unit)? = null) {
         scope.launch {
-            // Update pending count on start
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
             connectivityProvider.isOnline.collect { online ->
@@ -71,21 +74,19 @@ class SyncManager(
                                 header(HttpHeaders.Authorization, "Bearer $token")
                             }
                             if (req.method != "DELETE") {
-                                contentType(ContentType.Application.Json)
-                                setBody(req.body)
+                                setBody(TextContent(req.body, ContentType.Application.Json))
                             }
                         }
 
                     when {
                         response.status.isSuccess() -> {
                             syncQueue.remove(req.id)
-                            retryCounts.remove(req.id)
                             synced++
                         }
                         response.status == HttpStatusCode.Unauthorized ||
                             response.status == HttpStatusCode.Forbidden -> {
+                            syncQueue.markDone(req.id)
                             if (authManager.refreshToken()) {
-                                // Retry once with new token
                                 val retryToken = authManager.getAccessToken()
                                 val retry =
                                     client.request("$baseUrl${req.url}") {
@@ -94,13 +95,11 @@ class SyncManager(
                                             header(HttpHeaders.Authorization, "Bearer $retryToken")
                                         }
                                         if (req.method != "DELETE") {
-                                            contentType(ContentType.Application.Json)
-                                            setBody(req.body)
+                                            setBody(TextContent(req.body, ContentType.Application.Json))
                                         }
                                     }
                                 if (retry.status.isSuccess()) {
                                     syncQueue.remove(req.id)
-                                    retryCounts.remove(req.id)
                                     synced++
                                 } else {
                                     addError("Session expired. Please log in again to sync pending changes.")
@@ -114,17 +113,16 @@ class SyncManager(
                         response.status.value in 400..499 -> {
                             // Client error — unrecoverable, discard
                             syncQueue.remove(req.id)
-                            retryCounts.remove(req.id)
                             synced++
                             addError("Failed to sync ${req.method} ${req.url}: HTTP ${response.status.value}")
                         }
                         else -> {
-                            // Server error (5xx) — retry up to MAX_RETRIES
-                            val count = (retryCounts[req.id] ?: 0) + 1
-                            retryCounts[req.id] = count
+                            // Server error (5xx) — increment persisted retry count
+                            syncQueue.markDone(req.id)
+                            syncQueue.incrementRetryCount(req.id)
+                            val count = syncQueue.getRetryCount(req.id)
                             if (count >= MAX_RETRIES) {
                                 syncQueue.remove(req.id)
-                                retryCounts.remove(req.id)
                                 synced++
                                 addError(
                                     "Gave up syncing ${req.method} ${req.url} after $MAX_RETRIES retries.",
@@ -137,7 +135,7 @@ class SyncManager(
 
                     _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
                 } catch (_: Exception) {
-                    // Network error — stop and retry later
+                    syncQueue.markDone(req.id)
                     break
                 }
             }
@@ -163,6 +161,10 @@ class SyncManager(
 
     private fun addError(message: String) {
         _state.value = _state.value.copy(errors = _state.value.errors + message)
+    }
+
+    override fun close() {
+        client.close()
     }
 
     companion object {

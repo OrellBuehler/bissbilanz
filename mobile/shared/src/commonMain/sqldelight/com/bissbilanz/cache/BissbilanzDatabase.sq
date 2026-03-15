@@ -91,7 +91,8 @@ CREATE TABLE IF NOT EXISTS SyncQueue (
     body TEXT NOT NULL,
     createdAt INTEGER NOT NULL,
     affectedTable TEXT,
-    affectedId TEXT
+    affectedId TEXT,
+    retryCount INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS SyncMeta (
@@ -252,8 +253,14 @@ selectSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
 
 insertSyncQueueItem:
-INSERT INTO SyncQueue(method, url, body, createdAt, affectedTable, affectedId)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO SyncQueue(method, url, body, createdAt, affectedTable, affectedId, retryCount)
+VALUES (?, ?, ?, ?, ?, ?, 0);
+
+incrementSyncQueueRetryCount:
+UPDATE SyncQueue SET retryCount = retryCount + 1 WHERE id = ?;
+
+selectSyncQueueItemRetryCount:
+SELECT retryCount FROM SyncQueue WHERE id = ?;
 
 deleteSyncQueueItem:
 DELETE FROM SyncQueue WHERE id = ?;
