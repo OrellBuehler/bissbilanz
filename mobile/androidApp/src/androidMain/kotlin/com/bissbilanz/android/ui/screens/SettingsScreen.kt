@@ -43,8 +43,8 @@ fun SettingsScreen(navController: NavController) {
     val prefsRepo: PreferencesRepository = koinInject()
     val api: BissbilanzApi = koinInject()
     val healthSync: HealthSyncService = koinInject()
-    val goals by goalsRepo.goals.collectAsStateWithLifecycle()
-    val prefs by prefsRepo.preferences.collectAsStateWithLifecycle()
+    val goals by goalsRepo.goals().collectAsStateWithLifecycle(null)
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showGoalsDialog by remember { mutableStateOf(false) }
@@ -75,8 +75,8 @@ fun SettingsScreen(navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        goalsRepo.loadGoals()
-        prefsRepo.loadPreferences()
+        goalsRepo.refresh()
+        prefsRepo.refresh()
         try {
             val response = api.getMealTypes()
             customMealTypes = response.mealTypes

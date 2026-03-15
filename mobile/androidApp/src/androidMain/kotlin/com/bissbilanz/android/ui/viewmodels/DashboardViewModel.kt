@@ -6,12 +6,18 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     private val entryRepo: EntryRepository,
     private val goalsRepo: GoalsRepository,
@@ -22,8 +28,22 @@ class DashboardViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    val entries: StateFlow<List<Entry>> = entryRepo.entries
-    val goals: StateFlow<Goals?> = goalsRepo.goals
+    private val currentDateString = MutableStateFlow("")
+
+    val entries: StateFlow<List<Entry>> =
+        currentDateString
+            .flatMapLatest { date ->
+                if (date.isNotEmpty()) {
+                    entryRepo.entriesByDate(date)
+                } else {
+                    flowOf(emptyList())
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val goals: StateFlow<Goals?> =
+        goalsRepo
+            .goals()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
         loadData()
@@ -45,11 +65,13 @@ class DashboardViewModel(
     }
 
     fun loadData() {
+        val dateStr = _selectedDate.value.toString()
+        currentDateString.value = dateStr
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                entryRepo.loadEntries(_selectedDate.value.toString())
-                goalsRepo.loadGoals()
+                entryRepo.refresh(dateStr)
+                goalsRepo.refresh()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

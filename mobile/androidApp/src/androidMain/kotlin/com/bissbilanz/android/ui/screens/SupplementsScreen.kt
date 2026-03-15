@@ -34,7 +34,7 @@ import org.koin.compose.koinInject
 @Composable
 fun SupplementsScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
-    val supplements by supplementRepo.supplements.collectAsStateWithLifecycle()
+    val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -46,7 +46,7 @@ fun SupplementsScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            supplementRepo.loadSupplements()
+            supplementRepo.refresh()
         } catch (_: Exception) {
         }
         isLoading = false
@@ -81,7 +81,7 @@ fun SupplementsScreen(navController: NavController) {
                 onDismiss = { showCreateSheet = false },
                 onSaved = {
                     showCreateSheet = false
-                    scope.launch { supplementRepo.loadSupplements() }
+                    scope.launch { supplementRepo.refresh() }
                 },
             )
         }
@@ -92,7 +92,7 @@ fun SupplementsScreen(navController: NavController) {
                 onDismiss = { editingSupplementId = null },
                 onSaved = {
                     editingSupplementId = null
-                    scope.launch { supplementRepo.loadSupplements() }
+                    scope.launch { supplementRepo.refresh() }
                 },
             )
         }

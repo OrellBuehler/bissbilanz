@@ -45,27 +45,25 @@ class FoodRepositoryTest {
     }
 
     @Test
-    fun loadFoodsUpdatesStateFlowOnSuccess() =
+    fun refreshFoodsCachesDataOnSuccess() =
         runTest {
             val foods = listOf(TestFixtures.food(id = "1", name = "Apple"), TestFixtures.food(id = "2", name = "Banana"))
             coEvery { api.getFoods(100, 0) } returns foods
 
-            repository.loadFoods()
+            repository.refreshFoods()
 
-            assertEquals(2, repository.foods.value.size)
-            assertEquals("Apple", repository.foods.value[0].name)
+            coVerify { queries.transaction(any(), any()) }
         }
 
     @Test
-    fun loadFavoritesUpdatesStateFlow() =
+    fun refreshFavoritesCallsApi() =
         runTest {
             val favorites = listOf(TestFixtures.food(id = "1", name = "Chicken", isFavorite = true))
             coEvery { api.getFavorites() } returns favorites
 
-            repository.loadFavorites()
+            repository.refreshFavorites()
 
-            assertEquals(1, repository.favorites.value.size)
-            assertTrue(repository.favorites.value[0].isFavorite)
+            coVerify { api.getFavorites() }
         }
 
     @Test
@@ -80,17 +78,13 @@ class FoodRepositoryTest {
         }
 
     @Test
-    fun deleteFoodRemovesFromStateFlow() =
+    fun deleteFoodCallsApiAndDatabase() =
         runTest {
-            val foods = listOf(TestFixtures.food(id = "1", name = "Apple"), TestFixtures.food(id = "2", name = "Banana"))
-            coEvery { api.getFoods(100, 0) } returns foods
             coEvery { api.deleteFood("1") } returns Unit
 
-            repository.loadFoods()
             repository.deleteFood("1")
 
-            assertEquals(1, repository.foods.value.size)
-            assertEquals("Banana", repository.foods.value[0].name)
+            coVerify { api.deleteFood("1") }
             coVerify { queries.deleteFood("1") }
         }
 
@@ -116,7 +110,7 @@ class FoodRepositoryTest {
         }
 
     @Test
-    fun createFoodCallsApiAndReloads() =
+    fun createFoodCallsApi() =
         runTest {
             val create =
                 FoodCreate(
@@ -131,7 +125,6 @@ class FoodRepositoryTest {
                 )
             val created = TestFixtures.food(id = "3", name = "Rice")
             coEvery { api.createFood(create) } returns created
-            coEvery { api.getFoods(100, 0) } returns listOf(created)
 
             val result = repository.createFood(create)
 
@@ -140,9 +133,7 @@ class FoodRepositoryTest {
         }
 
     @Test
-    fun foodsStateFlowStartsEmpty() {
-        assertTrue(repository.foods.value.isEmpty())
-        assertTrue(repository.favorites.value.isEmpty())
+    fun recentFoodsStateFlowStartsEmpty() {
         assertTrue(repository.recentFoods.value.isEmpty())
     }
 }

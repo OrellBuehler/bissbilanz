@@ -11,8 +11,10 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -25,8 +27,15 @@ class FavoritesViewModel(
     private val entryRepo: EntryRepository,
     private val prefsRepo: PreferencesRepository,
 ) : ViewModel() {
-    val favorites: StateFlow<List<Food>> = foodRepo.favorites
-    val recipes: StateFlow<List<Recipe>> = recipeRepo.recipes
+    val favorites: StateFlow<List<Food>> =
+        foodRepo
+            .favorites()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recipes: StateFlow<List<Recipe>> =
+        recipeRepo
+            .allRecipes()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -37,15 +46,18 @@ class FavoritesViewModel(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
-    val preferences: StateFlow<Preferences?> = prefsRepo.preferences
+    val preferences: StateFlow<Preferences?> =
+        prefsRepo
+            .preferences()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                foodRepo.loadFavorites()
-                recipeRepo.loadRecipes()
-                prefsRepo.loadPreferences()
+                foodRepo.refreshFavorites()
+                recipeRepo.refresh()
+                prefsRepo.refresh()
             } catch (_: Exception) {
             }
             _isLoading.value = false

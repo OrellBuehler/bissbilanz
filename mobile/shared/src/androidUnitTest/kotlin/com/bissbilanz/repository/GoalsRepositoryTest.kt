@@ -16,7 +16,6 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class GoalsRepositoryTest {
     private lateinit var api: BissbilanzApi
@@ -43,28 +42,26 @@ class GoalsRepositoryTest {
     }
 
     @Test
-    fun loadGoalsUpdatesStateFlowOnSuccess() =
+    fun refreshCachesGoalsOnSuccess() =
         runTest {
             val goals = TestFixtures.goals()
             coEvery { api.getGoals() } returns goals
 
-            repository.loadGoals()
+            repository.refresh()
 
-            assertEquals(goals, repository.goals.value)
+            coVerify { queries.transaction(any(), any()) }
         }
 
     @Test
-    fun loadGoalsSetsNullWhenApiReturnsNull() =
+    fun refreshDoesNotThrowWhenApiReturnsNull() =
         runTest {
             coEvery { api.getGoals() } returns null
 
-            repository.loadGoals()
-
-            assertNull(repository.goals.value)
+            repository.refresh()
         }
 
     @Test
-    fun setGoalsUpdatesStateFlowAndCaches() =
+    fun setGoalsCachesAndReturns() =
         runTest {
             val goals = TestFixtures.goals()
             coEvery { api.setGoals(goals) } returns goals
@@ -72,14 +69,8 @@ class GoalsRepositoryTest {
             val result = repository.setGoals(goals)
 
             assertEquals(goals, result)
-            assertEquals(goals, repository.goals.value)
             coVerify { queries.transaction(any(), any()) }
         }
-
-    @Test
-    fun goalsStateFlowStartsNull() {
-        assertNull(repository.goals.value)
-    }
 
     @Test
     fun setGoalsCallsApiWithCorrectValues() =

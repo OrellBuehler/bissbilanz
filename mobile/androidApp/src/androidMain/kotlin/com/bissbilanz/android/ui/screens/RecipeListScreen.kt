@@ -34,7 +34,7 @@ import org.koin.compose.koinInject
 fun RecipeListScreen(navController: NavController) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
-    val recipes by recipeRepo.recipes.collectAsStateWithLifecycle()
+    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -44,7 +44,7 @@ fun RecipeListScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            recipeRepo.loadRecipes()
+            recipeRepo.refresh()
         } catch (_: Exception) {
         }
         isLoading = false
@@ -74,7 +74,7 @@ fun RecipeListScreen(navController: NavController) {
             onDismiss = { showCreateSheet = false },
             onSaved = {
                 showCreateSheet = false
-                scope.launch { recipeRepo.loadRecipes() }
+                scope.launch { recipeRepo.refresh() }
             },
         )
     }

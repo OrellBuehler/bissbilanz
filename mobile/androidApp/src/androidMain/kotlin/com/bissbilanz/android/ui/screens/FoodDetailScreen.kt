@@ -65,7 +65,7 @@ fun FoodDetailScreen(
     val entryRepo: EntryRepository = koinInject()
     val baseUrl: String = koinInject(named("baseUrl"))
     val prefsRepo: PreferencesRepository = koinInject()
-    val prefs by prefsRepo.preferences.collectAsStateWithLifecycle()
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -79,7 +79,7 @@ fun FoodDetailScreen(
         isLoading = true
         try {
             food = foodRepo.getFood(foodId)
-            prefsRepo.loadPreferences()
+            prefsRepo.refresh()
         } catch (_: Exception) {
             snackbarHostState.showSnackbar("Failed to load food details")
         }

@@ -35,7 +35,7 @@ import org.koin.compose.koinInject
 @Composable
 fun WeightScreen(navController: NavController) {
     val weightRepo: WeightRepository = koinInject()
-    val entries by weightRepo.entries.collectAsStateWithLifecycle()
+    val entries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     var showAddDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<WeightEntry?>(null) }
@@ -46,7 +46,7 @@ fun WeightScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            weightRepo.loadEntries()
+            weightRepo.refresh()
         } catch (_: Exception) {
         }
         isLoading = false

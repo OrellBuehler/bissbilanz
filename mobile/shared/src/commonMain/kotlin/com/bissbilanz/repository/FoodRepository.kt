@@ -1,14 +1,19 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -19,12 +24,6 @@ class FoodRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _foods = MutableStateFlow<List<Food>>(emptyList())
-    val foods: StateFlow<List<Food>> = _foods.asStateFlow()
-
-    private val _favorites = MutableStateFlow<List<Food>>(emptyList())
-    val favorites: StateFlow<List<Food>> = _favorites.asStateFlow()
-
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
@@ -34,43 +33,43 @@ class FoodRepository(
             encodeDefaults = false
         }
 
-    suspend fun loadFoods(
+    fun allFoods(): Flow<List<Food>> =
+        db.bissbilanzDatabaseQueries
+            .selectAllFoods()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
+
+    fun favorites(): Flow<List<Food>> =
+        db.bissbilanzDatabaseQueries
+            .selectFavorites()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
+
+    suspend fun refreshFoods(
         limit: Int = 100,
         offset: Int = 0,
     ) {
         try {
             val foods = api.getFoods(limit, offset)
             cacheFoods(foods)
-            _foods.value = foods
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectAllFoods().executeAsList()
-            if (cached.isNotEmpty()) {
-                _foods.value = cached.map { json.decodeFromString<Food>(it.jsonData) }
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
-    suspend fun loadFavorites() {
+    suspend fun refreshFavorites() {
         try {
             val favs = api.getFavorites()
-            _favorites.value = favs
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectFavorites().executeAsList()
-            if (cached.isNotEmpty()) {
-                _favorites.value = cached.map { json.decodeFromString<Food>(it.jsonData) }
-            } else {
-                throw e
-            }
+            favs.forEach { cacheFood(it) }
+        } catch (_: Exception) {
         }
     }
 
-    suspend fun loadRecentFoods(limit: Int = 20) {
+    suspend fun refreshRecentFoods(limit: Int = 20) {
         try {
             _recentFoods.value = api.getRecentFoods(limit)
         } catch (_: Exception) {
-            // No offline equivalent for recent foods
         }
     }
 
@@ -92,15 +91,12 @@ class FoodRepository(
             val body = json.encodeToString(food)
             val meta = urlToMeta(url)
             syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            // Return a placeholder food with a temp ID for optimistic UI
             val tempFood = foodCreateToFood(food)
             cacheFood(tempFood)
-            _foods.value = _foods.value + tempFood
             return tempFood
         }
         val created = api.createFood(food)
         cacheFood(created)
-        _foods.value = _foods.value + created
         return created
     }
 
@@ -115,12 +111,10 @@ class FoodRepository(
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
             val tempFood = foodCreateToFood(food, id)
             cacheFood(tempFood)
-            _foods.value = _foods.value.map { if (it.id == id) tempFood else it }
             return tempFood
         }
         val updated = api.updateFood(id, food)
         cacheFood(updated)
-        _foods.value = _foods.value.map { if (it.id == updated.id) updated else it }
         return updated
     }
 
@@ -133,7 +127,6 @@ class FoodRepository(
             api.deleteFood(id)
         }
         db.bissbilanzDatabaseQueries.deleteFood(id)
-        _foods.value = _foods.value.filter { it.id != id }
     }
 
     suspend fun searchFoods(query: String): List<Food> =

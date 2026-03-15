@@ -17,7 +17,6 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class EntryRepositoryTest {
     private lateinit var api: BissbilanzApi
@@ -46,53 +45,29 @@ class EntryRepositoryTest {
     }
 
     @Test
-    fun loadEntriesUpdatesStateFlowOnSuccess() =
+    fun refreshCachesDataOnSuccess() =
         runTest {
             val entries = listOf(TestFixtures.entry(id = "1"), TestFixtures.entry(id = "2"))
             coEvery { api.getEntries("2024-01-15") } returns entries
 
-            repository.loadEntries("2024-01-15")
-
-            assertEquals(2, repository.entries.value.size)
-            assertEquals("1", repository.entries.value[0].id)
-            assertEquals("2", repository.entries.value[1].id)
-        }
-
-    @Test
-    fun loadEntriesCachesDataOnSuccess() =
-        runTest {
-            val entries = listOf(TestFixtures.entry(id = "1"))
-            coEvery { api.getEntries("2024-01-15") } returns entries
-
-            repository.loadEntries("2024-01-15")
+            repository.refresh("2024-01-15")
 
             coVerify { queries.transaction(any(), any()) }
         }
 
     @Test
-    fun deleteEntryRemovesFromStateFlow() =
+    fun refreshDoesNotThrowOnFailure() =
         runTest {
-            val entries = listOf(TestFixtures.entry(id = "1"), TestFixtures.entry(id = "2"), TestFixtures.entry(id = "3"))
-            coEvery { api.getEntries("2024-01-15") } returns entries
-            coEvery { api.deleteEntry("2") } returns Unit
+            coEvery { api.getEntries("2024-01-15") } throws RuntimeException("Network error")
 
-            repository.loadEntries("2024-01-15")
-            assertEquals(3, repository.entries.value.size)
-
-            repository.deleteEntry("2")
-
-            assertEquals(2, repository.entries.value.size)
-            assertTrue(repository.entries.value.none { it.id == "2" })
+            repository.refresh("2024-01-15")
         }
 
     @Test
     fun deleteEntryCallsApiAndDatabase() =
         runTest {
-            val entries = listOf(TestFixtures.entry(id = "1"))
-            coEvery { api.getEntries("2024-01-15") } returns entries
             coEvery { api.deleteEntry("1") } returns Unit
 
-            repository.loadEntries("2024-01-15")
             repository.deleteEntry("1")
 
             coVerify { api.deleteEntry("1") }
@@ -100,7 +75,7 @@ class EntryRepositoryTest {
         }
 
     @Test
-    fun createEntryCallsApiAndReloadsEntries() =
+    fun createEntryCallsApiAndRefreshes() =
         runTest {
             val create =
                 EntryCreate(
@@ -115,15 +90,10 @@ class EntryRepositoryTest {
             coEvery { api.createEntry(create) } returns created
             coEvery { api.getEntries("2024-01-15") } returns reloaded
 
-            repository.loadEntries("2024-01-15")
+            repository.refresh("2024-01-15")
             val result = repository.createEntry(create)
 
             assertEquals("new-1", result.id)
             coVerify { api.createEntry(create) }
         }
-
-    @Test
-    fun entriesStateFlowStartsEmpty() {
-        assertTrue(repository.entries.value.isEmpty())
-    }
 }

@@ -1,5 +1,7 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -7,9 +9,9 @@ import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,30 +23,24 @@ class WeightRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _entries = MutableStateFlow<List<WeightEntry>>(emptyList())
-    val entries: StateFlow<List<WeightEntry>> = _entries.asStateFlow()
-
     private val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
         }
 
-    suspend fun loadEntries(limit: Int = 30) {
+    fun entries(): Flow<List<WeightEntry>> =
+        db.bissbilanzDatabaseQueries
+            .selectAllWeightEntries()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<WeightEntry>(it.jsonData) } }
+
+    suspend fun refresh(limit: Int = 30) {
         try {
             val entries = api.getWeightEntries(limit)
             cacheWeightEntries(entries)
-            _entries.value = entries
-        } catch (e: Exception) {
-            val cached =
-                db.bissbilanzDatabaseQueries
-                    .selectWeightEntriesLimited(limit.toLong())
-                    .executeAsList()
-            if (cached.isNotEmpty()) {
-                _entries.value = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -56,12 +52,11 @@ class WeightRepository(
             syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
             val temp = weightCreateToEntry(entry)
             cacheWeightEntry(temp)
-            _entries.value = listOf(temp) + _entries.value
             return temp
         }
         val created = api.createWeightEntry(entry)
         cacheWeightEntry(created)
-        loadEntries()
+        refresh()
         try {
             healthSync.syncWeight(listOf(created))
         } catch (_: Exception) {
@@ -78,7 +73,8 @@ class WeightRepository(
             val body = json.encodeToString(entry)
             val meta = urlToMeta(url)
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val existing = _entries.value.find { it.id == id }
+            val cached = db.bissbilanzDatabaseQueries.selectAllWeightEntries().executeAsList()
+            val existing = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }.find { it.id == id }
             if (existing != null) {
                 val updated =
                     existing.copy(
@@ -87,7 +83,6 @@ class WeightRepository(
                         notes = entry.notes ?: existing.notes,
                     )
                 cacheWeightEntry(updated)
-                _entries.value = _entries.value.map { if (it.id == id) updated else it }
                 return updated
             }
             return existing ?: WeightEntry(
@@ -99,7 +94,7 @@ class WeightRepository(
         }
         val updated = api.updateWeightEntry(id, entry)
         cacheWeightEntry(updated)
-        loadEntries()
+        refresh()
         try {
             healthSync.syncWeight(listOf(updated))
         } catch (_: Exception) {
@@ -116,7 +111,6 @@ class WeightRepository(
             api.deleteWeightEntry(id)
         }
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
-        _entries.value = _entries.value.filter { it.id != id }
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

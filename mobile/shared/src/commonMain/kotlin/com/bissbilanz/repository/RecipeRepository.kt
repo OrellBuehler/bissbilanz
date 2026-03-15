@@ -1,14 +1,16 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -19,27 +21,24 @@ class RecipeRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _recipes = MutableStateFlow<List<Recipe>>(emptyList())
-    val recipes: StateFlow<List<Recipe>> = _recipes.asStateFlow()
-
     private val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
         }
 
-    suspend fun loadRecipes() {
+    fun allRecipes(): Flow<List<Recipe>> =
+        db.bissbilanzDatabaseQueries
+            .selectAllRecipes()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<Recipe>(it.jsonData) } }
+
+    suspend fun refresh() {
         try {
             val recipes = api.getRecipes()
             cacheRecipes(recipes)
-            _recipes.value = recipes
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectAllRecipes().executeAsList()
-            if (cached.isNotEmpty()) {
-                _recipes.value = cached.map { json.decodeFromString<Recipe>(it.jsonData) }
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -65,12 +64,10 @@ class RecipeRepository(
             syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
             val temp = recipeCreateToRecipe(recipe)
             cacheRecipe(temp)
-            _recipes.value = _recipes.value + temp
             return temp
         }
         val created = api.createRecipe(recipe)
         cacheRecipe(created)
-        _recipes.value = _recipes.value + created
         return created
     }
 
@@ -83,7 +80,8 @@ class RecipeRepository(
             val body = json.encodeToString(recipe)
             val meta = urlToMeta(url)
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val existing = _recipes.value.find { it.id == id }
+            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            val existing = cached?.let { json.decodeFromString<Recipe>(it.jsonData) }
             if (existing != null) {
                 val updated =
                     existing.copy(
@@ -93,7 +91,6 @@ class RecipeRepository(
                         imageUrl = recipe.imageUrl ?: existing.imageUrl,
                     )
                 cacheRecipe(updated)
-                _recipes.value = _recipes.value.map { if (it.id == id) updated else it }
                 return updated
             }
             return existing ?: Recipe(
@@ -105,7 +102,6 @@ class RecipeRepository(
         }
         val updated = api.updateRecipe(id, recipe)
         cacheRecipe(updated)
-        _recipes.value = _recipes.value.map { if (it.id == updated.id) updated else it }
         return updated
     }
 
@@ -118,11 +114,9 @@ class RecipeRepository(
             api.deleteRecipe(id)
         }
         db.bissbilanzDatabaseQueries.deleteRecipe(id)
-        _recipes.value = _recipes.value.filter { it.id != id }
     }
 
     private fun cacheRecipe(recipe: Recipe) {
-        // Compute macros from ingredients for indexed columns
         var calories = 0.0
         var protein = 0.0
         var carbs = 0.0

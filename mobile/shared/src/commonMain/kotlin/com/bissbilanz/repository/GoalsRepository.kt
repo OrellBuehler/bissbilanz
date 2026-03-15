@@ -1,14 +1,16 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -19,36 +21,36 @@ class GoalsRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _goals = MutableStateFlow<Goals?>(null)
-    val goals: StateFlow<Goals?> = _goals.asStateFlow()
-
     private val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
         }
 
-    suspend fun loadGoals() {
+    fun goals(): Flow<Goals?> =
+        db.bissbilanzDatabaseQueries
+            .selectGoals()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+            .map { cached ->
+                cached?.let {
+                    Goals(
+                        calorieGoal = it.calorieGoal,
+                        proteinGoal = it.proteinGoal,
+                        carbGoal = it.carbGoal,
+                        fatGoal = it.fatGoal,
+                        fiberGoal = it.fiberGoal,
+                    )
+                }
+            }
+
+    suspend fun refresh() {
         try {
             val goals = api.getGoals()
             if (goals != null) {
                 cacheGoals(goals)
             }
-            _goals.value = goals
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectGoals().executeAsOneOrNull()
-            if (cached != null) {
-                _goals.value =
-                    Goals(
-                        calorieGoal = cached.calorieGoal,
-                        proteinGoal = cached.proteinGoal,
-                        carbGoal = cached.carbGoal,
-                        fatGoal = cached.fatGoal,
-                        fiberGoal = cached.fiberGoal,
-                    )
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -59,12 +61,10 @@ class GoalsRepository(
             val meta = urlToMeta(url)
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
             cacheGoals(goals)
-            _goals.value = goals
             return goals
         }
         val updated = api.setGoals(goals)
         cacheGoals(updated)
-        _goals.value = updated
         return updated
     }
 

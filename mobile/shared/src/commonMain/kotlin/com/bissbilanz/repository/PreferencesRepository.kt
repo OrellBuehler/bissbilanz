@@ -1,5 +1,7 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Preferences
@@ -7,9 +9,9 @@ import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,27 +22,26 @@ class PreferencesRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _preferences = MutableStateFlow<Preferences?>(null)
-    val preferences: StateFlow<Preferences?> = _preferences.asStateFlow()
-
     private val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
         }
 
-    suspend fun loadPreferences() {
+    fun preferences(): Flow<Preferences?> =
+        db.bissbilanzDatabaseQueries
+            .selectPreferences()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+            .map { cached ->
+                cached?.let { json.decodeFromString<Preferences>(it.jsonData) }
+            }
+
+    suspend fun refresh() {
         try {
             val prefs = api.getPreferences()
             cachePreferences(prefs)
-            _preferences.value = prefs
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
-            if (cached != null) {
-                _preferences.value = json.decodeFromString<Preferences>(cached.jsonData)
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -50,16 +51,14 @@ class PreferencesRepository(
             val body = json.encodeToString(update)
             val meta = urlToMeta(url)
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            // Apply optimistically
-            val current = _preferences.value ?: Preferences()
+            val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
+            val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences()
             val updated = applyUpdate(current, update)
             cachePreferences(updated)
-            _preferences.value = updated
             return updated
         }
         val updated = api.updatePreferences(update)
         cachePreferences(updated)
-        _preferences.value = updated
         return updated
     }
 

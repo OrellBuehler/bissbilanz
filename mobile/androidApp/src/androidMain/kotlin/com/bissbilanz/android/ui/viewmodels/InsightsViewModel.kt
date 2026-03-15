@@ -8,8 +8,10 @@ import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
@@ -35,8 +37,10 @@ class InsightsViewModel(
     private val _mealBreakdown = MutableStateFlow<List<MealBreakdownEntry>>(emptyList())
     val mealBreakdown: StateFlow<List<MealBreakdownEntry>> = _mealBreakdown.asStateFlow()
 
-    private val _goals = MutableStateFlow<Goals?>(null)
-    val goals: StateFlow<Goals?> = _goals.asStateFlow()
+    val goals: StateFlow<Goals?> =
+        goalsRepo
+            .goals()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -114,10 +118,8 @@ class InsightsViewModel(
                     val goalsDeferred =
                         async {
                             try {
-                                goalsRepo.loadGoals()
-                                goalsRepo.goals.value
+                                goalsRepo.refresh()
                             } catch (_: Exception) {
-                                null
                             }
                         }
 
@@ -127,7 +129,7 @@ class InsightsViewModel(
                     _topFoods.value = topFoodsDeferred.await()
                     _dailyStats.value = dailyStatsDeferred.await()
                     _mealBreakdown.value = mealBreakdownDeferred.await()
-                    _goals.value = goalsDeferred.await()
+                    goalsDeferred.await()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

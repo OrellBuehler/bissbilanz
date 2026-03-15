@@ -1,14 +1,16 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -19,27 +21,24 @@ class SupplementRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _supplements = MutableStateFlow<List<Supplement>>(emptyList())
-    val supplements: StateFlow<List<Supplement>> = _supplements.asStateFlow()
-
     private val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
         }
 
-    suspend fun loadSupplements() {
+    fun supplements(): Flow<List<Supplement>> =
+        db.bissbilanzDatabaseQueries
+            .selectActiveSupplements()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<Supplement>(it.jsonData) } }
+
+    suspend fun refresh() {
         try {
             val supplements = api.getSupplements()
             cacheSupplements(supplements)
-            _supplements.value = supplements
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectActiveSupplements().executeAsList()
-            if (cached.isNotEmpty()) {
-                _supplements.value = cached.map { json.decodeFromString<Supplement>(it.jsonData) }
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -51,12 +50,10 @@ class SupplementRepository(
             syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
             val temp = supplementCreateToSupplement(supplement)
             cacheSupplement(temp)
-            _supplements.value = _supplements.value + temp
             return temp
         }
         val created = api.createSupplement(supplement)
         cacheSupplement(created)
-        _supplements.value = _supplements.value + created
         return created
     }
 
@@ -71,12 +68,10 @@ class SupplementRepository(
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
             val temp = supplementCreateToSupplement(supplement, id)
             cacheSupplement(temp)
-            _supplements.value = _supplements.value.map { if (it.id == id) temp else it }
             return temp
         }
         val updated = api.updateSupplement(id, supplement)
         cacheSupplement(updated)
-        _supplements.value = _supplements.value.map { if (it.id == updated.id) updated else it }
         return updated
     }
 
@@ -89,13 +84,11 @@ class SupplementRepository(
             api.deleteSupplement(id)
         }
         db.bissbilanzDatabaseQueries.deleteSupplement(id)
-        _supplements.value = _supplements.value.filter { it.id != id }
     }
 
     suspend fun getChecklist(date: String): List<SupplementLog> =
         try {
             val logs = api.getSupplementChecklist(date)
-            // Cache supplement logs
             logs.forEach { log ->
                 db.bissbilanzDatabaseQueries.insertSupplementLog(
                     id = log.id,
@@ -106,7 +99,6 @@ class SupplementRepository(
             }
             logs
         } catch (e: Exception) {
-            // Reconstruct from cached data
             val cachedLogs =
                 db.bissbilanzDatabaseQueries.selectSupplementLogsByDate(date).executeAsList()
             cachedLogs.map { log ->
@@ -176,7 +168,6 @@ class SupplementRepository(
         try {
             api.getSupplementHistory(from, to).history
         } catch (_: Exception) {
-            // Build from cached data
             val logs =
                 db.bissbilanzDatabaseQueries
                     .selectSupplementLogsByDateRange(from, to)

@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -53,7 +54,7 @@ fun SupplementEditSheet(
     LaunchedEffect(supplementId) {
         if (supplementId != null) {
             try {
-                val supplements = supplementRepo.supplements.value
+                val supplements = supplementRepo.supplements().first()
                 val found = supplements.find { it.id == supplementId }
                 if (found != null) {
                     name = found.name

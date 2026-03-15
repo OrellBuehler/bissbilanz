@@ -33,7 +33,7 @@ class DayLogViewModelTest {
         entriesFlow = MutableStateFlow(emptyList())
         entryRepo =
             mockk(relaxed = true) {
-                every { entries } returns entriesFlow
+                every { entriesByDate(any()) } returns entriesFlow
             }
     }
 
@@ -45,21 +45,21 @@ class DayLogViewModelTest {
     @Test
     fun loadEntriesSetsLoadingAndCallsRepository() =
         runTest {
-            coEvery { entryRepo.loadEntries("2024-01-15") } coAnswers {
+            coEvery { entryRepo.refresh("2024-01-15") } coAnswers {
                 entriesFlow.value = listOf(testEntry("1"))
             }
 
             val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
 
-            coVerify { entryRepo.loadEntries("2024-01-15") }
+            coVerify { entryRepo.refresh("2024-01-15") }
             assertEquals(false, viewModel.isLoading.value)
         }
 
     @Test
     fun loadEntriesSetsErrorOnFailure() =
         runTest {
-            coEvery { entryRepo.loadEntries("2024-01-15") } throws RuntimeException("Network error")
+            coEvery { entryRepo.refresh("2024-01-15") } throws RuntimeException("Network error")
 
             val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
@@ -71,7 +71,7 @@ class DayLogViewModelTest {
     @Test
     fun loadEntriesSkipsDuplicateDate() =
         runTest {
-            coEvery { entryRepo.loadEntries("2024-01-15") } coAnswers {
+            coEvery { entryRepo.refresh("2024-01-15") } coAnswers {
                 entriesFlow.value = listOf(testEntry("1"))
             }
 
@@ -79,7 +79,7 @@ class DayLogViewModelTest {
             viewModel.loadEntries("2024-01-15")
             viewModel.loadEntries("2024-01-15")
 
-            coVerify(exactly = 1) { entryRepo.loadEntries("2024-01-15") }
+            coVerify(exactly = 1) { entryRepo.refresh("2024-01-15") }
         }
 
     @Test
@@ -105,7 +105,7 @@ class DayLogViewModelTest {
     @Test
     fun clearErrorResetsErrorState() =
         runTest {
-            coEvery { entryRepo.loadEntries("2024-01-15") } throws RuntimeException("Error")
+            coEvery { entryRepo.refresh("2024-01-15") } throws RuntimeException("Error")
 
             val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")

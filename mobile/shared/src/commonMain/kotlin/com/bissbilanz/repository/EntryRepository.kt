@@ -1,5 +1,7 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -7,9 +9,9 @@ import com.bissbilanz.model.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,9 +23,6 @@ class EntryRepository(
     private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
 ) {
-    private val _entries = MutableStateFlow<List<Entry>>(emptyList())
-    val entries: StateFlow<List<Entry>> = _entries.asStateFlow()
-
     private var currentDate: String? = null
 
     private val json =
@@ -32,19 +31,19 @@ class EntryRepository(
             encodeDefaults = false
         }
 
-    suspend fun loadEntries(date: String) {
+    fun entriesByDate(date: String): Flow<List<Entry>> =
+        db.bissbilanzDatabaseQueries
+            .selectEntriesByDate(date)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { json.decodeFromString<Entry>(it.jsonData) } }
+
+    suspend fun refresh(date: String) {
         currentDate = date
         try {
             val entries = api.getEntries(date)
             cacheEntries(date, entries)
-            _entries.value = entries
-        } catch (e: Exception) {
-            val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
-            if (cached.isNotEmpty()) {
-                _entries.value = cached.map { json.decodeFromString<Entry>(it.jsonData) }
-            } else {
-                throw e
-            }
+        } catch (_: Exception) {
         }
     }
 
@@ -56,12 +55,11 @@ class EntryRepository(
             syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
             val tempEntry = entryCreateToEntry(entry)
             cacheEntry(tempEntry)
-            _entries.value = _entries.value + tempEntry
             syncNutritionForCurrentDate()
             return tempEntry
         }
         val created = api.createEntry(entry)
-        currentDate?.let { loadEntries(it) }
+        currentDate?.let { refresh(it) }
         syncNutritionForCurrentDate()
         return created
     }
@@ -75,15 +73,17 @@ class EntryRepository(
             val body = json.encodeToString(entry)
             val meta = urlToMeta(url)
             syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            // Update local entry optimistically
-            val existing = _entries.value.find { it.id == id }
+            val cached =
+                db.bissbilanzDatabaseQueries
+                    .selectEntriesByDate(currentDate ?: entry.date ?: "")
+                    .executeAsList()
+            val existing = cached.map { json.decodeFromString<Entry>(it.jsonData) }.find { it.id == id }
             if (existing != null) {
                 val updated = applyUpdate(existing, entry)
                 cacheEntry(updated)
-                _entries.value = _entries.value.map { if (it.id == id) updated else it }
             }
             syncNutritionForCurrentDate()
-            return existing ?: Entry(
+            return existing?.let { applyUpdate(it, entry) } ?: Entry(
                 id = id,
                 userId = "",
                 date = entry.date ?: currentDate ?: "",
@@ -92,7 +92,7 @@ class EntryRepository(
             )
         }
         val updated = api.updateEntry(id, entry)
-        currentDate?.let { loadEntries(it) }
+        currentDate?.let { refresh(it) }
         syncNutritionForCurrentDate()
         return updated
     }
@@ -106,7 +106,6 @@ class EntryRepository(
             api.deleteEntry(id)
         }
         db.bissbilanzDatabaseQueries.deleteEntry(id)
-        _entries.value = _entries.value.filter { it.id != id }
         syncNutritionForCurrentDate()
     }
 
@@ -114,9 +113,8 @@ class EntryRepository(
         fromDate: String,
         toDate: String,
     ): Int {
-        // Copy requires server — no offline support (same as PWA)
         val result = api.copyEntries(fromDate, toDate)
-        loadEntries(toDate)
+        refresh(toDate)
         syncNutritionForCurrentDate()
         return result.count
     }
@@ -124,7 +122,9 @@ class EntryRepository(
     private suspend fun syncNutritionForCurrentDate() {
         val date = currentDate ?: return
         try {
-            val totals = calculateTotals(_entries.value)
+            val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
+            val entries = cached.map { json.decodeFromString<Entry>(it.jsonData) }
+            val totals = calculateTotals(entries)
             healthSync.syncNutrition(date, totals)
         } catch (_: Exception) {
         }

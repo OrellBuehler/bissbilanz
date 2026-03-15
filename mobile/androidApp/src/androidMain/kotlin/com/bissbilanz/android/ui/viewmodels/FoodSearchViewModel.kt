@@ -7,8 +7,10 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -19,7 +21,11 @@ class FoodSearchViewModel(
     private val entryRepo: EntryRepository,
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
-    val favorites: StateFlow<List<Food>> = foodRepo.favorites
+
+    val favorites: StateFlow<List<Food>> =
+        foodRepo
+            .favorites()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -38,8 +44,8 @@ class FoodSearchViewModel(
 
     init {
         viewModelScope.launch {
-            foodRepo.loadRecentFoods()
-            foodRepo.loadFavorites()
+            foodRepo.refreshRecentFoods()
+            foodRepo.refreshFavorites()
         }
     }
 
@@ -89,8 +95,8 @@ class FoodSearchViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            foodRepo.loadRecentFoods()
-            foodRepo.loadFavorites()
+            foodRepo.refreshRecentFoods()
+            foodRepo.refreshFavorites()
         }
     }
 }

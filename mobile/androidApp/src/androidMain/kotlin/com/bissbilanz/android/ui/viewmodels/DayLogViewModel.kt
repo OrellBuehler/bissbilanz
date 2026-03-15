@@ -4,11 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DayLogViewModel(
     private val entryRepo: EntryRepository,
 ) : ViewModel() {
@@ -18,7 +24,17 @@ class DayLogViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    val entries: StateFlow<List<Entry>> = entryRepo.entries
+    private val currentDateFlow = MutableStateFlow("")
+
+    val entries: StateFlow<List<Entry>> =
+        currentDateFlow
+            .flatMapLatest { date ->
+                if (date.isNotEmpty()) {
+                    entryRepo.entriesByDate(date)
+                } else {
+                    flowOf(emptyList())
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var currentDate: String? = null
 
@@ -28,11 +44,12 @@ class DayLogViewModel(
     ) {
         if (date == currentDate && !force) return
         currentDate = date
+        currentDateFlow.value = date
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                entryRepo.loadEntries(date)
+                entryRepo.refresh(date)
             } catch (e: Exception) {
                 _error.value = "Failed to load entries"
             } finally {

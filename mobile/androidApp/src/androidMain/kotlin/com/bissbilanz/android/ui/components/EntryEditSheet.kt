@@ -18,6 +18,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -56,7 +57,7 @@ fun EntryEditSheet(
 
     LaunchedEffect(entryId) {
         if (entryId != null) {
-            val entries = entryRepo.entries.value
+            val entries = entryRepo.entriesByDate(date ?: today).first()
             val found = entries.find { it.id == entryId }
             if (found != null) {
                 entry = found

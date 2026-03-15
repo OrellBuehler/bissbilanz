@@ -41,11 +41,11 @@ class DashboardViewModelTest {
         goalsFlow = MutableStateFlow(null)
         entryRepo =
             mockk(relaxed = true) {
-                every { entries } returns entriesFlow
+                every { entriesByDate(any()) } returns entriesFlow
             }
         goalsRepo =
             mockk(relaxed = true) {
-                every { goals } returns goalsFlow
+                every { goals() } returns goalsFlow
             }
     }
 
@@ -104,8 +104,8 @@ class DashboardViewModelTest {
         runTest {
             DashboardViewModel(entryRepo, goalsRepo)
 
-            coVerify { entryRepo.loadEntries(any()) }
-            coVerify { goalsRepo.loadGoals() }
+            coVerify { entryRepo.refresh(any()) }
+            coVerify { goalsRepo.refresh() }
         }
 
     @Test
@@ -119,7 +119,7 @@ class DashboardViewModelTest {
     @Test
     fun loadDataHandlesErrorsGracefully() =
         runTest {
-            coEvery { entryRepo.loadEntries(any()) } throws RuntimeException("Network error")
+            coEvery { entryRepo.refresh(any()) } throws RuntimeException("Network error")
 
             val viewModel = DashboardViewModel(entryRepo, goalsRepo)
 
