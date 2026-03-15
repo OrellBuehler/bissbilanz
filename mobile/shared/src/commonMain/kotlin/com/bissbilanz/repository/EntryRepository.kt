@@ -94,10 +94,29 @@ class EntryRepository(
         fromDate: String,
         toDate: String,
     ): Int {
-        val result = api.copyEntries(fromDate, toDate)
-        refresh(toDate)
-        syncNutritionForCurrentDate()
-        return result.count
+        val source = entriesByDateOnce(fromDate)
+        var count = 0
+        for (entry in source) {
+            val create =
+                EntryCreate(
+                    mealType = entry.mealType,
+                    servings = entry.servings,
+                    date = toDate,
+                    foodId = entry.foodId,
+                    recipeId = entry.recipeId,
+                    notes = entry.notes,
+                    quickName = entry.quickName,
+                    quickCalories = entry.quickCalories,
+                    quickProtein = entry.quickProtein,
+                    quickCarbs = entry.quickCarbs,
+                    quickFat = entry.quickFat,
+                    quickFiber = entry.quickFiber,
+                    eatenAt = entry.eatenAt,
+                )
+            createEntry(create)
+            count++
+        }
+        return count
     }
 
     private suspend fun syncNutritionForCurrentDate() {

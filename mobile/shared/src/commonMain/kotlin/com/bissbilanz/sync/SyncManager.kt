@@ -59,15 +59,11 @@ class SyncManager(
 
     suspend fun syncPendingQueue(): Int {
         if (!syncMutex.tryLock()) return 0
-        if (!connectivityProvider.isOnline.value) {
-            syncMutex.unlock()
-            return 0
-        }
-
-        _state.value = _state.value.copy(isSyncing = true, errors = emptyList())
         var synced = 0
-
         try {
+            if (!connectivityProvider.isOnline.value) return 0
+
+            _state.value = _state.value.copy(isSyncing = true, errors = emptyList())
             val queued = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 

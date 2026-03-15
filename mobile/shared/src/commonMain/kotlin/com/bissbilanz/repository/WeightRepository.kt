@@ -86,7 +86,19 @@ class WeightRepository(
     suspend fun getTrend(
         from: String,
         to: String,
-    ): List<WeightTrendEntry> = api.getWeightTrend(from, to)
+    ): List<WeightTrendEntry> =
+        try {
+            api.getWeightTrend(from, to)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            db.bissbilanzDatabaseQueries
+                .selectAllWeightEntries()
+                .executeAsList()
+                .map { json.decodeFromString<WeightEntry>(it.jsonData) }
+                .filter { it.entryDate in from..to }
+                .sortedBy { it.entryDate }
+                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg) }
+        }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
