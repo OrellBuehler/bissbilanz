@@ -61,33 +61,7 @@ import { favoritesResponseSchema } from './validation/responses/favorites';
 import { maintenanceResponseSchema } from './validation/responses/maintenance';
 import { imageUploadResponseSchema } from './validation/responses/images';
 import { openfoodfactsResponseSchema } from './validation/responses/openfoodfacts';
-
-const goalsResponseSchema = z
-	.object({
-		goals: z
-			.object({
-				id: z.string().uuid().optional(),
-				userId: z.string().uuid().optional(),
-				calorieGoal: z.number(),
-				proteinGoal: z.number(),
-				carbGoal: z.number(),
-				fatGoal: z.number(),
-				fiberGoal: z.number(),
-				sodiumGoal: z.number().nullable().optional(),
-				sugarGoal: z.number().nullable().optional(),
-				createdAt: z.string().optional(),
-				updatedAt: z.string().optional()
-			})
-			.meta({ id: 'Goals' })
-			.nullable()
-	})
-	.meta({ id: 'GoalsResponse' });
-
-const goalsSetResponseSchema = z
-	.object({
-		goals: goalsResponseSchema.shape.goals.unwrap()
-	})
-	.meta({ id: 'GoalsSetResponse' });
+import { goalsResponseSchema, goalsSetResponseSchema } from './validation/responses/goals';
 
 const res401 = {
 	'401': {
