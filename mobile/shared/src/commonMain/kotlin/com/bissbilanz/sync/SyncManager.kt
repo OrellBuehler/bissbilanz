@@ -52,6 +52,14 @@ class SyncManager(
                 }
             }
         }
+        scope.launch {
+            syncQueue.enqueueSignal.collect {
+                if (connectivityProvider.isOnline.value) {
+                    val count = syncPendingQueue()
+                    if (count > 0) onSynced?.invoke()
+                }
+            }
+        }
     }
 
     suspend fun syncPendingQueue(): Int {

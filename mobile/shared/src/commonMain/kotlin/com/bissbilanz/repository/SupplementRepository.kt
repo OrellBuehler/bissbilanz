@@ -5,7 +5,6 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ import kotlinx.serialization.json.Json
 class SupplementRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -39,47 +37,33 @@ class SupplementRepository(
     }
 
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/supplements"
-            val body = json.encodeToString(supplement)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            val temp = supplementCreateToSupplement(supplement)
-            cacheSupplement(temp)
-            return temp
-        }
-        val created = api.createSupplement(supplement)
-        cacheSupplement(created)
-        return created
+        val temp = supplementCreateToSupplement(supplement)
+        cacheSupplement(temp)
+        val url = "/api/supplements"
+        val body = json.encodeToString(supplement)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        return temp
     }
 
     suspend fun updateSupplement(
         id: String,
         supplement: SupplementCreate,
     ): Supplement {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/supplements/$id"
-            val body = json.encodeToString(supplement)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val temp = supplementCreateToSupplement(supplement, id)
-            cacheSupplement(temp)
-            return temp
-        }
-        val updated = api.updateSupplement(id, supplement)
-        cacheSupplement(updated)
-        return updated
+        val temp = supplementCreateToSupplement(supplement, id)
+        cacheSupplement(temp)
+        val url = "/api/supplements/$id"
+        val body = json.encodeToString(supplement)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return temp
     }
 
     suspend fun deleteSupplement(id: String) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/supplements/$id"
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
-        } else {
-            api.deleteSupplement(id)
-        }
         db.bissbilanzDatabaseQueries.deleteSupplement(id)
+        val url = "/api/supplements/$id"
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
     }
 
     suspend fun getChecklist(date: String): List<SupplementLog> =
@@ -112,49 +96,35 @@ class SupplementRepository(
         supplementId: String,
         date: String?,
     ): SupplementLog {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/supplements/$supplementId/log"
-            val body = json.encodeToString(mapOf("date" to date))
-            syncQueue.enqueue("POST", url, body, "supplements", supplementId)
-            val now = Clock.System.now().toString()
-            val logDate = date ?: now.substring(0, 10)
-            val temp =
-                SupplementLog(
-                    id = "temp_${Clock.System.now().toEpochMilliseconds()}",
-                    supplementId = supplementId,
-                    userId = "",
-                    date = logDate,
-                    takenAt = now,
-                )
-            db.bissbilanzDatabaseQueries.insertSupplementLog(
-                id = temp.id,
-                supplementId = temp.supplementId,
-                date = temp.date,
-                takenAt = temp.takenAt,
+        val now = Clock.System.now().toString()
+        val logDate = date ?: now.substring(0, 10)
+        val temp =
+            SupplementLog(
+                id = "temp_${Clock.System.now().toEpochMilliseconds()}",
+                supplementId = supplementId,
+                userId = "",
+                date = logDate,
+                takenAt = now,
             )
-            return temp
-        }
-        val log = api.logSupplement(supplementId, date)
         db.bissbilanzDatabaseQueries.insertSupplementLog(
-            id = log.id,
-            supplementId = log.supplementId,
-            date = log.date,
-            takenAt = log.takenAt,
+            id = temp.id,
+            supplementId = temp.supplementId,
+            date = temp.date,
+            takenAt = temp.takenAt,
         )
-        return log
+        val url = "/api/supplements/$supplementId/log"
+        val body = json.encodeToString(mapOf("date" to date))
+        syncQueue.enqueue("POST", url, body, "supplements", supplementId)
+        return temp
     }
 
     suspend fun unlogSupplement(
         supplementId: String,
         date: String,
     ) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/supplements/$supplementId/log?date=$date"
-            syncQueue.enqueue("DELETE", url, "", "supplements", supplementId)
-        } else {
-            api.unlogSupplement(supplementId, date)
-        }
         db.bissbilanzDatabaseQueries.deleteSupplementLog(supplementId, date)
+        val url = "/api/supplements/$supplementId/log?date=$date"
+        syncQueue.enqueue("DELETE", url, "", "supplements", supplementId)
     }
 
     suspend fun getHistory(

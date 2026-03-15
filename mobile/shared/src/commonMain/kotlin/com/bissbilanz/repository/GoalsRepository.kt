@@ -5,7 +5,6 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Goals
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ import kotlinx.serialization.json.Json
 class GoalsRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -51,17 +49,12 @@ class GoalsRepository(
     }
 
     suspend fun setGoals(goals: Goals): Goals {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/goals"
-            val body = json.encodeToString(goals)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            cacheGoals(goals)
-            return goals
-        }
-        val updated = api.setGoals(goals)
-        cacheGoals(updated)
-        return updated
+        cacheGoals(goals)
+        val url = "/api/goals"
+        val body = json.encodeToString(goals)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return goals
     }
 
     private fun cacheGoals(goals: Goals) {

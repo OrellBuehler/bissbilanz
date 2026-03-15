@@ -6,7 +6,6 @@ import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import com.bissbilanz.util.totalMacros
@@ -21,7 +20,6 @@ class EntryRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
     private val healthSync: HealthSyncService,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -45,65 +43,53 @@ class EntryRepository(
     }
 
     suspend fun createEntry(entry: EntryCreate): Entry {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/entries"
-            val body = json.encodeToString(entry)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            val tempEntry = entryCreateToEntry(entry)
-            cacheEntry(tempEntry)
-            syncNutritionForCurrentDate()
-            return tempEntry
-        }
-        val created = api.createEntry(entry)
-        currentDate?.let { refresh(it) }
+        val tempEntry = entryCreateToEntry(entry)
+        cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
-        return created
+        val url = "/api/entries"
+        val body = json.encodeToString(entry)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        return tempEntry
     }
 
     suspend fun updateEntry(
         id: String,
         entry: EntryUpdate,
     ): Entry {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/entries/$id"
-            val body = json.encodeToString(entry)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val cached =
-                db.bissbilanzDatabaseQueries
-                    .selectEntriesByDate(currentDate ?: entry.date ?: "")
-                    .executeAsList()
-            val existing = cached.map { json.decodeFromString<Entry>(it.jsonData) }.find { it.id == id }
+        val cached =
+            db.bissbilanzDatabaseQueries
+                .selectEntriesByDate(currentDate ?: entry.date ?: "")
+                .executeAsList()
+        val existing = cached.map { json.decodeFromString<Entry>(it.jsonData) }.find { it.id == id }
+        val result =
             if (existing != null) {
                 val updated = applyUpdate(existing, entry)
                 cacheEntry(updated)
+                updated
+            } else {
+                Entry(
+                    id = id,
+                    userId = "",
+                    date = entry.date ?: currentDate ?: "",
+                    mealType = entry.mealType ?: "",
+                    servings = entry.servings ?: 1.0,
+                )
             }
-            syncNutritionForCurrentDate()
-            return existing?.let { applyUpdate(it, entry) } ?: Entry(
-                id = id,
-                userId = "",
-                date = entry.date ?: currentDate ?: "",
-                mealType = entry.mealType ?: "",
-                servings = entry.servings ?: 1.0,
-            )
-        }
-        val updated = api.updateEntry(id, entry)
-        currentDate?.let { refresh(it) }
         syncNutritionForCurrentDate()
-        return updated
+        val url = "/api/entries/$id"
+        val body = json.encodeToString(entry)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return result
     }
 
     suspend fun deleteEntry(id: String) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/entries/$id"
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
-        } else {
-            api.deleteEntry(id)
-        }
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
+        val url = "/api/entries/$id"
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
     }
 
     suspend fun copyEntries(

@@ -6,7 +6,6 @@ import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +19,6 @@ class WeightRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
     private val healthSync: HealthSyncService,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -41,37 +39,27 @@ class WeightRepository(
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/weight"
-            val body = json.encodeToString(entry)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            val temp = weightCreateToEntry(entry)
-            cacheWeightEntry(temp)
-            return temp
-        }
-        val created = api.createWeightEntry(entry)
-        cacheWeightEntry(created)
-        refresh()
+        val temp = weightCreateToEntry(entry)
+        cacheWeightEntry(temp)
         try {
-            healthSync.syncWeight(listOf(created))
+            healthSync.syncWeight(listOf(temp))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
-        return created
+        val url = "/api/weight"
+        val body = json.encodeToString(entry)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        return temp
     }
 
     suspend fun updateEntry(
         id: String,
         entry: WeightUpdate,
     ): WeightEntry {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/weight/$id"
-            val body = json.encodeToString(entry)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val cached = db.bissbilanzDatabaseQueries.selectAllWeightEntries().executeAsList()
-            val existing = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }.find { it.id == id }
+        val cached = db.bissbilanzDatabaseQueries.selectAllWeightEntries().executeAsList()
+        val existing = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }.find { it.id == id }
+        val result =
             if (existing != null) {
                 val updated =
                     existing.copy(
@@ -80,35 +68,32 @@ class WeightRepository(
                         notes = entry.notes ?: existing.notes,
                     )
                 cacheWeightEntry(updated)
-                return updated
+                updated
+            } else {
+                WeightEntry(
+                    id = id,
+                    userId = "",
+                    weightKg = entry.weightKg ?: 0.0,
+                    entryDate = entry.entryDate ?: "",
+                )
             }
-            return existing ?: WeightEntry(
-                id = id,
-                userId = "",
-                weightKg = entry.weightKg ?: 0.0,
-                entryDate = entry.entryDate ?: "",
-            )
-        }
-        val updated = api.updateWeightEntry(id, entry)
-        cacheWeightEntry(updated)
-        refresh()
         try {
-            healthSync.syncWeight(listOf(updated))
+            healthSync.syncWeight(listOf(result))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
-        return updated
+        val url = "/api/weight/$id"
+        val body = json.encodeToString(entry)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return result
     }
 
     suspend fun deleteEntry(id: String) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/weight/$id"
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
-        } else {
-            api.deleteWeightEntry(id)
-        }
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
+        val url = "/api/weight/$id"
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

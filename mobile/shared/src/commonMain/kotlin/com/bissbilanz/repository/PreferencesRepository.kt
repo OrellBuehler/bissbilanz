@@ -6,7 +6,6 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Preferences
 import com.bissbilanz.model.PreferencesUpdate
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,6 @@ import kotlinx.serialization.json.Json
 class PreferencesRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -42,19 +40,14 @@ class PreferencesRepository(
     }
 
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/preferences"
-            val body = json.encodeToString(update)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
-            val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences()
-            val updated = applyUpdate(current, update)
-            cachePreferences(updated)
-            return updated
-        }
-        val updated = api.updatePreferences(update)
+        val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
+        val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences()
+        val updated = applyUpdate(current, update)
         cachePreferences(updated)
+        val url = "/api/preferences"
+        val body = json.encodeToString(update)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
         return updated
     }
 

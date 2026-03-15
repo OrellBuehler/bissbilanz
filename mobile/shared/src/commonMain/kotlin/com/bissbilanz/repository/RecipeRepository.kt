@@ -5,7 +5,6 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ import kotlinx.serialization.json.Json
 class RecipeRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -53,31 +51,22 @@ class RecipeRepository(
         }
 
     suspend fun createRecipe(recipe: RecipeCreate): Recipe {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/recipes"
-            val body = json.encodeToString(recipe)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            val temp = recipeCreateToRecipe(recipe)
-            cacheRecipe(temp)
-            return temp
-        }
-        val created = api.createRecipe(recipe)
-        cacheRecipe(created)
-        return created
+        val temp = recipeCreateToRecipe(recipe)
+        cacheRecipe(temp)
+        val url = "/api/recipes"
+        val body = json.encodeToString(recipe)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        return temp
     }
 
     suspend fun updateRecipe(
         id: String,
         recipe: RecipeUpdate,
     ): Recipe {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/recipes/$id"
-            val body = json.encodeToString(recipe)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
-            val existing = cached?.let { json.decodeFromString<Recipe>(it.jsonData) }
+        val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+        val existing = cached?.let { json.decodeFromString<Recipe>(it.jsonData) }
+        val result =
             if (existing != null) {
                 val updated =
                     existing.copy(
@@ -87,29 +76,27 @@ class RecipeRepository(
                         imageUrl = recipe.imageUrl ?: existing.imageUrl,
                     )
                 cacheRecipe(updated)
-                return updated
+                updated
+            } else {
+                Recipe(
+                    id = id,
+                    userId = "",
+                    name = recipe.name ?: "",
+                    totalServings = recipe.totalServings ?: 1.0,
+                )
             }
-            return existing ?: Recipe(
-                id = id,
-                userId = "",
-                name = recipe.name ?: "",
-                totalServings = recipe.totalServings ?: 1.0,
-            )
-        }
-        val updated = api.updateRecipe(id, recipe)
-        cacheRecipe(updated)
-        return updated
+        val url = "/api/recipes/$id"
+        val body = json.encodeToString(recipe)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return result
     }
 
     suspend fun deleteRecipe(id: String) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/recipes/$id"
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
-        } else {
-            api.deleteRecipe(id)
-        }
         db.bissbilanzDatabaseQueries.deleteRecipe(id)
+        val url = "/api/recipes/$id"
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
     }
 
     private fun cacheRecipe(recipe: Recipe) {

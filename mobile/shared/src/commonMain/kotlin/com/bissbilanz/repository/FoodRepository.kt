@@ -5,7 +5,6 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
-import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +20,6 @@ import kotlinx.serialization.json.Json
 class FoodRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
-    private val connectivity: ConnectivityProvider,
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
@@ -84,47 +82,33 @@ class FoodRepository(
         }
 
     suspend fun createFood(food: FoodCreate): Food {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/foods"
-            val body = json.encodeToString(food)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
-            val tempFood = foodCreateToFood(food)
-            cacheFood(tempFood)
-            return tempFood
-        }
-        val created = api.createFood(food)
-        cacheFood(created)
-        return created
+        val tempFood = foodCreateToFood(food)
+        cacheFood(tempFood)
+        val url = "/api/foods"
+        val body = json.encodeToString(food)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        return tempFood
     }
 
     suspend fun updateFood(
         id: String,
         food: FoodCreate,
     ): Food {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/foods/$id"
-            val body = json.encodeToString(food)
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
-            val tempFood = foodCreateToFood(food, id)
-            cacheFood(tempFood)
-            return tempFood
-        }
-        val updated = api.updateFood(id, food)
-        cacheFood(updated)
-        return updated
+        val tempFood = foodCreateToFood(food, id)
+        cacheFood(tempFood)
+        val url = "/api/foods/$id"
+        val body = json.encodeToString(food)
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        return tempFood
     }
 
     suspend fun deleteFood(id: String) {
-        if (!connectivity.isOnline.value) {
-            val url = "/api/foods/$id"
-            val meta = urlToMeta(url)
-            syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
-        } else {
-            api.deleteFood(id)
-        }
         db.bissbilanzDatabaseQueries.deleteFood(id)
+        val url = "/api/foods/$id"
+        val meta = urlToMeta(url)
+        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
     }
 
     suspend fun searchFoods(query: String): List<Food> =

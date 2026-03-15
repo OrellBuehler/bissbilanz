@@ -1,6 +1,9 @@
 package com.bissbilanz.sync
 
 import com.bissbilanz.cache.BissbilanzDatabase
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
@@ -22,6 +25,9 @@ class SyncQueue(
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
+    private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
+
     suspend fun enqueue(
         method: String,
         url: String,
@@ -37,6 +43,7 @@ class SyncQueue(
             affectedTable = affectedTable,
             affectedId = affectedId,
         )
+        _enqueueSignal.tryEmit(Unit)
     }
 
     suspend fun drain(): List<QueuedRequest> =
