@@ -29,6 +29,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
+        buildConfigField("String", "BASE_URL", "\"https://bissbilanz.orellbuehler.ch\"")
     }
 
     signingConfigs {
@@ -44,6 +45,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:4000\"")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
@@ -92,6 +96,8 @@ android {
         implementation(libs.browser)
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
+        implementation(libs.glance.appwidget)
+        implementation(libs.work.runtime)
         implementation("com.google.guava:guava:33.3.1-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)

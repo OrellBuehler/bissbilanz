@@ -32,6 +32,12 @@ class EntryRepository(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { json.decodeFromString<Entry>(it.jsonData) } }
 
+    suspend fun entriesByDateOnce(date: String): List<Entry> =
+        db.bissbilanzDatabaseQueries
+            .selectEntriesByDate(date)
+            .executeAsList()
+            .map { json.decodeFromString<Entry>(it.jsonData) }
+
     suspend fun refresh(date: String) {
         currentDate = date
         try {

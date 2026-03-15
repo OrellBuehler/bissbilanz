@@ -37,6 +37,20 @@ class GoalsRepository(
                 }
             }
 
+    suspend fun goalsOnce(): Goals? =
+        db.bissbilanzDatabaseQueries
+            .selectGoals()
+            .executeAsOneOrNull()
+            ?.let {
+                Goals(
+                    calorieGoal = it.calorieGoal,
+                    proteinGoal = it.proteinGoal,
+                    carbGoal = it.carbGoal,
+                    fatGoal = it.fatGoal,
+                    fiberGoal = it.fiberGoal,
+                )
+            }
+
     suspend fun refresh() {
         try {
             val goals = api.getGoals()
