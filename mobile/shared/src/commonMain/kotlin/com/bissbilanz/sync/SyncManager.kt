@@ -26,7 +26,7 @@ class SyncManager(
     private val connectivityProvider: ConnectivityProvider,
     private val authManager: AuthManager,
     private val baseUrl: String,
-) : java.io.Closeable {
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val client =
@@ -134,7 +134,8 @@ class SyncManager(
                     }
 
                     _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
                     syncQueue.markDone(req.id)
                     break
                 }
@@ -163,7 +164,7 @@ class SyncManager(
         _state.value = _state.value.copy(errors = _state.value.errors + message)
     }
 
-    override fun close() {
+    fun close() {
         client.close()
     }
 

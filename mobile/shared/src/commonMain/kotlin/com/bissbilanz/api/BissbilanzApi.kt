@@ -23,7 +23,7 @@ class ApiException(
 class BissbilanzApi(
     private val baseUrl: String,
     private val authManager: AuthManager,
-) : java.io.Closeable {
+) {
     private val json =
         Json {
             ignoreUnknownKeys = true
@@ -122,7 +122,7 @@ class BissbilanzApi(
         }
     }
 
-    override fun close() {
+    fun close() {
         client.close()
     }
 
@@ -178,7 +178,8 @@ class BissbilanzApi(
         try {
             val response: FoodResponse = get("/api/foods") { parameter("barcode", barcode) }
             response.food
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
             null
         }
 
@@ -234,7 +235,8 @@ class BissbilanzApi(
         try {
             val response: GoalsResponse = get("/api/goals")
             response.goals
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
             null
         }
 

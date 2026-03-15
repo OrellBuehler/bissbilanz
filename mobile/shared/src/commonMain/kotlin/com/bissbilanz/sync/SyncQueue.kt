@@ -1,6 +1,8 @@
 package com.bissbilanz.sync
 
 import com.bissbilanz.cache.BissbilanzDatabase
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 
 data class QueuedRequest(
@@ -17,6 +19,7 @@ data class QueuedRequest(
 class SyncQueue(
     private val db: BissbilanzDatabase,
 ) {
+    private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
     fun enqueue(
@@ -36,33 +39,37 @@ class SyncQueue(
         )
     }
 
-    fun drain(): List<QueuedRequest> =
-        db.bissbilanzDatabaseQueries
-            .selectSyncQueue()
-            .executeAsList()
-            .filter { it.id !in inProgress }
-            .map {
-                inProgress.add(it.id)
-                QueuedRequest(
-                    id = it.id,
-                    method = it.method,
-                    url = it.url,
-                    body = it.body,
-                    createdAt = it.createdAt,
-                    affectedTable = it.affectedTable,
-                    affectedId = it.affectedId,
-                    retryCount = it.retryCount,
-                )
-            }
+    suspend fun drain(): List<QueuedRequest> =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectSyncQueue()
+                .executeAsList()
+                .filter { it.id !in inProgress }
+                .map {
+                    inProgress.add(it.id)
+                    QueuedRequest(
+                        id = it.id,
+                        method = it.method,
+                        url = it.url,
+                        body = it.body,
+                        createdAt = it.createdAt,
+                        affectedTable = it.affectedTable,
+                        affectedId = it.affectedId,
+                        retryCount = it.retryCount,
+                    )
+                }
+        }
 
-    fun remove(id: Long) {
-        inProgress.remove(id)
-        db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
-    }
+    suspend fun remove(id: Long) =
+        mutex.withLock {
+            inProgress.remove(id)
+            db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
+        }
 
-    fun markDone(id: Long) {
-        inProgress.remove(id)
-    }
+    suspend fun markDone(id: Long) =
+        mutex.withLock {
+            inProgress.remove(id)
+        }
 
     fun incrementRetryCount(id: Long) {
         db.bissbilanzDatabaseQueries.incrementSyncQueueRetryCount(id)
@@ -75,8 +82,9 @@ class SyncQueue(
 
     fun pendingCount(): Long = db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()
 
-    fun clear() {
-        inProgress.clear()
-        db.bissbilanzDatabaseQueries.clearSyncQueue()
-    }
+    suspend fun clear() =
+        mutex.withLock {
+            inProgress.clear()
+            db.bissbilanzDatabaseQueries.clearSyncQueue()
+        }
 }
