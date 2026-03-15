@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,7 +21,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
-import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.components.WeightTrendChart
+import com.bissbilanz.android.ui.theme.ProjectionPurple
+import com.bissbilanz.android.ui.theme.TrendGreen
+import com.bissbilanz.android.ui.theme.WeightBlue
+import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
@@ -29,28 +34,29 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeightScreen(navController: NavController) {
+    val viewModel: WeightViewModel = koinViewModel()
     val weightRepo: WeightRepository = koinInject()
-    val entries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
-    var isLoading by remember { mutableStateOf(true) }
+    val trendData by viewModel.trendData.collectAsStateWithLifecycle()
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
+    val projectionDays by viewModel.projectionDays.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+
     var showAddDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<WeightEntry?>(null) }
     var entryToEdit by remember { mutableStateOf<WeightEntry?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) {
-        isLoading = true
-        try {
-            weightRepo.refresh()
-        } catch (_: Exception) {
-        }
-        isLoading = false
-    }
+    val ranges = listOf("7d", "30d", "90d", "All")
+    val projectionOptions = listOf(0, 14, 30, 60)
+    val projectionLabels = listOf("Off", "14d", "30d", "60d")
 
     if (showAddDialog) {
         AddWeightDialog(
@@ -60,6 +66,7 @@ fun WeightScreen(navController: NavController) {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         weightRepo.createEntry(WeightCreate(weightKg = weight, entryDate = today, notes = notes.ifBlank { null }))
+                        viewModel.refresh()
                         snackbarHostState.showSnackbar("Weight logged")
                     } catch (_: Exception) {
                         snackbarHostState.showSnackbar("Failed to log weight")
@@ -81,6 +88,7 @@ fun WeightScreen(navController: NavController) {
                             entryToEdit!!.id,
                             WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
                         )
+                        viewModel.refresh()
                         snackbarHostState.showSnackbar("Weight updated")
                     } catch (_: Exception) {
                         snackbarHostState.showSnackbar("Failed to update weight")
@@ -102,6 +110,7 @@ fun WeightScreen(navController: NavController) {
                         scope.launch {
                             try {
                                 weightRepo.deleteEntry(entryToDelete!!.id)
+                                viewModel.refresh()
                             } catch (_: Exception) {
                                 snackbarHostState.showSnackbar("Failed to delete")
                             }
@@ -138,45 +147,67 @@ fun WeightScreen(navController: NavController) {
         Crossfade(targetState = isLoading, label = "weight") { loading ->
             if (loading) {
                 LoadingScreen()
-            } else if (entries.isEmpty()) {
+            } else if (entries.isEmpty() && trendData.isEmpty()) {
                 EmptyState("No weight entries yet.\nTap + to log your weight.")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
                 ) {
-                    item {
-                        if (entries.size >= 2) {
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    val weights = entries.reversed().map { it.weightKg.toFloat() }
-                                    SimpleLineChart(
-                                        data = weights,
-                                        color = CaloriesBlue,
-                                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(
-                                            "${weights.min().let { "%.1f".format(it) }} kg",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Text(
-                                            "${weights.max().let { "%.1f".format(it) }} kg",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
+                    // Stats chips
+                    if (trendData.isNotEmpty()) {
+                        item {
+                            WeightStatsRow(trendData = trendData, projectionDays = projectionDays)
                         }
                     }
 
+                    // Range selector
+                    item {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            ranges.forEachIndexed { index, label ->
+                                SegmentedButton(
+                                    selected = selectedRange == index,
+                                    onClick = { viewModel.selectRange(index) },
+                                    shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
+                                ) {
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+
+                    // Projection selector
+                    if (trendData.size >= 3) {
+                        item {
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                projectionOptions.forEachIndexed { index, days ->
+                                    SegmentedButton(
+                                        selected = projectionDays == days,
+                                        onClick = { viewModel.setProjectionDays(days) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, projectionOptions.size),
+                                    ) {
+                                        Text(projectionLabels[index])
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Trend chart
+                    if (trendData.isNotEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                WeightTrendChart(
+                                    trendData = trendData,
+                                    projectionDays = projectionDays,
+                                    modifier = Modifier.fillMaxWidth().height(200.dp).padding(12.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Entry list
                     items(entries) { entry ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             ListItem(
@@ -209,6 +240,98 @@ fun WeightScreen(navController: NavController) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WeightStatsRow(
+    trendData: List<com.bissbilanz.model.WeightTrendEntry>,
+    projectionDays: Int,
+) {
+    val latest = trendData.lastOrNull() ?: return
+    val first = trendData.firstOrNull() ?: return
+    val delta = latest.weightKg - first.weightKg
+    val deltaColor =
+        when {
+            delta > 0 -> com.bissbilanz.android.ui.theme.CarbsOrange
+            delta < 0 -> TrendGreen
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    val deltaSign = if (delta > 0) "+" else ""
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = WeightBlue.copy(alpha = 0.1f),
+            contentColor = WeightBlue,
+        ) {
+            Text(
+                "${"%.1f".format(latest.weightKg)} kg",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+
+        latest.movingAvg?.let { avg ->
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = TrendGreen.copy(alpha = 0.1f),
+                contentColor = TrendGreen,
+            ) {
+                Text(
+                    "Trend ${"%.1f".format(avg)} kg",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = deltaColor.copy(alpha = 0.1f),
+            contentColor = deltaColor,
+        ) {
+            Text(
+                "Δ $deltaSign${"%.1f".format(delta)} kg",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+
+        if (projectionDays > 0 && trendData.size >= 3) {
+            // Compute projected weight
+            val n = trendData.size
+            val xs = (0 until n).map { it.toFloat() }
+            val ys = trendData.map { it.weightKg.toFloat() }
+            val sumX = xs.sum()
+            val sumY = ys.sum()
+            val sumXY = xs.zip(ys).sumOf { (it.first * it.second).toDouble() }.toFloat()
+            val sumX2 = xs.sumOf { (it * it).toDouble() }.toFloat()
+            val denom = n * sumX2 - sumX * sumX
+            val slope = if (denom != 0f) (n * sumXY - sumX * sumY) / denom else 0f
+            val intercept = if (denom != 0f) (sumY - slope * sumX) / n else sumY / n
+            val projectedWeight = slope * (n - 1 + projectionDays) + intercept
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = ProjectionPurple.copy(alpha = 0.1f),
+                contentColor = ProjectionPurple,
+            ) {
+                Text(
+                    "Projected ${"%.1f".format(projectedWeight)} kg",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
             }
         }
     }
