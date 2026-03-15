@@ -1,12 +1,11 @@
 <script lang="ts">
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import RecipeEditForm from '$lib/components/recipes/RecipeEditForm.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
@@ -180,30 +179,10 @@
 	{/if}
 </ResponsiveModal>
 
-<AlertDialog.Root
+<ForceDeleteDialog
 	open={forceDeleteId !== null}
-	onOpenChange={(open) => {
-		if (!open) forceDeleteId = null;
-	}}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title class="text-left">{m.delete_related_entries()}</AlertDialog.Title>
-			<AlertDialog.Description>
-				{@html m.recipes_delete_has_entries({ count: forceDeleteCount })}
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (forceDeleteId = null)}>
-				{m.cancel()}
-			</AlertDialog.Cancel>
-			<AlertDialog.Action
-				class={buttonVariants({ variant: 'destructive' })}
-				onclick={confirmForceDelete}
-			>
-				<Trash2 class="size-4" />
-				{m.delete_related_entries()}
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+	count={forceDeleteCount}
+	description={m.recipes_delete_has_entries({ count: forceDeleteCount })}
+	onConfirm={confirmForceDelete}
+	onCancel={() => (forceDeleteId = null)}
+/>
