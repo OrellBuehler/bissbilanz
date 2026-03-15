@@ -23,9 +23,12 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
+import com.bissbilanz.android.ui.components.SupplementsWidget
+import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
@@ -46,6 +49,8 @@ fun DashboardScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     val entryRepo: EntryRepository = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -216,6 +221,24 @@ fun DashboardScreen(navController: NavController) {
                                     }
                                 }
                             }
+                        }
+
+                        // Supplements widget
+                        if (prefs?.showSupplementsWidget == true) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SupplementsWidget(
+                                date = selectedDate.toString(),
+                                onViewAll = { navController.navigate("supplements") },
+                            )
+                        }
+
+                        // Weight widget
+                        if (prefs?.showWeightWidget == true) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WeightWidget(
+                                date = selectedDate.toString(),
+                                onViewAll = { navController.navigate("weight") },
+                            )
                         }
                     }
                 }
