@@ -144,6 +144,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	// Protect all routes except public ones
 	const PUBLIC_PATHS = [
 		'/login',
+		'/privacy',
 		'/api/',
 		'/authorize',
 		'/token',
