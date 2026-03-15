@@ -1,5 +1,6 @@
 package com.bissbilanz.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -22,4 +23,16 @@ data class WeightEntriesResponse(
 @Serializable
 data class WeightEntryResponse(
     val entry: WeightEntry,
+)
+
+@Serializable
+data class WeightTrendEntry(
+    @SerialName("entry_date") val entryDate: String,
+    @SerialName("weight_kg") val weightKg: Double,
+    @SerialName("moving_avg") val movingAvg: Double? = null,
+)
+
+@Serializable
+data class WeightTrendResponse(
+    val data: List<WeightTrendEntry>,
 )
