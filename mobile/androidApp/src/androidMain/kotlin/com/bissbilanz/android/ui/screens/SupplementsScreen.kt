@@ -1,6 +1,8 @@
 package com.bissbilanz.android.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +24,8 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.GentleSpring
+import com.bissbilanz.android.ui.theme.SnapSpring
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
@@ -123,8 +127,13 @@ fun SupplementsScreen(navController: NavController) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         if (activeSupplements.isNotEmpty()) {
+                            val animatedProgress by animateFloatAsState(
+                                targetValue = takenIds.size.toFloat() / activeSupplements.size.toFloat(),
+                                animationSpec = GentleSpring,
+                                label = "supp-progress",
+                            )
                             LinearProgressIndicator(
-                                progress = { takenIds.size.toFloat() / activeSupplements.size.toFloat() },
+                                progress = { animatedProgress },
                                 modifier = Modifier.fillMaxWidth(),
                                 color = FiberGreen,
                             )
@@ -132,12 +141,13 @@ fun SupplementsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    items(activeSupplements) { supplement ->
+                    items(activeSupplements, key = { it.id }) { supplement ->
                         val isTaken = takenIds.contains(supplement.id)
                         SupplementChecklistItem(
                             supplement = supplement,
                             isTaken = isTaken,
                             onEdit = { editingSupplementId = supplement.id },
+                            modifier = Modifier.animateItem(),
                             onToggle = {
                                 scope.launch {
                                     try {
@@ -166,9 +176,9 @@ fun SupplementsScreen(navController: NavController) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        items(inactiveSupplements) { supplement ->
+                        items(inactiveSupplements, key = { it.id }) { supplement ->
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().animateItem(),
                                 colors =
                                     CardDefaults.cardColors(
                                         containerColor =
@@ -202,16 +212,18 @@ fun SupplementChecklistItem(
     isTaken: Boolean,
     onToggle: () -> Unit,
     onEdit: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
+    val defaultCardColor = CardDefaults.cardColors().containerColor
+    val cardColor by animateColorAsState(
+        targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
+        animationSpec = SnapSpring,
+        label = "supp-card",
+    )
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         onClick = onToggle,
-        colors =
-            if (isTaken) {
-                CardDefaults.cardColors(containerColor = FiberGreen.copy(alpha = 0.15f))
-            } else {
-                CardDefaults.cardColors()
-            },
+        colors = CardDefaults.cardColors(containerColor = cardColor),
     ) {
         ListItem(
             headlineContent = {

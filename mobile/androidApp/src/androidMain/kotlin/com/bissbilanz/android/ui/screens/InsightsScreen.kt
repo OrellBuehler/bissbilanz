@@ -1,5 +1,9 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -271,24 +276,32 @@ fun SimpleLineChart(
     val maxVal = data.max().coerceAtLeast(1f)
     val minVal = data.min()
 
+    val revealFraction = remember { Animatable(0f) }
+    LaunchedEffect(data) {
+        revealFraction.snapTo(0f)
+        revealFraction.animateTo(1f, animationSpec = tween(500, easing = EaseOutCubic))
+    }
+
     Canvas(modifier = modifier) {
-        val stepX = size.width / (data.size - 1).coerceAtLeast(1)
-        val range = (maxVal - minVal).coerceAtLeast(1f)
-        val padding = 8f
+        clipRect(right = size.width * revealFraction.value) {
+            val stepX = size.width / (data.size - 1).coerceAtLeast(1)
+            val range = (maxVal - minVal).coerceAtLeast(1f)
+            val padding = 8f
 
-        val path = Path()
-        data.forEachIndexed { i, value ->
-            val x = i * stepX
-            val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
+            val path = Path()
+            data.forEachIndexed { i, value ->
+                val x = i * stepX
+                val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
 
-        drawPath(path, color = color, style = Stroke(width = 3f, cap = StrokeCap.Round))
+            drawPath(path, color = color, style = Stroke(width = 3f, cap = StrokeCap.Round))
 
-        data.forEachIndexed { i, value ->
-            val x = i * stepX
-            val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-            drawCircle(color = color, radius = 3f, center = Offset(x, y))
+            data.forEachIndexed { i, value ->
+                val x = i * stepX
+                val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
+                drawCircle(color = color, radius = 3f, center = Offset(x, y))
+            }
         }
     }
 }
@@ -423,13 +436,19 @@ private fun SimplePieChart(
     if (total <= 0f) return
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
 
+    val sweepFraction = remember { Animatable(0f) }
+    LaunchedEffect(entries) {
+        sweepFraction.snapTo(0f)
+        sweepFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
+    }
+
     Canvas(modifier = modifier) {
         val diameter = minOf(size.width, size.height) * 0.8f
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         var startAngle = -90f
 
         entries.forEachIndexed { index, entry ->
-            val sweep = (entry.calories.toFloat() / total) * 360f
+            val sweep = (entry.calories.toFloat() / total) * 360f * sweepFraction.value
             drawArc(
                 color = MealColors[index % MealColors.size],
                 startAngle = startAngle,
@@ -524,6 +543,11 @@ private fun GoalAchievementCard(
 
             stats.forEach { stat ->
                 val pct = stat.hitDays.toFloat() / totalDays
+                val animatedPct by animateFloatAsState(
+                    targetValue = pct.coerceIn(0f, 1f),
+                    animationSpec = GentleSpring,
+                    label = "goal-${stat.label}",
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -547,7 +571,7 @@ private fun GoalAchievementCard(
                             modifier =
                                 Modifier
                                     .fillMaxHeight()
-                                    .fillMaxWidth(pct.coerceIn(0f, 1f))
+                                    .fillMaxWidth(animatedPct)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(stat.color),
                         )
