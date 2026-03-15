@@ -292,9 +292,11 @@
 							tooltip={true}
 							axis={true}
 							grid={true}
+							points={true}
 							rule={false}
 							props={{
 								spline: { curve: curveMonotoneX },
+								points: { r: 3 },
 								grid: { y: { class: 'stroke-muted/30 [stroke-dasharray:3_6]' } },
 								xAxis: {
 									ticks: filteredTicks,

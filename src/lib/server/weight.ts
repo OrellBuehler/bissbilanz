@@ -41,7 +41,9 @@ export const createWeightEntry = async (
 		}
 		return { success: true, data: created };
 	} catch (error) {
-		return { success: false, error: error as Error };
+		const err = error as Error & { cause?: Error };
+		const msg = err.cause?.message ? `${err.message} — ${err.cause.message}` : err.message;
+		return { success: false, error: new Error(msg) };
 	}
 };
 
