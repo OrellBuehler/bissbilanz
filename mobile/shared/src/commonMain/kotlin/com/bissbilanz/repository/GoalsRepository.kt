@@ -5,8 +5,8 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Goals
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -50,10 +50,7 @@ class GoalsRepository(
 
     suspend fun setGoals(goals: Goals): Goals {
         cacheGoals(goals)
-        val url = "/api/goals"
-        val body = json.encodeToString(goals)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.SetGoals(json.encodeToString(goals)))
         return goals
     }
 

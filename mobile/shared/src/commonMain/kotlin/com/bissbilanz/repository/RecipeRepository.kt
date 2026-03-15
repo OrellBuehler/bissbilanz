@@ -5,8 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -53,10 +53,7 @@ class RecipeRepository(
     suspend fun createRecipe(recipe: RecipeCreate): Recipe {
         val temp = recipeCreateToRecipe(recipe)
         cacheRecipe(temp)
-        val url = "/api/recipes"
-        val body = json.encodeToString(recipe)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.CreateRecipe(json.encodeToString(recipe)))
         return temp
     }
 
@@ -85,18 +82,13 @@ class RecipeRepository(
                     totalServings = recipe.totalServings ?: 1.0,
                 )
             }
-        val url = "/api/recipes/$id"
-        val body = json.encodeToString(recipe)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe)))
         return result
     }
 
     suspend fun deleteRecipe(id: String) {
         db.bissbilanzDatabaseQueries.deleteRecipe(id)
-        val url = "/api/recipes/$id"
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
     }
 
     private fun cacheRecipe(recipe: Recipe) {

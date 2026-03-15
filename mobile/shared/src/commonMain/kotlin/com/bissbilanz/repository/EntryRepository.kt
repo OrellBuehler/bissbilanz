@@ -6,8 +6,8 @@ import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -46,10 +46,7 @@ class EntryRepository(
         val tempEntry = entryCreateToEntry(entry)
         cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
-        val url = "/api/entries"
-        val body = json.encodeToString(entry)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry)))
         return tempEntry
     }
 
@@ -77,19 +74,14 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        val url = "/api/entries/$id"
-        val body = json.encodeToString(entry)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
         return result
     }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        val url = "/api/entries/$id"
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.DeleteEntry(id))
     }
 
     suspend fun copyEntries(

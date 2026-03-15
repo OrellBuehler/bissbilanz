@@ -21,6 +21,7 @@ import org.koin.compose.koinInject
 fun WeightWidget(
     date: String,
     onViewAll: () -> Unit,
+    onError: (String) -> Unit = {},
 ) {
     val weightRepo: WeightRepository = koinInject()
     val allEntries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
@@ -97,6 +98,7 @@ fun WeightWidget(
                                         weightRepo.createEntry(WeightCreate(weightKg = kg, entryDate = date))
                                         weightInput = ""
                                     } catch (_: Exception) {
+                                        onError("Failed to log weight")
                                     }
                                 }
                             }

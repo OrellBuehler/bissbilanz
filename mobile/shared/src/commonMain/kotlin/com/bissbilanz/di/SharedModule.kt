@@ -16,13 +16,13 @@ val sharedModule =
         single { AuthManager(get<String>(named("baseUrl")), get()) }
         single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
         single { BissbilanzDatabase(get<DatabaseDriverFactory>().createDriver()) }
-        single { SyncQueue(get()) }
+        single { SyncQueue(get(), get()) }
         single {
             SyncManager(
                 syncQueue = get(),
                 connectivityProvider = get(),
-                authManager = get(),
-                baseUrl = get<String>(named("baseUrl")),
+                api = get(),
+                json = get(),
             )
         }
         single {

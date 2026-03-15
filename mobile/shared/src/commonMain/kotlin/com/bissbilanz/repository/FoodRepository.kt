@@ -5,8 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,10 +84,7 @@ class FoodRepository(
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)
-        val url = "/api/foods"
-        val body = json.encodeToString(food)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food)))
         return tempFood
     }
 
@@ -97,18 +94,13 @@ class FoodRepository(
     ): Food {
         val tempFood = foodCreateToFood(food, id)
         cacheFood(tempFood)
-        val url = "/api/foods/$id"
-        val body = json.encodeToString(food)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
         return tempFood
     }
 
     suspend fun deleteFood(id: String) {
         db.bissbilanzDatabaseQueries.deleteFood(id)
-        val url = "/api/foods/$id"
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.DeleteFood(id))
     }
 
     suspend fun searchFoods(query: String): List<Food> =

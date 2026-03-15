@@ -36,15 +36,29 @@ sealed class Screen(
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
 
+val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
+val defaultTabRoutes = setOf("foods", "favorites", "insights")
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
 
-    val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
-    val defaultTabs = setOf("foods", "favorites", "insights")
-    val selectedTabRoutes = tabPrefs.getStringSet("selected_tabs", defaultTabs) ?: defaultTabs
+    var selectedTabRoutes by remember {
+        mutableStateOf(tabPrefs.getStringSet("selected_tabs", defaultTabRoutes) ?: defaultTabRoutes)
+    }
+
+    DisposableEffect(Unit) {
+        val listener =
+            android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == "selected_tabs") {
+                    selectedTabRoutes = tabPrefs.getStringSet("selected_tabs", defaultTabRoutes) ?: defaultTabRoutes
+                }
+            }
+        tabPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { tabPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     val middleTabs = allMiddleTabs.filter { it.route in selectedTabRoutes }
     val bottomNavItems = listOf(Screen.Dashboard) + middleTabs + listOf(Screen.Settings)

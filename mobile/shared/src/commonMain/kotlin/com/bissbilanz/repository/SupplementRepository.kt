@@ -5,8 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -39,10 +39,7 @@ class SupplementRepository(
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
         val temp = supplementCreateToSupplement(supplement)
         cacheSupplement(temp)
-        val url = "/api/supplements"
-        val body = json.encodeToString(supplement)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement)))
         return temp
     }
 
@@ -52,18 +49,13 @@ class SupplementRepository(
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
         cacheSupplement(temp)
-        val url = "/api/supplements/$id"
-        val body = json.encodeToString(supplement)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
         return temp
     }
 
     suspend fun deleteSupplement(id: String) {
         db.bissbilanzDatabaseQueries.deleteSupplement(id)
-        val url = "/api/supplements/$id"
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
     }
 
     suspend fun getChecklist(date: String): List<SupplementLog> =
@@ -112,9 +104,7 @@ class SupplementRepository(
             date = temp.date,
             takenAt = temp.takenAt,
         )
-        val url = "/api/supplements/$supplementId/log"
-        val body = json.encodeToString(mapOf("date" to date))
-        syncQueue.enqueue("POST", url, body, "supplements", supplementId)
+        syncQueue.enqueue(SyncOperation.LogSupplement(supplementId, date))
         return temp
     }
 
@@ -123,8 +113,7 @@ class SupplementRepository(
         date: String,
     ) {
         db.bissbilanzDatabaseQueries.deleteSupplementLog(supplementId, date)
-        val url = "/api/supplements/$supplementId/log?date=$date"
-        syncQueue.enqueue("DELETE", url, "", "supplements", supplementId)
+        syncQueue.enqueue(SyncOperation.UnlogSupplement(supplementId, date))
     }
 
     suspend fun getHistory(

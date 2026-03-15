@@ -238,6 +238,7 @@ fun DashboardScreen(navController: NavController) {
                             WeightWidget(
                                 date = selectedDate.toString(),
                                 onViewAll = { navController.navigate("weight") },
+                                onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                             )
                         }
                     }

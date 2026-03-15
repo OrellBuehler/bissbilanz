@@ -6,8 +6,8 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Preferences
 import com.bissbilanz.model.PreferencesUpdate
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -44,10 +44,7 @@ class PreferencesRepository(
         val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences()
         val updated = applyUpdate(current, update)
         cachePreferences(updated)
-        val url = "/api/preferences"
-        val body = json.encodeToString(update)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update)))
         return updated
     }
 

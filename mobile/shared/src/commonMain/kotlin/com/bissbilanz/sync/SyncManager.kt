@@ -1,11 +1,9 @@
 package com.bissbilanz.sync
 
-import com.bissbilanz.auth.AuthManager
-import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.http.content.*
+import com.bissbilanz.api.ApiException
+import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.UnauthorizedException
+import com.bissbilanz.model.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.json.Json
 
 data class SyncState(
     val isSyncing: Boolean = false,
@@ -25,19 +24,10 @@ data class SyncState(
 class SyncManager(
     private val syncQueue: SyncQueue,
     private val connectivityProvider: ConnectivityProvider,
-    private val authManager: AuthManager,
-    private val baseUrl: String,
+    private val api: BissbilanzApi,
+    private val json: Json,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    private val client =
-        HttpClient {
-            followRedirects = true
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 10_000
-            }
-        }
 
     private val _state = MutableStateFlow(SyncState())
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -83,58 +73,21 @@ class SyncManager(
 
             for (req in queued) {
                 try {
-                    val token = authManager.getAccessToken()
-                    val response =
-                        client.request("$baseUrl${req.url}") {
-                            method = HttpMethod.parse(req.method)
-                            if (token != null) {
-                                header(HttpHeaders.Authorization, "Bearer $token")
-                            }
-                            if (req.method != "DELETE") {
-                                setBody(TextContent(req.body, ContentType.Application.Json))
-                            }
-                        }
-
+                    execute(req.operation)
+                    syncQueue.remove(req.id)
+                    synced++
+                } catch (e: UnauthorizedException) {
+                    syncQueue.markDone(req.id)
+                    addError("Session expired. Please log in again to sync pending changes.")
+                    break
+                } catch (e: ApiException) {
                     when {
-                        response.status.isSuccess() -> {
+                        e.statusCode in 400..499 -> {
                             syncQueue.remove(req.id)
                             synced++
-                        }
-                        response.status == HttpStatusCode.Unauthorized ||
-                            response.status == HttpStatusCode.Forbidden -> {
-                            syncQueue.markDone(req.id)
-                            if (authManager.refreshToken()) {
-                                val retryToken = authManager.getAccessToken()
-                                val retry =
-                                    client.request("$baseUrl${req.url}") {
-                                        method = HttpMethod.parse(req.method)
-                                        if (retryToken != null) {
-                                            header(HttpHeaders.Authorization, "Bearer $retryToken")
-                                        }
-                                        if (req.method != "DELETE") {
-                                            setBody(TextContent(req.body, ContentType.Application.Json))
-                                        }
-                                    }
-                                if (retry.status.isSuccess()) {
-                                    syncQueue.remove(req.id)
-                                    synced++
-                                } else {
-                                    addError("Session expired. Please log in again to sync pending changes.")
-                                    break
-                                }
-                            } else {
-                                addError("Session expired. Please log in again to sync pending changes.")
-                                break
-                            }
-                        }
-                        response.status.value in 400..499 -> {
-                            // Client error — unrecoverable, discard
-                            syncQueue.remove(req.id)
-                            synced++
-                            addError("Failed to sync ${req.method} ${req.url}: HTTP ${response.status.value}")
+                            addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
                         }
                         else -> {
-                            // Server error (5xx) — increment persisted retry count
                             syncQueue.markDone(req.id)
                             syncQueue.incrementRetryCount(req.id)
                             val count = syncQueue.getRetryCount(req.id)
@@ -142,20 +95,20 @@ class SyncManager(
                                 syncQueue.remove(req.id)
                                 synced++
                                 addError(
-                                    "Gave up syncing ${req.method} ${req.url} after $MAX_RETRIES retries.",
+                                    "Gave up syncing ${req.operation.description} after $MAX_RETRIES retries.",
                                 )
                             } else {
                                 break
                             }
                         }
                     }
-
-                    _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     syncQueue.markDone(req.id)
                     break
                 }
+
+                _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
             }
         } finally {
             val pending = syncQueue.pendingCount()
@@ -178,12 +131,52 @@ class SyncManager(
         return synced
     }
 
-    private fun addError(message: String) {
-        _state.value = _state.value.copy(errors = _state.value.errors + message)
+    @Suppress("CyclomaticComplexMethod")
+    private suspend fun execute(op: SyncOperation) {
+        when (op) {
+            is SyncOperation.CreateFood ->
+                api.createFood(json.decodeFromString<FoodCreate>(op.body))
+            is SyncOperation.UpdateFood ->
+                api.updateFood(op.id, json.decodeFromString<FoodCreate>(op.body))
+            is SyncOperation.DeleteFood ->
+                api.deleteFood(op.id)
+            is SyncOperation.CreateEntry ->
+                api.createEntry(json.decodeFromString<EntryCreate>(op.body))
+            is SyncOperation.UpdateEntry ->
+                api.updateEntry(op.id, json.decodeFromString<EntryUpdate>(op.body))
+            is SyncOperation.DeleteEntry ->
+                api.deleteEntry(op.id)
+            is SyncOperation.CreateRecipe ->
+                api.createRecipe(json.decodeFromString<RecipeCreate>(op.body))
+            is SyncOperation.UpdateRecipe ->
+                api.updateRecipe(op.id, json.decodeFromString<RecipeUpdate>(op.body))
+            is SyncOperation.DeleteRecipe ->
+                api.deleteRecipe(op.id)
+            is SyncOperation.SetGoals ->
+                api.setGoals(json.decodeFromString<Goals>(op.body))
+            is SyncOperation.CreateWeight ->
+                api.createWeightEntry(json.decodeFromString<WeightCreate>(op.body))
+            is SyncOperation.UpdateWeight ->
+                api.updateWeightEntry(op.id, json.decodeFromString<WeightUpdate>(op.body))
+            is SyncOperation.DeleteWeight ->
+                api.deleteWeightEntry(op.id)
+            is SyncOperation.CreateSupplement ->
+                api.createSupplement(json.decodeFromString<SupplementCreate>(op.body))
+            is SyncOperation.UpdateSupplement ->
+                api.updateSupplement(op.id, json.decodeFromString<SupplementCreate>(op.body))
+            is SyncOperation.DeleteSupplement ->
+                api.deleteSupplement(op.id)
+            is SyncOperation.LogSupplement ->
+                api.logSupplement(op.supplementId, op.date)
+            is SyncOperation.UnlogSupplement ->
+                api.unlogSupplement(op.supplementId, op.date)
+            is SyncOperation.UpdatePreferences ->
+                api.updatePreferences(json.decodeFromString<PreferencesUpdate>(op.body))
+        }
     }
 
-    fun close() {
-        client.close()
+    private fun addError(message: String) {
+        _state.value = _state.value.copy(errors = _state.value.errors + message)
     }
 
     companion object {

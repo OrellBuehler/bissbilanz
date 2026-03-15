@@ -7,20 +7,18 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
 
 data class QueuedRequest(
     val id: Long,
-    val method: String,
-    val url: String,
-    val body: String,
+    val operation: SyncOperation,
     val createdAt: Long,
-    val affectedTable: String?,
-    val affectedId: String?,
     val retryCount: Long,
 )
 
 class SyncQueue(
     private val db: BissbilanzDatabase,
+    private val json: Json,
 ) {
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
@@ -28,23 +26,16 @@ class SyncQueue(
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
-    suspend fun enqueue(
-        method: String,
-        url: String,
-        body: String,
-        affectedTable: String? = null,
-        affectedId: String? = null,
-    ) = mutex.withLock {
-        db.bissbilanzDatabaseQueries.insertSyncQueueItem(
-            method = method,
-            url = url,
-            body = body,
-            createdAt = Clock.System.now().toEpochMilliseconds(),
-            affectedTable = affectedTable,
-            affectedId = affectedId,
-        )
-        _enqueueSignal.tryEmit(Unit)
-    }
+    suspend fun enqueue(operation: SyncOperation) =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.insertSyncQueueItem(
+                operation = json.encodeToString(SyncOperation.serializer(), operation),
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+                affectedTable = operation.affectedTable,
+                affectedId = operation.affectedId,
+            )
+            _enqueueSignal.tryEmit(Unit)
+        }
 
     suspend fun drain(): List<QueuedRequest> =
         mutex.withLock {
@@ -56,12 +47,8 @@ class SyncQueue(
                     inProgress.add(it.id)
                     QueuedRequest(
                         id = it.id,
-                        method = it.method,
-                        url = it.url,
-                        body = it.body,
+                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
                         createdAt = it.createdAt,
-                        affectedTable = it.affectedTable,
-                        affectedId = it.affectedId,
                         retryCount = it.retryCount,
                     )
                 }

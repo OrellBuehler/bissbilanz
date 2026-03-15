@@ -86,9 +86,7 @@ CREATE TABLE IF NOT EXISTS CachedMealType (
 
 CREATE TABLE IF NOT EXISTS SyncQueue (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    method TEXT NOT NULL,
-    url TEXT NOT NULL,
-    body TEXT NOT NULL,
+    operation TEXT NOT NULL,
     createdAt INTEGER NOT NULL,
     affectedTable TEXT,
     affectedId TEXT,
@@ -253,8 +251,8 @@ selectSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
 
 insertSyncQueueItem:
-INSERT INTO SyncQueue(method, url, body, createdAt, affectedTable, affectedId, retryCount)
-VALUES (?, ?, ?, ?, ?, ?, 0);
+INSERT INTO SyncQueue(operation, createdAt, affectedTable, affectedId, retryCount)
+VALUES (?, ?, ?, ?, 0);
 
 incrementSyncQueueRetryCount:
 UPDATE SyncQueue SET retryCount = retryCount + 1 WHERE id = ?;

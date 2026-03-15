@@ -1,0 +1,10 @@
+CREATE TABLE SyncQueue_new (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    operation TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    affectedTable TEXT,
+    affectedId TEXT,
+    retryCount INTEGER NOT NULL DEFAULT 0
+);
+DROP TABLE SyncQueue;
+ALTER TABLE SyncQueue_new RENAME TO SyncQueue;

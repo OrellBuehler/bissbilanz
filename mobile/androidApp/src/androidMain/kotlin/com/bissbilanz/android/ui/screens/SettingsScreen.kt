@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
@@ -55,9 +56,11 @@ fun SettingsScreen(navController: NavController) {
     var healthPermGranted by remember { mutableStateOf(false) }
     var healthSyncEnabled by remember { mutableStateOf(healthPrefs.getBoolean("sync_enabled", false)) }
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
-    val defaultTabs = setOf("foods", "favorites", "insights")
     var selectedTabs by remember {
-        mutableStateOf(tabPrefs.getStringSet("selected_tabs", defaultTabs) ?: defaultTabs)
+        mutableStateOf(
+            tabPrefs.getStringSet("selected_tabs", com.bissbilanz.android.navigation.defaultTabRoutes)
+                ?: com.bissbilanz.android.navigation.defaultTabRoutes,
+        )
     }
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -143,11 +146,27 @@ fun SettingsScreen(navController: NavController) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     SettingsNavItem("Weight Log", Icons.Default.MonitorWeight) {
-                        navController.navigate("weight")
+                        if ("weight" in selectedTabs) {
+                            navController.navigate("weight") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else {
+                            navController.navigate("weight")
+                        }
                     }
                     HorizontalDivider()
                     SettingsNavItem("Supplements", Icons.Default.Medication) {
-                        navController.navigate("supplements")
+                        if ("supplements" in selectedTabs) {
+                            navController.navigate("supplements") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else {
+                            navController.navigate("supplements")
+                        }
                     }
                     HorizontalDivider()
                     SettingsNavItem("Recipes", Icons.Default.MenuBook) {
@@ -192,22 +211,34 @@ fun SettingsScreen(navController: NavController) {
                         )
 
                     tabOptions.forEach { (route, label) ->
+                        val isSelected = route in selectedTabs
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
-                                checked = route in selectedTabs,
+                                checked = isSelected,
                                 onCheckedChange = { checked ->
-                                    selectedTabs = if (checked) selectedTabs + route else selectedTabs - route
-                                    if (selectedTabs.size == 3) {
-                                        tabPrefs.edit().putStringSet("selected_tabs", selectedTabs).apply()
+                                    val updated = if (checked) selectedTabs + route else selectedTabs - route
+                                    if (updated.size in 1..5) {
+                                        selectedTabs = updated
+                                        if (updated.size == 3) {
+                                            tabPrefs.edit().putStringSet("selected_tabs", updated).apply()
+                                        }
                                     }
                                 },
-                                enabled = route in selectedTabs || selectedTabs.size < 3,
+                                enabled = if (isSelected) selectedTabs.size > 1 else selectedTabs.size < 3,
                             )
                             Text(label, style = MaterialTheme.typography.bodyMedium)
                         }
+                    }
+                    if (selectedTabs.size != 3) {
+                        Text(
+                            "Select exactly 3 tabs (${selectedTabs.size}/3)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
                 }
             }

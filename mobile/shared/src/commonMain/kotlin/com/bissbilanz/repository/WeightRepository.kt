@@ -6,8 +6,8 @@ import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
-import com.bissbilanz.sync.urlToMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -46,10 +46,7 @@ class WeightRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
-        val url = "/api/weight"
-        val body = json.encodeToString(entry)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("POST", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
         return temp
     }
 
@@ -82,18 +79,18 @@ class WeightRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
-        val url = "/api/weight/$id"
-        val body = json.encodeToString(entry)
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("PUT", url, body, meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
         return result
     }
 
+    suspend fun getTrend(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> = api.getWeightTrend(from, to)
+
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
-        val url = "/api/weight/$id"
-        val meta = urlToMeta(url)
-        syncQueue.enqueue("DELETE", url, "", meta.affectedTable, meta.affectedId)
+        syncQueue.enqueue(SyncOperation.DeleteWeight(id))
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {
