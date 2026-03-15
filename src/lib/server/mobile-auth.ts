@@ -58,8 +58,11 @@ export function createOneTimeCode(userId: string): string {
 
 export function consumeOneTimeCode(code: string): string | undefined {
 	const entry = oneTimeCodes.get(code);
+	if (!entry || entry.expiresAt < Date.now()) {
+		oneTimeCodes.delete(code);
+		return undefined;
+	}
 	oneTimeCodes.delete(code);
-	if (!entry || entry.expiresAt < Date.now()) return undefined;
 	return entry.userId;
 }
 
