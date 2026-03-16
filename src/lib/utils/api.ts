@@ -28,7 +28,7 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 		});
 	}
 
-	return fetch(request);
+	return fetch(request, { duplex: 'half' } as RequestInit);
 }
 
 async function apiFetchString(url: string, options: RequestInit = {}): Promise<Response> {

@@ -255,7 +255,7 @@ describe('apiFetch', () => {
 			const response = await apiFetch(request);
 
 			expect(response.status).toBe(200);
-			expect(fetchSpy).toHaveBeenCalledWith(request);
+			expect(fetchSpy).toHaveBeenCalledWith(request, { duplex: 'half' });
 		});
 
 		test('queues Request when offline', async () => {
@@ -300,7 +300,7 @@ describe('apiFetch', () => {
 			const request = new Request('http://localhost/api/foods');
 			await apiFetch(request);
 
-			expect(fetchSpy).toHaveBeenCalledWith(request);
+			expect(fetchSpy).toHaveBeenCalledWith(request, { duplex: 'half' });
 			expect(enqueue).not.toHaveBeenCalled();
 		});
 	});
