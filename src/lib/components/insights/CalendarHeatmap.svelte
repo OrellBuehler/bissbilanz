@@ -6,7 +6,7 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { getMonthName } from '$lib/utils/dates';
-	import { liveQuery } from 'dexie';
+	import { useLiveQuery } from '$lib/db/live.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type CalendarDay = { calories: number; hasEntries: boolean };
@@ -16,15 +16,8 @@
 	let days: Record<string, CalendarDay> = $state({});
 	let loading = $state(true);
 
-	const goalsQuery = goalsService.goals();
-	let calorieGoal = $state(0);
-
-	$effect(() => {
-		const sub = goalsQuery.subscribe((g) => {
-			calorieGoal = g?.calorieGoal ?? 0;
-		});
-		return () => sub.unsubscribe();
-	});
+	const goalsQuery = useLiveQuery(() => goalsService.goals(), undefined);
+	const calorieGoal = $derived(goalsQuery.value?.calorieGoal ?? 0);
 
 	const monthStr = $derived(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`);
 
@@ -68,14 +61,14 @@
 
 	const firstDayOfMonth = $derived(new Date(currentYear, currentMonth, 1));
 	const daysInMonth = $derived(new Date(currentYear, currentMonth + 1, 0).getDate());
-	const startDow = $derived(() => {
+	const startDow = $derived.by(() => {
 		const dow = firstDayOfMonth.getDay();
 		return dow === 0 ? 6 : dow - 1;
 	});
 
-	const calendarCells = $derived(() => {
+	const calendarCells = $derived.by(() => {
 		const cells: Array<{ date: string | null; day: number | null }> = [];
-		for (let i = 0; i < startDow(); i++) {
+		for (let i = 0; i < startDow; i++) {
 			cells.push({ date: null, day: null });
 		}
 		for (let d = 1; d <= daysInMonth; d++) {
@@ -136,7 +129,7 @@
 				<div class="text-muted-foreground text-center text-xs font-medium">{header()}</div>
 			{/each}
 
-			{#each calendarCells() as cell}
+			{#each calendarCells as cell}
 				{#if cell.date}
 					<button
 						class="flex aspect-square items-center justify-center rounded-md text-xs tabular-nums transition-colors {cellColor(

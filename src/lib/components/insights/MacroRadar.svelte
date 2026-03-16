@@ -81,7 +81,7 @@
 
 	const daysWithEntries = $derived(data.filter((d) => d.calories > 0));
 
-	const averages = $derived(() => {
+	const averages = $derived.by(() => {
 		if (daysWithEntries.length === 0) {
 			return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
 		}
@@ -95,18 +95,17 @@
 		};
 	});
 
-	const percentages = $derived(() => {
+	const percentages = $derived.by(() => {
 		if (!goals) return axes.map(() => 0);
-		const avg = averages();
 		return axes.map((a) => {
 			const goalVal = goals![a.goalKey];
 			if (!goalVal) return 0;
-			return Math.min((avg[a.key] / goalVal) * 100, 150);
+			return Math.min((averages[a.key] / goalVal) * 100, 150);
 		});
 	});
 
 	const cx = 150;
-	const cy = 140;
+	const cy = 155;
 	const radius = 100;
 	const n = 5;
 
@@ -153,7 +152,7 @@
 		</div>
 	{:else}
 		<div class="flex justify-center">
-			<svg viewBox="0 0 300 300" class="h-[260px] w-[260px] sm:h-[300px] sm:w-[300px]">
+			<svg viewBox="0 0 300 320" class="h-[260px] w-[260px] sm:h-[300px] sm:w-[300px]">
 				{#each gridLevels as level}
 					<polygon
 						points={polygonPoints(axes.map(() => level))}
@@ -184,7 +183,7 @@
 				/>
 
 				<polygon
-					points={polygonPoints(percentages())}
+					points={polygonPoints(percentages)}
 					fill="hsl(var(--primary) / 0.15)"
 					stroke="hsl(var(--primary))"
 					stroke-width="2"
@@ -208,7 +207,7 @@
 
 		<div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
 			{#each axes as axis (axis.key)}
-				{@const avg = averages()}
+				{@const avg = averages}
 				{@const goalVal = goals[axis.goalKey]}
 				<div class="rounded-lg border p-2 text-center">
 					<div class="text-xs font-medium" style="color: {axis.color}">{axis.label()}</div>

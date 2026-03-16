@@ -3,7 +3,7 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -20,16 +20,14 @@
 
 	let open = $state(true);
 
-	if (browser) {
+	onMount(() => {
 		const stored = localStorage.getItem(storageKey);
 		if (stored === 'true') open = false;
-	}
+	});
 
 	function toggle() {
 		open = !open;
-		if (browser) {
-			localStorage.setItem(storageKey, (!open).toString());
-		}
+		localStorage.setItem(storageKey, (!open).toString());
 	}
 </script>
 

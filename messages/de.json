@@ -551,5 +551,6 @@
 	"insights_goal": "Ziel",
 	"insights_90d": "90 Tage",
 	"insights_no_goals": "Keine Ziele gesetzt",
-	"insights_avg": "Ø"
+	"insights_avg": "Ø",
+	"insights_meal": "Mahlzeit"
 }

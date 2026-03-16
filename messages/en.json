@@ -551,5 +551,6 @@
 	"insights_goal": "Goal",
 	"insights_90d": "90 days",
 	"insights_no_goals": "No goals set",
-	"insights_avg": "Avg"
+	"insights_avg": "Avg",
+	"insights_meal": "Meal"
 }

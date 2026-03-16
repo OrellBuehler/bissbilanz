@@ -9,7 +9,6 @@
 	import CalendarHeatmap from '$lib/components/insights/CalendarHeatmap.svelte';
 	import MacroRadar from '$lib/components/insights/MacroRadar.svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
-	import { onMount } from 'svelte';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
@@ -90,10 +89,6 @@
 
 	$effect(() => {
 		topFoodsDays;
-		loadTopFoods();
-	});
-
-	onMount(() => {
 		loadTopFoods();
 	});
 
@@ -243,7 +238,7 @@
 							<table class="w-full text-sm">
 								<thead>
 									<tr class="text-muted-foreground border-b text-left">
-										<th class="pb-2 font-medium">Meal</th>
+										<th class="pb-2 font-medium">{m.insights_meal()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_calories()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_protein()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_carbs()}</th>

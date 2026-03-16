@@ -78,7 +78,7 @@
 		return daysWithEntries.filter((d) => d[key] >= goalVal * 0.9 && d[key] <= goalVal * 1.1).length;
 	}
 
-	const overallStrict = $derived(() => {
+	const overallStrict = $derived.by(() => {
 		if (!goals || totalDays === 0) return 0;
 		let total = 0;
 		let hit = 0;
@@ -92,7 +92,7 @@
 		return total > 0 ? Math.round((hit / total) * 100) : 0;
 	});
 
-	const overallTolerant = $derived(() => {
+	const overallTolerant = $derived.by(() => {
 		if (!goals || totalDays === 0) return 0;
 		let total = 0;
 		let hit = 0;
@@ -131,11 +131,11 @@
 			<p class="text-sm font-medium">{m.insights_overall_adherence()}</p>
 			<div class="mt-2 flex gap-6">
 				<div>
-					<span class="text-2xl font-bold tabular-nums">{overallTolerant()}%</span>
+					<span class="text-2xl font-bold tabular-nums">{overallTolerant}%</span>
 					<span class="text-muted-foreground ml-1 text-xs">{m.insights_tolerant()}</span>
 				</div>
 				<div>
-					<span class="text-2xl font-bold tabular-nums">{overallStrict()}%</span>
+					<span class="text-2xl font-bold tabular-nums">{overallStrict}%</span>
 					<span class="text-muted-foreground ml-1 text-xs">{m.insights_strict()}</span>
 				</div>
 			</div>
