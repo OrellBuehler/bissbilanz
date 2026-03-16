@@ -37,6 +37,13 @@ class GoalsRepositoryTest {
     }
 
     @Test
+    fun goalsOnceReturnsNullWhenCacheEmpty() =
+        runTest {
+            val result = repository.goalsOnce()
+            assertEquals(null, result)
+        }
+
+    @Test
     fun refreshCachesGoalsOnSuccess() =
         runTest {
             val goals = TestFixtures.goals()
