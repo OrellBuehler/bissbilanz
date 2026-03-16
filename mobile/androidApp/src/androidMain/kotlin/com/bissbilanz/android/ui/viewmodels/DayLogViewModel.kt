@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,12 +18,16 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class DayLogViewModel(
     private val entryRepo: EntryRepository,
+    private val api: BissbilanzApi,
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _isFastingDay = MutableStateFlow(false)
+    val isFastingDay: StateFlow<Boolean> = _isFastingDay.asStateFlow()
 
     private val currentDateFlow = MutableStateFlow("")
 
@@ -50,10 +55,37 @@ class DayLogViewModel(
             _error.value = null
             try {
                 entryRepo.refresh(date)
+                loadFastingDay(date)
             } catch (e: Exception) {
                 _error.value = "Failed to load entries"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private suspend fun loadFastingDay(date: String) {
+        try {
+            val props = api.getDayProperties(date)
+            _isFastingDay.value = props?.isFastingDay ?: false
+        } catch (_: Exception) {
+            _isFastingDay.value = false
+        }
+    }
+
+    fun toggleFastingDay(date: String) {
+        val newValue = !_isFastingDay.value
+        _isFastingDay.value = newValue
+        viewModelScope.launch {
+            try {
+                if (newValue) {
+                    api.setDayProperties(date, isFastingDay = true)
+                } else {
+                    api.deleteDayProperties(date)
+                }
+            } catch (_: Exception) {
+                _isFastingDay.value = !newValue
+                _error.value = "Failed to update fasting day"
             }
         }
     }

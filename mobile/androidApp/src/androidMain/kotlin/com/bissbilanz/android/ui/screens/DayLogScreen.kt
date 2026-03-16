@@ -46,6 +46,7 @@ fun DayLogScreen(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val isFastingDay by viewModel.isFastingDay.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var entryToDelete by remember { mutableStateOf<Entry?>(null) }
     var editingEntryId by remember { mutableStateOf<String?>(null) }
@@ -156,67 +157,106 @@ fun DayLogScreen(
 
         if (isLoading) {
             LoadingScreen()
-        } else if (entries.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "No entries for this day",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(bottom = 80.dp),
             ) {
-                sortedMeals.forEach { meal ->
-                    val mealEntries = mealGroups[meal] ?: return@forEach
-
-                    val mealCalories = mealEntries.sumOf { it.resolvedCalories() }
-                    val mealProtein = mealEntries.sumOf { it.resolvedProtein() }
-                    val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
-                    val mealFat = mealEntries.sumOf { it.resolvedFat() }
-
+                if (entries.isEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "No entries for this day",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    sortedMeals.forEach { meal ->
+                        val mealEntries = mealGroups[meal] ?: return@forEach
+
+                        val mealCalories = mealEntries.sumOf { it.resolvedCalories() }
+                        val mealProtein = mealEntries.sumOf { it.resolvedProtein() }
+                        val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
+                        val mealFat = mealEntries.sumOf { it.resolvedFat() }
+
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    meal.replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    "${mealCalories.toInt()} cal",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = CaloriesBlue,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            ) {
+                                Text("P ${mealProtein.toInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
+                                Text("C ${mealCarbs.toInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
+                                Text("F ${mealFat.toInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
+                            }
+                        }
+                        items(mealEntries, key = { it.id }) { entry ->
+                            Box(modifier = Modifier.animateItem()) {
+                                SwipeToDismissEntry(
+                                    entry = entry,
+                                    onDelete = { entryToDelete = entry },
+                                    onClick = {
+                                        editingEntryId = entry.id
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Fasting day toggle
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            ),
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                meal.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                "${mealCalories.toInt()} cal",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = CaloriesBlue,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        ) {
-                            Text("P ${mealProtein.toInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                            Text("C ${mealCarbs.toInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                            Text("F ${mealFat.toInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
-                        }
-                    }
-                    items(mealEntries, key = { it.id }) { entry ->
-                        Box(modifier = Modifier.animateItem()) {
-                            SwipeToDismissEntry(
-                                entry = entry,
-                                onDelete = { entryToDelete = entry },
-                                onClick = {
-                                    editingEntryId = entry.id
-                                },
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Fasting Day",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    "Include this 0-calorie day in stats",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = isFastingDay,
+                                onCheckedChange = { viewModel.toggleFastingDay(date) },
                             )
                         }
                     }

@@ -43,6 +43,16 @@ vi.mock('$lib/server/entries', () => ({
 	toEntryUpdate: () => ({})
 }));
 
+// Mock day-properties module (no fasting days by default)
+vi.mock('$lib/server/day-properties', () => ({
+	getFastingDays: async () => new Set<string>(),
+	getFastingDaysForDates: async () => new Set<string>(),
+	getDayProperties: async () => null,
+	getDayPropertiesRange: async () => [],
+	setDayProperties: async () => null,
+	deleteDayProperties: async () => false
+}));
+
 // Import after mocking
 const { getWeeklyStats, getMonthlyStats } = await import('$lib/server/stats');
 

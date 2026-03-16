@@ -7,6 +7,7 @@ import { maintenanceDateSchema, maintenanceMuscleRatioSchema } from '$lib/server
 import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
 import { calculateEntryMacros } from '$lib/utils/nutrition';
 import { daysBetween } from '$lib/utils/dates';
+import { getFastingDays } from '$lib/server/day-properties';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -41,9 +42,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			muscleRatio = ratioResult.data;
 		}
 
-		const [entries, weights] = await Promise.all([
+		const [entries, weights, fastingDays] = await Promise.all([
 			listEntriesByDateRange(userId, startDate, endDate),
-			getWeightEntriesByDateRange(userId, startDate, endDate)
+			getWeightEntriesByDateRange(userId, startDate, endDate),
+			getFastingDays(userId, startDate, endDate)
 		]);
 
 		if (weights.length < 2) {
@@ -60,6 +62,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		for (const entry of entries) {
 			const macros = calculateEntryMacros(entry);
 			dailyTotals[entry.date] = (dailyTotals[entry.date] ?? 0) + macros.calories;
+		}
+
+		// Include fasting days (0 calories intentionally) in the totals
+		for (const fastingDate of fastingDays) {
+			if (!(fastingDate in dailyTotals)) {
+				dailyTotals[fastingDate] = 0;
+			}
 		}
 
 		const daysWithEntries = Object.keys(dailyTotals);

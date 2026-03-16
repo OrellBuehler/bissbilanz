@@ -8,3 +8,4 @@ export * from './supplements';
 export * from './preferences';
 export * from './weight';
 export * from './maintenance';
+export * from './day-properties';

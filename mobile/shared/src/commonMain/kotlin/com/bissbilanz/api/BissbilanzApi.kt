@@ -381,6 +381,27 @@ class BissbilanzApi(
             parameter("muscleRatio", muscleRatio)
         }
 
+    // Day Properties
+    suspend fun getDayProperties(date: String): DayProperties? {
+        val response: DayPropertiesResponse = get("/api/day-properties") { parameter("date", date) }
+        return response.properties
+    }
+
+    suspend fun setDayProperties(
+        date: String,
+        isFastingDay: Boolean,
+    ): DayProperties? {
+        val response: DayPropertiesResponse =
+            post(
+                "/api/day-properties",
+                DayPropertiesSet(date = date, isFastingDay = isFastingDay),
+            )
+        return response.properties
+    }
+
+    suspend fun deleteDayProperties(date: String) =
+        delete("/api/day-properties?date=$date")
+
     // Supplement update
     suspend fun updateSupplement(
         id: String,

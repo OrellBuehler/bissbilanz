@@ -10,6 +10,9 @@
 	import { entryService } from '$lib/services/entry-service.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
+	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
+	import { Switch } from '$lib/components/ui/switch/index.js';
+	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -55,14 +58,33 @@
 		quickName?: string | null;
 	} | null = $state(null);
 
+	let isFastingDay = $state(false);
+	let fastingLoading = $state(false);
+
 	// Fire background refreshes
 	$effect(() => {
 		entryService.refresh(date);
+		loadFastingDay(date);
 	});
 	$effect(() => {
 		foodService.refresh();
 		recipeService.refresh();
 	});
+
+	async function loadFastingDay(d: string) {
+		const cached = await dayPropertiesService.get(d);
+		isFastingDay = cached?.isFastingDay ?? false;
+		const refreshed = await dayPropertiesService.refresh(d);
+		isFastingDay = refreshed?.isFastingDay ?? false;
+	}
+
+	async function toggleFastingDay() {
+		fastingLoading = true;
+		const newValue = !isFastingDay;
+		isFastingDay = newValue;
+		await dayPropertiesService.setFastingDay(date, newValue);
+		fastingLoading = false;
+	}
 
 	const addEntry = async (payload: any) => {
 		await entryService.create({ ...payload, date });
@@ -151,6 +173,19 @@
 				onDelete={deleteEntry}
 			/>
 		{/each}
+	</div>
+
+	<div
+		class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
+	>
+		<div class="flex items-center gap-2">
+			<UtensilsCrossed class="size-4 text-muted-foreground" />
+			<div>
+				<span class="text-sm font-medium">{m.fasting_day()}</span>
+				<p class="text-xs text-muted-foreground">{m.fasting_day_description()}</p>
+			</div>
+		</div>
+		<Switch checked={isFastingDay} onCheckedChange={toggleFastingDay} disabled={fastingLoading} />
 	</div>
 
 	<AddFoodModal

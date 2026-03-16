@@ -197,6 +197,13 @@
       "when": 1773360300000,
       "tag": "0027_last_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1773649968681,
+      "tag": "0028_misty_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }

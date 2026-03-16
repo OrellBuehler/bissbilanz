@@ -532,5 +532,11 @@
 	"maintenance_calculate_error": "Berechnung der Erhaltungskalorien fehlgeschlagen",
 	"maintenance_low_coverage_warning": "Nur {days} von {total} Tagen haben Ernährungseinträge. Ergebnisse können ungenau sein.",
 	"maintenance_data_note": "Basierend auf {weightEntries} Gewichtseinträgen, {foodDays} Tagen mit Ernährungsprotokoll, über {days} Tage.",
-	"maintenance_weight_range": "Gewicht: {first} kg → {last} kg"
+	"maintenance_weight_range": "Gewicht: {first} kg → {last} kg",
+
+	"fasting_day": "Fastentag",
+	"fasting_day_toggle": "Als Fastentag markieren",
+	"fasting_day_description": "Diesen 0-Kalorien-Tag in Statistiken und Prognosen einbeziehen",
+	"fasting_day_marked": "Als Fastentag markiert",
+	"fasting_day_unmarked": "Fastentag-Markierung entfernt"
 }

@@ -16,6 +16,15 @@ const mockEntries = [
 	{ date: '2026-02-03', calories: 2100, protein: 110, carbs: 210, fat: 85, fiber: 28, servings: 1 }
 ];
 
+vi.mock('$lib/server/day-properties', () => ({
+	getFastingDays: async () => new Set<string>(),
+	getFastingDaysForDates: async () => new Set<string>(),
+	getDayProperties: async () => null,
+	getDayPropertiesRange: async () => [],
+	setDayProperties: async () => null,
+	deleteDayProperties: async () => false
+}));
+
 vi.mock('$lib/server/entries', () => ({
 	listEntriesByDateRange: async () => mockEntries,
 	listEntriesByDate: async () => ({ items: [], total: 0 }),
