@@ -95,10 +95,4 @@
 		If this policy changes, the updated version will be posted here with a new effective date. Since
 		this is a small hobby project, changes will be rare.
 	</p>
-
-	<h2 class="mb-3 mt-8 text-xl font-semibold">Contact</h2>
-	<p class="mb-6">
-		If you have any questions about this policy or your data, reach out at
-		<a href="mailto:privacy@bissbilanz.app" class="underline">privacy@bissbilanz.app</a>.
-	</p>
 </div>
