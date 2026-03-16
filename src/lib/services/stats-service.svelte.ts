@@ -60,11 +60,24 @@ async function getDailyStatus(startDate: string, endDate: string) {
 	}
 }
 
+async function getCalendarStats(month: string) {
+	try {
+		const res = await fetch(`/api/stats/calendar?month=${month}`);
+		if (!res.ok) return null;
+		return (await res.json()) as {
+			days: Record<string, { calories: number; hasEntries: boolean }>;
+		};
+	} catch {
+		return null;
+	}
+}
+
 export const statsService = {
 	getStreaks,
 	getMealBreakdown,
 	getTopFoods,
 	getWeeklyStats,
 	getMonthlyStats,
-	getDailyStatus
+	getDailyStatus,
+	getCalendarStats
 };

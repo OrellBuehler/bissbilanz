@@ -532,5 +532,24 @@
 	"maintenance_calculate_error": "Failed to calculate maintenance calories",
 	"maintenance_low_coverage_warning": "Only {days} of {total} days have food logs. Results may be inaccurate.",
 	"maintenance_data_note": "Based on {weightEntries} weight entries, {foodDays} days with food logs, over {days} days.",
-	"maintenance_weight_range": "Weight: {first} kg → {last} kg"
+	"maintenance_weight_range": "Weight: {first} kg → {last} kg",
+
+	"insights_trends": "Trends",
+	"insights_goal_adherence": "Goal Adherence",
+	"insights_calendar": "Calendar",
+	"insights_macro_balance": "Macro Balance",
+	"insights_days_on_target": "{count} of {total} days on target",
+	"insights_days_in_range": "{count} of {total} days within range",
+	"insights_overall_adherence": "Overall Adherence",
+	"insights_strict": "Strict",
+	"insights_tolerant": "Within ±10%",
+	"insights_on_target": "On Target",
+	"insights_over": "Over",
+	"insights_under": "Under",
+	"insights_no_entries": "No entries",
+	"insights_actual": "Actual",
+	"insights_goal": "Goal",
+	"insights_90d": "90 days",
+	"insights_no_goals": "No goals set",
+	"insights_avg": "Avg"
 }
