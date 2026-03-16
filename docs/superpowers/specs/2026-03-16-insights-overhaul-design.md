@@ -16,6 +16,8 @@ All insight sections are wrapped in a collapsible card component.
 
 - Header tap toggles expand/collapse with chevron icon rotation
 - Collapse state persisted in localStorage (PWA) / SharedPreferences (Android)
+- Storage key format: `insights.{sectionId}.collapsed` (boolean), default: all expanded
+- Section IDs: `trends`, `adherence`, `calendar`, `radar`, `meals`, `topfoods`
 - **PWA:** New `CollapsibleCard` component using shadcn `Card` + `Collapsible` primitives
 - **Android:** `CollapsibleCard` composable using `AnimatedVisibility`
 
@@ -77,7 +79,7 @@ Radar/spider chart comparing actual macro averages vs goals.
 - Numeric legend below chart showing actual vs goal values
 - **Data source:** `getDailyBreakdown` for actuals (averaged client-side), goals from goals service
 - **New backend work:** None
-- **PWA:** LayerChart radar/polar chart
+- **PWA:** Custom SVG radar chart component (LayerChart does not have a radar chart primitive)
 - **Android:** Custom Canvas composable drawing radar polygon
 
 ### 6. Meal Distribution (existing)
@@ -94,11 +96,20 @@ No new backend endpoints required. All new sections use existing APIs:
 
 | Endpoint | Used by |
 |---|---|
-| `GET /api/stats/daily?startDate&endDate` | Trends, Goal Adherence, Macro Balance Radar |
+| `GET /api/stats/daily?startDate&endDate` | Trends, Goal Adherence, Macro Balance Radar (includes goals in response) |
 | `GET /api/stats/calendar?month=YYYY-MM` | Calendar Heatmap |
 | `GET /api/stats/meal-breakdown` | Meal Distribution (existing) |
 | `GET /api/stats/top-foods` | Top Foods (existing) |
-| `GET /api/goals` | Goal Adherence, Calendar Heatmap, Macro Balance Radar |
+| `GET /api/goals` | Calendar Heatmap only (daily endpoint already bundles goals for the other sections) |
+
+### Frontend service gaps
+
+- `stats-service.svelte.ts` is missing a `getCalendarStats` method — needs to be added to call `GET /api/stats/calendar`
+- Android `StatsRepository` needs equivalent method for calendar stats
+
+### Performance note
+
+The 90d range is new (existing page only uses today/7d/30d). `getDailyBreakdown` fetches all entries in the range and processes in memory. The `foodEntries` table should have an index on `(userId, date)` to keep 90d queries fast. Verify this exists before shipping.
 
 ## Color Scheme
 
