@@ -3,8 +3,12 @@
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import CollapsibleCard from '$lib/components/ui/collapsible-card/CollapsibleCard.svelte';
+	import TrendsChart from '$lib/components/insights/TrendsChart.svelte';
+	import GoalAdherence from '$lib/components/insights/GoalAdherence.svelte';
+	import CalendarHeatmap from '$lib/components/insights/CalendarHeatmap.svelte';
+	import MacroRadar from '$lib/components/insights/MacroRadar.svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
-	import { onMount } from 'svelte';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
@@ -88,10 +92,6 @@
 		loadTopFoods();
 	});
 
-	onMount(() => {
-		loadTopFoods();
-	});
-
 	const chartData = $derived(
 		data
 			.filter((d) => d.calories > 0)
@@ -120,10 +120,25 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<Card.Title>{m.insights_meal_distribution()}</Card.Title>
+	<CollapsibleCard title={m.insights_trends()} sectionId="trends">
+		<TrendsChart />
+	</CollapsibleCard>
+
+	<CollapsibleCard title={m.insights_goal_adherence()} sectionId="adherence">
+		<GoalAdherence />
+	</CollapsibleCard>
+
+	<CollapsibleCard title={m.insights_calendar()} sectionId="calendar">
+		<CalendarHeatmap />
+	</CollapsibleCard>
+
+	<CollapsibleCard title={m.insights_macro_balance()} sectionId="radar">
+		<MacroRadar />
+	</CollapsibleCard>
+
+	<CollapsibleCard title={m.insights_meal_distribution()} sectionId="meals">
+		<div class="space-y-3">
+			<div class="flex justify-end">
 				<div class="flex gap-1">
 					{#each ['today', '7d', '30d'] as r (r)}
 						<Button
@@ -136,8 +151,7 @@
 					{/each}
 				</div>
 			</div>
-		</Card.Header>
-		<Card.Content>
+
 			{#if mealLoading}
 				<div
 					class="text-muted-foreground flex h-[250px] items-center justify-center text-sm sm:h-[300px]"
@@ -191,7 +205,6 @@
 					</div>
 
 					<div class="w-full md:w-1/2">
-						<!-- Mobile: card layout -->
 						<div class="space-y-3 sm:hidden">
 							{#each data.filter((d) => d.calories > 0) as row (row.mealType)}
 								{@const pct =
@@ -221,12 +234,11 @@
 								</div>
 							{/each}
 						</div>
-						<!-- Desktop: table layout -->
 						<div class="hidden sm:block">
 							<table class="w-full text-sm">
 								<thead>
 									<tr class="text-muted-foreground border-b text-left">
-										<th class="pb-2 font-medium">Meal</th>
+										<th class="pb-2 font-medium">{m.insights_meal()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_calories()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_protein()}</th>
 										<th class="pb-2 text-right font-medium">{m.macro_carbs()}</th>
@@ -269,13 +281,12 @@
 					{m.insights_no_data()}
 				</div>
 			{/if}
-		</Card.Content>
-	</Card.Root>
+		</div>
+	</CollapsibleCard>
 
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<Card.Title>{m.insights_top_foods()}</Card.Title>
+	<CollapsibleCard title={m.insights_top_foods()} sectionId="topfoods">
+		<div class="space-y-3">
+			<div class="flex justify-end">
 				<div class="flex gap-1">
 					<Button
 						variant={topFoodsDays === 7 ? 'default' : 'outline'}
@@ -293,8 +304,7 @@
 					</Button>
 				</div>
 			</div>
-		</Card.Header>
-		<Card.Content>
+
 			{#if topFoodsLoading}
 				<div class="flex justify-center py-8">
 					<div
@@ -334,6 +344,6 @@
 					{/each}
 				</div>
 			{/if}
-		</Card.Content>
-	</Card.Root>
+		</div>
+	</CollapsibleCard>
 </div>

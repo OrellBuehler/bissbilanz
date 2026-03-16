@@ -538,5 +538,25 @@
 	"fasting_day_toggle": "Mark as fasting day",
 	"fasting_day_description": "Include this 0-calorie day in statistics and predictions",
 	"fasting_day_marked": "Marked as fasting day",
-	"fasting_day_unmarked": "Removed fasting day mark"
+	"fasting_day_unmarked": "Removed fasting day mark",
+
+	"insights_trends": "Trends",
+	"insights_goal_adherence": "Goal Adherence",
+	"insights_calendar": "Calendar",
+	"insights_macro_balance": "Macro Balance",
+	"insights_days_on_target": "{count} of {total} days on target",
+	"insights_days_in_range": "{count} of {total} days within range",
+	"insights_overall_adherence": "Overall Adherence",
+	"insights_strict": "Strict",
+	"insights_tolerant": "Within ±10%",
+	"insights_on_target": "On Target",
+	"insights_over": "Over",
+	"insights_under": "Under",
+	"insights_no_entries": "No entries",
+	"insights_actual": "Actual",
+	"insights_goal": "Goal",
+	"insights_90d": "90 days",
+	"insights_no_goals": "No goals set",
+	"insights_avg": "Avg",
+	"insights_meal": "Meal"
 }

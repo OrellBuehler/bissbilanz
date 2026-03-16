@@ -538,5 +538,25 @@
 	"fasting_day_toggle": "Als Fastentag markieren",
 	"fasting_day_description": "Diesen 0-Kalorien-Tag in Statistiken und Prognosen einbeziehen",
 	"fasting_day_marked": "Als Fastentag markiert",
-	"fasting_day_unmarked": "Fastentag-Markierung entfernt"
+	"fasting_day_unmarked": "Fastentag-Markierung entfernt",
+
+	"insights_trends": "Trends",
+	"insights_goal_adherence": "Zielerreichung",
+	"insights_calendar": "Kalender",
+	"insights_macro_balance": "Makro-Balance",
+	"insights_days_on_target": "{count} von {total} Tagen im Ziel",
+	"insights_days_in_range": "{count} von {total} Tagen in Reichweite",
+	"insights_overall_adherence": "Gesamtzielerreichung",
+	"insights_strict": "Streng",
+	"insights_tolerant": "Innerhalb ±10%",
+	"insights_on_target": "Im Ziel",
+	"insights_over": "Über",
+	"insights_under": "Unter",
+	"insights_no_entries": "Keine Einträge",
+	"insights_actual": "Tatsächlich",
+	"insights_goal": "Ziel",
+	"insights_90d": "90 Tage",
+	"insights_no_goals": "Keine Ziele gesetzt",
+	"insights_avg": "Ø",
+	"insights_meal": "Mahlzeit"
 }

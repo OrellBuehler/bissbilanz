@@ -60,11 +60,23 @@ async function getDailyStatus(startDate: string, endDate: string) {
 	}
 }
 
+async function getCalendarStats(month: string) {
+	try {
+		const { data } = await api.GET('/api/stats/calendar', {
+			params: { query: { month } }
+		});
+		return data ?? null;
+	} catch {
+		return null;
+	}
+}
+
 export const statsService = {
 	getStreaks,
 	getMealBreakdown,
 	getTopFoods,
 	getWeeklyStats,
 	getMonthlyStats,
-	getDailyStatus
+	getDailyStatus,
+	getCalendarStats
 };
