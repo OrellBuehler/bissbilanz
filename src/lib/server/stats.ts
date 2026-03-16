@@ -40,6 +40,9 @@ const groupEntriesByDate = (
 /**
  * Groups entries by date, including fasting days (0-cal intentional days)
  * in the average calculation.
+ *
+ * @param fastingDays Must contain only dates within the relevant query range;
+ *   out-of-range dates would silently inflate the denominator.
  */
 const groupEntriesByDateWithFasting = (
 	entries: Array<{

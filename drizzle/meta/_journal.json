@@ -204,6 +204,13 @@
       "when": 1773649968681,
       "tag": "0028_misty_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1773697565416,
+      "tag": "0029_aromatic_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

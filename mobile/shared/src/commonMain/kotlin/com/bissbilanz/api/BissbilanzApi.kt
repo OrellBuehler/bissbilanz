@@ -392,7 +392,7 @@ class BissbilanzApi(
         isFastingDay: Boolean,
     ): DayProperties? {
         val response: DayPropertiesResponse =
-            post(
+            put(
                 "/api/day-properties",
                 DayPropertiesSet(date = date, isFastingDay = isFastingDay),
             )
@@ -400,7 +400,7 @@ class BissbilanzApi(
     }
 
     suspend fun deleteDayProperties(date: String) =
-        delete("/api/day-properties?date=$date")
+        delete("/api/day-properties") { parameter("date", date) }
 
     // Supplement update
     suspend fun updateSupplement(

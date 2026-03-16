@@ -73,8 +73,10 @@
 
 	async function loadFastingDay(d: string) {
 		const cached = await dayPropertiesService.get(d);
+		if (d !== date) return;
 		isFastingDay = cached?.isFastingDay ?? false;
 		const refreshed = await dayPropertiesService.refresh(d);
+		if (d !== date) return;
 		isFastingDay = refreshed?.isFastingDay ?? false;
 	}
 
@@ -82,7 +84,8 @@
 		fastingLoading = true;
 		const newValue = !isFastingDay;
 		isFastingDay = newValue;
-		await dayPropertiesService.setFastingDay(date, newValue);
+		const success = await dayPropertiesService.setFastingDay(date, newValue);
+		if (!success) isFastingDay = !newValue;
 		fastingLoading = false;
 	}
 

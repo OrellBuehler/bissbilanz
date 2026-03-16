@@ -118,6 +118,46 @@ class DayLogViewModelTest {
             assertNull(viewModel.error.value)
         }
 
+    @Test
+    fun toggleFastingDayOnCallsSetDayProperties() =
+        runTest {
+            val viewModel = DayLogViewModel(entryRepo, api)
+            assertEquals(false, viewModel.isFastingDay.value)
+
+            viewModel.toggleFastingDay("2024-01-15")
+
+            assertEquals(true, viewModel.isFastingDay.value)
+            coVerify { api.setDayProperties("2024-01-15", isFastingDay = true) }
+        }
+
+    @Test
+    fun toggleFastingDayOffCallsDeleteDayProperties() =
+        runTest {
+            val viewModel = DayLogViewModel(entryRepo, api)
+            // Toggle on first
+            viewModel.toggleFastingDay("2024-01-15")
+            assertEquals(true, viewModel.isFastingDay.value)
+
+            // Toggle off
+            viewModel.toggleFastingDay("2024-01-15")
+
+            assertEquals(false, viewModel.isFastingDay.value)
+            coVerify { api.deleteDayProperties("2024-01-15") }
+        }
+
+    @Test
+    fun toggleFastingDayRevertsOnError() =
+        runTest {
+            coEvery { api.setDayProperties(any(), any()) } throws RuntimeException("Network error")
+
+            val viewModel = DayLogViewModel(entryRepo, api)
+            viewModel.toggleFastingDay("2024-01-15")
+
+            // Should revert to false after failure
+            assertEquals(false, viewModel.isFastingDay.value)
+            assertEquals("Failed to update fasting day", viewModel.error.value)
+        }
+
     companion object {
         fun testEntry(id: String) =
             Entry(

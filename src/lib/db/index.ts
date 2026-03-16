@@ -48,6 +48,7 @@ db.version(1).stores({
 	syncMeta: 'tableName'
 });
 
+// Additive: only new/changed stores need to be listed; existing v1 stores are preserved
 db.version(2).stores({
 	dayProperties: 'date'
 });

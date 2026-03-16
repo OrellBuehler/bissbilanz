@@ -9,6 +9,8 @@ import {
 } from '$lib/server/day-properties';
 import { dayPropertiesSetSchema } from '$lib/server/validation';
 
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const userId = requireAuth(locals);
@@ -17,7 +19,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const endDate = url.searchParams.get('endDate');
 
 		if (startDate && endDate) {
-			const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 			if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
 				throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
 			}
@@ -29,7 +30,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'date parameter is required');
 		}
 
-		const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 		if (!dateRegex.test(date)) {
 			throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
 		}
@@ -63,6 +63,9 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 		const date = url.searchParams.get('date');
 		if (!date) {
 			throw new ApiError(400, 'date parameter is required');
+		}
+		if (!dateRegex.test(date)) {
+			throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
 		}
 		await deleteDayProperties(userId, date);
 		return new Response(null, { status: 204 });

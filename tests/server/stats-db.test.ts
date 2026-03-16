@@ -44,9 +44,16 @@ vi.mock('$lib/server/entries', () => ({
 }));
 
 // Mock day-properties module (no fasting days by default)
+let mockFastingDays = new Set<string>();
+const setMockFastingDays = (days: string[]) => {
+	mockFastingDays = new Set(days);
+};
+const resetMockFastingDays = () => {
+	mockFastingDays = new Set();
+};
 vi.mock('$lib/server/day-properties', () => ({
-	getFastingDays: async () => new Set<string>(),
-	getFastingDaysForDates: async () => new Set<string>(),
+	getFastingDays: async () => mockFastingDays,
+	getFastingDaysForDates: async () => mockFastingDays,
 	getDayProperties: async () => null,
 	getDayPropertiesRange: async () => [],
 	setDayProperties: async () => null,
@@ -59,6 +66,7 @@ const { getWeeklyStats, getMonthlyStats } = await import('$lib/server/stats');
 describe('stats-db', () => {
 	beforeEach(() => {
 		resetMockEntries();
+		resetMockFastingDays();
 	});
 
 	describe('getWeeklyStats', () => {
@@ -320,6 +328,32 @@ describe('stats-db', () => {
 			expect(result.carbs).toBe(100);
 			expect(result.fat).toBe(35);
 			expect(result.fiber).toBe(18);
+		});
+
+		test('fasting day lowers average by adding a 0-calorie day', async () => {
+			// 1 day with 800 calories + 1 fasting day with 0
+			setMockEntries([
+				{
+					date: '2026-03-15',
+					servings: 1,
+					calories: 800,
+					protein: 40,
+					carbs: 80,
+					fat: 30,
+					fiber: 15
+				}
+			]);
+			// Fasting day within the weekly range with no entries
+			setMockFastingDays(['2026-03-14']);
+
+			const result = await getWeeklyStats(TEST_USER.id);
+
+			// Average of 800 and 0 = 400
+			expect(result.calories).toBe(400);
+			expect(result.protein).toBe(20);
+			expect(result.carbs).toBe(40);
+			expect(result.fat).toBe(15);
+			expect(result.fiber).toBe(7.5);
 		});
 	});
 

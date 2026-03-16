@@ -443,10 +443,7 @@ export const dayProperties = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
-	(table) => [
-		primaryKey({ columns: [table.userId, table.date] }),
-		index('idx_day_properties_user_date').on(table.userId, table.date)
-	]
+	(table) => [primaryKey({ columns: [table.userId, table.date] })]
 );
 
 // Weight Entries

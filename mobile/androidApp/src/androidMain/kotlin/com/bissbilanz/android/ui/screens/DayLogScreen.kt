@@ -27,9 +27,11 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
+import com.bissbilanz.android.R
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedProtein
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -244,12 +246,12 @@ fun DayLogScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Fasting Day",
+                                    stringResource(R.string.fasting_day),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                 )
                                 Text(
-                                    "Include this 0-calorie day in stats",
+                                    stringResource(R.string.fasting_day_description),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
