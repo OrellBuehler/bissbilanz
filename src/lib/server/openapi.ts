@@ -61,6 +61,11 @@ import { maintenanceResponseSchema } from './validation/responses/maintenance';
 import { imageUploadResponseSchema } from './validation/responses/images';
 import { openfoodfactsResponseSchema } from './validation/responses/openfoodfacts';
 import { goalsResponseSchema, goalsSetResponseSchema } from './validation/responses/goals';
+import {
+	dayPropertiesResponseSchema,
+	dayPropertiesRangeResponseSchema
+} from './validation/responses/day-properties';
+import { dayPropertiesSetSchema } from './validation/day-properties';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -820,6 +825,66 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: calendarResponseSchema } }
 						},
+						'401': res401
+					}
+				}
+			},
+
+			// ── Day Properties ────────────────────────────────────
+			'/api/day-properties': {
+				get: {
+					operationId: 'getDayProperties',
+					tags: ['DayProperties'],
+					description:
+						'Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range.',
+					requestParams: {
+						query: z.object({
+							date: z.string().date().optional(),
+							startDate: z.string().date().optional(),
+							endDate: z.string().date().optional()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Day properties or range of day properties',
+							content: {
+								'application/json': {
+									schema: z.union([
+										dayPropertiesResponseSchema,
+										dayPropertiesRangeResponseSchema
+									])
+								}
+							}
+						},
+						'401': res401
+					}
+				},
+				put: {
+					operationId: 'setDayProperties',
+					tags: ['DayProperties'],
+					description: 'Set day properties (e.g. mark as fasting day).',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: dayPropertiesSetSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: dayPropertiesResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				},
+				delete: {
+					operationId: 'deleteDayProperties',
+					tags: ['DayProperties'],
+					description: 'Delete day properties for a specific date.',
+					requestParams: {
+						query: z.object({ date: z.string().date() })
+					},
+					responses: {
+						'204': res204,
 						'401': res401
 					}
 				}

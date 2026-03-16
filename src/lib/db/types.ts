@@ -223,6 +223,12 @@ export type DexieWeightEntry = {
 	updatedAt: string | null;
 };
 
+// ── Day Properties ────────────────────────────────────────────────
+export type DexieDayProperties = {
+	date: string;
+	isFastingDay: boolean;
+};
+
 // ── Sync Queue (replaces bissbilanz-offline IndexedDB) ─────────────
 export type DexieSyncQueueItem = {
 	id?: number;

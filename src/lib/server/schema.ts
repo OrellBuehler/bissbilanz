@@ -431,6 +431,21 @@ export const supplementLogs = pgTable(
 	]
 );
 
+// Day Properties (fasting day, etc.)
+export const dayProperties = pgTable(
+	'day_properties',
+	{
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		date: date('date').notNull(),
+		isFastingDay: boolean('is_fasting_day').notNull().default(false),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.date] })]
+);
+
 // Weight Entries
 export const weightEntries = pgTable(
 	'weight_entries',
@@ -588,3 +603,5 @@ export type UserPreference = typeof userPreferences.$inferSelect;
 export type NewUserPreference = typeof userPreferences.$inferInsert;
 export type WeightEntry = typeof weightEntries.$inferSelect;
 export type NewWeightEntry = typeof weightEntries.$inferInsert;
+export type DayProperty = typeof dayProperties.$inferSelect;
+export type NewDayProperty = typeof dayProperties.$inferInsert;

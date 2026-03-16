@@ -11,6 +11,7 @@ import {
 import { today, shiftDate } from '$lib/utils/dates';
 import { getDB, foodEntries } from '$lib/server/db';
 import { eq, sql } from 'drizzle-orm';
+import { getFastingDays } from '$lib/server/day-properties';
 
 export type CalendarDay = { calories: number; hasEntries: boolean };
 export type CalendarStats = { days: Record<string, CalendarDay> };
@@ -36,19 +37,60 @@ const groupEntriesByDate = (
 	return Object.values(groups);
 };
 
+/**
+ * Groups entries by date, including fasting days (0-cal intentional days)
+ * in the average calculation.
+ *
+ * @param fastingDays Must contain only dates within the relevant query range;
+ *   out-of-range dates would silently inflate the denominator.
+ */
+const groupEntriesByDateWithFasting = (
+	entries: Array<{
+		date: string;
+		servings: number;
+		calories: number | null;
+		protein: number | null;
+		carbs: number | null;
+		fat: number | null;
+		fiber: number | null;
+	}>,
+	fastingDays: Set<string>
+): MacroTotals[] => {
+	const groups: Record<string, MacroTotals> = {};
+	for (const entry of entries) {
+		if (!groups[entry.date]) {
+			groups[entry.date] = emptyTotals();
+		}
+		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
+	}
+	// Include fasting days that have no entries so they count as 0 in averages
+	for (const fastingDate of fastingDays) {
+		if (!groups[fastingDate]) {
+			groups[fastingDate] = emptyTotals();
+		}
+	}
+	return Object.values(groups);
+};
+
 export const getWeeklyStats = async (userId: string) => {
 	const endDate = today();
 	const startDate = shiftDate(endDate, -6);
-	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	const dailyTotals = groupEntriesByDate(entries);
+	const [entries, fastingDaySet] = await Promise.all([
+		listEntriesByDateRange(userId, startDate, endDate),
+		getFastingDays(userId, startDate, endDate)
+	]);
+	const dailyTotals = groupEntriesByDateWithFasting(entries, fastingDaySet);
 	return averageTotals(dailyTotals);
 };
 
 export const getMonthlyStats = async (userId: string) => {
 	const endDate = today();
 	const startDate = shiftDate(endDate, -29);
-	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	const dailyTotals = groupEntriesByDate(entries);
+	const [entries, fastingDaySet] = await Promise.all([
+		listEntriesByDateRange(userId, startDate, endDate),
+		getFastingDays(userId, startDate, endDate)
+	]);
+	const dailyTotals = groupEntriesByDateWithFasting(entries, fastingDaySet);
 	return averageTotals(dailyTotals);
 };
 

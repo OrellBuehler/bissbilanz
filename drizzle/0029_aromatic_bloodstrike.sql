@@ -1,0 +1,1 @@
+DROP INDEX "idx_day_properties_user_date";

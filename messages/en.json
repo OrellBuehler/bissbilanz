@@ -532,5 +532,11 @@
 	"maintenance_calculate_error": "Failed to calculate maintenance calories",
 	"maintenance_low_coverage_warning": "Only {days} of {total} days have food logs. Results may be inaccurate.",
 	"maintenance_data_note": "Based on {weightEntries} weight entries, {foodDays} days with food logs, over {days} days.",
-	"maintenance_weight_range": "Weight: {first} kg → {last} kg"
+	"maintenance_weight_range": "Weight: {first} kg → {last} kg",
+
+	"fasting_day": "Fasting Day",
+	"fasting_day_toggle": "Mark as fasting day",
+	"fasting_day_description": "Include this 0-calorie day in statistics and predictions",
+	"fasting_day_marked": "Marked as fasting day",
+	"fasting_day_unmarked": "Removed fasting day mark"
 }
