@@ -399,8 +399,7 @@ class BissbilanzApi(
         return response.properties
     }
 
-    suspend fun deleteDayProperties(date: String) =
-        delete("/api/day-properties?date=$date")
+    suspend fun deleteDayProperties(date: String) = delete("/api/day-properties?date=$date")
 
     // Supplement update
     suspend fun updateSupplement(

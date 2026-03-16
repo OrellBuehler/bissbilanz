@@ -15,10 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.theme.*
@@ -27,11 +29,9 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
-import com.bissbilanz.android.R
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedProtein
-import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel

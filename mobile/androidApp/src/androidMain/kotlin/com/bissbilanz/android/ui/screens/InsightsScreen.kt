@@ -27,6 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.ui.components.CalendarHeatmap
+import com.bissbilanz.android.ui.components.CollapsibleCard
+import com.bissbilanz.android.ui.components.MacroRadarChart
+import com.bissbilanz.android.ui.components.RadarAxis
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
@@ -46,8 +50,11 @@ fun InsightsScreen() {
     val mealBreakdown by viewModel.mealBreakdown.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
+    val calendarDays by viewModel.calendarDays.collectAsStateWithLifecycle()
+    val calendarMonth by viewModel.calendarMonth.collectAsStateWithLifecycle()
+    val calendarYear by viewModel.calendarYear.collectAsStateWithLifecycle()
 
-    val ranges = listOf("7 Days", "30 Days")
+    val ranges = listOf("7 Days", "30 Days", "90 Days")
 
     Column(
         modifier =
@@ -87,7 +94,11 @@ fun InsightsScreen() {
                                 color = CaloriesBlue,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text("Current", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "Current",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
@@ -96,7 +107,11 @@ fun InsightsScreen() {
                                 color = FiberGreen,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text("Longest", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "Longest",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -105,158 +120,138 @@ fun InsightsScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Calorie Trend Chart
+        // 1. Trends
         if (dailyStats.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Calorie Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SimpleLineChart(
-                        data = dailyStats.map { it.calories.toFloat() },
-                        color = CaloriesBlue,
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
+            CollapsibleCard(title = "Trends", sectionId = "trends") {
+                Text("Calorie Trend", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                SimpleLineChart(
+                    data = dailyStats.map { it.calories.toFloat() },
+                    color = CaloriesBlue,
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    val avgCal = dailyStats.map { it.calories }.average()
+                    Text(
+                        "Avg: ${avgCal.toInt()} cal",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        val avgCal = dailyStats.map { it.calories }.average()
-                        Text(
-                            "Avg: ${avgCal.toInt()} cal",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            "${dailyStats.size} days",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        "${dailyStats.size} days",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Macro Trends", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                MacroTrendRow("Protein", dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
+                Spacer(modifier = Modifier.height(12.dp))
+                MacroTrendRow("Carbs", dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
+                Spacer(modifier = Modifier.height(12.dp))
+                MacroTrendRow("Fat", dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
+                Spacer(modifier = Modifier.height(12.dp))
+                MacroTrendRow("Fiber", dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Macro Trend Charts
-        if (dailyStats.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Macro Trends", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    MacroTrendRow("Protein", dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Carbs", dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Fat", dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Fiber", dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Meal Breakdown Pie Chart
-        if (mealBreakdown.isNotEmpty()) {
-            val totalCalories = mealBreakdown.sumOf { it.calories }
-            if (totalCalories > 0) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Meal Breakdown",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        SimplePieChart(
-                            entries = mealBreakdown,
-                            modifier = Modifier.fillMaxWidth().height(180.dp),
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        MealBreakdownLegend(mealBreakdown, totalCalories)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Goal Achievement Rate
+        // 2. Goal Adherence
         if (goals != null && dailyStats.isNotEmpty()) {
-            GoalAchievementCard(dailyStats, goals!!)
+            GoalAdherenceCard(dailyStats, goals!!)
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // Weekly vs Monthly comparison
-        if (weeklyStats != null && monthlyStats != null) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Average Comparison", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        // 3. Calendar Heatmap
+        if (goals != null) {
+            CollapsibleCard(title = "Calendar Heatmap", sectionId = "calendar") {
+                CalendarHeatmap(
+                    days = calendarDays,
+                    calorieGoal = goals!!.calorieGoal,
+                    month = calendarMonth,
+                    year = calendarYear,
+                    onPrevMonth = { viewModel.prevMonth() },
+                    onNextMonth = { viewModel.nextMonth() },
+                    onDayClick = { },
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // 4. Macro Balance Radar
+        if (goals != null && dailyStats.isNotEmpty()) {
+            CollapsibleCard(title = "Macro Balance", sectionId = "radar") {
+                val g = goals!!
+                val avgCal = dailyStats.map { it.calories }.average()
+                val avgPro = dailyStats.map { it.protein }.average()
+                val avgCarb = dailyStats.map { it.carbs }.average()
+                val avgFat = dailyStats.map { it.fat }.average()
+                val avgFib = dailyStats.map { it.fiber }.average()
+
+                val radarAxes =
+                    listOf(
+                        RadarAxis("Cal", (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(), CaloriesBlue),
+                        RadarAxis("Protein", (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(), ProteinRed),
+                        RadarAxis("Carbs", (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(), CarbsOrange),
+                        RadarAxis("Fat", (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(), FatYellow),
+                        RadarAxis("Fiber", (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(), FiberGreen),
+                    )
+                MacroRadarChart(axes = radarAxes)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // 5. Meal Distribution
+        if (mealBreakdown.isNotEmpty()) {
+            val totalCalories = mealBreakdown.sumOf { it.calories }
+            if (totalCalories > 0) {
+                CollapsibleCard(title = "Meal Distribution", sectionId = "meals") {
+                    SimplePieChart(
+                        entries = mealBreakdown,
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("", modifier = Modifier.weight(1f))
-                        Text(
-                            "Weekly",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "Monthly",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(modifier = Modifier.width(52.dp))
-                    }
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    ComparisonRow("Calories", weeklyStats!!.calories, monthlyStats!!.calories, "kcal", CaloriesBlue)
-                    ComparisonRow("Protein", weeklyStats!!.protein, monthlyStats!!.protein, "g", ProteinRed)
-                    ComparisonRow("Carbs", weeklyStats!!.carbs, monthlyStats!!.carbs, "g", CarbsOrange)
-                    ComparisonRow("Fat", weeklyStats!!.fat, monthlyStats!!.fat, "g", FatYellow)
-                    ComparisonRow("Fiber", weeklyStats!!.fiber, monthlyStats!!.fiber, "g", FiberGreen)
+                    MealBreakdownLegend(mealBreakdown, totalCalories)
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Top foods
+        // 6. Top Foods
         if (topFoods.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Top Foods", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    topFoods.forEachIndexed { i, f ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "${i + 1}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.width(28.dp),
-                                )
-                                Text(f.foodName, modifier = Modifier.weight(1f))
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                Text(
-                                    "${f.calories.toInt()} cal",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+            CollapsibleCard(title = "Top Foods", sectionId = "topfoods") {
+                topFoods.forEachIndexed { i, f ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${i + 1}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(28.dp),
+                            )
+                            Text(f.foodName, modifier = Modifier.weight(1f))
                         }
-                        if (i < topFoods.lastIndex) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${f.calories.toInt()} cal",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
+                    }
+                    if (i < topFoods.lastIndex) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
                     }
                 }
             }
@@ -504,7 +499,7 @@ private fun MealBreakdownLegend(
 }
 
 @Composable
-private fun GoalAchievementCard(
+private fun GoalAdherenceCard(
     dailyStats: List<DailyStatsEntry>,
     goals: Goals,
 ) {
@@ -513,7 +508,8 @@ private fun GoalAchievementCard(
 
     data class GoalStat(
         val label: String,
-        val hitDays: Int,
+        val strictDays: Int,
+        val tolerantDays: Int,
         val color: Color,
     )
 
@@ -521,67 +517,97 @@ private fun GoalAchievementCard(
         listOf(
             GoalStat(
                 "Calories",
-                dailyStats.count { it.calories <= goals.calorieGoal * 1.05 && it.calories >= goals.calorieGoal * 0.9 },
+                strictDays = dailyStats.count { it.calories <= goals.calorieGoal },
+                tolerantDays =
+                    dailyStats.count {
+                        it.calories <= goals.calorieGoal * 1.1 && it.calories >= goals.calorieGoal * 0.9
+                    },
                 CaloriesBlue,
             ),
-            GoalStat("Protein", dailyStats.count { it.protein >= goals.proteinGoal * 0.9 }, ProteinRed),
-            GoalStat("Carbs", dailyStats.count { it.carbs <= goals.carbGoal * 1.1 }, CarbsOrange),
-            GoalStat("Fat", dailyStats.count { it.fat <= goals.fatGoal * 1.1 }, FatYellow),
-            GoalStat("Fiber", dailyStats.count { it.fiber >= goals.fiberGoal * 0.9 }, FiberGreen),
+            GoalStat(
+                "Protein",
+                strictDays = dailyStats.count { it.protein >= goals.proteinGoal },
+                tolerantDays = dailyStats.count { it.protein >= goals.proteinGoal * 0.9 },
+                ProteinRed,
+            ),
+            GoalStat(
+                "Carbs",
+                strictDays = dailyStats.count { it.carbs <= goals.carbGoal },
+                tolerantDays = dailyStats.count { it.carbs <= goals.carbGoal * 1.1 },
+                CarbsOrange,
+            ),
+            GoalStat(
+                "Fat",
+                strictDays = dailyStats.count { it.fat <= goals.fatGoal },
+                tolerantDays = dailyStats.count { it.fat <= goals.fatGoal * 1.1 },
+                FatYellow,
+            ),
+            GoalStat(
+                "Fiber",
+                strictDays = dailyStats.count { it.fiber >= goals.fiberGoal },
+                tolerantDays = dailyStats.count { it.fiber >= goals.fiberGoal * 0.9 },
+                FiberGreen,
+            ),
         )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Goal Achievement", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Days within goal range ($totalDays day period)",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+    CollapsibleCard(title = "Goal Adherence", sectionId = "goals") {
+        Text(
+            "Days within goal range ($totalDays day period)",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
 
-            stats.forEach { stat ->
-                val pct = stat.hitDays.toFloat() / totalDays
-                val animatedPct by animateFloatAsState(
-                    targetValue = pct.coerceIn(0f, 1f),
-                    animationSpec = GentleSpring,
-                    label = "goal-${stat.label}",
+        stats.forEach { stat ->
+            val tolerantPct = stat.tolerantDays.toFloat() / totalDays
+            val strictPct = stat.strictDays.toFloat() / totalDays
+            val animatedPct by animateFloatAsState(
+                targetValue = tolerantPct.coerceIn(0f, 1f),
+                animationSpec = GentleSpring,
+                label = "goal-${stat.label}",
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stat.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = stat.color,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.width(64.dp),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
-                    Text(
-                        stat.label,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = stat.color,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.width(64.dp),
-                    )
                     Box(
                         modifier =
                             Modifier
-                                .weight(1f)
-                                .height(8.dp)
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedPct)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(animatedPct)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(stat.color),
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
+                                .background(stat.color),
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "${(pct * 100).toInt()}%",
+                        "${(tolerantPct * 100).toInt()}%",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(36.dp),
+                        textAlign = TextAlign.End,
+                    )
+                    Text(
+                        "${(strictPct * 100).toInt()}% strict",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(60.dp),
                         textAlign = TextAlign.End,
                     )
                 }

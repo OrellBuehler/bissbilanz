@@ -48,8 +48,18 @@ class InsightsViewModel(
     private val _selectedRange = MutableStateFlow(0)
     val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
 
+    private val _calendarDays = MutableStateFlow<List<CalendarDay>>(emptyList())
+    val calendarDays: StateFlow<List<CalendarDay>> = _calendarDays.asStateFlow()
+
+    private val _calendarMonth = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()).monthNumber)
+    val calendarMonth: StateFlow<Int> = _calendarMonth.asStateFlow()
+
+    private val _calendarYear = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()).year)
+    val calendarYear: StateFlow<Int> = _calendarYear.asStateFlow()
+
     init {
         loadData()
+        loadCalendarStats()
     }
 
     fun selectRange(index: Int) {
@@ -57,11 +67,51 @@ class InsightsViewModel(
         loadData()
     }
 
+    fun prevMonth() {
+        var m = _calendarMonth.value - 1
+        var y = _calendarYear.value
+        if (m < 1) {
+            m = 12
+            y--
+        }
+        _calendarMonth.value = m
+        _calendarYear.value = y
+        loadCalendarStats()
+    }
+
+    fun nextMonth() {
+        var m = _calendarMonth.value + 1
+        var y = _calendarYear.value
+        if (m > 12) {
+            m = 1
+            y++
+        }
+        _calendarMonth.value = m
+        _calendarYear.value = y
+        loadCalendarStats()
+    }
+
+    private fun loadCalendarStats() {
+        viewModelScope.launch {
+            val monthStr = "%04d-%02d".format(_calendarYear.value, _calendarMonth.value)
+            try {
+                _calendarDays.value = statsRepo.getCalendarStats(monthStr)
+            } catch (_: Exception) {
+                _calendarDays.value = emptyList()
+            }
+        }
+    }
+
     private fun loadData() {
         viewModelScope.launch {
             _isLoading.value = true
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            val days = if (_selectedRange.value == 0) 7 else 30
+            val days =
+                when (_selectedRange.value) {
+                    0 -> 7
+                    1 -> 30
+                    else -> 90
+                }
             val startDate = today.minus(days, DateTimeUnit.DAY).toString()
             val endDate = today.toString()
 
