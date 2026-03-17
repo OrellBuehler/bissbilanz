@@ -267,7 +267,7 @@
 	};
 </script>
 
-<ResponsiveModal bind:open title={m.add_food_title()}>
+<ResponsiveModal bind:open title={m.add_food_title()} openFull>
 	<div class="min-w-0 space-y-4">
 		{#if selectedFood}
 			<div class="space-y-4">
