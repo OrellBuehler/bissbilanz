@@ -29,7 +29,7 @@ struct RecipeDetailView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 52))
-                            .foregroundStyle(.white, Color.accentColor)
+                            .foregroundStyle(Color.white, Color.accentColor)
                             .shadow(radius: 4, y: 2)
                     }
                     .padding(20)
