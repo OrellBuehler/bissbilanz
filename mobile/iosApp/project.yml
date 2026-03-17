@@ -32,6 +32,7 @@ targets:
           - '-framework'
           - 'shared'
     info:
+      path: Bissbilanz/Info.plist
       properties:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
