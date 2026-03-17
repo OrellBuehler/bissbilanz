@@ -3,29 +3,20 @@
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
+	import {
+		radarAverages,
+		radarPercentages,
+		MACRO_GOAL_MAPPINGS,
+		type DayRow,
+		type Goals,
+		type MacroKey
+	} from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
-
-	type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
-	type DayRow = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-	};
-	type Goals = {
-		calorieGoal: number;
-		proteinGoal: number;
-		carbGoal: number;
-		fatGoal: number;
-		fiberGoal: number;
-	} | null;
 
 	type RangeKey = '7d' | '30d' | '90d';
 	let range: RangeKey = $state('7d');
 	let data: DayRow[] = $state([]);
-	let goals = $state<Goals>(null);
+	let goals = $state<Goals | null>(null);
 	let loading = $state(true);
 
 	const rangeDays: Record<RangeKey, number> = { '7d': 6, '30d': 29, '90d': 89 };
@@ -79,30 +70,9 @@
 		fetchData(range);
 	});
 
-	const daysWithEntries = $derived(data.filter((d) => d.calories > 0));
+	const averages = $derived(radarAverages(data));
 
-	const averages = $derived.by(() => {
-		if (daysWithEntries.length === 0) {
-			return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
-		}
-		const n = daysWithEntries.length;
-		return {
-			calories: Math.round(daysWithEntries.reduce((s, d) => s + d.calories, 0) / n),
-			protein: Math.round(daysWithEntries.reduce((s, d) => s + d.protein, 0) / n),
-			carbs: Math.round(daysWithEntries.reduce((s, d) => s + d.carbs, 0) / n),
-			fat: Math.round(daysWithEntries.reduce((s, d) => s + d.fat, 0) / n),
-			fiber: Math.round(daysWithEntries.reduce((s, d) => s + d.fiber, 0) / n)
-		};
-	});
-
-	const percentages = $derived.by(() => {
-		if (!goals) return axes.map(() => 0);
-		return axes.map((a) => {
-			const goalVal = goals![a.goalKey];
-			if (!goalVal) return 0;
-			return Math.min((averages[a.key] / goalVal) * 100, 150);
-		});
-	});
+	const percentages = $derived(radarPercentages(averages, goals));
 
 	const cx = 150;
 	const cy = 155;

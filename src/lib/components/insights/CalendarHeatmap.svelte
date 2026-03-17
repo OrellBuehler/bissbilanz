@@ -7,6 +7,7 @@
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { getMonthName } from '$lib/utils/dates';
 	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { heatmapStatus, type HeatmapStatus } from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
 
 	type CalendarDay = { calories: number; hasEntries: boolean };
@@ -78,18 +79,20 @@
 		return cells;
 	});
 
-	function cellColor(date: string | null): string {
-		if (!date || !days[date]) return 'bg-muted/30';
-		const entry = days[date];
-		if (!entry.hasEntries) return 'bg-muted/30';
-		if (!calorieGoal) return 'bg-blue-500/30';
+	const STATUS_COLORS: Record<HeatmapStatus, string> = {
+		'on-target': 'bg-green-500/60',
+		over: 'bg-red-500/40',
+		'over-high': 'bg-red-500/70',
+		under: 'bg-blue-500/40',
+		'under-high': 'bg-blue-500/70',
+		none: 'bg-muted/30',
+		'no-goal': 'bg-blue-500/30'
+	};
 
-		const ratio = entry.calories / calorieGoal;
-		if (ratio >= 0.9 && ratio <= 1.1) return 'bg-green-500/60';
-		if (ratio > 1.1) {
-			return ratio > 1.3 ? 'bg-red-500/70' : 'bg-red-500/40';
-		}
-		return ratio < 0.7 ? 'bg-blue-500/70' : 'bg-blue-500/40';
+	function cellColor(date: string | null): string {
+		if (!date || !days[date]) return STATUS_COLORS.none;
+		const entry = days[date];
+		return STATUS_COLORS[heatmapStatus(entry.calories, entry.hasEntries, calorieGoal)];
 	}
 
 	function cellTitle(date: string | null): string {

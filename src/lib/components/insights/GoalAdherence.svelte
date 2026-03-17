@@ -4,29 +4,21 @@
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
+	import {
+		filterDaysWithEntries,
+		strictCount as _strictCount,
+		tolerantCount as _tolerantCount,
+		overallAdherence,
+		type DayRow,
+		type Goals,
+		type MacroKey
+	} from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
-
-	type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
-	type DayRow = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-	};
-	type Goals = {
-		calorieGoal: number;
-		proteinGoal: number;
-		carbGoal: number;
-		fatGoal: number;
-		fiberGoal: number;
-	} | null;
 
 	type RangeKey = '7d' | '30d' | '90d';
 	let range: RangeKey = $state('7d');
 	let data: DayRow[] = $state([]);
-	let goals = $state<Goals>(null);
+	let goals = $state<Goals | null>(null);
 	let loading = $state(true);
 
 	const rangeDays: Record<RangeKey, number> = { '7d': 6, '30d': 29, '90d': 89 };
@@ -65,45 +57,25 @@
 		fetchData(range);
 	});
 
-	const daysWithEntries = $derived(data.filter((d) => d.calories > 0));
+	const daysWithEntries = $derived(filterDaysWithEntries(data));
 	const totalDays = $derived(daysWithEntries.length);
 
 	function strictCount(key: MacroKey, goalVal: number): number {
-		if (!goalVal) return 0;
-		return daysWithEntries.filter((d) => d[key] >= goalVal).length;
+		return _strictCount(daysWithEntries, key, goalVal);
 	}
 
 	function tolerantCount(key: MacroKey, goalVal: number): number {
-		if (!goalVal) return 0;
-		return daysWithEntries.filter((d) => d[key] >= goalVal * 0.9 && d[key] <= goalVal * 1.1).length;
+		return _tolerantCount(daysWithEntries, key, goalVal);
 	}
 
 	const overallStrict = $derived.by(() => {
-		if (!goals || totalDays === 0) return 0;
-		let total = 0;
-		let hit = 0;
-		for (const macro of macros) {
-			const goalVal = goals[macro.goalKey];
-			if (goalVal) {
-				total += totalDays;
-				hit += strictCount(macro.key, goalVal);
-			}
-		}
-		return total > 0 ? Math.round((hit / total) * 100) : 0;
+		if (!goals) return 0;
+		return overallAdherence(data, goals, _strictCount);
 	});
 
 	const overallTolerant = $derived.by(() => {
-		if (!goals || totalDays === 0) return 0;
-		let total = 0;
-		let hit = 0;
-		for (const macro of macros) {
-			const goalVal = goals[macro.goalKey];
-			if (goalVal) {
-				total += totalDays;
-				hit += tolerantCount(macro.key, goalVal);
-			}
-		}
-		return total > 0 ? Math.round((hit / total) * 100) : 0;
+		if (!goals) return 0;
+		return overallAdherence(data, goals, _tolerantCount);
 	});
 </script>
 
