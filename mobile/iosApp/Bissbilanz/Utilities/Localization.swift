@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 enum AppLocale: String, CaseIterable {
     case en
@@ -336,7 +335,17 @@ enum L10n {
 
     // MARK: - Private
 
-    @AppStorage("app_locale") nonisolated(unsafe) private static var storedLocale: String = ""
+    nonisolated(unsafe) private static var _storedLocale: String?
+
+    private static var storedLocale: String {
+        get {
+            _storedLocale ?? UserDefaults.standard.string(forKey: "app_locale") ?? ""
+        }
+        set {
+            _storedLocale = newValue
+            UserDefaults.standard.set(newValue, forKey: "app_locale")
+        }
+    }
 
     static var currentLocale: AppLocale {
         get {
