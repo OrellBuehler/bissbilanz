@@ -61,7 +61,7 @@ jobs:
         run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
       - name: Upload release AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-aab
           path: mobile/androidApp/build/outputs/bundle/release/*.aab
