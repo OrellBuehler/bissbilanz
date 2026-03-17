@@ -48,9 +48,6 @@ struct TabSelectionView: View {
                     Text(L10n.home)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
                 HStack {
                     Image(systemName: "gear")
@@ -59,9 +56,6 @@ struct TabSelectionView: View {
                     Text(L10n.settings)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
             }
         }

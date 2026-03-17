@@ -306,7 +306,10 @@ final class BissbilanzAPI {
     func setDayProperties(date: String, isFastingDay: Bool) async throws -> DayProperties {
         let body = DayPropertiesSet(isFastingDay: isFastingDay)
         let response: DayPropertiesResponse = try await post("/api/day-properties/\(date)", body: body)
-        return response.properties ?? DayProperties(date: date, userId: "", isFastingDay: isFastingDay)
+        guard let properties = response.properties else {
+            throw APIError.serverError(200, "Server returned null properties for day \(date)")
+        }
+        return properties
     }
 
     func deleteDayProperties(date: String) async throws {

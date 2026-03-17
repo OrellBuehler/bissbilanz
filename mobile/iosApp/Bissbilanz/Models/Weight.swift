@@ -39,4 +39,13 @@ struct WeightStatsResponse: Codable {
     let projected30d: Double?
     let projected60d: Double?
     let entryCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case latest, trend
+        case delta7d = "delta_7d"
+        case projected14d = "projected_14d"
+        case projected30d = "projected_30d"
+        case projected60d = "projected_60d"
+        case entryCount = "entry_count"
+    }
 }

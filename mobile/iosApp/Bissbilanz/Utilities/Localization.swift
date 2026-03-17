@@ -295,7 +295,7 @@ enum L10n {
     // MARK: - Navigation Tabs
 
     static var navigationTabs: String { localized("navigation_tabs", en: "Navigation Tabs", de: "Navigationsleiste") }
-    static var selectTabs: String { localized("select_tabs", en: "Select 3 tabs", de: "Wähle 3 Tabs") }
+    static var selectTabs: String { localized("select_tabs", en: "Select up to 3 tabs", de: "Wähle bis zu 3 Tabs") }
 
     // MARK: - Entries (additional)
 
@@ -304,7 +304,9 @@ enum L10n {
     }
 
     static var failedToCopy: String { localized("failed_to_copy", en: "Failed to copy entries", de: "Einträge konnten nicht kopiert werden") }
-    static var copyConfirmation: String { localized("copy_confirmation", en: "Copy all entries from yesterday?", de: "Alle Einträge von gestern kopieren?") }
+    static func copyConfirmation(to date: String) -> String {
+        localized("copy_confirmation", en: "Copy all entries from yesterday to \(date)?", de: "Alle Einträge von gestern nach \(date) kopieren?")
+    }
 
     // MARK: - NOVA Groups
 
@@ -319,7 +321,7 @@ enum L10n {
         case 2: return novaProcessedIngredients
         case 3: return novaProcessed
         case 4: return novaUltraProcessed
-        default: return ""
+        default: return localized("nova_unknown", en: "Unknown", de: "Unbekannt")
         }
     }
 

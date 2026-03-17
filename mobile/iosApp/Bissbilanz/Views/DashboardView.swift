@@ -95,7 +95,7 @@ struct DashboardView: View {
                     Task { await copyYesterday() }
                 }
             } message: {
-                Text(L10n.copyConfirmation)
+                Text(L10n.copyConfirmation(to: DateFormatting.displayString(from: selectedDate)))
             }
             .task { await loadData() }
             .onChange(of: selectedDate) { _, _ in

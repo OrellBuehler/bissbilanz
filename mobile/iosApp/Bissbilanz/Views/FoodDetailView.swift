@@ -216,7 +216,7 @@ struct FoodDetailView: View {
         case 2: (L10n.novaGroupDescription(2), Color(red: 1.0, green: 0.80, blue: 0.01))
         case 3: (L10n.novaGroupDescription(3), Color(red: 0.93, green: 0.51, blue: 0.0))
         case 4: (L10n.novaGroupDescription(4), Color(red: 0.90, green: 0.24, blue: 0.07))
-        default: ("", Color.secondary)
+        default: (L10n.novaGroupDescription(group), Color.secondary)
         }
 
         return HStack(spacing: 10) {
