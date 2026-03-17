@@ -162,7 +162,7 @@ fun CalendarHeatmap(
                         val ratio = calDay.calories / calorieGoal
                         val dist = abs(1.0 - ratio)
                         if (dist <= 0.10) {
-                            FiberGreen.copy(alpha = (0.4f + 0.5f * revealFraction.value).coerceAtMost(0.9f))
+                            FiberGreen.copy(alpha = 0.9f * revealFraction.value)
                         } else if (ratio > 1.0) {
                             val intensity = min(dist / 0.5, 1.0).toFloat()
                             ProteinRed.copy(alpha = (0.2f + 0.6f * intensity) * revealFraction.value)

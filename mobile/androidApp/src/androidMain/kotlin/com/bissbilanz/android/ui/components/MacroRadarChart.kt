@@ -48,7 +48,6 @@ fun MacroRadarChart(
     }
 
     val density = LocalDensity.current
-    val labelColor = CaloriesBlue
 
     Canvas(
         modifier =
