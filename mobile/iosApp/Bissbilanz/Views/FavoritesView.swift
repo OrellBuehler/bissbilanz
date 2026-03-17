@@ -42,7 +42,7 @@ struct FavoritesView: View {
             }
             .navigationTitle(L10n.favorites)
             .refreshable { await loadFavorites() }
-            .overlay(alignment: .bottom) { toastOverlay }
+            .toast(message: $toastMessage)
             .sheet(item: $selectedFood) { food in
                 LogFoodSheet(food: food, date: DateFormatting.today)
             }
@@ -119,20 +119,6 @@ struct FavoritesView: View {
         }
     }
 
-    @ViewBuilder
-    private var toastOverlay: some View {
-        if let message = toastMessage {
-            Text(message)
-                .font(.subheadline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                .padding(.bottom, 24)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-    }
-
     private func mealForCurrentTime() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
@@ -153,9 +139,11 @@ struct FavoritesView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(food.name) \(L10n.logged)")
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = "\(food.name) \(L10n.logged)"
         } catch {
-            showToast(L10n.failedToLog)
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.failedToLog
         }
     }
 
@@ -169,17 +157,11 @@ struct FavoritesView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(recipe.name) \(L10n.logged)")
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = "\(recipe.name) \(L10n.logged)"
         } catch {
-            showToast(L10n.failedToLog)
-        }
-    }
-
-    private func showToast(_ message: String) {
-        withAnimation { toastMessage = message }
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            withAnimation { toastMessage = nil }
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.failedToLog
         }
     }
 

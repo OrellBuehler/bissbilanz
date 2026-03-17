@@ -12,11 +12,12 @@ struct BarcodeScannerView: View {
     @State private var notFoundBarcode: String?
     @State private var showCreateFood = false
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
+    @State private var isTorchOn = false
 
     var body: some View {
         ZStack {
             if cameraPermission == .authorized {
-                CameraPreviewView(onBarcodeScanned: handleBarcode)
+                CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: $isTorchOn)
                     .ignoresSafeArea()
 
                 viewfinder
@@ -48,14 +49,24 @@ struct BarcodeScannerView: View {
                         Text(L10n.notFound)
                             .foregroundStyle(.white)
 
-                        Button {
-                            notFound = false
-                            showCreateFood = true
-                        } label: {
-                            Label(L10n.createFoodForBarcode, systemImage: "plus.circle")
+                        HStack(spacing: 12) {
+                            Button {
+                                resetScanner()
+                            } label: {
+                                Label(L10n.retry, systemImage: "arrow.counterclockwise")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+
+                            Button {
+                                notFound = false
+                                showCreateFood = true
+                            } label: {
+                                Label(L10n.createFoodForBarcode, systemImage: "plus.circle")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.white)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.white)
                     }
                     .padding()
                     .background(.ultraThinMaterial)
@@ -70,6 +81,16 @@ struct BarcodeScannerView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button(L10n.close) { dismiss() }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                if cameraPermission == .authorized {
+                    Button {
+                        isTorchOn.toggle()
+                    } label: {
+                        Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .foregroundStyle(isTorchOn ? .yellow : .white)
+                    }
+                }
             }
         }
         .task {
@@ -133,17 +154,40 @@ struct BarcodeScannerView: View {
         isSearching = true
         notFound = false
 
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
         Task {
             do {
                 if let food = try await api.findFoodByBarcode(barcode) {
                     foundFood = food
+                } else if let food = try await api.lookupBarcode(barcode) {
+                    // Found in Open Food Facts - create locally
+                    let created = try await api.createFood(FoodCreate(
+                        name: food.name,
+                        brand: food.brand,
+                        servingSize: food.servingSize,
+                        servingUnit: food.servingUnit,
+                        calories: food.calories,
+                        protein: food.protein,
+                        carbs: food.carbs,
+                        fat: food.fat,
+                        fiber: food.fiber,
+                        barcode: barcode,
+                        nutriScore: food.nutriScore,
+                        novaGroup: food.novaGroup,
+                        additives: food.additives,
+                        ingredientsText: food.ingredientsText
+                    ))
+                    foundFood = created
                 } else {
                     notFoundBarcode = barcode
                     notFound = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 }
             } catch {
                 notFoundBarcode = barcode
                 notFound = true
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
             isSearching = false
         }
@@ -156,11 +200,15 @@ struct BarcodeScannerView: View {
     }
 }
 
+// MARK: - Camera Preview
+
 struct CameraPreviewView: UIViewRepresentable {
     let onBarcodeScanned: (String) -> Void
+    @Binding var isTorchOn: Bool
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
+        view.backgroundColor = .black
         let coordinator = context.coordinator
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
@@ -180,10 +228,11 @@ struct CameraPreviewView: UIViewRepresentable {
 
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = UIScreen.main.bounds
         view.layer.addSublayer(previewLayer)
 
         coordinator.session = session
+        coordinator.device = device
+        coordinator.previewLayer = previewLayer
 
         DispatchQueue.global(qos: .userInitiated).async {
             session.startRunning()
@@ -192,7 +241,16 @@ struct CameraPreviewView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_: UIView, context _: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Update preview layer frame to match actual view bounds
+        context.coordinator.previewLayer?.frame = uiView.bounds
+
+        // Update torch
+        guard let device = context.coordinator.device, device.hasTorch else { return }
+        try? device.lockForConfiguration()
+        device.torchMode = isTorchOn ? .on : .off
+        device.unlockForConfiguration()
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onBarcodeScanned: onBarcodeScanned)
@@ -201,6 +259,8 @@ struct CameraPreviewView: UIViewRepresentable {
     class Coordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
         let onBarcodeScanned: (String) -> Void
         var session: AVCaptureSession?
+        var device: AVCaptureDevice?
+        var previewLayer: AVCaptureVideoPreviewLayer?
 
         init(onBarcodeScanned: @escaping (String) -> Void) {
             self.onBarcodeScanned = onBarcodeScanned
@@ -220,5 +280,10 @@ struct CameraPreviewView: UIViewRepresentable {
 
     static func dismantleUIView(_: UIView, coordinator: Coordinator) {
         coordinator.session?.stopRunning()
+        if let device = coordinator.device, device.hasTorch, device.torchMode == .on {
+            try? device.lockForConfiguration()
+            device.torchMode = .off
+            device.unlockForConfiguration()
+        }
     }
 }

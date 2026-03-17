@@ -15,6 +15,14 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var healthKitService = HealthKitService()
     @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "healthkit_sync_enabled")
+    @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+
+    private var selectedTabNames: String {
+        selectedTabsRaw.split(separator: ",")
+            .compactMap { NavigableTab(rawValue: String($0)) }
+            .map(\.label)
+            .joined(separator: ", ")
+    }
 
     // Goal editing fields
     @State private var editCalories = ""
@@ -40,6 +48,22 @@ struct SettingsView: View {
                         editFat = "\(Int(goals.fatGoal))"
                         editFiber = "\(Int(goals.fiberGoal))"
                         isEditingGoals = true
+                    }
+                }
+
+                // Navigation Tabs
+                Section(L10n.navigationTabs) {
+                    NavigationLink {
+                        TabSelectionView()
+                    } label: {
+                        HStack {
+                            Label(L10n.selectTabs, systemImage: "rectangle.3.group")
+                            Spacer()
+                            Text("\(selectedTabNames)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
 
@@ -78,7 +102,7 @@ struct SettingsView: View {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
-                                Text("Permissions granted")
+                                Text(L10n.permissionsGranted)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -86,7 +110,7 @@ struct SettingsView: View {
                             Button {
                                 Task { _ = await healthKitService.requestAuthorization() }
                             } label: {
-                                Label("Grant Permissions", systemImage: "heart.circle")
+                                Label(L10n.grantPermissions, systemImage: "heart.circle")
                             }
                         }
                     }
@@ -149,7 +173,7 @@ struct SettingsView: View {
 
                 // Dashboard widgets
                 Section(L10n.dashboardWidgets) {
-                    Toggle("Chart", isOn: widgetBinding(\.showChartWidget, key: "showChartWidget"))
+                    Toggle(L10n.caloriesTrend, isOn: widgetBinding(\.showChartWidget, key: "showChartWidget"))
                     Toggle(L10n.favorites, isOn: widgetBinding(\.showFavoritesWidget, key: "showFavoritesWidget"))
                     Toggle(L10n.supplements, isOn: widgetBinding(\.showSupplementsWidget, key: "showSupplementsWidget"))
                     Toggle(L10n.weight, isOn: widgetBinding(\.showWeightWidget, key: "showWeightWidget"))
@@ -415,14 +439,14 @@ struct VisibleNutrientsView: View {
         List {
             Section {
                 HStack(spacing: 12) {
-                    Button("Select All") {
+                    Button(L10n.selectAll) {
                         selectedNutrients = Set(Self.allNutrientKeys)
                         isDirty = true
                     }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
 
-                    Button("Deselect All") {
+                    Button(L10n.deselectAll) {
                         selectedNutrients = []
                         isDirty = true
                     }

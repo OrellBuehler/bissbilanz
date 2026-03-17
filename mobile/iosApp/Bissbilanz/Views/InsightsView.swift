@@ -10,9 +10,11 @@ struct InsightsView: View {
     @State private var topFoods: [TopFoodEntry] = []
     @State private var dailyStats: [DailyStatsEntry] = []
     @State private var mealBreakdown: [MealBreakdownEntry] = []
+    @State private var calendarDays: [CalendarDay] = []
     @State private var goals: Goals?
     @State private var selectedRange = 7
     @State private var isLoading = true
+    @State private var calendarMonth = Date()
 
     var body: some View {
         NavigationStack {
@@ -25,8 +27,10 @@ struct InsightsView: View {
                         streaksCard
                         calorieTrendChart
                         macroTrendsCard
+                        macroRadarCard
                         mealBreakdownChart
                         goalAchievementCard
+                        calendarHeatmapCard
                         comparisonCard
                         topFoodsCard
                     }
@@ -45,6 +49,7 @@ struct InsightsView: View {
         Picker(L10n.period, selection: $selectedRange) {
             Text("7d").tag(7)
             Text("30d").tag(30)
+            Text("90d").tag(90)
         }
         .pickerStyle(.segmented)
         .onChange(of: selectedRange) { _, _ in
@@ -68,6 +73,7 @@ struct InsightsView: View {
                             y: .value("Calories", stat.calories)
                         )
                         .foregroundStyle(MacroColors.calories)
+                        .interpolationMethod(.catmullRom)
 
                         if let goal = goals?.calorieGoal {
                             RuleMark(y: .value("Goal", goal))
@@ -174,7 +180,7 @@ struct InsightsView: View {
                     .foregroundStyle(color)
                 Spacer()
                 let avg = data.isEmpty ? 0.0 : data.map(\.1).reduce(0, +) / Double(data.count)
-                Text("Avg: \(Int(avg)) \(unit)")
+                Text("\(L10n.average): \(Int(avg)) \(unit)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -190,6 +196,37 @@ struct InsightsView: View {
             .chartYAxis(.hidden)
             .chartXAxis(.hidden)
             .frame(height: 50)
+        }
+    }
+
+    // MARK: - Macro Radar Chart
+
+    @ViewBuilder
+    private var macroRadarCard: some View {
+        if let goals, !dailyStats.isEmpty {
+            let avgCal = dailyStats.map(\.calories).reduce(0, +) / Double(dailyStats.count)
+            let avgP = dailyStats.map(\.protein).reduce(0, +) / Double(dailyStats.count)
+            let avgC = dailyStats.map(\.carbs).reduce(0, +) / Double(dailyStats.count)
+            let avgF = dailyStats.map(\.fat).reduce(0, +) / Double(dailyStats.count)
+            let avgFb = dailyStats.map(\.fiber).reduce(0, +) / Double(dailyStats.count)
+
+            let axes: [(String, Double, Color)] = [
+                (L10n.calories, goals.calorieGoal > 0 ? avgCal / goals.calorieGoal : 0, MacroColors.calories),
+                (L10n.protein, goals.proteinGoal > 0 ? avgP / goals.proteinGoal : 0, MacroColors.protein),
+                (L10n.carbs, goals.carbGoal > 0 ? avgC / goals.carbGoal : 0, MacroColors.carbs),
+                (L10n.fat, goals.fatGoal > 0 ? avgF / goals.fatGoal : 0, MacroColors.fat),
+                (L10n.fiber, goals.fiberGoal > 0 ? avgFb / goals.fiberGoal : 0, MacroColors.fiber),
+            ]
+
+            CardView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label(L10n.macroBalance, systemImage: "pentagon")
+                        .font(.headline)
+
+                    MacroRadarView(axes: axes)
+                        .frame(height: 200)
+                }
+            }
         }
     }
 
@@ -252,6 +289,98 @@ struct InsightsView: View {
         }
     }
 
+    // MARK: - Calendar Heatmap
+
+    @ViewBuilder
+    private var calendarHeatmapCard: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label(L10n.calendarHeatmap, systemImage: "calendar")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        calendarMonth = calendarMonth.adding(months: -1)
+                        Task { await loadCalendar() }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    Text(DateFormatting.monthYear(from: calendarMonth))
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Button {
+                        calendarMonth = calendarMonth.adding(months: 1)
+                        Task { await loadCalendar() }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                }
+
+                // Weekday headers
+                HStack(spacing: 0) {
+                    ForEach(L10n.weekdayHeaders, id: \.self) { header in
+                        Text(header)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Calendar grid
+                let startOfMonth = calendarMonth.startOfMonth
+                let daysInMonth = calendarMonth.daysInMonth
+                let offset = startOfMonth.weekdayOffset
+                let dayMap = Dictionary(uniqueKeysWithValues: calendarDays.map { ($0.date, $0) })
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 2) {
+                    ForEach(0..<offset, id: \.self) { _ in
+                        Color.clear.frame(height: 28)
+                    }
+                    ForEach(1...daysInMonth, id: \.self) { day in
+                        let date = Calendar.current.date(byAdding: .day, value: day - 1, to: startOfMonth)
+                        let dateStr = date.map { DateFormatting.isoString(from: $0) } ?? ""
+                        let calDay = dayMap[dateStr]
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(calendarDayColor(calDay))
+                            .frame(height: 28)
+                            .overlay {
+                                Text("\(day)")
+                                    .font(.caption2)
+                                    .foregroundStyle(calDay != nil ? .white : .primary)
+                            }
+                    }
+                }
+
+                // Legend
+                HStack(spacing: 16) {
+                    legendItem(color: .green, label: L10n.onTarget)
+                    legendItem(color: MacroColors.calories, label: L10n.hasEntries)
+                    legendItem(color: Color(.systemGray5), label: L10n.noData)
+                }
+                .font(.caption2)
+            }
+        }
+    }
+
+    private func calendarDayColor(_ day: CalendarDay?) -> Color {
+        guard let day else { return Color(.systemGray5) }
+        if day.metGoal { return .green }
+        if day.calories > 0 { return MacroColors.calories }
+        return Color(.systemGray5)
+    }
+
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 10, height: 10)
+            Text(label)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Weekly vs Monthly Comparison
 
     @ViewBuilder
@@ -262,7 +391,6 @@ struct InsightsView: View {
                     Label(L10n.avgComparison, systemImage: "arrow.left.arrow.right")
                         .font(.headline)
 
-                    // Header row
                     HStack {
                         Text("")
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -378,6 +506,7 @@ struct InsightsView: View {
         goals = await g
 
         await loadChartData()
+        await loadCalendar()
         isLoading = false
     }
 
@@ -398,7 +527,105 @@ struct InsightsView: View {
         mealBreakdown = await meals ?? []
         topFoods = await foods ?? []
     }
+
+    private func loadCalendar() async {
+        let components = Calendar.current.dateComponents([.month, .year], from: calendarMonth)
+        calendarDays = (try? await api.getCalendarStats(month: components.month ?? 1, year: components.year ?? 2026)) ?? []
+    }
 }
+
+// MARK: - Macro Radar View
+
+struct MacroRadarView: View {
+    let axes: [(String, Double, Color)] // (label, ratio to goal, color)
+
+    var body: some View {
+        GeometryReader { geo in
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+            let radius = min(geo.size.width, geo.size.height) / 2 - 24
+            let count = axes.count
+
+            Canvas { context, _ in
+                // Draw concentric pentagons (25%, 50%, 75%, 100%)
+                for level in [0.25, 0.5, 0.75, 1.0] {
+                    let path = polygonPath(center: center, radius: radius * level, sides: count)
+                    context.stroke(path, with: .color(.gray.opacity(0.2)), lineWidth: 1)
+                }
+
+                // Draw axes
+                for i in 0..<count {
+                    let angle = angleFor(index: i, total: count)
+                    let point = pointAt(center: center, radius: radius, angle: angle)
+                    var path = Path()
+                    path.move(to: center)
+                    path.addLine(to: point)
+                    context.stroke(path, with: .color(.gray.opacity(0.15)), lineWidth: 1)
+                }
+
+                // Draw filled data polygon
+                var dataPath = Path()
+                for i in 0..<count {
+                    let ratio = min(axes[i].1, 1.5)
+                    let angle = angleFor(index: i, total: count)
+                    let point = pointAt(center: center, radius: radius * ratio, angle: angle)
+                    if i == 0 {
+                        dataPath.move(to: point)
+                    } else {
+                        dataPath.addLine(to: point)
+                    }
+                }
+                dataPath.closeSubpath()
+
+                context.fill(dataPath, with: .color(.blue.opacity(0.15)))
+                context.stroke(dataPath, with: .color(.blue), lineWidth: 2)
+            }
+
+            // Draw labels
+            ForEach(0..<count, id: \.self) { i in
+                let angle = angleFor(index: i, total: count)
+                let labelRadius = radius + 16
+                let point = pointAt(center: center, radius: labelRadius, angle: angle)
+                let pct = Int(min(axes[i].1, 2.0) * 100)
+
+                Text("\(axes[i].0)\n\(pct)%")
+                    .font(.system(size: 9))
+                    .fontWeight(.medium)
+                    .foregroundStyle(axes[i].2)
+                    .multilineTextAlignment(.center)
+                    .position(point)
+            }
+        }
+    }
+
+    private func angleFor(index: Int, total: Int) -> Double {
+        let slice = 2 * .pi / Double(total)
+        return slice * Double(index) - .pi / 2
+    }
+
+    private func pointAt(center: CGPoint, radius: Double, angle: Double) -> CGPoint {
+        CGPoint(
+            x: center.x + radius * cos(angle),
+            y: center.y + radius * sin(angle)
+        )
+    }
+
+    private func polygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
+        var path = Path()
+        for i in 0..<sides {
+            let angle = angleFor(index: i, total: sides)
+            let point = pointAt(center: center, radius: radius, angle: angle)
+            if i == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Card View
 
 struct CardView<Content: View>: View {
     @ViewBuilder let content: Content

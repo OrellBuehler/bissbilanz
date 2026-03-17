@@ -30,3 +30,13 @@ struct WeightEntriesResponse: Codable {
 struct WeightEntryResponse: Codable {
     let entry: WeightEntry
 }
+
+struct WeightStatsResponse: Codable {
+    let latest: Double?
+    let trend: Double?
+    let delta7d: Double?
+    let projected14d: Double?
+    let projected30d: Double?
+    let projected60d: Double?
+    let entryCount: Int
+}

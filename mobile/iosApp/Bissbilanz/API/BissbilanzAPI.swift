@@ -296,6 +296,29 @@ final class BissbilanzAPI {
         try await deleteRequest("/api/meal-types/\(id)")
     }
 
+    // MARK: - Day Properties
+
+    func getDayProperties(date: String) async throws -> DayProperties? {
+        let response: DayPropertiesResponse = try await get("/api/day-properties/\(date)")
+        return response.properties
+    }
+
+    func setDayProperties(date: String, isFastingDay: Bool) async throws -> DayProperties {
+        let body = DayPropertiesSet(isFastingDay: isFastingDay)
+        let response: DayPropertiesResponse = try await post("/api/day-properties/\(date)", body: body)
+        return response.properties ?? DayProperties(date: date, userId: "", isFastingDay: isFastingDay)
+    }
+
+    func deleteDayProperties(date: String) async throws {
+        try await deleteRequest("/api/day-properties/\(date)")
+    }
+
+    // MARK: - Weight Stats
+
+    func getWeightStats() async throws -> WeightStatsResponse {
+        try await get("/api/weight/stats")
+    }
+
     // MARK: - Open Food Facts proxy
 
     func lookupBarcode(_ barcode: String) async throws -> Food? {
