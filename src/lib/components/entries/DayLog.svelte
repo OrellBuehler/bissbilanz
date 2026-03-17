@@ -4,7 +4,7 @@
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
 	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
-	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+	import { DEFAULT_MEAL_TYPES, getCurrentMealByTime } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { entryService } from '$lib/services/entry-service.svelte';
@@ -40,7 +40,7 @@
 	let recipes = $derived(recipesQuery.value);
 
 	let editModalOpen = $state(false);
-	let activeMeal = $state('Breakfast');
+	let activeMeal = $state(getCurrentMealByTime());
 	let editingEntry: {
 		id: string;
 		servings: number;
