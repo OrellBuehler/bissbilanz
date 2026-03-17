@@ -9,7 +9,8 @@
 	import * as m from '$lib/paraglide/messages';
 
 	type Ingredient = {
-		id: string;
+		id?: string;
+		recipeId?: string;
 		foodId: string;
 		quantity: number;
 		servingUnit: string;
@@ -24,6 +25,7 @@
 			isFavorite: boolean;
 			imageUrl: string | null;
 			ingredients: Ingredient[];
+			[key: string]: unknown;
 		};
 		onSave: (payload: {
 			name: string;

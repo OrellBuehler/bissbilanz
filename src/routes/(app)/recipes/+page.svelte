@@ -8,9 +8,11 @@
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { api } from '$lib/api/client';
+	import type { components } from '$lib/api/generated/schema';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import { uploadImage } from '$lib/utils/image-upload';
+	import type { buildRecipePayload } from '$lib/utils/recipe-builder';
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
@@ -18,7 +20,7 @@
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
-	let editingRecipe: any | null = $state(null);
+	let editingRecipe = $state<components['schemas']['RecipeDetail'] | null>(null);
 	let editImageUrl: string | null = $state(null);
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
@@ -38,7 +40,7 @@
 		if (data) foods = data.foods;
 	};
 
-	const createRecipe = async (payload: any) => {
+	const createRecipe = async (payload: ReturnType<typeof buildRecipePayload>) => {
 		await api.POST('/api/recipes', { body: payload });
 		closeForm();
 		recipeService.refresh();

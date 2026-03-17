@@ -33,6 +33,11 @@ export async function fetchUser(): Promise<void> {
 	state.isLoading = true;
 	try {
 		const response = await fetch('/api/auth/me');
+		if (!response.ok) {
+			state.user = null;
+			state.isAuthenticated = false;
+			return;
+		}
 		const data = await response.json();
 		state.user = data.user;
 		state.isAuthenticated = !!data.user;

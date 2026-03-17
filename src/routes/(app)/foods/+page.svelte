@@ -11,6 +11,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { api } from '$lib/api/client';
+	import type { components } from '$lib/api/generated/schema';
 
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
@@ -25,11 +26,11 @@
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
 	let showForm = $state(false);
-	let editingFood: any | null = $state(null);
+	let editingFood = $state<components['schemas']['Food'] | null>(null);
 	let editImageUrl: string | null = $state(null);
 	let uploading = $state(false);
 
-	let offData = $state<any>(null);
+	let offData = $state<components['schemas']['OpenFoodFactsProduct'] | null>(null);
 	let offLoading = $state(false);
 	let offNotFound = $state(false);
 	let activeBarcode = $state('');
@@ -62,6 +63,7 @@
 		}
 	});
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- FoodFormData is local to FoodForm.svelte
 	const createFood = async (payload: any) => {
 		const body = offData
 			? {
@@ -90,6 +92,7 @@
 		foodService.refresh();
 	};
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- FoodFormData is local to FoodForm.svelte
 	const updateFood = async (payload: any) => {
 		if (!editingFood) return;
 		const { error } = await api.PATCH('/api/foods/{id}', {
@@ -250,15 +253,15 @@
 					fiber: editingFood.fiber,
 					barcode: editingFood.barcode ?? '',
 					isFavorite: editingFood.isFavorite,
-					nutriScore: editingFood.nutriScore,
+					nutriScore: editingFood.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null,
 					...pickNutrients(editingFood)
 				}
 			: offData
 				? {
 						name: offData.name,
-						brand: offData.brand,
-						servingSize: offData.servingSize,
-						servingUnit: offData.servingUnit,
+						brand: offData.brand ?? '',
+						servingSize: offData.servingSize ?? 100,
+						servingUnit: (offData.servingUnit ?? 'g') as import('$lib/units').ServingUnit,
 						calories: offData.calories,
 						protein: offData.protein,
 						carbs: offData.carbs,
@@ -325,14 +328,14 @@
 				</Collapsible.Trigger>
 				<Collapsible.Content>
 					<FoodQualityPanel
-						nutriScore={offData.nutriScore}
-						novaGroup={offData.novaGroup}
+						nutriScore={offData.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null}
+						novaGroup={offData.novaGroup as 1 | 2 | 3 | 4 | null}
 						additives={offData.additives}
 						ingredientsText={offData.ingredientsText}
 					/>
 				</Collapsible.Content>
 			</Collapsible.Root>
-		{:else if editingFood && (editingFood.novaGroup || editingFood.additives?.length > 0 || editingFood.ingredientsText)}
+		{:else if editingFood && (editingFood.novaGroup || (editingFood.additives?.length ?? 0) > 0 || editingFood.ingredientsText)}
 			<div class="mb-3">
 				<Collapsible.Root bind:open={qualityOpen}>
 					<Collapsible.Trigger
@@ -343,7 +346,7 @@
 					</Collapsible.Trigger>
 					<Collapsible.Content>
 						<FoodQualityPanel
-							novaGroup={editingFood.novaGroup}
+							novaGroup={editingFood.novaGroup as 1 | 2 | 3 | 4 | null}
 							additives={editingFood.additives}
 							ingredientsText={editingFood.ingredientsText}
 						/>

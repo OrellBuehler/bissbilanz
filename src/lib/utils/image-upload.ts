@@ -29,16 +29,25 @@ export async function uploadImage(file: File, target: UploadTarget): Promise<str
 		}
 		const { imageUrl } = await uploadRes.json();
 
-		if (target.type === 'food') {
-			await api.PATCH('/api/foods/{id}', {
-				params: { path: { id: target.id } },
-				body: { imageUrl }
+		const { error } =
+			target.type === 'food'
+				? await api.PATCH('/api/foods/{id}', {
+						params: { path: { id: target.id } },
+						body: { imageUrl }
+					})
+				: await api.PATCH('/api/recipes/{id}', {
+						params: { path: { id: target.id } },
+						body: { imageUrl }
+					});
+
+		if (error) {
+			Sentry.logger.error('Image URL save failed', {
+				targetType: target.type,
+				targetId: target.id,
+				error: JSON.stringify(error)
 			});
-		} else {
-			await api.PATCH('/api/recipes/{id}', {
-				params: { path: { id: target.id } },
-				body: { imageUrl }
-			});
+			toast.error(m.image_upload_failed());
+			return null;
 		}
 
 		toast.success(m.image_uploaded());
