@@ -336,7 +336,7 @@ enum L10n {
 
     // MARK: - Private
 
-    @AppStorage("app_locale") private static var storedLocale: String = ""
+    @AppStorage("app_locale") nonisolated(unsafe) private static var storedLocale: String = ""
 
     static var currentLocale: AppLocale {
         get {
