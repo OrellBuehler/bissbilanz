@@ -232,7 +232,7 @@ struct FavoriteCard: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
                     .background(Color.accentColor.opacity(0.12))
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)

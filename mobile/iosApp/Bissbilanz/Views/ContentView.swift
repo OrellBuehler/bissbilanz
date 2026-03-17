@@ -50,19 +50,22 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            Tab(L10n.home, systemImage: "house") {
-                DashboardView()
-            }
+            DashboardView()
+                .tabItem {
+                    Label(L10n.home, systemImage: "house")
+                }
 
             ForEach(selectedTabs) { tab in
-                Tab(tab.label, systemImage: tab.icon) {
-                    tab.destination
-                }
+                tab.destination
+                    .tabItem {
+                        Label(tab.label, systemImage: tab.icon)
+                    }
             }
 
-            Tab(L10n.settings, systemImage: "gear") {
-                SettingsView()
-            }
+            SettingsView()
+                .tabItem {
+                    Label(L10n.settings, systemImage: "gear")
+                }
         }
     }
 }
