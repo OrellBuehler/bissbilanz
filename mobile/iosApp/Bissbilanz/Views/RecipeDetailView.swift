@@ -15,7 +15,7 @@ struct RecipeDetailView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        Group {
+        VStack {
             if isLoading {
                 LoadingView()
             } else if let error {
@@ -29,7 +29,7 @@ struct RecipeDetailView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 52))
-                            .foregroundStyle(.white, .accentColor)
+                            .foregroundStyle(.white, Color.accentColor)
                             .shadow(radius: 4, y: 2)
                     }
                     .padding(20)

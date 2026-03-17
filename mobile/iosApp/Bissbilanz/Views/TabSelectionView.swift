@@ -23,7 +23,7 @@ struct TabSelectionView: View {
                     } label: {
                         HStack {
                             Image(systemName: tab.icon)
-                                .foregroundStyle(isSelected ? .accentColor : .secondary)
+                                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                                 .frame(width: 28)
                             Text(tab.label)
                                 .foregroundStyle(.primary)
