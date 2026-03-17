@@ -98,7 +98,7 @@ android {
         implementation(libs.coil.compose)
         implementation(libs.glance.appwidget)
         implementation(libs.work.runtime)
-        implementation("com.google.guava:guava:33.3.1-android")
+        implementation("com.google.guava:guava:33.5.0-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)
         testImplementation(libs.mockk)
