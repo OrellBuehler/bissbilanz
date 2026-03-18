@@ -5,10 +5,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Entry(
     val id: String,
-    val userId: String,
+    val userId: String = "",
     val foodId: String? = null,
     val recipeId: String? = null,
-    val date: String,
+    val date: String = "",
     val mealType: String,
     val servings: Double,
     val notes: String? = null,

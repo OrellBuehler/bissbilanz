@@ -77,7 +77,10 @@ fun RecipeDetailScreen(
                 scope.launch {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                        entryRepo.createEntry(EntryCreate(recipeId = recipe!!.id, mealType = meal, servings = servings, date = today))
+                        entryRepo.createEntry(
+                            EntryCreate(recipeId = recipe!!.id, mealType = meal, servings = servings, date = today),
+                            recipe = recipe,
+                        )
                         snackbarHostState.showSnackbar("Logged ${recipe!!.name}")
                     } catch (_: Exception) {
                         snackbarHostState.showSnackbar("Failed to log recipe")

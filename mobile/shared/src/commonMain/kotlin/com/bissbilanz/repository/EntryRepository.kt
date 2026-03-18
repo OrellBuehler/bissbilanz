@@ -174,7 +174,7 @@ class EntryRepository(
     ) {
         db.bissbilanzDatabaseQueries.transaction {
             db.bissbilanzDatabaseQueries.deleteEntriesByDate(date)
-            entries.forEach { entry -> cacheEntry(entry) }
+            entries.forEach { entry -> cacheEntry(entry.copy(date = date)) }
             db.bissbilanzDatabaseQueries.upsertSyncMeta(
                 entityType = "entries:$date",
                 lastSyncedAt = Clock.System.now().toString(),

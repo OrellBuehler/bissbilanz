@@ -57,7 +57,10 @@ fun RecipeListScreen(navController: NavController) {
                 scope.launch {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                        entryRepo.createEntry(EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today))
+                        entryRepo.createEntry(
+                            EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today),
+                            recipe = recipeToLog,
+                        )
                         snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
                     } catch (_: Exception) {
                         snackbarHostState.showSnackbar("Failed to log recipe")

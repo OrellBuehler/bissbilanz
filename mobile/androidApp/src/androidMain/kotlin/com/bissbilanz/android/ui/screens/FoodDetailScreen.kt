@@ -101,6 +101,7 @@ fun FoodDetailScreen(
                                 servings = servings,
                                 date = today,
                             ),
+                            food = food,
                         )
                         snackbarHostState.showSnackbar("Logged ${food!!.name}")
                     } catch (_: Exception) {
