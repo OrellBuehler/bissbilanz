@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 enum AppLocale: String, CaseIterable {
     case en
@@ -220,15 +219,133 @@ enum L10n {
     static var openSettings: String { localized("open_settings", en: "Open Settings", de: "Einstellungen öffnen") }
     static var enableCameraHint: String { localized("enable_camera_hint", en: "Enable camera access in Settings to scan barcodes.", de: "Aktiviere den Kamerazugriff in den Einstellungen, um Barcodes zu scannen.") }
     static var createFoodForBarcode: String { localized("create_food_for_barcode", en: "Create food for this barcode", de: "Lebensmittel für diesen Barcode erstellen") }
+    static var torch: String { localized("torch", en: "Torch", de: "Taschenlampe") }
 
     // MARK: - Login
 
     static var trackNutrition: String { localized("track_nutrition", en: "Track your nutrition", de: "Verfolge deine Ernährung") }
     static var signIn: String { localized("sign_in", en: "Sign in", de: "Anmelden") }
 
+    // MARK: - Day Properties
+
+    static var fastingDay: String { localized("fasting_day", en: "Fasting Day", de: "Fastentag") }
+    static var fastingDayToggle: String { localized("fasting_day_toggle", en: "Mark as fasting day", de: "Als Fastentag markieren") }
+
+    // MARK: - Weight (additional)
+
+    static var latestWeight: String { localized("latest_weight", en: "Latest", de: "Aktuell") }
+    static var trendWeight: String { localized("trend_weight", en: "Trend", de: "Trend") }
+    static var delta7d: String { localized("delta_7d", en: "7d Change", de: "7-Tage-Änderung") }
+    static var projected: String { localized("projected", en: "Projected", de: "Prognose") }
+    static var projection14d: String { localized("projection_14d", en: "14d", de: "14T") }
+    static var projection30d: String { localized("projection_30d", en: "30d", de: "30T") }
+    static var projection60d: String { localized("projection_60d", en: "60d", de: "60T") }
+    static var movingAverage7d: String { localized("moving_average_7d", en: "7d avg", de: "7T Ø") }
+    static var notes: String { localized("notes", en: "Notes", de: "Notizen") }
+
+    // MARK: - Insights (additional)
+
+    static var calendarHeatmap: String { localized("calendar_heatmap", en: "Calendar", de: "Kalender") }
+    static var macroBalance: String { localized("macro_balance", en: "Macro Balance", de: "Makro-Balance") }
+    static var onTarget: String { localized("on_target", en: "On Target", de: "Im Ziel") }
+    static var hasEntries: String { localized("has_entries", en: "Has Entries", de: "Einträge vorhanden") }
+    static var noData: String { localized("no_data", en: "No data", de: "Keine Daten") }
+    static var average: String { localized("average", en: "Avg", de: "Ø") }
+    static var avgCalories: String { localized("avg_calories", en: "Avg Calories", de: "Ø Kalorien") }
+
+    // MARK: - HealthKit (additional)
+
+    static var permissionsGranted: String { localized("permissions_granted", en: "Permissions granted", de: "Berechtigungen erteilt") }
+    static var grantPermissions: String { localized("grant_permissions", en: "Grant Permissions", de: "Berechtigungen erteilen") }
+
+    // MARK: - Visible Nutrients (additional)
+
+    static var selectAll: String { localized("select_all", en: "Select All", de: "Alle auswählen") }
+    static var deselectAll: String { localized("deselect_all", en: "Deselect All", de: "Alle abwählen") }
+    static var fatBreakdownCategory: String { localized("fat_breakdown_category", en: "Fat Breakdown", de: "Fettaufschlüsselung") }
+    static var sugarsAndCarbs: String { localized("sugars_and_carbs", en: "Sugars & Carbs", de: "Zucker & Kohlenhydrate") }
+
+    // MARK: - Maintenance (additional)
+
+    static var avgDailyIntake: String { localized("avg_daily_intake", en: "Avg Daily Intake", de: "Ø Tagesaufnahme") }
+    static var dailyDeficitSurplus: String { localized("daily_deficit_surplus", en: "Daily Surplus/Deficit", de: "Täglicher Überschuss/Defizit") }
+    static var weightChange: String { localized("weight_change", en: "Weight Change", de: "Gewichtsänderung") }
+    static var fatChange: String { localized("fat_change", en: "Fat Change", de: "Fettänderung") }
+    static var muscleChange: String { localized("muscle_change", en: "Muscle Change", de: "Muskeländerung") }
+    static var totalDays: String { localized("total_days", en: "Total Days", de: "Gesamttage") }
+    static var weightEntries: String { localized("weight_entries", en: "Weight Entries", de: "Gewichtseinträge") }
+    static var foodEntryDays: String { localized("food_entry_days", en: "Food Entry Days", de: "Tage mit Einträgen") }
+    static var coverage: String { localized("coverage", en: "Coverage", de: "Abdeckung") }
+    static var startWeight: String { localized("start_weight", en: "Start Weight", de: "Startgewicht") }
+    static var endWeight: String { localized("end_weight", en: "End Weight", de: "Endgewicht") }
+    static var lowCoverageWarning: String { localized("low_coverage_warning", en: "Low data coverage may affect accuracy", de: "Geringe Datenabdeckung kann die Genauigkeit beeinflussen") }
+    static var kcalPerDay: String { localized("kcal_per_day", en: "kcal/day", de: "kcal/Tag") }
+    static var fatLabel: String { localized("fat_label", en: "Fat", de: "Fett") }
+    static var muscleLabel: String { localized("muscle_label", en: "Muscle", de: "Muskel") }
+
+    // MARK: - Supplement History (additional)
+
+    static var taken: String { localized("taken", en: "Taken", de: "Eingenommen") }
+    static var noHistoryForPeriod: String { localized("no_history_for_period", en: "No history for this period", de: "Kein Verlauf für diesen Zeitraum") }
+    static var from: String { localized("from", en: "From", de: "Von") }
+    static var to: String { localized("to", en: "To", de: "Bis") }
+    static var dateRange: String { localized("date_range", en: "Date Range", de: "Zeitraum") }
+
+    // MARK: - Navigation Tabs
+
+    static var navigationTabs: String { localized("navigation_tabs", en: "Navigation Tabs", de: "Navigationsleiste") }
+    static var selectTabs: String { localized("select_tabs", en: "Select up to 3 tabs", de: "Wähle bis zu 3 Tabs") }
+
+    // MARK: - Entries (additional)
+
+    static func entriesCopied(_ count: Int) -> String {
+        localized("entries_copied", en: "\(count) entries copied", de: "\(count) Einträge kopiert")
+    }
+
+    static var failedToCopy: String { localized("failed_to_copy", en: "Failed to copy entries", de: "Einträge konnten nicht kopiert werden") }
+    static func copyConfirmation(to date: String) -> String {
+        localized("copy_confirmation", en: "Copy all entries from yesterday to \(date)?", de: "Alle Einträge von gestern nach \(date) kopieren?")
+    }
+
+    // MARK: - NOVA Groups
+
+    static var novaUnprocessed: String { localized("nova_unprocessed", en: "Unprocessed", de: "Unverarbeitet") }
+    static var novaProcessedIngredients: String { localized("nova_processed_ingredients", en: "Processed ingredients", de: "Verarbeitete Zutaten") }
+    static var novaProcessed: String { localized("nova_processed", en: "Processed", de: "Verarbeitet") }
+    static var novaUltraProcessed: String { localized("nova_ultra_processed", en: "Ultra-processed", de: "Hochverarbeitet") }
+
+    static func novaGroupDescription(_ group: Int) -> String {
+        switch group {
+        case 1: return novaUnprocessed
+        case 2: return novaProcessedIngredients
+        case 3: return novaProcessed
+        case 4: return novaUltraProcessed
+        default: return localized("nova_unknown", en: "Unknown", de: "Unbekannt")
+        }
+    }
+
+    // MARK: - Weekday Abbreviations
+
+    static var weekdayHeaders: [String] {
+        switch currentLocale {
+        case .en: return ["M", "T", "W", "T", "F", "S", "S"]
+        case .de: return ["M", "D", "M", "D", "F", "S", "S"]
+        }
+    }
+
     // MARK: - Private
 
-    @AppStorage("app_locale") private static var storedLocale: String = ""
+    nonisolated(unsafe) private static var _storedLocale: String?
+
+    private static var storedLocale: String {
+        get {
+            _storedLocale ?? UserDefaults.standard.string(forKey: "app_locale") ?? ""
+        }
+        set {
+            _storedLocale = newValue
+            UserDefaults.standard.set(newValue, forKey: "app_locale")
+        }
+    }
 
     static var currentLocale: AppLocale {
         get {

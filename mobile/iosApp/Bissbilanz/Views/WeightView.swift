@@ -5,11 +5,14 @@ struct WeightView: View {
     @Environment(BissbilanzAPI.self) private var api
 
     @State private var entries: [WeightEntry] = []
+    @State private var weightStats: WeightStatsResponse?
     @State private var isLoading = true
     @State private var showAddSheet = false
     @State private var editingEntry: WeightEntry?
     @State private var selectedRange = 30
     @State private var errorMessage: String?
+    @State private var showProjection = false
+    @State private var projectionDays = 30
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
@@ -58,8 +61,41 @@ struct WeightView: View {
         return result
     }
 
+    private var projectionData: [(date: Date, weight: Double)] {
+        guard showProjection, chartEntries.count >= 3 else { return [] }
+        let sorted = chartEntries.compactMap { entry -> (Date, Double)? in
+            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
+            return (date, entry.weightKg)
+        }
+
+        // Simple linear regression
+        let n = Double(sorted.count)
+        let xVals = sorted.enumerated().map { Double($0.offset) }
+        let yVals = sorted.map(\.1)
+        let xMean = xVals.reduce(0, +) / n
+        let yMean = yVals.reduce(0, +) / n
+        let numerator = zip(xVals, yVals).map { ($0 - xMean) * ($1 - yMean) }.reduce(0, +)
+        let denominator = xVals.map { ($0 - xMean) * ($0 - xMean) }.reduce(0, +)
+        guard denominator > 0 else { return [] }
+        let slope = numerator / denominator
+        let intercept = yMean - slope * xMean
+
+        guard let lastDate = sorted.last?.0 else { return [] }
+        var result: [(Date, Double)] = []
+        // Start from last actual data point
+        let lastX = n - 1
+        result.append((lastDate, slope * lastX + intercept))
+        for day in 1...projectionDays {
+            let futureDate = lastDate.adding(days: day)
+            let futureWeight = slope * (lastX + Double(day)) + intercept
+            result.append((futureDate, futureWeight))
+        }
+        return result
+    }
+
     private var weightRange: ClosedRange<Double> {
-        let weights = chartEntries.map(\.weightKg)
+        var weights = chartEntries.map(\.weightKg)
+        weights.append(contentsOf: projectionData.map(\.weight))
         guard let minW = weights.min(), let maxW = weights.max() else {
             return 0...100
         }
@@ -80,14 +116,8 @@ struct WeightView: View {
                     )
                 } else {
                     List {
-                        if let latest = entries.first {
-                            currentWeightSection(latest)
-                        }
-
-                        if chartEntries.count >= 2 {
-                            chartSection
-                        }
-
+                        statsChipsSection
+                        if chartEntries.count >= 2 { chartSection }
                         historySection
                     }
                     .listStyle(.insetGrouped)
@@ -123,36 +153,55 @@ struct WeightView: View {
         }
     }
 
-    // MARK: - Current Weight Section
+    // MARK: - Stats Chips
 
-    private func currentWeightSection(_ latest: WeightEntry) -> some View {
+    private var statsChipsSection: some View {
         Section {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(L10n.current)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(latest.weightKg, specifier: "%.1f") kg")
-                        .font(.title)
-                        .fontWeight(.bold)
-                }
-                Spacer()
-                if entries.count >= 2 {
-                    let diff = latest.weightKg - entries[1].weightKg
-                    VStack(alignment: .trailing) {
-                        Text(L10n.change)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 2) {
-                            Image(systemName: diff >= 0 ? "arrow.up" : "arrow.down")
-                            Text("\(abs(diff), specifier: "%.1f") kg")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    if let latest = entries.first {
+                        statChip(L10n.latestWeight, value: String(format: "%.1f kg", latest.weightKg), color: .blue)
+                    }
+
+                    if let stats = weightStats {
+                        if let trend = stats.trend {
+                            statChip(L10n.trendWeight, value: String(format: "%.1f kg", trend), color: .green)
                         }
-                        .font(.subheadline)
-                        .foregroundStyle(diff >= 0 ? .red : .green)
+                        if let delta = stats.delta7d {
+                            let prefix = delta >= 0 ? "+" : ""
+                            statChip(L10n.delta7d, value: "\(prefix)\(String(format: "%.1f", delta)) kg", color: delta >= 0 ? .red : .green)
+                        }
+                        if let p14 = stats.projected14d {
+                            statChip(L10n.projection14d, value: String(format: "%.1f kg", p14), color: .purple)
+                        }
+                        if let p30 = stats.projected30d {
+                            statChip(L10n.projection30d, value: String(format: "%.1f kg", p30), color: .purple)
+                        }
+                        if let p60 = stats.projected60d {
+                            statChip(L10n.projection60d, value: String(format: "%.1f kg", p60), color: .purple)
+                        }
                     }
                 }
+                .padding(.horizontal, 4)
             }
+            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
         }
+    }
+
+    private func statChip(_ label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Chart Section
@@ -199,6 +248,19 @@ struct WeightView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 3]))
                         .interpolationMethod(.catmullRom)
                     }
+
+                    if showProjection {
+                        ForEach(Array(projectionData.enumerated()), id: \.offset) { _, dataPoint in
+                            LineMark(
+                                x: .value("Date", dataPoint.date),
+                                y: .value("Proj", dataPoint.weight),
+                                series: .value("Series", "projection")
+                            )
+                            .foregroundStyle(.purple.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
+                            .interpolationMethod(.linear)
+                        }
+                    }
                 }
                 .chartYScale(domain: weightRange)
                 .chartYAxis {
@@ -213,13 +275,30 @@ struct WeightView: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                    AxisMarks(values: .automatic(desiredCount: 5)) { _ in
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                         AxisGridLine()
                     }
                 }
                 .frame(height: 200)
 
+                // Projection toggle
+                HStack {
+                    Toggle(L10n.projected, isOn: $showProjection)
+                        .font(.caption)
+
+                    if showProjection {
+                        Picker("", selection: $projectionDays) {
+                            Text(L10n.projection14d).tag(14)
+                            Text(L10n.projection30d).tag(30)
+                            Text(L10n.projection60d).tag(60)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 180)
+                    }
+                }
+
+                // Legend
                 HStack(spacing: 16) {
                     HStack(spacing: 4) {
                         Circle().fill(.blue).frame(width: 8, height: 8)
@@ -229,7 +308,15 @@ struct WeightView: View {
                         RoundedRectangle(cornerRadius: 1)
                             .fill(.orange)
                             .frame(width: 16, height: 2)
-                        Text("7d avg").font(.caption2).foregroundStyle(.secondary)
+                        Text(L10n.movingAverage7d).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    if showProjection {
+                        HStack(spacing: 4) {
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(.purple)
+                                .frame(width: 16, height: 2)
+                            Text(L10n.projected).font(.caption2).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -284,11 +371,13 @@ struct WeightView: View {
 
     private func loadEntries() async {
         isLoading = true
-        do {
-            entries = try await api.getWeightEntries()
-        } catch {
-            entries = []
-        }
+
+        async let entriesTask = try? api.getWeightEntries()
+        async let statsTask = try? api.getWeightStats()
+
+        entries = await entriesTask ?? []
+        weightStats = await statsTask
+
         isLoading = false
     }
 
@@ -296,6 +385,7 @@ struct WeightView: View {
         do {
             try await api.deleteWeightEntry(id: entry.id)
             entries.removeAll { $0.id == entry.id }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -339,7 +429,7 @@ struct AddWeightSheet: View {
                 }
 
                 Section {
-                    TextField("Notes", text: $notes)
+                    TextField(L10n.notes, text: $notes)
                 }
             }
             .navigationTitle(existingEntry != nil ? L10n.edit : L10n.logWeight)
@@ -395,6 +485,7 @@ struct AddWeightSheet: View {
                 )
                 _ = try await api.createWeightEntry(entry)
             }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()
             dismiss()
         } catch {

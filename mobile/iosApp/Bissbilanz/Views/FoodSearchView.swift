@@ -74,18 +74,7 @@ struct FoodSearchView: View {
         } message: {
             if let errorMessage { Text(errorMessage) }
         }
-        .overlay(alignment: .bottom) {
-            if let message = toastMessage {
-                Text(message)
-                    .font(.subheadline)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
+        .toast(message: $toastMessage)
         .sheet(item: $selectedFood) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
         }
@@ -185,7 +174,7 @@ struct FoodSearchView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                     }
                     .buttonStyle(.plain)
                 }
@@ -249,17 +238,11 @@ struct FoodSearchView: View {
         )
         do {
             _ = try await api.createEntry(entry)
-            showToast("\(food.name) \(L10n.logged)")
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = "\(food.name) \(L10n.logged)"
         } catch {
-            showToast(L10n.failedToLog)
-        }
-    }
-
-    private func showToast(_ message: String) {
-        withAnimation { toastMessage = message }
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            withAnimation { toastMessage = nil }
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.failedToLog
         }
     }
 }

@@ -25,7 +25,7 @@ struct MealCard: View {
                 HStack {
                     Image(systemName: mealIcon)
                         .foregroundStyle(mealColor)
-                    Text(mealType.capitalized)
+                    Text(L10n.mealName(mealType))
                         .font(.headline)
                     Spacer()
                     Text("\(Int(mealCalories)) cal")

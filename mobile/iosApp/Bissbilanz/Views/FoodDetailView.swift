@@ -212,11 +212,11 @@ struct FoodDetailView: View {
 
     private func novaGroupBadge(_ group: Int) -> some View {
         let info: (String, Color) = switch group {
-        case 1: ("Unprocessed or minimally processed", Color(red: 0.01, green: 0.51, blue: 0.25))
-        case 2: ("Processed culinary ingredients", Color(red: 1.0, green: 0.80, blue: 0.01))
-        case 3: ("Processed foods", Color(red: 0.93, green: 0.51, blue: 0.0))
-        case 4: ("Ultra-processed", Color(red: 0.90, green: 0.24, blue: 0.07))
-        default: ("Unknown", Color.secondary)
+        case 1: (L10n.novaGroupDescription(1), Color(red: 0.01, green: 0.51, blue: 0.25))
+        case 2: (L10n.novaGroupDescription(2), Color(red: 1.0, green: 0.80, blue: 0.01))
+        case 3: (L10n.novaGroupDescription(3), Color(red: 0.93, green: 0.51, blue: 0.0))
+        case 4: (L10n.novaGroupDescription(4), Color(red: 0.90, green: 0.24, blue: 0.07))
+        default: (L10n.novaGroupDescription(group), Color.secondary)
         }
 
         return HStack(spacing: 10) {

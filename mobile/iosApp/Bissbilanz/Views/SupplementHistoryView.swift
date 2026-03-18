@@ -29,7 +29,7 @@ struct SupplementHistoryView: View {
             if isLoading {
                 LoadingView()
             } else if history.isEmpty {
-                ContentUnavailableView(L10n.supplementHistory, systemImage: "pills", description: Text("No history for this period"))
+                ContentUnavailableView(L10n.supplementHistory, systemImage: "pills", description: Text(L10n.noHistoryForPeriod))
             } else {
                 List {
                     Section {
@@ -38,7 +38,7 @@ struct SupplementHistoryView: View {
                                 Text("\(totalTaken)/\(totalExpected)")
                                     .font(.title2)
                                     .fontWeight(.bold)
-                                Text("Taken")
+                                Text(L10n.taken)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -87,10 +87,10 @@ struct SupplementHistoryView: View {
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
                 Form {
-                    DatePicker("From", selection: $startDate, displayedComponents: .date)
-                    DatePicker("To", selection: $endDate, displayedComponents: .date)
+                    DatePicker(L10n.from, selection: $startDate, displayedComponents: .date)
+                    DatePicker(L10n.to, selection: $endDate, displayedComponents: .date)
                 }
-                .navigationTitle("Date Range")
+                .navigationTitle(L10n.dateRange)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {

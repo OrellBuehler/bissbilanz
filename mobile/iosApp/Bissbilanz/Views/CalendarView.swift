@@ -7,7 +7,7 @@ struct CalendarView: View {
     @State private var calendarDays: [CalendarDay] = []
     @State private var isLoading = true
 
-    private let weekdayHeaders = ["M", "T", "W", "T", "F", "S", "S"]
+    private var weekdayHeaders: [String] { L10n.weekdayHeaders }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
     private var year: Int { Calendar.current.component(.year, from: currentMonth) }
@@ -91,8 +91,9 @@ struct CalendarView: View {
                         let dateStr = String(format: "%04d-%02d-%02d", year, month, dayNum)
                         let calDay = calendarDays.first { $0.date == dateStr }
 
+                        let isToday = dateStr == DateFormatting.today
                         NavigationLink(value: dateStr) {
-                            dayCell(dayNum: dayNum, calendarDay: calDay)
+                            dayCell(dayNum: dayNum, calendarDay: calDay, isToday: isToday)
                         }
                         .buttonStyle(.plain)
                     }
@@ -104,11 +105,11 @@ struct CalendarView: View {
         }
     }
 
-    private func dayCell(dayNum: Int, calendarDay: CalendarDay?) -> some View {
+    private func dayCell(dayNum: Int, calendarDay: CalendarDay?, isToday: Bool = false) -> some View {
         VStack(spacing: 2) {
             Text("\(dayNum)")
                 .font(.caption)
-                .fontWeight(.medium)
+                .fontWeight(isToday ? .bold : .medium)
 
             if let day = calendarDay, day.calories > 0 {
                 Text("\(Int(day.calories))")
@@ -119,6 +120,12 @@ struct CalendarView: View {
         .frame(maxWidth: .infinity, minHeight: 52)
         .background(cellColor(calendarDay))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            if isToday {
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(.primary, lineWidth: 2)
+            }
+        }
     }
 
     private func cellColor(_ day: CalendarDay?) -> Color {
@@ -132,7 +139,7 @@ struct CalendarView: View {
         HStack(spacing: 24) {
             statItem(label: L10n.daysLogged, value: "\(daysLogged)")
             statItem(label: L10n.daysOnTarget, value: "\(daysOnTarget)")
-            statItem(label: "Avg Cal", value: "\(Int(avgCalories))")
+            statItem(label: L10n.avgCalories, value: "\(Int(avgCalories))")
         }
         .padding()
         .background(.regularMaterial)
@@ -154,7 +161,7 @@ struct CalendarView: View {
         HStack(spacing: 16) {
             legendItem(color: MacroColors.fiber.opacity(0.3), label: L10n.daysOnTarget)
             legendItem(color: MacroColors.calories.opacity(0.2), label: L10n.daysLogged)
-            legendItem(color: Color(.systemGray6), label: "No data")
+            legendItem(color: Color(.systemGray6), label: L10n.noData)
         }
         .font(.caption2)
     }
