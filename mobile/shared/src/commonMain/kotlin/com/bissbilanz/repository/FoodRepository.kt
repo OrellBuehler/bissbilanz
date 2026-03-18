@@ -44,6 +44,15 @@ class FoodRepository(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
 
+    suspend fun fetchFoodsPaginated(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): FoodsResponse {
+        val response = api.getFoodsPaginated(limit, offset)
+        cacheFoods(response.foods)
+        return response
+    }
+
     suspend fun refreshFoods(
         limit: Int = 100,
         offset: Int = 0,

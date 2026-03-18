@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,6 +25,8 @@ import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
@@ -34,7 +37,9 @@ fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
     val baseUrl: String = koinInject(named("baseUrl"))
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
-    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
@@ -127,25 +132,70 @@ fun FoodSearchScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TabRow(selectedTabIndex = selectedTab) {
                     Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
-                    Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("Favorites") })
+                    Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("All") })
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val displayFoods = if (selectedTab == 0) recentFoods else favorites
+                LaunchedEffect(selectedTab) {
+                    if (selectedTab == 1 && allFoods.isEmpty()) {
+                        viewModel.loadAllFoods()
+                    }
+                }
 
-                if (displayFoods.isEmpty()) {
-                    EmptyState(if (selectedTab == 0) "No recent foods" else "No favorites yet")
+                if (selectedTab == 0) {
+                    if (recentFoods.isEmpty()) {
+                        EmptyState("No recent foods")
+                    } else {
+                        LazyColumn {
+                            items(recentFoods, key = { it.id }) { food ->
+                                FoodListItem(
+                                    food = food,
+                                    baseUrl = baseUrl,
+                                    onClick = { navController.navigate("food/${food.id}") },
+                                    onQuickLog = { foodToLog = food },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+                    }
                 } else {
-                    LazyColumn {
-                        items(displayFoods, key = { it.id }) { food ->
-                            FoodListItem(
-                                food = food,
-                                baseUrl = baseUrl,
-                                onClick = { navController.navigate("food/${food.id}") },
-                                onQuickLog = { foodToLog = food },
-                                modifier = Modifier.animateItem(),
-                            )
+                    val listState = rememberLazyListState()
+
+                    LaunchedEffect(listState) {
+                        snapshotFlow { listState.layoutInfo }
+                            .map { it.visibleItemsInfo.lastOrNull()?.index to it.totalItemsCount }
+                            .distinctUntilChanged()
+                            .collect { (lastVisible, total) ->
+                                if (lastVisible != null && lastVisible >= total - 5) {
+                                    viewModel.loadMoreFoods()
+                                }
+                            }
+                    }
+
+                    if (allFoods.isEmpty() && !isLoadingMore) {
+                        EmptyState("No foods yet")
+                    } else {
+                        LazyColumn(state = listState) {
+                            items(allFoods, key = { it.id }) { food ->
+                                FoodListItem(
+                                    food = food,
+                                    baseUrl = baseUrl,
+                                    onClick = { navController.navigate("food/${food.id}") },
+                                    onQuickLog = { foodToLog = food },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                            if (isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                 }

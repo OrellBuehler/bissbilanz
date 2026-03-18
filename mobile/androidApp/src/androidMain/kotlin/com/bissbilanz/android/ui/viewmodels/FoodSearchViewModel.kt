@@ -7,10 +7,8 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -22,10 +20,17 @@ class FoodSearchViewModel(
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
 
-    val favorites: StateFlow<List<Food>> =
-        foodRepo
-            .favorites()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _allFoods = MutableStateFlow<List<Food>>(emptyList())
+    val allFoods: StateFlow<List<Food>> = _allFoods.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    private var allFoodsOffset = 0
+    private val pageSize = 20
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -45,7 +50,29 @@ class FoodSearchViewModel(
     init {
         viewModelScope.launch {
             foodRepo.refreshRecentFoods()
-            foodRepo.refreshFavorites()
+        }
+    }
+
+    fun loadAllFoods() {
+        allFoodsOffset = 0
+        _allFoods.value = emptyList()
+        _canLoadMore.value = true
+        loadMoreFoods()
+    }
+
+    fun loadMoreFoods() {
+        if (_isLoadingMore.value || !_canLoadMore.value) return
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
+                _allFoods.value = _allFoods.value + response.foods
+                allFoodsOffset += response.foods.size
+                _canLoadMore.value = allFoodsOffset < response.total
+            } catch (_: Exception) {
+                _canLoadMore.value = false
+            }
+            _isLoadingMore.value = false
         }
     }
 
@@ -96,7 +123,7 @@ class FoodSearchViewModel(
     fun refresh() {
         viewModelScope.launch {
             foodRepo.refreshRecentFoods()
-            foodRepo.refreshFavorites()
+            if (_selectedTab.value == 1) loadAllFoods()
         }
     }
 }

@@ -139,6 +139,15 @@ class BissbilanzApi(
         return response.foods
     }
 
+    suspend fun getFoodsPaginated(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): FoodsResponse =
+        get("/api/foods") {
+            parameter("limit", limit)
+            parameter("offset", offset)
+        }
+
     suspend fun getFood(id: String): Food {
         val response: FoodResponse = get("/api/foods/$id")
         return response.food ?: throw ApiException("Expected food in response but got null")
