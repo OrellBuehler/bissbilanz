@@ -1,7 +1,9 @@
 package com.bissbilanz.android
 
 import android.app.Application
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
@@ -14,14 +16,10 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
-import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -50,7 +48,8 @@ class BissbilanzApplication : Application() {
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
-                single { RefreshManager(get(), get(), get(), get(), get(), get(), get()) }
+                single<ErrorReporter> { SentryErrorReporter() }
+                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)

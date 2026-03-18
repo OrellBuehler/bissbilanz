@@ -1,5 +1,6 @@
 package com.bissbilanz.android.sync
 
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
@@ -21,18 +22,28 @@ class RefreshManager(
     private val weightRepo: WeightRepository,
     private val supplementRepo: SupplementRepository,
     private val prefsRepo: PreferencesRepository,
+    private val errorReporter: ErrorReporter,
 ) {
     suspend fun refreshAll(date: String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
         coroutineScope {
-            launch { runCatching { entryRepo.refresh(date) } }
-            launch { runCatching { foodRepo.refreshFoods() } }
-            launch { runCatching { foodRepo.refreshFavorites() } }
-            launch { runCatching { foodRepo.refreshRecentFoods() } }
-            launch { runCatching { recipeRepo.refresh() } }
-            launch { runCatching { goalsRepo.refresh() } }
-            launch { runCatching { weightRepo.refresh() } }
-            launch { runCatching { supplementRepo.refresh() } }
-            launch { runCatching { prefsRepo.refresh() } }
+            launch { safeRefresh { entryRepo.refresh(date) } }
+            launch { safeRefresh { foodRepo.refreshFoods() } }
+            launch { safeRefresh { foodRepo.refreshFavorites() } }
+            launch { safeRefresh { foodRepo.refreshRecentFoods() } }
+            launch { safeRefresh { recipeRepo.refresh() } }
+            launch { safeRefresh { goalsRepo.refresh() } }
+            launch { safeRefresh { weightRepo.refresh() } }
+            launch { safeRefresh { supplementRepo.refresh() } }
+            launch { safeRefresh { prefsRepo.refresh() } }
+        }
+    }
+
+    private suspend fun safeRefresh(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 }
