@@ -52,7 +52,12 @@ class FoodSearchViewModel(
 
     init {
         viewModelScope.launch {
-            foodRepo.refreshRecentFoods()
+            try {
+                foodRepo.refreshRecentFoods()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
+            }
         }
     }
 
@@ -136,7 +141,12 @@ class FoodSearchViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            foodRepo.refreshRecentFoods()
+            try {
+                foodRepo.refreshRecentFoods()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
+            }
         }
         if (_selectedTab.value == 1) loadAllFoods()
     }

@@ -30,7 +30,7 @@ fun BissbilanzApp() {
     }
 
     LaunchedEffect(authState) {
-        if (authState is AuthState.Authenticated) {
+        if (authState is AuthState.Authenticated || authState is AuthState.Refreshing) {
             val token = authManager.getAccessToken()
             val userId = token?.let { extractSubFromJwt(it) }
             if (userId != null) {
