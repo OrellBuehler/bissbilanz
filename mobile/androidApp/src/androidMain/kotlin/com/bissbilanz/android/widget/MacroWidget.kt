@@ -148,7 +148,6 @@ private fun RingImage(
 ) {
     val bitmap = MacroRingRenderer.render(current, goal, color, label, ringPx, density, isDark)
     val provider = ImageProvider(bitmap)
-    bitmap.recycle()
     Image(
         provider = provider,
         contentDescription = label,
