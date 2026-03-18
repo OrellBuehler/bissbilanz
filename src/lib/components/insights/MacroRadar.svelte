@@ -202,7 +202,8 @@
 				{/each}
 
 				{#each axes as axis, i}
-					{@const pt = polarToCart(i * angleStep, radius + 20)}
+					{@const labelR = Math.max((percentages[i] / 100) * radius, radius) + 20}
+					{@const pt = polarToCart(i * angleStep, labelR)}
 					<text
 						x={pt.x}
 						y={pt.y}
