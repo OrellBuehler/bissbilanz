@@ -23,7 +23,7 @@
 
 	const logWeight = async (e: Event) => {
 		e.preventDefault();
-		const kg = parseFloat(inputValue.replace(',', '.'));
+		const kg = parseFloat(String(inputValue).replace(',', '.'));
 		if (isNaN(kg) || kg <= 0) return;
 		saving = true;
 		try {
