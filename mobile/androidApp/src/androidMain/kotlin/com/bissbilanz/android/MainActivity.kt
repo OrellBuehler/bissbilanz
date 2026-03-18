@@ -10,6 +10,8 @@ import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -31,6 +33,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        val navigateTo = intent.getStringExtra(EXTRA_NAVIGATE_TO)
+        if (navigateTo != null) {
+            intent.removeExtra(EXTRA_NAVIGATE_TO)
+            _navigationEvent.tryEmit(navigateTo)
+            return
+        }
+
         val uri = intent.data ?: return
         if (uri.scheme == "bissbilanz" && uri.host == "oauth" && uri.path == "/callback") {
             val state = uri.getQueryParameter("state")
@@ -43,5 +52,11 @@ class MainActivity : ComponentActivity() {
                 authManager.handleCallback(code)
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_NAVIGATE_TO = "navigate_to"
+        private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        val navigationEvent = _navigationEvent.asSharedFlow()
     }
 }

@@ -59,6 +59,33 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.QuickScanWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_scan_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.QuickWeightWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_weight_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".widget.QuickWeightActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Bissbilanz.Dialog" />
+
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
     </application>
 </manifest>

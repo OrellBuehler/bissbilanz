@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.ui.theme.Motion
 
 sealed class Screen(
@@ -60,6 +61,14 @@ fun AppNavigation() {
             }
         tabPrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { tabPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
+    LaunchedEffect(Unit) {
+        MainActivity.navigationEvent.collect { route ->
+            navController.navigate(route) {
+                launchSingleTop = true
+            }
+        }
     }
 
     val middleTabs = allMiddleTabs.filter { it.route in selectedTabRoutes }
