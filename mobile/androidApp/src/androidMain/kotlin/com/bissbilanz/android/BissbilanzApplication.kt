@@ -9,6 +9,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.MacroWidget
+import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
@@ -80,6 +81,7 @@ class BissbilanzApplication : Application() {
             koin.get<GoalsRepository>().refresh()
             koin.get<PreferencesRepository>().refresh()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
     }
 }

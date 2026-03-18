@@ -87,7 +87,9 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+        if (!id.startsWith("temp_")) {
+            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+        }
         onEntryChanged?.invoke()
         return result
     }
@@ -95,7 +97,9 @@ class EntryRepository(
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+        if (!id.startsWith("temp_")) {
+            syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+        }
         onEntryChanged?.invoke()
     }
 
