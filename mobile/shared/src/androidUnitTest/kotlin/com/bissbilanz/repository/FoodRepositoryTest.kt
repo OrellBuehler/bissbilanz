@@ -8,6 +8,7 @@ import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,7 +37,7 @@ class FoodRepositoryTest {
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
-        repository = FoodRepository(api, db, syncQueue, json, kotlinx.coroutines.Dispatchers.Unconfined)
+        repository = FoodRepository(api, db, syncQueue, json, NoopErrorReporter(), kotlinx.coroutines.Dispatchers.Unconfined)
     }
 
     @Test

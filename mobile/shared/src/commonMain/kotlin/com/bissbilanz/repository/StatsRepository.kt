@@ -1,5 +1,6 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
@@ -13,6 +14,7 @@ class StatsRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     suspend fun getDailyStats(
         startDate: String,
@@ -22,6 +24,7 @@ class StatsRepository(
             api.getDailyStats(startDate, endDate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             computeDailyStatsFromCache(startDate, endDate)
         }
 

@@ -32,12 +32,8 @@ class PreferencesRepository(
             }
 
     suspend fun refresh() {
-        try {
-            val prefs = api.getPreferences()
-            cachePreferences(prefs)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val prefs = api.getPreferences()
+        cachePreferences(prefs)
     }
 
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {

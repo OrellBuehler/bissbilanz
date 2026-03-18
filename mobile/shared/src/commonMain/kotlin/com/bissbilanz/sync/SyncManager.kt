@@ -1,5 +1,6 @@
 package com.bissbilanz.sync
 
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
@@ -27,6 +28,7 @@ class SyncManager(
     private val connectivityProvider: ConnectivityProvider,
     private val api: BissbilanzApi,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -100,6 +102,7 @@ class SyncManager(
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
                     syncQueue.releaseForRetry(req.id)
                     break
                 }

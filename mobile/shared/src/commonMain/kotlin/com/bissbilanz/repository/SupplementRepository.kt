@@ -70,6 +70,8 @@ class SupplementRepository(
             }
             logs
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val cachedLogs =
                 db.bissbilanzDatabaseQueries.selectSupplementLogsByDate(date).executeAsList()
             cachedLogs.map { log ->
@@ -123,6 +125,7 @@ class SupplementRepository(
             api.getSupplementHistory(from, to).history
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val logs =
                 db.bissbilanzDatabaseQueries
                     .selectSupplementLogsByDateRange(from, to)
@@ -156,6 +159,8 @@ class SupplementRepository(
             cacheSupplements(all, includeInactive = true)
             all
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectAllSupplements().executeAsList()
             if (cached.isNotEmpty()) {
                 cached.map { json.decodeFromString<Supplement>(it.jsonData) }
