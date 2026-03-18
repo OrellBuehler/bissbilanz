@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.components
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
+import io.sentry.Sentry
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -86,6 +87,7 @@ fun FoodEditSheet(
                 vitaminD = food.vitaminD?.toString() ?: ""
             } catch (e: Exception) {
                 Log.e("FoodEditSheet", "Failed to load food", e)
+                Sentry.captureException(e)
                 errorMessage = "Failed to load food"
             }
             isLoading = false
@@ -145,6 +147,7 @@ fun FoodEditSheet(
                 onSaved()
             } catch (e: Exception) {
                 Log.e("FoodEditSheet", "Failed to save food", e)
+                Sentry.captureException(e)
                 errorMessage = "Failed to save food"
             }
             isSaving = false

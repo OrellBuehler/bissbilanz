@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
@@ -20,6 +21,7 @@ class SupplementRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     fun supplements(): Flow<List<Supplement>> =
         db.bissbilanzDatabaseQueries
@@ -29,12 +31,8 @@ class SupplementRepository(
             .map { rows -> rows.map { json.decodeFromString<Supplement>(it.jsonData) } }
 
     suspend fun refresh() {
-        try {
-            val supplements = api.getSupplements()
-            cacheSupplements(supplements)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val supplements = api.getSupplements()
+        cacheSupplements(supplements)
     }
 
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {

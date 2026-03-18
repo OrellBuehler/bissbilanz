@@ -70,7 +70,10 @@ fun RecipeDetailScreen(
                 scope.launch {
                     try {
                         recipe = recipeRepo.getRecipe(recipeId)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
+                        snackbarHostState.showSnackbar("Failed to refresh recipe")
                     }
                 }
             },
@@ -89,7 +92,9 @@ fun RecipeDetailScreen(
                             recipe = recipe,
                         )
                         snackbarHostState.showSnackbar("Logged ${recipe!!.name}")
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log recipe")
                     }
                 }
@@ -110,7 +115,9 @@ fun RecipeDetailScreen(
                             try {
                                 recipeRepo.deleteRecipe(recipeId)
                                 navController.popBackStack()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                Sentry.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete recipe")
                             }
                         }

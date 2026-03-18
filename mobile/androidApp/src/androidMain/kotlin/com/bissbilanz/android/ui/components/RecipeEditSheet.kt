@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.components
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import io.sentry.Sentry
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -76,6 +77,7 @@ fun RecipeEditSheet(
                 } ?: emptyList()
             } catch (e: Exception) {
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
+                Sentry.captureException(e)
                 errorMessage = "Failed to load recipe"
             }
             isLoading = false
@@ -102,6 +104,7 @@ fun RecipeEditSheet(
                                             foodSearchResults = foodRepo.searchFoods(query)
                                         } catch (e: Exception) {
                                             Log.e("RecipeEditSheet", "Food search failed", e)
+                                            Sentry.captureException(e)
                                             foodSearchResults = emptyList()
                                         }
                                         isSearching = false
@@ -348,6 +351,7 @@ fun RecipeEditSheet(
                                     onSaved()
                                 } catch (e: Exception) {
                                     Log.e("RecipeEditSheet", "Failed to save recipe", e)
+                                    Sentry.captureException(e)
                                     errorMessage = "Failed to save recipe"
                                 }
                                 isSaving = false

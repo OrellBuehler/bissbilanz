@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
@@ -20,6 +21,7 @@ class RecipeRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     fun allRecipes(): Flow<List<Recipe>> =
         db.bissbilanzDatabaseQueries
@@ -29,12 +31,8 @@ class RecipeRepository(
             .map { rows -> rows.map { json.decodeFromString<Recipe>(it.jsonData) } }
 
     suspend fun refresh() {
-        try {
-            val recipes = api.getRecipes()
-            cacheRecipes(recipes)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val recipes = api.getRecipes()
+        cacheRecipes(recipes)
     }
 
     suspend fun getRecipe(id: String): Recipe =
@@ -43,6 +41,8 @@ class RecipeRepository(
             cacheRecipe(recipe)
             recipe
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
             if (cached != null) {
                 json.decodeFromString<Recipe>(cached.jsonData)
