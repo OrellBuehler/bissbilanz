@@ -15,9 +15,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
@@ -34,6 +36,7 @@ import org.koin.compose.koinInject
 fun RecipeListScreen(navController: NavController) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
+    val refreshManager: RefreshManager = koinInject()
     val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -100,24 +103,29 @@ fun RecipeListScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Crossfade(targetState = isLoading, label = "recipes") { loading ->
-            if (loading) {
-                LoadingScreen()
-            } else if (recipes.isEmpty()) {
-                EmptyState("No recipes yet.\nTap + to create one.")
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                ) {
-                    items(recipes, key = { it.id }) { recipe ->
-                        RecipeListItem(
-                            recipe = recipe,
-                            onClick = { navController.navigate("recipe/${recipe.id}") },
-                            onQuickLog = { recipeToLog = recipe },
-                            modifier = Modifier.animateItem(),
-                        )
+        PullToRefreshWrapper(
+            onRefresh = { refreshManager.refreshAll() },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            Crossfade(targetState = isLoading, label = "recipes") { loading ->
+                if (loading) {
+                    LoadingScreen()
+                } else if (recipes.isEmpty()) {
+                    EmptyState("No recipes yet.\nTap + to create one.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                    ) {
+                        items(recipes, key = { it.id }) { recipe ->
+                            RecipeListItem(
+                                recipe = recipe,
+                                onClick = { navController.navigate("recipe/${recipe.id}") },
+                                onQuickLog = { recipeToLog = recipe },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
                     }
                 }
             }

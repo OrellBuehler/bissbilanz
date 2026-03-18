@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
@@ -25,6 +26,7 @@ class FoodRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
@@ -57,29 +59,17 @@ class FoodRepository(
         limit: Int = 100,
         offset: Int = 0,
     ) {
-        try {
-            val foods = api.getFoods(limit, offset)
-            cacheFoods(foods)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val foods = api.getFoods(limit, offset)
+        cacheFoods(foods)
     }
 
     suspend fun refreshFavorites() {
-        try {
-            val favs = api.getFavorites()
-            favs.forEach { cacheFood(it) }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val favs = api.getFavorites()
+        favs.forEach { cacheFood(it) }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
-        try {
-            _recentFoods.value = api.getRecentFoods(limit)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        _recentFoods.value = api.getRecentFoods(limit)
     }
 
     suspend fun getFood(id: String): Food =
@@ -89,6 +79,7 @@ class FoodRepository(
             food
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
             if (cached != null) {
                 json.decodeFromString<Food>(cached.jsonData)
@@ -124,6 +115,7 @@ class FoodRepository(
             api.searchFoods(query)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val pattern = "%$query%"
             db.bissbilanzDatabaseQueries
                 .searchFoods(pattern, pattern, 50)

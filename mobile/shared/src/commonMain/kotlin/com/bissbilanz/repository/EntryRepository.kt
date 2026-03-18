@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -23,6 +24,7 @@ class EntryRepository(
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     private var currentDate: String? = null
     var onEntryChanged: (suspend () -> Unit)? = null
@@ -42,12 +44,8 @@ class EntryRepository(
 
     suspend fun refresh(date: String) {
         currentDate = date
-        try {
-            val entries = api.getEntries(date)
-            cacheEntries(date, entries)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val entries = api.getEntries(date)
+        cacheEntries(date, entries)
     }
 
     suspend fun createEntry(
@@ -141,6 +139,7 @@ class EntryRepository(
             healthSync.syncNutrition(date, totals)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 

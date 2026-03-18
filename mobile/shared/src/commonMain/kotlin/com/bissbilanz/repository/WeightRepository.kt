@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -22,6 +23,7 @@ class WeightRepository(
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     var onWeightChanged: (suspend () -> Unit)? = null
 
@@ -33,12 +35,8 @@ class WeightRepository(
             .map { rows -> rows.map { json.decodeFromString<WeightEntry>(it.jsonData) } }
 
     suspend fun refresh(limit: Int = 30) {
-        try {
-            val entries = api.getWeightEntries(limit)
-            cacheWeightEntries(entries)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val entries = api.getWeightEntries(limit)
+        cacheWeightEntries(entries)
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
@@ -48,6 +46,7 @@ class WeightRepository(
             healthSync.syncWeight(listOf(temp))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
         onWeightChanged?.invoke()
@@ -82,6 +81,7 @@ class WeightRepository(
             healthSync.syncWeight(listOf(result))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
         syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
         onWeightChanged?.invoke()
@@ -96,6 +96,7 @@ class WeightRepository(
             api.getWeightTrend(from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             db.bissbilanzDatabaseQueries
                 .selectAllWeightEntries()
                 .executeAsList()

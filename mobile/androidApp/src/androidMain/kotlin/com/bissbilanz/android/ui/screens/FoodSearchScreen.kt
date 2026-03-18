@@ -20,9 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -36,6 +38,7 @@ import org.koin.core.qualifier.named
 fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
     val baseUrl: String = koinInject(named("baseUrl"))
+    val refreshManager: RefreshManager = koinInject()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
@@ -84,108 +87,116 @@ fun FoodSearchScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = query,
-                        onQueryChange = { viewModel.updateQuery(it) },
-                        onSearch = {},
-                        expanded = false,
-                        onExpandedChange = {},
-                        placeholder = { Text("Search foods...") },
-                        leadingIcon = { Icon(Icons.Default.Search, "Search") },
-                    )
-                },
-                expanded = false,
-                onExpandedChange = {},
-                modifier = Modifier.fillMaxWidth(),
-            ) {}
-
-            if (query.length >= 2) {
+        PullToRefreshWrapper(
+            onRefresh = {
+                refreshManager.refreshAll()
+                viewModel.refresh()
+            },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Crossfade(targetState = isSearching, label = "search") { searching ->
-                    if (searching) {
-                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else if (searchResults.isEmpty()) {
-                        EmptyState("No foods found for \"$query\"")
-                    } else {
-                        LazyColumn {
-                            items(searchResults, key = { it.id }) { food ->
-                                FoodListItem(
-                                    food = food,
-                                    baseUrl = baseUrl,
-                                    onClick = { navController.navigate("food/${food.id}") },
-                                    onQuickLog = { foodToLog = food },
-                                    modifier = Modifier.animateItem(),
-                                )
+
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = query,
+                            onQueryChange = { viewModel.updateQuery(it) },
+                            onSearch = {},
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text("Search foods...") },
+                            leadingIcon = { Icon(Icons.Default.Search, "Search") },
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                ) {}
+
+                if (query.length >= 2) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Crossfade(targetState = isSearching, label = "search") { searching ->
+                        if (searching) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
-                        }
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
-                    Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("All") })
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val allFoodsListState = rememberLazyListState()
-
-                LaunchedEffect(allFoodsListState) {
-                    snapshotFlow { allFoodsListState.layoutInfo }
-                        .map { it.visibleItemsInfo.lastOrNull()?.index to it.totalItemsCount }
-                        .distinctUntilChanged()
-                        .collect { (lastVisible, total) ->
-                            if (lastVisible != null && lastVisible >= total - 5) {
-                                viewModel.loadMoreFoods()
-                            }
-                        }
-                }
-
-                if (selectedTab == 0) {
-                    if (recentFoods.isEmpty()) {
-                        EmptyState("No recent foods")
-                    } else {
-                        LazyColumn {
-                            items(recentFoods, key = { it.id }) { food ->
-                                FoodListItem(
-                                    food = food,
-                                    baseUrl = baseUrl,
-                                    onClick = { navController.navigate("food/${food.id}") },
-                                    onQuickLog = { foodToLog = food },
-                                    modifier = Modifier.animateItem(),
-                                )
+                        } else if (searchResults.isEmpty()) {
+                            EmptyState("No foods found for \"$query\"")
+                        } else {
+                            LazyColumn {
+                                items(searchResults, key = { it.id }) { food ->
+                                    FoodListItem(
+                                        food = food,
+                                        baseUrl = baseUrl,
+                                        onClick = { navController.navigate("food/${food.id}") },
+                                        onQuickLog = { foodToLog = food },
+                                        modifier = Modifier.animateItem(),
+                                    )
+                                }
                             }
                         }
                     }
                 } else {
-                    if (allFoods.isEmpty() && !isLoadingMore) {
-                        EmptyState("No foods yet")
-                    } else {
-                        LazyColumn(state = allFoodsListState) {
-                            items(allFoods, key = { it.id }) { food ->
-                                FoodListItem(
-                                    food = food,
-                                    baseUrl = baseUrl,
-                                    onClick = { navController.navigate("food/${food.id}") },
-                                    onQuickLog = { foodToLog = food },
-                                    modifier = Modifier.animateItem(),
-                                )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TabRow(selectedTabIndex = selectedTab) {
+                        Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
+                        Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("All") })
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val allFoodsListState = rememberLazyListState()
+
+                    LaunchedEffect(allFoodsListState) {
+                        snapshotFlow { allFoodsListState.layoutInfo }
+                            .map { it.visibleItemsInfo.lastOrNull()?.index to it.totalItemsCount }
+                            .distinctUntilChanged()
+                            .collect { (lastVisible, total) ->
+                                if (lastVisible != null && lastVisible >= total - 5) {
+                                    viewModel.loadMoreFoods()
+                                }
                             }
-                            if (isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+
+                    if (selectedTab == 0) {
+                        if (recentFoods.isEmpty()) {
+                            EmptyState("No recent foods")
+                        } else {
+                            LazyColumn {
+                                items(recentFoods, key = { it.id }) { food ->
+                                    FoodListItem(
+                                        food = food,
+                                        baseUrl = baseUrl,
+                                        onClick = { navController.navigate("food/${food.id}") },
+                                        onQuickLog = { foodToLog = food },
+                                        modifier = Modifier.animateItem(),
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        if (allFoods.isEmpty() && !isLoadingMore) {
+                            EmptyState("No foods yet")
+                        } else {
+                            LazyColumn(state = allFoodsListState) {
+                                items(allFoods, key = { it.id }) { food ->
+                                    FoodListItem(
+                                        food = food,
+                                        baseUrl = baseUrl,
+                                        onClick = { navController.navigate("food/${food.id}") },
+                                        onQuickLog = { foodToLog = food },
+                                        modifier = Modifier.animateItem(),
+                                    )
+                                }
+                                if (isLoadingMore) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                        }
                                     }
                                 }
                             }

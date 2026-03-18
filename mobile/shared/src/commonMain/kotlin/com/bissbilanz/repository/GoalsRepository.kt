@@ -53,13 +53,9 @@ class GoalsRepository(
             }
 
     suspend fun refresh() {
-        try {
-            val goals = api.getGoals()
-            if (goals != null) {
-                cacheGoals(goals)
-            }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
+        val goals = api.getGoals()
+        if (goals != null) {
+            cacheGoals(goals)
         }
     }
 

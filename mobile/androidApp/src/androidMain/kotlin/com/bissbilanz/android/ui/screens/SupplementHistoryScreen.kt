@@ -19,7 +19,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.ScheduleType
 import com.bissbilanz.model.Supplement
@@ -114,6 +116,7 @@ private fun computeAdherence(
 @Composable
 fun SupplementHistoryScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
+    val refreshManager: RefreshManager = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(true) }
@@ -204,86 +207,99 @@ fun SupplementHistoryScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp),
+        PullToRefreshWrapper(
+            onRefresh = {
+                refreshManager.refreshAll()
+                try {
+                    val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
+                    val allSupplements = supplementRepo.getAllSupplements()
+                    adherence = computeAdherence(history, allSupplements, fromDate, toDate)
+                } catch (_: Exception) {
+                }
+            },
+            modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("From", style = MaterialTheme.typography.labelMedium)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedCard(
-                                    onClick = { showFromPicker = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(
-                                        fromDate.toString(),
-                                        modifier = Modifier.padding(12.dp),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("From", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedCard(
+                                        onClick = { showFromPicker = true },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            fromDate.toString(),
+                                            modifier = Modifier.padding(12.dp),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("To", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedCard(
+                                        onClick = { showToPicker = true },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            toDate.toString(),
+                                            modifier = Modifier.padding(12.dp),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
                                 }
                             }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("To", style = MaterialTheme.typography.labelMedium)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedCard(
-                                    onClick = { showToPicker = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(
-                                        toDate.toString(),
-                                        modifier = Modifier.padding(12.dp),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { scope.launch { loadData() } },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Filter")
                             }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = { scope.launch { loadData() } },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Filter")
                         }
                     }
                 }
-            }
 
-            if (isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+                if (isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-            } else if (adherence.isEmpty()) {
-                item {
-                    EmptyState("No supplement data for this period.")
-                }
-            } else {
-                items(adherence, key = { it.date }) { day ->
-                    DayAdherenceCard(
-                        day = day,
-                        expandedItems = expandedItems,
-                        onToggleExpand = { key ->
-                            expandedItems =
-                                if (expandedItems.contains(key)) {
-                                    expandedItems - key
-                                } else {
-                                    expandedItems + key
-                                }
-                        },
-                        modifier = Modifier.animateItem(),
-                    )
+                } else if (adherence.isEmpty()) {
+                    item {
+                        EmptyState("No supplement data for this period.")
+                    }
+                } else {
+                    items(adherence, key = { it.date }) { day ->
+                        DayAdherenceCard(
+                            day = day,
+                            expandedItems = expandedItems,
+                            onToggleExpand = { key ->
+                                expandedItems =
+                                    if (expandedItems.contains(key)) {
+                                        expandedItems - key
+                                    } else {
+                                        expandedItems + key
+                                    }
+                            },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
         }
