@@ -66,6 +66,10 @@ class BissbilanzApplication : Application() {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
+        koin.get<EntryRepository>().onEntryChanged = {
+            MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+        }
+
         koin.get<SyncManager>().startNetworkListener {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
             koin.get<EntryRepository>().refresh(today)

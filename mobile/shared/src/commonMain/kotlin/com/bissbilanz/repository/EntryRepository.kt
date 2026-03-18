@@ -25,6 +25,7 @@ class EntryRepository(
     private val json: Json,
 ) {
     private var currentDate: String? = null
+    var onEntryChanged: (suspend () -> Unit)? = null
 
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.bissbilanzDatabaseQueries
@@ -49,11 +50,16 @@ class EntryRepository(
         }
     }
 
-    suspend fun createEntry(entry: EntryCreate): Entry {
-        val tempEntry = entryCreateToEntry(entry)
+    suspend fun createEntry(
+        entry: EntryCreate,
+        food: Food? = null,
+        recipe: Recipe? = null,
+    ): Entry {
+        val tempEntry = entryCreateToEntry(entry, food, recipe)
         cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
         syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry)))
+        onEntryChanged?.invoke()
         return tempEntry
     }
 
@@ -82,6 +88,7 @@ class EntryRepository(
             }
         syncNutritionForCurrentDate()
         syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+        onEntryChanged?.invoke()
         return result
     }
 
@@ -89,6 +96,7 @@ class EntryRepository(
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
         syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+        onEntryChanged?.invoke()
     }
 
     suspend fun copyEntries(
@@ -114,7 +122,7 @@ class EntryRepository(
                     quickFiber = entry.quickFiber,
                     eatenAt = entry.eatenAt,
                 )
-            createEntry(create)
+            createEntry(create, food = entry.food, recipe = entry.recipe)
             count++
         }
         return count
@@ -170,7 +178,11 @@ class EntryRepository(
         }
     }
 
-    private fun entryCreateToEntry(entry: EntryCreate): Entry =
+    private fun entryCreateToEntry(
+        entry: EntryCreate,
+        food: Food? = null,
+        recipe: Recipe? = null,
+    ): Entry =
         Entry(
             id = "temp_${Clock.System.now().toEpochMilliseconds()}",
             userId = "",
@@ -188,6 +200,8 @@ class EntryRepository(
             quickFiber = entry.quickFiber,
             eatenAt = entry.eatenAt,
             createdAt = Clock.System.now().toString(),
+            food = food,
+            recipe = recipe,
         )
 
     private fun applyUpdate(
