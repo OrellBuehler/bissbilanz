@@ -92,7 +92,7 @@ class InsightsViewModel(
         loadCalendarStats()
     }
 
-    private fun loadCalendarStats() {
+    fun loadCalendarStats() {
         viewModelScope.launch {
             val monthStr = "%04d-%02d".format(_calendarYear.value, _calendarMonth.value)
             try {
@@ -105,7 +105,7 @@ class InsightsViewModel(
         }
     }
 
-    private fun loadData() {
+    fun loadData() {
         viewModelScope.launch {
             _isLoading.value = true
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())

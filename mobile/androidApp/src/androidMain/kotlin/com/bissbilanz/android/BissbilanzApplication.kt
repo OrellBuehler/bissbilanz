@@ -14,6 +14,7 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
@@ -49,6 +50,7 @@ class BissbilanzApplication : Application() {
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
+                single { RefreshManager(get(), get(), get(), get(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -74,15 +76,9 @@ class BissbilanzApplication : Application() {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
 
+        val refreshManager = koin.get<RefreshManager>()
         koin.get<SyncManager>().startNetworkListener {
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-            koin.get<EntryRepository>().refresh(today)
-            koin.get<FoodRepository>().refreshFoods()
-            koin.get<RecipeRepository>().refresh()
-            koin.get<WeightRepository>().refresh()
-            koin.get<SupplementRepository>().refresh()
-            koin.get<GoalsRepository>().refresh()
-            koin.get<PreferencesRepository>().refresh()
+            refreshManager.refreshAll()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
