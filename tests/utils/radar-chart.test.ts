@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { radarAverages, radarPercentages, type DayRow, type Goals } from '../../src/lib/utils/insights';
+import {
+	radarAverages,
+	radarPercentages,
+	type DayRow,
+	type Goals
+} from '../../src/lib/utils/insights';
 
 const makeDay = (overrides: Partial<DayRow> = {}): DayRow => ({
 	date: '2026-03-01',
@@ -52,10 +57,7 @@ describe('radarAverages', () => {
 	});
 
 	test('rounds averages to whole numbers', () => {
-		const days = [
-			makeDay({ protein: 101 }),
-			makeDay({ protein: 102 })
-		];
+		const days = [makeDay({ protein: 101 }), makeDay({ protein: 102 })];
 		const avg = radarAverages(days);
 		expect(avg.protein).toBe(102);
 	});

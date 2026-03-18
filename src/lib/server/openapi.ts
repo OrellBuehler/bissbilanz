@@ -849,10 +849,7 @@ export function generateSpec() {
 							description: 'Day properties or range of day properties',
 							content: {
 								'application/json': {
-									schema: z.union([
-										dayPropertiesResponseSchema,
-										dayPropertiesRangeResponseSchema
-									])
+									schema: z.union([dayPropertiesResponseSchema, dayPropertiesRangeResponseSchema])
 								}
 							}
 						},

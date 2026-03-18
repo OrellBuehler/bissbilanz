@@ -14,11 +14,7 @@ export const getDayProperties = async (userId: string, date: string) => {
 	return row ?? null;
 };
 
-export const getDayPropertiesRange = async (
-	userId: string,
-	startDate: string,
-	endDate: string
-) => {
+export const getDayPropertiesRange = async (userId: string, startDate: string, endDate: string) => {
 	const db = getDB();
 	return db
 		.select({
@@ -35,11 +31,7 @@ export const getDayPropertiesRange = async (
 		);
 };
 
-export const setDayProperties = async (
-	userId: string,
-	date: string,
-	isFastingDay: boolean
-) => {
+export const setDayProperties = async (userId: string, date: string, isFastingDay: boolean) => {
 	const db = getDB();
 	const now = new Date();
 	const [row] = await db
