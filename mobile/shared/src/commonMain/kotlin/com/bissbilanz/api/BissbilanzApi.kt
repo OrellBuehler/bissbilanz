@@ -127,18 +127,6 @@ class BissbilanzApi(
     }
 
     // Foods
-    suspend fun getFoods(
-        limit: Int = 100,
-        offset: Int = 0,
-    ): List<Food> {
-        val response: FoodsResponse =
-            get("/api/foods") {
-                parameter("limit", limit)
-                parameter("offset", offset)
-            }
-        return response.foods
-    }
-
     suspend fun getFoodsPaginated(
         limit: Int = 20,
         offset: Int = 0,
@@ -147,6 +135,11 @@ class BissbilanzApi(
             parameter("limit", limit)
             parameter("offset", offset)
         }
+
+    suspend fun getFoods(
+        limit: Int = 100,
+        offset: Int = 0,
+    ): List<Food> = getFoodsPaginated(limit, offset).foods
 
     suspend fun getFood(id: String): Food {
         val response: FoodResponse = get("/api/foods/$id")

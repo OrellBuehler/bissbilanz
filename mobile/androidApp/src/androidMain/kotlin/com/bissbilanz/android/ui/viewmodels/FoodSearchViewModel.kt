@@ -6,6 +6,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,7 @@ class FoodSearchViewModel(
     val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
 
     private var allFoodsOffset = 0
+    private var paginationJob: Job? = null
     private val pageSize = 20
 
     private val _query = MutableStateFlow("")
@@ -54,26 +56,29 @@ class FoodSearchViewModel(
     }
 
     fun loadAllFoods() {
+        paginationJob?.cancel()
         allFoodsOffset = 0
         _allFoods.value = emptyList()
         _canLoadMore.value = true
+        _isLoadingMore.value = false
         loadMoreFoods()
     }
 
     fun loadMoreFoods() {
         if (_isLoadingMore.value || !_canLoadMore.value) return
-        viewModelScope.launch {
-            _isLoadingMore.value = true
-            try {
-                val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
-                _allFoods.value = _allFoods.value + response.foods
-                allFoodsOffset += response.foods.size
-                _canLoadMore.value = allFoodsOffset < response.total
-            } catch (_: Exception) {
-                _canLoadMore.value = false
+        paginationJob =
+            viewModelScope.launch {
+                _isLoadingMore.value = true
+                try {
+                    val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
+                    _allFoods.value = _allFoods.value + response.foods
+                    allFoodsOffset += response.foods.size
+                    _canLoadMore.value = allFoodsOffset < response.total
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                }
+                _isLoadingMore.value = false
             }
-            _isLoadingMore.value = false
-        }
     }
 
     fun updateQuery(newQuery: String) {
@@ -96,6 +101,7 @@ class FoodSearchViewModel(
 
     fun selectTab(index: Int) {
         _selectedTab.value = index
+        if (index == 1) loadAllFoods()
     }
 
     fun logFood(
@@ -123,7 +129,7 @@ class FoodSearchViewModel(
     fun refresh() {
         viewModelScope.launch {
             foodRepo.refreshRecentFoods()
-            if (_selectedTab.value == 1) loadAllFoods()
         }
+        if (_selectedTab.value == 1) loadAllFoods()
     }
 }

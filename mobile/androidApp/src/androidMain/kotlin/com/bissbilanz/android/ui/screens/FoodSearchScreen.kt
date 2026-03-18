@@ -39,7 +39,6 @@ fun FoodSearchScreen(navController: NavController) {
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
@@ -137,10 +136,17 @@ fun FoodSearchScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                LaunchedEffect(selectedTab) {
-                    if (selectedTab == 1 && allFoods.isEmpty()) {
-                        viewModel.loadAllFoods()
-                    }
+                val allFoodsListState = rememberLazyListState()
+
+                LaunchedEffect(allFoodsListState) {
+                    snapshotFlow { allFoodsListState.layoutInfo }
+                        .map { it.visibleItemsInfo.lastOrNull()?.index to it.totalItemsCount }
+                        .distinctUntilChanged()
+                        .collect { (lastVisible, total) ->
+                            if (lastVisible != null && lastVisible >= total - 5) {
+                                viewModel.loadMoreFoods()
+                            }
+                        }
                 }
 
                 if (selectedTab == 0) {
@@ -160,23 +166,10 @@ fun FoodSearchScreen(navController: NavController) {
                         }
                     }
                 } else {
-                    val listState = rememberLazyListState()
-
-                    LaunchedEffect(listState) {
-                        snapshotFlow { listState.layoutInfo }
-                            .map { it.visibleItemsInfo.lastOrNull()?.index to it.totalItemsCount }
-                            .distinctUntilChanged()
-                            .collect { (lastVisible, total) ->
-                                if (lastVisible != null && lastVisible >= total - 5) {
-                                    viewModel.loadMoreFoods()
-                                }
-                            }
-                    }
-
                     if (allFoods.isEmpty() && !isLoadingMore) {
                         EmptyState("No foods yet")
                     } else {
-                        LazyColumn(state = listState) {
+                        LazyColumn(state = allFoodsListState) {
                             items(allFoods, key = { it.id }) { food ->
                                 FoodListItem(
                                     food = food,
