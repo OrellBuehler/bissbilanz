@@ -40,11 +40,11 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import io.sentry.Sentry
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
 

@@ -25,6 +25,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -48,7 +49,10 @@ fun RecipeListScreen(navController: NavController) {
         isLoading = true
         try {
             recipeRepo.refresh()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
+            snackbarHostState.showSnackbar("Failed to load recipes")
         }
         isLoading = false
     }

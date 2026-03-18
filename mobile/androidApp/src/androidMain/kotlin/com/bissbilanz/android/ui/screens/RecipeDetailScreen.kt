@@ -25,11 +25,11 @@ import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import io.sentry.Sentry
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,7 +172,10 @@ fun RecipeDetailScreen(
                     refreshManager.refreshAll()
                     try {
                         recipe = recipeRepo.getRecipe(recipeId)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
+                        snackbarHostState.showSnackbar("Failed to refresh recipe")
                     }
                 },
                 modifier = Modifier.fillMaxSize().padding(padding),
