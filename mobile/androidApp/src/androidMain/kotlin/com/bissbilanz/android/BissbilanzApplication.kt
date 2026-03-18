@@ -70,6 +70,9 @@ class BissbilanzApplication : Application() {
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }
+        koin.get<WeightRepository>().onWeightChanged = {
+            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+        }
 
         koin.get<SyncManager>().startNetworkListener {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()

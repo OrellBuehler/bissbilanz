@@ -9,6 +9,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import java.util.Locale
 
 class QuickWeightWidget : GlanceAppWidget() {
     override suspend fun provideGlance(
@@ -77,6 +79,7 @@ private fun QuickWeightContent(
     todayEntry: WeightEntry?,
     latestEntry: WeightEntry?,
 ) {
+    val context = LocalContext.current
     Row(
         modifier =
             GlanceModifier
@@ -96,7 +99,7 @@ private fun QuickWeightContent(
         Column {
             if (todayEntry != null) {
                 Text(
-                    text = "%.1f kg".format(todayEntry.weightKg),
+                    text = formatWeight(todayEntry.weightKg),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -105,7 +108,7 @@ private fun QuickWeightContent(
                         ),
                 )
                 Text(
-                    text = "Today",
+                    text = context.getString(R.string.weight_widget_today),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -114,7 +117,7 @@ private fun QuickWeightContent(
                 )
             } else if (latestEntry != null) {
                 Text(
-                    text = "%.1f kg".format(latestEntry.weightKg),
+                    text = formatWeight(latestEntry.weightKg),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -123,7 +126,7 @@ private fun QuickWeightContent(
                         ),
                 )
                 Text(
-                    text = "Tap to log",
+                    text = context.getString(R.string.weight_widget_tap_to_log),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -132,7 +135,7 @@ private fun QuickWeightContent(
                 )
             } else {
                 Text(
-                    text = "Weight",
+                    text = context.getString(R.string.weight_widget_title),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -141,7 +144,7 @@ private fun QuickWeightContent(
                         ),
                 )
                 Text(
-                    text = "Tap to log",
+                    text = context.getString(R.string.weight_widget_tap_to_log),
                     style =
                         TextStyle(
                             color = GlanceTheme.colors.onBackground,
@@ -152,3 +155,6 @@ private fun QuickWeightContent(
         }
     }
 }
+
+private fun formatWeight(kg: Double): String =
+    String.format(Locale.US, "%.1f kg", kg)

@@ -23,6 +23,8 @@ class WeightRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
 ) {
+    var onWeightChanged: (suspend () -> Unit)? = null
+
     fun entries(): Flow<List<WeightEntry>> =
         db.bissbilanzDatabaseQueries
             .selectAllWeightEntries()
@@ -48,6 +50,7 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
+        onWeightChanged?.invoke()
         return temp
     }
 
@@ -81,6 +84,7 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
         }
         syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        onWeightChanged?.invoke()
         return result
     }
 
@@ -104,6 +108,7 @@ class WeightRepository(
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
         syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        onWeightChanged?.invoke()
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

@@ -9,6 +9,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -55,6 +56,7 @@ class OpenScannerAction : ActionCallback {
 
 @Composable
 private fun QuickScanContent() {
+    val context = LocalContext.current
     Box(
         modifier =
             GlanceModifier
@@ -66,7 +68,7 @@ private fun QuickScanContent() {
     ) {
         Image(
             provider = ImageProvider(R.drawable.ic_barcode_scan),
-            contentDescription = "Scan barcode",
+            contentDescription = context.getString(R.string.scan_widget_content_desc),
             contentScale = ContentScale.Fit,
             modifier = GlanceModifier.size(40.dp),
         )
