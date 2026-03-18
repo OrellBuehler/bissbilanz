@@ -230,6 +230,7 @@ enum L10n {
 
     static var fastingDay: String { localized("fasting_day", en: "Fasting Day", de: "Fastentag") }
     static var fastingDayToggle: String { localized("fasting_day_toggle", en: "Mark as fasting day", de: "Als Fastentag markieren") }
+    static var fastingDayDescription: String { localized("fasting_day_description", en: "Include this 0-calorie day in statistics and predictions", de: "Diesen 0-Kalorien-Tag in Statistiken und Prognosen einbeziehen") }
 
     // MARK: - Weight (additional)
 

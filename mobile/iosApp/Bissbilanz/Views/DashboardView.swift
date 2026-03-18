@@ -43,8 +43,28 @@ struct DashboardView: View {
                     dateNavigator
                     macroRings
 
-                    if isFastingDay {
-                        fastingBanner
+                    if totalCalories == 0 {
+                        HStack {
+                            Image(systemName: "fork.knife")
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.fastingDay)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text(L10n.fastingDayDescription)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { isFastingDay },
+                                set: { _ in Task { await toggleFastingDay() } }
+                            ))
+                            .labelsHidden()
+                        }
+                        .padding(12)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
 
                     if preferences.showWeightWidget, let weight = latestWeight {
@@ -257,23 +277,13 @@ struct DashboardView: View {
             Text(L10n.tapToAdd)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 12) {
-                if !selectedDate.isToday {
-                    Button(L10n.copyYesterday) {
-                        showCopyConfirmation = true
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Button {
-                    Task { await toggleFastingDay() }
-                } label: {
-                    Label(L10n.fastingDayToggle, systemImage: isFastingDay ? "leaf.fill" : "leaf")
+            if !selectedDate.isToday {
+                Button(L10n.copyYesterday) {
+                    showCopyConfirmation = true
                 }
                 .buttonStyle(.bordered)
-                .tint(.orange)
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
         }
         .padding(.vertical, 48)
     }
