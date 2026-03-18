@@ -127,8 +127,8 @@
 					<polygon
 						points={polygonPoints(axes.map(() => level))}
 						fill="none"
-						stroke="hsl(var(--muted-foreground) / 0.15)"
-						stroke-width="1"
+						stroke="hsl(var(--muted-foreground) / 0.12)"
+						stroke-width="0.75"
 					/>
 				{/each}
 
@@ -139,34 +139,40 @@
 						y1={cy}
 						x2={end.x}
 						y2={end.y}
-						stroke="hsl(var(--muted-foreground) / 0.15)"
-						stroke-width="1"
+						stroke="hsl(var(--muted-foreground) / 0.12)"
+						stroke-width="0.75"
 					/>
 				{/each}
 
 				<polygon
 					points={goalPolygon}
 					fill="none"
-					stroke="hsl(var(--muted-foreground) / 0.5)"
+					stroke="hsl(var(--muted-foreground) / 0.4)"
 					stroke-width="1.5"
 					stroke-dasharray="4 3"
 				/>
 
 				<polygon
 					points={polygonPoints(percentages)}
-					fill="hsl(var(--primary) / 0.15)"
-					stroke="hsl(var(--primary))"
-					stroke-width="2"
+					fill="hsl(var(--muted-foreground) / 0.06)"
+					stroke="hsl(var(--muted-foreground) / 0.4)"
+					stroke-width="1.5"
 				/>
 
 				{#each axes as axis, i}
-					{@const pt = polarToCart(i * angleStep, radius + 18)}
+					{@const pct = percentages[i]}
+					{@const pt = polarToCart(i * angleStep, (pct / 100) * radius)}
+					<circle cx={pt.x} cy={pt.y} r="3.5" fill={axis.color} opacity="0.85" />
+				{/each}
+
+				{#each axes as axis, i}
+					{@const pt = polarToCart(i * angleStep, radius + 20)}
 					<text
 						x={pt.x}
 						y={pt.y}
 						text-anchor="middle"
 						dominant-baseline="middle"
-						class="fill-muted-foreground text-[11px] font-medium"
+						class="text-[13px] font-bold"
 						style="fill: {axis.color}"
 					>
 						{axis.label()}
