@@ -31,6 +31,7 @@ import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -62,10 +63,11 @@ class QuickWeightActivity : ComponentActivity() {
                         existingEntry = existingEntry,
                         onDismiss = { finish() },
                         onSave = { weight, notes ->
+                            val entry = existingEntry
                             lifecycleScope.launch(Dispatchers.IO) {
-                                if (existingEntry != null) {
+                                if (entry != null) {
                                     weightRepo.updateEntry(
-                                        existingEntry!!.id,
+                                        entry.id,
                                         WeightUpdate(
                                             weightKg = weight,
                                             notes = notes.ifBlank { null },
@@ -80,7 +82,7 @@ class QuickWeightActivity : ComponentActivity() {
                                         ),
                                     )
                                 }
-                                finish()
+                                withContext(Dispatchers.Main) { finish() }
                             }
                         },
                     )

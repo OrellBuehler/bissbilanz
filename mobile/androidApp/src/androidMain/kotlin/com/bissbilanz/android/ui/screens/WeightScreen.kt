@@ -39,6 +39,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,7 +219,7 @@ fun WeightScreen(navController: NavController) {
                         Card(modifier = Modifier.fillMaxWidth().animateItem()) {
                             ListItem(
                                 headlineContent = {
-                                    Text("${"%.1f".format(entry.weightKg)} kg", fontWeight = FontWeight.Bold)
+                                    Text("%s kg".format(String.format(Locale.US, "%.1f", entry.weightKg)), fontWeight = FontWeight.Bold)
                                 },
                                 supportingContent = {
                                     Column {
@@ -278,7 +279,7 @@ private fun WeightStatsRow(
             contentColor = WeightBlue,
         ) {
             Text(
-                "${"%.1f".format(latest.weightKg)} kg",
+                "%s kg".format(String.format(Locale.US, "%.1f", latest.weightKg)),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -292,7 +293,7 @@ private fun WeightStatsRow(
                 contentColor = TrendGreen,
             ) {
                 Text(
-                    "Trend ${"%.1f".format(avg)} kg",
+                    "Trend %s kg".format(String.format(Locale.US, "%.1f", avg)),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -306,7 +307,7 @@ private fun WeightStatsRow(
             contentColor = deltaColor,
         ) {
             Text(
-                "Δ $deltaSign${"%.1f".format(delta)} kg",
+                "Δ $deltaSign%s kg".format(String.format(Locale.US, "%.1f", delta)),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -336,7 +337,7 @@ private fun WeightStatsRow(
                     contentColor = ProjectionPurple,
                 ) {
                     Text(
-                        "Projected ${"%.1f".format(projectedWeight)} kg",
+                        "Projected %s kg".format(String.format(Locale.US, "%.1f", projectedWeight)),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -380,7 +381,7 @@ fun AddWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.toDoubleOrNull()
+                    val weight = weightText.replace(',', '.').toDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }
@@ -397,7 +398,7 @@ fun EditWeightDialog(
     onDismiss: () -> Unit,
     onSave: (Double, String) -> Unit,
 ) {
-    var weightText by remember { mutableStateOf("%.1f".format(entry.weightKg)) }
+    var weightText by remember { mutableStateOf(String.format(Locale.US, "%.1f", entry.weightKg)) }
     var notes by remember { mutableStateOf(entry.notes ?: "") }
 
     AlertDialog(
@@ -425,7 +426,7 @@ fun EditWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.toDoubleOrNull()
+                    val weight = weightText.replace(',', '.').toDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }

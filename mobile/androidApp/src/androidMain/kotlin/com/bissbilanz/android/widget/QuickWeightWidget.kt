@@ -156,5 +156,4 @@ private fun QuickWeightContent(
     }
 }
 
-private fun formatWeight(kg: Double): String =
-    String.format(Locale.US, "%.1f kg", kg)
+private fun formatWeight(kg: Double): String = String.format(Locale.US, "%.1f kg", kg)
