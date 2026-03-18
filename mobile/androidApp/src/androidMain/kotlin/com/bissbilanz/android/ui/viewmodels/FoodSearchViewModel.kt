@@ -57,6 +57,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
+                _snackbarMessage.value = "Failed to load recent foods"
             }
         }
     }
@@ -85,6 +86,7 @@ class FoodSearchViewModel(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Sentry.captureException(e)
+            _snackbarMessage.value = "Failed to load foods"
         }
         _isLoadingMore.value = false
     }
@@ -100,6 +102,7 @@ class FoodSearchViewModel(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         Sentry.captureException(e)
+                        _snackbarMessage.value = "Search failed"
                         emptyList()
                     }
                 _isSearching.value = false
@@ -146,6 +149,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
+                _snackbarMessage.value = "Failed to refresh"
             }
         }
         if (_selectedTab.value == 1) loadAllFoods()

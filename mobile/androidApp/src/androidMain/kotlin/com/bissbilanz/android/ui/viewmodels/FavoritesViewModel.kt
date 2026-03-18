@@ -62,6 +62,7 @@ class FavoritesViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
+                _snackbarMessage.value = "Failed to load favorites"
             }
             _isLoading.value = false
         }

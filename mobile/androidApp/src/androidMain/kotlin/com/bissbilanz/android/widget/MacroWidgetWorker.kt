@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
+import io.sentry.Sentry
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -22,8 +23,9 @@ class MacroWidgetWorker(
         try {
             koin.get<EntryRepository>().refresh(today)
             koin.get<GoalsRepository>().refresh()
-        } catch (_: Exception) {
-            // Widget will show cached data
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
         }
 
         MacroWidget.updateAllWidgets(applicationContext)

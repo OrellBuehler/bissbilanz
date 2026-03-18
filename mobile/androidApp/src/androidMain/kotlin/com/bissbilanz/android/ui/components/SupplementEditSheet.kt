@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -74,6 +75,7 @@ fun SupplementEditSheet(
                 }
             } catch (e: Exception) {
                 Log.e("SupplementEditSheet", "Failed to load supplement", e)
+                Sentry.captureException(e)
                 errorMessage = "Failed to load supplement"
             }
             isLoading = false
@@ -373,6 +375,7 @@ fun SupplementEditSheet(
                                     onSaved()
                                 } catch (e: Exception) {
                                     Log.e("SupplementEditSheet", "Failed to save supplement", e)
+                                    Sentry.captureException(e)
                                     errorMessage = "Failed to save supplement"
                                 }
                                 isSaving = false

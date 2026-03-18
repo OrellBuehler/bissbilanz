@@ -2,7 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
-import io.sentry.Sentry
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +20,7 @@ import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

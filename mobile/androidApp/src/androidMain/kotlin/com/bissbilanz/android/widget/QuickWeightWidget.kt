@@ -31,6 +31,7 @@ import androidx.glance.text.TextStyle
 import com.bissbilanz.android.R
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.repository.WeightRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -51,7 +52,8 @@ class QuickWeightWidget : GlanceAppWidget() {
         val entries =
             try {
                 weightRepo.entries().first()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Sentry.captureException(e)
                 emptyList()
             }
 

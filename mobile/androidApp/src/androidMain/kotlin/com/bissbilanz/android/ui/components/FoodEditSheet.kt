@@ -2,7 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import io.sentry.Sentry
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,6 +17,7 @@ import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 

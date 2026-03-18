@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -97,7 +98,9 @@ fun WeightWidget(
                                     try {
                                         weightRepo.createEntry(WeightCreate(weightKg = kg, entryDate = date))
                                         weightInput = ""
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
+                                        if (e is kotlinx.coroutines.CancellationException) throw e
+                                        Sentry.captureException(e)
                                         onError("Failed to log weight")
                                     }
                                 }

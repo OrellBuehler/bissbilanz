@@ -46,6 +46,9 @@ class InsightsViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
     private val _selectedRange = MutableStateFlow(0)
     val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
 
@@ -201,9 +204,14 @@ class InsightsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
+                _snackbarMessage.value = "Failed to load insights"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }

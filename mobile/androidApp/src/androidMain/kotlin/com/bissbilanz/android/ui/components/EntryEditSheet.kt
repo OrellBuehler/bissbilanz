@@ -20,6 +20,7 @@ import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
+import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -88,6 +89,7 @@ fun EntryEditSheet(
                                 onSaved()
                             } catch (e: Exception) {
                                 Log.e("EntryEditSheet", "Failed to delete entry", e)
+                                Sentry.captureException(e)
                                 showDeleteDialog = false
                                 errorMessage = "Failed to delete entry"
                             }
@@ -280,6 +282,7 @@ fun EntryEditSheet(
                                 onSaved()
                             } catch (e: Exception) {
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
+                                Sentry.captureException(e)
                                 errorMessage = "Failed to save entry"
                             }
                             isSaving = false

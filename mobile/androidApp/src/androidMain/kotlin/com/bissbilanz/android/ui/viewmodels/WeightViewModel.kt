@@ -38,6 +38,9 @@ class WeightViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
     init {
         loadTrend()
     }
@@ -92,9 +95,14 @@ class WeightViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
+                _snackbarMessage.value = "Failed to load weight data"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }
