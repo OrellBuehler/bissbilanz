@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -123,7 +125,16 @@ fun DashboardScreen(navController: NavController) {
                     TextButton(
                         onClick = { viewModel.goToToday() },
                         enabled = selectedDate != today,
-                        modifier = Modifier.alpha(if (selectedDate != today) 1f else 0f),
+                        modifier =
+                            Modifier
+                                .alpha(if (selectedDate != today) 1f else 0f)
+                                .then(
+                                    if (selectedDate == today) {
+                                        Modifier.semantics { invisibleToUser() }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
                     ) {
                         Text("Go to today")
                     }
