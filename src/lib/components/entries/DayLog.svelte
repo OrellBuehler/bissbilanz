@@ -162,6 +162,21 @@
 </script>
 
 <div class="space-y-4">
+	{#if !totals.calories}
+		<div
+			class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
+		>
+			<div class="flex items-center gap-2">
+				<UtensilsCrossed class="size-4 text-muted-foreground" />
+				<div>
+					<span class="text-sm font-medium">{m.fasting_day()}</span>
+					<p class="text-xs text-muted-foreground">{m.fasting_day_description()}</p>
+				</div>
+			</div>
+			<Switch checked={isFastingDay} onCheckedChange={toggleFastingDay} disabled={fastingLoading} />
+		</div>
+	{/if}
+
 	<div class="grid gap-4">
 		{#each mealTypes as mealType}
 			<MealSection
@@ -176,19 +191,6 @@
 				onDelete={deleteEntry}
 			/>
 		{/each}
-	</div>
-
-	<div
-		class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
-	>
-		<div class="flex items-center gap-2">
-			<UtensilsCrossed class="size-4 text-muted-foreground" />
-			<div>
-				<span class="text-sm font-medium">{m.fasting_day()}</span>
-				<p class="text-xs text-muted-foreground">{m.fasting_day_description()}</p>
-			</div>
-		</div>
-		<Switch checked={isFastingDay} onCheckedChange={toggleFastingDay} disabled={fastingLoading} />
 	</div>
 
 	<AddFoodModal
