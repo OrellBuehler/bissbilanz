@@ -44,17 +44,21 @@ fun CalendarScreen(navController: NavController) {
     var currentMonth by remember { mutableStateOf(today.month) }
     var currentYear by remember { mutableStateOf(today.year) }
 
+    suspend fun fetchMonth() {
+        val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
+        try {
+            calendarDays = statsRepo.getCalendarStats(monthStr)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
+            calendarDays = emptyList()
+        }
+    }
+
     fun loadMonth() {
         scope.launch {
             isLoading = true
-            try {
-                val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
-                calendarDays = statsRepo.getCalendarStats(monthStr)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
-                calendarDays = emptyList()
-            }
+            fetchMonth()
             isLoading = false
         }
     }
@@ -78,14 +82,7 @@ fun CalendarScreen(navController: NavController) {
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
-                try {
-                    calendarDays = statsRepo.getCalendarStats(monthStr)
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Sentry.captureException(e)
-                    calendarDays = emptyList()
-                }
+                fetchMonth()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {

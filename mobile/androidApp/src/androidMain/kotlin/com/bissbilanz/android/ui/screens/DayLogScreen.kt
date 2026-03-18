@@ -170,7 +170,10 @@ fun DayLogScreen(
             val totalCalories = entries.sumOf { it.resolvedCalories() }
 
             PullToRefreshWrapper(
-                onRefresh = { refreshManager.refreshAll(date) },
+                onRefresh = {
+                    refreshManager.refreshAll(date)
+                    viewModel.refreshFastingDay(date)
+                },
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 LazyColumn(

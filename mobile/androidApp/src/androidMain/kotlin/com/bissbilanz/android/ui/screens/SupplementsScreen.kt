@@ -56,6 +56,7 @@ fun SupplementsScreen(navController: NavController) {
         isLoading = true
         try {
             supplementRepo.refresh()
+            takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Sentry.captureException(e)
@@ -112,7 +113,12 @@ fun SupplementsScreen(navController: NavController) {
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
+                try {
+                    takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Sentry.captureException(e)
+                }
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {

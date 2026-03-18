@@ -67,6 +67,10 @@ class DayLogViewModel(
         }
     }
 
+    fun refreshFastingDay(date: String) {
+        viewModelScope.launch { loadFastingDay(date) }
+    }
+
     private suspend fun loadFastingDay(date: String) {
         try {
             val props = api.getDayProperties(date)

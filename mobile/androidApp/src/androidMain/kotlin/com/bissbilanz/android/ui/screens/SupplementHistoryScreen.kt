@@ -213,15 +213,7 @@ fun SupplementHistoryScreen(navController: NavController) {
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                try {
-                    val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
-                    val allSupplements = supplementRepo.getAllSupplements()
-                    adherence = computeAdherence(history, allSupplements, fromDate, toDate)
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Sentry.captureException(e)
-                    snackbarHostState.showSnackbar("Failed to load history")
-                }
+                loadData()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
