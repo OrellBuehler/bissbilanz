@@ -52,6 +52,13 @@ jobs:
       - name: Build shared iOS framework
         run: ./gradlew shared:linkDebugFrameworkIosSimulatorArm64
 
+      - name: Stage shared framework for Xcode
+        run: |
+          SDK_NAME=$(xcrun --sdk iphonesimulator --show-sdk-version)
+          DEST="shared/build/xcode-frameworks/Debug/iphonesimulator${SDK_NAME}"
+          mkdir -p "$DEST"
+          cp -R shared/build/bin/iosSimulatorArm64/debugFramework/shared.framework "$DEST/"
+
       - name: Generate Xcode project
         working-directory: mobile/iosApp
         run: xcodegen generate
