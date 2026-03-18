@@ -38,9 +38,9 @@ import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
-import io.sentry.Sentry
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 

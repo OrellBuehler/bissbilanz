@@ -35,8 +35,8 @@ import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
-import kotlinx.coroutines.launch
 import io.sentry.Sentry
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 

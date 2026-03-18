@@ -26,9 +26,9 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.repository.StatsRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
-import io.sentry.Sentry
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)

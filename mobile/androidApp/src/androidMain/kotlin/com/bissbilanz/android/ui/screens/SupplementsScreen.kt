@@ -31,11 +31,11 @@ import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import io.sentry.Sentry
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)

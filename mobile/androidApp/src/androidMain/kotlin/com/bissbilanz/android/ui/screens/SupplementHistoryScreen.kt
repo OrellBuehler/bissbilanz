@@ -28,9 +28,9 @@ import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.model.SupplementIngredient
 import com.bissbilanz.repository.SupplementRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
-import io.sentry.Sentry
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 

@@ -22,7 +22,7 @@ val appVersion = (findProperty("APP_VERSION") as? String)?.trimStart('v') ?: "de
 val computedVersionCode =
     if (appVersion != "dev") {
         val parts = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
-        parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
+        (parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }).coerceAtLeast(1)
     } else {
         1
     }
