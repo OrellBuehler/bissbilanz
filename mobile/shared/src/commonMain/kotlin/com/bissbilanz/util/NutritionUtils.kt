@@ -3,6 +3,8 @@ package com.bissbilanz.util
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.MacroTotals
 
+fun Entry.resolvedName(): String = food?.name ?: recipe?.name ?: foodName ?: quickName ?: "Unknown"
+
 fun Entry.resolvedCalories(): Double {
     val food = food
     val recipe = recipe
@@ -15,6 +17,7 @@ fun Entry.resolvedCalories(): Double {
                 f.calories * (ing.quantity / totalServings) * servings
             }
         }
+        calories != null -> calories * servings
         else -> (quickCalories ?: 0.0) * servings
     }
 }
@@ -31,6 +34,7 @@ fun Entry.resolvedProtein(): Double {
                 f.protein * (ing.quantity / totalServings) * servings
             }
         }
+        protein != null -> protein * servings
         else -> (quickProtein ?: 0.0) * servings
     }
 }
@@ -47,6 +51,7 @@ fun Entry.resolvedCarbs(): Double {
                 f.carbs * (ing.quantity / totalServings) * servings
             }
         }
+        carbs != null -> carbs * servings
         else -> (quickCarbs ?: 0.0) * servings
     }
 }
@@ -63,6 +68,7 @@ fun Entry.resolvedFat(): Double {
                 f.fat * (ing.quantity / totalServings) * servings
             }
         }
+        fat != null -> fat * servings
         else -> (quickFat ?: 0.0) * servings
     }
 }
@@ -79,6 +85,7 @@ fun Entry.resolvedFiber(): Double {
                 f.fiber * (ing.quantity / totalServings) * servings
             }
         }
+        fiber != null -> fiber * servings
         else -> (quickFiber ?: 0.0) * servings
     }
 }

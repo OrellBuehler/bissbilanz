@@ -31,6 +31,7 @@ import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -73,7 +74,7 @@ fun DayLogScreen(
 
     if (entryToDelete != null) {
         val entry = entryToDelete!!
-        val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+        val name = entry.resolvedName()
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
             title = { Text("Delete Entry") },
@@ -323,7 +324,7 @@ fun EntryListItem(
     entry: Entry,
     onClick: () -> Unit,
 ) {
-    val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+    val name = entry.resolvedName()
     val calories = entry.resolvedCalories()
     val protein = entry.resolvedProtein()
 

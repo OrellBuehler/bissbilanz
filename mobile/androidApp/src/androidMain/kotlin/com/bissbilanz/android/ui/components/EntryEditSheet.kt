@@ -18,6 +18,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -70,8 +71,7 @@ fun EntryEditSheet(
     }
 
     if (showDeleteDialog && entry != null) {
-        val name =
-            entry?.food?.name ?: entry?.recipe?.name ?: entry?.quickName ?: "Unknown"
+        val name = entry?.resolvedName() ?: "Unknown"
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Entry") },
@@ -139,9 +139,7 @@ fun EntryEditSheet(
             }
 
             if (isEditing && entry != null) {
-                val name =
-                    entry?.food?.name ?: entry?.recipe?.name
-                        ?: entry?.quickName ?: "Unknown"
+                val name = entry?.resolvedName() ?: "Unknown"
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(

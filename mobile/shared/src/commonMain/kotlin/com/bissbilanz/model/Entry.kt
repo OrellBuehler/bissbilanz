@@ -23,6 +23,14 @@ data class Entry(
     val updatedAt: String? = null,
     val food: Food? = null,
     val recipe: Recipe? = null,
+    val foodName: String? = null,
+    val calories: Double? = null,
+    val protein: Double? = null,
+    val carbs: Double? = null,
+    val fat: Double? = null,
+    val fiber: Double? = null,
+    val servingSize: Double? = null,
+    val servingUnit: String? = null,
 )
 
 @Serializable

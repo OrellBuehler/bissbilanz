@@ -145,12 +145,12 @@ class EntryRepository(
     }
 
     private fun cacheEntry(entry: Entry) {
-        val foodName = entry.food?.name ?: entry.recipe?.name ?: entry.quickName
-        val calories = entry.food?.calories ?: entry.quickCalories ?: 0.0
-        val protein = entry.food?.protein ?: entry.quickProtein ?: 0.0
-        val carbs = entry.food?.carbs ?: entry.quickCarbs ?: 0.0
-        val fat = entry.food?.fat ?: entry.quickFat ?: 0.0
-        val fiber = entry.food?.fiber ?: entry.quickFiber ?: 0.0
+        val foodName = entry.food?.name ?: entry.recipe?.name ?: entry.foodName ?: entry.quickName
+        val calories = entry.food?.calories ?: entry.calories ?: entry.quickCalories ?: 0.0
+        val protein = entry.food?.protein ?: entry.protein ?: entry.quickProtein ?: 0.0
+        val carbs = entry.food?.carbs ?: entry.carbs ?: entry.quickCarbs ?: 0.0
+        val fat = entry.food?.fat ?: entry.fat ?: entry.quickFat ?: 0.0
+        val fiber = entry.food?.fiber ?: entry.fiber ?: entry.quickFiber ?: 0.0
         db.bissbilanzDatabaseQueries.insertEntry(
             id = entry.id,
             date = entry.date,

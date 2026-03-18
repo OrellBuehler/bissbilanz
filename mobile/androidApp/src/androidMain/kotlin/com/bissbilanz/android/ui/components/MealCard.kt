@@ -12,6 +12,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.util.toDisplayString
 
@@ -67,7 +68,7 @@ fun MealCard(
             }
 
             entries.forEach { entry ->
-                val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+                val name = entry.resolvedName()
                 val cal = entry.resolvedCalories()
                 val servingsText =
                     if (entry.servings != 1.0) {
