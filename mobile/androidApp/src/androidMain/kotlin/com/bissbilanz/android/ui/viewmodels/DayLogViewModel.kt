@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,6 +58,8 @@ class DayLogViewModel(
                 entryRepo.refresh(date)
                 loadFastingDay(date)
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
                 _error.value = "Failed to load entries"
             } finally {
                 _isLoading.value = false
@@ -68,7 +71,9 @@ class DayLogViewModel(
         try {
             val props = api.getDayProperties(date)
             _isFastingDay.value = props?.isFastingDay ?: false
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
             _isFastingDay.value = false
         }
     }
@@ -83,7 +88,9 @@ class DayLogViewModel(
                 } else {
                     api.deleteDayProperties(date)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
                 _isFastingDay.value = !newValue
                 _error.value = "Failed to update fasting day"
             }
@@ -95,6 +102,8 @@ class DayLogViewModel(
             try {
                 entryRepo.deleteEntry(id)
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
                 _error.value = "Failed to delete entry"
             }
         }

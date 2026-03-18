@@ -6,6 +6,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,6 +79,7 @@ class FoodSearchViewModel(
             _canLoadMore.value = allFoodsOffset < response.total
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
         }
         _isLoadingMore.value = false
     }
@@ -90,7 +92,9 @@ class FoodSearchViewModel(
                 _searchResults.value =
                     try {
                         foodRepo.searchFoods(newQuery)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
                         emptyList()
                     }
                 _isSearching.value = false
@@ -115,9 +119,12 @@ class FoodSearchViewModel(
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                 entryRepo.createEntry(
                     EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today),
+                    food = food,
                 )
                 _snackbarMessage.value = "Logged ${food.name}"
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
         }

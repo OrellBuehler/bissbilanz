@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
 import com.bissbilanz.repository.WeightRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +72,7 @@ class WeightViewModel(
                 weightRepo.refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
             } finally {
                 _isLoading.value = false
             }

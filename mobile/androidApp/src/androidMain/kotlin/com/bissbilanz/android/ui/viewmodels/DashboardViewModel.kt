@@ -6,6 +6,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,7 +74,8 @@ class DashboardViewModel(
                 entryRepo.refresh(dateStr)
                 goalsRepo.refresh()
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
             } finally {
                 _isLoading.value = false
             }
