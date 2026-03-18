@@ -100,7 +100,7 @@
 		return [...actual, ...future];
 	});
 
-	const tickStep = $derived(chartData.length > 14 ? Math.ceil(chartData.length / 7) : 1);
+	const tickStep = $derived(chartData.length > 14 ? Math.ceil(chartData.length / 5) : 1);
 	const filteredTicks = $derived(
 		chartData.filter((_, i) => i % tickStep === 0).map((d) => d.dateLabel)
 	);
@@ -288,7 +288,7 @@
 							x="dateLabel"
 							{series}
 							{yDomain}
-							padding={{ left: 36, bottom: 4 }}
+							padding={{ left: 36, bottom: 24 }}
 							tooltip={true}
 							axis={true}
 							grid={true}
