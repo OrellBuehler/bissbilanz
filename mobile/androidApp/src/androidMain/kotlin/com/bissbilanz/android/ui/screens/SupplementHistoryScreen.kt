@@ -30,6 +30,7 @@ import com.bissbilanz.model.SupplementIngredient
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import io.sentry.Sentry
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 
@@ -136,7 +137,9 @@ fun SupplementHistoryScreen(navController: NavController) {
             val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
             val allSupplements = supplementRepo.getAllSupplements()
             adherence = computeAdherence(history, allSupplements, fromDate, toDate)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
             snackbarHostState.showSnackbar("Failed to load history")
         }
         isLoading = false
@@ -214,7 +217,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                     val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
                     val allSupplements = supplementRepo.getAllSupplements()
                     adherence = computeAdherence(history, allSupplements, fromDate, toDate)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Sentry.captureException(e)
+                    snackbarHostState.showSnackbar("Failed to load history")
                 }
             },
             modifier = Modifier.fillMaxSize().padding(padding),

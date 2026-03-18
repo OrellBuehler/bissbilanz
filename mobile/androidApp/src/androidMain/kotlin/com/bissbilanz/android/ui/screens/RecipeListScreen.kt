@@ -69,7 +69,9 @@ fun RecipeListScreen(navController: NavController) {
                             recipe = recipeToLog,
                         )
                         snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log recipe")
                     }
                 }

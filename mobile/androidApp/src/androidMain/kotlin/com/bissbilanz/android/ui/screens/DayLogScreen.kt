@@ -37,6 +37,7 @@ import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import io.sentry.Sentry
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -117,7 +118,9 @@ fun DayLogScreen(
                                 val count = entryRepo.copyEntries(yesterday, date)
                                 snackbarHostState.showSnackbar("Copied $count entries")
                                 viewModel.loadEntries(date, force = true)
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                Sentry.captureException(e)
                                 snackbarHostState.showSnackbar("No entries to copy")
                             }
                         }

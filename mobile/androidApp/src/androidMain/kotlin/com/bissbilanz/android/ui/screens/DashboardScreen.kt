@@ -40,6 +40,7 @@ import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import io.sentry.Sentry
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -212,7 +213,9 @@ fun DashboardScreen(navController: NavController) {
                                                         val count = entryRepo.copyEntries(yesterday, selectedDate.toString())
                                                         snackbarHostState.showSnackbar("Copied $count entries from yesterday")
                                                         viewModel.loadData()
-                                                    } catch (_: Exception) {
+                                                    } catch (e: Exception) {
+                                                        if (e is kotlinx.coroutines.CancellationException) throw e
+                                                        Sentry.captureException(e)
                                                         snackbarHostState.showSnackbar("No entries to copy from yesterday")
                                                     }
                                                 }

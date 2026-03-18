@@ -39,6 +39,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import io.sentry.Sentry
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import java.util.Locale
@@ -77,6 +78,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight logged")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log weight")
                     }
                 }
@@ -100,6 +102,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight updated")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
+                        Sentry.captureException(e)
                         snackbarHostState.showSnackbar("Failed to update weight")
                     }
                 }
@@ -122,6 +125,7 @@ fun WeightScreen(navController: NavController) {
                                 viewModel.refresh()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
+                                Sentry.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete")
                             }
                         }

@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import io.sentry.Sentry
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +56,10 @@ fun SupplementsScreen(navController: NavController) {
         isLoading = true
         try {
             supplementRepo.refresh()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Sentry.captureException(e)
+            snackbarHostState.showSnackbar("Failed to load supplements")
         }
         isLoading = false
     }
@@ -169,7 +173,9 @@ fun SupplementsScreen(navController: NavController) {
                                                 supplementRepo.logSupplement(supplement.id, today)
                                                 takenIds = takenIds + supplement.id
                                             }
-                                        } catch (_: Exception) {
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            Sentry.captureException(e)
                                             snackbarHostState.showSnackbar("Failed to update supplement")
                                         }
                                     }

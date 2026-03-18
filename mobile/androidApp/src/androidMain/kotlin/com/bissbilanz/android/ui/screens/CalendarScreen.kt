@@ -28,6 +28,7 @@ import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import io.sentry.Sentry
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +50,9 @@ fun CalendarScreen(navController: NavController) {
             try {
                 val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
                 calendarDays = statsRepo.getCalendarStats(monthStr)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Sentry.captureException(e)
                 calendarDays = emptyList()
             }
             isLoading = false
@@ -78,7 +81,9 @@ fun CalendarScreen(navController: NavController) {
                 val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
                 try {
                     calendarDays = statsRepo.getCalendarStats(monthStr)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Sentry.captureException(e)
                     calendarDays = emptyList()
                 }
             },
