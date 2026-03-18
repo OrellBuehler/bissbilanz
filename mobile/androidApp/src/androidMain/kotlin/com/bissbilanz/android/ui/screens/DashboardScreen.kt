@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -119,10 +120,12 @@ fun DashboardScreen(navController: NavController) {
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(dateLabel, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    if (selectedDate != today) {
-                        TextButton(onClick = { viewModel.goToToday() }) {
-                            Text("Go to today")
-                        }
+                    TextButton(
+                        onClick = { viewModel.goToToday() },
+                        enabled = selectedDate != today,
+                        modifier = Modifier.alpha(if (selectedDate != today) 1f else 0f),
+                    ) {
+                        Text("Go to today")
                     }
                 }
                 IconButton(onClick = { viewModel.nextDay() }) {
