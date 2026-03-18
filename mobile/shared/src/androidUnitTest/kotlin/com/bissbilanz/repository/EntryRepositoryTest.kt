@@ -69,6 +69,7 @@ class EntryRepositoryTest {
     @Test
     fun createEntrySavesLocallyAndEnqueuesSync() =
         runTest {
+            coEvery { api.getEntries("2024-01-15") } returns emptyList()
             val create =
                 EntryCreate(
                     foodId = "f1",
