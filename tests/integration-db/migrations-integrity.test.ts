@@ -25,12 +25,12 @@ describe('migration integrity', () => {
 		await expect(runTestMigrations(dbUrl)).resolves.toBeDefined();
 	});
 
-	it('records all 28 migrations in the journal', async () => {
+	it('records all 30 migrations in the journal', async () => {
 		const db = getTestDB(dbUrl);
 		const result = await db.execute<{ count: number }>(
 			sql`SELECT count(*)::int as count FROM "drizzle"."__drizzle_migrations"`
 		);
-		expect(result[0].count).toBe(28);
+		expect(result[0].count).toBe(30);
 	});
 
 	it('creates all expected tables', async () => {
