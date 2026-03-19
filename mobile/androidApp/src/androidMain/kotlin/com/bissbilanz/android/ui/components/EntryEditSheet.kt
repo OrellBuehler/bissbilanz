@@ -88,6 +88,7 @@ fun EntryEditSheet(
                                 sheetState.hide()
                                 onSaved()
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to delete entry", e)
                                 Sentry.captureException(e)
                                 showDeleteDialog = false
@@ -281,6 +282,7 @@ fun EntryEditSheet(
                                 sheetState.hide()
                                 onSaved()
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
                                 Sentry.captureException(e)
                                 errorMessage = "Failed to save entry"

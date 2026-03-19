@@ -76,6 +76,7 @@ fun RecipeEditSheet(
                     )
                 } ?: emptyList()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
                 Sentry.captureException(e)
                 errorMessage = "Failed to load recipe"
@@ -103,6 +104,7 @@ fun RecipeEditSheet(
                                         try {
                                             foodSearchResults = foodRepo.searchFoods(query)
                                         } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
                                             Log.e("RecipeEditSheet", "Food search failed", e)
                                             Sentry.captureException(e)
                                             foodSearchResults = emptyList()
@@ -350,6 +352,7 @@ fun RecipeEditSheet(
                                     sheetState.hide()
                                     onSaved()
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("RecipeEditSheet", "Failed to save recipe", e)
                                     Sentry.captureException(e)
                                     errorMessage = "Failed to save recipe"

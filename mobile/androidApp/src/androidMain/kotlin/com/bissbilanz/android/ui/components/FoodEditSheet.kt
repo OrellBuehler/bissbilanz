@@ -86,6 +86,7 @@ fun FoodEditSheet(
                 vitaminC = food.vitaminC?.toString() ?: ""
                 vitaminD = food.vitaminD?.toString() ?: ""
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)
                 Sentry.captureException(e)
                 errorMessage = "Failed to load food"
@@ -146,6 +147,7 @@ fun FoodEditSheet(
                 sheetState.hide()
                 onSaved()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to save food", e)
                 Sentry.captureException(e)
                 errorMessage = "Failed to save food"

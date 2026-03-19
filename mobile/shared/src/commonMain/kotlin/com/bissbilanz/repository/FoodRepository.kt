@@ -131,6 +131,7 @@ class FoodRepository(
                         api.getFoodByBarcode(barcode)
                     } catch (e: Exception) {
                         if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                        errorReporter.captureException(e)
                         null
                     }
                 }

@@ -74,6 +74,7 @@ fun SupplementEditSheet(
                     } ?: emptyList()
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("SupplementEditSheet", "Failed to load supplement", e)
                 Sentry.captureException(e)
                 errorMessage = "Failed to load supplement"
@@ -374,6 +375,7 @@ fun SupplementEditSheet(
                                     sheetState.hide()
                                     onSaved()
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("SupplementEditSheet", "Failed to save supplement", e)
                                     Sentry.captureException(e)
                                     errorMessage = "Failed to save supplement"
