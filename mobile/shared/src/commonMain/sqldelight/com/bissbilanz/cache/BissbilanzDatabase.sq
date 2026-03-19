@@ -236,6 +236,9 @@ SELECT * FROM CachedPreferences WHERE id = 1;
 insertPreferences:
 INSERT OR REPLACE INTO CachedPreferences(id, jsonData) VALUES (1, ?);
 
+deletePreferences:
+DELETE FROM CachedPreferences WHERE id = 1;
+
 -- Meal Types
 selectAllMealTypes:
 SELECT * FROM CachedMealType ORDER BY sortOrder;

@@ -28,7 +28,14 @@ class PreferencesRepository(
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
             .map { cached ->
-                cached?.let { json.decodeFromString<Preferences>(it.jsonData) }
+                cached?.let {
+                    try {
+                        json.decodeFromString<Preferences>(it.jsonData)
+                    } catch (_: Exception) {
+                        db.bissbilanzDatabaseQueries.deletePreferences()
+                        null
+                    }
+                }
             }
 
     suspend fun refresh() {
@@ -39,7 +46,14 @@ class PreferencesRepository(
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
         val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
-            cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences(
+            cached?.let {
+                try {
+                    json.decodeFromString<Preferences>(it.jsonData)
+                } catch (_: Exception) {
+                    db.bissbilanzDatabaseQueries.deletePreferences()
+                    null
+                }
+            } ?: Preferences(
                 showChartWidget = true,
                 showFavoritesWidget = true,
                 showSupplementsWidget = true,
