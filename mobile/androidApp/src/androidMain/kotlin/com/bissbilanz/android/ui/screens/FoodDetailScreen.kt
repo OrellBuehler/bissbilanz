@@ -40,6 +40,7 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -248,7 +249,7 @@ fun FoodDetailScreen(
                         }
 
                         Text(
-                            "Per ${f.servingSize.toInt()} ${f.servingUnit.name.lowercase()}",
+                            "Per ${f.servingSize.toDisplayString()} ${f.servingUnit.name.lowercase()}",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -463,7 +464,7 @@ fun MacroRow(
     ) {
         Text(label, color = color)
         Text(
-            "${value.toDisplayString()} $unit",
+            "${value.formatNutrient()} $unit",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

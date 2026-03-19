@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun MacroRing(
@@ -41,7 +42,7 @@ fun MacroRing(
     }
 
     val animatedCounter by animateIntAsState(
-        targetValue = current.toInt(),
+        targetValue = current.roundToInt(),
         animationSpec = spring(dampingRatio = Motion.GENTLE_DAMPING, stiffness = Motion.GENTLE_STIFFNESS),
         label = "counter",
     )
@@ -74,7 +75,7 @@ fun MacroRing(
                 )
                 if (showGoal) {
                     Text(
-                        text = "/ ${goal.toInt()}",
+                        text = "/ ${goal.roundToInt()}",
                         style = MaterialTheme.typography.labelSmall,
                         color = color.copy(alpha = 0.6f),
                     )

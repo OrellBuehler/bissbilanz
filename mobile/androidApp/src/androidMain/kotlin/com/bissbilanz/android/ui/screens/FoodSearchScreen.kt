@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +236,7 @@ fun FoodListItem(
             },
         supportingContent = {
             Text(
-                "${food.calories.toInt()} cal  ·  P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
+                "${food.calories.roundToInt()} cal  ·  P${food.protein.roundToInt()} C${food.carbs.roundToInt()} F${food.fat.roundToInt()}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },

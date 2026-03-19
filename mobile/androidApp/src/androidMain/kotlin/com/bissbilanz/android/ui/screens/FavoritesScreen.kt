@@ -32,6 +32,7 @@ import com.bissbilanz.model.Recipe
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlin.math.roundToInt
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
@@ -153,8 +154,9 @@ fun FavoritesScreen(navController: NavController) {
                                 items(favorites, key = { it.id }) { food ->
                                     FavoriteCard(
                                         name = food.name,
-                                        subtitle = "${food.calories.toInt()} cal",
-                                        secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
+                                        subtitle = "${food.calories.roundToInt()} cal",
+                                        secondaryText =
+                                            "P${food.protein.roundToInt()} C${food.carbs.roundToInt()} F${food.fat.roundToInt()}",
                                         imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
                                         onClick = { navController.navigate("food/${food.id}") },
                                         onQuickLog = {
