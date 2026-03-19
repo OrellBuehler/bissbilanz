@@ -20,7 +20,6 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
-import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
@@ -197,78 +196,22 @@ fun RecipeDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Per-serving nutrition
-                        val ingredients = r.ingredients ?: emptyList()
+                        val ingredients = r.ingredients
                         if (ingredients.isNotEmpty()) {
-                            val totalCal =
-                                ingredients.sumOf { ing ->
-                                    val f = ing.food ?: return@sumOf 0.0
-                                    f.calories * ing.quantity / f.servingSize
-                                }
-                            val totalProtein =
-                                ingredients.sumOf { ing ->
-                                    val f = ing.food ?: return@sumOf 0.0
-                                    f.protein * ing.quantity / f.servingSize
-                                }
-                            val totalCarbs =
-                                ingredients.sumOf { ing ->
-                                    val f = ing.food ?: return@sumOf 0.0
-                                    f.carbs * ing.quantity / f.servingSize
-                                }
-                            val totalFat =
-                                ingredients.sumOf { ing ->
-                                    val f = ing.food ?: return@sumOf 0.0
-                                    f.fat * ing.quantity / f.servingSize
-                                }
-                            val totalFiber =
-                                ingredients.sumOf { ing ->
-                                    val f = ing.food ?: return@sumOf 0.0
-                                    f.fiber * ing.quantity / f.servingSize
-                                }
-
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Per Serving", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    MacroRow("Calories", totalCal / r.totalServings, "kcal", CaloriesBlue)
-                                    MacroRow("Protein", totalProtein / r.totalServings, "g", ProteinRed)
-                                    MacroRow("Carbs", totalCarbs / r.totalServings, "g", CarbsOrange)
-                                    MacroRow("Fat", totalFat / r.totalServings, "g", FatYellow)
-                                    MacroRow("Fiber", totalFiber / r.totalServings, "g", FiberGreen)
-
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                                    Text(
-                                        "Total Recipe",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    MacroRow("Calories", totalCal, "kcal")
-                                    MacroRow("Protein", totalProtein, "g")
-                                    MacroRow("Carbs", totalCarbs, "g")
-                                    MacroRow("Fat", totalFat, "g")
-                                    MacroRow("Fiber", totalFiber, "g")
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
                             // Ingredients list
                             Card(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("Ingredients", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     ingredients.sortedBy { it.sortOrder }.forEach { ing ->
-                                        val foodName = ing.food?.name ?: "Unknown"
                                         val qty = ing.quantity.toDisplayString()
                                         Row(
                                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
-                                            Text(foodName, modifier = Modifier.weight(1f))
+                                            Text(ing.foodId, modifier = Modifier.weight(1f))
                                             Text(
-                                                "$qty ${ing.servingUnit.name.lowercase()}",
+                                                "$qty ${ing.servingUnit.value}",
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }

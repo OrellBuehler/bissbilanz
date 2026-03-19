@@ -17,8 +17,12 @@ import com.bissbilanz.api.generated.model.MealTypeCreate as GeneratedMealTypeCre
 import com.bissbilanz.api.generated.model.MonthlyStatsResponse as GeneratedMonthlyStatsResponse
 import com.bissbilanz.api.generated.model.Preferences as GeneratedPreferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GeneratedPreferencesUpdate
+import com.bissbilanz.api.generated.model.FavoriteMealTimeframe as GeneratedFavoriteMealTimeframe
+import com.bissbilanz.api.generated.model.GoalsUpdate as GeneratedGoalsUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate as GeneratedRecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeIngredient as GeneratedRecipeIngredient
+import com.bissbilanz.api.generated.model.RecipeIngredientInput as GeneratedRecipeIngredientInput
 import com.bissbilanz.api.generated.model.RecipeUpdate as GeneratedRecipeUpdate
 import com.bissbilanz.api.generated.model.ServingUnit as GeneratedServingUnit
 import com.bissbilanz.api.generated.model.StreaksResponse as GeneratedStreaksResponse
@@ -27,6 +31,7 @@ import com.bissbilanz.api.generated.model.SupplementCreate as GeneratedSupplemen
 import com.bissbilanz.api.generated.model.SupplementHistoryItem
 import com.bissbilanz.api.generated.model.SupplementHistoryResponse as GeneratedSupplementHistoryResponse
 import com.bissbilanz.api.generated.model.SupplementIngredient as GeneratedSupplementIngredient
+import com.bissbilanz.api.generated.model.SupplementIngredientInput as GeneratedSupplementIngredientInput
 import com.bissbilanz.api.generated.model.SupplementLog as GeneratedSupplementLog
 import com.bissbilanz.api.generated.model.TopFoodItem
 import com.bissbilanz.api.generated.model.TopFoodsResponse as GeneratedTopFoodsResponse
@@ -45,13 +50,18 @@ typealias Goals = GeneratedGoals
 typealias GoalsSummary = GeneratedGoalsSummary
 typealias Preferences = GeneratedPreferences
 typealias PreferencesUpdate = GeneratedPreferencesUpdate
+typealias FavoriteMealTimeframe = GeneratedFavoriteMealTimeframe
+typealias GoalsUpdate = GeneratedGoalsUpdate
 typealias Recipe = RecipeDetail
 typealias RecipeCreate = GeneratedRecipeCreate
+typealias RecipeIngredient = GeneratedRecipeIngredient
+typealias RecipeIngredientInput = GeneratedRecipeIngredientInput
 typealias RecipeUpdate = GeneratedRecipeUpdate
 typealias Supplement = GeneratedSupplement
 typealias SupplementCreate = GeneratedSupplementCreate
 typealias SupplementLog = GeneratedSupplementLog
 typealias SupplementIngredient = GeneratedSupplementIngredient
+typealias SupplementIngredientInput = GeneratedSupplementIngredientInput
 typealias ServingUnit = GeneratedServingUnit
 typealias WeightEntry = GeneratedWeightEntry
 typealias WeightCreate = GeneratedWeightCreate

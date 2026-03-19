@@ -64,15 +64,15 @@ fun SupplementEditSheet(
                     dosage = found.dosage.toDisplayString()
                     dosageUnit = found.dosageUnit
                     scheduleType = found.scheduleType
-                    timeOfDay = found.timeOfDay ?: "morning"
+                    timeOfDay = found.timeOfDay?.value ?: "morning"
                     isActive = found.isActive
-                    ingredients = found.ingredients?.map { ing ->
+                    ingredients = found.ingredients.map { ing ->
                         SupplementIngredientRow(
                             name = ing.name,
                             dosage = ing.dosage.toDisplayString(),
                             dosageUnit = ing.dosageUnit,
                         )
-                    } ?: emptyList()
+                    }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -352,8 +352,8 @@ fun SupplementEditSheet(
                                             name = name.trim(),
                                             dosage = dosage.toDoubleOrNull() ?: 0.0,
                                             dosageUnit = dosageUnit,
-                                            scheduleType = scheduleType,
-                                            timeOfDay = timeOfDay,
+                                            scheduleType = SupplementCreate.ScheduleType.valueOf(scheduleType.name),
+                                            timeOfDay = SupplementCreate.TimeOfDay.entries.firstOrNull { it.value == timeOfDay },
                                             isActive = isActive,
                                             ingredients =
                                                 ingredients
