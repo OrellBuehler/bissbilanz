@@ -28,6 +28,7 @@ import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
+import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -65,24 +66,29 @@ class QuickWeightActivity : ComponentActivity() {
                         onSave = { weight, notes ->
                             val entry = existingEntry
                             lifecycleScope.launch(Dispatchers.IO) {
-                                if (entry != null) {
-                                    weightRepo.updateEntry(
-                                        entry.id,
-                                        WeightUpdate(
-                                            weightKg = weight,
-                                            notes = notes.ifBlank { null },
-                                        ),
-                                    )
-                                } else {
-                                    weightRepo.createEntry(
-                                        WeightCreate(
-                                            weightKg = weight,
-                                            entryDate = today,
-                                            notes = notes.ifBlank { null },
-                                        ),
-                                    )
+                                try {
+                                    if (entry != null) {
+                                        weightRepo.updateEntry(
+                                            entry.id,
+                                            WeightUpdate(
+                                                weightKg = weight,
+                                                notes = notes.ifBlank { null },
+                                            ),
+                                        )
+                                    } else {
+                                        weightRepo.createEntry(
+                                            WeightCreate(
+                                                weightKg = weight,
+                                                entryDate = today,
+                                                notes = notes.ifBlank { null },
+                                            ),
+                                        )
+                                    }
+                                } catch (e: Exception) {
+                                    Sentry.captureException(e)
+                                } finally {
+                                    withContext(Dispatchers.Main) { finish() }
                                 }
-                                withContext(Dispatchers.Main) { finish() }
                             }
                         },
                     )

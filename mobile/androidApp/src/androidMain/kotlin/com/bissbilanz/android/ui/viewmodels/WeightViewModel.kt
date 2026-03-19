@@ -61,7 +61,7 @@ class WeightViewModel(
     fun refreshTrend() {
         viewModelScope.launch {
             try {
-                _trendData.value = fetchTrend()
+                applyTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
@@ -79,17 +79,17 @@ class WeightViewModel(
         }
     }
 
-    private suspend fun fetchTrend(): List<WeightTrendEntry> {
+    private suspend fun applyTrend() {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        return weightRepo.getTrend(rangeStartDate().toString(), today.toString())
+        _trendData.value = weightRepo.getTrend(rangeStartDate().toString(), today.toString())
     }
 
     private fun loadTrend() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _trendData.value = fetchTrend()
                 weightRepo.refresh()
+                applyTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
