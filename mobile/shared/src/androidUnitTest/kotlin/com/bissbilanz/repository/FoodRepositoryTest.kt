@@ -2,9 +2,10 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.ServingUnit
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
@@ -88,7 +89,7 @@ class FoodRepositoryTest {
                 FoodCreate(
                     name = "Rice",
                     servingSize = 100.0,
-                    servingUnit = FoodCreate.ServingUnit.g,
+                    servingUnit = ServingUnit.g,
                     calories = 130.0,
                     protein = 2.7,
                     carbs = 28.0,

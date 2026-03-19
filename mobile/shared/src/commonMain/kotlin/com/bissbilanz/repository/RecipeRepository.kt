@@ -4,11 +4,10 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
-import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -38,20 +37,21 @@ class RecipeRepository(
         db.bissbilanzDatabaseQueries.transaction {
             db.bissbilanzDatabaseQueries.deleteAllRecipes()
             summaries.forEach { s ->
-                val recipe = RecipeDetail(
-                    id = s.id,
-                    userId = "",
-                    name = s.name,
-                    totalServings = s.totalServings,
-                    isFavorite = s.isFavorite,
-                    imageUrl = s.imageUrl,
-                    calories = s.calories,
-                    protein = s.protein,
-                    carbs = s.carbs,
-                    fat = s.fat,
-                    fiber = s.fiber,
-                    ingredients = emptyList(),
-                )
+                val recipe =
+                    RecipeDetail(
+                        id = s.id,
+                        userId = "",
+                        name = s.name,
+                        totalServings = s.totalServings,
+                        isFavorite = s.isFavorite,
+                        imageUrl = s.imageUrl,
+                        calories = s.calories,
+                        protein = s.protein,
+                        carbs = s.carbs,
+                        fat = s.fat,
+                        fiber = s.fiber,
+                        ingredients = emptyList(),
+                    )
                 db.bissbilanzDatabaseQueries.insertRecipe(
                     id = recipe.id,
                     name = recipe.name,

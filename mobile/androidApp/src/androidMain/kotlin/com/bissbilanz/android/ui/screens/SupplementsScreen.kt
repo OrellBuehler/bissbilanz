@@ -261,8 +261,8 @@ fun SupplementChecklistItem(
             supportingContent = {
                 Column {
                     Text("${supplement.dosage.toInt()} ${supplement.dosageUnit}")
-                    supplement.timeOfDay?.let {
-                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    supplement.timeOfDay?.let { tod ->
+                        Text(tod.value, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     supplement.ingredients?.let { ings ->
                         if (ings.isNotEmpty()) {

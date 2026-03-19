@@ -39,6 +39,7 @@ import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -119,7 +120,7 @@ fun SettingsScreen(navController: NavController) {
                     if (newMealName.isNotBlank()) {
                         scope.launch {
                             try {
-                                api.createMealType(MealTypeCreate(name = newMealName.trim()))
+                                api.createMealType(MealTypeCreate(name = newMealName.trim(), sortOrder = customMealTypes.size))
                                 val response = api.getMealTypes()
                                 customMealTypes = response.mealTypes
                                 snackbarHostState.showSnackbar("Meal type added")
@@ -594,7 +595,10 @@ fun SettingsScreen(navController: NavController) {
                                         scope.launch {
                                             try {
                                                 prefsRepo.updatePreferences(
-                                                    PreferencesUpdate(favoriteMealAssignmentMode = "time_based"),
+                                                    PreferencesUpdate(
+                                                        favoriteMealAssignmentMode =
+                                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.time_based,
+                                                    ),
                                                 )
                                                 snackbarHostState.showSnackbar("Meal assignment updated")
                                             } catch (e: Exception) {
@@ -618,7 +622,10 @@ fun SettingsScreen(navController: NavController) {
                                         scope.launch {
                                             try {
                                                 prefsRepo.updatePreferences(
-                                                    PreferencesUpdate(favoriteMealAssignmentMode = "ask_meal"),
+                                                    PreferencesUpdate(
+                                                        favoriteMealAssignmentMode =
+                                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.ask_meal,
+                                                    ),
                                                 )
                                                 snackbarHostState.showSnackbar("Meal assignment updated")
                                             } catch (e: Exception) {

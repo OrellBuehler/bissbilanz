@@ -1,5 +1,7 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.test.testJson
 import kotlinx.serialization.encodeToString
 import kotlin.test.Test
@@ -54,6 +56,14 @@ class FoodSerializationTest {
                 "carbs": 23.0,
                 "fat": 0.3,
                 "fiber": 2.6,
+                "brand": null,
+                "barcode": null,
+                "isFavorite": false,
+                "nutriScore": null,
+                "novaGroup": null,
+                "additives": null,
+                "ingredientsText": null,
+                "imageUrl": null,
                 "someUnknownField": "should be ignored"
             }
             """.trimIndent()
@@ -140,7 +150,10 @@ class FoodSerializationTest {
                 {
                     "id":"1","userId":"u","name":"X","servingSize":1.0,
                     "servingUnit":"$unitStr","calories":0,"protein":0,
-                    "carbs":0,"fat":0,"fiber":0
+                    "carbs":0,"fat":0,"fiber":0,
+                    "brand":null,"barcode":null,"isFavorite":false,
+                    "nutriScore":null,"novaGroup":null,"additives":null,
+                    "ingredientsText":null,"imageUrl":null
                 }
                 """.trimIndent()
             val food = json.decodeFromString<Food>(jsonStr)
@@ -154,7 +167,7 @@ class FoodSerializationTest {
             FoodCreate(
                 name = "Chicken Breast",
                 servingSize = 100.0,
-                servingUnit = FoodCreate.ServingUnit.g,
+                servingUnit = ServingUnit.g,
                 calories = 165.0,
                 protein = 31.0,
                 carbs = 0.0,

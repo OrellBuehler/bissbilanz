@@ -5,11 +5,11 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightCreate
-import com.bissbilanz.api.generated.model.WeightUpdate
+import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightTrendEntry
+import com.bissbilanz.api.generated.model.WeightUpdate
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers

@@ -1,7 +1,7 @@
 package com.bissbilanz.test
 
+import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.model.Entry
-import com.bissbilanz.model.Food
 import com.bissbilanz.model.Goals
 
 object TestFixtures {

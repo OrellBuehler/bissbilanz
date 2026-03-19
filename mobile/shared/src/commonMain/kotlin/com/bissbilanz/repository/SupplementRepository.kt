@@ -4,10 +4,10 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.SupplementLog
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -63,15 +63,16 @@ class SupplementRepository(
     suspend fun getChecklist(date: String): List<SupplementLog> =
         try {
             val checklist = api.getSupplementChecklist(date)
-            val logs = checklist.filter { it.taken }.map { item ->
-                SupplementLog(
-                    id = "log_${item.supplement.id}",
-                    supplementId = item.supplement.id,
-                    userId = "",
-                    date = date,
-                    takenAt = item.takenAt ?: "",
-                )
-            }
+            val logs =
+                checklist.filter { it.taken }.map { item ->
+                    SupplementLog(
+                        id = "log_${item.supplement.id}",
+                        supplementId = item.supplement.id,
+                        userId = "",
+                        date = date,
+                        takenAt = item.takenAt ?: "",
+                    )
+                }
             logs.forEach { log ->
                 db.bissbilanzDatabaseQueries.insertSupplementLog(
                     id = log.id,

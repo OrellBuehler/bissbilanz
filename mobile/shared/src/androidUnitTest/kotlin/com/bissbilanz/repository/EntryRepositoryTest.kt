@@ -2,9 +2,9 @@ package com.bissbilanz.repository
 
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.BissbilanzDatabaseQueries
-import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter

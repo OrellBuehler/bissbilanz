@@ -68,14 +68,15 @@ fun RecipeEditSheet(
                 name = recipe.name
                 totalServings = recipe.totalServings.toDisplayString()
                 isFavorite = recipe.isFavorite
-                ingredients = recipe.ingredients.map { ing ->
-                    RecipeIngredientRow(
-                        food = null,
-                        foodId = ing.foodId,
-                        quantity = ing.quantity.toDisplayString(),
-                        unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
-                    )
-                }
+                ingredients =
+                    recipe.ingredients.map { ing ->
+                        RecipeIngredientRow(
+                            food = null,
+                            foodId = ing.foodId,
+                            quantity = ing.quantity.toDisplayString(),
+                            unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
+                        )
+                    }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)

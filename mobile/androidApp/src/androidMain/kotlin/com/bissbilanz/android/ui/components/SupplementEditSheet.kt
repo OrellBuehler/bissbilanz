@@ -22,6 +22,7 @@ import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.bissbilanz.api.generated.model.SupplementCreate as GenSupplementCreate
 
 private data class SupplementIngredientRow(
     val name: String = "",
@@ -66,13 +67,14 @@ fun SupplementEditSheet(
                     scheduleType = found.scheduleType
                     timeOfDay = found.timeOfDay?.value ?: "morning"
                     isActive = found.isActive
-                    ingredients = found.ingredients.map { ing ->
-                        SupplementIngredientRow(
-                            name = ing.name,
-                            dosage = ing.dosage.toDisplayString(),
-                            dosageUnit = ing.dosageUnit,
-                        )
-                    }
+                    ingredients =
+                        found.ingredients.map { ing ->
+                            SupplementIngredientRow(
+                                name = ing.name,
+                                dosage = ing.dosage.toDisplayString(),
+                                dosageUnit = ing.dosageUnit,
+                            )
+                        }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -352,8 +354,14 @@ fun SupplementEditSheet(
                                             name = name.trim(),
                                             dosage = dosage.toDoubleOrNull() ?: 0.0,
                                             dosageUnit = dosageUnit,
-                                            scheduleType = SupplementCreate.ScheduleType.valueOf(scheduleType.name),
-                                            timeOfDay = SupplementCreate.TimeOfDay.entries.firstOrNull { it.value == timeOfDay },
+                                            scheduleType =
+                                                GenSupplementCreate.ScheduleType.entries.first {
+                                                    it.value == scheduleType.value
+                                                },
+                                            timeOfDay =
+                                                GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
+                                                    tod.value == timeOfDay
+                                                },
                                             isActive = isActive,
                                             ingredients =
                                                 ingredients

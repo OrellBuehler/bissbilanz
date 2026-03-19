@@ -3,9 +3,9 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate
+import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -38,21 +38,22 @@ class PreferencesRepository(
 
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
         val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
-        val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences(
-            showChartWidget = true,
-            showFavoritesWidget = true,
-            showSupplementsWidget = true,
-            showWeightWidget = true,
-            showMealBreakdownWidget = true,
-            showTopFoodsWidget = true,
-            widgetOrder = emptyList(),
-            startPage = "dashboard",
-            favoriteTapAction = "instant",
-            favoriteMealAssignmentMode = "time_based",
-            favoriteMealTimeframes = emptyList(),
-            visibleNutrients = emptyList(),
-            locale = null,
-        )
+        val current =
+            cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences(
+                showChartWidget = true,
+                showFavoritesWidget = true,
+                showSupplementsWidget = true,
+                showWeightWidget = true,
+                showMealBreakdownWidget = true,
+                showTopFoodsWidget = true,
+                widgetOrder = emptyList(),
+                startPage = "dashboard",
+                favoriteTapAction = "instant",
+                favoriteMealAssignmentMode = "time_based",
+                favoriteMealTimeframes = emptyList(),
+                visibleNutrients = emptyList(),
+                locale = null,
+            )
         val updated = applyUpdate(current, update)
         cachePreferences(updated)
         syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update)))

@@ -1,7 +1,6 @@
 package com.bissbilanz.api
 
-import com.bissbilanz.auth.AuthManager
-import com.bissbilanz.createHttpEngine
+import com.bissbilanz.api.generated.model.CalendarResponse
 import com.bissbilanz.api.generated.model.DailyStatsResponse
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesResponse
@@ -13,11 +12,13 @@ import com.bissbilanz.api.generated.model.EntryResponse
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.FoodsRecentResponse
 import com.bissbilanz.api.generated.model.Goals
 import com.bissbilanz.api.generated.model.GoalsResponse
+import com.bissbilanz.api.generated.model.GoalsSetResponse
 import com.bissbilanz.api.generated.model.MaintenanceResponse
 import com.bissbilanz.api.generated.model.MealBreakdownResponse
 import com.bissbilanz.api.generated.model.MealType
@@ -30,8 +31,8 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeResponse
-import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.RecipeSummary
+import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.RecipesListResponse
 import com.bissbilanz.api.generated.model.StreaksResponse
 import com.bissbilanz.api.generated.model.Supplement
@@ -52,9 +53,8 @@ import com.bissbilanz.api.generated.model.WeightEntryResponse
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
-import com.bissbilanz.api.generated.model.CalendarResponse
-import com.bissbilanz.api.generated.model.FoodRecent
-import com.bissbilanz.api.generated.model.GoalsSetResponse
+import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.createHttpEngine
 import com.bissbilanz.model.Entry
 import io.ktor.client.*
 import io.ktor.client.call.*

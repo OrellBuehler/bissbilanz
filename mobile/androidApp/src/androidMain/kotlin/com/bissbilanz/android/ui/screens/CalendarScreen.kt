@@ -26,6 +26,8 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.CalendarDay
+import com.bissbilanz.model.Goals
+import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -35,11 +37,13 @@ import org.koin.compose.koinInject
 @Composable
 fun CalendarScreen(navController: NavController) {
     val statsRepo: StatsRepository = koinInject()
+    val goalsRepo: GoalsRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(true) }
     var calendarDays by remember { mutableStateOf<List<CalendarDay>>(emptyList()) }
+    var goals by remember { mutableStateOf<Goals?>(null) }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var currentMonth by remember { mutableStateOf(today.month) }
@@ -49,6 +53,7 @@ fun CalendarScreen(navController: NavController) {
         val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
         try {
             calendarDays = statsRepo.getCalendarStats(monthStr)
+            goals = goalsRepo.goalsOnce()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -209,9 +214,13 @@ fun CalendarScreen(navController: NavController) {
                                         val calDay = dayMap[dateStr]
                                         val isToday = dateStr == today.toString()
 
+                                        val calorieGoal = goals?.calorieGoal
                                         val bgColor =
                                             when {
-                                                calDay?.goalMet == true -> FiberGreen.copy(alpha = 0.3f)
+                                                calDay != null && calorieGoal != null && calDay.calories >= calorieGoal ->
+                                                    FiberGreen.copy(
+                                                        alpha = 0.3f,
+                                                    )
                                                 calDay?.hasEntries == true -> CaloriesBlue.copy(alpha = 0.2f)
                                                 else -> MaterialTheme.colorScheme.surface
                                             }
@@ -301,7 +310,8 @@ fun CalendarScreen(navController: NavController) {
 
                             // Summary stats
                             val daysWithEntries = calendarDays.count { it.hasEntries }
-                            val daysGoalMet = calendarDays.count { it.goalMet }
+                            val goalCal = goals?.calorieGoal
+                            val daysGoalMet = calendarDays.count { goalCal != null && it.calories >= goalCal }
                             val avgCalories =
                                 if (daysWithEntries > 0) {
                                     calendarDays.filter { it.hasEntries }.map { it.calories }.average()
