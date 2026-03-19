@@ -169,7 +169,7 @@ describe('api/supplements', () => {
 			mockGetByIdResult = null;
 			const event = createMockEvent({
 				user: TEST_USER,
-				params: { id: 'nonexistent' }
+				params: { id: '00000000-0000-0000-0000-000000000000' }
 			});
 			const response = await supplementIdModule.GET(event);
 			const data = await response.json();
@@ -196,7 +196,7 @@ describe('api/supplements', () => {
 			mockUpdateResult = null;
 			const event = createMockEvent({
 				user: TEST_USER,
-				params: { id: 'nonexistent' },
+				params: { id: '00000000-0000-0000-0000-000000000000' },
 				body: { name: 'Updated' }
 			});
 			const response = await supplementIdModule.PATCH(event);
@@ -258,7 +258,7 @@ describe('api/supplements', () => {
 			mockLogResult = null;
 			const event = createMockEvent({
 				user: TEST_USER,
-				params: { id: 'nonexistent' },
+				params: { id: '00000000-0000-0000-0000-000000000000' },
 				body: {}
 			});
 			const response = await supplementLogModule.POST(event);

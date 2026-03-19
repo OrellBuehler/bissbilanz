@@ -5,6 +5,7 @@ import {
 	handleApiError,
 	notFound,
 	requireAuth,
+	requireUuid,
 	unwrapResult,
 	parseJsonBody
 } from '$lib/server/errors';
@@ -12,7 +13,8 @@ import {
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		const food = await getFood(userId, params.id);
+		const id = requireUuid(params.id);
+		const food = await getFood(userId, id);
 		if (!food) {
 			return notFound('Food');
 		}
@@ -25,8 +27,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 	try {
 		const userId = requireAuth(locals);
+		const id = requireUuid(params.id);
 		const body = await parseJsonBody(request);
-		const food = unwrapResult(await updateFood(userId, params.id, body));
+		const food = unwrapResult(await updateFood(userId, id, body));
 		if (!food) {
 			return notFound('Food');
 		}
@@ -39,8 +42,9 @@ export const PATCH: RequestHandler = async ({ locals, request, params }) => {
 export const DELETE: RequestHandler = async ({ locals, params, url }) => {
 	try {
 		const userId = requireAuth(locals);
+		const id = requireUuid(params.id);
 		const force = url.searchParams.get('force') === 'true';
-		const result = await deleteFood(userId, params.id, force);
+		const result = await deleteFood(userId, id, force);
 		if (result.blocked) {
 			return json({ error: 'has_entries', entryCount: result.entryCount }, { status: 409 });
 		}

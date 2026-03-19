@@ -113,6 +113,15 @@ export function requireAuth(locals: App.Locals): string {
 	return locals.user.id;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function requireUuid(value: string): string {
+	if (!UUID_RE.test(value)) {
+		throw new ApiError(400, 'Invalid ID format');
+	}
+	return value;
+}
+
 /**
  * Checks if an error is a ZodError
  * @param error - The error to check

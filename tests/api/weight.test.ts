@@ -190,7 +190,7 @@ describe('api/weight', () => {
 			mockUpdateResult = null;
 			const event = createMockEvent({
 				user: TEST_USER,
-				params: { id: 'nonexistent-id' },
+				params: { id: '00000000-0000-0000-0000-000000000000' },
 				body: { weightKg: 76.0 }
 			});
 			const response = await weightIdModule.PATCH(event);
@@ -226,7 +226,7 @@ describe('api/weight', () => {
 			mockDeleteResult = false;
 			const event = createMockEvent({
 				user: TEST_USER,
-				params: { id: 'nonexistent-id' }
+				params: { id: '00000000-0000-0000-0000-000000000000' }
 			});
 			const response = await weightIdModule.DELETE(event);
 			const data = await response.json();

@@ -5,6 +5,7 @@ import {
 	handleApiError,
 	notFound,
 	requireAuth,
+	requireUuid,
 	unwrapResult,
 	parseJsonBody
 } from '$lib/server/errors';
@@ -13,7 +14,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
-		const entry = unwrapResult(await updateWeightEntry(userId, params.id, body));
+		const id = requireUuid(params.id);
+		const entry = unwrapResult(await updateWeightEntry(userId, id, body));
 		if (!entry) {
 			return notFound('Weight entry');
 		}
@@ -26,7 +28,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		const deleted = await deleteWeightEntry(userId, params.id);
+		const id = requireUuid(params.id);
+		const deleted = await deleteWeightEntry(userId, id);
 
 		if (!deleted) {
 			return notFound('Weight entry');

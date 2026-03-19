@@ -5,6 +5,7 @@ import {
 	handleApiError,
 	notFound,
 	requireAuth,
+	requireUuid,
 	unwrapResult,
 	parseJsonBody
 } from '$lib/server/errors';
@@ -13,7 +14,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
-		const mealType = unwrapResult(await updateMealType(userId, params.id, body));
+		const id = requireUuid(params.id);
+		const mealType = unwrapResult(await updateMealType(userId, id, body));
 		if (!mealType) {
 			return notFound('Meal type');
 		}
@@ -26,7 +28,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		await deleteMealType(userId, params.id);
+		const id = requireUuid(params.id);
+		await deleteMealType(userId, id);
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

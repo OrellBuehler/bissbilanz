@@ -228,7 +228,7 @@ describe('Cross-user access prevention', () => {
 		test('User B cannot update User A meal type', async () => {
 			// Setup: User A owns a meal type
 			mockMealTypeResult = {
-				id: 'meal-type-1',
+				id: '10000000-0000-4000-8000-000000000099',
 				userId: TEST_USER.id,
 				name: 'Breakfast',
 				sortOrder: 1
@@ -237,7 +237,7 @@ describe('Cross-user access prevention', () => {
 			// User B tries to update it
 			const event = createMockEvent({
 				user: TEST_USER_2,
-				params: { id: 'meal-type-1' },
+				params: { id: '10000000-0000-4000-8000-000000000099' },
 				body: { name: 'Hacked Meal' }
 			});
 
@@ -252,7 +252,7 @@ describe('Cross-user access prevention', () => {
 		test('User B cannot delete User A meal type', async () => {
 			const event = createMockEvent({
 				user: TEST_USER_2,
-				params: { id: 'meal-type-1' }
+				params: { id: '10000000-0000-4000-8000-000000000099' }
 			});
 
 			const response = await mealTypesRoute.DELETE(event);
@@ -267,7 +267,7 @@ describe('Cross-user access prevention', () => {
 			// User B tries to access non-existent resource
 			const nonExistentEvent = createMockEvent({
 				user: TEST_USER_2,
-				params: { id: 'non-existent-id' },
+				params: { id: '00000000-0000-0000-0000-000000000000' },
 				body: { name: 'Test' }
 			});
 

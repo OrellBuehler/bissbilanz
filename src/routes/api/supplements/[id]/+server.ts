@@ -5,6 +5,7 @@ import {
 	handleApiError,
 	notFound,
 	requireAuth,
+	requireUuid,
 	unwrapResult,
 	parseJsonBody
 } from '$lib/server/errors';
@@ -12,7 +13,8 @@ import {
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		const supplement = await getSupplementById(userId, params.id);
+		const id = requireUuid(params.id);
+		const supplement = await getSupplementById(userId, id);
 		if (!supplement) {
 			return notFound('Supplement');
 		}
@@ -25,8 +27,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
+		const id = requireUuid(params.id);
 		const body = await parseJsonBody(request);
-		const supplement = unwrapResult(await updateSupplement(userId, params.id, body));
+		const supplement = unwrapResult(await updateSupplement(userId, id, body));
 		if (!supplement) {
 			return notFound('Supplement');
 		}
@@ -39,7 +42,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	try {
 		const userId = requireAuth(locals);
-		await deleteSupplement(userId, params.id);
+		const id = requireUuid(params.id);
+		await deleteSupplement(userId, id);
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

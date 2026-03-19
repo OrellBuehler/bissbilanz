@@ -3,7 +3,13 @@ import type { RequestHandler } from './$types';
 import { logSupplement } from '$lib/server/supplements';
 import { supplementLogSchema } from '$lib/server/validation';
 import { today } from '$lib/utils/dates';
-import { handleApiError, requireAuth, validationError, parseJsonBody } from '$lib/server/errors';
+import {
+	handleApiError,
+	requireAuth,
+	requireUuid,
+	validationError,
+	parseJsonBody
+} from '$lib/server/errors';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	try {
@@ -15,8 +21,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			return validationError(parsed.error);
 		}
 
+		const id = requireUuid(params.id);
 		const date = parsed.data.date ?? today();
-		const result = await logSupplement(userId, params.id, date);
+		const result = await logSupplement(userId, id, date);
 
 		if (!result.success) {
 			if (result.error.message === 'Supplement not found') {
