@@ -19,6 +19,7 @@ import com.bissbilanz.model.MaintenanceResponse
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,7 +187,7 @@ fun MaintenanceScreen(navController: NavController) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    "${r.maintenanceCalories.toInt()}",
+                                    "${r.maintenanceCalories.roundToInt()}",
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = CaloriesBlue,
@@ -204,10 +205,10 @@ fun MaintenanceScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Details
-                        MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.toInt()} kcal")
+                        MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.roundToInt()} kcal")
                         MaintenanceRow(
                             "Daily deficit/surplus",
-                            "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.toInt()} kcal",
+                            "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.roundToInt()} kcal",
                         )
                         MaintenanceRow(
                             "Weight change",

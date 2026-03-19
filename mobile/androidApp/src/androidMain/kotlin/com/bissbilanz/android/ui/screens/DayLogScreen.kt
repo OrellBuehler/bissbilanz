@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -253,7 +254,7 @@ fun DayLogScreen(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "${mealCalories.toInt()} cal",
+                                        "${mealCalories.roundToInt()} cal",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = CaloriesBlue,
                                         fontWeight = FontWeight.Bold,
@@ -263,9 +264,9 @@ fun DayLogScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     modifier = Modifier.padding(bottom = 4.dp),
                                 ) {
-                                    Text("P ${mealProtein.toInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                                    Text("C ${mealCarbs.toInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                                    Text("F ${mealFat.toInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
+                                    Text("P ${mealProtein.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
+                                    Text("C ${mealCarbs.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
+                                    Text("F ${mealFat.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
                                 }
                             }
                             items(mealEntries, key = { it.id }) { entry ->
@@ -350,7 +351,7 @@ fun EntryListItem(
         ListItem(
             headlineContent = { Text(name) },
             supportingContent = {
-                Text("${entry.servings}x  ·  ${calories.toInt()} cal  ·  P ${protein.toInt()}g")
+                Text("${entry.servings}x  ·  ${calories.roundToInt()} cal  ·  P ${protein.roundToInt()}g")
             },
             trailingContent = {
                 entry.food?.brand?.let {
