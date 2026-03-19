@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -25,7 +26,6 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -38,6 +38,7 @@ fun RecipeListScreen(navController: NavController) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -51,7 +52,7 @@ fun RecipeListScreen(navController: NavController) {
             recipeRepo.refresh()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             snackbarHostState.showSnackbar("Failed to load recipes")
         }
         isLoading = false
@@ -71,7 +72,7 @@ fun RecipeListScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log recipe")
                     }
                 }

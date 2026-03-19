@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -34,7 +35,6 @@ import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -50,6 +50,7 @@ fun WeightScreen(navController: NavController) {
     val viewModel: WeightViewModel = koinViewModel()
     val weightRepo: WeightRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val trendData by viewModel.trendData.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
@@ -78,7 +79,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight logged")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log weight")
                     }
                 }
@@ -102,7 +103,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight updated")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to update weight")
                     }
                 }
@@ -125,7 +126,7 @@ fun WeightScreen(navController: NavController) {
                                 viewModel.refresh()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete")
                             }
                         }

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
@@ -38,7 +39,6 @@ import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -55,6 +55,7 @@ fun DashboardScreen(navController: NavController) {
     val entryRepo: EntryRepository = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -215,7 +216,7 @@ fun DashboardScreen(navController: NavController) {
                                                         viewModel.loadData()
                                                     } catch (e: Exception) {
                                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                                        Sentry.captureException(e)
+                                                        errorReporter.captureException(e)
                                                         snackbarHostState.showSnackbar("No entries to copy from yesterday")
                                                     }
                                                 }

@@ -2,11 +2,11 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +22,7 @@ import kotlinx.datetime.*
 class DashboardViewModel(
     private val entryRepo: EntryRepository,
     private val goalsRepo: GoalsRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _selectedDate = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()))
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
@@ -78,7 +79,7 @@ class DashboardViewModel(
                 goalsRepo.refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to load data"
             } finally {
                 _isLoading.value = false

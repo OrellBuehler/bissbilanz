@@ -2,10 +2,10 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.StatsRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +19,7 @@ import kotlinx.datetime.*
 class InsightsViewModel(
     private val statsRepo: StatsRepository,
     private val goalsRepo: GoalsRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _weeklyStats = MutableStateFlow<MacroTotals?>(null)
     val weeklyStats: StateFlow<MacroTotals?> = _weeklyStats.asStateFlow()
@@ -99,7 +100,7 @@ class InsightsViewModel(
                 _calendarDays.value = statsRepo.getCalendarStats(monthStr)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _calendarDays.value = emptyList()
             }
         }
@@ -125,7 +126,7 @@ class InsightsViewModel(
                                 statsRepo.getWeeklyStats().stats
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -135,7 +136,7 @@ class InsightsViewModel(
                                 statsRepo.getMonthlyStats().stats
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -145,7 +146,7 @@ class InsightsViewModel(
                                 statsRepo.getStreaks()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -155,7 +156,7 @@ class InsightsViewModel(
                                 statsRepo.getTopFoods(days).data
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -165,7 +166,7 @@ class InsightsViewModel(
                                 statsRepo.getDailyStats(startDate, endDate).data
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -175,7 +176,7 @@ class InsightsViewModel(
                                 statsRepo.getMealBreakdown(startDate, endDate).data
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -185,7 +186,7 @@ class InsightsViewModel(
                                 goalsRepo.refresh()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                             }
                         }
 
@@ -199,7 +200,7 @@ class InsightsViewModel(
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to load insights"
             }
         }

@@ -3,8 +3,8 @@ package com.bissbilanz.android.widget
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 
 class QuickWeightWidgetWorker(
     context: Context,
@@ -14,12 +14,13 @@ class QuickWeightWidgetWorker(
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
+        val errorReporter = koin.get<ErrorReporter>()
 
         try {
             koin.get<WeightRepository>().refresh()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
         }
 
         QuickWeightWidget.updateAllWidgets(applicationContext)

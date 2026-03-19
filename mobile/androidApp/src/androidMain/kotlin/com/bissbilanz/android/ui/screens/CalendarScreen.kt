@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -26,7 +27,6 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.repository.StatsRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
@@ -36,6 +36,7 @@ import org.koin.compose.koinInject
 fun CalendarScreen(navController: NavController) {
     val statsRepo: StatsRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(true) }
     var calendarDays by remember { mutableStateOf<List<CalendarDay>>(emptyList()) }
@@ -50,7 +51,7 @@ fun CalendarScreen(navController: NavController) {
             calendarDays = statsRepo.getCalendarStats(monthStr)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             calendarDays = emptyList()
         }
     }

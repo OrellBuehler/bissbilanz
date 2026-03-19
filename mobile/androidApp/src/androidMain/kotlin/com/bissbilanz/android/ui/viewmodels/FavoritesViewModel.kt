@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Preferences
@@ -11,7 +12,6 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.resolveDefaultMeal
-import io.sentry.Sentry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +27,7 @@ class FavoritesViewModel(
     private val recipeRepo: RecipeRepository,
     private val entryRepo: EntryRepository,
     private val prefsRepo: PreferencesRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val favorites: StateFlow<List<Food>> =
         foodRepo
@@ -61,7 +62,7 @@ class FavoritesViewModel(
                 prefsRepo.refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to load favorites"
             }
             _isLoading.value = false
@@ -89,7 +90,7 @@ class FavoritesViewModel(
                 _snackbarMessage.value = "Logged ${food.name}"
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
         }
@@ -110,7 +111,7 @@ class FavoritesViewModel(
                 _snackbarMessage.value = "Logged ${recipe.name}"
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log recipe"
             }
         }

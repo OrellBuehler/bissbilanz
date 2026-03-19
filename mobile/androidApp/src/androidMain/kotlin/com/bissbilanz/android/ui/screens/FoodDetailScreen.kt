@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -40,7 +41,6 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -70,6 +70,7 @@ fun FoodDetailScreen(
     val baseUrl: String = koinInject(named("baseUrl"))
     val refreshManager: RefreshManager = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
@@ -87,7 +88,7 @@ fun FoodDetailScreen(
             prefsRepo.refresh()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             snackbarHostState.showSnackbar("Failed to load food details")
         }
         isLoading = false
@@ -112,7 +113,7 @@ fun FoodDetailScreen(
                         snackbarHostState.showSnackbar("Logged ${food!!.name}")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log food")
                     }
                 }
@@ -132,7 +133,7 @@ fun FoodDetailScreen(
                         food = foodRepo.getFood(foodId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to refresh food")
                     }
                 }
@@ -154,7 +155,7 @@ fun FoodDetailScreen(
                                 navController.popBackStack()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete food")
                             }
                         }
@@ -211,7 +212,7 @@ fun FoodDetailScreen(
                         food = foodRepo.getFood(foodId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to refresh food")
                     }
                 },

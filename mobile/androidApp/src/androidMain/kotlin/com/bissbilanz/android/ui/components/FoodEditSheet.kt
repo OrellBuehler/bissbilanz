@@ -12,12 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -29,6 +29,7 @@ fun FoodEditSheet(
     onSaved: () -> Unit,
 ) {
     val foodRepo: FoodRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(foodId != null) }
@@ -88,7 +89,7 @@ fun FoodEditSheet(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load food"
             }
             isLoading = false
@@ -149,7 +150,7 @@ fun FoodEditSheet(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to save food", e)
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to save food"
             }
             isSaving = false

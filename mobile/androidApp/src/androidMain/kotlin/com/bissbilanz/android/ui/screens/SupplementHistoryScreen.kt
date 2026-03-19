@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -28,7 +29,6 @@ import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.model.SupplementIngredient
 import com.bissbilanz.repository.SupplementRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
@@ -118,6 +118,7 @@ private fun computeAdherence(
 fun SupplementHistoryScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(true) }
@@ -138,7 +139,7 @@ fun SupplementHistoryScreen(navController: NavController) {
             adherence = computeAdherence(history, allSupplements, fromDate, toDate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             snackbarHostState.showSnackbar("Failed to load history")
         }
     }

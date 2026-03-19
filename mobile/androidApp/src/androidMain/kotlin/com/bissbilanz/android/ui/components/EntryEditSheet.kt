@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
@@ -20,7 +21,6 @@ import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -37,6 +37,7 @@ fun EntryEditSheet(
     onSaved: () -> Unit,
 ) {
     val entryRepo: EntryRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isSaving by remember { mutableStateOf(false) }
@@ -90,7 +91,7 @@ fun EntryEditSheet(
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to delete entry", e)
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 showDeleteDialog = false
                                 errorMessage = "Failed to delete entry"
                             }
@@ -284,7 +285,7 @@ fun EntryEditSheet(
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 errorMessage = "Failed to save entry"
                             }
                             isSaving = false

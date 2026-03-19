@@ -12,9 +12,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -25,6 +25,7 @@ fun WeightWidget(
     onError: (String) -> Unit = {},
 ) {
     val weightRepo: WeightRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val allEntries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
     val scope = rememberCoroutineScope()
     var weightInput by remember { mutableStateOf("") }
@@ -100,7 +101,7 @@ fun WeightWidget(
                                         weightInput = ""
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         onError("Failed to log weight")
                                     }
                                 }

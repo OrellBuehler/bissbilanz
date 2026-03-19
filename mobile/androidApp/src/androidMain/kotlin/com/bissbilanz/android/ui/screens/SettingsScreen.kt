@@ -23,6 +23,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.sync.RefreshManager
@@ -35,7 +36,6 @@ import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -48,6 +48,7 @@ fun SettingsScreen(navController: NavController) {
     val api: BissbilanzApi = koinInject()
     val healthSync: HealthSyncService = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val goals by goalsRepo.goals().collectAsStateWithLifecycle(null)
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
@@ -91,7 +92,7 @@ fun SettingsScreen(navController: NavController) {
             customMealTypes = response.mealTypes
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
         }
         healthAvailable = healthSync.isAvailable()
         if (healthAvailable) {
@@ -124,7 +125,7 @@ fun SettingsScreen(navController: NavController) {
                                 snackbarHostState.showSnackbar("Meal type added")
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to add meal type")
                             }
                         }
@@ -386,7 +387,7 @@ fun SettingsScreen(navController: NavController) {
                                             snackbarHostState.showSnackbar("Goals updated")
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
-                                            Sentry.captureException(e)
+                                            errorReporter.captureException(e)
                                             snackbarHostState.showSnackbar("Failed to update goals")
                                         }
                                     }
@@ -509,7 +510,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showChartWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -520,7 +521,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showFavoritesWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -531,7 +532,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showSupplementsWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -542,7 +543,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showWeightWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -553,7 +554,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showMealBreakdownWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -564,7 +565,7 @@ fun SettingsScreen(navController: NavController) {
                                         prefsRepo.updatePreferences(PreferencesUpdate(showTopFoodsWidget = value))
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
-                                        Sentry.captureException(e)
+                                        errorReporter.captureException(e)
                                         snackbarHostState.showSnackbar("Failed to update preference")
                                     }
                                 }
@@ -598,7 +599,7 @@ fun SettingsScreen(navController: NavController) {
                                                 snackbarHostState.showSnackbar("Meal assignment updated")
                                             } catch (e: Exception) {
                                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                                Sentry.captureException(e)
+                                                errorReporter.captureException(e)
                                                 snackbarHostState.showSnackbar("Failed to update preference")
                                             }
                                         }
@@ -622,7 +623,7 @@ fun SettingsScreen(navController: NavController) {
                                                 snackbarHostState.showSnackbar("Meal assignment updated")
                                             } catch (e: Exception) {
                                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                                Sentry.captureException(e)
+                                                errorReporter.captureException(e)
                                                 snackbarHostState.showSnackbar("Failed to update preference")
                                             }
                                         }
@@ -709,7 +710,7 @@ fun SettingsScreen(navController: NavController) {
                                                 snackbarHostState.showSnackbar("Visible nutrients updated")
                                             } catch (e: Exception) {
                                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                                Sentry.captureException(e)
+                                                errorReporter.captureException(e)
                                                 snackbarHostState.showSnackbar("Failed to update nutrients")
                                             }
                                         }

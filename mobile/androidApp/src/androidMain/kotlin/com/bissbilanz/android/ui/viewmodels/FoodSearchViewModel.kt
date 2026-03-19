@@ -2,11 +2,11 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +19,7 @@ import kotlinx.datetime.todayIn
 class FoodSearchViewModel(
     private val foodRepo: FoodRepository,
     private val entryRepo: EntryRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
 
@@ -56,7 +57,7 @@ class FoodSearchViewModel(
                 foodRepo.refreshRecentFoods()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to load recent foods"
             }
         }
@@ -85,7 +86,7 @@ class FoodSearchViewModel(
             _canLoadMore.value = allFoodsOffset < response.total
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             _snackbarMessage.value = "Failed to load foods"
         }
         _isLoadingMore.value = false
@@ -101,7 +102,7 @@ class FoodSearchViewModel(
                         foodRepo.searchFoods(newQuery)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         _snackbarMessage.value = "Search failed"
                         emptyList()
                     }
@@ -132,7 +133,7 @@ class FoodSearchViewModel(
                 _snackbarMessage.value = "Logged ${food.name}"
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
         }
@@ -148,7 +149,7 @@ class FoodSearchViewModel(
                 foodRepo.refreshRecentFoods()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to refresh"
             }
         }

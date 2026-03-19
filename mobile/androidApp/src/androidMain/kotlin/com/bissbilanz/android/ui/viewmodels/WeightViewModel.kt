@@ -2,10 +2,10 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +20,7 @@ import kotlinx.datetime.todayIn
 
 class WeightViewModel(
     private val weightRepo: WeightRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _trendData = MutableStateFlow<List<WeightTrendEntry>>(emptyList())
     val trendData: StateFlow<List<WeightTrendEntry>> = _trendData.asStateFlow()
@@ -64,7 +65,7 @@ class WeightViewModel(
                 applyTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
             }
         }
     }
@@ -92,7 +93,7 @@ class WeightViewModel(
                 applyTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to load weight data"
             } finally {
                 _isLoading.value = false

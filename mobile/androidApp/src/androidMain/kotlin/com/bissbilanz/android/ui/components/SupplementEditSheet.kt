@@ -15,10 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -37,6 +37,7 @@ fun SupplementEditSheet(
     onSaved: () -> Unit,
 ) {
     val supplementRepo: SupplementRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(supplementId != null) }
@@ -76,7 +77,7 @@ fun SupplementEditSheet(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("SupplementEditSheet", "Failed to load supplement", e)
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load supplement"
             }
             isLoading = false
@@ -377,7 +378,7 @@ fun SupplementEditSheet(
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("SupplementEditSheet", "Failed to save supplement", e)
-                                    Sentry.captureException(e)
+                                    errorReporter.captureException(e)
                                     errorMessage = "Failed to save supplement"
                                 }
                                 isSaving = false

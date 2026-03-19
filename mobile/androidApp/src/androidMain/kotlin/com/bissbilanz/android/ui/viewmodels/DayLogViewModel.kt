@@ -2,10 +2,10 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 class DayLogViewModel(
     private val entryRepo: EntryRepository,
     private val api: BissbilanzApi,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -59,7 +60,7 @@ class DayLogViewModel(
                 loadFastingDay(date)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _error.value = "Failed to load entries"
             } finally {
                 _isLoading.value = false
@@ -77,7 +78,7 @@ class DayLogViewModel(
             _isFastingDay.value = props?.isFastingDay ?: false
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             _isFastingDay.value = false
         }
     }
@@ -94,7 +95,7 @@ class DayLogViewModel(
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _isFastingDay.value = !newValue
                 _error.value = "Failed to update fasting day"
             }
@@ -107,7 +108,7 @@ class DayLogViewModel(
                 entryRepo.deleteEntry(id)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 _error.value = "Failed to delete entry"
             }
         }

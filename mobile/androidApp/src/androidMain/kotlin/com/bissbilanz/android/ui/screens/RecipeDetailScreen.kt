@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -25,7 +26,6 @@ import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -41,6 +41,7 @@ fun RecipeDetailScreen(
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     var recipe by remember { mutableStateOf<Recipe?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
@@ -55,7 +56,7 @@ fun RecipeDetailScreen(
             recipe = recipeRepo.getRecipe(recipeId)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             snackbarHostState.showSnackbar("Failed to load recipe")
         }
         isLoading = false
@@ -72,7 +73,7 @@ fun RecipeDetailScreen(
                         recipe = recipeRepo.getRecipe(recipeId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to refresh recipe")
                     }
                 }
@@ -94,7 +95,7 @@ fun RecipeDetailScreen(
                         snackbarHostState.showSnackbar("Logged ${recipe!!.name}")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log recipe")
                     }
                 }
@@ -117,7 +118,7 @@ fun RecipeDetailScreen(
                                 navController.popBackStack()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                Sentry.captureException(e)
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete recipe")
                             }
                         }
@@ -174,7 +175,7 @@ fun RecipeDetailScreen(
                         recipe = recipeRepo.getRecipe(recipeId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        Sentry.captureException(e)
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to refresh recipe")
                     }
                 },

@@ -16,11 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
-import io.sentry.Sentry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,6 +42,7 @@ fun RecipeEditSheet(
 ) {
     val recipeRepo: RecipeRepository = koinInject()
     val foodRepo: FoodRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(recipeId != null) }
@@ -78,7 +79,7 @@ fun RecipeEditSheet(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load recipe"
             }
             isLoading = false
@@ -106,7 +107,7 @@ fun RecipeEditSheet(
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
                                             Log.e("RecipeEditSheet", "Food search failed", e)
-                                            Sentry.captureException(e)
+                                            errorReporter.captureException(e)
                                             foodSearchResults = emptyList()
                                         }
                                         isSearching = false
@@ -354,7 +355,7 @@ fun RecipeEditSheet(
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("RecipeEditSheet", "Failed to save recipe", e)
-                                    Sentry.captureException(e)
+                                    errorReporter.captureException(e)
                                     errorMessage = "Failed to save recipe"
                                 }
                                 isSaving = false

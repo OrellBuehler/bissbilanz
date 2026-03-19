@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -31,7 +32,6 @@ import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -43,6 +43,7 @@ import org.koin.compose.koinInject
 fun SupplementsScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -59,7 +60,7 @@ fun SupplementsScreen(navController: NavController) {
             takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Sentry.captureException(e)
+            errorReporter.captureException(e)
             snackbarHostState.showSnackbar("Failed to load supplements")
         }
         isLoading = false
@@ -117,7 +118,7 @@ fun SupplementsScreen(navController: NavController) {
                     takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
-                    Sentry.captureException(e)
+                    errorReporter.captureException(e)
                 }
             },
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -181,7 +182,7 @@ fun SupplementsScreen(navController: NavController) {
                                             }
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
-                                            Sentry.captureException(e)
+                                            errorReporter.captureException(e)
                                             snackbarHostState.showSnackbar("Failed to update supplement")
                                         }
                                     }

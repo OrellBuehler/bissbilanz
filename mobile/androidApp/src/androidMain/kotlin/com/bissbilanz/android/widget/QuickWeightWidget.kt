@@ -28,10 +28,10 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -47,6 +47,7 @@ class QuickWeightWidget : GlanceAppWidget() {
             org.koin.java.KoinJavaComponent
                 .getKoin()
         val weightRepo = koin.get<WeightRepository>()
+        val errorReporter = koin.get<ErrorReporter>()
 
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
         val entries =
@@ -54,7 +55,7 @@ class QuickWeightWidget : GlanceAppWidget() {
                 weightRepo.entries().first()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Sentry.captureException(e)
+                errorReporter.captureException(e)
                 emptyList()
             }
 

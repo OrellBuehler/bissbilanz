@@ -22,13 +22,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
-import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,6 +46,7 @@ class QuickWeightActivity : ComponentActivity() {
             org.koin.java.KoinJavaComponent
                 .getKoin()
         val weightRepo = koin.get<WeightRepository>()
+        val errorReporter = koin.get<ErrorReporter>()
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
 
         setContent {
@@ -85,7 +86,7 @@ class QuickWeightActivity : ComponentActivity() {
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    Sentry.captureException(e)
+                                    errorReporter.captureException(e)
                                 } finally {
                                     withContext(Dispatchers.Main) { finish() }
                                 }
