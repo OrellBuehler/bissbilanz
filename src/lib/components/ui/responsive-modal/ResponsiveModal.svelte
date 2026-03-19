@@ -2,7 +2,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Drawer from '$lib/components/ui/drawer/index.js';
-	import { tick, type Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 
 	type Props = {
 		open: boolean;
@@ -20,15 +20,11 @@
 
 	$effect(() => {
 		if (open) {
-			const target = openFull ? snapPoints[1] : snapPoints[0];
-			activeSnapPoint = target;
-			tick().then(() => {
-				activeSnapPoint = target;
-			});
+			activeSnapPoint = openFull ? snapPoints[1] : snapPoints[0];
 		}
 	});
 
-	const isExpanded = $derived(activeSnapPoint === 1);
+	const isExpanded = $derived(openFull || activeSnapPoint === 1);
 </script>
 
 {#if isDesktop.current}
@@ -43,6 +39,20 @@
 			{@render children()}
 		</Dialog.Content>
 	</Dialog.Root>
+{:else if openFull}
+	<Drawer.Root bind:open>
+		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0!">
+			<Drawer.Header class="min-w-0 text-left">
+				<Drawer.Title class="truncate">{title}</Drawer.Title>
+				{#if description}
+					<Drawer.Description class="truncate">{description}</Drawer.Description>
+				{/if}
+			</Drawer.Header>
+			<div class="min-h-[60dvh] min-w-0 overflow-y-auto px-4 pb-4">
+				{@render children()}
+			</div>
+		</Drawer.Content>
+	</Drawer.Root>
 {:else}
 	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
 		<Drawer.Content
