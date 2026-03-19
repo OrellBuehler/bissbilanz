@@ -48,7 +48,7 @@ fun SupplementEditSheet(
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
     var dosageUnit by remember { mutableStateOf("mg") }
-    var scheduleType by remember { mutableStateOf(ScheduleType.DAILY) }
+    var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var isActive by remember { mutableStateOf(true) }
 
@@ -184,8 +184,8 @@ fun SupplementEditSheet(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     val displayOptions =
                         listOf(
-                            "Daily" to ScheduleType.DAILY,
-                            "Every 2d" to ScheduleType.EVERY_OTHER_DAY,
+                            "Daily" to ScheduleType.daily,
+                            "Every 2d" to ScheduleType.every_other_day,
                         )
                     displayOptions.forEachIndexed { index, (label, type) ->
                         SegmentedButton(

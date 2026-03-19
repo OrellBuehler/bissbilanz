@@ -41,7 +41,7 @@ fun FoodEditSheet(
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var servingSize by remember { mutableStateOf("100") }
-    var servingUnit by remember { mutableStateOf(ServingUnit.G) }
+    var servingUnit by remember { mutableStateOf(ServingUnit.g) }
     var calories by remember { mutableStateOf("") }
     var protein by remember { mutableStateOf("") }
     var carbs by remember { mutableStateOf("") }
@@ -70,7 +70,7 @@ fun FoodEditSheet(
                 name = food.name
                 brand = food.brand ?: ""
                 servingSize = food.servingSize.toDisplayString()
-                servingUnit = food.servingUnit
+                servingUnit = ServingUnit.entries.first { it.value == food.servingUnit.value }
                 calories = food.calories.toDisplayString()
                 protein = food.protein.toDisplayString()
                 carbs = food.carbs.toDisplayString()

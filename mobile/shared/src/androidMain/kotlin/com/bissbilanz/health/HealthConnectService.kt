@@ -8,8 +8,8 @@ import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Mass
 import com.bissbilanz.HealthSyncService
-import com.bissbilanz.model.MacroTotals
-import com.bissbilanz.model.WeightEntry
+import com.bissbilanz.api.generated.model.MacroSummary
+import com.bissbilanz.api.generated.model.WeightEntry
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -59,7 +59,7 @@ class HealthConnectService(
 
     override suspend fun syncNutrition(
         date: String,
-        totals: MacroTotals,
+        totals: MacroSummary,
     ) {
         val client = getClient() ?: return
         if (!hasPermissions()) return

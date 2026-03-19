@@ -3,7 +3,6 @@ package com.bissbilanz.test
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Goals
-import com.bissbilanz.model.ServingUnit
 
 object TestFixtures {
     fun food(
@@ -15,13 +14,20 @@ object TestFixtures {
         userId = "user-1",
         name = name,
         servingSize = 100.0,
-        servingUnit = ServingUnit.G,
+        servingUnit = Food.ServingUnit.g,
         calories = 200.0,
         protein = 20.0,
         carbs = 25.0,
         fat = 8.0,
         fiber = 3.0,
+        brand = null,
+        barcode = null,
         isFavorite = isFavorite,
+        nutriScore = null,
+        novaGroup = null,
+        additives = null,
+        ingredientsText = null,
+        imageUrl = null,
     )
 
     fun entry(

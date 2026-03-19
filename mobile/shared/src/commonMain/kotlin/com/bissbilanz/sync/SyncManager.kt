@@ -4,7 +4,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
-import com.bissbilanz.model.*
+import com.bissbilanz.api.generated.model.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO

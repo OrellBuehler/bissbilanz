@@ -3,7 +3,6 @@ package com.bissbilanz.android.ui.viewmodels
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Food
-import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.EntryRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -172,13 +171,20 @@ class DayLogViewModelTest {
                         id = "food-1",
                         userId = "user-1",
                         name = "Test Food",
+                        brand = null,
                         servingSize = 100.0,
-                        servingUnit = ServingUnit.G,
+                        servingUnit = Food.ServingUnit.g,
                         calories = 200.0,
                         protein = 20.0,
                         carbs = 25.0,
                         fat = 8.0,
                         fiber = 3.0,
+                        barcode = null,
+                        nutriScore = null,
+                        novaGroup = null,
+                        additives = null,
+                        ingredientsText = null,
+                        imageUrl = null,
                     ),
             )
     }

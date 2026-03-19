@@ -28,9 +28,9 @@ class StatsRepository(
             computeDailyStatsFromCache(startDate, endDate)
         }
 
-    suspend fun getWeeklyStats(): WeeklyMonthlyStatsResponse = api.getWeeklyStats()
+    suspend fun getWeeklyStats(): WeeklyStatsResponse = api.getWeeklyStats()
 
-    suspend fun getMonthlyStats(): WeeklyMonthlyStatsResponse = api.getMonthlyStats()
+    suspend fun getMonthlyStats(): MonthlyStatsResponse = api.getMonthlyStats()
 
     suspend fun getMealBreakdown(date: String): MealBreakdownResponse = api.getMealBreakdown(date)
 
@@ -86,7 +86,7 @@ class StatsRepository(
 
         val goals =
             db.bissbilanzDatabaseQueries.selectGoals().executeAsOneOrNull()?.let {
-                Goals(
+                GoalsSummary(
                     calorieGoal = it.calorieGoal,
                     proteinGoal = it.proteinGoal,
                     carbGoal = it.carbGoal,

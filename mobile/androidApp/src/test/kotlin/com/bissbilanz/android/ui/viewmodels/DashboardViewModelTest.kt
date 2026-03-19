@@ -3,7 +3,6 @@ package com.bissbilanz.android.ui.viewmodels
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Goals
-import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
 import io.mockk.coEvery
@@ -144,13 +143,20 @@ class DashboardViewModelTest {
                             id = "f1",
                             userId = "u1",
                             name = "Test",
+                            brand = null,
                             servingSize = 100.0,
-                            servingUnit = ServingUnit.G,
+                            servingUnit = Food.ServingUnit.g,
                             calories = 200.0,
                             protein = 20.0,
                             carbs = 25.0,
                             fat = 8.0,
                             fiber = 3.0,
+                            barcode = null,
+                            nutriScore = null,
+                            novaGroup = null,
+                            additives = null,
+                            ingredientsText = null,
+                            imageUrl = null,
                         ),
                 )
             entriesFlow.value = listOf(entry)

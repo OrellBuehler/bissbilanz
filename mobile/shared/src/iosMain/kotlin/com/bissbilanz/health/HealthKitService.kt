@@ -1,8 +1,8 @@
 package com.bissbilanz.health
 
 import com.bissbilanz.HealthSyncService
-import com.bissbilanz.model.MacroTotals
-import com.bissbilanz.model.WeightEntry
+import com.bissbilanz.api.generated.model.MacroSummary
+import com.bissbilanz.api.generated.model.WeightEntry
 
 class HealthKitService : HealthSyncService {
     override suspend fun isAvailable(): Boolean = false
@@ -15,6 +15,6 @@ class HealthKitService : HealthSyncService {
 
     override suspend fun syncNutrition(
         date: String,
-        totals: MacroTotals,
+        totals: MacroSummary,
     ) {}
 }

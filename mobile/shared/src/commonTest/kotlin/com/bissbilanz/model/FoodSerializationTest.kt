@@ -19,7 +19,7 @@ class FoodSerializationTest {
                 userId = "user-1",
                 name = "Apple",
                 servingSize = 100.0,
-                servingUnit = ServingUnit.G,
+                servingUnit = Food.ServingUnit.g,
                 calories = 52.0,
                 protein = 0.3,
                 carbs = 14.0,
@@ -27,6 +27,12 @@ class FoodSerializationTest {
                 fiber = 2.4,
                 isFavorite = true,
                 barcode = "1234567890",
+                brand = null,
+                nutriScore = null,
+                novaGroup = null,
+                additives = null,
+                ingredientsText = null,
+                imageUrl = null,
             )
         val encoded = json.encodeToString(food)
         val decoded = json.decodeFromString<Food>(encoded)
@@ -64,12 +70,19 @@ class FoodSerializationTest {
                 userId = "u",
                 name = "Water",
                 servingSize = 250.0,
-                servingUnit = ServingUnit.ML,
+                servingUnit = Food.ServingUnit.ml,
                 calories = 0.0,
                 protein = 0.0,
                 carbs = 0.0,
                 fat = 0.0,
                 fiber = 0.0,
+                brand = null,
+                barcode = null,
+                nutriScore = null,
+                novaGroup = null,
+                additives = null,
+                ingredientsText = null,
+                imageUrl = null,
             )
         assertNull(food.brand)
         assertNull(food.barcode)
@@ -87,12 +100,19 @@ class FoodSerializationTest {
                 userId = "u",
                 name = "Milk",
                 servingSize = 1.0,
-                servingUnit = ServingUnit.CUP,
+                servingUnit = Food.ServingUnit.cup,
                 calories = 150.0,
                 protein = 8.0,
                 carbs = 12.0,
                 fat = 8.0,
                 fiber = 0.0,
+                brand = null,
+                barcode = null,
+                nutriScore = null,
+                novaGroup = null,
+                additives = null,
+                ingredientsText = null,
+                imageUrl = null,
             )
         val encoded = json.encodeToString(food)
         assertTrue(encoded.contains("\"cup\""))
@@ -103,16 +123,16 @@ class FoodSerializationTest {
         val units = listOf("g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp")
         val expected =
             listOf(
-                ServingUnit.G,
-                ServingUnit.KG,
-                ServingUnit.ML,
-                ServingUnit.L,
-                ServingUnit.OZ,
-                ServingUnit.LB,
-                ServingUnit.FL_OZ,
-                ServingUnit.CUP,
-                ServingUnit.TBSP,
-                ServingUnit.TSP,
+                Food.ServingUnit.g,
+                Food.ServingUnit.kg,
+                Food.ServingUnit.ml,
+                Food.ServingUnit.l,
+                Food.ServingUnit.oz,
+                Food.ServingUnit.lb,
+                Food.ServingUnit.fl_oz,
+                Food.ServingUnit.cup,
+                Food.ServingUnit.tbsp,
+                Food.ServingUnit.tsp,
             )
         units.zip(expected).forEach { (unitStr, expectedUnit) ->
             val jsonStr =
@@ -134,7 +154,7 @@ class FoodSerializationTest {
             FoodCreate(
                 name = "Chicken Breast",
                 servingSize = 100.0,
-                servingUnit = ServingUnit.G,
+                servingUnit = FoodCreate.ServingUnit.g,
                 calories = 165.0,
                 protein = 31.0,
                 carbs = 0.0,

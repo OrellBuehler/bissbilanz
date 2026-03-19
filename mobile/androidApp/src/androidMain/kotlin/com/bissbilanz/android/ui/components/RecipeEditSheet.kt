@@ -30,7 +30,7 @@ private data class RecipeIngredientRow(
     val food: Food? = null,
     val foodId: String = "",
     val quantity: String = "100",
-    val unit: ServingUnit = ServingUnit.G,
+    val unit: ServingUnit = ServingUnit.g,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +73,7 @@ fun RecipeEditSheet(
                         food = ing.food,
                         foodId = ing.foodId,
                         quantity = ing.quantity.toDisplayString(),
-                        unit = ing.servingUnit,
+                        unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
                     )
                 } ?: emptyList()
             } catch (e: Exception) {
@@ -133,7 +133,7 @@ fun RecipeEditSheet(
                                             food = food,
                                             foodId = food.id,
                                             quantity = food.servingSize.toDisplayString(),
-                                            unit = food.servingUnit,
+                                            unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                                         )
                                     showFoodPicker = false
                                     foodSearchQuery = ""

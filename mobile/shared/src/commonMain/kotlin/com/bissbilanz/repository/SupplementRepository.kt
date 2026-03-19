@@ -5,7 +5,10 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
+import com.bissbilanz.api.generated.model.Supplement
+import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.SupplementLog
+import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +62,16 @@ class SupplementRepository(
 
     suspend fun getChecklist(date: String): List<SupplementLog> =
         try {
-            val logs = api.getSupplementChecklist(date)
+            val checklist = api.getSupplementChecklist(date)
+            val logs = checklist.filter { it.taken }.map { item ->
+                SupplementLog(
+                    id = "log_${item.supplement.id}",
+                    supplementId = item.supplement.id,
+                    userId = "",
+                    date = date,
+                    takenAt = item.takenAt ?: "",
+                )
+            }
             logs.forEach { log ->
                 db.bissbilanzDatabaseQueries.insertSupplementLog(
                     id = log.id,
@@ -139,12 +151,12 @@ class SupplementRepository(
                 val supplement = supplements[log.supplementId]
                 SupplementHistoryEntry(
                     log =
-                        SupplementHistoryLog(
+                        SupplementLog(
                             id = log.id,
                             supplementId = log.supplementId,
                             userId = "",
                             date = log.date,
-                            takenAt = log.takenAt,
+                            takenAt = log.takenAt ?: "",
                         ),
                     supplementName = supplement?.name ?: "",
                     dosage = supplement?.dosage ?: 0.0,
@@ -205,11 +217,12 @@ class SupplementRepository(
             name = supplement.name,
             dosage = supplement.dosage,
             dosageUnit = supplement.dosageUnit,
-            scheduleType = supplement.scheduleType,
+            scheduleType = Supplement.ScheduleType.valueOf(supplement.scheduleType.name),
             scheduleDays = supplement.scheduleDays,
             scheduleStartDate = supplement.scheduleStartDate,
             isActive = supplement.isActive ?: true,
             sortOrder = supplement.sortOrder ?: 0,
-            timeOfDay = supplement.timeOfDay,
+            timeOfDay = supplement.timeOfDay?.let { Supplement.TimeOfDay.valueOf(it.name) },
+            ingredients = emptyList(),
         )
 }

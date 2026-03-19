@@ -78,6 +78,7 @@ class WeightRepository(
                     userId = "",
                     weightKg = entry.weightKg ?: 0.0,
                     entryDate = entry.entryDate ?: "",
+                    notes = entry.notes,
                 )
             }
         try {

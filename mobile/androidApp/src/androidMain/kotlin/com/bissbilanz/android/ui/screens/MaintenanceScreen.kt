@@ -207,7 +207,7 @@ fun MaintenanceScreen(navController: NavController) {
                         MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.toInt()} kcal")
                         MaintenanceRow(
                             "Daily deficit/surplus",
-                            "${if (r.dailyDeficitOrSurplus >= 0) "+" else ""}${r.dailyDeficitOrSurplus.toInt()} kcal",
+                            "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.toInt()} kcal",
                         )
                         MaintenanceRow(
                             "Weight change",
@@ -215,11 +215,11 @@ fun MaintenanceScreen(navController: NavController) {
                         )
                         MaintenanceRow(
                             "Fat mass change",
-                            "${"%.1f".format(r.fatMassChangeKg)} kg",
+                            "${"%.1f".format(r.fatMassKg)} kg",
                         )
                         MaintenanceRow(
                             "Muscle mass change",
-                            "${"%.1f".format(r.muscleMassChangeKg)} kg",
+                            "${"%.1f".format(r.muscleMassKg)} kg",
                         )
                     }
                 }

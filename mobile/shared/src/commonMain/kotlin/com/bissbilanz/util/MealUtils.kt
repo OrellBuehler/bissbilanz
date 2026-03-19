@@ -1,6 +1,6 @@
 package com.bissbilanz.util
 
-import com.bissbilanz.model.Preferences
+import com.bissbilanz.api.generated.model.Preferences
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime

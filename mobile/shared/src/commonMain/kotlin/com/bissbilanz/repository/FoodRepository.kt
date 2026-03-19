@@ -6,8 +6,8 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodsListResponse
-import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -67,11 +67,54 @@ class FoodRepository(
 
     suspend fun refreshFavorites() {
         val favs = api.getFavorites()
-        favs.forEach { cacheFood(it) }
+        favs.forEach { fav ->
+            val food = Food(
+                id = fav.id,
+                userId = "",
+                name = fav.name,
+                brand = null,
+                servingSize = 100.0,
+                servingUnit = Food.ServingUnit.g,
+                calories = fav.calories,
+                protein = fav.protein,
+                carbs = fav.carbs,
+                fat = fav.fat,
+                fiber = fav.fiber,
+                barcode = null,
+                isFavorite = true,
+                nutriScore = null,
+                novaGroup = null,
+                additives = null,
+                ingredientsText = null,
+                imageUrl = fav.imageUrl,
+            )
+            cacheFood(food)
+        }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
-        _recentFoods.value = api.getRecentFoods(limit)
+        _recentFoods.value = api.getRecentFoods(limit).map { recent ->
+            Food(
+                id = recent.id,
+                userId = recent.userId,
+                name = recent.name,
+                brand = recent.brand,
+                servingSize = recent.servingSize,
+                servingUnit = Food.ServingUnit.valueOf(recent.servingUnit.name),
+                calories = recent.calories,
+                protein = recent.protein,
+                carbs = recent.carbs,
+                fat = recent.fat,
+                fiber = recent.fiber,
+                barcode = recent.barcode,
+                isFavorite = recent.isFavorite,
+                nutriScore = null,
+                novaGroup = null,
+                additives = null,
+                ingredientsText = null,
+                imageUrl = recent.imageUrl,
+            )
+        }
     }
 
     suspend fun getFood(id: String): Food =
