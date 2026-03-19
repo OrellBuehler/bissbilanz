@@ -23,7 +23,7 @@ function search(query: string) {
 }
 
 function favorites() {
-	return liveQuery(() => db.foods.where('isFavorite').equals(true).toArray());
+	return liveQuery(() => db.foods.filter((f) => f.isFavorite).toArray());
 }
 
 async function refresh() {

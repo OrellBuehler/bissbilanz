@@ -4,8 +4,8 @@ import { api } from '$lib/api/client';
 
 function favorites() {
 	return liveQuery(async () => {
-		const foods = await db.foods.where('isFavorite').equals(true).toArray();
-		const recipes = await db.recipes.where('isFavorite').equals(true).toArray();
+		const foods = await db.foods.filter((f) => f.isFavorite).toArray();
+		const recipes = await db.recipes.filter((r) => r.isFavorite).toArray();
 		return { foods, recipes };
 	});
 }
