@@ -552,8 +552,8 @@ describe('stats-db', () => {
 			expect(result.calories).toBe(700);
 			expect(result.protein).toBe(35);
 			expect(result.carbs).toBe(70);
-			expect(result.fat).toBe(26.666666666666668);
-			expect(result.fiber).toBe(13.666666666666666);
+			expect(result.fat).toBe(26.7);
+			expect(result.fiber).toBe(13.7);
 		});
 	});
 });

@@ -2,6 +2,7 @@ import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipes, recipeIngredients } from '$lib/server/schema';
 import { eq, sql, and, count, getTableColumns } from 'drizzle-orm';
 import { macroAggregations } from '$lib/server/recipes';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 export const listFavoriteFoods = async (userId: string, limit = 50) => {
 	const db = getDB();
@@ -18,11 +19,13 @@ export const listFavoriteFoods = async (userId: string, limit = 50) => {
 		.orderBy(sql`count(${foodEntries.id}) DESC`)
 		.limit(limit);
 
-	return results.map((r) => ({
-		...r,
-		type: 'food' as const,
-		logCount: Number(r.logCount)
-	}));
+	return roundNutrition(
+		results.map((r) => ({
+			...r,
+			type: 'food' as const,
+			logCount: Number(r.logCount)
+		}))
+	);
 };
 
 export const listFavoriteRecipes = async (userId: string, limit = 50) => {
@@ -49,17 +52,19 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 		.orderBy(sql`count(${foodEntries.id}) DESC`)
 		.limit(limit);
 
-	return results.map((r) => ({
-		id: r.id,
-		name: r.name,
-		imageUrl: r.imageUrl,
-		totalServings: r.totalServings,
-		calories: Number(r.calories),
-		protein: Number(r.protein),
-		carbs: Number(r.carbs),
-		fat: Number(r.fat),
-		fiber: Number(r.fiber),
-		type: 'recipe' as const,
-		logCount: Number(r.logCount)
-	}));
+	return roundNutrition(
+		results.map((r) => ({
+			id: r.id,
+			name: r.name,
+			imageUrl: r.imageUrl,
+			totalServings: r.totalServings,
+			calories: Number(r.calories),
+			protein: Number(r.protein),
+			carbs: Number(r.carbs),
+			fat: Number(r.fat),
+			fiber: Number(r.fiber),
+			type: 'recipe' as const,
+			logCount: Number(r.logCount)
+		}))
+	);
 };

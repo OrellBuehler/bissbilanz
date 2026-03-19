@@ -3,6 +3,7 @@ import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/sche
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 type RecipeInput = {
 	name: string;
@@ -60,7 +61,7 @@ export const listRecipes = async (
 		db.select({ total: count() }).from(recipes).where(whereClause)
 	]);
 
-	return { items, total: countResult[0]?.total ?? 0 };
+	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
 export const createRecipe = async (
@@ -129,7 +130,7 @@ export const getRecipe = async (userId: string, id: string) => {
 		.where(eq(recipeIngredients.recipeId, id))
 		.orderBy(recipeIngredients.sortOrder);
 
-	return { ...recipe, ingredients };
+	return roundNutrition({ ...recipe, ingredients });
 };
 
 export const updateRecipe = async (

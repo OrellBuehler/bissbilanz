@@ -5,6 +5,7 @@ import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -61,7 +62,7 @@ export const getFood = async (userId: string, id: string) => {
 		.select()
 		.from(foods)
 		.where(and(eq(foods.id, id), eq(foods.userId, userId)));
-	return food ?? null;
+	return food ? roundNutrition(food) : null;
 };
 
 export const listFoods = async (
@@ -83,7 +84,7 @@ export const listFoods = async (
 		db.select({ total: count() }).from(foods).where(whereClause)
 	]);
 
-	return { items, total: countResult[0]?.total ?? 0 };
+	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
 export const createFood = async (
@@ -101,7 +102,7 @@ export const createFood = async (
 		if (!created) {
 			return { success: false, error: new Error('Failed to create food') };
 		}
-		return { success: true, data: created };
+		return { success: true, data: roundNutrition(created) };
 	} catch (error) {
 		return (
 			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
@@ -137,7 +138,7 @@ export const updateFood = async (
 			.set({ ...toFoodUpdate(result.data), updatedAt: new Date() })
 			.where(and(eq(foods.id, id), eq(foods.userId, userId)))
 			.returning();
-		return { success: true, data: updated };
+		return { success: true, data: updated ? roundNutrition(updated) : updated };
 	} catch (error) {
 		return (
 			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
@@ -188,7 +189,7 @@ export const findFoodByBarcode = async (userId: string, barcode: string) => {
 
 export const listRecentFoods = async (userId: string, limit = 25) => {
 	const db = getDB();
-	return db
+	const rows = await db
 		.select({
 			id: foods.id,
 			userId: foods.userId,
@@ -212,4 +213,5 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 		.where(eq(foodEntries.userId, userId))
 		.orderBy(desc(foodEntries.createdAt))
 		.limit(limit);
+	return roundNutrition(rows);
 };
