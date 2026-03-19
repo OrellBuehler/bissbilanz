@@ -5,7 +5,9 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
+import com.bissbilanz.api.generated.model.RecipeCreate
+import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.model.Recipe
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers

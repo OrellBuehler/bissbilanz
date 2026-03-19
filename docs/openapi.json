@@ -19,7 +19,9 @@
 		"/api/goals": {
 			"get": {
 				"operationId": "getGoals",
-				"tags": ["Goals"],
+				"tags": [
+					"Goals"
+				],
 				"description": "Get daily nutrition goals.",
 				"responses": {
 					"200": {
@@ -39,59 +41,16 @@
 			},
 			"post": {
 				"operationId": "setGoals",
-				"tags": ["Goals"],
+				"tags": [
+					"Goals"
+				],
 				"description": "Set daily nutrition goals.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"calorieGoal": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"proteinGoal": {
-										"type": "number",
-										"minimum": 0
-									},
-									"carbGoal": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fatGoal": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fiberGoal": {
-										"type": "number",
-										"minimum": 0
-									},
-									"sodiumGoal": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sugarGoal": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								},
-								"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"]
+								"$ref": "#/components/schemas/GoalsUpdate"
 							}
 						}
 					}
@@ -119,7 +78,9 @@
 		"/api/foods": {
 			"get": {
 				"operationId": "listFoods",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "Search or list foods in the personal database.",
 				"parameters": [
 					{
@@ -173,610 +134,16 @@
 			},
 			"post": {
 				"operationId": "createFood",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "Create a new food in the personal database.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"brand": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"servingSize": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"servingUnit": {
-										"type": "string",
-										"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
-									},
-									"calories": {
-										"type": "number",
-										"minimum": 0
-									},
-									"protein": {
-										"type": "number",
-										"minimum": 0
-									},
-									"carbs": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fat": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fiber": {
-										"type": "number",
-										"minimum": 0
-									},
-									"saturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"monounsaturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"polyunsaturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"transFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"cholesterol": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"omega3": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"omega6": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sugar": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"addedSugars": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sugarAlcohols": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"starch": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sodium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"potassium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"calcium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"iron": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"magnesium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"phosphorus": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"zinc": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"copper": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"manganese": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"selenium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"iodine": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"fluoride": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"chromium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"molybdenum": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"chloride": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminA": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminC": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminD": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminE": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminK": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB1": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB2": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB3": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB5": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB6": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB7": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB9": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB12": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"caffeine": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"alcohol": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"water": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"salt": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"barcode": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"isFavorite": {
-										"type": "boolean"
-									},
-									"nutriScore": {
-										"anyOf": [
-											{
-												"type": "string",
-												"enum": ["a", "b", "c", "d", "e"]
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"novaGroup": {
-										"anyOf": [
-											{
-												"type": "integer",
-												"minimum": 1,
-												"maximum": 4
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"additives": {
-										"anyOf": [
-											{
-												"type": "array",
-												"items": {
-													"type": "string"
-												}
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"ingredientsText": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"imageUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								},
-								"required": [
-									"name",
-									"servingSize",
-									"servingUnit",
-									"calories",
-									"protein",
-									"carbs",
-									"fat",
-									"fiber"
-								]
+								"$ref": "#/components/schemas/FoodCreate"
 							}
 						}
 					}
@@ -804,7 +171,9 @@
 		"/api/foods/recent": {
 			"get": {
 				"operationId": "listRecentFoods",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "List recently logged foods.",
 				"responses": {
 					"200": {
@@ -826,7 +195,9 @@
 		"/api/foods/{id}": {
 			"get": {
 				"operationId": "getFood",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "Get a single food by ID.",
 				"parameters": [
 					{
@@ -858,7 +229,9 @@
 			},
 			"patch": {
 				"operationId": "updateFood",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "Update a food in the personal database.",
 				"parameters": [
 					{
@@ -877,593 +250,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"brand": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"servingSize": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"servingUnit": {
-										"type": "string",
-										"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
-									},
-									"calories": {
-										"type": "number",
-										"minimum": 0
-									},
-									"protein": {
-										"type": "number",
-										"minimum": 0
-									},
-									"carbs": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fat": {
-										"type": "number",
-										"minimum": 0
-									},
-									"fiber": {
-										"type": "number",
-										"minimum": 0
-									},
-									"saturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"monounsaturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"polyunsaturatedFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"transFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"cholesterol": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"omega3": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"omega6": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sugar": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"addedSugars": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sugarAlcohols": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"starch": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"sodium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"potassium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"calcium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"iron": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"magnesium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"phosphorus": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"zinc": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"copper": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"manganese": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"selenium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"iodine": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"fluoride": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"chromium": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"molybdenum": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"chloride": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminA": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminC": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminD": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminE": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminK": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB1": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB2": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB3": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB5": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB6": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB7": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB9": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"vitaminB12": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"caffeine": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"alcohol": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"water": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"salt": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"barcode": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"isFavorite": {
-										"type": "boolean"
-									},
-									"nutriScore": {
-										"anyOf": [
-											{
-												"type": "string",
-												"enum": ["a", "b", "c", "d", "e"]
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"novaGroup": {
-										"anyOf": [
-											{
-												"type": "integer",
-												"minimum": 1,
-												"maximum": 4
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"additives": {
-										"anyOf": [
-											{
-												"type": "array",
-												"items": {
-													"type": "string"
-												}
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"ingredientsText": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"imageUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								}
+								"$ref": "#/components/schemas/FoodUpdate"
 							}
 						}
 					}
@@ -1489,7 +276,9 @@
 			},
 			"delete": {
 				"operationId": "deleteFood",
-				"tags": ["Foods"],
+				"tags": [
+					"Foods"
+				],
 				"description": "Delete a food. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
@@ -1526,7 +315,9 @@
 		"/api/entries": {
 			"get": {
 				"operationId": "listEntries",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "List diary entries for a given date.",
 				"parameters": [
 					{
@@ -1558,127 +349,16 @@
 			},
 			"post": {
 				"operationId": "createEntry",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "Log a food entry.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"foodId": {
-										"type": "string",
-										"format": "uuid",
-										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-									},
-									"recipeId": {
-										"type": "string",
-										"format": "uuid",
-										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-									},
-									"mealType": {
-										"type": "string",
-										"minLength": 1,
-										"maxLength": 50
-									},
-									"servings": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"notes": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"date": {
-										"type": "string",
-										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-									},
-									"quickName": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickCalories": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickProtein": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickCarbs": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickFiber": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"eatenAt": {
-										"anyOf": [
-											{
-												"type": "string",
-												"format": "date-time",
-												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								},
-								"required": ["mealType", "servings", "date"]
+								"$ref": "#/components/schemas/EntryCreate"
 							}
 						}
 					}
@@ -1706,7 +386,9 @@
 		"/api/entries/copy": {
 			"post": {
 				"operationId": "copyEntries",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "Copy all diary entries from one date to another.",
 				"parameters": [
 					{
@@ -1753,7 +435,9 @@
 		"/api/entries/range": {
 			"get": {
 				"operationId": "getEntriesRange",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "Get diary entries for a date range.",
 				"parameters": [
 					{
@@ -1797,7 +481,9 @@
 		"/api/entries/{id}": {
 			"patch": {
 				"operationId": "updateEntry",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "Update a diary entry.",
 				"parameters": [
 					{
@@ -1816,119 +502,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"foodId": {
-										"type": "string",
-										"format": "uuid",
-										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-									},
-									"recipeId": {
-										"type": "string",
-										"format": "uuid",
-										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-									},
-									"mealType": {
-										"type": "string",
-										"minLength": 1,
-										"maxLength": 50
-									},
-									"servings": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"notes": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"date": {
-										"type": "string",
-										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-									},
-									"quickName": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickCalories": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickProtein": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickCarbs": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickFat": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"quickFiber": {
-										"anyOf": [
-											{
-												"type": "number",
-												"minimum": 0
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"eatenAt": {
-										"anyOf": [
-											{
-												"type": "string",
-												"format": "date-time",
-												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								}
+								"$ref": "#/components/schemas/EntryUpdate"
 							}
 						}
 					}
@@ -1954,7 +528,9 @@
 			},
 			"delete": {
 				"operationId": "deleteEntry",
-				"tags": ["Entries"],
+				"tags": [
+					"Entries"
+				],
 				"description": "Delete a diary entry.",
 				"parameters": [
 					{
@@ -1981,7 +557,9 @@
 		"/api/recipes": {
 			"get": {
 				"operationId": "listRecipes",
-				"tags": ["Recipes"],
+				"tags": [
+					"Recipes"
+				],
 				"description": "List recipes.",
 				"parameters": [
 					{
@@ -2021,61 +599,16 @@
 			},
 			"post": {
 				"operationId": "createRecipe",
-				"tags": ["Recipes"],
+				"tags": [
+					"Recipes"
+				],
 				"description": "Create a new recipe.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"totalServings": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"ingredients": {
-										"minItems": 1,
-										"type": "array",
-										"items": {
-											"type": "object",
-											"properties": {
-												"foodId": {
-													"type": "string",
-													"format": "uuid",
-													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-												},
-												"quantity": {
-													"type": "number",
-													"exclusiveMinimum": 0
-												},
-												"servingUnit": {
-													"type": "string",
-													"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
-												}
-											},
-											"required": ["foodId", "quantity", "servingUnit"]
-										}
-									},
-									"isFavorite": {
-										"type": "boolean"
-									},
-									"imageUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								},
-								"required": ["name", "totalServings", "ingredients"]
+								"$ref": "#/components/schemas/RecipeCreate"
 							}
 						}
 					}
@@ -2103,7 +636,9 @@
 		"/api/recipes/{id}": {
 			"get": {
 				"operationId": "getRecipe",
-				"tags": ["Recipes"],
+				"tags": [
+					"Recipes"
+				],
 				"description": "Get a single recipe by ID.",
 				"parameters": [
 					{
@@ -2135,7 +670,9 @@
 			},
 			"patch": {
 				"operationId": "updateRecipe",
-				"tags": ["Recipes"],
+				"tags": [
+					"Recipes"
+				],
 				"description": "Update a recipe.",
 				"parameters": [
 					{
@@ -2154,53 +691,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"totalServings": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"ingredients": {
-										"minItems": 1,
-										"type": "array",
-										"items": {
-											"type": "object",
-											"properties": {
-												"foodId": {
-													"type": "string",
-													"format": "uuid",
-													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-												},
-												"quantity": {
-													"type": "number",
-													"exclusiveMinimum": 0
-												},
-												"servingUnit": {
-													"type": "string",
-													"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
-												}
-											},
-											"required": ["foodId", "quantity", "servingUnit"]
-										}
-									},
-									"isFavorite": {
-										"type": "boolean"
-									},
-									"imageUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								}
+								"$ref": "#/components/schemas/RecipeUpdate"
 							}
 						}
 					}
@@ -2226,7 +717,9 @@
 			},
 			"delete": {
 				"operationId": "deleteRecipe",
-				"tags": ["Recipes"],
+				"tags": [
+					"Recipes"
+				],
 				"description": "Delete a recipe. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
@@ -2263,7 +756,9 @@
 		"/api/supplements": {
 			"get": {
 				"operationId": "listSupplements",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "List supplements. Pass all=true to include inactive ones.",
 				"parameters": [
 					{
@@ -2292,104 +787,16 @@
 			},
 			"post": {
 				"operationId": "createSupplement",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Create a new supplement.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"dosage": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"dosageUnit": {
-										"type": "string",
-										"minLength": 1
-									},
-									"scheduleType": {
-										"type": "string",
-										"enum": ["daily", "every_other_day", "weekly", "specific_days"]
-									},
-									"scheduleDays": {
-										"anyOf": [
-											{
-												"type": "array",
-												"items": {
-													"type": "integer",
-													"minimum": 0,
-													"maximum": 6
-												}
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"scheduleStartDate": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"isActive": {
-										"type": "boolean"
-									},
-									"sortOrder": {
-										"type": "integer",
-										"minimum": -9007199254740991,
-										"maximum": 9007199254740991
-									},
-									"timeOfDay": {
-										"anyOf": [
-											{
-												"type": "string",
-												"enum": ["morning", "noon", "evening"]
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"ingredients": {
-										"maxItems": 50,
-										"type": "array",
-										"items": {
-											"type": "object",
-											"properties": {
-												"name": {
-													"type": "string",
-													"minLength": 1
-												},
-												"dosage": {
-													"type": "number",
-													"exclusiveMinimum": 0
-												},
-												"dosageUnit": {
-													"type": "string",
-													"minLength": 1
-												},
-												"sortOrder": {
-													"type": "integer",
-													"minimum": -9007199254740991,
-													"maximum": 9007199254740991
-												}
-											},
-											"required": ["name", "dosage", "dosageUnit"]
-										}
-									}
-								},
-								"required": ["name", "dosage", "dosageUnit", "scheduleType"]
+								"$ref": "#/components/schemas/SupplementCreate"
 							}
 						}
 					}
@@ -2417,7 +824,9 @@
 		"/api/supplements/today": {
 			"get": {
 				"operationId": "getTodaySupplementChecklist",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Get today's supplement checklist.",
 				"responses": {
 					"200": {
@@ -2439,7 +848,9 @@
 		"/api/supplements/history": {
 			"get": {
 				"operationId": "getSupplementHistory",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Get supplement log history.",
 				"parameters": [
 					{
@@ -2481,7 +892,9 @@
 		"/api/supplements/{id}": {
 			"get": {
 				"operationId": "getSupplement",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Get a single supplement by ID.",
 				"parameters": [
 					{
@@ -2513,7 +926,9 @@
 			},
 			"patch": {
 				"operationId": "updateSupplement",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Update a supplement.",
 				"parameters": [
 					{
@@ -2532,103 +947,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1
-									},
-									"dosage": {
-										"type": "number",
-										"exclusiveMinimum": 0
-									},
-									"dosageUnit": {
-										"type": "string",
-										"minLength": 1
-									},
-									"scheduleType": {
-										"type": "string",
-										"enum": ["daily", "every_other_day", "weekly", "specific_days"]
-									},
-									"scheduleDays": {
-										"anyOf": [
-											{
-												"type": "array",
-												"items": {
-													"type": "integer",
-													"minimum": 0,
-													"maximum": 6
-												}
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"scheduleStartDate": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"isActive": {
-										"type": "boolean"
-									},
-									"sortOrder": {
-										"type": "integer",
-										"minimum": -9007199254740991,
-										"maximum": 9007199254740991
-									},
-									"timeOfDay": {
-										"anyOf": [
-											{
-												"type": "string",
-												"enum": ["morning", "noon", "evening"]
-											},
-											{
-												"type": "null"
-											}
-										]
-									},
-									"ingredients": {
-										"anyOf": [
-											{
-												"maxItems": 50,
-												"type": "array",
-												"items": {
-													"type": "object",
-													"properties": {
-														"name": {
-															"type": "string",
-															"minLength": 1
-														},
-														"dosage": {
-															"type": "number",
-															"exclusiveMinimum": 0
-														},
-														"dosageUnit": {
-															"type": "string",
-															"minLength": 1
-														},
-														"sortOrder": {
-															"type": "integer",
-															"minimum": -9007199254740991,
-															"maximum": 9007199254740991
-														}
-													},
-													"required": ["name", "dosage", "dosageUnit"]
-												}
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								}
+								"$ref": "#/components/schemas/SupplementUpdate"
 							}
 						}
 					}
@@ -2654,7 +973,9 @@
 			},
 			"delete": {
 				"operationId": "deleteSupplement",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Delete a supplement.",
 				"parameters": [
 					{
@@ -2681,7 +1002,9 @@
 		"/api/supplements/{id}/log": {
 			"post": {
 				"operationId": "logSupplement",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Log a supplement as taken today.",
 				"parameters": [
 					{
@@ -2700,12 +1023,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"date": {
-										"type": "string"
-									}
-								}
+								"$ref": "#/components/schemas/SupplementLogCreate"
 							}
 						}
 					}
@@ -2730,7 +1048,9 @@
 		"/api/supplements/{id}/log/{date}": {
 			"post": {
 				"operationId": "logSupplementForDate",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Log a supplement as taken on a specific date.",
 				"parameters": [
 					{
@@ -2772,7 +1092,9 @@
 			},
 			"delete": {
 				"operationId": "unlogSupplementForDate",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Remove a supplement log entry for a specific date.",
 				"parameters": [
 					{
@@ -2809,7 +1131,9 @@
 		"/api/supplements/{date}/checklist": {
 			"get": {
 				"operationId": "getSupplementChecklist",
-				"tags": ["Supplements"],
+				"tags": [
+					"Supplements"
+				],
 				"description": "Get supplement checklist for a specific date.",
 				"parameters": [
 					{
@@ -2843,7 +1167,9 @@
 		"/api/weight": {
 			"get": {
 				"operationId": "listWeightEntries",
-				"tags": ["Weight"],
+				"tags": [
+					"Weight"
+				],
 				"description": "Returns weight entries. When from/to query params are provided, returns trend data instead.",
 				"parameters": [
 					{
@@ -2890,36 +1216,16 @@
 			},
 			"post": {
 				"operationId": "createWeightEntry",
-				"tags": ["Weight"],
+				"tags": [
+					"Weight"
+				],
 				"description": "Log a new weight measurement.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"weightKg": {
-										"type": "number",
-										"exclusiveMinimum": 0,
-										"maximum": 500
-									},
-									"entryDate": {
-										"type": "string",
-										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-									},
-									"notes": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								},
-								"required": ["weightKg", "entryDate"]
+								"$ref": "#/components/schemas/WeightCreate"
 							}
 						}
 					}
@@ -2947,7 +1253,9 @@
 		"/api/weight/latest": {
 			"get": {
 				"operationId": "getLatestWeight",
-				"tags": ["Weight"],
+				"tags": [
+					"Weight"
+				],
 				"description": "Get the most recent weight entry.",
 				"responses": {
 					"200": {
@@ -2969,7 +1277,9 @@
 		"/api/weight/{id}": {
 			"patch": {
 				"operationId": "updateWeightEntry",
-				"tags": ["Weight"],
+				"tags": [
+					"Weight"
+				],
 				"description": "Update a weight entry.",
 				"parameters": [
 					{
@@ -2988,28 +1298,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"weightKg": {
-										"type": "number",
-										"exclusiveMinimum": 0,
-										"maximum": 500
-									},
-									"entryDate": {
-										"type": "string",
-										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-									},
-									"notes": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
-									}
-								}
+								"$ref": "#/components/schemas/WeightUpdate"
 							}
 						}
 					}
@@ -3035,7 +1324,9 @@
 			},
 			"delete": {
 				"operationId": "deleteWeightEntry",
-				"tags": ["Weight"],
+				"tags": [
+					"Weight"
+				],
 				"description": "Delete a weight entry.",
 				"parameters": [
 					{
@@ -3062,7 +1353,9 @@
 		"/api/stats/daily": {
 			"get": {
 				"operationId": "getDailyStats",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get daily nutrition totals for a date range.",
 				"parameters": [
 					{
@@ -3106,7 +1399,9 @@
 		"/api/stats/weekly": {
 			"get": {
 				"operationId": "getWeeklyStats",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get average daily nutrition over the past 7 days.",
 				"responses": {
 					"200": {
@@ -3128,7 +1423,9 @@
 		"/api/stats/monthly": {
 			"get": {
 				"operationId": "getMonthlyStats",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get average daily nutrition over the past 30 days.",
 				"responses": {
 					"200": {
@@ -3150,7 +1447,9 @@
 		"/api/stats/meal-breakdown": {
 			"get": {
 				"operationId": "getMealBreakdown",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get nutrition totals broken down by meal type.",
 				"parameters": [
 					{
@@ -3201,7 +1500,9 @@
 		"/api/stats/top-foods": {
 			"get": {
 				"operationId": "getTopFoods",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get most frequently logged foods.",
 				"parameters": [
 					{
@@ -3243,7 +1544,9 @@
 		"/api/stats/streaks": {
 			"get": {
 				"operationId": "getStreaks",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get current and longest logging streaks.",
 				"responses": {
 					"200": {
@@ -3265,7 +1568,9 @@
 		"/api/stats/calendar": {
 			"get": {
 				"operationId": "getCalendar",
-				"tags": ["Stats"],
+				"tags": [
+					"Stats"
+				],
 				"description": "Get calendar view of logged days for a month.",
 				"parameters": [
 					{
@@ -3297,7 +1602,9 @@
 		"/api/day-properties": {
 			"get": {
 				"operationId": "getDayProperties",
-				"tags": ["DayProperties"],
+				"tags": [
+					"DayProperties"
+				],
 				"description": "Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range.",
 				"parameters": [
 					{
@@ -3353,24 +1660,16 @@
 			},
 			"put": {
 				"operationId": "setDayProperties",
-				"tags": ["DayProperties"],
+				"tags": [
+					"DayProperties"
+				],
 				"description": "Set day properties (e.g. mark as fasting day).",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"date": {
-										"type": "string",
-										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-									},
-									"isFastingDay": {
-										"type": "boolean"
-									}
-								},
-								"required": ["date", "isFastingDay"]
+								"$ref": "#/components/schemas/DayPropertiesSet"
 							}
 						}
 					}
@@ -3396,7 +1695,9 @@
 			},
 			"delete": {
 				"operationId": "deleteDayProperties",
-				"tags": ["DayProperties"],
+				"tags": [
+					"DayProperties"
+				],
 				"description": "Delete day properties for a specific date.",
 				"parameters": [
 					{
@@ -3423,7 +1724,9 @@
 		"/api/preferences": {
 			"get": {
 				"operationId": "getPreferences",
-				"tags": ["Preferences"],
+				"tags": [
+					"Preferences"
+				],
 				"description": "Get user preferences.",
 				"responses": {
 					"200": {
@@ -3443,107 +1746,16 @@
 			},
 			"patch": {
 				"operationId": "updatePreferences",
-				"tags": ["Preferences"],
+				"tags": [
+					"Preferences"
+				],
 				"description": "Update user preferences.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"showChartWidget": {
-										"type": "boolean"
-									},
-									"showFavoritesWidget": {
-										"type": "boolean"
-									},
-									"showSupplementsWidget": {
-										"type": "boolean"
-									},
-									"showWeightWidget": {
-										"type": "boolean"
-									},
-									"showMealBreakdownWidget": {
-										"type": "boolean"
-									},
-									"showTopFoodsWidget": {
-										"type": "boolean"
-									},
-									"widgetOrder": {
-										"type": "array",
-										"items": {
-											"type": "string",
-											"enum": [
-												"chart",
-												"favorites",
-												"supplements",
-												"weight",
-												"meal-breakdown",
-												"top-foods",
-												"summary",
-												"daylog"
-											]
-										}
-									},
-									"startPage": {
-										"type": "string",
-										"enum": ["dashboard", "favorites"]
-									},
-									"favoriteTapAction": {
-										"type": "string",
-										"enum": ["instant", "picker"]
-									},
-									"favoriteMealAssignmentMode": {
-										"type": "string",
-										"enum": ["time_based", "ask_meal"]
-									},
-									"favoriteMealTimeframes": {
-										"type": "array",
-										"items": {
-											"type": "object",
-											"properties": {
-												"mealType": {
-													"type": "string",
-													"minLength": 1
-												},
-												"customMealTypeId": {
-													"anyOf": [
-														{
-															"type": "string",
-															"format": "uuid",
-															"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-														},
-														{
-															"type": "null"
-														}
-													]
-												},
-												"startTime": {
-													"type": "string",
-													"pattern": "^\\d{2}:\\d{2}$"
-												},
-												"endTime": {
-													"type": "string",
-													"pattern": "^\\d{2}:\\d{2}$"
-												}
-											},
-											"required": ["mealType", "startTime", "endTime"],
-											"additionalProperties": false
-										}
-									},
-									"visibleNutrients": {
-										"type": "array",
-										"items": {
-											"type": "string"
-										}
-									},
-									"locale": {
-										"type": "string",
-										"enum": ["en", "de"]
-									}
-								},
-								"additionalProperties": false
+								"$ref": "#/components/schemas/PreferencesUpdate"
 							}
 						}
 					}
@@ -3571,7 +1783,9 @@
 		"/api/meal-types": {
 			"get": {
 				"operationId": "listMealTypes",
-				"tags": ["MealTypes"],
+				"tags": [
+					"MealTypes"
+				],
 				"description": "List meal types.",
 				"responses": {
 					"200": {
@@ -3591,27 +1805,16 @@
 			},
 			"post": {
 				"operationId": "createMealType",
-				"tags": ["MealTypes"],
+				"tags": [
+					"MealTypes"
+				],
 				"description": "Create a new meal type.",
 				"requestBody": {
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1,
-										"maxLength": 50
-									},
-									"sortOrder": {
-										"type": "integer",
-										"minimum": 0,
-										"maximum": 9007199254740991
-									}
-								},
-								"required": ["name", "sortOrder"]
+								"$ref": "#/components/schemas/MealTypeCreate"
 							}
 						}
 					}
@@ -3639,7 +1842,9 @@
 		"/api/meal-types/{id}": {
 			"patch": {
 				"operationId": "updateMealType",
-				"tags": ["MealTypes"],
+				"tags": [
+					"MealTypes"
+				],
 				"description": "Update a meal type.",
 				"parameters": [
 					{
@@ -3658,19 +1863,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"type": "string",
-										"minLength": 1,
-										"maxLength": 50
-									},
-									"sortOrder": {
-										"type": "integer",
-										"minimum": 0,
-										"maximum": 9007199254740991
-									}
-								}
+								"$ref": "#/components/schemas/MealTypeUpdate"
 							}
 						}
 					}
@@ -3696,7 +1889,9 @@
 			},
 			"delete": {
 				"operationId": "deleteMealType",
-				"tags": ["MealTypes"],
+				"tags": [
+					"MealTypes"
+				],
 				"description": "Delete a meal type.",
 				"parameters": [
 					{
@@ -3723,7 +1918,9 @@
 		"/api/favorites": {
 			"get": {
 				"operationId": "listFavorites",
-				"tags": ["Favorites"],
+				"tags": [
+					"Favorites"
+				],
 				"description": "List favorite foods and recipes.",
 				"parameters": [
 					{
@@ -3731,7 +1928,10 @@
 						"name": "type",
 						"schema": {
 							"type": "string",
-							"enum": ["foods", "recipes"]
+							"enum": [
+								"foods",
+								"recipes"
+							]
 						}
 					}
 				],
@@ -3755,7 +1955,9 @@
 		"/api/maintenance": {
 			"get": {
 				"operationId": "getMaintenance",
-				"tags": ["Maintenance"],
+				"tags": [
+					"Maintenance"
+				],
 				"description": "Calculate maintenance calories for a date range.",
 				"parameters": [
 					{
@@ -3809,7 +2011,9 @@
 		"/api/images/upload": {
 			"post": {
 				"operationId": "uploadImage",
-				"tags": ["Images"],
+				"tags": [
+					"Images"
+				],
 				"description": "Upload an image file.",
 				"requestBody": {
 					"required": true,
@@ -3823,7 +2027,9 @@
 										"format": "binary"
 									}
 								},
-								"required": ["file"]
+								"required": [
+									"file"
+								]
 							}
 						}
 					}
@@ -3851,7 +2057,9 @@
 		"/api/openfoodfacts/{barcode}": {
 			"get": {
 				"operationId": "lookupOpenFoodFacts",
-				"tags": ["OpenFoodFacts"],
+				"tags": [
+					"OpenFoodFacts"
+				],
 				"description": "Look up a product by barcode in Open Food Facts.",
 				"parameters": [
 					{
@@ -3883,6 +2091,2028 @@
 	},
 	"components": {
 		"schemas": {
+			"GoalsUpdate": {
+				"type": "object",
+				"properties": {
+					"calorieGoal": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"proteinGoal": {
+						"type": "number",
+						"minimum": 0
+					},
+					"carbGoal": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fatGoal": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fiberGoal": {
+						"type": "number",
+						"minimum": 0
+					},
+					"sodiumGoal": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarGoal": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"calorieGoal",
+					"proteinGoal",
+					"carbGoal",
+					"fatGoal",
+					"fiberGoal"
+				]
+			},
+			"FoodCreate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"servingUnit": {
+						"$ref": "#/components/schemas/ServingUnit"
+					},
+					"calories": {
+						"type": "number",
+						"minimum": 0
+					},
+					"protein": {
+						"type": "number",
+						"minimum": 0
+					},
+					"carbs": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fat": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fiber": {
+						"type": "number",
+						"minimum": 0
+					},
+					"saturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"monounsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"polyunsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"transFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cholesterol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugar": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"addedSugars": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarAlcohols": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"starch": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sodium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"potassium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calcium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iron": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"magnesium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"phosphorus": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"zinc": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"copper": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"manganese": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"selenium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iodine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"fluoride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chromium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"molybdenum": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chloride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminA": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminC": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminD": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminE": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminK": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB1": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB2": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB5": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB7": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB9": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB12": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"caffeine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"alcohol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"water": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"salt": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"nutriScore": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": [
+									"a",
+									"b",
+									"c",
+									"d",
+									"e"
+								]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"novaGroup": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 4
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"additives": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"name",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				]
+			},
+			"ServingUnit": {
+				"type": "string",
+				"enum": [
+					"g",
+					"kg",
+					"ml",
+					"l",
+					"oz",
+					"lb",
+					"fl_oz",
+					"cup",
+					"tbsp",
+					"tsp"
+				]
+			},
+			"FoodUpdate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"servingUnit": {
+						"$ref": "#/components/schemas/ServingUnit"
+					},
+					"calories": {
+						"type": "number",
+						"minimum": 0
+					},
+					"protein": {
+						"type": "number",
+						"minimum": 0
+					},
+					"carbs": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fat": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fiber": {
+						"type": "number",
+						"minimum": 0
+					},
+					"saturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"monounsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"polyunsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"transFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cholesterol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugar": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"addedSugars": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarAlcohols": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"starch": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sodium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"potassium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calcium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iron": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"magnesium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"phosphorus": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"zinc": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"copper": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"manganese": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"selenium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iodine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"fluoride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chromium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"molybdenum": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chloride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminA": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminC": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminD": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminE": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminK": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB1": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB2": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB5": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB7": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB9": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB12": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"caffeine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"alcohol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"water": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"salt": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"nutriScore": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": [
+									"a",
+									"b",
+									"c",
+									"d",
+									"e"
+								]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"novaGroup": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 4
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"additives": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"EntryCreate": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"recipeId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"mealType": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"servings": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"quickName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCalories": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickProtein": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCarbs": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFiber": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"eatenAt": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"mealType",
+					"servings",
+					"date"
+				]
+			},
+			"EntryUpdate": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"recipeId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"mealType": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"servings": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"quickName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCalories": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickProtein": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCarbs": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFiber": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"eatenAt": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"RecipeCreate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"totalServings": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"ingredients": {
+						"minItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeIngredientInput"
+						}
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"name",
+					"totalServings",
+					"ingredients"
+				]
+			},
+			"RecipeIngredientInput": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"quantity": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"servingUnit": {
+						"$ref": "#/components/schemas/ServingUnit"
+					}
+				},
+				"required": [
+					"foodId",
+					"quantity",
+					"servingUnit"
+				]
+			},
+			"RecipeUpdate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"totalServings": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"ingredients": {
+						"minItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeIngredientInput"
+						}
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"SupplementIngredientInput": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"dosage": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"dosageUnit": {
+						"type": "string",
+						"minLength": 1
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"name",
+					"dosage",
+					"dosageUnit"
+				]
+			},
+			"SupplementCreate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"dosage": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"dosageUnit": {
+						"type": "string",
+						"minLength": 1
+					},
+					"scheduleType": {
+						"type": "string",
+						"enum": [
+							"daily",
+							"every_other_day",
+							"weekly",
+							"specific_days"
+						]
+					},
+					"scheduleDays": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "integer",
+									"minimum": 0,
+									"maximum": 6
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"scheduleStartDate": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isActive": {
+						"type": "boolean"
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"timeOfDay": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": [
+									"morning",
+									"noon",
+									"evening"
+								]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredients": {
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SupplementIngredientInput"
+						}
+					}
+				},
+				"required": [
+					"name",
+					"dosage",
+					"dosageUnit",
+					"scheduleType"
+				]
+			},
+			"SupplementUpdate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1
+					},
+					"dosage": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"dosageUnit": {
+						"type": "string",
+						"minLength": 1
+					},
+					"scheduleType": {
+						"type": "string",
+						"enum": [
+							"daily",
+							"every_other_day",
+							"weekly",
+							"specific_days"
+						]
+					},
+					"scheduleDays": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "integer",
+									"minimum": 0,
+									"maximum": 6
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"scheduleStartDate": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isActive": {
+						"type": "boolean"
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"timeOfDay": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": [
+									"morning",
+									"noon",
+									"evening"
+								]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredients": {
+						"anyOf": [
+							{
+								"maxItems": 50,
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/SupplementIngredientInput"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"SupplementLogCreate": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string"
+					}
+				}
+			},
+			"WeightCreate": {
+				"type": "object",
+				"properties": {
+					"weightKg": {
+						"type": "number",
+						"exclusiveMinimum": 0,
+						"maximum": 500
+					},
+					"entryDate": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"weightKg",
+					"entryDate"
+				]
+			},
+			"WeightUpdate": {
+				"type": "object",
+				"properties": {
+					"weightKg": {
+						"type": "number",
+						"exclusiveMinimum": 0,
+						"maximum": 500
+					},
+					"entryDate": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"DayPropertiesSet": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"isFastingDay": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"date",
+					"isFastingDay"
+				]
+			},
+			"PreferencesUpdate": {
+				"type": "object",
+				"properties": {
+					"showChartWidget": {
+						"type": "boolean"
+					},
+					"showFavoritesWidget": {
+						"type": "boolean"
+					},
+					"showSupplementsWidget": {
+						"type": "boolean"
+					},
+					"showWeightWidget": {
+						"type": "boolean"
+					},
+					"showMealBreakdownWidget": {
+						"type": "boolean"
+					},
+					"showTopFoodsWidget": {
+						"type": "boolean"
+					},
+					"widgetOrder": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": [
+								"chart",
+								"favorites",
+								"supplements",
+								"weight",
+								"meal-breakdown",
+								"top-foods",
+								"summary",
+								"daylog"
+							]
+						}
+					},
+					"startPage": {
+						"type": "string",
+						"enum": [
+							"dashboard",
+							"favorites"
+						]
+					},
+					"favoriteTapAction": {
+						"type": "string",
+						"enum": [
+							"instant",
+							"picker"
+						]
+					},
+					"favoriteMealAssignmentMode": {
+						"type": "string",
+						"enum": [
+							"time_based",
+							"ask_meal"
+						]
+					},
+					"favoriteMealTimeframes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FavoriteMealTimeframeInput"
+						}
+					},
+					"visibleNutrients": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"locale": {
+						"type": "string",
+						"enum": [
+							"en",
+							"de"
+						]
+					}
+				},
+				"additionalProperties": false
+			},
+			"FavoriteMealTimeframeInput": {
+				"type": "object",
+				"properties": {
+					"mealType": {
+						"type": "string",
+						"minLength": 1
+					},
+					"customMealTypeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"startTime": {
+						"type": "string",
+						"pattern": "^\\d{2}:\\d{2}$"
+					},
+					"endTime": {
+						"type": "string",
+						"pattern": "^\\d{2}:\\d{2}$"
+					}
+				},
+				"required": [
+					"mealType",
+					"startTime",
+					"endTime"
+				],
+				"additionalProperties": false
+			},
+			"MealTypeCreate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"name",
+					"sortOrder"
+				]
+			},
+			"MealTypeUpdate": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				}
+			},
 			"GoalsResponse": {
 				"type": "object",
 				"properties": {
@@ -3897,7 +4127,9 @@
 						]
 					}
 				},
-				"required": ["goals"],
+				"required": [
+					"goals"
+				],
 				"additionalProperties": false
 			},
 			"Goals": {
@@ -3955,7 +4187,13 @@
 						"type": "string"
 					}
 				},
-				"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
+				"required": [
+					"calorieGoal",
+					"proteinGoal",
+					"carbGoal",
+					"fatGoal",
+					"fiberGoal"
+				],
 				"additionalProperties": false
 			},
 			"ErrorResponse": {
@@ -3965,7 +4203,9 @@
 						"type": "string"
 					}
 				},
-				"required": ["error"],
+				"required": [
+					"error"
+				],
 				"additionalProperties": false
 			},
 			"GoalsSetResponse": {
@@ -3975,7 +4215,9 @@
 						"$ref": "#/components/schemas/Goals"
 					}
 				},
-				"required": ["goals"],
+				"required": [
+					"goals"
+				],
 				"additionalProperties": false
 			},
 			"ValidationErrorResponse": {
@@ -3997,7 +4239,9 @@
 						}
 					}
 				},
-				"required": ["error"],
+				"required": [
+					"error"
+				],
 				"additionalProperties": false
 			},
 			"FoodsListResponse": {
@@ -4015,7 +4259,10 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["foods", "total"],
+				"required": [
+					"foods",
+					"total"
+				],
 				"additionalProperties": false
 			},
 			"Food": {
@@ -4049,7 +4296,18 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": [
+							"g",
+							"kg",
+							"ml",
+							"l",
+							"oz",
+							"lb",
+							"fl_oz",
+							"cup",
+							"tbsp",
+							"tsp"
+						]
 					},
 					"calories": {
 						"type": "number"
@@ -4601,7 +4859,9 @@
 						"$ref": "#/components/schemas/Food"
 					}
 				},
-				"required": ["food"],
+				"required": [
+					"food"
+				],
 				"additionalProperties": false
 			},
 			"FoodsRecentResponse": {
@@ -4614,7 +4874,9 @@
 						}
 					}
 				},
-				"required": ["foods"],
+				"required": [
+					"foods"
+				],
 				"additionalProperties": false
 			},
 			"FoodRecent": {
@@ -4648,7 +4910,18 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": [
+							"g",
+							"kg",
+							"ml",
+							"l",
+							"oz",
+							"lb",
+							"fl_oz",
+							"cup",
+							"tbsp",
+							"tsp"
+						]
 					},
 					"calories": {
 						"type": "number"
@@ -4723,7 +4996,9 @@
 						"type": "number"
 					}
 				},
-				"required": ["error"],
+				"required": [
+					"error"
+				],
 				"additionalProperties": false
 			},
 			"EntriesListResponse": {
@@ -4741,7 +5016,10 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["entries", "total"],
+				"required": [
+					"entries",
+					"total"
+				],
 				"additionalProperties": false
 			},
 			"EntryListItem": {
@@ -4943,7 +5221,9 @@
 						"$ref": "#/components/schemas/Entry"
 					}
 				},
-				"required": ["entry"],
+				"required": [
+					"entry"
+				],
 				"additionalProperties": false
 			},
 			"Entry": {
@@ -5113,7 +5393,10 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["entries", "count"],
+				"required": [
+					"entries",
+					"count"
+				],
 				"additionalProperties": false
 			},
 			"EntriesRangeResponse": {
@@ -5126,7 +5409,9 @@
 						}
 					}
 				},
-				"required": ["entries"],
+				"required": [
+					"entries"
+				],
 				"additionalProperties": false
 			},
 			"EntryRangeItem": {
@@ -5238,7 +5523,10 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["recipes", "total"],
+				"required": [
+					"recipes",
+					"total"
+				],
 				"additionalProperties": false
 			},
 			"RecipeSummary": {
@@ -5305,7 +5593,9 @@
 						"$ref": "#/components/schemas/RecipeDetail"
 					}
 				},
-				"required": ["recipe"],
+				"required": [
+					"recipe"
+				],
 				"additionalProperties": false
 			},
 			"RecipeDetail": {
@@ -5387,7 +5677,18 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": [
+							"g",
+							"kg",
+							"ml",
+							"l",
+							"oz",
+							"lb",
+							"fl_oz",
+							"cup",
+							"tbsp",
+							"tsp"
+						]
 					},
 					"sortOrder": {
 						"type": "integer",
@@ -5395,7 +5696,12 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
+				"required": [
+					"foodId",
+					"quantity",
+					"servingUnit",
+					"sortOrder"
+				],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {
@@ -5408,7 +5714,9 @@
 						}
 					}
 				},
-				"required": ["supplements"],
+				"required": [
+					"supplements"
+				],
 				"additionalProperties": false
 			},
 			"Supplement": {
@@ -5435,7 +5743,12 @@
 					},
 					"scheduleType": {
 						"type": "string",
-						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
+						"enum": [
+							"daily",
+							"every_other_day",
+							"weekly",
+							"specific_days"
+						]
 					},
 					"scheduleDays": {
 						"anyOf": [
@@ -5475,7 +5788,11 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": ["morning", "noon", "evening"]
+								"enum": [
+									"morning",
+									"noon",
+									"evening"
+								]
 							},
 							{
 								"type": "null"
@@ -5539,7 +5856,14 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["id", "supplementId", "name", "dosage", "dosageUnit", "sortOrder"],
+				"required": [
+					"id",
+					"supplementId",
+					"name",
+					"dosage",
+					"dosageUnit",
+					"sortOrder"
+				],
 				"additionalProperties": false
 			},
 			"SupplementResponse": {
@@ -5549,7 +5873,9 @@
 						"$ref": "#/components/schemas/Supplement"
 					}
 				},
-				"required": ["supplement"],
+				"required": [
+					"supplement"
+				],
 				"additionalProperties": false
 			},
 			"SupplementChecklistResponse": {
@@ -5565,7 +5891,10 @@
 						"type": "string"
 					}
 				},
-				"required": ["checklist", "date"],
+				"required": [
+					"checklist",
+					"date"
+				],
 				"additionalProperties": false
 			},
 			"SupplementChecklistItem": {
@@ -5588,7 +5917,11 @@
 						]
 					}
 				},
-				"required": ["supplement", "taken", "takenAt"],
+				"required": [
+					"supplement",
+					"taken",
+					"takenAt"
+				],
 				"additionalProperties": false
 			},
 			"SupplementHistoryResponse": {
@@ -5601,7 +5934,9 @@
 						}
 					}
 				},
-				"required": ["history"],
+				"required": [
+					"history"
+				],
 				"additionalProperties": false
 			},
 			"SupplementHistoryItem": {
@@ -5620,7 +5955,12 @@
 						"type": "string"
 					}
 				},
-				"required": ["log", "supplementName", "dosage", "dosageUnit"],
+				"required": [
+					"log",
+					"supplementName",
+					"dosage",
+					"dosageUnit"
+				],
 				"additionalProperties": false
 			},
 			"SupplementLog": {
@@ -5651,7 +5991,13 @@
 						"type": "string"
 					}
 				},
-				"required": ["id", "supplementId", "userId", "date", "takenAt"],
+				"required": [
+					"id",
+					"supplementId",
+					"userId",
+					"date",
+					"takenAt"
+				],
 				"additionalProperties": false
 			},
 			"SupplementLogResponse": {
@@ -5661,7 +6007,9 @@
 						"$ref": "#/components/schemas/SupplementLog"
 					}
 				},
-				"required": ["log"],
+				"required": [
+					"log"
+				],
 				"additionalProperties": false
 			},
 			"WeightEntriesResponse": {
@@ -5674,7 +6022,9 @@
 						}
 					}
 				},
-				"required": ["entries"],
+				"required": [
+					"entries"
+				],
 				"additionalProperties": false
 			},
 			"WeightEntry": {
@@ -5716,7 +6066,13 @@
 						"type": "string"
 					}
 				},
-				"required": ["id", "userId", "weightKg", "entryDate", "notes"],
+				"required": [
+					"id",
+					"userId",
+					"weightKg",
+					"entryDate",
+					"notes"
+				],
 				"additionalProperties": false
 			},
 			"WeightTrendResponse": {
@@ -5729,7 +6085,9 @@
 						}
 					}
 				},
-				"required": ["data"],
+				"required": [
+					"data"
+				],
 				"additionalProperties": false
 			},
 			"WeightTrendEntry": {
@@ -5745,7 +6103,11 @@
 						"type": "number"
 					}
 				},
-				"required": ["entry_date", "weight_kg", "moving_avg"],
+				"required": [
+					"entry_date",
+					"weight_kg",
+					"moving_avg"
+				],
 				"additionalProperties": false
 			},
 			"WeightEntryResponse": {
@@ -5755,7 +6117,9 @@
 						"$ref": "#/components/schemas/WeightEntry"
 					}
 				},
-				"required": ["entry"],
+				"required": [
+					"entry"
+				],
 				"additionalProperties": false
 			},
 			"WeightLatestResponse": {
@@ -5772,7 +6136,9 @@
 						]
 					}
 				},
-				"required": ["entry"],
+				"required": [
+					"entry"
+				],
 				"additionalProperties": false
 			},
 			"DailyStatsResponse": {
@@ -5788,7 +6154,10 @@
 						"$ref": "#/components/schemas/GoalsSummary"
 					}
 				},
-				"required": ["data", "goals"],
+				"required": [
+					"data",
+					"goals"
+				],
 				"additionalProperties": false
 			},
 			"DailyStat": {
@@ -5813,7 +6182,14 @@
 						"type": "number"
 					}
 				},
-				"required": ["date", "calories", "protein", "carbs", "fat", "fiber"],
+				"required": [
+					"date",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
 				"additionalProperties": false
 			},
 			"GoalsSummary": {
@@ -5837,7 +6213,13 @@
 								"type": "number"
 							}
 						},
-						"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
+						"required": [
+							"calorieGoal",
+							"proteinGoal",
+							"carbGoal",
+							"fatGoal",
+							"fiberGoal"
+						],
 						"additionalProperties": false
 					},
 					{
@@ -5852,7 +6234,9 @@
 						"$ref": "#/components/schemas/MacroSummary"
 					}
 				},
-				"required": ["stats"],
+				"required": [
+					"stats"
+				],
 				"additionalProperties": false
 			},
 			"MacroSummary": {
@@ -5874,7 +6258,13 @@
 						"type": "number"
 					}
 				},
-				"required": ["calories", "protein", "carbs", "fat", "fiber"],
+				"required": [
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
 				"additionalProperties": false
 			},
 			"MonthlyStatsResponse": {
@@ -5884,7 +6274,9 @@
 						"$ref": "#/components/schemas/MacroSummary"
 					}
 				},
-				"required": ["stats"],
+				"required": [
+					"stats"
+				],
 				"additionalProperties": false
 			},
 			"MealBreakdownResponse": {
@@ -5897,7 +6289,9 @@
 						}
 					}
 				},
-				"required": ["data"],
+				"required": [
+					"data"
+				],
 				"additionalProperties": false
 			},
 			"MealBreakdownItem": {
@@ -5922,7 +6316,14 @@
 						"type": "number"
 					}
 				},
-				"required": ["mealType", "calories", "protein", "carbs", "fat", "fiber"],
+				"required": [
+					"mealType",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
 				"additionalProperties": false
 			},
 			"TopFoodsResponse": {
@@ -5935,7 +6336,9 @@
 						}
 					}
 				},
-				"required": ["data"],
+				"required": [
+					"data"
+				],
 				"additionalProperties": false
 			},
 			"TopFoodItem": {
@@ -6016,7 +6419,10 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": ["currentStreak", "longestStreak"],
+				"required": [
+					"currentStreak",
+					"longestStreak"
+				],
 				"additionalProperties": false
 			},
 			"CalendarResponse": {
@@ -6032,7 +6438,9 @@
 						}
 					}
 				},
-				"required": ["days"],
+				"required": [
+					"days"
+				],
 				"additionalProperties": false
 			},
 			"CalendarDay": {
@@ -6045,7 +6453,10 @@
 						"type": "boolean"
 					}
 				},
-				"required": ["calories", "hasEntries"],
+				"required": [
+					"calories",
+					"hasEntries"
+				],
 				"additionalProperties": false
 			},
 			"DayPropertiesResponse": {
@@ -6062,7 +6473,9 @@
 						]
 					}
 				},
-				"required": ["properties"],
+				"required": [
+					"properties"
+				],
 				"additionalProperties": false
 			},
 			"DayProperties": {
@@ -6075,7 +6488,10 @@
 						"type": "boolean"
 					}
 				},
-				"required": ["date", "isFastingDay"],
+				"required": [
+					"date",
+					"isFastingDay"
+				],
 				"additionalProperties": false
 			},
 			"DayPropertiesRangeResponse": {
@@ -6088,7 +6504,9 @@
 						}
 					}
 				},
-				"required": ["data"],
+				"required": [
+					"data"
+				],
 				"additionalProperties": false
 			},
 			"PreferencesResponse": {
@@ -6098,7 +6516,9 @@
 						"$ref": "#/components/schemas/Preferences"
 					}
 				},
-				"required": ["preferences"],
+				"required": [
+					"preferences"
+				],
 				"additionalProperties": false
 			},
 			"Preferences": {
@@ -6246,7 +6666,9 @@
 						}
 					}
 				},
-				"required": ["mealTypes"],
+				"required": [
+					"mealTypes"
+				],
 				"additionalProperties": false
 			},
 			"MealType": {
@@ -6274,7 +6696,12 @@
 						"type": "string"
 					}
 				},
-				"required": ["id", "userId", "name", "sortOrder"],
+				"required": [
+					"id",
+					"userId",
+					"name",
+					"sortOrder"
+				],
 				"additionalProperties": false
 			},
 			"MealTypeResponse": {
@@ -6284,7 +6711,9 @@
 						"$ref": "#/components/schemas/MealType"
 					}
 				},
-				"required": ["mealType"],
+				"required": [
+					"mealType"
+				],
 				"additionalProperties": false
 			},
 			"FavoritesResponse": {
@@ -6439,7 +6868,10 @@
 						"$ref": "#/components/schemas/MaintenanceMeta"
 					}
 				},
-				"required": ["result", "meta"],
+				"required": [
+					"result",
+					"meta"
+				],
 				"additionalProperties": false
 			},
 			"MaintenanceResult": {
@@ -6448,14 +6880,52 @@
 					"maintenanceCalories": {
 						"type": "number"
 					},
-					"deficit": {
+					"dailyDeficit": {
 						"type": "number"
 					},
-					"surplus": {
+					"totalEnergyBalance": {
+						"type": "number"
+					},
+					"fatMassKg": {
+						"type": "number"
+					},
+					"muscleMassKg": {
+						"type": "number"
+					},
+					"fatCalories": {
+						"type": "number"
+					},
+					"muscleCalories": {
+						"type": "number"
+					},
+					"avgDailyCalories": {
+						"type": "number"
+					},
+					"weightChangeKg": {
+						"type": "number"
+					},
+					"days": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"muscleRatio": {
 						"type": "number"
 					}
 				},
-				"required": ["maintenanceCalories", "deficit", "surplus"],
+				"required": [
+					"maintenanceCalories",
+					"dailyDeficit",
+					"totalEnergyBalance",
+					"fatMassKg",
+					"muscleMassKg",
+					"fatCalories",
+					"muscleCalories",
+					"avgDailyCalories",
+					"weightChangeKg",
+					"days",
+					"muscleRatio"
+				],
 				"additionalProperties": false
 			},
 			"MaintenanceMeta": {
@@ -6511,7 +6981,9 @@
 						"type": "string"
 					}
 				},
-				"required": ["imageUrl"],
+				"required": [
+					"imageUrl"
+				],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsResponse": {
@@ -6521,7 +6993,9 @@
 						"$ref": "#/components/schemas/OpenFoodFactsProduct"
 					}
 				},
-				"required": ["product"],
+				"required": [
+					"product"
+				],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsProduct": {
@@ -6560,7 +7034,13 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": ["a", "b", "c", "d", "e"]
+								"enum": [
+									"a",
+									"b",
+									"c",
+									"d",
+									"e"
+								]
 							},
 							{
 								"type": "null"

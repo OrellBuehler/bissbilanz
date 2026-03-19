@@ -6,7 +6,10 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
+import com.bissbilanz.api.generated.model.WeightEntry
+import com.bissbilanz.api.generated.model.WeightCreate
+import com.bissbilanz.api.generated.model.WeightUpdate
+import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -103,7 +106,7 @@ class WeightRepository(
                 .map { json.decodeFromString<WeightEntry>(it.jsonData) }
                 .filter { it.entryDate in from..to }
                 .sortedBy { it.entryDate }
-                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg) }
+                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
         }
 
     suspend fun deleteEntry(id: String) {

@@ -4,8 +4,8 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.Preferences
-import com.bissbilanz.model.PreferencesUpdate
+import com.bissbilanz.api.generated.model.Preferences
+import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,21 @@ class PreferencesRepository(
 
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
         val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
-        val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences()
+        val current = cached?.let { json.decodeFromString<Preferences>(it.jsonData) } ?: Preferences(
+            showChartWidget = true,
+            showFavoritesWidget = true,
+            showSupplementsWidget = true,
+            showWeightWidget = true,
+            showMealBreakdownWidget = true,
+            showTopFoodsWidget = true,
+            widgetOrder = emptyList(),
+            startPage = "dashboard",
+            favoriteTapAction = "instant",
+            favoriteMealAssignmentMode = "time_based",
+            favoriteMealTimeframes = emptyList(),
+            visibleNutrients = emptyList(),
+            locale = null,
+        )
         val updated = applyUpdate(current, update)
         cachePreferences(updated)
         syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update)))
@@ -68,12 +82,12 @@ class PreferencesRepository(
             showWeightWidget = update.showWeightWidget ?: current.showWeightWidget,
             showMealBreakdownWidget = update.showMealBreakdownWidget ?: current.showMealBreakdownWidget,
             showTopFoodsWidget = update.showTopFoodsWidget ?: current.showTopFoodsWidget,
-            widgetOrder = update.widgetOrder ?: current.widgetOrder,
-            startPage = update.startPage ?: current.startPage,
-            favoriteTapAction = update.favoriteTapAction ?: current.favoriteTapAction,
-            favoriteMealAssignmentMode = update.favoriteMealAssignmentMode ?: current.favoriteMealAssignmentMode,
-            favoriteMealTimeframes = update.favoriteMealTimeframes ?: current.favoriteMealTimeframes,
+            widgetOrder = update.widgetOrder?.map { it.value } ?: current.widgetOrder,
+            startPage = update.startPage?.value ?: current.startPage,
+            favoriteTapAction = update.favoriteTapAction?.value ?: current.favoriteTapAction,
+            favoriteMealAssignmentMode = update.favoriteMealAssignmentMode?.value ?: current.favoriteMealAssignmentMode,
+            favoriteMealTimeframes = current.favoriteMealTimeframes,
             visibleNutrients = update.visibleNutrients ?: current.visibleNutrients,
-            locale = update.locale ?: current.locale,
+            locale = update.locale?.value ?: current.locale,
         )
 }

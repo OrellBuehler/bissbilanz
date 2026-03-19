@@ -5,7 +5,9 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodsListResponse
+import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +51,7 @@ class FoodRepository(
     suspend fun fetchFoodsPaginated(
         limit: Int = 20,
         offset: Int = 0,
-    ): FoodsResponse {
+    ): FoodsListResponse {
         val response = api.getFoodsPaginated(limit, offset)
         cacheFoods(response.foods)
         return response
@@ -190,7 +192,7 @@ class FoodRepository(
             name = food.name,
             brand = food.brand,
             servingSize = food.servingSize,
-            servingUnit = food.servingUnit,
+            servingUnit = Food.ServingUnit.valueOf(food.servingUnit.name),
             calories = food.calories,
             protein = food.protein,
             carbs = food.carbs,
@@ -198,6 +200,10 @@ class FoodRepository(
             fiber = food.fiber,
             barcode = food.barcode,
             isFavorite = food.isFavorite ?: false,
+            nutriScore = null,
+            novaGroup = null,
+            additives = null,
+            ingredientsText = null,
             imageUrl = food.imageUrl,
         )
 }

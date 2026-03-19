@@ -1,3 +1,6 @@
+import 'zod-openapi';
+import { z } from 'zod';
+
 // Serving unit enum — only units with clear conversion factors
 export const servingUnitValues = [
 	'g',
@@ -12,3 +15,5 @@ export const servingUnitValues = [
 	'tsp'
 ] as const;
 export type ServingUnit = (typeof servingUnitValues)[number];
+
+export const servingUnitSchema = z.enum(servingUnitValues).meta({ id: 'ServingUnit' });
