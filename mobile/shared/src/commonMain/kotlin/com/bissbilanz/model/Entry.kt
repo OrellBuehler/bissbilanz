@@ -1,5 +1,7 @@
 package com.bissbilanz.model
 
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.RecipeDetail
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -22,7 +24,7 @@ data class Entry(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val food: Food? = null,
-    val recipe: Recipe? = null,
+    val recipe: RecipeDetail? = null,
     val foodName: String? = null,
     val calories: Double? = null,
     val protein: Double? = null,
@@ -31,15 +33,4 @@ data class Entry(
     val fiber: Double? = null,
     val servingSize: Double? = null,
     val servingUnit: String? = null,
-)
-
-@Serializable
-data class EntriesResponse(
-    val entries: List<Entry>,
-    val total: Int = 0,
-)
-
-@Serializable
-data class EntryResponse(
-    val entry: Entry,
 )
