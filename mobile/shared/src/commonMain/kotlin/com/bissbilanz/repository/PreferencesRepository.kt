@@ -13,6 +13,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -29,9 +30,7 @@ class PreferencesRepository(
             .mapToOneOrNull(Dispatchers.IO)
             .map { cached ->
                 cached?.let {
-                    try {
-                        json.decodeFromString<Preferences>(it.jsonData)
-                    } catch (_: Exception) {
+                    json.decodeOrNull<Preferences>(it.jsonData) ?: run {
                         db.bissbilanzDatabaseQueries.deletePreferences()
                         null
                     }
@@ -47,9 +46,7 @@ class PreferencesRepository(
         val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
             cached?.let {
-                try {
-                    json.decodeFromString<Preferences>(it.jsonData)
-                } catch (_: Exception) {
+                json.decodeOrNull<Preferences>(it.jsonData) ?: run {
                     db.bissbilanzDatabaseQueries.deletePreferences()
                     null
                 }

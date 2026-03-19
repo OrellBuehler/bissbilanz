@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -39,14 +40,14 @@ class FoodRepository(
             .selectAllFoods()
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) } }
 
     fun favorites(): Flow<List<Food>> =
         db.bissbilanzDatabaseQueries
             .selectFavorites()
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) } }
 
     suspend fun fetchFoodsPaginated(
         limit: Int = 20,
@@ -105,11 +106,7 @@ class FoodRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
-            if (cached != null) {
-                json.decodeFromString<Food>(cached.jsonData)
-            } else {
-                throw e
-            }
+            cached?.let { json.decodeOrNull<Food>(it.jsonData) } ?: throw e
         }
 
     suspend fun createFood(food: FoodCreate): Food {
@@ -144,7 +141,7 @@ class FoodRepository(
             db.bissbilanzDatabaseQueries
                 .searchFoods(pattern, pattern, 50)
                 .executeAsList()
-                .map { json.decodeFromString<Food>(it.jsonData) }
+                .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
         }
 
     suspend fun findByBarcode(barcode: String): Food? =
@@ -164,7 +161,7 @@ class FoodRepository(
                     db.bissbilanzDatabaseQueries
                         .selectFoodByBarcode(barcode)
                         .executeAsOneOrNull()
-                        ?.let { json.decodeFromString<Food>(it.jsonData) }
+                        ?.let { json.decodeOrNull<Food>(it.jsonData) }
                 }
 
             val apiFood = apiResult.await()

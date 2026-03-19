@@ -16,6 +16,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -31,7 +32,7 @@ class SupplementRepository(
             .selectActiveSupplements()
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<Supplement>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) } }
 
     suspend fun refresh() {
         val supplements = api.getSupplements()
@@ -147,7 +148,8 @@ class SupplementRepository(
                 db.bissbilanzDatabaseQueries
                     .selectAllSupplements()
                     .executeAsList()
-                    .associate { it.id to json.decodeFromString<Supplement>(it.jsonData) }
+                    .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
+                    .toMap()
             logs.map { log ->
                 val supplement = supplements[log.supplementId]
                 SupplementHistoryEntry(
@@ -176,7 +178,7 @@ class SupplementRepository(
             errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectAllSupplements().executeAsList()
             if (cached.isNotEmpty()) {
-                cached.map { json.decodeFromString<Supplement>(it.jsonData) }
+                cached.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
             } else {
                 throw e
             }

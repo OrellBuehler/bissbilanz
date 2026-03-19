@@ -15,6 +15,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -30,7 +31,7 @@ class RecipeRepository(
             .selectAllRecipes()
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<RecipeDetail>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) } }
 
     suspend fun refresh() {
         val summaries = api.getRecipes()
@@ -81,11 +82,7 @@ class RecipeRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
-            if (cached != null) {
-                json.decodeFromString<RecipeDetail>(cached.jsonData)
-            } else {
-                throw e
-            }
+            cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) } ?: throw e
         }
 
     suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
@@ -100,7 +97,7 @@ class RecipeRepository(
         recipe: RecipeUpdate,
     ): RecipeDetail {
         val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
-        val existing = cached?.let { json.decodeFromString<RecipeDetail>(it.jsonData) }
+        val existing = cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
         val result =
             if (existing != null) {
                 val updated =

@@ -17,6 +17,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -35,7 +36,7 @@ class WeightRepository(
             .selectAllWeightEntries()
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<WeightEntry>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) } }
 
     suspend fun refresh(limit: Int = 30) {
         val entries = api.getWeightEntries(limit)
@@ -61,7 +62,7 @@ class WeightRepository(
         entry: WeightUpdate,
     ): WeightEntry {
         val cached = db.bissbilanzDatabaseQueries.selectAllWeightEntries().executeAsList()
-        val existing = cached.map { json.decodeFromString<WeightEntry>(it.jsonData) }.find { it.id == id }
+        val existing = cached.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }.find { it.id == id }
         val result =
             if (existing != null) {
                 val updated =
@@ -104,7 +105,7 @@ class WeightRepository(
             db.bissbilanzDatabaseQueries
                 .selectAllWeightEntries()
                 .executeAsList()
-                .map { json.decodeFromString<WeightEntry>(it.jsonData) }
+                .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
                 .filter { it.entryDate in from..to }
                 .sortedBy { it.entryDate }
                 .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }

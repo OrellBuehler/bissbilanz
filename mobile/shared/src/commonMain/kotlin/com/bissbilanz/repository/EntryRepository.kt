@@ -15,6 +15,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -34,13 +35,13 @@ class EntryRepository(
             .selectEntriesByDate(date)
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { rows -> rows.map { json.decodeFromString<Entry>(it.jsonData) } }
+            .map { rows -> rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) } }
 
     suspend fun entriesByDateOnce(date: String): List<Entry> =
         db.bissbilanzDatabaseQueries
             .selectEntriesByDate(date)
             .executeAsList()
-            .map { json.decodeFromString<Entry>(it.jsonData) }
+            .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
 
     suspend fun refresh(date: String) {
         currentDate = date
@@ -69,7 +70,7 @@ class EntryRepository(
             db.bissbilanzDatabaseQueries
                 .selectEntriesByDate(currentDate ?: entry.date ?: "")
                 .executeAsList()
-        val existing = cached.map { json.decodeFromString<Entry>(it.jsonData) }.find { it.id == id }
+        val existing = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }.find { it.id == id }
         val result =
             if (existing != null) {
                 val updated = applyUpdate(existing, entry)
@@ -134,7 +135,7 @@ class EntryRepository(
         val date = currentDate ?: return
         try {
             val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
-            val entries = cached.map { json.decodeFromString<Entry>(it.jsonData) }
+            val entries = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
             val totals = entries.totalMacros()
             healthSync.syncNutrition(date, totals)
         } catch (e: Exception) {

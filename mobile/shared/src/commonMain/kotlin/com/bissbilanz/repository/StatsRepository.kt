@@ -8,6 +8,7 @@ import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
 
 class StatsRepository(
@@ -68,7 +69,7 @@ class StatsRepository(
         while (current <= endDate) {
             val rows = db.bissbilanzDatabaseQueries.selectEntriesByDate(current).executeAsList()
             if (rows.isNotEmpty()) {
-                val entries = rows.map { json.decodeFromString<Entry>(it.jsonData) }
+                val entries = rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
                 val totals = entries.totalMacros()
                 data.add(
                     DailyStatsEntry(
