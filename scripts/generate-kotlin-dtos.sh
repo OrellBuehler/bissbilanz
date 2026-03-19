@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TMP_DIR="$PROJECT_DIR/.openapi-gen-tmp"
-OUTPUT_DIR="$PROJECT_DIR/mobile/shared/src/commonMain/kotlin/com/bissbilanz/api/generated"
+OUTPUT_DIR="$PROJECT_DIR/mobile/shared/src/commonMain/kotlin/com/bissbilanz/api/generated/model"
 
 # Pin the Docker image version
 DOCKER_IMAGE="openapitools/openapi-generator-cli:v7.12.0"
