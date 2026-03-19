@@ -13,6 +13,14 @@ type RecipeInput = {
 
 export type { DeleteResult };
 
+const macroAggregations = {
+	calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+};
+
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
 	name: input.name,
@@ -35,11 +43,7 @@ export const listRecipes = async (
 			totalServings: recipes.totalServings,
 			isFavorite: recipes.isFavorite,
 			imageUrl: recipes.imageUrl,
-			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+			...macroAggregations
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
@@ -107,11 +111,7 @@ export const getRecipe = async (userId: string, id: string) => {
 			totalServings: recipes.totalServings,
 			isFavorite: recipes.isFavorite,
 			imageUrl: recipes.imageUrl,
-			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			...macroAggregations,
 			createdAt: recipes.createdAt,
 			updatedAt: recipes.updatedAt
 		})

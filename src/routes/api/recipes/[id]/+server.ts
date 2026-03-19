@@ -26,7 +26,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
-		const recipe = unwrapResult(await updateRecipe(userId, params.id, body));
+		const updated = unwrapResult(await updateRecipe(userId, params.id, body));
+		if (!updated) {
+			return notFound('Recipe');
+		}
+		const recipe = await getRecipe(userId, params.id);
 		if (!recipe) {
 			return notFound('Recipe');
 		}
