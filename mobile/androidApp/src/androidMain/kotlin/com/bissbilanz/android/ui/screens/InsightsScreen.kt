@@ -41,6 +41,7 @@ import com.bissbilanz.model.MealBreakdownEntry
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun InsightsScreen() {
@@ -146,7 +147,7 @@ fun InsightsScreen() {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         val avgCal = dailyStats.map { it.calories }.average()
                         Text(
-                            "Avg: ${avgCal.toInt()} cal",
+                            "Avg: ${avgCal.roundToInt()} cal",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -256,7 +257,7 @@ fun InsightsScreen() {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 Text(
-                                    "${f.calories.toInt()} cal",
+                                    "${f.calories.roundToInt()} cal",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -346,10 +347,10 @@ private fun ComparisonRow(
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, color = color, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text("${weekly.toInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text("${monthly.toInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text("${weekly.roundToInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text("${monthly.roundToInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Text(
-                "$trendArrow ${abs(diffPercent).toInt()}%",
+                "$trendArrow ${abs(diffPercent).roundToInt()}%",
                 color = trendColor,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
@@ -409,7 +410,7 @@ private fun MacroTrendRow(
             Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
             val avg = if (data.isNotEmpty()) data.average() else 0.0
             Text(
-                "Avg: ${avg.toInt()} $unit",
+                "Avg: ${avg.roundToInt()} $unit",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -484,7 +485,7 @@ private fun MealBreakdownLegend(
     totalCalories: Double,
 ) {
     entries.forEachIndexed { index, entry ->
-        val pct = (entry.calories / totalCalories * 100).toInt()
+        val pct = (entry.calories / totalCalories * 100).roundToInt()
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -503,7 +504,7 @@ private fun MealBreakdownLegend(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "${entry.calories.toInt()} kcal ($pct%)",
+                "${entry.calories.roundToInt()} kcal ($pct%)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -610,14 +611,14 @@ private fun GoalAdherenceCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "${(tolerantPct * 100).toInt()}%",
+                        "${(tolerantPct * 100).roundToInt()}%",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(36.dp),
                         textAlign = TextAlign.End,
                     )
                     Text(
-                        "${(strictPct * 100).toInt()}% strict",
+                        "${(strictPct * 100).roundToInt()}% strict",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(60.dp),

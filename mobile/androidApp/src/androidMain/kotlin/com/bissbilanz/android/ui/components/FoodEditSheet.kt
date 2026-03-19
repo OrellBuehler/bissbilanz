@@ -17,6 +17,7 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -71,21 +72,21 @@ fun FoodEditSheet(
                 brand = food.brand ?: ""
                 servingSize = food.servingSize.toDisplayString()
                 servingUnit = ServingUnit.entries.first { it.value == food.servingUnit.value }
-                calories = food.calories.toDisplayString()
-                protein = food.protein.toDisplayString()
-                carbs = food.carbs.toDisplayString()
-                fat = food.fat.toDisplayString()
-                fiber = food.fiber.toDisplayString()
+                calories = food.calories.formatNutrient()
+                protein = food.protein.formatNutrient()
+                carbs = food.carbs.formatNutrient()
+                fat = food.fat.formatNutrient()
+                fiber = food.fiber.formatNutrient()
                 barcode = food.barcode ?: ""
                 isFavorite = food.isFavorite
-                saturatedFat = food.saturatedFat?.toString() ?: ""
-                sugar = food.sugar?.toString() ?: ""
-                sodium = food.sodium?.toString() ?: ""
-                potassium = food.potassium?.toString() ?: ""
-                calcium = food.calcium?.toString() ?: ""
-                iron = food.iron?.toString() ?: ""
-                vitaminC = food.vitaminC?.toString() ?: ""
-                vitaminD = food.vitaminD?.toString() ?: ""
+                saturatedFat = food.saturatedFat?.formatNutrient() ?: ""
+                sugar = food.sugar?.formatNutrient() ?: ""
+                sodium = food.sodium?.formatNutrient() ?: ""
+                potassium = food.potassium?.formatNutrient() ?: ""
+                calcium = food.calcium?.formatNutrient() ?: ""
+                iron = food.iron?.formatNutrient() ?: ""
+                vitaminC = food.vitaminC?.formatNutrient() ?: ""
+                vitaminD = food.vitaminD?.formatNutrient() ?: ""
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)

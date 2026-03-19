@@ -32,6 +32,7 @@ import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,7 +258,7 @@ fun CalendarScreen(navController: NavController) {
                                             )
                                             if (calDay?.hasEntries == true) {
                                                 Text(
-                                                    "${calDay.calories.toInt()}",
+                                                    "${calDay.calories.roundToInt()}",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
@@ -347,7 +348,7 @@ fun CalendarScreen(navController: NavController) {
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "${avgCalories.toInt()}",
+                                        "${avgCalories.roundToInt()}",
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
                                     )

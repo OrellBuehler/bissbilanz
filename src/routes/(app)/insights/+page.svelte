@@ -330,7 +330,9 @@
 									</span>
 								</div>
 								<div class="mt-0.5 text-xs text-muted-foreground">
-									{m.insights_times_logged({ count: food.count.toString() })} &middot; {food.calories}
+									{m.insights_times_logged({ count: food.count.toString() })} &middot; {Math.round(
+										food.calories
+									)}
 									kcal {m.insights_per_serving()}
 								</div>
 								<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
