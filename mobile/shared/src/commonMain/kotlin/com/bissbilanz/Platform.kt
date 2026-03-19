@@ -1,5 +1,7 @@
 package com.bissbilanz
 
+import com.bissbilanz.api.generated.model.MacroSummary
+import com.bissbilanz.api.generated.model.WeightEntry
 import io.ktor.client.engine.*
 
 expect fun createHttpEngine(): HttpClientEngine
@@ -11,10 +13,10 @@ interface HealthSyncService {
 
     fun getRequiredPermissions(): Set<String>
 
-    suspend fun syncWeight(entries: List<com.bissbilanz.model.WeightEntry>)
+    suspend fun syncWeight(entries: List<WeightEntry>)
 
     suspend fun syncNutrition(
         date: String,
-        totals: com.bissbilanz.model.MacroTotals,
+        totals: MacroSummary,
     )
 }

@@ -13,11 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -35,6 +37,7 @@ fun EntryEditSheet(
     onSaved: () -> Unit,
 ) {
     val entryRepo: EntryRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isSaving by remember { mutableStateOf(false) }
@@ -70,8 +73,7 @@ fun EntryEditSheet(
     }
 
     if (showDeleteDialog && entry != null) {
-        val name =
-            entry?.food?.name ?: entry?.recipe?.name ?: entry?.quickName ?: "Unknown"
+        val name = entry?.resolvedName() ?: "Unknown"
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Entry") },
@@ -87,7 +89,9 @@ fun EntryEditSheet(
                                 sheetState.hide()
                                 onSaved()
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to delete entry", e)
+                                errorReporter.captureException(e)
                                 showDeleteDialog = false
                                 errorMessage = "Failed to delete entry"
                             }
@@ -139,9 +143,7 @@ fun EntryEditSheet(
             }
 
             if (isEditing && entry != null) {
-                val name =
-                    entry?.food?.name ?: entry?.recipe?.name
-                        ?: entry?.quickName ?: "Unknown"
+                val name = entry?.resolvedName() ?: "Unknown"
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -281,7 +283,9 @@ fun EntryEditSheet(
                                 sheetState.hide()
                                 onSaved()
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
+                                errorReporter.captureException(e)
                                 errorMessage = "Failed to save entry"
                             }
                             isSaving = false

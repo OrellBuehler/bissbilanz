@@ -2,7 +2,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Drawer from '$lib/components/ui/drawer/index.js';
-	import { type Snippet } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 
 	type Props = {
 		open: boolean;
@@ -20,7 +20,11 @@
 
 	$effect(() => {
 		if (open) {
-			activeSnapPoint = openFull ? snapPoints[1] : snapPoints[0];
+			const target = openFull ? snapPoints[1] : snapPoints[0];
+			activeSnapPoint = target;
+			tick().then(() => {
+				activeSnapPoint = target;
+			});
 		}
 	});
 

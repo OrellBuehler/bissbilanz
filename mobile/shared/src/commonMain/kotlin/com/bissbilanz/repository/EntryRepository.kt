@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -23,8 +24,10 @@ class EntryRepository(
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
     private var currentDate: String? = null
+    var onEntryChanged: (suspend () -> Unit)? = null
 
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.bissbilanzDatabaseQueries
@@ -41,19 +44,20 @@ class EntryRepository(
 
     suspend fun refresh(date: String) {
         currentDate = date
-        try {
-            val entries = api.getEntries(date)
-            cacheEntries(date, entries)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val entries = api.getEntries(date)
+        cacheEntries(date, entries)
     }
 
-    suspend fun createEntry(entry: EntryCreate): Entry {
-        val tempEntry = entryCreateToEntry(entry)
+    suspend fun createEntry(
+        entry: EntryCreate,
+        food: Food? = null,
+        recipe: Recipe? = null,
+    ): Entry {
+        val tempEntry = entryCreateToEntry(entry, food, recipe)
         cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
         syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry)))
+        onEntryChanged?.invoke()
         return tempEntry
     }
 
@@ -81,14 +85,20 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+        if (!id.startsWith("temp_")) {
+            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+        }
+        onEntryChanged?.invoke()
         return result
     }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+        if (!id.startsWith("temp_")) {
+            syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+        }
+        onEntryChanged?.invoke()
     }
 
     suspend fun copyEntries(
@@ -114,7 +124,7 @@ class EntryRepository(
                     quickFiber = entry.quickFiber,
                     eatenAt = entry.eatenAt,
                 )
-            createEntry(create)
+            createEntry(create, food = entry.food, recipe = entry.recipe)
             count++
         }
         return count
@@ -129,16 +139,17 @@ class EntryRepository(
             healthSync.syncNutrition(date, totals)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 
     private fun cacheEntry(entry: Entry) {
-        val foodName = entry.food?.name ?: entry.recipe?.name ?: entry.quickName
-        val calories = entry.food?.calories ?: entry.quickCalories ?: 0.0
-        val protein = entry.food?.protein ?: entry.quickProtein ?: 0.0
-        val carbs = entry.food?.carbs ?: entry.quickCarbs ?: 0.0
-        val fat = entry.food?.fat ?: entry.quickFat ?: 0.0
-        val fiber = entry.food?.fiber ?: entry.quickFiber ?: 0.0
+        val foodName = entry.food?.name ?: entry.recipe?.name ?: entry.foodName ?: entry.quickName
+        val calories = entry.food?.calories ?: entry.calories ?: entry.quickCalories ?: 0.0
+        val protein = entry.food?.protein ?: entry.protein ?: entry.quickProtein ?: 0.0
+        val carbs = entry.food?.carbs ?: entry.carbs ?: entry.quickCarbs ?: 0.0
+        val fat = entry.food?.fat ?: entry.fat ?: entry.quickFat ?: 0.0
+        val fiber = entry.food?.fiber ?: entry.fiber ?: entry.quickFiber ?: 0.0
         db.bissbilanzDatabaseQueries.insertEntry(
             id = entry.id,
             date = entry.date,
@@ -162,7 +173,7 @@ class EntryRepository(
     ) {
         db.bissbilanzDatabaseQueries.transaction {
             db.bissbilanzDatabaseQueries.deleteEntriesByDate(date)
-            entries.forEach { entry -> cacheEntry(entry) }
+            entries.forEach { entry -> cacheEntry(entry.copy(date = date)) }
             db.bissbilanzDatabaseQueries.upsertSyncMeta(
                 entityType = "entries:$date",
                 lastSyncedAt = Clock.System.now().toString(),
@@ -170,7 +181,11 @@ class EntryRepository(
         }
     }
 
-    private fun entryCreateToEntry(entry: EntryCreate): Entry =
+    private fun entryCreateToEntry(
+        entry: EntryCreate,
+        food: Food? = null,
+        recipe: Recipe? = null,
+    ): Entry =
         Entry(
             id = "temp_${Clock.System.now().toEpochMilliseconds()}",
             userId = "",
@@ -188,6 +203,8 @@ class EntryRepository(
             quickFiber = entry.quickFiber,
             eatenAt = entry.eatenAt,
             createdAt = Clock.System.now().toString(),
+            food = food,
+            recipe = recipe,
         )
 
     private fun applyUpdate(

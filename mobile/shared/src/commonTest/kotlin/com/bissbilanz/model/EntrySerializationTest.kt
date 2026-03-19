@@ -48,7 +48,15 @@ class EntrySerializationTest {
                     "protein": 5.0,
                     "carbs": 27.0,
                     "fat": 3.0,
-                    "fiber": 4.0
+                    "fiber": 4.0,
+                    "brand": null,
+                    "barcode": null,
+                    "isFavorite": false,
+                    "nutriScore": null,
+                    "novaGroup": null,
+                    "additives": null,
+                    "ingredientsText": null,
+                    "imageUrl": null
                 }
             }
             """.trimIndent()

@@ -3,8 +3,8 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Goals
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -53,13 +53,9 @@ class GoalsRepository(
             }
 
     suspend fun refresh() {
-        try {
-            val goals = api.getGoals()
-            if (goals != null) {
-                cacheGoals(goals)
-            }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
+        val goals = api.getGoals()
+        if (goals != null) {
+            cacheGoals(goals)
         }
     }
 

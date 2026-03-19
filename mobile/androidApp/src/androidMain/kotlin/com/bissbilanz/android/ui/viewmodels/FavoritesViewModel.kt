@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Preferences
@@ -26,6 +27,7 @@ class FavoritesViewModel(
     private val recipeRepo: RecipeRepository,
     private val entryRepo: EntryRepository,
     private val prefsRepo: PreferencesRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val favorites: StateFlow<List<Food>> =
         foodRepo
@@ -58,7 +60,10 @@ class FavoritesViewModel(
                 foodRepo.refreshFavorites()
                 recipeRepo.refresh()
                 prefsRepo.refresh()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to load favorites"
             }
             _isLoading.value = false
         }
@@ -81,9 +86,11 @@ class FavoritesViewModel(
         viewModelScope.launch {
             try {
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                entryRepo.createEntry(EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today))
+                entryRepo.createEntry(EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today), food = food)
                 _snackbarMessage.value = "Logged ${food.name}"
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
         }
@@ -97,9 +104,14 @@ class FavoritesViewModel(
         viewModelScope.launch {
             try {
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                entryRepo.createEntry(EntryCreate(recipeId = recipe.id, mealType = meal, servings = servings, date = today))
+                entryRepo.createEntry(
+                    EntryCreate(recipeId = recipe.id, mealType = meal, servings = servings, date = today),
+                    recipe = recipe,
+                )
                 _snackbarMessage.value = "Logged ${recipe.name}"
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log recipe"
             }
         }

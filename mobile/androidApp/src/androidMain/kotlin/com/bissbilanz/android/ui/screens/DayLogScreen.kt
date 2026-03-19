@@ -20,9 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
@@ -31,11 +34,13 @@ import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +50,8 @@ fun DayLogScreen(
 ) {
     val viewModel: DayLogViewModel = koinViewModel()
     val entryRepo: EntryRepository = koinInject()
+    val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -73,7 +80,7 @@ fun DayLogScreen(
 
     if (entryToDelete != null) {
         val entry = entryToDelete!!
-        val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+        val name = entry.resolvedName()
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
             title = { Text("Delete Entry") },
@@ -113,7 +120,9 @@ fun DayLogScreen(
                                 val count = entryRepo.copyEntries(yesterday, date)
                                 snackbarHostState.showSnackbar("Copied $count entries")
                                 viewModel.loadEntries(date, force = true)
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("No entries to copy")
                             }
                         }
@@ -160,106 +169,117 @@ fun DayLogScreen(
         if (isLoading) {
             LoadingScreen()
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(bottom = 80.dp),
+            val totalCalories = entries.sumOf { it.resolvedCalories() }
+
+            PullToRefreshWrapper(
+                onRefresh = {
+                    refreshManager.refreshAll(date)
+                    viewModel.refreshFastingDay(date)
+                },
+                modifier = Modifier.fillMaxSize().padding(padding),
             ) {
-                if (entries.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "No entries for this day",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                } else {
-                    sortedMeals.forEach { meal ->
-                        val mealEntries = mealGroups[meal] ?: return@forEach
-
-                        val mealCalories = mealEntries.sumOf { it.resolvedCalories() }
-                        val mealProtein = mealEntries.sumOf { it.resolvedProtein() }
-                        val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
-                        val mealFat = mealEntries.sumOf { it.resolvedFat() }
-
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                ) {
+                    if (totalCalories == 0.0) {
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    ),
                             ) {
-                                Text(
-                                    meal.replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    "${mealCalories.toInt()} cal",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = CaloriesBlue,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.padding(bottom = 4.dp),
-                            ) {
-                                Text("P ${mealProtein.toInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                                Text("C ${mealCarbs.toInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                                Text("F ${mealFat.toInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
-                            }
-                        }
-                        items(mealEntries, key = { it.id }) { entry ->
-                            Box(modifier = Modifier.animateItem()) {
-                                SwipeToDismissEntry(
-                                    entry = entry,
-                                    onDelete = { entryToDelete = entry },
-                                    onClick = {
-                                        editingEntryId = entry.id
-                                    },
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            stringResource(R.string.fasting_day),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                        Text(
+                                            stringResource(R.string.fasting_day_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Switch(
+                                        checked = isFastingDay,
+                                        onCheckedChange = { viewModel.toggleFastingDay(date) },
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                // Fasting day toggle
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            ),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                    if (entries.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
                                 Text(
-                                    stringResource(R.string.fasting_day),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Text(
-                                    stringResource(R.string.fasting_day_description),
-                                    style = MaterialTheme.typography.bodySmall,
+                                    "No entries for this day",
+                                    style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Switch(
-                                checked = isFastingDay,
-                                onCheckedChange = { viewModel.toggleFastingDay(date) },
-                            )
+                        }
+                    } else {
+                        sortedMeals.forEach { meal ->
+                            val mealEntries = mealGroups[meal] ?: return@forEach
+
+                            val mealCalories = mealEntries.sumOf { it.resolvedCalories() }
+                            val mealProtein = mealEntries.sumOf { it.resolvedProtein() }
+                            val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
+                            val mealFat = mealEntries.sumOf { it.resolvedFat() }
+
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        meal.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        "${mealCalories.roundToInt()} cal",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = CaloriesBlue,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                ) {
+                                    Text("P ${mealProtein.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
+                                    Text("C ${mealCarbs.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
+                                    Text("F ${mealFat.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
+                                }
+                            }
+                            items(mealEntries, key = { it.id }) { entry ->
+                                Box(modifier = Modifier.animateItem()) {
+                                    SwipeToDismissEntry(
+                                        entry = entry,
+                                        onDelete = { entryToDelete = entry },
+                                        onClick = {
+                                            editingEntryId = entry.id
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -320,7 +340,7 @@ fun EntryListItem(
     entry: Entry,
     onClick: () -> Unit,
 ) {
-    val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+    val name = entry.resolvedName()
     val calories = entry.resolvedCalories()
     val protein = entry.resolvedProtein()
 
@@ -331,7 +351,7 @@ fun EntryListItem(
         ListItem(
             headlineContent = { Text(name) },
             supportingContent = {
-                Text("${entry.servings}x  ·  ${calories.toInt()} cal  ·  P ${protein.toInt()}g")
+                Text("${entry.servings}x  ·  ${calories.roundToInt()} cal  ·  P ${protein.roundToInt()}g")
             },
             trailingContent = {
                 entry.food?.brand?.let {

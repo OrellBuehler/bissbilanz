@@ -3,14 +3,7 @@
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
-	import {
-		radarAverages,
-		radarPercentages,
-		MACRO_GOAL_MAPPINGS,
-		type DayRow,
-		type Goals,
-		type MacroKey
-	} from '$lib/utils/insights';
+	import { radarAverages, type DayRow, type Goals, type MacroKey } from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
 
 	type RangeKey = '7d' | '30d' | '90d';
@@ -45,8 +38,17 @@
 			color: MACRO_COLORS.protein
 		},
 		{ key: 'carbs', label: () => m.macro_carbs(), goalKey: 'carbGoal', color: MACRO_COLORS.carbs },
-		{ key: 'fat', label: () => m.macro_fat(), goalKey: 'fatGoal', color: MACRO_COLORS.fat },
-		{ key: 'fiber', label: () => m.macro_fiber(), goalKey: 'fiberGoal', color: MACRO_COLORS.fiber }
+		{ key: 'fat', label: () => m.macro_fat(), goalKey: 'fatGoal', color: MACRO_COLORS.fat }
+	];
+
+	const allAxes = [
+		...axes,
+		{
+			key: 'fiber' as MacroKey,
+			label: () => m.macro_fiber(),
+			goalKey: 'fiberGoal' as keyof NonNullable<Goals>,
+			color: MACRO_COLORS.fiber
+		}
 	];
 
 	const fetchData = async (r: RangeKey) => {
@@ -72,12 +74,25 @@
 
 	const averages = $derived(radarAverages(data));
 
-	const percentages = $derived(radarPercentages(averages, goals));
+	const percentages = $derived.by(() => {
+		const g = goals;
+		if (!g) return axes.map(() => 0);
+		return axes.map((a) => {
+			const goalVal = g[a.goalKey];
+			if (!goalVal) return 0;
+			return Math.min((averages[a.key] / goalVal) * 100, 150);
+		});
+	});
+
+	const fiberPercentage = $derived.by(() => {
+		if (!goals || !goals.fiberGoal) return 0;
+		return Math.min((averages.fiber / goals.fiberGoal) * 100, 150);
+	});
 
 	const cx = 150;
 	const cy = 155;
 	const radius = 100;
-	const n = 5;
+	const n = 4;
 
 	function polarToCart(angleDeg: number, r: number): { x: number; y: number } {
 		const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -85,6 +100,13 @@
 	}
 
 	const angleStep = 360 / n;
+	const carbsAxisIndex = 2;
+	const fiberPt = $derived(
+		polarToCart(carbsAxisIndex * angleStep, (fiberPercentage / 100) * radius)
+	);
+	const fiberLabelPt = $derived(
+		polarToCart(carbsAxisIndex * angleStep, Math.max((fiberPercentage / 100) * radius - 14, 0))
+	);
 
 	function polygonPoints(values: number[]): string {
 		return values
@@ -127,8 +149,9 @@
 					<polygon
 						points={polygonPoints(axes.map(() => level))}
 						fill="none"
-						stroke="hsl(var(--muted-foreground) / 0.15)"
-						stroke-width="1"
+						stroke="#d1d5db"
+						stroke-width="0.75"
+						opacity="0.5"
 					/>
 				{/each}
 
@@ -139,44 +162,75 @@
 						y1={cy}
 						x2={end.x}
 						y2={end.y}
-						stroke="hsl(var(--muted-foreground) / 0.15)"
-						stroke-width="1"
+						stroke="#d1d5db"
+						stroke-width="0.75"
+						opacity="0.5"
 					/>
 				{/each}
 
 				<polygon
 					points={goalPolygon}
 					fill="none"
-					stroke="hsl(var(--muted-foreground) / 0.5)"
+					stroke="#9ca3af"
 					stroke-width="1.5"
 					stroke-dasharray="4 3"
 				/>
 
 				<polygon
 					points={polygonPoints(percentages)}
-					fill="hsl(var(--primary) / 0.15)"
-					stroke="hsl(var(--primary))"
-					stroke-width="2"
+					fill="#e5e7eb"
+					fill-opacity="0.4"
+					stroke="#9ca3af"
+					stroke-width="1.5"
 				/>
 
+				<line
+					x1={cx}
+					y1={cy}
+					x2={fiberPt.x}
+					y2={fiberPt.y}
+					stroke={MACRO_COLORS.fiber}
+					stroke-width="2"
+					opacity="0.6"
+				/>
+				<circle cx={fiberPt.x} cy={fiberPt.y} r="4" fill={MACRO_COLORS.fiber} opacity="0.85" />
+
 				{#each axes as axis, i}
-					{@const pt = polarToCart(i * angleStep, radius + 18)}
+					{@const pct = percentages[i]}
+					{@const pt = polarToCart(i * angleStep, (pct / 100) * radius)}
+					<circle cx={pt.x} cy={pt.y} r="4" fill={axis.color} opacity="0.85" />
+				{/each}
+
+				{#each axes as axis, i}
+					{@const labelR = Math.max((percentages[i] / 100) * radius, radius) + 20}
+					{@const pt = polarToCart(i * angleStep, labelR)}
 					<text
 						x={pt.x}
 						y={pt.y}
 						text-anchor="middle"
 						dominant-baseline="middle"
-						class="fill-muted-foreground text-[11px] font-medium"
+						class="text-[13px] font-bold"
 						style="fill: {axis.color}"
 					>
 						{axis.label()}
 					</text>
 				{/each}
+
+				<text
+					x={fiberLabelPt.x}
+					y={fiberLabelPt.y}
+					text-anchor="middle"
+					dominant-baseline="middle"
+					class="text-[11px] font-semibold"
+					style="fill: {MACRO_COLORS.fiber}"
+				>
+					{m.macro_fiber()}
+				</text>
 			</svg>
 		</div>
 
 		<div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
-			{#each axes as axis (axis.key)}
+			{#each allAxes as axis (axis.key)}
 				{@const avg = averages}
 				{@const goalVal = goals[axis.goalKey]}
 				<div class="rounded-lg border p-2 text-center">

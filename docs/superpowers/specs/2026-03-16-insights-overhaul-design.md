@@ -94,13 +94,13 @@ Unchanged functionality. Moved below new sections. Wrapped in `CollapsibleCard`.
 
 No new backend endpoints required. All new sections use existing APIs:
 
-| Endpoint | Used by |
-|---|---|
-| `GET /api/stats/daily?startDate&endDate` | Trends, Goal Adherence, Macro Balance Radar (includes goals in response) |
-| `GET /api/stats/calendar?month=YYYY-MM` | Calendar Heatmap |
-| `GET /api/stats/meal-breakdown` | Meal Distribution (existing) |
-| `GET /api/stats/top-foods` | Top Foods (existing) |
-| `GET /api/goals` | Calendar Heatmap only (daily endpoint already bundles goals for the other sections) |
+| Endpoint                                 | Used by                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| `GET /api/stats/daily?startDate&endDate` | Trends, Goal Adherence, Macro Balance Radar (includes goals in response)            |
+| `GET /api/stats/calendar?month=YYYY-MM`  | Calendar Heatmap                                                                    |
+| `GET /api/stats/meal-breakdown`          | Meal Distribution (existing)                                                        |
+| `GET /api/stats/top-foods`               | Top Foods (existing)                                                                |
+| `GET /api/goals`                         | Calendar Heatmap only (daily endpoint already bundles goals for the other sections) |
 
 ### Frontend service gaps
 

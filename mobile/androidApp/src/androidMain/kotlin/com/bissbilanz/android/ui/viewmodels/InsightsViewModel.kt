@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.StatsRepository
@@ -18,6 +19,7 @@ import kotlinx.datetime.*
 class InsightsViewModel(
     private val statsRepo: StatsRepository,
     private val goalsRepo: GoalsRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _weeklyStats = MutableStateFlow<MacroTotals?>(null)
     val weeklyStats: StateFlow<MacroTotals?> = _weeklyStats.asStateFlow()
@@ -42,8 +44,8 @@ class InsightsViewModel(
             .goals()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
     private val _selectedRange = MutableStateFlow(0)
     val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
@@ -91,20 +93,21 @@ class InsightsViewModel(
         loadCalendarStats()
     }
 
-    private fun loadCalendarStats() {
+    fun loadCalendarStats() {
         viewModelScope.launch {
             val monthStr = "%04d-%02d".format(_calendarYear.value, _calendarMonth.value)
             try {
                 _calendarDays.value = statsRepo.getCalendarStats(monthStr)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
                 _calendarDays.value = emptyList()
             }
         }
     }
 
-    private fun loadData() {
+    fun loadData() {
         viewModelScope.launch {
-            _isLoading.value = true
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             val days =
                 when (_selectedRange.value) {
@@ -121,7 +124,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getWeeklyStats().stats
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -129,7 +134,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getMonthlyStats().stats
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -137,7 +144,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getStreaks()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 null
                             }
                         }
@@ -145,7 +154,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getTopFoods(days).data
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -153,7 +164,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getDailyStats(startDate, endDate).data
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -161,7 +174,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 statsRepo.getMealBreakdown(startDate, endDate).data
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 emptyList()
                             }
                         }
@@ -169,7 +184,9 @@ class InsightsViewModel(
                         async {
                             try {
                                 goalsRepo.refresh()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                             }
                         }
 
@@ -182,10 +199,14 @@ class InsightsViewModel(
                     goalsDeferred.await()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _isLoading.value = false
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to load insights"
             }
         }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }

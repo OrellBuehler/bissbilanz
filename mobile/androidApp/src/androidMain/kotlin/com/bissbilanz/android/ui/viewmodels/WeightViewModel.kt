@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
 import com.bissbilanz.repository.WeightRepository
@@ -19,6 +20,7 @@ import kotlinx.datetime.todayIn
 
 class WeightViewModel(
     private val weightRepo: WeightRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _trendData = MutableStateFlow<List<WeightTrendEntry>>(emptyList())
     val trendData: StateFlow<List<WeightTrendEntry>> = _trendData.asStateFlow()
@@ -37,6 +39,9 @@ class WeightViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
     init {
         loadTrend()
     }
@@ -54,26 +59,49 @@ class WeightViewModel(
         loadTrend()
     }
 
+    fun refreshTrend() {
+        viewModelScope.launch {
+            try {
+                applyTrend()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
+    private fun rangeStartDate(): kotlinx.datetime.LocalDate {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        return when (_selectedRange.value) {
+            0 -> today.minus(7, DateTimeUnit.DAY)
+            1 -> today.minus(30, DateTimeUnit.DAY)
+            2 -> today.minus(90, DateTimeUnit.DAY)
+            else -> kotlinx.datetime.LocalDate(2000, 1, 1)
+        }
+    }
+
+    private suspend fun applyTrend() {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        _trendData.value = weightRepo.getTrend(rangeStartDate().toString(), today.toString())
+    }
+
     private fun loadTrend() {
         viewModelScope.launch {
             _isLoading.value = true
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            val from =
-                when (_selectedRange.value) {
-                    0 -> today.minus(7, DateTimeUnit.DAY)
-                    1 -> today.minus(30, DateTimeUnit.DAY)
-                    2 -> today.minus(90, DateTimeUnit.DAY)
-                    else -> kotlinx.datetime.LocalDate(2000, 1, 1)
-                }
             try {
-                val trend = weightRepo.getTrend(from.toString(), today.toString())
-                _trendData.value = trend
                 weightRepo.refresh()
+                applyTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to load weight data"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }

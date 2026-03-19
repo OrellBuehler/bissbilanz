@@ -20,9 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
@@ -30,11 +32,13 @@ import com.bissbilanz.model.Recipe
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlin.math.roundToInt
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val viewModel: FavoritesViewModel = koinViewModel()
     val baseUrl: String = koinInject(named("baseUrl"))
+    val refreshManager: RefreshManager = koinInject()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -115,76 +119,86 @@ fun FavoritesScreen(navController: NavController) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
+        PullToRefreshWrapper(
+            onRefresh = { refreshManager.refreshAll() },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
 
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Foods (${favorites.size})") })
-                Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("Recipes (${favoriteRecipes.size})") })
-            }
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Foods (${favorites.size})") })
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { viewModel.selectTab(1) },
+                        text = { Text("Recipes (${favoriteRecipes.size})") },
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Crossfade(targetState = isLoading, label = "favorites") { loading ->
-                if (loading) {
-                    LoadingScreen()
-                } else if (selectedTab == 0) {
-                    if (favorites.isEmpty()) {
-                        EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(favorites, key = { it.id }) { food ->
-                                FavoriteCard(
-                                    name = food.name,
-                                    subtitle = "${food.calories.toInt()} cal",
-                                    secondaryText = "P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}",
-                                    imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                    onClick = { navController.navigate("food/${food.id}") },
-                                    onQuickLog = {
-                                        handleQuickLog(
-                                            viewModel = viewModel,
-                                            onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
-                                            onShowServingsPicker = { pendingServingsFood = food },
-                                            onShowMealPicker = { foodToLog = food },
-                                        )
-                                    },
-                                    modifier = Modifier.animateItem(),
-                                )
+                Crossfade(targetState = isLoading, label = "favorites") { loading ->
+                    if (loading) {
+                        LoadingScreen()
+                    } else if (selectedTab == 0) {
+                        if (favorites.isEmpty()) {
+                            EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(favorites, key = { it.id }) { food ->
+                                    FavoriteCard(
+                                        name = food.name,
+                                        subtitle = "${food.calories.roundToInt()} cal",
+                                        secondaryText =
+                                            "P${food.protein.roundToInt()} C${food.carbs.roundToInt()} F${food.fat.roundToInt()}",
+                                        imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                        onClick = { navController.navigate("food/${food.id}") },
+                                        onQuickLog = {
+                                            handleQuickLog(
+                                                viewModel = viewModel,
+                                                onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
+                                                onShowServingsPicker = { pendingServingsFood = food },
+                                                onShowMealPicker = { foodToLog = food },
+                                            )
+                                        },
+                                        modifier = Modifier.animateItem(),
+                                    )
+                                }
                             }
                         }
-                    }
-                } else {
-                    if (favoriteRecipes.isEmpty()) {
-                        EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
                     } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(favoriteRecipes, key = { it.id }) { recipe ->
-                                FavoriteCard(
-                                    name = recipe.name,
-                                    subtitle = "${recipe.totalServings.toInt()} servings",
-                                    secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
-                                    imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                    onClick = { navController.navigate("recipe/${recipe.id}") },
-                                    onQuickLog = {
-                                        handleQuickLog(
-                                            viewModel = viewModel,
-                                            onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
-                                            onShowServingsPicker = { pendingServingsRecipe = recipe },
-                                            onShowMealPicker = { recipeToLog = recipe },
-                                        )
-                                    },
-                                    modifier = Modifier.animateItem(),
-                                )
+                        if (favoriteRecipes.isEmpty()) {
+                            EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(favoriteRecipes, key = { it.id }) { recipe ->
+                                    FavoriteCard(
+                                        name = recipe.name,
+                                        subtitle = "${recipe.totalServings.toInt()} servings",
+                                        secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
+                                        imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                        onClick = { navController.navigate("recipe/${recipe.id}") },
+                                        onQuickLog = {
+                                            handleQuickLog(
+                                                viewModel = viewModel,
+                                                onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
+                                                onShowServingsPicker = { pendingServingsRecipe = recipe },
+                                                onShowMealPicker = { recipeToLog = recipe },
+                                            )
+                                        },
+                                        modifier = Modifier.animateItem(),
+                                    )
+                                }
                             }
                         }
                     }

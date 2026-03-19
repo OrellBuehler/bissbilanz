@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 object MacroRingRenderer {
     fun render(
@@ -63,7 +64,7 @@ object MacroRingRenderer {
                 typeface = Typeface.DEFAULT_BOLD
             }
         val textOffset = (valuePaint.descent() + valuePaint.ascent()) / 2f
-        canvas.drawText(current.toInt().toString(), centerX, centerY - textOffset, valuePaint)
+        canvas.drawText(current.roundToInt().toString(), centerX, centerY - textOffset, valuePaint)
 
         val labelColor = if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF666666.toInt()
         val labelPaint =

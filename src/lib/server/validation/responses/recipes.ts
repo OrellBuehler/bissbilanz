@@ -36,6 +36,11 @@ const recipeDetailSchema = z
 		totalServings: z.number(),
 		isFavorite: z.boolean(),
 		imageUrl: z.string().nullable(),
+		calories: z.number(),
+		protein: z.number(),
+		carbs: z.number(),
+		fat: z.number(),
+		fiber: z.number(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
 		ingredients: z.array(recipeIngredientResponseSchema)

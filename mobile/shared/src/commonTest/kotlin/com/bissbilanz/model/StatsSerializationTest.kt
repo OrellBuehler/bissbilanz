@@ -48,6 +48,7 @@ class StatsSerializationTest {
                 "data": [
                     {
                         "foodId": "f1",
+                        "recipeId": null,
                         "foodName": "Chicken Breast",
                         "count": 15,
                         "calories": 165,
@@ -84,7 +85,7 @@ class StatsSerializationTest {
 
     @Test
     fun macroTotalsDefaultsToZero() {
-        val totals = MacroTotals()
+        val totals = MacroTotals(calories = 0.0, protein = 0.0, carbs = 0.0, fat = 0.0, fiber = 0.0)
         assertEquals(0.0, totals.calories)
         assertEquals(0.0, totals.protein)
         assertEquals(0.0, totals.carbs)

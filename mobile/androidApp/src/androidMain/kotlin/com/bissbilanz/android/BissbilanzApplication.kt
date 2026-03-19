@@ -1,7 +1,9 @@
 package com.bissbilanz.android
 
 import android.app.Application
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
@@ -9,6 +11,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.MacroWidget
+import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
@@ -17,9 +20,6 @@ import com.bissbilanz.repository.*
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -48,6 +48,8 @@ class BissbilanzApplication : Application() {
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
+                single<ErrorReporter> { SentryErrorReporter() }
+                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -66,16 +68,18 @@ class BissbilanzApplication : Application() {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
-        koin.get<SyncManager>().startNetworkListener {
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-            koin.get<EntryRepository>().refresh(today)
-            koin.get<FoodRepository>().refreshFoods()
-            koin.get<RecipeRepository>().refresh()
-            koin.get<WeightRepository>().refresh()
-            koin.get<SupplementRepository>().refresh()
-            koin.get<GoalsRepository>().refresh()
-            koin.get<PreferencesRepository>().refresh()
+        koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+        }
+        koin.get<WeightRepository>().onWeightChanged = {
+            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+        }
+
+        val refreshManager = koin.get<RefreshManager>()
+        koin.get<SyncManager>().startNetworkListener {
+            refreshManager.refreshAll()
+            MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
     }
 }

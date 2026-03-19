@@ -23,6 +23,7 @@ val sharedModule =
                 connectivityProvider = get(),
                 api = get(),
                 json = get(),
+                errorReporter = get(),
             )
         }
         single {
@@ -32,12 +33,12 @@ val sharedModule =
                 isLenient = true
             }
         }
-        single { FoodRepository(get(), get(), get(), get()) }
-        single { EntryRepository(get(), get(), get(), get(), get()) }
-        single { RecipeRepository(get(), get(), get(), get()) }
+        single { FoodRepository(get(), get(), get(), get(), get()) }
+        single { EntryRepository(get(), get(), get(), get(), get(), get()) }
+        single { RecipeRepository(get(), get(), get(), get(), get()) }
         single { GoalsRepository(get(), get(), get(), get()) }
-        single { WeightRepository(get(), get(), get(), get(), get()) }
-        single { SupplementRepository(get(), get(), get(), get()) }
-        single { StatsRepository(get(), get(), get()) }
+        single { WeightRepository(get(), get(), get(), get(), get(), get()) }
+        single { SupplementRepository(get(), get(), get(), get(), get()) }
+        single { StatsRepository(get(), get(), get(), get()) }
         single { PreferencesRepository(get(), get(), get(), get()) }
     }

@@ -3,6 +3,7 @@ import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/sche
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 type RecipeInput = {
 	name: string;
@@ -12,6 +13,14 @@ type RecipeInput = {
 };
 
 export type { DeleteResult };
+
+export const macroAggregations = {
+	calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+	fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+};
 
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	userId,
@@ -35,11 +44,7 @@ export const listRecipes = async (
 			totalServings: recipes.totalServings,
 			isFavorite: recipes.isFavorite,
 			imageUrl: recipes.imageUrl,
-			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+			...macroAggregations
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
@@ -56,7 +61,7 @@ export const listRecipes = async (
 		db.select({ total: count() }).from(recipes).where(whereClause)
 	]);
 
-	return { items, total: countResult[0]?.total ?? 0 };
+	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
 export const createRecipe = async (
@@ -100,9 +105,22 @@ export const createRecipe = async (
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
 	const [recipe] = await db
-		.select()
+		.select({
+			id: recipes.id,
+			userId: recipes.userId,
+			name: recipes.name,
+			totalServings: recipes.totalServings,
+			isFavorite: recipes.isFavorite,
+			imageUrl: recipes.imageUrl,
+			...macroAggregations,
+			createdAt: recipes.createdAt,
+			updatedAt: recipes.updatedAt
+		})
 		.from(recipes)
-		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
+		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
+		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+		.groupBy(recipes.id);
 
 	if (!recipe) return null;
 
@@ -112,7 +130,7 @@ export const getRecipe = async (userId: string, id: string) => {
 		.where(eq(recipeIngredients.recipeId, id))
 		.orderBy(recipeIngredients.sortOrder);
 
-	return { ...recipe, ingredients };
+	return roundNutrition({ ...recipe, ingredients });
 };
 
 export const updateRecipe = async (

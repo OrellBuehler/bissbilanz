@@ -2,12 +2,13 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.Food
-import com.bissbilanz.model.FoodCreate
-import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,7 +37,7 @@ class FoodRepositoryTest {
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
-        repository = FoodRepository(api, db, syncQueue, json, kotlinx.coroutines.Dispatchers.Unconfined)
+        repository = FoodRepository(api, db, syncQueue, json, NoopErrorReporter(), kotlinx.coroutines.Dispatchers.Unconfined)
     }
 
     @Test
@@ -88,7 +89,7 @@ class FoodRepositoryTest {
                 FoodCreate(
                     name = "Rice",
                     servingSize = 100.0,
-                    servingUnit = ServingUnit.G,
+                    servingUnit = ServingUnit.g,
                     calories = 130.0,
                     protein = 2.7,
                     carbs = 28.0,

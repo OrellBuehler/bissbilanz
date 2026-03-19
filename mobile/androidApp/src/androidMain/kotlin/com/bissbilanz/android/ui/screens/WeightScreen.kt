@@ -19,8 +19,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WeightTrendChart
 import com.bissbilanz.android.ui.components.linearRegression
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -39,12 +42,15 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeightScreen(navController: NavController) {
     val viewModel: WeightViewModel = koinViewModel()
     val weightRepo: WeightRepository = koinInject()
+    val refreshManager: RefreshManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val trendData by viewModel.trendData.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
@@ -73,6 +79,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight logged")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to log weight")
                     }
                 }
@@ -96,6 +103,7 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar("Weight updated")
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
                         snackbarHostState.showSnackbar("Failed to update weight")
                     }
                 }
@@ -118,6 +126,7 @@ fun WeightScreen(navController: NavController) {
                                 viewModel.refresh()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar("Failed to delete")
                             }
                         }
@@ -150,99 +159,107 @@ fun WeightScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Crossfade(targetState = isLoading, label = "weight") { loading ->
-            if (loading) {
-                LoadingScreen()
-            } else if (entries.isEmpty() && trendData.isEmpty()) {
-                EmptyState("No weight entries yet.\nTap + to log your weight.")
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
-                ) {
-                    // Stats chips
-                    if (trendData.isNotEmpty()) {
-                        item {
-                            WeightStatsRow(trendData = trendData, projectionDays = projectionDays)
-                        }
-                    }
-
-                    // Range selector
-                    item {
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            ranges.forEachIndexed { index, label ->
-                                SegmentedButton(
-                                    selected = selectedRange == index,
-                                    onClick = { viewModel.selectRange(index) },
-                                    shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
-                                ) {
-                                    Text(label)
-                                }
+        PullToRefreshWrapper(
+            onRefresh = {
+                refreshManager.refreshAll()
+                viewModel.refreshTrend()
+            },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            Crossfade(targetState = isLoading, label = "weight") { loading ->
+                if (loading) {
+                    LoadingScreen()
+                } else if (entries.isEmpty() && trendData.isEmpty()) {
+                    EmptyState("No weight entries yet.\nTap + to log your weight.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                    ) {
+                        // Stats chips
+                        if (trendData.isNotEmpty()) {
+                            item {
+                                WeightStatsRow(trendData = trendData, projectionDays = projectionDays)
                             }
                         }
-                    }
 
-                    // Projection selector
-                    if (trendData.size >= 3) {
+                        // Range selector
                         item {
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                projectionOptions.forEachIndexed { index, days ->
+                                ranges.forEachIndexed { index, label ->
                                     SegmentedButton(
-                                        selected = projectionDays == days,
-                                        onClick = { viewModel.setProjectionDays(days) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, projectionOptions.size),
+                                        selected = selectedRange == index,
+                                        onClick = { viewModel.selectRange(index) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(projectionLabels[index])
+                                        Text(label)
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Trend chart
-                    if (trendData.isNotEmpty()) {
-                        item {
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                WeightTrendChart(
-                                    trendData = trendData,
-                                    projectionDays = projectionDays,
-                                    modifier = Modifier.fillMaxWidth().height(240.dp).padding(12.dp),
-                                )
+                        // Projection selector
+                        if (trendData.size >= 3) {
+                            item {
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    projectionOptions.forEachIndexed { index, days ->
+                                        SegmentedButton(
+                                            selected = projectionDays == days,
+                                            onClick = { viewModel.setProjectionDays(days) },
+                                            shape = SegmentedButtonDefaults.itemShape(index, projectionOptions.size),
+                                        ) {
+                                            Text(projectionLabels[index])
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    // Entry list
-                    items(entries, key = { it.id }) { entry ->
-                        Card(modifier = Modifier.fillMaxWidth().animateItem()) {
-                            ListItem(
-                                headlineContent = {
-                                    Text("${"%.1f".format(entry.weightKg)} kg", fontWeight = FontWeight.Bold)
-                                },
-                                supportingContent = {
-                                    Column {
-                                        Text(entry.entryDate)
-                                        entry.notes?.let {
-                                            Text(
-                                                it,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
+                        // Trend chart
+                        if (trendData.isNotEmpty()) {
+                            item {
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    WeightTrendChart(
+                                        trendData = trendData,
+                                        projectionDays = projectionDays,
+                                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(12.dp),
+                                    )
+                                }
+                            }
+                        }
+
+                        // Entry list
+                        items(entries, key = { it.id }) { entry ->
+                            Card(modifier = Modifier.fillMaxWidth().animateItem()) {
+                                ListItem(
+                                    headlineContent = {
+                                        Text("%s kg".format(String.format(Locale.US, "%.1f", entry.weightKg)), fontWeight = FontWeight.Bold)
+                                    },
+                                    supportingContent = {
+                                        Column {
+                                            Text(entry.entryDate)
+                                            entry.notes?.let {
+                                                Text(
+                                                    it,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
                                         }
-                                    }
-                                },
-                                trailingContent = {
-                                    Row {
-                                        IconButton(onClick = { entryToEdit = entry }) {
-                                            Icon(Icons.Default.Edit, "Edit")
+                                    },
+                                    trailingContent = {
+                                        Row {
+                                            IconButton(onClick = { entryToEdit = entry }) {
+                                                Icon(Icons.Default.Edit, "Edit")
+                                            }
+                                            IconButton(onClick = { entryToDelete = entry }) {
+                                                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                            }
                                         }
-                                        IconButton(onClick = { entryToDelete = entry }) {
-                                            Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -278,7 +295,7 @@ private fun WeightStatsRow(
             contentColor = WeightBlue,
         ) {
             Text(
-                "${"%.1f".format(latest.weightKg)} kg",
+                "%s kg".format(String.format(Locale.US, "%.1f", latest.weightKg)),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -292,7 +309,7 @@ private fun WeightStatsRow(
                 contentColor = TrendGreen,
             ) {
                 Text(
-                    "Trend ${"%.1f".format(avg)} kg",
+                    "Trend %s kg".format(String.format(Locale.US, "%.1f", avg)),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -306,7 +323,7 @@ private fun WeightStatsRow(
             contentColor = deltaColor,
         ) {
             Text(
-                "Δ $deltaSign${"%.1f".format(delta)} kg",
+                "Δ $deltaSign%s kg".format(String.format(Locale.US, "%.1f", delta)),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -336,7 +353,7 @@ private fun WeightStatsRow(
                     contentColor = ProjectionPurple,
                 ) {
                     Text(
-                        "Projected ${"%.1f".format(projectedWeight)} kg",
+                        "Projected %s kg".format(String.format(Locale.US, "%.1f", projectedWeight)),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -380,7 +397,7 @@ fun AddWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.toDoubleOrNull()
+                    val weight = weightText.replace(',', '.').toDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }
@@ -397,7 +414,7 @@ fun EditWeightDialog(
     onDismiss: () -> Unit,
     onSave: (Double, String) -> Unit,
 ) {
-    var weightText by remember { mutableStateOf("%.1f".format(entry.weightKg)) }
+    var weightText by remember { mutableStateOf(String.format(Locale.US, "%.1f", entry.weightKg)) }
     var notes by remember { mutableStateOf(entry.notes ?: "") }
 
     AlertDialog(
@@ -425,7 +442,7 @@ fun EditWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.toDoubleOrNull()
+                    val weight = weightText.replace(',', '.').toDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }

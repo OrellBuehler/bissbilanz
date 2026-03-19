@@ -61,7 +61,14 @@ export function overallAdherence(
 	return total > 0 ? Math.round((hit / total) * 100) : 0;
 }
 
-export type HeatmapStatus = 'on-target' | 'over' | 'over-high' | 'under' | 'under-high' | 'none' | 'no-goal';
+export type HeatmapStatus =
+	| 'on-target'
+	| 'over'
+	| 'over-high'
+	| 'under'
+	| 'under-high'
+	| 'none'
+	| 'no-goal';
 
 export function heatmapStatus(
 	calories: number,
@@ -91,7 +98,11 @@ export function radarAverages(data: DayRow[]): Record<MacroKey, number> {
 	};
 }
 
-export function radarPercentages(averages: Record<MacroKey, number>, goals: Goals | null, cap = 150): number[] {
+export function radarPercentages(
+	averages: Record<MacroKey, number>,
+	goals: Goals | null,
+	cap = 150
+): number[] {
 	if (!goals) return MACRO_GOAL_MAPPINGS.map(() => 0);
 	return MACRO_GOAL_MAPPINGS.map((m) => {
 		const goalVal = goals[m.goalKey];

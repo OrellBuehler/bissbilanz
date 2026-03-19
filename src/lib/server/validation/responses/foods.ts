@@ -6,7 +6,7 @@ import { servingUnitValues } from '$lib/units';
 const optNutrient = z.number().nullable().optional();
 const nutrientFields = Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, optNutrient]));
 
-const foodSchema = z
+export const foodSchema = z
 	.object({
 		id: z.string().uuid(),
 		userId: z.string().uuid(),

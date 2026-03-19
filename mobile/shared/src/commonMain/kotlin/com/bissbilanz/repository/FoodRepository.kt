@@ -2,9 +2,12 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +28,7 @@ class FoodRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
@@ -44,33 +48,52 @@ class FoodRepository(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { json.decodeFromString<Food>(it.jsonData) } }
 
+    suspend fun fetchFoodsPaginated(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): FoodsListResponse {
+        val response = api.getFoodsPaginated(limit, offset)
+        cacheFoods(response.foods)
+        return response
+    }
+
     suspend fun refreshFoods(
         limit: Int = 100,
         offset: Int = 0,
     ) {
-        try {
-            val foods = api.getFoods(limit, offset)
-            cacheFoods(foods)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val foods = api.getFoods(limit, offset)
+        cacheFoods(foods)
     }
 
     suspend fun refreshFavorites() {
-        try {
-            val favs = api.getFavorites()
-            favs.forEach { cacheFood(it) }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val favs = api.getFavorites()
+        favs.forEach { cacheFood(it) }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
-        try {
-            _recentFoods.value = api.getRecentFoods(limit)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        _recentFoods.value =
+            api.getRecentFoods(limit).map { recent ->
+                Food(
+                    id = recent.id,
+                    userId = recent.userId,
+                    name = recent.name,
+                    brand = recent.brand,
+                    servingSize = recent.servingSize,
+                    servingUnit = Food.ServingUnit.valueOf(recent.servingUnit.name),
+                    calories = recent.calories,
+                    protein = recent.protein,
+                    carbs = recent.carbs,
+                    fat = recent.fat,
+                    fiber = recent.fiber,
+                    barcode = recent.barcode,
+                    isFavorite = recent.isFavorite,
+                    nutriScore = null,
+                    novaGroup = null,
+                    additives = null,
+                    ingredientsText = null,
+                    imageUrl = recent.imageUrl,
+                )
+            }
     }
 
     suspend fun getFood(id: String): Food =
@@ -80,6 +103,7 @@ class FoodRepository(
             food
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
             if (cached != null) {
                 json.decodeFromString<Food>(cached.jsonData)
@@ -115,6 +139,7 @@ class FoodRepository(
             api.searchFoods(query)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             val pattern = "%$query%"
             db.bissbilanzDatabaseQueries
                 .searchFoods(pattern, pattern, 50)
@@ -130,6 +155,7 @@ class FoodRepository(
                         api.getFoodByBarcode(barcode)
                     } catch (e: Exception) {
                         if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                        errorReporter.captureException(e)
                         null
                     }
                 }
@@ -188,7 +214,7 @@ class FoodRepository(
             name = food.name,
             brand = food.brand,
             servingSize = food.servingSize,
-            servingUnit = food.servingUnit,
+            servingUnit = Food.ServingUnit.valueOf(food.servingUnit.name),
             calories = food.calories,
             protein = food.protein,
             carbs = food.carbs,
@@ -196,6 +222,10 @@ class FoodRepository(
             fiber = food.fiber,
             barcode = food.barcode,
             isFavorite = food.isFavorite ?: false,
+            nutriScore = null,
+            novaGroup = null,
+            additives = null,
+            ingredientsText = null,
             imageUrl = food.imageUrl,
         )
 }

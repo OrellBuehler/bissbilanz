@@ -1,4 +1,5 @@
 import { sumEntries } from '$lib/utils/nutrition';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 type Entry = {
 	calories: number | null;
@@ -50,5 +51,11 @@ export const formatDailyStatus = ({ entries, goals }: { entries: Entry[]; goals:
 		byMeal[meal].fiber += (entry.fiber ?? 0) * entry.servings;
 	}
 
-	return { totals, goals, progress, entryCount: entries.length, byMeal };
+	return {
+		totals: roundNutrition(totals),
+		goals,
+		progress,
+		entryCount: entries.length,
+		byMeal: roundNutrition(byMeal)
+	};
 };

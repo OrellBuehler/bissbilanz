@@ -2,10 +2,14 @@ package com.bissbilanz.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.WeightCreate
+import com.bissbilanz.api.generated.model.WeightEntry
+import com.bissbilanz.api.generated.model.WeightTrendEntry
+import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +26,10 @@ class WeightRepository(
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val errorReporter: ErrorReporter,
 ) {
+    var onWeightChanged: (suspend () -> Unit)? = null
+
     fun entries(): Flow<List<WeightEntry>> =
         db.bissbilanzDatabaseQueries
             .selectAllWeightEntries()
@@ -31,12 +38,8 @@ class WeightRepository(
             .map { rows -> rows.map { json.decodeFromString<WeightEntry>(it.jsonData) } }
 
     suspend fun refresh(limit: Int = 30) {
-        try {
-            val entries = api.getWeightEntries(limit)
-            cacheWeightEntries(entries)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-        }
+        val entries = api.getWeightEntries(limit)
+        cacheWeightEntries(entries)
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
@@ -46,8 +49,10 @@ class WeightRepository(
             healthSync.syncWeight(listOf(temp))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
+        onWeightChanged?.invoke()
         return temp
     }
 
@@ -73,14 +78,17 @@ class WeightRepository(
                     userId = "",
                     weightKg = entry.weightKg ?: 0.0,
                     entryDate = entry.entryDate ?: "",
+                    notes = entry.notes,
                 )
             }
         try {
             healthSync.syncWeight(listOf(result))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
         syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        onWeightChanged?.invoke()
         return result
     }
 
@@ -92,18 +100,20 @@ class WeightRepository(
             api.getWeightTrend(from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
             db.bissbilanzDatabaseQueries
                 .selectAllWeightEntries()
                 .executeAsList()
                 .map { json.decodeFromString<WeightEntry>(it.jsonData) }
                 .filter { it.entryDate in from..to }
                 .sortedBy { it.entryDate }
-                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg) }
+                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
         }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
         syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        onWeightChanged?.invoke()
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

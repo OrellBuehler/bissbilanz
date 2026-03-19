@@ -37,13 +37,6 @@ const groupEntriesByDate = (
 	return Object.values(groups);
 };
 
-/**
- * Groups entries by date, including fasting days (0-cal intentional days)
- * in the average calculation.
- *
- * @param fastingDays Must contain only dates within the relevant query range;
- *   out-of-range dates would silently inflate the denominator.
- */
 const groupEntriesByDateWithFasting = (
 	entries: Array<{
 		date: string;
@@ -63,7 +56,6 @@ const groupEntriesByDateWithFasting = (
 		}
 		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
 	}
-	// Include fasting days that have no entries so they count as 0 in averages
 	for (const fastingDate of fastingDays) {
 		if (!groups[fastingDate]) {
 			groups[fastingDate] = emptyTotals();

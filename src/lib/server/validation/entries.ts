@@ -1,3 +1,4 @@
+import 'zod-openapi';
 import { z } from 'zod';
 import { normalizeMealType } from '$lib/utils/meals';
 
@@ -17,9 +18,11 @@ const entryBaseSchema = z.object({
 	eatenAt: z.string().datetime({ offset: true }).optional().nullable()
 });
 
-export const entryCreateSchema = entryBaseSchema.refine(
-	(val) => val.foodId || val.recipeId || (val.quickCalories != null && val.quickCalories > 0),
-	{ message: 'foodId, recipeId, or quickCalories (> 0) is required' }
-);
+export const entryCreateSchema = entryBaseSchema
+	.meta({ id: 'EntryCreate' })
+	.refine(
+		(val) => val.foodId || val.recipeId || (val.quickCalories != null && val.quickCalories > 0),
+		{ message: 'foodId, recipeId, or quickCalories (> 0) is required' }
+	);
 
-export const entryUpdateSchema = entryBaseSchema.partial();
+export const entryUpdateSchema = entryBaseSchema.partial().meta({ id: 'EntryUpdate' });

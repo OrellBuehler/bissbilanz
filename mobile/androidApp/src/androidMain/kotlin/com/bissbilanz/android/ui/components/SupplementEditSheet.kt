@@ -15,12 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.bissbilanz.api.generated.model.SupplementCreate as GenSupplementCreate
 
 private data class SupplementIngredientRow(
     val name: String = "",
@@ -36,6 +38,7 @@ fun SupplementEditSheet(
     onSaved: () -> Unit,
 ) {
     val supplementRepo: SupplementRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(supplementId != null) }
@@ -46,7 +49,7 @@ fun SupplementEditSheet(
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
     var dosageUnit by remember { mutableStateOf("mg") }
-    var scheduleType by remember { mutableStateOf(ScheduleType.DAILY) }
+    var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var isActive by remember { mutableStateOf(true) }
 
@@ -62,18 +65,21 @@ fun SupplementEditSheet(
                     dosage = found.dosage.toDisplayString()
                     dosageUnit = found.dosageUnit
                     scheduleType = found.scheduleType
-                    timeOfDay = found.timeOfDay ?: "morning"
+                    timeOfDay = found.timeOfDay?.value ?: "morning"
                     isActive = found.isActive
-                    ingredients = found.ingredients?.map { ing ->
-                        SupplementIngredientRow(
-                            name = ing.name,
-                            dosage = ing.dosage.toDisplayString(),
-                            dosageUnit = ing.dosageUnit,
-                        )
-                    } ?: emptyList()
+                    ingredients =
+                        found.ingredients.map { ing ->
+                            SupplementIngredientRow(
+                                name = ing.name,
+                                dosage = ing.dosage.toDisplayString(),
+                                dosageUnit = ing.dosageUnit,
+                            )
+                        }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("SupplementEditSheet", "Failed to load supplement", e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load supplement"
             }
             isLoading = false
@@ -180,8 +186,8 @@ fun SupplementEditSheet(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     val displayOptions =
                         listOf(
-                            "Daily" to ScheduleType.DAILY,
-                            "Every 2d" to ScheduleType.EVERY_OTHER_DAY,
+                            "Daily" to ScheduleType.daily,
+                            "Every 2d" to ScheduleType.every_other_day,
                         )
                     displayOptions.forEachIndexed { index, (label, type) ->
                         SegmentedButton(
@@ -348,8 +354,14 @@ fun SupplementEditSheet(
                                             name = name.trim(),
                                             dosage = dosage.toDoubleOrNull() ?: 0.0,
                                             dosageUnit = dosageUnit,
-                                            scheduleType = scheduleType,
-                                            timeOfDay = timeOfDay,
+                                            scheduleType =
+                                                GenSupplementCreate.ScheduleType.entries.first {
+                                                    it.value == scheduleType.value
+                                                },
+                                            timeOfDay =
+                                                GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
+                                                    tod.value == timeOfDay
+                                                },
                                             isActive = isActive,
                                             ingredients =
                                                 ingredients
@@ -372,7 +384,9 @@ fun SupplementEditSheet(
                                     sheetState.hide()
                                     onSaved()
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("SupplementEditSheet", "Failed to save supplement", e)
+                                    errorReporter.captureException(e)
                                     errorMessage = "Failed to save supplement"
                                 }
                                 isSaving = false

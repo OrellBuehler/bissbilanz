@@ -12,10 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -28,6 +30,7 @@ fun FoodEditSheet(
     onSaved: () -> Unit,
 ) {
     val foodRepo: FoodRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(foodId != null) }
@@ -39,7 +42,7 @@ fun FoodEditSheet(
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var servingSize by remember { mutableStateOf("100") }
-    var servingUnit by remember { mutableStateOf(ServingUnit.G) }
+    var servingUnit by remember { mutableStateOf(ServingUnit.g) }
     var calories by remember { mutableStateOf("") }
     var protein by remember { mutableStateOf("") }
     var carbs by remember { mutableStateOf("") }
@@ -68,24 +71,26 @@ fun FoodEditSheet(
                 name = food.name
                 brand = food.brand ?: ""
                 servingSize = food.servingSize.toDisplayString()
-                servingUnit = food.servingUnit
-                calories = food.calories.toDisplayString()
-                protein = food.protein.toDisplayString()
-                carbs = food.carbs.toDisplayString()
-                fat = food.fat.toDisplayString()
-                fiber = food.fiber.toDisplayString()
+                servingUnit = ServingUnit.entries.first { it.value == food.servingUnit.value }
+                calories = food.calories.formatNutrient()
+                protein = food.protein.formatNutrient()
+                carbs = food.carbs.formatNutrient()
+                fat = food.fat.formatNutrient()
+                fiber = food.fiber.formatNutrient()
                 barcode = food.barcode ?: ""
                 isFavorite = food.isFavorite
-                saturatedFat = food.saturatedFat?.toString() ?: ""
-                sugar = food.sugar?.toString() ?: ""
-                sodium = food.sodium?.toString() ?: ""
-                potassium = food.potassium?.toString() ?: ""
-                calcium = food.calcium?.toString() ?: ""
-                iron = food.iron?.toString() ?: ""
-                vitaminC = food.vitaminC?.toString() ?: ""
-                vitaminD = food.vitaminD?.toString() ?: ""
+                saturatedFat = food.saturatedFat?.formatNutrient() ?: ""
+                sugar = food.sugar?.formatNutrient() ?: ""
+                sodium = food.sodium?.formatNutrient() ?: ""
+                potassium = food.potassium?.formatNutrient() ?: ""
+                calcium = food.calcium?.formatNutrient() ?: ""
+                iron = food.iron?.formatNutrient() ?: ""
+                vitaminC = food.vitaminC?.formatNutrient() ?: ""
+                vitaminD = food.vitaminD?.formatNutrient() ?: ""
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load food"
             }
             isLoading = false
@@ -144,7 +149,9 @@ fun FoodEditSheet(
                 sheetState.hide()
                 onSaved()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to save food", e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to save food"
             }
             isSaving = false

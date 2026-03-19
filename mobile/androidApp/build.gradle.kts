@@ -18,6 +18,15 @@ kotlin {
     }
 }
 
+val appVersion = (findProperty("APP_VERSION") as? String)?.trimStart('v') ?: "dev"
+val computedVersionCode =
+    if (appVersion != "dev") {
+        val parts = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+        (parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }).coerceAtLeast(1)
+    } else {
+        1
+    }
+
 android {
     namespace = "com.bissbilanz.android"
     compileSdk = 36
@@ -26,8 +35,8 @@ android {
         applicationId = "com.bissbilanz.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = computedVersionCode
+        versionName = appVersion
         buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
         buildConfigField("String", "BASE_URL", "\"https://bissbilanz.orellbuehler.ch\"")
     }

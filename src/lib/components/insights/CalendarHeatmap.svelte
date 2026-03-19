@@ -97,7 +97,7 @@
 
 	function cellTitle(date: string | null): string {
 		if (!date || !days[date]) return m.insights_no_entries();
-		return `${days[date].calories} kcal`;
+		return `${Math.round(days[date].calories)} kcal`;
 	}
 
 	const dayHeaders = [

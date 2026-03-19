@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description">Daily macro progress rings showing calories, protein, carbs, fat, and fiber</string>
+    <string name="scan_widget_description">Tap to open the barcode scanner</string>
+    <string name="scan_widget_content_desc">Scan barcode</string>
+    <string name="weight_widget_description">View and log today\'s weight</string>
+    <string name="weight_widget_title">Weight</string>
+    <string name="weight_widget_today">Today</string>
+    <string name="weight_widget_tap_to_log">Tap to log</string>
+    <string name="weight_log_title">Log Weight</string>
+    <string name="weight_edit_title">Edit Weight</string>
+    <string name="weight_input_label">Weight (kg)</string>
+    <string name="weight_notes_label">Notes (optional)</string>
+    <string name="weight_save">Save</string>
+    <string name="weight_cancel">Cancel</string>
     <string name="fasting_day">Fasting Day</string>
     <string name="fasting_day_description">Include this 0-calorie day in stats</string>
 </resources>

@@ -2,15 +2,15 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -19,13 +19,22 @@ import kotlinx.datetime.todayIn
 class FoodSearchViewModel(
     private val foodRepo: FoodRepository,
     private val entryRepo: EntryRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
 
-    val favorites: StateFlow<List<Food>> =
-        foodRepo
-            .favorites()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _allFoods = MutableStateFlow<List<Food>>(emptyList())
+    val allFoods: StateFlow<List<Food>> = _allFoods.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    private var allFoodsOffset = 0
+    private var paginationJob: Job? = null
+    private val pageSize = 20
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -44,9 +53,43 @@ class FoodSearchViewModel(
 
     init {
         viewModelScope.launch {
-            foodRepo.refreshRecentFoods()
-            foodRepo.refreshFavorites()
+            try {
+                foodRepo.refreshRecentFoods()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to load recent foods"
+            }
         }
+    }
+
+    fun loadAllFoods() {
+        paginationJob?.cancel()
+        allFoodsOffset = 0
+        _allFoods.value = emptyList()
+        _canLoadMore.value = true
+        _isLoadingMore.value = true
+        paginationJob = viewModelScope.launch { fetchNextPage() }
+    }
+
+    fun loadMoreFoods() {
+        if (_isLoadingMore.value || !_canLoadMore.value) return
+        _isLoadingMore.value = true
+        paginationJob = viewModelScope.launch { fetchNextPage() }
+    }
+
+    private suspend fun fetchNextPage() {
+        try {
+            val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
+            _allFoods.value = _allFoods.value + response.foods
+            allFoodsOffset += response.foods.size
+            _canLoadMore.value = allFoodsOffset < response.total
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            _snackbarMessage.value = "Failed to load foods"
+        }
+        _isLoadingMore.value = false
     }
 
     fun updateQuery(newQuery: String) {
@@ -57,7 +100,10 @@ class FoodSearchViewModel(
                 _searchResults.value =
                     try {
                         foodRepo.searchFoods(newQuery)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                        _snackbarMessage.value = "Search failed"
                         emptyList()
                     }
                 _isSearching.value = false
@@ -69,6 +115,7 @@ class FoodSearchViewModel(
 
     fun selectTab(index: Int) {
         _selectedTab.value = index
+        if (index == 1) loadAllFoods()
     }
 
     fun logFood(
@@ -81,9 +128,12 @@ class FoodSearchViewModel(
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                 entryRepo.createEntry(
                     EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today),
+                    food = food,
                 )
                 _snackbarMessage.value = "Logged ${food.name}"
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
         }
@@ -95,8 +145,14 @@ class FoodSearchViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            foodRepo.refreshRecentFoods()
-            foodRepo.refreshFavorites()
+            try {
+                foodRepo.refreshRecentFoods()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to refresh"
+            }
         }
+        if (_selectedTab.value == 1) loadAllFoods()
     }
 }

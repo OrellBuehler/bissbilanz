@@ -12,8 +12,10 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
+import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.util.toDisplayString
+import kotlin.math.roundToInt
 
 @Composable
 fun MealCard(
@@ -43,7 +45,7 @@ fun MealCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "${totalCalories.toInt()} cal",
+                    text = "${totalCalories.roundToInt()} cal",
                     style = MaterialTheme.typography.titleMedium,
                     color = CaloriesBlue,
                     fontWeight = FontWeight.Bold,
@@ -55,9 +57,9 @@ fun MealCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("P ${totalProtein.toInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                Text("C ${totalCarbs.toInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                Text("F ${totalFat.toInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
+                Text("P ${totalProtein.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
+                Text("C ${totalCarbs.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
+                Text("F ${totalFat.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
             }
 
             if (entries.isNotEmpty()) {
@@ -67,7 +69,7 @@ fun MealCard(
             }
 
             entries.forEach { entry ->
-                val name = entry.food?.name ?: entry.recipe?.name ?: entry.quickName ?: "Unknown"
+                val name = entry.resolvedName()
                 val cal = entry.resolvedCalories()
                 val servingsText =
                     if (entry.servings != 1.0) {
@@ -85,7 +87,7 @@ fun MealCard(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        "${cal.toInt()}",
+                        "${cal.roundToInt()}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

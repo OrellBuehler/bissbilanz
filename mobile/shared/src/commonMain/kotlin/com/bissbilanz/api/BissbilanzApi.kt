@@ -1,8 +1,61 @@
 package com.bissbilanz.api
 
+import com.bissbilanz.api.generated.model.CalendarResponse
+import com.bissbilanz.api.generated.model.DailyStatsResponse
+import com.bissbilanz.api.generated.model.DayProperties
+import com.bissbilanz.api.generated.model.DayPropertiesResponse
+import com.bissbilanz.api.generated.model.DayPropertiesSet
+import com.bissbilanz.api.generated.model.EntriesCopyResponse
+import com.bissbilanz.api.generated.model.EntriesListResponse
+import com.bissbilanz.api.generated.model.EntryCreate
+import com.bissbilanz.api.generated.model.EntryResponse
+import com.bissbilanz.api.generated.model.EntryUpdate
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodRecent
+import com.bissbilanz.api.generated.model.FoodResponse
+import com.bissbilanz.api.generated.model.FoodsListResponse
+import com.bissbilanz.api.generated.model.FoodsRecentResponse
+import com.bissbilanz.api.generated.model.Goals
+import com.bissbilanz.api.generated.model.GoalsResponse
+import com.bissbilanz.api.generated.model.GoalsSetResponse
+import com.bissbilanz.api.generated.model.MaintenanceResponse
+import com.bissbilanz.api.generated.model.MealBreakdownResponse
+import com.bissbilanz.api.generated.model.MealType
+import com.bissbilanz.api.generated.model.MealTypeCreate
+import com.bissbilanz.api.generated.model.MealTypesListResponse
+import com.bissbilanz.api.generated.model.MonthlyStatsResponse
+import com.bissbilanz.api.generated.model.Preferences
+import com.bissbilanz.api.generated.model.PreferencesResponse
+import com.bissbilanz.api.generated.model.PreferencesUpdate
+import com.bissbilanz.api.generated.model.RecipeCreate
+import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeResponse
+import com.bissbilanz.api.generated.model.RecipeSummary
+import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.api.generated.model.RecipesListResponse
+import com.bissbilanz.api.generated.model.StreaksResponse
+import com.bissbilanz.api.generated.model.Supplement
+import com.bissbilanz.api.generated.model.SupplementChecklistItem
+import com.bissbilanz.api.generated.model.SupplementChecklistResponse
+import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.SupplementHistoryResponse
+import com.bissbilanz.api.generated.model.SupplementLog
+import com.bissbilanz.api.generated.model.SupplementLogResponse
+import com.bissbilanz.api.generated.model.SupplementResponse
+import com.bissbilanz.api.generated.model.SupplementsListResponse
+import com.bissbilanz.api.generated.model.TopFoodsResponse
+import com.bissbilanz.api.generated.model.WeeklyStatsResponse
+import com.bissbilanz.api.generated.model.WeightCreate
+import com.bissbilanz.api.generated.model.WeightEntriesResponse
+import com.bissbilanz.api.generated.model.WeightEntry
+import com.bissbilanz.api.generated.model.WeightEntryResponse
+import com.bissbilanz.api.generated.model.WeightTrendEntry
+import com.bissbilanz.api.generated.model.WeightTrendResponse
+import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.createHttpEngine
-import com.bissbilanz.model.*
+import com.bissbilanz.model.Entry
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
@@ -127,26 +180,28 @@ class BissbilanzApi(
     }
 
     // Foods
+    suspend fun getFoodsPaginated(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): FoodsListResponse =
+        get("/api/foods") {
+            parameter("limit", limit)
+            parameter("offset", offset)
+        }
+
     suspend fun getFoods(
         limit: Int = 100,
         offset: Int = 0,
-    ): List<Food> {
-        val response: FoodsResponse =
-            get("/api/foods") {
-                parameter("limit", limit)
-                parameter("offset", offset)
-            }
-        return response.foods
-    }
+    ): List<Food> = getFoodsPaginated(limit, offset).foods
 
     suspend fun getFood(id: String): Food {
         val response: FoodResponse = get("/api/foods/$id")
-        return response.food ?: throw ApiException("Expected food in response but got null")
+        return response.food
     }
 
     suspend fun createFood(food: FoodCreate): Food {
         val response: FoodResponse = post("/api/foods", food)
-        return response.food ?: throw ApiException("Expected food in response but got null")
+        return response.food
     }
 
     suspend fun updateFood(
@@ -154,24 +209,29 @@ class BissbilanzApi(
         food: FoodCreate,
     ): Food {
         val response: FoodResponse = put("/api/foods/$id", food)
-        return response.food ?: throw ApiException("Expected food in response but got null")
+        return response.food
     }
 
     suspend fun deleteFood(id: String) = delete("/api/foods/$id")
 
     suspend fun searchFoods(query: String): List<Food> {
-        val response: FoodsResponse = get("/api/foods") { parameter("q", query) }
+        val response: FoodsListResponse = get("/api/foods") { parameter("q", query) }
         return response.foods
     }
 
-    suspend fun getRecentFoods(limit: Int = 20): List<Food> {
-        val response: FoodsResponse = get("/api/foods/recent") { parameter("limit", limit) }
+    suspend fun getRecentFoods(limit: Int = 20): List<FoodRecent> {
+        val response: FoodsRecentResponse = get("/api/foods/recent") { parameter("limit", limit) }
         return response.foods
     }
+
+    @kotlinx.serialization.Serializable
+    private data class FoodFavoritesResponse(
+        val foods: List<Food>? = null,
+    )
 
     suspend fun getFavorites(): List<Food> {
-        val response: FoodsResponse = get("/api/favorites") { parameter("type", "foods") }
-        return response.foods
+        val response: FoodFavoritesResponse = get("/api/favorites") { parameter("type", "foods") }
+        return response.foods ?: emptyList()
     }
 
     suspend fun getFoodByBarcode(barcode: String): Food? =
@@ -185,13 +245,58 @@ class BissbilanzApi(
 
     // Entries
     suspend fun getEntries(date: String): List<Entry> {
-        val response: EntriesResponse = get("/api/entries") { parameter("date", date) }
-        return response.entries
+        val response: EntriesListResponse = get("/api/entries") { parameter("date", date) }
+        return response.propertyEntries.map { item ->
+            Entry(
+                id = item.id,
+                date = date,
+                mealType = item.mealType,
+                servings = item.servings,
+                notes = item.notes,
+                foodId = item.foodId,
+                recipeId = item.recipeId,
+                quickName = item.quickName,
+                quickCalories = item.quickCalories,
+                quickProtein = item.quickProtein,
+                quickCarbs = item.quickCarbs,
+                quickFat = item.quickFat,
+                quickFiber = item.quickFiber,
+                eatenAt = item.eatenAt,
+                createdAt = item.createdAt,
+                foodName = item.foodName,
+                calories = item.calories,
+                protein = item.protein,
+                carbs = item.carbs,
+                fat = item.fat,
+                fiber = item.fiber,
+                servingSize = item.servingSize,
+                servingUnit = item.servingUnit,
+            )
+        }
     }
 
     suspend fun createEntry(entry: EntryCreate): Entry {
         val response: EntryResponse = post("/api/entries", entry)
-        return response.entry
+        val e = response.entry
+        return Entry(
+            id = e.id,
+            userId = e.userId,
+            foodId = e.foodId,
+            recipeId = e.recipeId,
+            date = e.date,
+            mealType = e.mealType,
+            servings = e.servings,
+            notes = e.notes,
+            quickName = e.quickName,
+            quickCalories = e.quickCalories,
+            quickProtein = e.quickProtein,
+            quickCarbs = e.quickCarbs,
+            quickFat = e.quickFat,
+            quickFiber = e.quickFiber,
+            eatenAt = e.eatenAt,
+            createdAt = e.createdAt,
+            updatedAt = e.updatedAt,
+        )
     }
 
     suspend fun updateEntry(
@@ -199,23 +304,42 @@ class BissbilanzApi(
         entry: EntryUpdate,
     ): Entry {
         val response: EntryResponse = put("/api/entries/$id", entry)
-        return response.entry
+        val e = response.entry
+        return Entry(
+            id = e.id,
+            userId = e.userId,
+            foodId = e.foodId,
+            recipeId = e.recipeId,
+            date = e.date,
+            mealType = e.mealType,
+            servings = e.servings,
+            notes = e.notes,
+            quickName = e.quickName,
+            quickCalories = e.quickCalories,
+            quickProtein = e.quickProtein,
+            quickCarbs = e.quickCarbs,
+            quickFat = e.quickFat,
+            quickFiber = e.quickFiber,
+            eatenAt = e.eatenAt,
+            createdAt = e.createdAt,
+            updatedAt = e.updatedAt,
+        )
     }
 
     suspend fun deleteEntry(id: String) = delete("/api/entries/$id")
 
     // Recipes
-    suspend fun getRecipes(): List<Recipe> {
-        val response: RecipesResponse = get("/api/recipes")
+    suspend fun getRecipes(): List<RecipeSummary> {
+        val response: RecipesListResponse = get("/api/recipes")
         return response.recipes
     }
 
-    suspend fun getRecipe(id: String): Recipe {
+    suspend fun getRecipe(id: String): RecipeDetail {
         val response: RecipeResponse = get("/api/recipes/$id")
         return response.recipe
     }
 
-    suspend fun createRecipe(recipe: RecipeCreate): Recipe {
+    suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
         val response: RecipeResponse = post("/api/recipes", recipe)
         return response.recipe
     }
@@ -223,7 +347,7 @@ class BissbilanzApi(
     suspend fun updateRecipe(
         id: String,
         recipe: RecipeUpdate,
-    ): Recipe {
+    ): RecipeDetail {
         val response: RecipeResponse = put("/api/recipes/$id", recipe)
         return response.recipe
     }
@@ -241,14 +365,14 @@ class BissbilanzApi(
         }
 
     suspend fun setGoals(goals: Goals): Goals {
-        val response: GoalsResponse = put("/api/goals", goals)
-        return response.goals ?: throw ApiException("Expected goals in response but got null")
+        val response: GoalsSetResponse = put("/api/goals", goals)
+        return response.goals
     }
 
     // Weight
     suspend fun getWeightEntries(limit: Int = 30): List<WeightEntry> {
         val response: WeightEntriesResponse = get("/api/weight") { parameter("limit", limit) }
-        return response.entries
+        return response.propertyEntries
     }
 
     suspend fun createWeightEntry(entry: WeightCreate): WeightEntry {
@@ -275,12 +399,12 @@ class BissbilanzApi(
                 parameter("from", from)
                 parameter("to", to)
             }
-        return response.data
+        return response.`data`
     }
 
     // Supplements
     suspend fun getSupplements(): List<Supplement> {
-        val response: SupplementsResponse = get("/api/supplements")
+        val response: SupplementsListResponse = get("/api/supplements")
         return response.supplements
     }
 
@@ -314,9 +438,9 @@ class BissbilanzApi(
             parameter("endDate", endDate)
         }
 
-    suspend fun getWeeklyStats(): WeeklyMonthlyStatsResponse = get("/api/stats/weekly")
+    suspend fun getWeeklyStats(): WeeklyStatsResponse = get("/api/stats/weekly")
 
-    suspend fun getMonthlyStats(): WeeklyMonthlyStatsResponse = get("/api/stats/monthly")
+    suspend fun getMonthlyStats(): MonthlyStatsResponse = get("/api/stats/monthly")
 
     suspend fun getMealBreakdown(date: String): MealBreakdownResponse = get("/api/stats/meal-breakdown") { parameter("date", date) }
 
@@ -352,7 +476,7 @@ class BissbilanzApi(
     }
 
     // Meal types
-    suspend fun getMealTypes(): MealTypesResponse = get("/api/meal-types")
+    suspend fun getMealTypes(): MealTypesListResponse = get("/api/meal-types")
 
     suspend fun createMealType(mealType: MealTypeCreate): MealType = post("/api/meal-types", mealType)
 
@@ -360,7 +484,7 @@ class BissbilanzApi(
     suspend fun copyEntries(
         fromDate: String,
         toDate: String,
-    ): CopyEntriesResponse =
+    ): EntriesCopyResponse =
         post("/api/entries/copy", mapOf<String, String>()) {
             parameter("fromDate", fromDate)
             parameter("toDate", toDate)
@@ -419,13 +543,13 @@ class BissbilanzApi(
             parameter("to", to)
         }
 
-    suspend fun getAllSupplements(): SupplementsResponse =
+    suspend fun getAllSupplements(): SupplementsListResponse =
         get("/api/supplements") {
             parameter("all", true)
         }
 
     // Supplement checklist for a date
-    suspend fun getSupplementChecklist(date: String): List<SupplementLog> {
+    suspend fun getSupplementChecklist(date: String): List<SupplementChecklistItem> {
         val response: SupplementChecklistResponse = get("/api/supplements/$date/checklist")
         return response.checklist
     }

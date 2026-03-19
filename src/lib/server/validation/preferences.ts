@@ -1,3 +1,4 @@
+import 'zod-openapi';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 
@@ -10,7 +11,8 @@ export const favoriteMealTimeframeInputSchema = z
 		startTime: timeStringSchema,
 		endTime: timeStringSchema
 	})
-	.strict();
+	.strict()
+	.meta({ id: 'FavoriteMealTimeframeInput' });
 
 export const preferencesUpdateSchema = z
 	.object({
@@ -43,4 +45,5 @@ export const preferencesUpdateSchema = z
 			.optional(),
 		locale: z.enum(['en', 'de']).optional()
 	})
-	.strict();
+	.strict()
+	.meta({ id: 'PreferencesUpdate' });

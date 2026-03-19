@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
@@ -21,12 +22,16 @@ import kotlinx.datetime.*
 class DashboardViewModel(
     private val entryRepo: EntryRepository,
     private val goalsRepo: GoalsRepository,
+    private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _selectedDate = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()))
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
     private val currentDateString = MutableStateFlow("")
 
@@ -73,10 +78,16 @@ class DashboardViewModel(
                 entryRepo.refresh(dateStr)
                 goalsRepo.refresh()
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to load data"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }

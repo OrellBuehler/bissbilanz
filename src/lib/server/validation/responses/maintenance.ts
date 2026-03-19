@@ -6,8 +6,16 @@ export const maintenanceResponseSchema = z
 		result: z
 			.object({
 				maintenanceCalories: z.number(),
-				deficit: z.number(),
-				surplus: z.number()
+				dailyDeficit: z.number(),
+				totalEnergyBalance: z.number(),
+				fatMassKg: z.number(),
+				muscleMassKg: z.number(),
+				fatCalories: z.number(),
+				muscleCalories: z.number(),
+				avgDailyCalories: z.number(),
+				weightChangeKg: z.number(),
+				days: z.number().int(),
+				muscleRatio: z.number()
 			})
 			.meta({ id: 'MaintenanceResult' }),
 		meta: z

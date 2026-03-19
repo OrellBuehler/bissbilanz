@@ -71,7 +71,7 @@
 					class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950"
 				>
 					<span class="text-lg font-bold leading-tight text-blue-600 dark:text-blue-400"
-						>{food.calories}</span
+						>{Math.round(food.calories)}</span
 					>
 					<span
 						class="text-[10px] font-medium uppercase tracking-wider text-blue-500/70 dark:text-blue-400/70"

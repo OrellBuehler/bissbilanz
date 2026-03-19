@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
@@ -29,7 +30,7 @@ private data class RecipeIngredientRow(
     val food: Food? = null,
     val foodId: String = "",
     val quantity: String = "100",
-    val unit: ServingUnit = ServingUnit.G,
+    val unit: ServingUnit = ServingUnit.g,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,7 @@ fun RecipeEditSheet(
 ) {
     val recipeRepo: RecipeRepository = koinInject()
     val foodRepo: FoodRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(recipeId != null) }
@@ -66,16 +68,19 @@ fun RecipeEditSheet(
                 name = recipe.name
                 totalServings = recipe.totalServings.toDisplayString()
                 isFavorite = recipe.isFavorite
-                ingredients = recipe.ingredients?.map { ing ->
-                    RecipeIngredientRow(
-                        food = ing.food,
-                        foodId = ing.foodId,
-                        quantity = ing.quantity.toDisplayString(),
-                        unit = ing.servingUnit,
-                    )
-                } ?: emptyList()
+                ingredients =
+                    recipe.ingredients.map { ing ->
+                        RecipeIngredientRow(
+                            food = null,
+                            foodId = ing.foodId,
+                            quantity = ing.quantity.toDisplayString(),
+                            unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
+                        )
+                    }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
+                errorReporter.captureException(e)
                 errorMessage = "Failed to load recipe"
             }
             isLoading = false
@@ -101,7 +106,9 @@ fun RecipeEditSheet(
                                         try {
                                             foodSearchResults = foodRepo.searchFoods(query)
                                         } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
                                             Log.e("RecipeEditSheet", "Food search failed", e)
+                                            errorReporter.captureException(e)
                                             foodSearchResults = emptyList()
                                         }
                                         isSearching = false
@@ -127,7 +134,7 @@ fun RecipeEditSheet(
                                             food = food,
                                             foodId = food.id,
                                             quantity = food.servingSize.toDisplayString(),
-                                            unit = food.servingUnit,
+                                            unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                                         )
                                     showFoodPicker = false
                                     foodSearchQuery = ""
@@ -347,7 +354,9 @@ fun RecipeEditSheet(
                                     sheetState.hide()
                                     onSaved()
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("RecipeEditSheet", "Failed to save recipe", e)
+                                    errorReporter.captureException(e)
                                     errorMessage = "Failed to save recipe"
                                 }
                                 isSaving = false

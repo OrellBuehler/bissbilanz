@@ -39,11 +39,7 @@ describe('filterDaysWithEntries', () => {
 
 describe('strictCount', () => {
 	test('counts days where value >= goal', () => {
-		const days = [
-			makeDay({ protein: 100 }),
-			makeDay({ protein: 110 }),
-			makeDay({ protein: 90 })
-		];
+		const days = [makeDay({ protein: 100 }), makeDay({ protein: 110 }), makeDay({ protein: 90 })];
 		expect(strictCount(days, 'protein', 100)).toBe(2);
 	});
 
@@ -136,17 +132,13 @@ describe('overallAdherence', () => {
 	});
 
 	test('partial adherence gives correct percentage', () => {
-		const days = [
-			makeDay({ calories: 2000, protein: 50, carbs: 250, fat: 60, fiber: 30 })
-		];
+		const days = [makeDay({ calories: 2000, protein: 50, carbs: 250, fat: 60, fiber: 30 })];
 		const result = overallAdherence(days, defaultGoals, strictCount);
 		expect(result).toBe(80);
 	});
 
 	test('tolerant mode counts within ±10%', () => {
-		const days = [
-			makeDay({ calories: 1900, protein: 95, carbs: 240, fat: 55, fiber: 28 })
-		];
+		const days = [makeDay({ calories: 1900, protein: 95, carbs: 240, fat: 55, fiber: 28 })];
 		const result = overallAdherence(days, defaultGoals, tolerantCount);
 		expect(result).toBe(100);
 	});

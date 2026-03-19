@@ -4,6 +4,7 @@ import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { type AnyColumn, and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+import { roundNutrition } from '$lib/utils/round-nutrition';
 
 const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
 	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
@@ -84,7 +85,7 @@ export const listEntriesByDate = async (
 		db.select({ total: count() }).from(foodEntries).where(whereClause)
 	]);
 
-	return { items, total: countResult[0]?.total ?? 0 };
+	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
 export const createEntry = async (
@@ -179,7 +180,7 @@ export const listEntriesByDateRange = async (
 	endDate: string
 ) => {
 	const db = getDB();
-	return db
+	const rows = await db
 		.select({
 			id: foodEntries.id,
 			date: foodEntries.date,
@@ -200,6 +201,7 @@ export const listEntriesByDateRange = async (
 				lte(foodEntries.date, endDate)
 			)
 		);
+	return roundNutrition(rows);
 };
 
 export const copyEntries = async (userId: string, fromDate: string, toDate: string) => {

@@ -326,18 +326,20 @@
 								<div class="flex items-baseline justify-between gap-2">
 									<p class="truncate text-sm font-medium">{food.foodName}</p>
 									<span class="shrink-0 text-sm font-semibold tabular-nums">
-										{food.calories} kcal
+										{Math.round(food.calories)} kcal
 									</span>
 								</div>
 								<div class="mt-0.5 text-xs text-muted-foreground">
-									{m.insights_times_logged({ count: food.count.toString() })} &middot; {food.calories}
+									{m.insights_times_logged({ count: food.count.toString() })} &middot; {Math.round(
+										food.calories
+									)}
 									kcal {m.insights_per_serving()}
 								</div>
 								<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
-									<span style="color: {MACRO_COLORS.protein}">{food.protein}g P</span>
-									<span style="color: {MACRO_COLORS.carbs}">{food.carbs}g C</span>
-									<span style="color: {MACRO_COLORS.fat}">{food.fat}g F</span>
-									<span style="color: {MACRO_COLORS.fiber}">{food.fiber}g Fi</span>
+									<span style="color: {MACRO_COLORS.protein}">{+food.protein.toFixed(1)}g P</span>
+									<span style="color: {MACRO_COLORS.carbs}">{+food.carbs.toFixed(1)}g C</span>
+									<span style="color: {MACRO_COLORS.fat}">{+food.fat.toFixed(1)}g F</span>
+									<span style="color: {MACRO_COLORS.fiber}">{+food.fiber.toFixed(1)}g Fi</span>
 								</div>
 							</div>
 						</div>
