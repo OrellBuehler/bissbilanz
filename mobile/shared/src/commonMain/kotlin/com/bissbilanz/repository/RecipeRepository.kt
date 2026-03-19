@@ -45,6 +45,11 @@ class RecipeRepository(
                     totalServings = s.totalServings,
                     isFavorite = s.isFavorite,
                     imageUrl = s.imageUrl,
+                    calories = s.calories,
+                    protein = s.protein,
+                    carbs = s.carbs,
+                    fat = s.fat,
+                    fiber = s.fiber,
                     ingredients = emptyList(),
                 )
                 db.bissbilanzDatabaseQueries.insertRecipe(
@@ -115,6 +120,11 @@ class RecipeRepository(
                     totalServings = recipe.totalServings ?: 1.0,
                     isFavorite = recipe.isFavorite ?: false,
                     imageUrl = recipe.imageUrl,
+                    calories = 0.0,
+                    protein = 0.0,
+                    carbs = 0.0,
+                    fat = 0.0,
+                    fiber = 0.0,
                     ingredients = emptyList(),
                 )
             }
@@ -133,11 +143,11 @@ class RecipeRepository(
             name = recipe.name,
             totalServings = recipe.totalServings,
             isFavorite = if (recipe.isFavorite) 1L else 0L,
-            calories = 0.0,
-            protein = 0.0,
-            carbs = 0.0,
-            fat = 0.0,
-            fiber = 0.0,
+            calories = recipe.calories,
+            protein = recipe.protein,
+            carbs = recipe.carbs,
+            fat = recipe.fat,
+            fiber = recipe.fiber,
             jsonData = json.encodeToString(recipe),
         )
     }
@@ -150,6 +160,11 @@ class RecipeRepository(
             totalServings = recipe.totalServings,
             isFavorite = recipe.isFavorite ?: false,
             imageUrl = recipe.imageUrl,
+            calories = 0.0,
+            protein = 0.0,
+            carbs = 0.0,
+            fat = 0.0,
+            fiber = 0.0,
             ingredients = emptyList(),
         )
 }

@@ -100,9 +100,26 @@ export const createRecipe = async (
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
 	const [recipe] = await db
-		.select()
+		.select({
+			id: recipes.id,
+			userId: recipes.userId,
+			name: recipes.name,
+			totalServings: recipes.totalServings,
+			isFavorite: recipes.isFavorite,
+			imageUrl: recipes.imageUrl,
+			calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
+			createdAt: recipes.createdAt,
+			updatedAt: recipes.updatedAt
+		})
 		.from(recipes)
-		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
+		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
+		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+		.groupBy(recipes.id);
 
 	if (!recipe) return null;
 

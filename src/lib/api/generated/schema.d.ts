@@ -1131,6 +1131,11 @@ export interface components {
             totalServings: number;
             isFavorite: boolean;
             imageUrl: string | null;
+            calories: number;
+            protein: number;
+            carbs: number;
+            fat: number;
+            fiber: number;
             createdAt?: string;
             updatedAt?: string;
             ingredients: components["schemas"]["RecipeIngredient"][];
@@ -1376,16 +1381,72 @@ export interface components {
         FavoriteFood: {
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            userId: string;
             name: string;
-            imageUrl: string | null;
+            brand: string | null;
+            servingSize: number;
+            /** @enum {string} */
+            servingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
             calories: number;
             protein: number;
             carbs: number;
             fat: number;
             fiber: number;
+            saturatedFat?: number | null;
+            monounsaturatedFat?: number | null;
+            polyunsaturatedFat?: number | null;
+            transFat?: number | null;
+            cholesterol?: number | null;
+            omega3?: number | null;
+            omega6?: number | null;
+            sugar?: number | null;
+            addedSugars?: number | null;
+            sugarAlcohols?: number | null;
+            starch?: number | null;
+            sodium?: number | null;
+            potassium?: number | null;
+            calcium?: number | null;
+            iron?: number | null;
+            magnesium?: number | null;
+            phosphorus?: number | null;
+            zinc?: number | null;
+            copper?: number | null;
+            manganese?: number | null;
+            selenium?: number | null;
+            iodine?: number | null;
+            fluoride?: number | null;
+            chromium?: number | null;
+            molybdenum?: number | null;
+            chloride?: number | null;
+            vitaminA?: number | null;
+            vitaminC?: number | null;
+            vitaminD?: number | null;
+            vitaminE?: number | null;
+            vitaminK?: number | null;
+            vitaminB1?: number | null;
+            vitaminB2?: number | null;
+            vitaminB3?: number | null;
+            vitaminB5?: number | null;
+            vitaminB6?: number | null;
+            vitaminB7?: number | null;
+            vitaminB9?: number | null;
+            vitaminB12?: number | null;
+            caffeine?: number | null;
+            alcohol?: number | null;
+            water?: number | null;
+            salt?: number | null;
+            barcode: string | null;
+            /** @default false */
+            isFavorite: boolean;
+            nutriScore: string | null;
+            novaGroup: number | null;
+            additives: string[] | null;
+            ingredientsText: string | null;
+            imageUrl: string | null;
+            createdAt?: string;
+            updatedAt?: string;
             logCount: number;
-            /** @constant */
-            type: "food";
         };
         FavoriteRecipe: {
             /** Format: uuid */
