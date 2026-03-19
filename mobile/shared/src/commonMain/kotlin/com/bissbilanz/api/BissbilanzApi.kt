@@ -53,8 +53,6 @@ import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.api.generated.model.CalendarResponse
-import com.bissbilanz.api.generated.model.FavoritesResponse
-import com.bissbilanz.api.generated.model.FavoriteFood
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.GoalsSetResponse
 import com.bissbilanz.model.Entry
@@ -226,8 +224,13 @@ class BissbilanzApi(
         return response.foods
     }
 
-    suspend fun getFavorites(): List<FavoriteFood> {
-        val response: FavoritesResponse = get("/api/favorites") { parameter("type", "foods") }
+    @kotlinx.serialization.Serializable
+    private data class FoodFavoritesResponse(
+        val foods: List<Food>? = null,
+    )
+
+    suspend fun getFavorites(): List<Food> {
+        val response: FoodFavoritesResponse = get("/api/favorites") { parameter("type", "foods") }
         return response.foods ?: emptyList()
     }
 

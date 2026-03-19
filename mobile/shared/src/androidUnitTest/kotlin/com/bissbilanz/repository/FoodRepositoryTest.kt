@@ -3,7 +3,6 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.api.generated.model.FavoriteFood
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.sync.SyncOperation
@@ -59,13 +58,7 @@ class FoodRepositoryTest {
     @Test
     fun refreshFavoritesCallsApi() =
         runTest {
-            val favorites = listOf(
-                FavoriteFood(
-                    id = "1", name = "Chicken", imageUrl = null,
-                    calories = 200.0, protein = 20.0, carbs = 25.0, fat = 8.0, fiber = 3.0,
-                    logCount = 5, type = FavoriteFood.Type.food,
-                ),
-            )
+            val favorites = listOf(TestFixtures.food(id = "1", name = "Chicken", isFavorite = true))
             coEvery { api.getFavorites() } returns favorites
 
             repository.refreshFavorites()

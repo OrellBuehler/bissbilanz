@@ -1,20 +1,13 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipes, recipeIngredients } from '$lib/server/schema';
-import { eq, sql, and, count } from 'drizzle-orm';
+import { eq, sql, and, count, getTableColumns } from 'drizzle-orm';
 
 export const listFavoriteFoods = async (userId: string, limit = 50) => {
 	const db = getDB();
 
 	const results = await db
 		.select({
-			id: foods.id,
-			name: foods.name,
-			imageUrl: foods.imageUrl,
-			calories: foods.calories,
-			protein: foods.protein,
-			carbs: foods.carbs,
-			fat: foods.fat,
-			fiber: foods.fiber,
+			...getTableColumns(foods),
 			logCount: count(foodEntries.id)
 		})
 		.from(foods)

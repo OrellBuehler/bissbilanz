@@ -67,29 +67,7 @@ class FoodRepository(
 
     suspend fun refreshFavorites() {
         val favs = api.getFavorites()
-        favs.forEach { fav ->
-            val food = Food(
-                id = fav.id,
-                userId = "",
-                name = fav.name,
-                brand = null,
-                servingSize = 100.0,
-                servingUnit = Food.ServingUnit.g,
-                calories = fav.calories,
-                protein = fav.protein,
-                carbs = fav.carbs,
-                fat = fav.fat,
-                fiber = fav.fiber,
-                barcode = null,
-                isFavorite = true,
-                nutriScore = null,
-                novaGroup = null,
-                additives = null,
-                ingredientsText = null,
-                imageUrl = fav.imageUrl,
-            )
-            cacheFood(food)
-        }
+        favs.forEach { cacheFood(it) }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {

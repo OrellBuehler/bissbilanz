@@ -19,9 +19,7 @@
 		"/api/goals": {
 			"get": {
 				"operationId": "getGoals",
-				"tags": [
-					"Goals"
-				],
+				"tags": ["Goals"],
 				"description": "Get daily nutrition goals.",
 				"responses": {
 					"200": {
@@ -41,9 +39,7 @@
 			},
 			"post": {
 				"operationId": "setGoals",
-				"tags": [
-					"Goals"
-				],
+				"tags": ["Goals"],
 				"description": "Set daily nutrition goals.",
 				"requestBody": {
 					"required": true,
@@ -78,9 +74,7 @@
 		"/api/foods": {
 			"get": {
 				"operationId": "listFoods",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "Search or list foods in the personal database.",
 				"parameters": [
 					{
@@ -134,9 +128,7 @@
 			},
 			"post": {
 				"operationId": "createFood",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "Create a new food in the personal database.",
 				"requestBody": {
 					"required": true,
@@ -171,9 +163,7 @@
 		"/api/foods/recent": {
 			"get": {
 				"operationId": "listRecentFoods",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "List recently logged foods.",
 				"responses": {
 					"200": {
@@ -195,9 +185,7 @@
 		"/api/foods/{id}": {
 			"get": {
 				"operationId": "getFood",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "Get a single food by ID.",
 				"parameters": [
 					{
@@ -229,9 +217,7 @@
 			},
 			"patch": {
 				"operationId": "updateFood",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "Update a food in the personal database.",
 				"parameters": [
 					{
@@ -276,9 +262,7 @@
 			},
 			"delete": {
 				"operationId": "deleteFood",
-				"tags": [
-					"Foods"
-				],
+				"tags": ["Foods"],
 				"description": "Delete a food. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
@@ -315,9 +299,7 @@
 		"/api/entries": {
 			"get": {
 				"operationId": "listEntries",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "List diary entries for a given date.",
 				"parameters": [
 					{
@@ -349,9 +331,7 @@
 			},
 			"post": {
 				"operationId": "createEntry",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "Log a food entry.",
 				"requestBody": {
 					"required": true,
@@ -386,9 +366,7 @@
 		"/api/entries/copy": {
 			"post": {
 				"operationId": "copyEntries",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "Copy all diary entries from one date to another.",
 				"parameters": [
 					{
@@ -435,9 +413,7 @@
 		"/api/entries/range": {
 			"get": {
 				"operationId": "getEntriesRange",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "Get diary entries for a date range.",
 				"parameters": [
 					{
@@ -481,9 +457,7 @@
 		"/api/entries/{id}": {
 			"patch": {
 				"operationId": "updateEntry",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "Update a diary entry.",
 				"parameters": [
 					{
@@ -528,9 +502,7 @@
 			},
 			"delete": {
 				"operationId": "deleteEntry",
-				"tags": [
-					"Entries"
-				],
+				"tags": ["Entries"],
 				"description": "Delete a diary entry.",
 				"parameters": [
 					{
@@ -557,9 +529,7 @@
 		"/api/recipes": {
 			"get": {
 				"operationId": "listRecipes",
-				"tags": [
-					"Recipes"
-				],
+				"tags": ["Recipes"],
 				"description": "List recipes.",
 				"parameters": [
 					{
@@ -599,9 +569,7 @@
 			},
 			"post": {
 				"operationId": "createRecipe",
-				"tags": [
-					"Recipes"
-				],
+				"tags": ["Recipes"],
 				"description": "Create a new recipe.",
 				"requestBody": {
 					"required": true,
@@ -636,9 +604,7 @@
 		"/api/recipes/{id}": {
 			"get": {
 				"operationId": "getRecipe",
-				"tags": [
-					"Recipes"
-				],
+				"tags": ["Recipes"],
 				"description": "Get a single recipe by ID.",
 				"parameters": [
 					{
@@ -670,9 +636,7 @@
 			},
 			"patch": {
 				"operationId": "updateRecipe",
-				"tags": [
-					"Recipes"
-				],
+				"tags": ["Recipes"],
 				"description": "Update a recipe.",
 				"parameters": [
 					{
@@ -717,9 +681,7 @@
 			},
 			"delete": {
 				"operationId": "deleteRecipe",
-				"tags": [
-					"Recipes"
-				],
+				"tags": ["Recipes"],
 				"description": "Delete a recipe. Pass force=true to delete even if diary entries reference it.",
 				"parameters": [
 					{
@@ -756,9 +718,7 @@
 		"/api/supplements": {
 			"get": {
 				"operationId": "listSupplements",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "List supplements. Pass all=true to include inactive ones.",
 				"parameters": [
 					{
@@ -787,9 +747,7 @@
 			},
 			"post": {
 				"operationId": "createSupplement",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Create a new supplement.",
 				"requestBody": {
 					"required": true,
@@ -824,9 +782,7 @@
 		"/api/supplements/today": {
 			"get": {
 				"operationId": "getTodaySupplementChecklist",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Get today's supplement checklist.",
 				"responses": {
 					"200": {
@@ -848,9 +804,7 @@
 		"/api/supplements/history": {
 			"get": {
 				"operationId": "getSupplementHistory",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Get supplement log history.",
 				"parameters": [
 					{
@@ -892,9 +846,7 @@
 		"/api/supplements/{id}": {
 			"get": {
 				"operationId": "getSupplement",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Get a single supplement by ID.",
 				"parameters": [
 					{
@@ -926,9 +878,7 @@
 			},
 			"patch": {
 				"operationId": "updateSupplement",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Update a supplement.",
 				"parameters": [
 					{
@@ -973,9 +923,7 @@
 			},
 			"delete": {
 				"operationId": "deleteSupplement",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Delete a supplement.",
 				"parameters": [
 					{
@@ -1002,9 +950,7 @@
 		"/api/supplements/{id}/log": {
 			"post": {
 				"operationId": "logSupplement",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Log a supplement as taken today.",
 				"parameters": [
 					{
@@ -1048,9 +994,7 @@
 		"/api/supplements/{id}/log/{date}": {
 			"post": {
 				"operationId": "logSupplementForDate",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Log a supplement as taken on a specific date.",
 				"parameters": [
 					{
@@ -1092,9 +1036,7 @@
 			},
 			"delete": {
 				"operationId": "unlogSupplementForDate",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Remove a supplement log entry for a specific date.",
 				"parameters": [
 					{
@@ -1131,9 +1073,7 @@
 		"/api/supplements/{date}/checklist": {
 			"get": {
 				"operationId": "getSupplementChecklist",
-				"tags": [
-					"Supplements"
-				],
+				"tags": ["Supplements"],
 				"description": "Get supplement checklist for a specific date.",
 				"parameters": [
 					{
@@ -1167,9 +1107,7 @@
 		"/api/weight": {
 			"get": {
 				"operationId": "listWeightEntries",
-				"tags": [
-					"Weight"
-				],
+				"tags": ["Weight"],
 				"description": "Returns weight entries. When from/to query params are provided, returns trend data instead.",
 				"parameters": [
 					{
@@ -1216,9 +1154,7 @@
 			},
 			"post": {
 				"operationId": "createWeightEntry",
-				"tags": [
-					"Weight"
-				],
+				"tags": ["Weight"],
 				"description": "Log a new weight measurement.",
 				"requestBody": {
 					"required": true,
@@ -1253,9 +1189,7 @@
 		"/api/weight/latest": {
 			"get": {
 				"operationId": "getLatestWeight",
-				"tags": [
-					"Weight"
-				],
+				"tags": ["Weight"],
 				"description": "Get the most recent weight entry.",
 				"responses": {
 					"200": {
@@ -1277,9 +1211,7 @@
 		"/api/weight/{id}": {
 			"patch": {
 				"operationId": "updateWeightEntry",
-				"tags": [
-					"Weight"
-				],
+				"tags": ["Weight"],
 				"description": "Update a weight entry.",
 				"parameters": [
 					{
@@ -1324,9 +1256,7 @@
 			},
 			"delete": {
 				"operationId": "deleteWeightEntry",
-				"tags": [
-					"Weight"
-				],
+				"tags": ["Weight"],
 				"description": "Delete a weight entry.",
 				"parameters": [
 					{
@@ -1353,9 +1283,7 @@
 		"/api/stats/daily": {
 			"get": {
 				"operationId": "getDailyStats",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get daily nutrition totals for a date range.",
 				"parameters": [
 					{
@@ -1399,9 +1327,7 @@
 		"/api/stats/weekly": {
 			"get": {
 				"operationId": "getWeeklyStats",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get average daily nutrition over the past 7 days.",
 				"responses": {
 					"200": {
@@ -1423,9 +1349,7 @@
 		"/api/stats/monthly": {
 			"get": {
 				"operationId": "getMonthlyStats",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get average daily nutrition over the past 30 days.",
 				"responses": {
 					"200": {
@@ -1447,9 +1371,7 @@
 		"/api/stats/meal-breakdown": {
 			"get": {
 				"operationId": "getMealBreakdown",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get nutrition totals broken down by meal type.",
 				"parameters": [
 					{
@@ -1500,9 +1422,7 @@
 		"/api/stats/top-foods": {
 			"get": {
 				"operationId": "getTopFoods",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get most frequently logged foods.",
 				"parameters": [
 					{
@@ -1544,9 +1464,7 @@
 		"/api/stats/streaks": {
 			"get": {
 				"operationId": "getStreaks",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get current and longest logging streaks.",
 				"responses": {
 					"200": {
@@ -1568,9 +1486,7 @@
 		"/api/stats/calendar": {
 			"get": {
 				"operationId": "getCalendar",
-				"tags": [
-					"Stats"
-				],
+				"tags": ["Stats"],
 				"description": "Get calendar view of logged days for a month.",
 				"parameters": [
 					{
@@ -1602,9 +1518,7 @@
 		"/api/day-properties": {
 			"get": {
 				"operationId": "getDayProperties",
-				"tags": [
-					"DayProperties"
-				],
+				"tags": ["DayProperties"],
 				"description": "Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range.",
 				"parameters": [
 					{
@@ -1660,9 +1574,7 @@
 			},
 			"put": {
 				"operationId": "setDayProperties",
-				"tags": [
-					"DayProperties"
-				],
+				"tags": ["DayProperties"],
 				"description": "Set day properties (e.g. mark as fasting day).",
 				"requestBody": {
 					"required": true,
@@ -1695,9 +1607,7 @@
 			},
 			"delete": {
 				"operationId": "deleteDayProperties",
-				"tags": [
-					"DayProperties"
-				],
+				"tags": ["DayProperties"],
 				"description": "Delete day properties for a specific date.",
 				"parameters": [
 					{
@@ -1724,9 +1634,7 @@
 		"/api/preferences": {
 			"get": {
 				"operationId": "getPreferences",
-				"tags": [
-					"Preferences"
-				],
+				"tags": ["Preferences"],
 				"description": "Get user preferences.",
 				"responses": {
 					"200": {
@@ -1746,9 +1654,7 @@
 			},
 			"patch": {
 				"operationId": "updatePreferences",
-				"tags": [
-					"Preferences"
-				],
+				"tags": ["Preferences"],
 				"description": "Update user preferences.",
 				"requestBody": {
 					"required": true,
@@ -1783,9 +1689,7 @@
 		"/api/meal-types": {
 			"get": {
 				"operationId": "listMealTypes",
-				"tags": [
-					"MealTypes"
-				],
+				"tags": ["MealTypes"],
 				"description": "List meal types.",
 				"responses": {
 					"200": {
@@ -1805,9 +1709,7 @@
 			},
 			"post": {
 				"operationId": "createMealType",
-				"tags": [
-					"MealTypes"
-				],
+				"tags": ["MealTypes"],
 				"description": "Create a new meal type.",
 				"requestBody": {
 					"required": true,
@@ -1842,9 +1744,7 @@
 		"/api/meal-types/{id}": {
 			"patch": {
 				"operationId": "updateMealType",
-				"tags": [
-					"MealTypes"
-				],
+				"tags": ["MealTypes"],
 				"description": "Update a meal type.",
 				"parameters": [
 					{
@@ -1889,9 +1789,7 @@
 			},
 			"delete": {
 				"operationId": "deleteMealType",
-				"tags": [
-					"MealTypes"
-				],
+				"tags": ["MealTypes"],
 				"description": "Delete a meal type.",
 				"parameters": [
 					{
@@ -1918,9 +1816,7 @@
 		"/api/favorites": {
 			"get": {
 				"operationId": "listFavorites",
-				"tags": [
-					"Favorites"
-				],
+				"tags": ["Favorites"],
 				"description": "List favorite foods and recipes.",
 				"parameters": [
 					{
@@ -1928,10 +1824,7 @@
 						"name": "type",
 						"schema": {
 							"type": "string",
-							"enum": [
-								"foods",
-								"recipes"
-							]
+							"enum": ["foods", "recipes"]
 						}
 					}
 				],
@@ -1955,9 +1848,7 @@
 		"/api/maintenance": {
 			"get": {
 				"operationId": "getMaintenance",
-				"tags": [
-					"Maintenance"
-				],
+				"tags": ["Maintenance"],
 				"description": "Calculate maintenance calories for a date range.",
 				"parameters": [
 					{
@@ -2011,9 +1902,7 @@
 		"/api/images/upload": {
 			"post": {
 				"operationId": "uploadImage",
-				"tags": [
-					"Images"
-				],
+				"tags": ["Images"],
 				"description": "Upload an image file.",
 				"requestBody": {
 					"required": true,
@@ -2027,9 +1916,7 @@
 										"format": "binary"
 									}
 								},
-								"required": [
-									"file"
-								]
+								"required": ["file"]
 							}
 						}
 					}
@@ -2057,9 +1944,7 @@
 		"/api/openfoodfacts/{barcode}": {
 			"get": {
 				"operationId": "lookupOpenFoodFacts",
-				"tags": [
-					"OpenFoodFacts"
-				],
+				"tags": ["OpenFoodFacts"],
 				"description": "Look up a product by barcode in Open Food Facts.",
 				"parameters": [
 					{
@@ -2137,13 +2022,7 @@
 						]
 					}
 				},
-				"required": [
-					"calorieGoal",
-					"proteinGoal",
-					"carbGoal",
-					"fatGoal",
-					"fiberGoal"
-				]
+				"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"]
 			},
 			"FoodCreate": {
 				"type": "object",
@@ -2679,13 +2558,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"a",
-									"b",
-									"c",
-									"d",
-									"e"
-								]
+								"enum": ["a", "b", "c", "d", "e"]
 							},
 							{
 								"type": "null"
@@ -2751,18 +2624,7 @@
 			},
 			"ServingUnit": {
 				"type": "string",
-				"enum": [
-					"g",
-					"kg",
-					"ml",
-					"l",
-					"oz",
-					"lb",
-					"fl_oz",
-					"cup",
-					"tbsp",
-					"tsp"
-				]
+				"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 			},
 			"FoodUpdate": {
 				"type": "object",
@@ -3298,13 +3160,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"a",
-									"b",
-									"c",
-									"d",
-									"e"
-								]
+								"enum": ["a", "b", "c", "d", "e"]
 							},
 							{
 								"type": "null"
@@ -3472,11 +3328,7 @@
 						]
 					}
 				},
-				"required": [
-					"mealType",
-					"servings",
-					"date"
-				]
+				"required": ["mealType", "servings", "date"]
 			},
 			"EntryUpdate": {
 				"type": "object",
@@ -3625,11 +3477,7 @@
 						]
 					}
 				},
-				"required": [
-					"name",
-					"totalServings",
-					"ingredients"
-				]
+				"required": ["name", "totalServings", "ingredients"]
 			},
 			"RecipeIngredientInput": {
 				"type": "object",
@@ -3647,11 +3495,7 @@
 						"$ref": "#/components/schemas/ServingUnit"
 					}
 				},
-				"required": [
-					"foodId",
-					"quantity",
-					"servingUnit"
-				]
+				"required": ["foodId", "quantity", "servingUnit"]
 			},
 			"RecipeUpdate": {
 				"type": "object",
@@ -3707,11 +3551,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"name",
-					"dosage",
-					"dosageUnit"
-				]
+				"required": ["name", "dosage", "dosageUnit"]
 			},
 			"SupplementCreate": {
 				"type": "object",
@@ -3730,12 +3570,7 @@
 					},
 					"scheduleType": {
 						"type": "string",
-						"enum": [
-							"daily",
-							"every_other_day",
-							"weekly",
-							"specific_days"
-						]
+						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
 					},
 					"scheduleDays": {
 						"anyOf": [
@@ -3774,11 +3609,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"morning",
-									"noon",
-									"evening"
-								]
+								"enum": ["morning", "noon", "evening"]
 							},
 							{
 								"type": "null"
@@ -3793,12 +3624,7 @@
 						}
 					}
 				},
-				"required": [
-					"name",
-					"dosage",
-					"dosageUnit",
-					"scheduleType"
-				]
+				"required": ["name", "dosage", "dosageUnit", "scheduleType"]
 			},
 			"SupplementUpdate": {
 				"type": "object",
@@ -3817,12 +3643,7 @@
 					},
 					"scheduleType": {
 						"type": "string",
-						"enum": [
-							"daily",
-							"every_other_day",
-							"weekly",
-							"specific_days"
-						]
+						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
 					},
 					"scheduleDays": {
 						"anyOf": [
@@ -3861,11 +3682,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"morning",
-									"noon",
-									"evening"
-								]
+								"enum": ["morning", "noon", "evening"]
 							},
 							{
 								"type": "null"
@@ -3919,10 +3736,7 @@
 						]
 					}
 				},
-				"required": [
-					"weightKg",
-					"entryDate"
-				]
+				"required": ["weightKg", "entryDate"]
 			},
 			"WeightUpdate": {
 				"type": "object",
@@ -3959,10 +3773,7 @@
 						"type": "boolean"
 					}
 				},
-				"required": [
-					"date",
-					"isFastingDay"
-				]
+				"required": ["date", "isFastingDay"]
 			},
 			"PreferencesUpdate": {
 				"type": "object",
@@ -4003,24 +3814,15 @@
 					},
 					"startPage": {
 						"type": "string",
-						"enum": [
-							"dashboard",
-							"favorites"
-						]
+						"enum": ["dashboard", "favorites"]
 					},
 					"favoriteTapAction": {
 						"type": "string",
-						"enum": [
-							"instant",
-							"picker"
-						]
+						"enum": ["instant", "picker"]
 					},
 					"favoriteMealAssignmentMode": {
 						"type": "string",
-						"enum": [
-							"time_based",
-							"ask_meal"
-						]
+						"enum": ["time_based", "ask_meal"]
 					},
 					"favoriteMealTimeframes": {
 						"type": "array",
@@ -4036,10 +3838,7 @@
 					},
 					"locale": {
 						"type": "string",
-						"enum": [
-							"en",
-							"de"
-						]
+						"enum": ["en", "de"]
 					}
 				},
 				"additionalProperties": false
@@ -4072,11 +3871,7 @@
 						"pattern": "^\\d{2}:\\d{2}$"
 					}
 				},
-				"required": [
-					"mealType",
-					"startTime",
-					"endTime"
-				],
+				"required": ["mealType", "startTime", "endTime"],
 				"additionalProperties": false
 			},
 			"MealTypeCreate": {
@@ -4093,10 +3888,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"name",
-					"sortOrder"
-				]
+				"required": ["name", "sortOrder"]
 			},
 			"MealTypeUpdate": {
 				"type": "object",
@@ -4127,9 +3919,7 @@
 						]
 					}
 				},
-				"required": [
-					"goals"
-				],
+				"required": ["goals"],
 				"additionalProperties": false
 			},
 			"Goals": {
@@ -4187,13 +3977,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"calorieGoal",
-					"proteinGoal",
-					"carbGoal",
-					"fatGoal",
-					"fiberGoal"
-				],
+				"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
 				"additionalProperties": false
 			},
 			"ErrorResponse": {
@@ -4203,9 +3987,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"error"
-				],
+				"required": ["error"],
 				"additionalProperties": false
 			},
 			"GoalsSetResponse": {
@@ -4215,9 +3997,7 @@
 						"$ref": "#/components/schemas/Goals"
 					}
 				},
-				"required": [
-					"goals"
-				],
+				"required": ["goals"],
 				"additionalProperties": false
 			},
 			"ValidationErrorResponse": {
@@ -4239,9 +4019,7 @@
 						}
 					}
 				},
-				"required": [
-					"error"
-				],
+				"required": ["error"],
 				"additionalProperties": false
 			},
 			"FoodsListResponse": {
@@ -4259,10 +4037,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"foods",
-					"total"
-				],
+				"required": ["foods", "total"],
 				"additionalProperties": false
 			},
 			"Food": {
@@ -4296,18 +4071,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": [
-							"g",
-							"kg",
-							"ml",
-							"l",
-							"oz",
-							"lb",
-							"fl_oz",
-							"cup",
-							"tbsp",
-							"tsp"
-						]
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -4859,9 +4623,7 @@
 						"$ref": "#/components/schemas/Food"
 					}
 				},
-				"required": [
-					"food"
-				],
+				"required": ["food"],
 				"additionalProperties": false
 			},
 			"FoodsRecentResponse": {
@@ -4874,9 +4636,7 @@
 						}
 					}
 				},
-				"required": [
-					"foods"
-				],
+				"required": ["foods"],
 				"additionalProperties": false
 			},
 			"FoodRecent": {
@@ -4910,18 +4670,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": [
-							"g",
-							"kg",
-							"ml",
-							"l",
-							"oz",
-							"lb",
-							"fl_oz",
-							"cup",
-							"tbsp",
-							"tsp"
-						]
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -4996,9 +4745,7 @@
 						"type": "number"
 					}
 				},
-				"required": [
-					"error"
-				],
+				"required": ["error"],
 				"additionalProperties": false
 			},
 			"EntriesListResponse": {
@@ -5016,10 +4763,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"entries",
-					"total"
-				],
+				"required": ["entries", "total"],
 				"additionalProperties": false
 			},
 			"EntryListItem": {
@@ -5221,9 +4965,7 @@
 						"$ref": "#/components/schemas/Entry"
 					}
 				},
-				"required": [
-					"entry"
-				],
+				"required": ["entry"],
 				"additionalProperties": false
 			},
 			"Entry": {
@@ -5393,10 +5135,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"entries",
-					"count"
-				],
+				"required": ["entries", "count"],
 				"additionalProperties": false
 			},
 			"EntriesRangeResponse": {
@@ -5409,9 +5148,7 @@
 						}
 					}
 				},
-				"required": [
-					"entries"
-				],
+				"required": ["entries"],
 				"additionalProperties": false
 			},
 			"EntryRangeItem": {
@@ -5523,10 +5260,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"recipes",
-					"total"
-				],
+				"required": ["recipes", "total"],
 				"additionalProperties": false
 			},
 			"RecipeSummary": {
@@ -5593,9 +5327,7 @@
 						"$ref": "#/components/schemas/RecipeDetail"
 					}
 				},
-				"required": [
-					"recipe"
-				],
+				"required": ["recipe"],
 				"additionalProperties": false
 			},
 			"RecipeDetail": {
@@ -5697,18 +5429,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": [
-							"g",
-							"kg",
-							"ml",
-							"l",
-							"oz",
-							"lb",
-							"fl_oz",
-							"cup",
-							"tbsp",
-							"tsp"
-						]
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"sortOrder": {
 						"type": "integer",
@@ -5716,12 +5437,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"foodId",
-					"quantity",
-					"servingUnit",
-					"sortOrder"
-				],
+				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {
@@ -5734,9 +5450,7 @@
 						}
 					}
 				},
-				"required": [
-					"supplements"
-				],
+				"required": ["supplements"],
 				"additionalProperties": false
 			},
 			"Supplement": {
@@ -5763,12 +5477,7 @@
 					},
 					"scheduleType": {
 						"type": "string",
-						"enum": [
-							"daily",
-							"every_other_day",
-							"weekly",
-							"specific_days"
-						]
+						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
 					},
 					"scheduleDays": {
 						"anyOf": [
@@ -5808,11 +5517,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"morning",
-									"noon",
-									"evening"
-								]
+								"enum": ["morning", "noon", "evening"]
 							},
 							{
 								"type": "null"
@@ -5876,14 +5581,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"id",
-					"supplementId",
-					"name",
-					"dosage",
-					"dosageUnit",
-					"sortOrder"
-				],
+				"required": ["id", "supplementId", "name", "dosage", "dosageUnit", "sortOrder"],
 				"additionalProperties": false
 			},
 			"SupplementResponse": {
@@ -5893,9 +5591,7 @@
 						"$ref": "#/components/schemas/Supplement"
 					}
 				},
-				"required": [
-					"supplement"
-				],
+				"required": ["supplement"],
 				"additionalProperties": false
 			},
 			"SupplementChecklistResponse": {
@@ -5911,10 +5607,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"checklist",
-					"date"
-				],
+				"required": ["checklist", "date"],
 				"additionalProperties": false
 			},
 			"SupplementChecklistItem": {
@@ -5937,11 +5630,7 @@
 						]
 					}
 				},
-				"required": [
-					"supplement",
-					"taken",
-					"takenAt"
-				],
+				"required": ["supplement", "taken", "takenAt"],
 				"additionalProperties": false
 			},
 			"SupplementHistoryResponse": {
@@ -5954,9 +5643,7 @@
 						}
 					}
 				},
-				"required": [
-					"history"
-				],
+				"required": ["history"],
 				"additionalProperties": false
 			},
 			"SupplementHistoryItem": {
@@ -5975,12 +5662,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"log",
-					"supplementName",
-					"dosage",
-					"dosageUnit"
-				],
+				"required": ["log", "supplementName", "dosage", "dosageUnit"],
 				"additionalProperties": false
 			},
 			"SupplementLog": {
@@ -6011,13 +5693,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"id",
-					"supplementId",
-					"userId",
-					"date",
-					"takenAt"
-				],
+				"required": ["id", "supplementId", "userId", "date", "takenAt"],
 				"additionalProperties": false
 			},
 			"SupplementLogResponse": {
@@ -6027,9 +5703,7 @@
 						"$ref": "#/components/schemas/SupplementLog"
 					}
 				},
-				"required": [
-					"log"
-				],
+				"required": ["log"],
 				"additionalProperties": false
 			},
 			"WeightEntriesResponse": {
@@ -6042,9 +5716,7 @@
 						}
 					}
 				},
-				"required": [
-					"entries"
-				],
+				"required": ["entries"],
 				"additionalProperties": false
 			},
 			"WeightEntry": {
@@ -6086,13 +5758,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"id",
-					"userId",
-					"weightKg",
-					"entryDate",
-					"notes"
-				],
+				"required": ["id", "userId", "weightKg", "entryDate", "notes"],
 				"additionalProperties": false
 			},
 			"WeightTrendResponse": {
@@ -6105,9 +5771,7 @@
 						}
 					}
 				},
-				"required": [
-					"data"
-				],
+				"required": ["data"],
 				"additionalProperties": false
 			},
 			"WeightTrendEntry": {
@@ -6123,11 +5787,7 @@
 						"type": "number"
 					}
 				},
-				"required": [
-					"entry_date",
-					"weight_kg",
-					"moving_avg"
-				],
+				"required": ["entry_date", "weight_kg", "moving_avg"],
 				"additionalProperties": false
 			},
 			"WeightEntryResponse": {
@@ -6137,9 +5797,7 @@
 						"$ref": "#/components/schemas/WeightEntry"
 					}
 				},
-				"required": [
-					"entry"
-				],
+				"required": ["entry"],
 				"additionalProperties": false
 			},
 			"WeightLatestResponse": {
@@ -6156,9 +5814,7 @@
 						]
 					}
 				},
-				"required": [
-					"entry"
-				],
+				"required": ["entry"],
 				"additionalProperties": false
 			},
 			"DailyStatsResponse": {
@@ -6174,10 +5830,7 @@
 						"$ref": "#/components/schemas/GoalsSummary"
 					}
 				},
-				"required": [
-					"data",
-					"goals"
-				],
+				"required": ["data", "goals"],
 				"additionalProperties": false
 			},
 			"DailyStat": {
@@ -6202,14 +5855,7 @@
 						"type": "number"
 					}
 				},
-				"required": [
-					"date",
-					"calories",
-					"protein",
-					"carbs",
-					"fat",
-					"fiber"
-				],
+				"required": ["date", "calories", "protein", "carbs", "fat", "fiber"],
 				"additionalProperties": false
 			},
 			"GoalsSummary": {
@@ -6233,13 +5879,7 @@
 								"type": "number"
 							}
 						},
-						"required": [
-							"calorieGoal",
-							"proteinGoal",
-							"carbGoal",
-							"fatGoal",
-							"fiberGoal"
-						],
+						"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"],
 						"additionalProperties": false
 					},
 					{
@@ -6254,9 +5894,7 @@
 						"$ref": "#/components/schemas/MacroSummary"
 					}
 				},
-				"required": [
-					"stats"
-				],
+				"required": ["stats"],
 				"additionalProperties": false
 			},
 			"MacroSummary": {
@@ -6278,13 +5916,7 @@
 						"type": "number"
 					}
 				},
-				"required": [
-					"calories",
-					"protein",
-					"carbs",
-					"fat",
-					"fiber"
-				],
+				"required": ["calories", "protein", "carbs", "fat", "fiber"],
 				"additionalProperties": false
 			},
 			"MonthlyStatsResponse": {
@@ -6294,9 +5926,7 @@
 						"$ref": "#/components/schemas/MacroSummary"
 					}
 				},
-				"required": [
-					"stats"
-				],
+				"required": ["stats"],
 				"additionalProperties": false
 			},
 			"MealBreakdownResponse": {
@@ -6309,9 +5939,7 @@
 						}
 					}
 				},
-				"required": [
-					"data"
-				],
+				"required": ["data"],
 				"additionalProperties": false
 			},
 			"MealBreakdownItem": {
@@ -6336,14 +5964,7 @@
 						"type": "number"
 					}
 				},
-				"required": [
-					"mealType",
-					"calories",
-					"protein",
-					"carbs",
-					"fat",
-					"fiber"
-				],
+				"required": ["mealType", "calories", "protein", "carbs", "fat", "fiber"],
 				"additionalProperties": false
 			},
 			"TopFoodsResponse": {
@@ -6356,9 +5977,7 @@
 						}
 					}
 				},
-				"required": [
-					"data"
-				],
+				"required": ["data"],
 				"additionalProperties": false
 			},
 			"TopFoodItem": {
@@ -6439,10 +6058,7 @@
 						"maximum": 9007199254740991
 					}
 				},
-				"required": [
-					"currentStreak",
-					"longestStreak"
-				],
+				"required": ["currentStreak", "longestStreak"],
 				"additionalProperties": false
 			},
 			"CalendarResponse": {
@@ -6458,9 +6074,7 @@
 						}
 					}
 				},
-				"required": [
-					"days"
-				],
+				"required": ["days"],
 				"additionalProperties": false
 			},
 			"CalendarDay": {
@@ -6473,10 +6087,7 @@
 						"type": "boolean"
 					}
 				},
-				"required": [
-					"calories",
-					"hasEntries"
-				],
+				"required": ["calories", "hasEntries"],
 				"additionalProperties": false
 			},
 			"DayPropertiesResponse": {
@@ -6493,9 +6104,7 @@
 						]
 					}
 				},
-				"required": [
-					"properties"
-				],
+				"required": ["properties"],
 				"additionalProperties": false
 			},
 			"DayProperties": {
@@ -6508,10 +6117,7 @@
 						"type": "boolean"
 					}
 				},
-				"required": [
-					"date",
-					"isFastingDay"
-				],
+				"required": ["date", "isFastingDay"],
 				"additionalProperties": false
 			},
 			"DayPropertiesRangeResponse": {
@@ -6524,9 +6130,7 @@
 						}
 					}
 				},
-				"required": [
-					"data"
-				],
+				"required": ["data"],
 				"additionalProperties": false
 			},
 			"PreferencesResponse": {
@@ -6536,9 +6140,7 @@
 						"$ref": "#/components/schemas/Preferences"
 					}
 				},
-				"required": [
-					"preferences"
-				],
+				"required": ["preferences"],
 				"additionalProperties": false
 			},
 			"Preferences": {
@@ -6686,9 +6288,7 @@
 						}
 					}
 				},
-				"required": [
-					"mealTypes"
-				],
+				"required": ["mealTypes"],
 				"additionalProperties": false
 			},
 			"MealType": {
@@ -6716,12 +6316,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"id",
-					"userId",
-					"name",
-					"sortOrder"
-				],
+				"required": ["id", "userId", "name", "sortOrder"],
 				"additionalProperties": false
 			},
 			"MealTypeResponse": {
@@ -6731,9 +6326,7 @@
 						"$ref": "#/components/schemas/MealType"
 					}
 				},
-				"required": [
-					"mealType"
-				],
+				"required": ["mealType"],
 				"additionalProperties": false
 			},
 			"FavoritesResponse": {
@@ -6785,18 +6378,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": [
-							"g",
-							"kg",
-							"ml",
-							"l",
-							"oz",
-							"lb",
-							"fl_oz",
-							"cup",
-							"tbsp",
-							"tsp"
-						]
+						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -7322,6 +6904,10 @@
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
+					},
+					"type": {
+						"type": "string",
+						"const": "food"
 					}
 				},
 				"required": [
@@ -7343,7 +6929,8 @@
 					"additives",
 					"ingredientsText",
 					"imageUrl",
-					"logCount"
+					"logCount",
+					"type"
 				],
 				"additionalProperties": false
 			},
@@ -7421,10 +7008,7 @@
 						"$ref": "#/components/schemas/MaintenanceMeta"
 					}
 				},
-				"required": [
-					"result",
-					"meta"
-				],
+				"required": ["result", "meta"],
 				"additionalProperties": false
 			},
 			"MaintenanceResult": {
@@ -7534,9 +7118,7 @@
 						"type": "string"
 					}
 				},
-				"required": [
-					"imageUrl"
-				],
+				"required": ["imageUrl"],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsResponse": {
@@ -7546,9 +7128,7 @@
 						"$ref": "#/components/schemas/OpenFoodFactsProduct"
 					}
 				},
-				"required": [
-					"product"
-				],
+				"required": ["product"],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsProduct": {
@@ -7587,13 +7167,7 @@
 						"anyOf": [
 							{
 								"type": "string",
-								"enum": [
-									"a",
-									"b",
-									"c",
-									"d",
-									"e"
-								]
+								"enum": ["a", "b", "c", "d", "e"]
 							},
 							{
 								"type": "null"

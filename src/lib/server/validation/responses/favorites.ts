@@ -1,16 +1,9 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { foodSchema } from './foods';
 
-const favoriteFoodSchema = z
-	.object({
-		id: z.string().uuid(),
-		name: z.string(),
-		imageUrl: z.string().nullable(),
-		calories: z.number(),
-		protein: z.number(),
-		carbs: z.number(),
-		fat: z.number(),
-		fiber: z.number(),
+const favoriteFoodSchema = foodSchema
+	.extend({
 		logCount: z.number().int(),
 		type: z.literal('food')
 	})
