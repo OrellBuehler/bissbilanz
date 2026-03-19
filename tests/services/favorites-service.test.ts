@@ -16,9 +16,11 @@ type TestDB = Dexie & {
 
 function createTestDb(): TestDB {
 	const db = new Dexie('test-favorites-' + Math.random()) as TestDB;
+	// Mirror the production Dexie schema (including the isFavorite index)
+	// to reproduce the real environment where booleans in indexes cause issues
 	db.version(1).stores({
-		foods: 'id, name',
-		recipes: 'id, name'
+		foods: 'id, name, barcode, isFavorite, updatedAt',
+		recipes: 'id, name, isFavorite, updatedAt'
 	});
 	return db;
 }
@@ -153,6 +155,33 @@ describe('favorites Dexie queries use .filter() for boolean isFavorite', () => {
 		await db.foods.toCollection().modify({ isFavorite: false });
 
 		const results = await db.foods.filter((f) => f.isFavorite).toArray();
+		expect(results).toHaveLength(0);
+	});
+
+	test('filter correctly finds multiple favorites among many items', async () => {
+		await db.foods.bulkAdd([
+			makeFood({ id: 'f1', name: 'Apple', isFavorite: true }),
+			makeFood({ id: 'f2', name: 'Banana', isFavorite: false }),
+			makeFood({ id: 'f3', name: 'Chicken', isFavorite: true }),
+			makeFood({ id: 'f4', name: 'Donut', isFavorite: false }),
+			makeFood({ id: 'f5', name: 'Eggs', isFavorite: false })
+		]);
+
+		const results = await db.foods.filter((f) => f.isFavorite).toArray();
+		expect(results).toHaveLength(2);
+		expect(results.map((r) => r.name).sort()).toEqual(['Apple', 'Chicken']);
+	});
+
+	test('.where().equals(1) fails to find boolean true (regression guard)', async () => {
+		await db.foods.add(makeFood({ id: 'f1', isFavorite: true }));
+
+		// This is the OLD broken approach — booleans are not valid IndexedDB keys,
+		// so .where('isFavorite').equals(1) must not be used
+		const results = await db.foods
+			.where('isFavorite')
+			.equals(1)
+			.toArray()
+			.catch(() => []);
 		expect(results).toHaveLength(0);
 	});
 });
