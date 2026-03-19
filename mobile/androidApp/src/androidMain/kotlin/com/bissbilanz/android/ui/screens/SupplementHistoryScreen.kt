@@ -131,8 +131,7 @@ fun SupplementHistoryScreen(navController: NavController) {
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
 
-    val loadData: suspend () -> Unit = {
-        isLoading = true
+    val fetchData: suspend () -> Unit = {
         try {
             val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
             val allSupplements = supplementRepo.getAllSupplements()
@@ -142,6 +141,11 @@ fun SupplementHistoryScreen(navController: NavController) {
             Sentry.captureException(e)
             snackbarHostState.showSnackbar("Failed to load history")
         }
+    }
+
+    val loadData: suspend () -> Unit = {
+        isLoading = true
+        fetchData()
         isLoading = false
     }
 
@@ -213,7 +217,7 @@ fun SupplementHistoryScreen(navController: NavController) {
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                loadData()
+                fetchData()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {

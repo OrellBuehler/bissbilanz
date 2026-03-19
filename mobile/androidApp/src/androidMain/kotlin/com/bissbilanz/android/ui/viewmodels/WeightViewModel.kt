@@ -60,16 +60,8 @@ class WeightViewModel(
 
     fun refreshTrend() {
         viewModelScope.launch {
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            val from =
-                when (_selectedRange.value) {
-                    0 -> today.minus(7, DateTimeUnit.DAY)
-                    1 -> today.minus(30, DateTimeUnit.DAY)
-                    2 -> today.minus(90, DateTimeUnit.DAY)
-                    else -> kotlinx.datetime.LocalDate(2000, 1, 1)
-                }
             try {
-                _trendData.value = weightRepo.getTrend(from.toString(), today.toString())
+                _trendData.value = fetchTrend()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Sentry.captureException(e)
@@ -77,20 +69,26 @@ class WeightViewModel(
         }
     }
 
+    private fun rangeStartDate(): kotlinx.datetime.LocalDate {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        return when (_selectedRange.value) {
+            0 -> today.minus(7, DateTimeUnit.DAY)
+            1 -> today.minus(30, DateTimeUnit.DAY)
+            2 -> today.minus(90, DateTimeUnit.DAY)
+            else -> kotlinx.datetime.LocalDate(2000, 1, 1)
+        }
+    }
+
+    private suspend fun fetchTrend(): List<WeightTrendEntry> {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        return weightRepo.getTrend(rangeStartDate().toString(), today.toString())
+    }
+
     private fun loadTrend() {
         viewModelScope.launch {
             _isLoading.value = true
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            val from =
-                when (_selectedRange.value) {
-                    0 -> today.minus(7, DateTimeUnit.DAY)
-                    1 -> today.minus(30, DateTimeUnit.DAY)
-                    2 -> today.minus(90, DateTimeUnit.DAY)
-                    else -> kotlinx.datetime.LocalDate(2000, 1, 1)
-                }
             try {
-                val trend = weightRepo.getTrend(from.toString(), today.toString())
-                _trendData.value = trend
+                _trendData.value = fetchTrend()
                 weightRepo.refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
