@@ -3,7 +3,6 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class DayLogViewModel(
     private val entryRepo: EntryRepository,
-    private val api: BissbilanzApi,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(true)
@@ -74,7 +72,7 @@ class DayLogViewModel(
 
     private suspend fun loadFastingDay(date: String) {
         try {
-            val props = api.getDayProperties(date)
+            val props = entryRepo.getDayProperties(date)
             _isFastingDay.value = props?.isFastingDay ?: false
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -89,9 +87,9 @@ class DayLogViewModel(
         viewModelScope.launch {
             try {
                 if (newValue) {
-                    api.setDayProperties(date, isFastingDay = true)
+                    entryRepo.setDayProperties(date, isFastingDay = true)
                 } else {
-                    api.deleteDayProperties(date)
+                    entryRepo.deleteDayProperties(date)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

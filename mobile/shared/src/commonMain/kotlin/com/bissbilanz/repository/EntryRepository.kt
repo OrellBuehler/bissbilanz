@@ -104,6 +104,15 @@ class EntryRepository(
         onEntryChanged?.invoke()
     }
 
+    suspend fun getDayProperties(date: String) = api.getDayProperties(date)
+
+    suspend fun setDayProperties(
+        date: String,
+        isFastingDay: Boolean,
+    ) = api.setDayProperties(date, isFastingDay)
+
+    suspend fun deleteDayProperties(date: String) = api.deleteDayProperties(date)
+
     suspend fun copyEntries(
         fromDate: String,
         toDate: String,

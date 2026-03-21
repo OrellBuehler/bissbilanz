@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.viewmodels
 
-import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
@@ -25,7 +24,6 @@ import kotlin.test.assertNull
 class DayLogViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var entryRepo: EntryRepository
-    private lateinit var api: BissbilanzApi
     private lateinit var entriesFlow: MutableStateFlow<List<Entry>>
 
     @BeforeTest
@@ -36,7 +34,6 @@ class DayLogViewModelTest {
             mockk(relaxed = true) {
                 every { entriesByDate(any()) } returns entriesFlow
             }
-        api = mockk(relaxed = true)
     }
 
     @AfterTest
@@ -51,7 +48,7 @@ class DayLogViewModelTest {
                 entriesFlow.value = listOf(testEntry("1"))
             }
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
 
             coVerify { entryRepo.refresh("2024-01-15") }
@@ -63,7 +60,7 @@ class DayLogViewModelTest {
         runTest {
             coEvery { entryRepo.refresh("2024-01-15") } throws RuntimeException("Network error")
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
 
             assertEquals("Failed to load entries", viewModel.error.value)
@@ -77,7 +74,7 @@ class DayLogViewModelTest {
                 entriesFlow.value = listOf(testEntry("1"))
             }
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
             viewModel.loadEntries("2024-01-15")
 
@@ -87,7 +84,7 @@ class DayLogViewModelTest {
     @Test
     fun deleteEntryCallsRepository() =
         runTest {
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.deleteEntry("entry-1")
 
             coVerify { entryRepo.deleteEntry("entry-1") }
@@ -98,7 +95,7 @@ class DayLogViewModelTest {
         runTest {
             coEvery { entryRepo.deleteEntry("entry-1") } throws RuntimeException("Delete failed")
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.deleteEntry("entry-1")
 
             assertEquals("Failed to delete entry", viewModel.error.value)
@@ -109,7 +106,7 @@ class DayLogViewModelTest {
         runTest {
             coEvery { entryRepo.refresh("2024-01-15") } throws RuntimeException("Error")
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.loadEntries("2024-01-15")
             assertEquals("Failed to load entries", viewModel.error.value)
 
@@ -120,19 +117,19 @@ class DayLogViewModelTest {
     @Test
     fun toggleFastingDayOnCallsSetDayProperties() =
         runTest {
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             assertEquals(false, viewModel.isFastingDay.value)
 
             viewModel.toggleFastingDay("2024-01-15")
 
             assertEquals(true, viewModel.isFastingDay.value)
-            coVerify { api.setDayProperties("2024-01-15", isFastingDay = true) }
+            coVerify { entryRepo.setDayProperties("2024-01-15", isFastingDay = true) }
         }
 
     @Test
     fun toggleFastingDayOffCallsDeleteDayProperties() =
         runTest {
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             // Toggle on first
             viewModel.toggleFastingDay("2024-01-15")
             assertEquals(true, viewModel.isFastingDay.value)
@@ -141,15 +138,15 @@ class DayLogViewModelTest {
             viewModel.toggleFastingDay("2024-01-15")
 
             assertEquals(false, viewModel.isFastingDay.value)
-            coVerify { api.deleteDayProperties("2024-01-15") }
+            coVerify { entryRepo.deleteDayProperties("2024-01-15") }
         }
 
     @Test
     fun toggleFastingDayRevertsOnError() =
         runTest {
-            coEvery { api.setDayProperties(any(), any()) } throws RuntimeException("Network error")
+            coEvery { entryRepo.setDayProperties(any(), any()) } throws RuntimeException("Network error")
 
-            val viewModel = DayLogViewModel(entryRepo, api)
+            val viewModel = DayLogViewModel(entryRepo)
             viewModel.toggleFastingDay("2024-01-15")
 
             // Should revert to false after failure
