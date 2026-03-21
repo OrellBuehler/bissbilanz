@@ -111,6 +111,11 @@ class FoodRepository(
             cached?.let { json.decodeOrNull<Food>(it.jsonData) } ?: throw e
         }
 
+    fun getFoodCached(id: String): Food? {
+        val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
+        return cached?.let { json.decodeOrNull<Food>(it.jsonData) }
+    }
+
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)

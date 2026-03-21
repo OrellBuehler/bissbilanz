@@ -130,15 +130,7 @@ fun FoodDetailScreen(
             onDismiss = { showEditSheet = false },
             onSaved = {
                 showEditSheet = false
-                scope.launch {
-                    try {
-                        food = foodRepo.getFood(foodId)
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to refresh food")
-                    }
-                }
+                food = foodRepo.getFoodCached(foodId) ?: food
             },
         )
     }
