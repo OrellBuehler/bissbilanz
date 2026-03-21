@@ -66,10 +66,23 @@
 		{ label: () => m.maintenance_12_weeks(), days: 83 }
 	];
 
+	let initialized = !!data.initialResult;
+
 	function selectPreset(days: number) {
 		endDate = today();
 		startDate = shiftDate(endDate, -days);
 	}
+
+	$effect(() => {
+		void startDate;
+		void endDate;
+		void muscleRatio;
+		if (initialized) {
+			initialized = false;
+			return;
+		}
+		calculate();
+	});
 
 	async function calculate() {
 		loading = true;
