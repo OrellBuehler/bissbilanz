@@ -23,45 +23,34 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.BuildConfig
-import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
-import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.model.Goals
-import com.bissbilanz.model.MealType
-import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
-import com.bissbilanz.repository.GoalsRepository
-import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-    val authManager: AuthManager = koinInject()
-    val goalsRepo: GoalsRepository = koinInject()
-    val prefsRepo: PreferencesRepository = koinInject()
-    val api: BissbilanzApi = koinInject()
+    val viewModel: SettingsViewModel = koinViewModel()
     val healthSync: HealthSyncService = koinInject()
-    val refreshManager: RefreshManager = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
-    val goals by goalsRepo.goals().collectAsStateWithLifecycle(null)
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
-    val scope = rememberCoroutineScope()
+    val goals by viewModel.goals.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
+    val healthAvailable by viewModel.healthAvailable.collectAsStateWithLifecycle()
+    val healthPermGranted by viewModel.healthPermGranted.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showMealTypeDialog by remember { mutableStateOf(false) }
-    var customMealTypes by remember { mutableStateOf<List<MealType>>(emptyList()) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val healthPrefs = context.getSharedPreferences("health_connect", Context.MODE_PRIVATE)
-    var healthAvailable by remember { mutableStateOf(false) }
-    var healthPermGranted by remember { mutableStateOf(false) }
     var healthSyncEnabled by remember { mutableStateOf(healthPrefs.getBoolean("sync_enabled", false)) }
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
     var selectedTabs by remember {
@@ -74,30 +63,19 @@ fun SettingsScreen(navController: NavController) {
         rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract(),
         ) {
-            scope.launch {
-                healthPermGranted = healthSync.hasPermissions()
-            }
+            viewModel.refreshHealthPermissions()
         }
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
 
     LaunchedEffect(prefs) {
         if (editedNutrients == null && prefs != null) {
             editedNutrients = prefs!!.visibleNutrients.toSet()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        goalsRepo.refresh()
-        prefsRepo.refresh()
-        try {
-            val response = api.getMealTypes()
-            customMealTypes = response.mealTypes
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
-        healthAvailable = healthSync.isAvailable()
-        if (healthAvailable) {
-            healthPermGranted = healthSync.hasPermissions()
         }
     }
 
@@ -118,18 +96,7 @@ fun SettingsScreen(navController: NavController) {
             confirmButton = {
                 TextButton(onClick = {
                     if (newMealName.isNotBlank()) {
-                        scope.launch {
-                            try {
-                                api.createMealType(MealTypeCreate(name = newMealName.trim(), sortOrder = customMealTypes.size))
-                                val response = api.getMealTypes()
-                                customMealTypes = response.mealTypes
-                                snackbarHostState.showSnackbar("Meal type added")
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("Failed to add meal type")
-                            }
-                        }
+                        viewModel.addMealType(newMealName.trim())
                     }
                     showMealTypeDialog = false
                 }) { Text("Add") }
@@ -144,7 +111,7 @@ fun SettingsScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(
-            onRefresh = { refreshManager.refreshAll() },
+            onRefresh = { viewModel.refreshAll() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             Column(
@@ -374,24 +341,15 @@ fun SettingsScreen(navController: NavController) {
                             }
                             Button(
                                 onClick = {
-                                    scope.launch {
-                                        try {
-                                            goalsRepo.setGoals(
-                                                Goals(
-                                                    calorieGoal = cals.toDouble(),
-                                                    proteinGoal = proteinG.toDouble(),
-                                                    carbGoal = carbsG.toDouble(),
-                                                    fatGoal = fatG.toDouble(),
-                                                    fiberGoal = editFiberG.toDouble(),
-                                                ),
-                                            )
-                                            snackbarHostState.showSnackbar("Goals updated")
-                                        } catch (e: Exception) {
-                                            if (e is kotlinx.coroutines.CancellationException) throw e
-                                            errorReporter.captureException(e)
-                                            snackbarHostState.showSnackbar("Failed to update goals")
-                                        }
-                                    }
+                                    viewModel.setGoals(
+                                        Goals(
+                                            calorieGoal = cals.toDouble(),
+                                            proteinGoal = proteinG.toDouble(),
+                                            carbGoal = carbsG.toDouble(),
+                                            fatGoal = fatG.toDouble(),
+                                            fiberGoal = editFiberG.toDouble(),
+                                        ),
+                                    )
                                 },
                                 enabled = isValid,
                             ) {
@@ -506,70 +464,22 @@ fun SettingsScreen(navController: NavController) {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             WidgetToggle("Chart", p.showChartWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showChartWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showChartWidget = value))
                             }
                             WidgetToggle("Favorites", p.showFavoritesWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showFavoritesWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showFavoritesWidget = value))
                             }
                             WidgetToggle("Supplements", p.showSupplementsWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showSupplementsWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showSupplementsWidget = value))
                             }
                             WidgetToggle("Weight", p.showWeightWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showWeightWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showWeightWidget = value))
                             }
                             WidgetToggle("Meal Breakdown", p.showMealBreakdownWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showMealBreakdownWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showMealBreakdownWidget = value))
                             }
                             WidgetToggle("Top Foods", p.showTopFoodsWidget) { value ->
-                                scope.launch {
-                                    try {
-                                        prefsRepo.updatePreferences(PreferencesUpdate(showTopFoodsWidget = value))
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        errorReporter.captureException(e)
-                                        snackbarHostState.showSnackbar("Failed to update preference")
-                                    }
-                                }
+                                viewModel.updatePreference(PreferencesUpdate(showTopFoodsWidget = value))
                             }
                         }
                     }
@@ -592,21 +502,9 @@ fun SettingsScreen(navController: NavController) {
                                 RadioButton(
                                     selected = p.favoriteMealAssignmentMode == "time_based",
                                     onClick = {
-                                        scope.launch {
-                                            try {
-                                                prefsRepo.updatePreferences(
-                                                    PreferencesUpdate(
-                                                        favoriteMealAssignmentMode =
-                                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.time_based,
-                                                    ),
-                                                )
-                                                snackbarHostState.showSnackbar("Meal assignment updated")
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                errorReporter.captureException(e)
-                                                snackbarHostState.showSnackbar("Failed to update preference")
-                                            }
-                                        }
+                                        viewModel.updateFavoriteMealAssignmentMode(
+                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.time_based,
+                                        )
                                     },
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -619,21 +517,9 @@ fun SettingsScreen(navController: NavController) {
                                 RadioButton(
                                     selected = p.favoriteMealAssignmentMode == "ask_meal",
                                     onClick = {
-                                        scope.launch {
-                                            try {
-                                                prefsRepo.updatePreferences(
-                                                    PreferencesUpdate(
-                                                        favoriteMealAssignmentMode =
-                                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.ask_meal,
-                                                    ),
-                                                )
-                                                snackbarHostState.showSnackbar("Meal assignment updated")
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                errorReporter.captureException(e)
-                                                snackbarHostState.showSnackbar("Failed to update preference")
-                                            }
-                                        }
+                                        viewModel.updateFavoriteMealAssignmentMode(
+                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.ask_meal,
+                                        )
                                     },
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -708,19 +594,8 @@ fun SettingsScreen(navController: NavController) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Button(
                                     onClick = {
-                                        scope.launch {
-                                            try {
-                                                prefsRepo.updatePreferences(
-                                                    PreferencesUpdate(visibleNutrients = editedNutrients?.toList() ?: emptyList()),
-                                                )
-                                                nutrientsDirty = false
-                                                snackbarHostState.showSnackbar("Visible nutrients updated")
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                errorReporter.captureException(e)
-                                                snackbarHostState.showSnackbar("Failed to update nutrients")
-                                            }
-                                        }
+                                        viewModel.updateVisibleNutrients(editedNutrients?.toList() ?: emptyList())
+                                        nutrientsDirty = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text("Save") }
@@ -737,7 +612,7 @@ fun SettingsScreen(navController: NavController) {
                         Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedButton(
-                            onClick = { authManager.logout() },
+                            onClick = { viewModel.logout() },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {

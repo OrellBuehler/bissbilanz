@@ -9,6 +9,7 @@ import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
@@ -57,6 +58,7 @@ class BissbilanzApplication : Application() {
                 viewModelOf(::FoodSearchViewModel)
                 viewModelOf(::FavoritesViewModel)
                 viewModelOf(::WeightViewModel)
+                viewModelOf(::SettingsViewModel)
             }
 
         startKoin {
