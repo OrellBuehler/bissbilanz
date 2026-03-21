@@ -24,12 +24,14 @@
 		fiberGoal: number;
 	} | null;
 
+	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals | null } } = $props();
+
 	type RangeKey = '7d' | '30d' | '90d';
 	let range: RangeKey = $state('7d');
 	let metric: MacroKey = $state('calories');
-	let data: DayRow[] = $state([]);
-	let goals = $state<Goals>(null);
-	let loading = $state(true);
+	let data: DayRow[] = $state(initialData?.data ?? []);
+	let goals = $state<Goals>(initialData?.goals ?? null);
+	let loading = $state(!initialData);
 
 	const macroLabels: Record<MacroKey, () => string> = {
 		calories: () => m.macro_calories(),
@@ -77,8 +79,15 @@
 		}
 	};
 
+	let initialized = !!initialData;
 	$effect(() => {
-		fetchData(range);
+		const r = range;
+		if (initialized && r === '7d') {
+			initialized = false;
+			return;
+		}
+		initialized = false;
+		fetchData(r);
 	});
 
 	const shortLabels = $derived(data.length > 10);

@@ -12,6 +12,9 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
 	import * as m from '$lib/paraglide/messages';
+	import type { PageData } from './$types';
+
+	let { data: pageData }: { data: PageData } = $props();
 
 	type MealData = {
 		mealType: string;
@@ -36,12 +39,12 @@
 
 	type Range = 'today' | '7d' | '30d';
 	let range: Range = $state('today');
-	let data: MealData[] = $state([]);
-	let mealLoading = $state(true);
+	let data: MealData[] = $state(pageData.mealBreakdown);
+	let mealLoading = $state(false);
 
 	let topFoodsDays = $state(7);
-	let foods: TopFood[] = $state([]);
-	let topFoodsLoading = $state(true);
+	let foods: TopFood[] = $state(pageData.topFoods);
+	let topFoodsLoading = $state(false);
 
 	const DEFAULT_COLOR = '#6B7280';
 	const getMealColor = (mealType: string) => MEAL_COLORS[mealType] ?? DEFAULT_COLOR;
@@ -83,12 +86,25 @@
 		}
 	};
 
+	let mealInitialized = true;
 	$effect(() => {
-		fetchData(range);
+		const r = range;
+		if (mealInitialized && r === 'today') {
+			mealInitialized = false;
+			return;
+		}
+		mealInitialized = false;
+		fetchData(r);
 	});
 
+	let topFoodsInitialized = true;
 	$effect(() => {
-		topFoodsDays;
+		const d = topFoodsDays;
+		if (topFoodsInitialized && d === 7) {
+			topFoodsInitialized = false;
+			return;
+		}
+		topFoodsInitialized = false;
 		loadTopFoods();
 	});
 
@@ -121,19 +137,19 @@
 
 <div class="mx-auto max-w-4xl space-y-6">
 	<CollapsibleCard title={m.insights_trends()} sectionId="trends">
-		<TrendsChart />
+		<TrendsChart initialData={pageData.dailyStatus} />
 	</CollapsibleCard>
 
 	<CollapsibleCard title={m.insights_goal_adherence()} sectionId="adherence">
-		<GoalAdherence />
+		<GoalAdherence initialData={pageData.dailyStatus} />
 	</CollapsibleCard>
 
 	<CollapsibleCard title={m.insights_calendar()} sectionId="calendar">
-		<CalendarHeatmap />
+		<CalendarHeatmap initialDays={pageData.calendarDays} />
 	</CollapsibleCard>
 
 	<CollapsibleCard title={m.insights_macro_balance()} sectionId="radar">
-		<MacroRadar />
+		<MacroRadar initialData={pageData.dailyStatus} />
 	</CollapsibleCard>
 
 	<CollapsibleCard title={m.insights_meal_distribution()} sectionId="meals">
