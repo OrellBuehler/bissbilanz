@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_NAVIGATE_TO = "navigate_to"
+        const val EXTRA_FOOD_ID = "food_id"
         private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
         val navigationEvent = _navigationEvent.asSharedFlow()
     }

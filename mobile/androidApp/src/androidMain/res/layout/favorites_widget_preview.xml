@@ -17,35 +17,35 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
     </LinearLayout>
 
@@ -60,35 +60,35 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="#1F2937" />
+            android:background="?android:attr/colorControlNormal" />
 
     </LinearLayout>
 

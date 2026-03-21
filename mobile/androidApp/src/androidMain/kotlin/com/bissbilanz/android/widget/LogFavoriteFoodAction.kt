@@ -8,6 +8,7 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
@@ -50,7 +51,12 @@ class LogFavoriteFoodAction : ActionCallback {
                 val entry = EntryCreate(foodId = foodId, mealType = meal, servings = 1.0, date = today)
                 entryRepo.createEntry(entry)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Logged $foodName", Toast.LENGTH_SHORT).show()
+                    Toast
+                        .makeText(
+                            context,
+                            context.getString(R.string.favorites_widget_logged, foodName),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
                 MacroWidget.updateAllWidgets(context)
             } catch (e: Exception) {
@@ -61,7 +67,7 @@ class LogFavoriteFoodAction : ActionCallback {
             val intent =
                 Intent(context, MainActivity::class.java).apply {
                     putExtra(MainActivity.EXTRA_NAVIGATE_TO, "favorites")
-                    putExtra("food_id", foodId)
+                    putExtra(MainActivity.EXTRA_FOOD_ID, foodId)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
             context.startActivity(intent)

@@ -11,6 +11,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
@@ -37,6 +38,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.util.decodeOrNull
@@ -109,6 +111,7 @@ class FavoritesWidget : GlanceAppWidget() {
 
 @Composable
 private fun FavoritesContent(tiles: List<FavoriteTile>) {
+    val context = LocalContext.current
     val size = LocalSize.current
     val rows = if (size.height >= 200.dp) 4 else 2
     val columns = 5
@@ -124,7 +127,7 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "No favorites yet",
+                text = context.getString(R.string.favorites_widget_empty),
                 style =
                     TextStyle(
                         color = GlanceTheme.colors.onSurface,

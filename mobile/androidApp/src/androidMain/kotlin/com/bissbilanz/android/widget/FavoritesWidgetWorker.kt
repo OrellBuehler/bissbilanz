@@ -60,9 +60,16 @@ class FavoritesWidgetWorker(
                 val conn = URL(imageUrl).openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
                 conn.readTimeout = 10000
-                val bitmap = conn.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@forEach
-                val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
-                FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                try {
+                    if (conn.responseCode != HttpURLConnection.HTTP_OK) return@forEach
+                    val bitmap = conn.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@forEach
+                    val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
+                    FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                    if (scaled !== bitmap) bitmap.recycle()
+                    scaled.recycle()
+                } finally {
+                    conn.disconnect()
+                }
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
