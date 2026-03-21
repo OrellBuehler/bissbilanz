@@ -140,9 +140,17 @@ fun FoodSearchScreen(navController: NavController) {
                     }
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
-                    TabRow(selectedTabIndex = selectedTab) {
-                        Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
-                        Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("All") })
+                    val tabLabels = listOf("Recent", "All")
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        tabLabels.forEachIndexed { index, label ->
+                            SegmentedButton(
+                                selected = selectedTab == index,
+                                onClick = { viewModel.selectTab(index) },
+                                shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
+                            ) {
+                                Text(label)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -270,7 +271,7 @@ fun DayLogScreen(
                                 }
                             }
                             items(mealEntries, key = { it.id }) { entry ->
-                                Box(modifier = Modifier.animateItem()) {
+                                Box(modifier = Modifier.animateItem().padding(vertical = 2.dp)) {
                                     SwipeToDismissEntry(
                                         entry = entry,
                                         onDelete = { entryToDelete = entry },
@@ -349,7 +350,7 @@ fun EntryListItem(
         onClick = onClick,
     ) {
         ListItem(
-            headlineContent = { Text(name) },
+            headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
                 Text("${entry.servings}x  ·  ${calories.roundToInt()} cal  ·  P ${protein.roundToInt()}g")
             },
