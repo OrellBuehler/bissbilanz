@@ -18,14 +18,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const calendarEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-	const [entries30, fastingDays, goals, calendarEntries] = await Promise.all([
-		listEntriesByDateRange(userId, start30, endDate),
+	const rangeStart = calendarStart < start30 ? calendarStart : start30;
+	const rangeEnd = calendarEnd > endDate ? calendarEnd : endDate;
+
+	const [allEntries, fastingDays, goals] = await Promise.all([
+		listEntriesByDateRange(userId, rangeStart, rangeEnd),
 		getFastingDays(userId, start30, endDate),
-		getGoals(userId),
-		listEntriesByDateRange(userId, calendarStart, calendarEnd)
+		getGoals(userId)
 	]);
 
-	const entries7 = entries30.filter((e) => e.date >= start7);
+	const entries30 = allEntries.filter((e) => e.date >= start30 && e.date <= endDate);
+	const entries7 = allEntries.filter((e) => e.date >= start7 && e.date <= endDate);
+	const calendarEntries = allEntries.filter(
+		(e) => e.date >= calendarStart && e.date <= calendarEnd
+	);
 	const fastingDays7 = new Set([...fastingDays].filter((d) => d >= start7));
 
 	return {

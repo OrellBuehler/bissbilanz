@@ -104,31 +104,33 @@ export const createRecipe = async (
 
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
-	const [recipe] = await db
-		.select({
-			id: recipes.id,
-			userId: recipes.userId,
-			name: recipes.name,
-			totalServings: recipes.totalServings,
-			isFavorite: recipes.isFavorite,
-			imageUrl: recipes.imageUrl,
-			...macroAggregations,
-			createdAt: recipes.createdAt,
-			updatedAt: recipes.updatedAt
-		})
-		.from(recipes)
-		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
-		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
-		.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
-		.groupBy(recipes.id);
+	const [recipeResult, ingredients] = await Promise.all([
+		db
+			.select({
+				id: recipes.id,
+				userId: recipes.userId,
+				name: recipes.name,
+				totalServings: recipes.totalServings,
+				isFavorite: recipes.isFavorite,
+				imageUrl: recipes.imageUrl,
+				...macroAggregations,
+				createdAt: recipes.createdAt,
+				updatedAt: recipes.updatedAt
+			})
+			.from(recipes)
+			.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+			.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
+			.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+			.groupBy(recipes.id),
+		db
+			.select()
+			.from(recipeIngredients)
+			.where(eq(recipeIngredients.recipeId, id))
+			.orderBy(recipeIngredients.sortOrder)
+	]);
 
+	const recipe = recipeResult[0];
 	if (!recipe) return null;
-
-	const ingredients = await db
-		.select()
-		.from(recipeIngredients)
-		.where(eq(recipeIngredients.recipeId, id))
-		.orderBy(recipeIngredients.sortOrder);
 
 	return roundNutrition({ ...recipe, ingredients });
 };

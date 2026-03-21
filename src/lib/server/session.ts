@@ -77,19 +77,13 @@ export async function deleteUserSessions(userId: string): Promise<void> {
 	await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
-export async function cleanExpiredSessions(batchSize = 500): Promise<number> {
+export async function cleanExpiredSessions(): Promise<number> {
 	const db = getDB();
-	const expired = await db
-		.select({ id: sessions.id })
-		.from(sessions)
+	const deleted = await db
+		.delete(sessions)
 		.where(lt(sessions.expiresAt, new Date()))
-		.limit(batchSize);
-
-	if (expired.length === 0) return 0;
-
-	const ids = expired.map((row) => row.id);
-	await db.delete(sessions).where(inArray(sessions.id, ids));
-	return ids.length;
+		.returning({ id: sessions.id });
+	return deleted.length;
 }
 
 type SameSiteValue = 'lax' | 'strict' | 'none' | 'Lax' | 'Strict' | 'None';

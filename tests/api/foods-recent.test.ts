@@ -17,7 +17,6 @@ vi.mock('$lib/server/foods', () => ({
 	toFoodUpdate: () => ({})
 }));
 
-
 // Import route handler after mocking
 const { GET } = await import('../../src/routes/api/foods/recent/+server');
 
