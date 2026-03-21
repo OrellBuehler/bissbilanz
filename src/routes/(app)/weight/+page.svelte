@@ -18,11 +18,13 @@
 		moving_avg: number | null;
 	};
 
+	let { data: pageData } = $props();
+
 	const live = useLiveQuery(() => weightService.entries(), [] as DexieWeightEntry[]);
 	const entries = $derived(live.value);
 
-	let chartData: ChartPoint[] = $state([]);
-	let loading = $state(true);
+	let chartData: ChartPoint[] = $state(pageData.initialChartData);
+	let loading = $state(false);
 
 	let chartFrom = $state(daysAgo(30));
 	let chartTo = $state(today());
@@ -50,9 +52,6 @@
 
 	$effect(() => {
 		weightService.refresh();
-		loadChart().then(() => {
-			loading = false;
-		});
 	});
 </script>
 
