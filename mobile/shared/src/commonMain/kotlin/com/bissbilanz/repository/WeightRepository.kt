@@ -12,14 +12,16 @@ import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class WeightRepository(
     private val api: BissbilanzApi,
@@ -138,9 +140,10 @@ class WeightRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun weightCreateToEntry(entry: WeightCreate): WeightEntry =
         WeightEntry(
-            id = "temp_${Clock.System.now().toEpochMilliseconds()}",
+            id = "temp_${Uuid.random()}",
             userId = "",
             weightKg = entry.weightKg,
             entryDate = entry.entryDate,

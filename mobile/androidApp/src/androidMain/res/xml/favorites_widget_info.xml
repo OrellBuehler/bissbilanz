@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="300dp"
+    android:minHeight="120dp"
+    android:targetCellWidth="5"
+    android:targetCellHeight="2"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="120dp"
+    android:resizeMode="vertical"
+    android:updatePeriodMillis="0"
+    android:previewImage="@mipmap/ic_launcher_round"
+    android:previewLayout="@layout/favorites_widget_preview"
+    android:description="@string/favorites_widget_description"
+    android:widgetCategory="home_screen" />

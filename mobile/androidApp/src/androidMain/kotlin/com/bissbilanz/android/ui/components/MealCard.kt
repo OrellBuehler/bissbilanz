@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
@@ -68,7 +69,10 @@ fun MealCard(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            entries.forEach { entry ->
+            entries.forEachIndexed { index, entry ->
+                if (index > 0) {
+                    HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.5f))
+                }
                 val name = entry.resolvedName()
                 val cal = entry.resolvedCalories()
                 val servingsText =
@@ -78,13 +82,15 @@ fun MealCard(
                         ""
                     }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         "$servingsText$name",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         "${cal.roundToInt()}",

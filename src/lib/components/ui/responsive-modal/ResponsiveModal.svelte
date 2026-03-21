@@ -9,10 +9,18 @@
 		title: string;
 		description?: string;
 		openFull?: boolean;
+		onAnimationEnd?: (open: boolean) => void;
 		children: Snippet;
 	};
 
-	let { open = $bindable(false), title, description, openFull = false, children }: Props = $props();
+	let {
+		open = $bindable(false),
+		title,
+		description,
+		openFull = false,
+		onAnimationEnd,
+		children
+	}: Props = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
 	const snapPoints = [0.7, 1];
@@ -28,7 +36,12 @@
 </script>
 
 {#if isDesktop.current}
-	<Dialog.Root bind:open>
+	<Dialog.Root
+		bind:open
+		onOpenChange={(isOpen) => {
+			if (!isOpen) onAnimationEnd?.(false);
+		}}
+	>
 		<Dialog.Content class="max-h-[85dvh] overflow-y-auto sm:max-w-4xl">
 			<Dialog.Header>
 				<Dialog.Title>{title}</Dialog.Title>
@@ -40,7 +53,7 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {:else if openFull}
-	<Drawer.Root bind:open>
+	<Drawer.Root bind:open {onAnimationEnd}>
 		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0!">
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
@@ -54,7 +67,7 @@
 		</Drawer.Content>
 	</Drawer.Root>
 {:else}
-	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
+	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1} {onAnimationEnd}>
 		<Drawer.Content
 			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] {isExpanded ? 'mt-0!' : ''}"
 		>

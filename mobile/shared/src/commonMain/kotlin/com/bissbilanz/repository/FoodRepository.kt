@@ -10,6 +10,7 @@ import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -20,9 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class FoodRepository(
     private val api: BissbilanzApi,
@@ -32,6 +34,7 @@ class FoodRepository(
     private val errorReporter: ErrorReporter,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
+    var onFoodChanged: (suspend () -> Unit)? = null
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
@@ -109,10 +112,16 @@ class FoodRepository(
             cached?.let { json.decodeOrNull<Food>(it.jsonData) } ?: throw e
         }
 
+    fun getFoodCached(id: String): Food? {
+        val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
+        return cached?.let { json.decodeOrNull<Food>(it.jsonData) }
+    }
+
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)
         syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food)))
+        onFoodChanged?.invoke()
         return tempFood
     }
 
@@ -123,12 +132,14 @@ class FoodRepository(
         val tempFood = foodCreateToFood(food, id)
         cacheFood(tempFood)
         syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
+        onFoodChanged?.invoke()
         return tempFood
     }
 
     suspend fun deleteFood(id: String) {
         db.bissbilanzDatabaseQueries.deleteFood(id)
         syncQueue.enqueue(SyncOperation.DeleteFood(id))
+        onFoodChanged?.invoke()
     }
 
     suspend fun searchFoods(query: String): List<Food> =
@@ -201,9 +212,10 @@ class FoodRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun foodCreateToFood(
         food: FoodCreate,
-        id: String = "temp_${Clock.System.now().toEpochMilliseconds()}",
+        id: String = "temp_${Uuid.random()}",
     ): Food =
         Food(
             id = id,

@@ -12,10 +12,12 @@
 
 	type CalendarDay = { calories: number; hasEntries: boolean };
 
+	let { initialDays }: { initialDays?: Record<string, CalendarDay> } = $props();
+
 	let currentYear = $state(new Date().getFullYear());
 	let currentMonth = $state(new Date().getMonth());
-	let days: Record<string, CalendarDay> = $state({});
-	let loading = $state(true);
+	let days: Record<string, CalendarDay> = $state(initialDays ?? {});
+	let loading = $state(!initialDays);
 
 	const goalsQuery = useLiveQuery(() => goalsService.goals(), undefined);
 	const calorieGoal = $derived(goalsQuery.value?.calorieGoal ?? 0);
@@ -38,8 +40,17 @@
 		}
 	};
 
+	let initialized = !!initialDays;
 	$effect(() => {
-		fetchData(monthStr);
+		const ms = monthStr;
+		const now = new Date();
+		const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+		if (initialized && ms === currentMonthStr) {
+			initialized = false;
+			return;
+		}
+		initialized = false;
+		fetchData(ms);
 	});
 
 	function prevMonth() {

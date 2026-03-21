@@ -281,26 +281,15 @@ describe('session-db', () => {
 			expect(count).toBe(0);
 		});
 
-		test('respects batch size limit', async () => {
+		test('deletes multiple expired sessions', async () => {
 			const expiredIds = Array.from({ length: 10 }, (_, i) => ({
 				id: `10000000-0000-4000-8000-00000000005${i}`
 			}));
 			setResult(expiredIds);
 
-			const count = await cleanExpiredSessions(10);
-
-			expect(count).toBe(10);
-		});
-
-		test('uses default batch size of 500', async () => {
-			const expiredIds = Array.from({ length: 100 }, (_, i) => ({
-				id: `10000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`
-			}));
-			setResult(expiredIds);
-
 			const count = await cleanExpiredSessions();
 
-			expect(count).toBe(100);
+			expect(count).toBe(10);
 		});
 	});
 

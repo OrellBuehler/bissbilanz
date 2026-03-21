@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -140,9 +141,17 @@ fun FoodSearchScreen(navController: NavController) {
                     }
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
-                    TabRow(selectedTabIndex = selectedTab) {
-                        Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Recent") })
-                        Tab(selected = selectedTab == 1, onClick = { viewModel.selectTab(1) }, text = { Text("All") })
+                    val tabLabels = listOf("Recent", "All")
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        tabLabels.forEachIndexed { index, label ->
+                            SegmentedButton(
+                                selected = selectedTab == index,
+                                onClick = { viewModel.selectTab(index) },
+                                shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
+                            ) {
+                                Text(label)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -218,7 +227,7 @@ fun FoodListItem(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        headlineContent = { Text(food.name) },
+        headlineContent = { Text(food.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingContent =
             food.imageUrl?.let { url ->
                 {

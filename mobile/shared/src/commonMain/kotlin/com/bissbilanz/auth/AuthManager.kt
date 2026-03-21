@@ -129,7 +129,6 @@ class AuthManager(
                 true
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                _authState.value = AuthState.Authenticated
                 false
             }
         }

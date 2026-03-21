@@ -14,6 +14,7 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Loader from '@lucide/svelte/icons/loader';
 	import * as m from '$lib/paraglide/messages';
+	import type { PageData } from './$types';
 
 	type MaintenanceResult = {
 		maintenanceCalories: number;
@@ -40,13 +41,15 @@
 		endDate: string;
 	};
 
+	let { data }: { data: PageData } = $props();
+
 	let endDate = $state(today());
 	// svelte-ignore state_referenced_locally
 	let startDate = $state(shiftDate(endDate, -27));
 	let muscleRatio = $state(DEFAULT_MUSCLE_RATIO * 100);
 
-	let result = $state<MaintenanceResult | null>(null);
-	let meta = $state<Meta | null>(null);
+	let result = $state<MaintenanceResult | null>(data.initialResult);
+	let meta = $state<Meta | null>(data.initialMeta);
 	let loading = $state(false);
 	let error: string | null = $state(null);
 
@@ -63,10 +66,23 @@
 		{ label: () => m.maintenance_12_weeks(), days: 83 }
 	];
 
+	let initialized = !!data.initialResult;
+
 	function selectPreset(days: number) {
 		endDate = today();
 		startDate = shiftDate(endDate, -days);
 	}
+
+	$effect(() => {
+		void startDate;
+		void endDate;
+		void muscleRatio;
+		if (initialized) {
+			initialized = false;
+			return;
+		}
+		calculate();
+	});
 
 	async function calculate() {
 		loading = true;
@@ -188,12 +204,11 @@
 				</div>
 			</div>
 
-			<Button class="w-full" onclick={calculate} disabled={loading}>
-				{#if loading}
+			{#if loading}
+				<div class="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
 					<Loader class="size-4 animate-spin" />
-				{/if}
-				{m.maintenance_calculate()}
-			</Button>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

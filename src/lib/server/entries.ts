@@ -1,7 +1,13 @@
 import { getDB } from '$lib/server/db';
-import { foodEntries, foods, recipes, customMealTypes } from '$lib/server/schema';
+import {
+	foodEntries,
+	foods,
+	recipes,
+	recipeIngredients,
+	customMealTypes
+} from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { type AnyColumn, and, count, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -17,31 +23,57 @@ const validateMealType = async (userId: string, mealType: string): Promise<boole
 	return !!found;
 };
 
-/**
- * SQL helper: resolves a macro value from quick entry, food, or recipe subquery.
- * Eliminates duplication across listEntriesByDate and listEntriesByDateRange.
- */
-const entryMacroSql = (
-	quickCol: AnyColumn,
-	foodCol: AnyColumn,
-	recipeMacro: string,
-	alias: string
-) =>
-	sql<
-		number | null
-	>`COALESCE(${quickCol}, ${foodCol}, (SELECT COALESCE(SUM(f2.${sql.raw(recipeMacro)} * ri.quantity / f2.serving_size), 0) / NULLIF(${recipes.totalServings}, 0) FROM recipe_ingredients ri JOIN foods f2 ON f2.id = ri.food_id WHERE ri.recipe_id = ${foodEntries.recipeId}))`.as(
-		alias
+const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
+	db.$with('recipe_macros').as(
+		db
+			.select({
+				recipeId: recipeIngredients.recipeId,
+				rmCalories:
+					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_calories'
+					),
+				rmProtein:
+					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_protein'
+					),
+				rmCarbs:
+					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_carbs'
+					),
+				rmFat:
+					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_fat'
+					),
+				rmFiber:
+					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_fiber'
+					)
+			})
+			.from(recipeIngredients)
+			.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
+			.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+			.groupBy(recipeIngredients.recipeId, recipes.totalServings)
 	);
 
-const entryMacroColumns = () => ({
+type RecipeMacrosCte = ReturnType<typeof buildRecipeMacrosCte>;
+
+const entryMacroColumns = (rm: RecipeMacrosCte) => ({
 	foodName: sql<
 		string | null
 	>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
-	calories: entryMacroSql(foodEntries.quickCalories, foods.calories, 'calories', 'calories'),
-	protein: entryMacroSql(foodEntries.quickProtein, foods.protein, 'protein', 'protein'),
-	carbs: entryMacroSql(foodEntries.quickCarbs, foods.carbs, 'carbs', 'carbs'),
-	fat: entryMacroSql(foodEntries.quickFat, foods.fat, 'fat', 'fat'),
-	fiber: entryMacroSql(foodEntries.quickFiber, foods.fiber, 'fiber', 'fiber')
+	calories: sql<
+		number | null
+	>`COALESCE(${foodEntries.quickCalories}, ${foods.calories}, ${rm.rmCalories})`.as('calories'),
+	protein: sql<
+		number | null
+	>`COALESCE(${foodEntries.quickProtein}, ${foods.protein}, ${rm.rmProtein})`.as('protein'),
+	carbs: sql<number | null>`COALESCE(${foodEntries.quickCarbs}, ${foods.carbs}, ${rm.rmCarbs})`.as(
+		'carbs'
+	),
+	fat: sql<number | null>`COALESCE(${foodEntries.quickFat}, ${foods.fat}, ${rm.rmFat})`.as('fat'),
+	fiber: sql<number | null>`COALESCE(${foodEntries.quickFiber}, ${foods.fiber}, ${rm.rmFiber})`.as(
+		'fiber'
+	)
 });
 
 export const listEntriesByDate = async (
@@ -54,9 +86,11 @@ export const listEntriesByDate = async (
 	const offset = options?.offset ?? 0;
 
 	const whereClause = and(eq(foodEntries.userId, userId), eq(foodEntries.date, date));
+	const recipeMacrosCte = buildRecipeMacrosCte(db);
 
 	const [items, countResult] = await Promise.all([
 		db
+			.with(recipeMacrosCte)
 			.select({
 				id: foodEntries.id,
 				mealType: foodEntries.mealType,
@@ -70,7 +104,7 @@ export const listEntriesByDate = async (
 				quickCarbs: foodEntries.quickCarbs,
 				quickFat: foodEntries.quickFat,
 				quickFiber: foodEntries.quickFiber,
-				...entryMacroColumns(),
+				...entryMacroColumns(recipeMacrosCte),
 				eatenAt: foodEntries.eatenAt,
 				createdAt: foodEntries.createdAt,
 				servingSize: foods.servingSize,
@@ -79,6 +113,7 @@ export const listEntriesByDate = async (
 			.from(foodEntries)
 			.leftJoin(foods, eq(foodEntries.foodId, foods.id))
 			.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
+			.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
 			.where(whereClause)
 			.limit(limit)
 			.offset(offset),
@@ -180,7 +215,9 @@ export const listEntriesByDateRange = async (
 	endDate: string
 ) => {
 	const db = getDB();
+	const recipeMacrosCte = buildRecipeMacrosCte(db);
 	const rows = await db
+		.with(recipeMacrosCte)
 		.select({
 			id: foodEntries.id,
 			date: foodEntries.date,
@@ -189,11 +226,12 @@ export const listEntriesByDateRange = async (
 			notes: foodEntries.notes,
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
-			...entryMacroColumns()
+			...entryMacroColumns(recipeMacrosCte)
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
 		.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
+		.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
 		.where(
 			and(
 				eq(foodEntries.userId, userId),

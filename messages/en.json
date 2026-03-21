@@ -502,6 +502,8 @@
 	"recipes_delete": "Delete recipe",
 
 	"nav_maintenance": "Maintenance",
+	"nav_group_manage": "Manage",
+	"nav_group_analyze": "Analyze",
 
 	"maintenance_title": "Maintenance Calculator",
 	"maintenance_description": "Estimate your maintenance calories based on weight change and calorie intake over a period.",

@@ -1,10 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,13 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,9 +21,17 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.CalendarHeatmap
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.components.MacroRadarChart
+import com.bissbilanz.android.ui.components.MealColors
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RadarAxis
-import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.components.SimpleLineChart
+import com.bissbilanz.android.ui.components.SimplePieChart
+import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.FatYellow
+import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.GentleSpring
+import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -95,8 +93,8 @@ fun InsightsScreen() {
 
             // Streaks
             streaks?.let { s ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Text("Streaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -131,7 +129,7 @@ fun InsightsScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 1. Trends
             if (dailyStats.isNotEmpty()) {
@@ -142,6 +140,7 @@ fun InsightsScreen() {
                         data = dailyStats.map { it.calories.toFloat() },
                         color = CaloriesBlue,
                         modifier = Modifier.fillMaxWidth().height(120.dp),
+                        unit = "cal",
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -172,7 +171,7 @@ fun InsightsScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 2. Goal Adherence
             if (goals != null && dailyStats.isNotEmpty()) {
@@ -270,47 +269,7 @@ fun InsightsScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-fun SimpleLineChart(
-    data: List<Float>,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    if (data.isEmpty()) return
-    val maxVal = data.max().coerceAtLeast(1f)
-    val minVal = data.min()
-
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(500, easing = EaseOutCubic))
-    }
-
-    Canvas(modifier = modifier) {
-        clipRect(right = size.width * revealFraction.value) {
-            val stepX = size.width / (data.size - 1).coerceAtLeast(1)
-            val range = (maxVal - minVal).coerceAtLeast(1f)
-            val padding = 8f
-
-            val path = Path()
-            data.forEachIndexed { i, value ->
-                val x = i * stepX
-                val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-
-            drawPath(path, color = color, style = Stroke(width = 3f, cap = StrokeCap.Round))
-
-            data.forEachIndexed { i, value ->
-                val x = i * stepX
-                val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-                drawCircle(color = color, radius = 3f, center = Offset(x, y))
-            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -420,61 +379,7 @@ private fun MacroTrendRow(
             data = data,
             color = color,
             modifier = Modifier.fillMaxWidth().height(60.dp),
-        )
-    }
-}
-
-private val MealColors =
-    listOf(
-        Color(0xFF3B82F6),
-        Color(0xFFEF4444),
-        Color(0xFFF97316),
-        Color(0xFFEAB308),
-        Color(0xFF22C55E),
-        Color(0xFF8B5CF6),
-        Color(0xFFEC4899),
-        Color(0xFF14B8A6),
-    )
-
-@Composable
-private fun SimplePieChart(
-    entries: List<MealBreakdownEntry>,
-    modifier: Modifier = Modifier,
-) {
-    val total = entries.sumOf { it.calories }.toFloat()
-    if (total <= 0f) return
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
-
-    val sweepFraction = remember { Animatable(0f) }
-    LaunchedEffect(entries) {
-        sweepFraction.snapTo(0f)
-        sweepFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
-
-    Canvas(modifier = modifier) {
-        val diameter = minOf(size.width, size.height) * 0.8f
-        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
-        var startAngle = -90f
-
-        entries.forEachIndexed { index, entry ->
-            val sweep = (entry.calories.toFloat() / total) * 360f * sweepFraction.value
-            drawArc(
-                color = MealColors[index % MealColors.size],
-                startAngle = startAngle,
-                sweepAngle = sweep,
-                useCenter = true,
-                topLeft = topLeft,
-                size = Size(diameter, diameter),
-            )
-            startAngle += sweep
-        }
-
-        val innerDiameter = diameter * 0.5f
-        val innerTopLeft = Offset((size.width - innerDiameter) / 2f, (size.height - innerDiameter) / 2f)
-        drawOval(
-            color = surfaceColor,
-            topLeft = innerTopLeft,
-            size = Size(innerDiameter, innerDiameter),
+            unit = unit,
         )
     }
 }

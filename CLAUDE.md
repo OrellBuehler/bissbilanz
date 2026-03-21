@@ -192,3 +192,30 @@ feat: add food database CRUD endpoints
 fix: correct macro calculation for recipes
 refactor: extract macro calculation to utility function
 ```
+
+## Design Context
+
+### Users
+
+Small user base (creator + friends/family). Used daily on mobile (PWA) and occasionally on desktop. Context: quick food logging throughout the day, reviewing progress in the evening. Users are already familiar with calorie/macro tracking concepts.
+
+### Brand Personality
+
+Premium, polished, reliable. Three words: **refined, purposeful, trustworthy**. The interface should feel like a well-crafted personal tool — not clinical, not playful. Quiet confidence.
+
+### Aesthetic Direction
+
+- Clean and functional with premium touches — not sterile
+- Existing conventions: shadcn-svelte components, Tailwind CSS 4, oklch color system
+- Macro color coding: Calories=Blue, Protein=Red, Carbs=Orange, Fat=Yellow, Fiber=Green
+- Light and dark mode support
+- Mobile-first PWA — touch-optimized, safe area handling
+- Anti-references: generic fitness app aesthetics, gamification, aggressive gradients
+
+### Design Principles
+
+1. **Data clarity over decoration** — every visual element should communicate, not just fill space
+2. **Fast to scan, fast to act** — the most common action (logging food) should feel instant
+3. **Consistent visual language** — macro colors, card patterns, and spacing should be predictable across all pages
+4. **Quiet hierarchy** — important information stands out through contrast and position, not size or color intensity
+5. **Touch-first confidence** — interactive elements should feel substantial and responsive on mobile

@@ -4,11 +4,11 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
+import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
 
 class StatsRepository(

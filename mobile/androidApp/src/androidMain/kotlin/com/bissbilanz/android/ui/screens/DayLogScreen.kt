@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -60,6 +61,7 @@ fun DayLogScreen(
     var entryToDelete by remember { mutableStateOf<Entry?>(null) }
     var editingEntryId by remember { mutableStateOf<String?>(null) }
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showCopyDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(date) {
@@ -102,6 +104,39 @@ fun DayLogScreen(
         )
     }
 
+    if (showCopyDialog) {
+        val parsedDate = LocalDate.parse(date)
+        val yesterday = parsedDate.minus(1, DateTimeUnit.DAY).toString()
+        AlertDialog(
+            onDismissRequest = { showCopyDialog = false },
+            title = { Text("Copy from yesterday") },
+            text = { Text("This will copy all entries from $yesterday to $date. Existing entries will not be affected.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCopyDialog = false
+                        scope.launch {
+                            try {
+                                val count = entryRepo.copyEntries(yesterday, date)
+                                snackbarHostState.showSnackbar("Copied $count entries")
+                                viewModel.loadEntries(date, force = true)
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errorReporter.captureException(e)
+                                snackbarHostState.showSnackbar("No entries to copy")
+                            }
+                        }
+                    },
+                ) {
+                    Text("Copy")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCopyDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -112,21 +147,7 @@ fun DayLogScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        scope.launch {
-                            try {
-                                val parsedDate = LocalDate.parse(date)
-                                val yesterday = parsedDate.minus(1, DateTimeUnit.DAY).toString()
-                                val count = entryRepo.copyEntries(yesterday, date)
-                                snackbarHostState.showSnackbar("Copied $count entries")
-                                viewModel.loadEntries(date, force = true)
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("No entries to copy")
-                            }
-                        }
-                    }) {
+                    IconButton(onClick = { showCopyDialog = true }) {
                         Icon(Icons.Default.ContentCopy, "Copy from yesterday")
                     }
                     IconButton(onClick = { showQuickAddSheet = true }) {
@@ -270,7 +291,7 @@ fun DayLogScreen(
                                 }
                             }
                             items(mealEntries, key = { it.id }) { entry ->
-                                Box(modifier = Modifier.animateItem()) {
+                                Box(modifier = Modifier.animateItem().padding(vertical = 2.dp)) {
                                     SwipeToDismissEntry(
                                         entry = entry,
                                         onDelete = { entryToDelete = entry },
@@ -349,7 +370,7 @@ fun EntryListItem(
         onClick = onClick,
     ) {
         ListItem(
-            headlineContent = { Text(name) },
+            headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
                 Text("${entry.servings}x  ·  ${calories.roundToInt()} cal  ·  P ${protein.roundToInt()}g")
             },

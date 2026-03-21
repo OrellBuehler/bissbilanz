@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { beforeNavigate } from '$app/navigation';
-	import { getNavItems } from '$lib/config/navigation';
+	import { getNavGroups } from '$lib/config/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	import X from '@lucide/svelte/icons/x';
@@ -13,7 +13,7 @@
 
 	let { ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 
-	const navItems = getNavItems();
+	const navGroups = getNavGroups();
 	const sidebar = useSidebar();
 
 	beforeNavigate(() => {
@@ -101,32 +101,44 @@
 			</Sidebar.MenuItem>
 		</Sidebar.Menu>
 	</Sidebar.Header>
-	<Sidebar.Content class="gap-3 px-1 pb-1 md:gap-2 md:px-0 md:pb-0">
-		<Sidebar.Group class="p-0 md:p-2">
-			<Sidebar.GroupContent>
-				<Sidebar.Menu class="gap-1.5 md:gap-1.5">
-					{#each navItems as item (item.href)}
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton
-								isActive={isActive(item.href, $page.url.pathname)}
-								tooltipContent={item.title()}
-								class={menuButtonClass(item, $page.url.pathname)}
-							>
-								{#snippet child({ props })}
-									<a href={item.href} {...withMobileCloseClick(props)}>
-										<span
-											class="{item.badgeColor} flex size-8 shrink-0 items-center justify-center rounded-lg"
-										>
-											<item.icon class="size-4.5 md:size-4" />
-										</span>
-										<span class="truncate font-semibold">{item.title()}</span>
-									</a>
-								{/snippet}
-							</Sidebar.MenuButton>
-						</Sidebar.MenuItem>
-					{/each}
-				</Sidebar.Menu>
-			</Sidebar.GroupContent>
-		</Sidebar.Group>
+	<Sidebar.Content class="gap-0 px-1 pb-1 md:px-0 md:pb-0">
+		{#each navGroups as group, gi}
+			<Sidebar.Group class="p-0 px-0 py-1.5 md:px-2 md:py-1">
+				{#if group.label}
+					<Sidebar.GroupLabel
+						class="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60 px-3 md:px-2 pb-0.5"
+					>
+						{group.label()}
+					</Sidebar.GroupLabel>
+				{/if}
+				<Sidebar.GroupContent>
+					<Sidebar.Menu class="gap-1 md:gap-1">
+						{#each group.items as item (item.href)}
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton
+									isActive={isActive(item.href, $page.url.pathname)}
+									tooltipContent={item.title()}
+									class={menuButtonClass(item, $page.url.pathname)}
+								>
+									{#snippet child({ props })}
+										<a href={item.href} {...withMobileCloseClick(props)}>
+											<span
+												class="{item.badgeColor} flex size-8 shrink-0 items-center justify-center rounded-lg"
+											>
+												<item.icon class="size-4.5 md:size-4" />
+											</span>
+											<span class="truncate font-semibold">{item.title()}</span>
+										</a>
+									{/snippet}
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						{/each}
+					</Sidebar.Menu>
+				</Sidebar.GroupContent>
+			</Sidebar.Group>
+			{#if gi < navGroups.length - 1}
+				<Sidebar.Separator class="mx-3 md:mx-2" />
+			{/if}
+		{/each}
 	</Sidebar.Content>
 </Sidebar.Root>

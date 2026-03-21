@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -129,15 +130,7 @@ fun FoodDetailScreen(
             onDismiss = { showEditSheet = false },
             onSaved = {
                 showEditSheet = false
-                scope.launch {
-                    try {
-                        food = foodRepo.getFood(foodId)
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to refresh food")
-                    }
-                }
+                food = foodRepo.getFoodCached(foodId) ?: food
             },
         )
     }
@@ -174,7 +167,26 @@ fun FoodDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(food?.name ?: "Food") },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (food?.isFavorite == true) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Favorite",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Text(
+                            food?.name ?: "Food",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

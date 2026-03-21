@@ -6,9 +6,9 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                 return
             }
             val code = uri.getQueryParameter("code") ?: return
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 authManager.handleCallback(code)
             }
         }
@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_NAVIGATE_TO = "navigate_to"
+        const val EXTRA_FOOD_ID = "food_id"
         private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
         val navigationEvent = _navigationEvent.asSharedFlow()
     }

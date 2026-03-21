@@ -19,7 +19,7 @@
 			<div class="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80">
 				{m.macro_calories()}
 			</div>
-			<div class="mt-1 text-lg font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+			<div class="mt-1 text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400">
 				{Math.round(totals.calories)}
 			</div>
 		</div>
@@ -29,7 +29,7 @@
 			<div class="text-[11px] font-medium text-red-700/80 dark:text-red-300/80">
 				{m.macro_protein()}
 			</div>
-			<div class="mt-1 font-semibold tabular-nums text-red-600 dark:text-red-400">
+			<div class="mt-1 text-base font-bold tabular-nums text-red-600 dark:text-red-400">
 				{Math.round(totals.protein)}g
 			</div>
 		</div>
@@ -39,7 +39,7 @@
 			<div class="text-[11px] font-medium text-orange-700/80 dark:text-orange-300/80">
 				{m.macro_carbs()}
 			</div>
-			<div class="mt-1 font-semibold tabular-nums text-orange-600 dark:text-orange-400">
+			<div class="mt-1 text-base font-bold tabular-nums text-orange-600 dark:text-orange-400">
 				{Math.round(totals.carbs)}g
 			</div>
 		</div>
@@ -49,7 +49,7 @@
 			<div class="text-[11px] font-medium text-yellow-700/80 dark:text-yellow-300/80">
 				{m.macro_fat()}
 			</div>
-			<div class="mt-1 font-semibold tabular-nums text-yellow-700 dark:text-yellow-300">
+			<div class="mt-1 text-base font-bold tabular-nums text-yellow-700 dark:text-yellow-300">
 				{Math.round(totals.fat)}g
 			</div>
 		</div>
@@ -59,7 +59,7 @@
 			<div class="text-[11px] font-medium text-green-700/80 dark:text-green-300/80">
 				{m.macro_fiber()}
 			</div>
-			<div class="mt-1 font-semibold tabular-nums text-green-600 dark:text-green-400">
+			<div class="mt-1 text-base font-bold tabular-nums text-green-600 dark:text-green-400">
 				{Math.round(totals.fiber)}g
 			</div>
 		</div>

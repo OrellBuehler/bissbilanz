@@ -502,6 +502,8 @@
 	"recipes_delete": "Rezept löschen",
 
 	"nav_maintenance": "Erhaltung",
+	"nav_group_manage": "Verwalten",
+	"nav_group_analyze": "Analysieren",
 
 	"maintenance_title": "Erhaltungskalorienrechner",
 	"maintenance_description": "Schätze deine Erhaltungskalorien anhand von Gewichtsverlauf und Kalorienaufnahme über einen Zeitraum.",

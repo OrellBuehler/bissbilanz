@@ -6,11 +6,13 @@
 	import { radarAverages, type DayRow, type Goals, type MacroKey } from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
 
+	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals | null } } = $props();
+
 	type RangeKey = '7d' | '30d' | '90d';
 	let range: RangeKey = $state('7d');
-	let data: DayRow[] = $state([]);
-	let goals = $state<Goals | null>(null);
-	let loading = $state(true);
+	let data: DayRow[] = $state(initialData?.data ?? []);
+	let goals = $state<Goals | null>(initialData?.goals ?? null);
+	let loading = $state(!initialData);
 
 	const rangeDays: Record<RangeKey, number> = { '7d': 6, '30d': 29, '90d': 89 };
 	const rangeLabels: Record<RangeKey, () => string> = {
@@ -68,8 +70,15 @@
 		}
 	};
 
+	let initialized = !!initialData;
 	$effect(() => {
-		fetchData(range);
+		const r = range;
+		if (initialized && r === '7d') {
+			initialized = false;
+			return;
+		}
+		initialized = false;
+		fetchData(r);
 	});
 
 	const averages = $derived(radarAverages(data));

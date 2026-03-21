@@ -10,7 +10,7 @@ import {
 } from '$lib/utils/nutrition';
 import { today, shiftDate } from '$lib/utils/dates';
 import { getDB, foodEntries } from '$lib/server/db';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays } from '$lib/server/day-properties';
 
 export type CalendarDay = { calories: number; hasEntries: boolean };
@@ -64,6 +64,57 @@ const groupEntriesByDateWithFasting = (
 	return Object.values(groups);
 };
 
+type EntryRow = Array<{
+	date: string;
+	servings: number;
+	calories: number | null;
+	protein: number | null;
+	carbs: number | null;
+	fat: number | null;
+	fiber: number | null;
+}>;
+
+export const computeAverages = (entries: EntryRow, fastingDays: Set<string>) => {
+	const dailyTotals = groupEntriesByDateWithFasting(entries, fastingDays);
+	return averageTotals(dailyTotals);
+};
+
+export const computeDailyBreakdown = (
+	entries: EntryRow,
+	startDate: string,
+	endDate: string
+): Array<{ date: string } & MacroTotals> => {
+	const groups: Record<string, MacroTotals> = {};
+	for (const entry of entries) {
+		if (!groups[entry.date]) groups[entry.date] = emptyTotals();
+		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
+	}
+	const result: Array<{ date: string } & MacroTotals> = [];
+	const current = new Date(startDate + 'T00:00:00Z');
+	const end = new Date(endDate + 'T00:00:00Z');
+	while (current <= end) {
+		const dateStr = current.toISOString().split('T')[0];
+		result.push({ date: dateStr, ...roundTotals(groups[dateStr] ?? emptyTotals()) });
+		current.setUTCDate(current.getUTCDate() + 1);
+	}
+	return result;
+};
+
+export const computeCalendarDays = (entries: EntryRow): Record<string, CalendarDay> => {
+	const days: Record<string, CalendarDay> = {};
+	for (const entry of entries) {
+		if (!days[entry.date]) {
+			days[entry.date] = { calories: 0, hasEntries: true };
+		}
+		const macros = calculateEntryMacros(entry);
+		days[entry.date].calories += macros.calories;
+	}
+	for (const date of Object.keys(days)) {
+		days[date].calories = Math.round(days[date].calories);
+	}
+	return days;
+};
+
 export const getWeeklyStats = async (userId: string) => {
 	const endDate = today();
 	const startDate = shiftDate(endDate, -6);
@@ -71,8 +122,7 @@ export const getWeeklyStats = async (userId: string) => {
 		listEntriesByDateRange(userId, startDate, endDate),
 		getFastingDays(userId, startDate, endDate)
 	]);
-	const dailyTotals = groupEntriesByDateWithFasting(entries, fastingDaySet);
-	return averageTotals(dailyTotals);
+	return computeAverages(entries, fastingDaySet);
 };
 
 export const getMonthlyStats = async (userId: string) => {
@@ -82,8 +132,7 @@ export const getMonthlyStats = async (userId: string) => {
 		listEntriesByDateRange(userId, startDate, endDate),
 		getFastingDays(userId, startDate, endDate)
 	]);
-	const dailyTotals = groupEntriesByDateWithFasting(entries, fastingDaySet);
-	return averageTotals(dailyTotals);
+	return computeAverages(entries, fastingDaySet);
 };
 
 export const getMealBreakdown = async (
@@ -120,18 +169,7 @@ export const getCalendarStats = async (
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	const days: Record<string, CalendarDay> = {};
-	for (const entry of entries) {
-		if (!days[entry.date]) {
-			days[entry.date] = { calories: 0, hasEntries: true };
-		}
-		const macros = calculateEntryMacros(entry);
-		days[entry.date].calories += macros.calories;
-	}
-	for (const date of Object.keys(days)) {
-		days[date].calories = Math.round(days[date].calories);
-	}
-	return { days };
+	return { days: computeCalendarDays(entries) };
 };
 
 export const getDailyBreakdown = async (
@@ -140,20 +178,7 @@ export const getDailyBreakdown = async (
 	endDate: string
 ): Promise<Array<{ date: string } & MacroTotals>> => {
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	const groups: Record<string, MacroTotals> = {};
-	for (const entry of entries) {
-		if (!groups[entry.date]) groups[entry.date] = emptyTotals();
-		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
-	}
-	const result: Array<{ date: string } & MacroTotals> = [];
-	const current = new Date(startDate + 'T00:00:00Z');
-	const end = new Date(endDate + 'T00:00:00Z');
-	while (current <= end) {
-		const dateStr = current.toISOString().split('T')[0];
-		result.push({ date: dateStr, ...roundTotals(groups[dateStr] ?? emptyTotals()) });
-		current.setUTCDate(current.getUTCDate() + 1);
-	}
-	return result;
+	return computeDailyBreakdown(entries, startDate, endDate);
 };
 
 export const getStreaks = async (userId: string) => {
@@ -161,7 +186,7 @@ export const getStreaks = async (userId: string) => {
 	const rows = await db
 		.selectDistinct({ date: foodEntries.date })
 		.from(foodEntries)
-		.where(eq(foodEntries.userId, userId))
+		.where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, shiftDate(today(), -730))))
 		.orderBy(sql`${foodEntries.date} desc`);
 
 	if (rows.length === 0) {

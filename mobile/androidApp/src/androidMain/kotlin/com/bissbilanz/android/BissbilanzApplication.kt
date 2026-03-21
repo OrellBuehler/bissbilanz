@@ -1,6 +1,8 @@
 package com.bissbilanz.android
 
 import android.app.Application
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
@@ -9,7 +11,9 @@ import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
+import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.auth.SecureStorage
@@ -17,6 +21,7 @@ import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
 import com.bissbilanz.repository.*
+import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
@@ -57,6 +62,7 @@ class BissbilanzApplication : Application() {
                 viewModelOf(::FoodSearchViewModel)
                 viewModelOf(::FavoritesViewModel)
                 viewModelOf(::WeightViewModel)
+                viewModelOf(::SettingsViewModel)
             }
 
         startKoin {
@@ -71,6 +77,14 @@ class BissbilanzApplication : Application() {
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }
+        koin.get<FoodRepository>().onFoodChanged = {
+            WorkManager
+                .getInstance(this@BissbilanzApplication)
+                .enqueue(
+                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
+                        .build(),
+                )
+        }
         koin.get<WeightRepository>().onWeightChanged = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
@@ -80,6 +94,12 @@ class BissbilanzApplication : Application() {
             refreshManager.refreshAll()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+            WorkManager
+                .getInstance(this@BissbilanzApplication)
+                .enqueue(
+                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
+                        .build(),
+                )
         }
     }
 }

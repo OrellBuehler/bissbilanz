@@ -11,7 +11,13 @@ let db: Database | null = null;
 
 export function getDB(): Database {
 	if (!db) {
-		const client = new SQL(config.database.url);
+		const client = new SQL({
+			url: config.database.url,
+			max: config.database.poolMax,
+			idleTimeout: config.database.idleTimeoutSeconds,
+			maxLifetime: config.database.maxLifetimeSeconds,
+			connectionTimeout: config.database.connectTimeoutSeconds
+		});
 		db = drizzle({ client, schema });
 	}
 	return db;

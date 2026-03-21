@@ -15,4 +15,16 @@
     <string name="weight_cancel">Cancel</string>
     <string name="fasting_day">Fasting Day</string>
     <string name="fasting_day_description">Include this 0-calorie day in stats</string>
+    <string name="favorites_widget_description">Quick-log favorite foods with one tap</string>
+    <string name="favorites_widget_empty">No favorites yet</string>
+    <string name="favorites_widget_logged">Logged %1$s</string>
+    <string name="chart_weight_format">%.1f kg</string>
+    <string name="chart_weight_avg_format">Avg: %.1f kg</string>
+    <string name="chart_percent_of_goal">%1$d%% of goal</string>
+    <string name="chart_no_data">No data</string>
+    <string name="chart_kcal_format">%1$d kcal</string>
+    <string name="chart_kcal_pct_format">%1$d kcal (%2$d%%)</string>
+    <string name="chart_supplements">Supplements</string>
+    <string name="chart_supplements_taken">%1$d of %2$d taken</string>
+    <string name="chart_view_all">View All</string>
 </resources>

@@ -3,10 +3,13 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +25,8 @@ import kotlinx.datetime.*
 class DashboardViewModel(
     private val entryRepo: EntryRepository,
     private val goalsRepo: GoalsRepository,
+    private val prefsRepo: PreferencesRepository,
+    private val refreshManager: RefreshManager,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _selectedDate = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()))
@@ -48,6 +53,11 @@ class DashboardViewModel(
     val goals: StateFlow<Goals?> =
         goalsRepo
             .goals()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val prefs: StateFlow<Preferences?> =
+        prefsRepo
+            .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
@@ -83,6 +93,32 @@ class DashboardViewModel(
                 _snackbarMessage.value = "Failed to load data"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun refreshAll() {
+        viewModelScope.launch {
+            try {
+                refreshManager.refreshAll(_selectedDate.value.toString())
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
+    fun copyEntriesFromYesterday() {
+        viewModelScope.launch {
+            try {
+                val yesterday = _selectedDate.value.minus(1, DateTimeUnit.DAY).toString()
+                val count = entryRepo.copyEntries(yesterday, _selectedDate.value.toString())
+                _snackbarMessage.value = "Copied $count entries from yesterday"
+                loadData()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "No entries to copy from yesterday"
             }
         }
     }

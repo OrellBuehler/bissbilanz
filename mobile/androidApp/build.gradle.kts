@@ -14,6 +14,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(project(":shared"))
+            implementation(libs.kotlinx.serialization.json)
         }
     }
 }
@@ -59,7 +60,9 @@ android {
         }
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 

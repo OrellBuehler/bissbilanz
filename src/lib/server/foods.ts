@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, ilike } from 'drizzle-orm';
+import { and, count, desc, eq, getTableColumns, ilike, isNotNull, sql } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -189,29 +189,22 @@ export const findFoodByBarcode = async (userId: string, barcode: string) => {
 
 export const listRecentFoods = async (userId: string, limit = 25) => {
 	const db = getDB();
-	const rows = await db
+	const recentSq = db
 		.select({
-			id: foods.id,
-			userId: foods.userId,
-			name: foods.name,
-			brand: foods.brand,
-			servingSize: foods.servingSize,
-			servingUnit: foods.servingUnit,
-			calories: foods.calories,
-			protein: foods.protein,
-			carbs: foods.carbs,
-			fat: foods.fat,
-			fiber: foods.fiber,
-			barcode: foods.barcode,
-			isFavorite: foods.isFavorite,
-			imageUrl: foods.imageUrl,
-			createdAt: foods.createdAt,
-			updatedAt: foods.updatedAt
+			foodId: foodEntries.foodId,
+			lastUsed: sql<Date>`MAX(${foodEntries.createdAt})`.as('last_used')
 		})
 		.from(foodEntries)
-		.innerJoin(foods, eq(foodEntries.foodId, foods.id))
-		.where(eq(foodEntries.userId, userId))
-		.orderBy(desc(foodEntries.createdAt))
+		.where(and(eq(foodEntries.userId, userId), isNotNull(foodEntries.foodId)))
+		.groupBy(foodEntries.foodId)
+		.as('recent');
+
+	const rows = await db
+		.select({ ...getTableColumns(foods) })
+		.from(foods)
+		.innerJoin(recentSq, eq(foods.id, recentSq.foodId))
+		.where(eq(foods.userId, userId))
+		.orderBy(desc(recentSq.lastUsed))
 		.limit(limit);
 	return roundNutrition(rows);
 };

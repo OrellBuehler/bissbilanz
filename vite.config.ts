@@ -83,6 +83,17 @@ export default defineConfig({
 				navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/authorize/, /^\/token/],
 				runtimeCaching: [
 					{
+						urlPattern: /\/__data\.json(\?.*)?$/,
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'ssr-data-cache',
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 24 * 60 * 60
+							}
+						}
+					},
+					{
 						urlPattern: /^\/api\/auth\/me$/,
 						handler: 'NetworkFirst',
 						options: {

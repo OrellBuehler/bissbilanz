@@ -124,7 +124,7 @@
 								>
 							{/if}
 						</div>
-						<span class="shrink-0 text-muted-foreground"
+						<span class="shrink-0 tabular-nums text-muted-foreground"
 							>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
 						>
 					</div>
