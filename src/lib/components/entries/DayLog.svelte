@@ -139,17 +139,15 @@
 		editModalOpen = true;
 	};
 
-	const handleBarcodeScan = async (barcode: string) => {
-		const food = await foodService.findByBarcode(barcode);
-		if (food) {
-			pendingBarcodeAction = () => {
+	const handleBarcodeScan = (barcode: string) => {
+		pendingBarcodeAction = async () => {
+			const food = await foodService.findByBarcode(barcode);
+			if (food) {
 				addModalOpen = true;
-			};
-		} else {
-			pendingBarcodeAction = () => {
+			} else {
 				goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
-			};
-		}
+			}
+		};
 	};
 
 	const totals = $derived(sumEntries(entries));

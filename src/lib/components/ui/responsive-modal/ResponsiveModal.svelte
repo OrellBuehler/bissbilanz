@@ -36,7 +36,12 @@
 </script>
 
 {#if isDesktop.current}
-	<Dialog.Root bind:open>
+	<Dialog.Root
+		bind:open
+		onOpenChange={(isOpen) => {
+			if (!isOpen) onAnimationEnd?.(false);
+		}}
+	>
 		<Dialog.Content class="max-h-[85dvh] overflow-y-auto sm:max-w-4xl">
 			<Dialog.Header>
 				<Dialog.Title>{title}</Dialog.Title>
