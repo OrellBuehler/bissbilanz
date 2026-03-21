@@ -11,14 +11,16 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class SupplementRepository(
     private val api: BissbilanzApi,
@@ -99,6 +101,7 @@ class SupplementRepository(
             }
         }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun logSupplement(
         supplementId: String,
         date: String?,
@@ -107,7 +110,7 @@ class SupplementRepository(
         val logDate = date ?: now.substring(0, 10)
         val temp =
             SupplementLog(
-                id = "temp_${Clock.System.now().toEpochMilliseconds()}",
+                id = "temp_${Uuid.random()}",
                 supplementId = supplementId,
                 userId = "",
                 date = logDate,
@@ -210,9 +213,10 @@ class SupplementRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun supplementCreateToSupplement(
         supplement: SupplementCreate,
-        id: String = "temp_${Clock.System.now().toEpochMilliseconds()}",
+        id: String = "temp_${Uuid.random()}",
     ): Supplement =
         Supplement(
             id = id,

@@ -9,15 +9,17 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class EntryRepository(
     private val api: BissbilanzApi,
@@ -182,13 +184,14 @@ class EntryRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun entryCreateToEntry(
         entry: EntryCreate,
         food: Food? = null,
         recipe: Recipe? = null,
     ): Entry =
         Entry(
-            id = "temp_${Clock.System.now().toEpochMilliseconds()}",
+            id = "temp_${Uuid.random()}",
             userId = "",
             foodId = entry.foodId,
             recipeId = entry.recipeId,

@@ -10,6 +10,7 @@ import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -20,9 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class FoodRepository(
     private val api: BissbilanzApi,
@@ -201,9 +203,10 @@ class FoodRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun foodCreateToFood(
         food: FoodCreate,
-        id: String = "temp_${Clock.System.now().toEpochMilliseconds()}",
+        id: String = "temp_${Uuid.random()}",
     ): Food =
         Food(
             id = id,
