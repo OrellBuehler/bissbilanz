@@ -7,8 +7,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -32,7 +30,6 @@ import com.bissbilanz.model.Recipe
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
-import kotlin.math.roundToInt
 
 @Composable
 fun FavoritesScreen(navController: NavController) {
@@ -147,18 +144,14 @@ fun FavoritesScreen(navController: NavController) {
                             EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
                         } else {
                             LazyVerticalGrid(
-                                columns = GridCells.Fixed(2),
+                                columns = GridCells.Fixed(3),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 items(favorites, key = { it.id }) { food ->
                                     FavoriteCard(
                                         name = food.name,
-                                        subtitle = "${food.calories.roundToInt()} cal",
-                                        secondaryText =
-                                            "P${food.protein.roundToInt()} C${food.carbs.roundToInt()} F${food.fat.roundToInt()}",
                                         imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                        onClick = { navController.navigate("food/${food.id}") },
                                         onQuickLog = {
                                             handleQuickLog(
                                                 viewModel = viewModel,
@@ -177,17 +170,14 @@ fun FavoritesScreen(navController: NavController) {
                             EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
                         } else {
                             LazyVerticalGrid(
-                                columns = GridCells.Fixed(2),
+                                columns = GridCells.Fixed(3),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 items(favoriteRecipes, key = { it.id }) { recipe ->
                                     FavoriteCard(
                                         name = recipe.name,
-                                        subtitle = "${recipe.totalServings.toInt()} servings",
-                                        secondaryText = "${recipe.ingredients?.size ?: 0} ingredients",
                                         imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
-                                        onClick = { navController.navigate("recipe/${recipe.id}") },
                                         onQuickLog = {
                                             handleQuickLog(
                                                 viewModel = viewModel,
@@ -235,14 +225,11 @@ private fun handleQuickLog(
 @Composable
 fun FavoriteCard(
     name: String,
-    subtitle: String,
-    secondaryText: String,
     imageUrl: String? = null,
-    onClick: () -> Unit,
     onQuickLog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.clickable(onClick = onClick)) {
+    Card(modifier = modifier.clickable(onClick = onQuickLog)) {
         Column {
             imageUrl?.let { url ->
                 AsyncImage(
@@ -251,41 +238,19 @@ fun FavoriteCard(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(80.dp)
+                            .height(56.dp)
                             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                     contentScale = ContentScale.Crop,
                 )
             }
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = CaloriesBlue,
-                )
-                Text(
-                    secondaryText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                FilledTonalButton(
-                    onClick = onQuickLog,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                ) {
-                    Icon(Icons.Default.Add, "Log", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Quick log", style = MaterialTheme.typography.labelSmall)
-                }
-            }
+            Text(
+                name,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(8.dp),
+            )
         }
     }
 }
