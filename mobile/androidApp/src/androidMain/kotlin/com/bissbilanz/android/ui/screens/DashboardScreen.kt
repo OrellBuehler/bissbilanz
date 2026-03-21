@@ -33,6 +33,7 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
@@ -158,11 +159,11 @@ fun DashboardScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    MacroRing("Cal", totalCalories, goals?.calorieGoal ?: 2000.0, CaloriesBlue, showGoal = true)
-                    MacroRing("Protein", totalProtein, goals?.proteinGoal ?: 150.0, ProteinRed, showGoal = true)
-                    MacroRing("Carbs", totalCarbs, goals?.carbGoal ?: 250.0, CarbsOrange, showGoal = true)
-                    MacroRing("Fat", totalFat, goals?.fatGoal ?: 65.0, FatYellow, showGoal = true)
-                    MacroRing("Fiber", totalFiber, goals?.fiberGoal ?: 30.0, FiberGreen, showGoal = true)
+                    MacroRing("Cal", totalCalories, goals?.calorieGoal ?: DefaultGoals.CALORIES, CaloriesBlue, showGoal = true)
+                    MacroRing("Protein", totalProtein, goals?.proteinGoal ?: DefaultGoals.PROTEIN, ProteinRed, showGoal = true)
+                    MacroRing("Carbs", totalCarbs, goals?.carbGoal ?: DefaultGoals.CARBS, CarbsOrange, showGoal = true)
+                    MacroRing("Fat", totalFat, goals?.fatGoal ?: DefaultGoals.FAT, FatYellow, showGoal = true)
+                    MacroRing("Fiber", totalFiber, goals?.fiberGoal ?: DefaultGoals.FIBER, FiberGreen, showGoal = true)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
