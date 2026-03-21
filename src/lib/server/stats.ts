@@ -10,7 +10,7 @@ import {
 } from '$lib/utils/nutrition';
 import { today, shiftDate } from '$lib/utils/dates';
 import { getDB, foodEntries } from '$lib/server/db';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays } from '$lib/server/day-properties';
 
 export type CalendarDay = { calories: number; hasEntries: boolean };
@@ -186,7 +186,7 @@ export const getStreaks = async (userId: string) => {
 	const rows = await db
 		.selectDistinct({ date: foodEntries.date })
 		.from(foodEntries)
-		.where(eq(foodEntries.userId, userId))
+		.where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, shiftDate(today(), -730))))
 		.orderBy(sql`${foodEntries.date} desc`);
 
 	if (rows.length === 0) {

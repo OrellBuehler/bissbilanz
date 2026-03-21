@@ -17,17 +17,6 @@ vi.mock('$lib/server/foods', () => ({
 	toFoodUpdate: () => ({})
 }));
 
-// Mock utils
-vi.mock('$lib/utils/recents', () => ({
-	uniqueById: (items: any[]) => {
-		const seen = new Set();
-		return items.filter((item) => {
-			if (seen.has(item.id)) return false;
-			seen.add(item.id);
-			return true;
-		});
-	}
-}));
 
 // Import route handler after mocking
 const { GET } = await import('../../src/routes/api/foods/recent/+server');
@@ -60,8 +49,8 @@ describe('api/foods/recent', () => {
 			expect(data.foods).toEqual([]);
 		});
 
-		test('deduplicates foods by ID', async () => {
-			mockRecentResult = [TEST_FOOD, TEST_FOOD, TEST_FOOD_2];
+		test('returns all foods from listRecentFoods', async () => {
+			mockRecentResult = [TEST_FOOD, TEST_FOOD_2];
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
