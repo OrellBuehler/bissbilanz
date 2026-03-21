@@ -8,6 +8,7 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +35,7 @@ class FoodSearchViewModel(
 
     private var allFoodsOffset = 0
     private var paginationJob: Job? = null
+    private var searchJob: Job? = null
     private val pageSize = 20
 
     private val _query = MutableStateFlow("")
@@ -94,23 +96,26 @@ class FoodSearchViewModel(
 
     fun updateQuery(newQuery: String) {
         _query.value = newQuery
-        viewModelScope.launch {
-            if (newQuery.length >= 2) {
-                _isSearching.value = true
-                _searchResults.value =
-                    try {
-                        foodRepo.searchFoods(newQuery)
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
-                        _snackbarMessage.value = "Search failed"
-                        emptyList()
-                    }
-                _isSearching.value = false
-            } else {
-                _searchResults.value = emptyList()
+        searchJob?.cancel()
+        searchJob =
+            viewModelScope.launch {
+                if (newQuery.length >= 2) {
+                    delay(300)
+                    _isSearching.value = true
+                    _searchResults.value =
+                        try {
+                            foodRepo.searchFoods(newQuery)
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            errorReporter.captureException(e)
+                            _snackbarMessage.value = "Search failed"
+                            emptyList()
+                        }
+                    _isSearching.value = false
+                } else {
+                    _searchResults.value = emptyList()
+                }
             }
-        }
     }
 
     fun selectTab(index: Int) {
