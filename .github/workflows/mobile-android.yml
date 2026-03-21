@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths: [mobile/**]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
@@ -30,7 +33,7 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.2
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v5
@@ -74,7 +77,7 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.2
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v5
