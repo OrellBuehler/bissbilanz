@@ -211,6 +211,13 @@
       "when": 1773697565416,
       "tag": "0029_aromatic_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774100784043,
+      "tag": "0030_blushing_titania",
+      "breakpoints": true
     }
   ]
 }

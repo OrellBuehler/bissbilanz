@@ -18,22 +18,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const calendarEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-	const needsSeparateCalendar = calendarStart < start30 || calendarEnd > endDate;
-
 	const [entries30, fastingDays, goals, calendarEntries] = await Promise.all([
 		listEntriesByDateRange(userId, start30, endDate),
 		getFastingDays(userId, start30, endDate),
 		getGoals(userId),
-		needsSeparateCalendar ? listEntriesByDateRange(userId, calendarStart, calendarEnd) : null
+		listEntriesByDateRange(userId, calendarStart, calendarEnd)
 	]);
 
 	const entries7 = entries30.filter((e) => e.date >= start7);
+	const fastingDays7 = new Set([...fastingDays].filter((d) => d >= start7));
 
 	return {
-		weeklyStats: computeAverages(entries7, fastingDays),
+		weeklyStats: computeAverages(entries7, fastingDays7),
 		monthlyStats: computeAverages(entries30, fastingDays),
 		chartData: computeDailyBreakdown(entries7, start7, endDate),
-		calendarDays: computeCalendarDays(calendarEntries ?? entries30),
+		calendarDays: computeCalendarDays(calendarEntries),
 		calorieGoal: goals?.calorieGoal ?? null
 	};
 };
