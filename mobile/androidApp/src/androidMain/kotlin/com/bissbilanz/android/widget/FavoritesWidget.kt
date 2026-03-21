@@ -113,8 +113,10 @@ class FavoritesWidget : GlanceAppWidget() {
 private fun FavoritesContent(tiles: List<FavoriteTile>) {
     val context = LocalContext.current
     val size = LocalSize.current
-    val rows = if (size.height >= 200.dp) 4 else 2
+    val maxRows = if (size.height >= 200.dp) 4 else 2
     val columns = 5
+    val totalRows = ((tiles.size + columns - 1) / columns).coerceIn(1, maxRows)
+    val visibleTiles = tiles.take(totalRows * columns)
 
     if (tiles.isEmpty()) {
         Box(
@@ -145,41 +147,41 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
                 .cornerRadius(16.dp)
                 .background(GlanceTheme.colors.background)
                 .padding(6.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        for (row in 0 until rows) {
+        for (row in 0 until totalRows) {
             if (row > 0) Spacer(modifier = GlanceModifier.height(4.dp))
+            val rowStart = row * columns
+            val rowEnd = (rowStart + columns).coerceAtMost(visibleTiles.size)
+            val rowTiles = visibleTiles.subList(rowStart, rowEnd)
             Row(
                 modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.Start,
             ) {
                 for (col in 0 until columns) {
                     if (col > 0) Spacer(modifier = GlanceModifier.width(4.dp))
-                    val index = row * columns + col
-                    Box(
-                        modifier = GlanceModifier.defaultWeight().fillMaxSize(),
-                    ) {
-                        if (index < tiles.size) {
-                            val tile = tiles[index]
-                            Image(
-                                provider = tile.imageProvider,
-                                contentDescription = tile.name,
-                                contentScale = ContentScale.Crop,
-                                modifier =
-                                    GlanceModifier
-                                        .fillMaxSize()
-                                        .cornerRadius(8.dp)
-                                        .clickable(
-                                            actionRunCallback<LogFavoriteFoodAction>(
-                                                actionParametersOf(
-                                                    FoodIdKey to tile.id,
-                                                    FoodNameKey to tile.name,
-                                                ),
+                    if (col < rowTiles.size) {
+                        val tile = rowTiles[col]
+                        Image(
+                            provider = tile.imageProvider,
+                            contentDescription = tile.name,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                GlanceModifier
+                                    .defaultWeight()
+                                    .fillMaxSize()
+                                    .cornerRadius(8.dp)
+                                    .clickable(
+                                        actionRunCallback<LogFavoriteFoodAction>(
+                                            actionParametersOf(
+                                                FoodIdKey to tile.id,
+                                                FoodNameKey to tile.name,
                                             ),
                                         ),
-                            )
-                        } else {
-                            Spacer(modifier = GlanceModifier.fillMaxSize())
-                        }
+                                    ),
+                        )
+                    } else {
+                        Box(modifier = GlanceModifier.defaultWeight()) {}
                     }
                 }
             }

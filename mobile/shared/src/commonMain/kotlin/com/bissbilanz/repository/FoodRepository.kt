@@ -34,6 +34,7 @@ class FoodRepository(
     private val errorReporter: ErrorReporter,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
+    var onFoodChanged: (suspend () -> Unit)? = null
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
@@ -120,6 +121,7 @@ class FoodRepository(
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)
         syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food)))
+        onFoodChanged?.invoke()
         return tempFood
     }
 
@@ -130,12 +132,14 @@ class FoodRepository(
         val tempFood = foodCreateToFood(food, id)
         cacheFood(tempFood)
         syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
+        onFoodChanged?.invoke()
         return tempFood
     }
 
     suspend fun deleteFood(id: String) {
         db.bissbilanzDatabaseQueries.deleteFood(id)
         syncQueue.enqueue(SyncOperation.DeleteFood(id))
+        onFoodChanged?.invoke()
     }
 
     suspend fun searchFoods(query: String): List<Food> =

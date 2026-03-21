@@ -11,8 +11,10 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
+import com.bissbilanz.android.widget.FavoritesWidget
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
+import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
@@ -73,6 +75,9 @@ class BissbilanzApplication : Application() {
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }
+        koin.get<FoodRepository>().onFoodChanged = {
+            FavoritesWidget.updateAllWidgets(this@BissbilanzApplication)
+        }
         koin.get<WeightRepository>().onWeightChanged = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
         }
@@ -82,6 +87,7 @@ class BissbilanzApplication : Application() {
             refreshManager.refreshAll()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+            FavoritesWidget.updateAllWidgets(this@BissbilanzApplication)
         }
     }
 }
