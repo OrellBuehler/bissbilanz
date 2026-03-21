@@ -32,7 +32,6 @@ import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
-import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.Text
@@ -160,8 +159,7 @@ private fun FavoritesContent(
             GlanceModifier
                 .fillMaxSize()
                 .cornerRadius(16.dp)
-                .background(GlanceTheme.colors.background)
-                .padding(horizontal = 4.dp, vertical = 6.dp),
+                .background(GlanceTheme.colors.background),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
