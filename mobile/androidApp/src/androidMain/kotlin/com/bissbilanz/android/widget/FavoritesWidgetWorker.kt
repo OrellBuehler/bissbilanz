@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.repository.FoodRepository
@@ -14,8 +15,6 @@ import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 class FavoritesWidgetWorker(
     context: Context,
@@ -30,6 +29,7 @@ class FavoritesWidgetWorker(
         val prefsRepo = koin.get<PreferencesRepository>()
         val db = koin.get<BissbilanzDatabase>()
         val json = koin.get<Json>()
+        val api = koin.get<BissbilanzApi>()
 
         try {
             foodRepo.refreshFavorites()
@@ -57,19 +57,18 @@ class FavoritesWidgetWorker(
                 val ageMs = System.currentTimeMillis() - file.lastModified()
                 if (file.exists() && ageMs < 24 * 60 * 60 * 1000L) return@forEach
 
-                val conn = URL(imageUrl).openConnection() as HttpURLConnection
-                conn.connectTimeout = 5000
-                conn.readTimeout = 10000
-                try {
-                    if (conn.responseCode != HttpURLConnection.HTTP_OK) return@forEach
-                    val bitmap = conn.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@forEach
-                    val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
-                    FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
-                    if (scaled !== bitmap) bitmap.recycle()
-                    scaled.recycle()
-                } finally {
-                    conn.disconnect()
-                }
+                val bytes =
+                    try {
+                        api.downloadBytes(imageUrl)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        return@forEach
+                    }
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@forEach
+                val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
+                FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                if (scaled !== bitmap) bitmap.recycle()
+                scaled.recycle()
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e

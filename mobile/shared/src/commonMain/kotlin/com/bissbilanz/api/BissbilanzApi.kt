@@ -553,6 +553,14 @@ class BissbilanzApi(
         val response: SupplementChecklistResponse = get("/api/supplements/$date/checklist")
         return response.checklist
     }
+
+    suspend fun downloadBytes(url: String): ByteArray {
+        val response = client.get(url)
+        if (!response.status.isSuccess()) {
+            throw ApiException("GET $url failed: HTTP ${response.status.value}", response.status.value)
+        }
+        return response.body()
+    }
 }
 
 class UnauthorizedException : Exception("Not authenticated")
