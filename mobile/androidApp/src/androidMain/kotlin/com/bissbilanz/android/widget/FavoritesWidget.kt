@@ -155,28 +155,29 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
                 for (col in 0 until columns) {
                     if (col > 0) Spacer(modifier = GlanceModifier.width(4.dp))
                     val index = row * columns + col
-                    if (index < tiles.size) {
-                        val tile = tiles[index]
-                        Image(
-                            provider = tile.imageProvider,
-                            contentDescription = tile.name,
-                            contentScale = ContentScale.Crop,
-                            modifier =
-                                GlanceModifier
-                                    .defaultWeight()
-                                    .fillMaxSize()
-                                    .cornerRadius(8.dp)
-                                    .clickable(
-                                        actionRunCallback<LogFavoriteFoodAction>(
-                                            actionParametersOf(
-                                                FoodIdKey to tile.id,
-                                                FoodNameKey to tile.name,
+                    Box(
+                        modifier = GlanceModifier.defaultWeight().fillMaxSize(),
+                    ) {
+                        if (index < tiles.size) {
+                            val tile = tiles[index]
+                            Image(
+                                provider = tile.imageProvider,
+                                contentDescription = tile.name,
+                                contentScale = ContentScale.Crop,
+                                modifier =
+                                    GlanceModifier
+                                        .fillMaxSize()
+                                        .cornerRadius(8.dp)
+                                        .clickable(
+                                            actionRunCallback<LogFavoriteFoodAction>(
+                                                actionParametersOf(
+                                                    FoodIdKey to tile.id,
+                                                    FoodNameKey to tile.name,
+                                                ),
                                             ),
                                         ),
-                                    ),
-                        )
-                    } else {
-                        Box(modifier = GlanceModifier.defaultWeight()) {}
+                            )
+                        }
                     }
                 }
             }
