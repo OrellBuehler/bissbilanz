@@ -70,7 +70,10 @@ describe('api/foods/[id]', () => {
 
 		test('returns 404 for nonexistent food', async () => {
 			mockGetResult = null;
-			const event = createMockEvent({ user: TEST_USER, params: { id: '00000000-0000-0000-0000-000000000000' } });
+			const event = createMockEvent({
+				user: TEST_USER,
+				params: { id: '00000000-0000-0000-0000-000000000000' }
+			});
 			const response = await GET(event);
 			const data = await response.json();
 
