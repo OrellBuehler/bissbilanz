@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import Calendar from '$lib/components/history/Calendar.svelte';
 	import CalorieTrendChart from '$lib/components/charts/CalorieTrendChart.svelte';
 	import MacroBreakdownChart from '$lib/components/charts/MacroBreakdownChart.svelte';
@@ -9,7 +8,6 @@
 	import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
 	import Target from '@lucide/svelte/icons/target';
 	import type { MacroTotals } from '$lib/utils/nutrition';
-	import { today, daysAgo } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
@@ -17,16 +15,22 @@
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
 	type DayStatus = 'on-target' | 'off-target' | 'logged' | 'none';
 
+	let { data } = $props();
+
 	const now = new Date();
-	let year = $state(now.getFullYear());
-	let month = $state(now.getMonth());
-	let weeklyStats: MacroTotals | null = $state(null);
-	let monthlyStats: MacroTotals | null = $state(null);
-	let chartData: Array<{ date: string } & MacroTotals> = $state([]);
-	let calorieGoal: number | undefined = $state(undefined);
+	const initialYear = now.getFullYear();
+	const initialMonth = now.getMonth();
+	let year = $state(initialYear);
+	let month = $state(initialMonth);
+	let weeklyStats: MacroTotals | null = $state(data.weeklyStats);
+	let monthlyStats: MacroTotals | null = $state(data.monthlyStats);
+	let chartData: Array<{ date: string } & MacroTotals> = $state(data.chartData);
+	let calorieGoal: number | undefined = $state(data.calorieGoal ?? undefined);
 	let chartLoading = $state(false);
-	let calendarDays: Record<string, { calories: number; hasEntries: boolean }> = $state({});
-	let goalsCalorieGoal: number | null = $state(null);
+	let calendarDays: Record<string, { calories: number; hasEntries: boolean }> = $state(
+		data.calendarDays
+	);
+	let goalsCalorieGoal: number | null = $state(data.calorieGoal);
 	let macroVisibility = $state<Record<MacroKey, boolean>>({
 		protein: true,
 		carbs: true,
@@ -63,28 +67,15 @@
 		macroVisibility[key] = !macroVisibility[key];
 	};
 
-	const loadStats = async () => {
-		try {
-			const [weeklyResult, monthlyResult] = await Promise.all([
-				api.GET('/api/stats/weekly'),
-				api.GET('/api/stats/monthly')
-			]);
-			if (weeklyResult.data) weeklyStats = weeklyResult.data.stats;
-			if (monthlyResult.data) monthlyStats = monthlyResult.data.stats;
-		} catch {
-			// Silently ignore — stats are unavailable offline
-		}
-	};
-
 	const loadChartData = async (startDate: string, endDate: string) => {
 		chartLoading = true;
 		try {
-			const { data } = await api.GET('/api/stats/daily', {
+			const { data: result } = await api.GET('/api/stats/daily', {
 				params: { query: { startDate, endDate } }
 			});
-			if (!data) return;
-			chartData = data.data ?? [];
-			calorieGoal = data.goals?.calorieGoal ?? undefined;
+			if (!result) return;
+			chartData = result.data ?? [];
+			calorieGoal = result.goals?.calorieGoal ?? undefined;
 		} catch {
 			// Silently ignore — chart data is unavailable offline
 		} finally {
@@ -92,24 +83,14 @@
 		}
 	};
 
-	const loadGoals = async () => {
-		try {
-			const { data } = await api.GET('/api/goals');
-			if (!data) return;
-			goalsCalorieGoal = data.goals?.calorieGoal ?? null;
-		} catch {
-			// Silently ignore — goals may be unavailable offline
-		}
-	};
-
 	const loadCalendarData = async (y: number, mo: number) => {
 		try {
 			const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
-			const { data } = await api.GET('/api/stats/calendar', {
+			const { data: result } = await api.GET('/api/stats/calendar', {
 				params: { query: { month: monthStr } }
 			});
-			if (!data) return;
-			calendarDays = data.days ?? {};
+			if (!result) return;
+			calendarDays = result.days ?? {};
 		} catch {
 			// Silently ignore — calendar data is unavailable offline
 		}
@@ -144,13 +125,9 @@
 	const fmt = (n: number) => Math.round(n).toLocaleString();
 
 	$effect(() => {
-		loadCalendarData(year, month);
-	});
-
-	onMount(() => {
-		loadStats();
-		loadGoals();
-		loadChartData(daysAgo(7), today());
+		if (year !== initialYear || month !== initialMonth) {
+			loadCalendarData(year, month);
+		}
 	});
 </script>
 
