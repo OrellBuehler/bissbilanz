@@ -18,6 +18,17 @@ actual class ConnectivityProvider(
     private val _isOnline = MutableStateFlow(checkCurrentConnectivity())
     actual val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
+    private val networkCallback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                _isOnline.value = true
+            }
+
+            override fun onLost(network: Network) {
+                _isOnline.value = checkCurrentConnectivity()
+            }
+        }
+
     init {
         val request =
             NetworkRequest
@@ -25,18 +36,11 @@ actual class ConnectivityProvider(
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .build()
 
-        connectivityManager.registerNetworkCallback(
-            request,
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    _isOnline.value = true
-                }
+        connectivityManager.registerNetworkCallback(request, networkCallback)
+    }
 
-                override fun onLost(network: Network) {
-                    _isOnline.value = checkCurrentConnectivity()
-                }
-            },
-        )
+    fun cleanup() {
+        connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 
     private fun checkCurrentConnectivity(): Boolean {
