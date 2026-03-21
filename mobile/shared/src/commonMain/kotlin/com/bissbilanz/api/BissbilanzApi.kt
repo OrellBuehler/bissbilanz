@@ -165,6 +165,23 @@ class BissbilanzApi(
         return response.body()
     }
 
+    private suspend inline fun <reified T> patch(
+        path: String,
+        body: Any,
+    ): T {
+        val response =
+            client.patch(path) {
+                setBody(body)
+            }
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "PATCH $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+            )
+        }
+        return response.body()
+    }
+
     private suspend fun delete(path: String) {
         val response = client.delete(path)
         if (!response.status.isSuccess()) {
@@ -208,7 +225,7 @@ class BissbilanzApi(
         id: String,
         food: FoodCreate,
     ): Food {
-        val response: FoodResponse = put("/api/foods/$id", food)
+        val response: FoodResponse = patch("/api/foods/$id", food)
         return response.food
     }
 
@@ -303,7 +320,7 @@ class BissbilanzApi(
         id: String,
         entry: EntryUpdate,
     ): Entry {
-        val response: EntryResponse = put("/api/entries/$id", entry)
+        val response: EntryResponse = patch("/api/entries/$id", entry)
         val e = response.entry
         return Entry(
             id = e.id,
@@ -348,7 +365,7 @@ class BissbilanzApi(
         id: String,
         recipe: RecipeUpdate,
     ): RecipeDetail {
-        val response: RecipeResponse = put("/api/recipes/$id", recipe)
+        val response: RecipeResponse = patch("/api/recipes/$id", recipe)
         return response.recipe
     }
 
@@ -365,7 +382,7 @@ class BissbilanzApi(
         }
 
     suspend fun setGoals(goals: Goals): Goals {
-        val response: GoalsSetResponse = put("/api/goals", goals)
+        val response: GoalsSetResponse = post("/api/goals", goals)
         return response.goals
     }
 
@@ -384,7 +401,7 @@ class BissbilanzApi(
         id: String,
         entry: WeightUpdate,
     ): WeightEntry {
-        val response: WeightEntryResponse = put("/api/weight/$id", entry)
+        val response: WeightEntryResponse = patch("/api/weight/$id", entry)
         return response.entry
     }
 
@@ -471,7 +488,7 @@ class BissbilanzApi(
     }
 
     suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences {
-        val response: PreferencesResponse = put("/api/preferences", prefs)
+        val response: PreferencesResponse = patch("/api/preferences", prefs)
         return response.preferences
     }
 
@@ -530,7 +547,7 @@ class BissbilanzApi(
         id: String,
         supplement: SupplementCreate,
     ): Supplement {
-        val response: SupplementResponse = put("/api/supplements/$id", supplement)
+        val response: SupplementResponse = patch("/api/supplements/$id", supplement)
         return response.supplement
     }
 
