@@ -28,24 +28,25 @@ const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
 		db
 			.select({
 				recipeId: recipeIngredients.recipeId,
-				calories:
+				rmCalories:
 					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'calories'
+						'rm_calories'
 					),
-				protein:
+				rmProtein:
 					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'protein'
+						'rm_protein'
 					),
-				carbs:
+				rmCarbs:
 					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'carbs'
+						'rm_carbs'
 					),
-				fat: sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-					'fat'
-				),
-				fiber:
+				rmFat:
+					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+						'rm_fat'
+					),
+				rmFiber:
 					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'fiber'
+						'rm_fiber'
 					)
 			})
 			.from(recipeIngredients)
@@ -62,15 +63,15 @@ const entryMacroColumns = (rm: RecipeMacrosCte) => ({
 	>`COALESCE(${foodEntries.quickName}, ${foods.name}, ${recipes.name})`.as('food_name'),
 	calories: sql<
 		number | null
-	>`COALESCE(${foodEntries.quickCalories}, ${foods.calories}, ${rm.calories})`.as('calories'),
+	>`COALESCE(${foodEntries.quickCalories}, ${foods.calories}, ${rm.rmCalories})`.as('calories'),
 	protein: sql<
 		number | null
-	>`COALESCE(${foodEntries.quickProtein}, ${foods.protein}, ${rm.protein})`.as('protein'),
-	carbs: sql<number | null>`COALESCE(${foodEntries.quickCarbs}, ${foods.carbs}, ${rm.carbs})`.as(
+	>`COALESCE(${foodEntries.quickProtein}, ${foods.protein}, ${rm.rmProtein})`.as('protein'),
+	carbs: sql<number | null>`COALESCE(${foodEntries.quickCarbs}, ${foods.carbs}, ${rm.rmCarbs})`.as(
 		'carbs'
 	),
-	fat: sql<number | null>`COALESCE(${foodEntries.quickFat}, ${foods.fat}, ${rm.fat})`.as('fat'),
-	fiber: sql<number | null>`COALESCE(${foodEntries.quickFiber}, ${foods.fiber}, ${rm.fiber})`.as(
+	fat: sql<number | null>`COALESCE(${foodEntries.quickFat}, ${foods.fat}, ${rm.rmFat})`.as('fat'),
+	fiber: sql<number | null>`COALESCE(${foodEntries.quickFiber}, ${foods.fiber}, ${rm.rmFiber})`.as(
 		'fiber'
 	)
 });
