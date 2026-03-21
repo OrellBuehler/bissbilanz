@@ -33,6 +33,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
@@ -51,12 +52,16 @@ private data class FavoriteTile(
     val imageProvider: ImageProvider,
 )
 
+private val tileSize = 52.dp
+private val tileGap = 4.dp
+
 class FavoritesWidget : GlanceAppWidget() {
     override val sizeMode =
         SizeMode.Responsive(
             setOf(
-                DpSize(300.dp, 120.dp),
-                DpSize(300.dp, 240.dp),
+                DpSize(250.dp, 100.dp),
+                DpSize(250.dp, 160.dp),
+                DpSize(250.dp, 220.dp),
             ),
         )
 
@@ -75,7 +80,7 @@ class FavoritesWidget : GlanceAppWidget() {
 
         val imageDir = File(context.cacheDir, "widget_food_images")
         val density = context.resources.displayMetrics.density
-        val tilePx = (56 * density).toInt()
+        val tilePx = (48 * density).toInt()
         val isDark =
             (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
@@ -93,9 +98,12 @@ class FavoritesWidget : GlanceAppWidget() {
                 FavoriteTile(food.id, food.name, ImageProvider(bitmap))
             }
 
+        val plusBitmap = PlusPlaceholderRenderer.render(tilePx, isDark)
+        val plusProvider = ImageProvider(plusBitmap)
+
         provideContent {
             GlanceTheme {
-                FavoritesContent(tiles)
+                FavoritesContent(tiles, plusProvider)
             }
         }
     }
@@ -110,13 +118,20 @@ class FavoritesWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun FavoritesContent(tiles: List<FavoriteTile>) {
+private fun FavoritesContent(
+    tiles: List<FavoriteTile>,
+    plusProvider: ImageProvider,
+) {
     val context = LocalContext.current
     val size = LocalSize.current
-    val maxRows = if (size.height >= 200.dp) 4 else 2
     val columns = 5
-    val totalRows = ((tiles.size + columns - 1) / columns).coerceIn(1, maxRows)
-    val visibleTiles = tiles.take(totalRows * columns)
+    val maxRows =
+        when {
+            size.height >= 200.dp -> 4
+            size.height >= 140.dp -> 3
+            else -> 2
+        }
+    val totalSlots = maxRows * columns
 
     if (tiles.isEmpty()) {
         Box(
@@ -146,31 +161,29 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
                 .fillMaxSize()
                 .cornerRadius(16.dp)
                 .background(GlanceTheme.colors.background)
-                .padding(6.dp),
-        verticalAlignment = Alignment.Top,
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        for (row in 0 until totalRows) {
-            if (row > 0) Spacer(modifier = GlanceModifier.height(4.dp))
-            val rowStart = row * columns
-            val rowEnd = (rowStart + columns).coerceAtMost(visibleTiles.size)
-            val rowTiles = visibleTiles.subList(rowStart, rowEnd)
+        for (row in 0 until maxRows) {
+            if (row > 0) Spacer(modifier = GlanceModifier.height(tileGap))
             Row(
-                modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                horizontalAlignment = Alignment.Start,
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 for (col in 0 until columns) {
-                    if (col > 0) Spacer(modifier = GlanceModifier.width(4.dp))
-                    if (col < rowTiles.size) {
-                        val tile = rowTiles[col]
+                    if (col > 0) Spacer(modifier = GlanceModifier.width(tileGap))
+                    val index = row * columns + col
+                    if (index < tiles.size) {
+                        val tile = tiles[index]
                         Image(
                             provider = tile.imageProvider,
                             contentDescription = tile.name,
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
-                                    .defaultWeight()
-                                    .fillMaxSize()
-                                    .cornerRadius(8.dp)
+                                    .size(tileSize)
+                                    .cornerRadius(12.dp)
                                     .clickable(
                                         actionRunCallback<LogFavoriteFoodAction>(
                                             actionParametersOf(
@@ -180,8 +193,17 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
                                         ),
                                     ),
                         )
-                    } else {
-                        Box(modifier = GlanceModifier.defaultWeight()) {}
+                    } else if (index < totalSlots) {
+                        Image(
+                            provider = plusProvider,
+                            contentDescription = "Add favorite",
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                GlanceModifier
+                                    .size(tileSize)
+                                    .cornerRadius(12.dp)
+                                    .clickable(actionStartActivity<MainActivity>()),
+                        )
                     }
                 }
             }
