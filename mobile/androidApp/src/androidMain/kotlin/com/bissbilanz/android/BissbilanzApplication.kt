@@ -1,6 +1,8 @@
 package com.bissbilanz.android
 
 import android.app.Application
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
@@ -11,7 +13,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
-import com.bissbilanz.android.widget.FavoritesWidget
+import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.auth.SecureStorage
@@ -76,7 +78,12 @@ class BissbilanzApplication : Application() {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }
         koin.get<FoodRepository>().onFoodChanged = {
-            FavoritesWidget.updateAllWidgets(this@BissbilanzApplication)
+            WorkManager
+                .getInstance(this@BissbilanzApplication)
+                .enqueue(
+                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
+                        .build(),
+                )
         }
         koin.get<WeightRepository>().onWeightChanged = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
@@ -87,7 +94,12 @@ class BissbilanzApplication : Application() {
             refreshManager.refreshAll()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
-            FavoritesWidget.updateAllWidgets(this@BissbilanzApplication)
+            WorkManager
+                .getInstance(this@BissbilanzApplication)
+                .enqueue(
+                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
+                        .build(),
+                )
         }
     }
 }
