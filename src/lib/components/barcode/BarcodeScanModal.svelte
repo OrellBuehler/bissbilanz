@@ -9,9 +9,10 @@
 		open?: boolean;
 		onClose: () => void;
 		onBarcode: (barcode: string) => void;
+		onClosed?: () => void;
 	};
 
-	let { open = $bindable(false), onClose, onBarcode }: Props = $props();
+	let { open = $bindable(false), onClose, onBarcode, onClosed }: Props = $props();
 
 	let error = $state('');
 
@@ -33,7 +34,14 @@
 	};
 </script>
 
-<ResponsiveModal bind:open title={m.barcode_title()} openFull>
+<ResponsiveModal
+	bind:open
+	title={m.barcode_title()}
+	openFull
+	onAnimationEnd={(isOpen) => {
+		if (!isOpen) onClosed?.();
+	}}
+>
 	{#if error}
 		<Alert.Root variant="destructive">
 			<AlertCircle class="size-4" />

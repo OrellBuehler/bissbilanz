@@ -58,6 +58,7 @@
 		quickName?: string | null;
 	} | null = $state(null);
 
+	let pendingBarcodeAction: (() => void) | null = $state(null);
 	let isFastingDay = $state(false);
 	let fastingLoading = $state(false);
 
@@ -141,9 +142,13 @@
 	const handleBarcodeScan = async (barcode: string) => {
 		const food = await foodService.findByBarcode(barcode);
 		if (food) {
-			addModalOpen = true;
+			pendingBarcodeAction = () => {
+				addModalOpen = true;
+			};
 		} else {
-			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
+			pendingBarcodeAction = () => {
+				goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
+			};
 		}
 	};
 
@@ -219,5 +224,12 @@
 		bind:open={scanModalOpen}
 		onClose={() => (scanModalOpen = false)}
 		onBarcode={handleBarcodeScan}
+		onClosed={() => {
+			if (pendingBarcodeAction) {
+				const action = pendingBarcodeAction;
+				pendingBarcodeAction = null;
+				action();
+			}
+		}}
 	/>
 </div>
