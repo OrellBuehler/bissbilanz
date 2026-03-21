@@ -14,6 +14,7 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Loader from '@lucide/svelte/icons/loader';
 	import * as m from '$lib/paraglide/messages';
+	import type { PageData } from './$types';
 
 	type MaintenanceResult = {
 		maintenanceCalories: number;
@@ -40,13 +41,15 @@
 		endDate: string;
 	};
 
+	let { data }: { data: PageData } = $props();
+
 	let endDate = $state(today());
 	// svelte-ignore state_referenced_locally
 	let startDate = $state(shiftDate(endDate, -27));
 	let muscleRatio = $state(DEFAULT_MUSCLE_RATIO * 100);
 
-	let result = $state<MaintenanceResult | null>(null);
-	let meta = $state<Meta | null>(null);
+	let result = $state<MaintenanceResult | null>(data.initialResult);
+	let meta = $state<Meta | null>(data.initialMeta);
 	let loading = $state(false);
 	let error: string | null = $state(null);
 
