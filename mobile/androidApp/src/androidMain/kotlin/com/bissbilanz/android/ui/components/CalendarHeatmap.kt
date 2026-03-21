@@ -22,8 +22,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bissbilanz.android.ui.theme.CaloriesBlue
@@ -35,6 +37,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun CalendarHeatmap(
@@ -97,104 +100,160 @@ fun CalendarHeatmap(
         val cellPadding = with(density) { 2.dp.toPx() }
         val canvasHeight = with(density) { (headerHeight + (totalRows * (36.dp.toPx() + cellPadding))).toDp() }
 
-        Canvas(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(canvasHeight)
-                    .pointerInput(month, year) {
-                        detectTapGestures { tapOffset ->
-                            val cellW = size.width / 7f
-                            val cellH = (size.height - headerHeight) / totalRows.toFloat()
-                            val col = (tapOffset.x / cellW).toInt()
-                            val row = ((tapOffset.y - headerHeight) / cellH).toInt()
-                            if (row >= 0 && col in 0..6) {
-                                val dayNum = row * 7 + col - offset + 1
-                                if (dayNum in 1..daysInMonth) {
-                                    val date = LocalDate(year, month, dayNum).toString()
-                                    onDayClick(date)
+        var containerSize by remember { mutableStateOf(IntSize.Zero) }
+        var selectedDay by remember { mutableStateOf<String?>(null) }
+        var tooltipOffset by remember { mutableStateOf(Offset.Zero) }
+
+        LaunchedEffect(month, year) {
+            selectedDay = null
+        }
+
+        Box(modifier = Modifier.fillMaxWidth().onSizeChanged { containerSize = it }) {
+            Canvas(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(canvasHeight)
+                        .pointerInput(month, year) {
+                            detectTapGestures { tapOffset ->
+                                val cellW = size.width / 7f
+                                val cellH = (size.height - headerHeight) / totalRows.toFloat()
+                                val col = (tapOffset.x / cellW).toInt()
+                                val row = ((tapOffset.y - headerHeight) / cellH).toInt()
+                                if (row >= 0 && col in 0..6) {
+                                    val dayNum = row * 7 + col - offset + 1
+                                    if (dayNum in 1..daysInMonth) {
+                                        val date = LocalDate(year, month, dayNum).toString()
+                                        if (selectedDay == date) {
+                                            selectedDay = null
+                                        } else {
+                                            selectedDay = date
+                                            tooltipOffset = tapOffset
+                                        }
+                                        onDayClick(date)
+                                    }
                                 }
                             }
-                        }
-                    },
-        ) {
-            val cellW = size.width / 7f
-            val cellH = (size.height - headerHeight) / totalRows.toFloat()
+                        },
+            ) {
+                val cellW = size.width / 7f
+                val cellH = (size.height - headerHeight) / totalRows.toFloat()
 
-            val headerPaint =
-                Paint().apply {
-                    color = onSurface.copy(alpha = 0.5f).toArgb()
-                    textSize = with(density) { 11.sp.toPx() }
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.DEFAULT
+                val headerPaint =
+                    Paint().apply {
+                        color = onSurface.copy(alpha = 0.5f).toArgb()
+                        textSize = with(density) { 11.sp.toPx() }
+                        textAlign = Paint.Align.CENTER
+                        typeface = Typeface.DEFAULT
+                    }
+
+                dayHeaders.forEachIndexed { i, label ->
+                    drawContext.canvas.nativeCanvas.drawText(
+                        label,
+                        cellW * i + cellW / 2,
+                        headerHeight - 4f,
+                        headerPaint,
+                    )
                 }
 
-            dayHeaders.forEachIndexed { i, label ->
-                drawContext.canvas.nativeCanvas.drawText(
-                    label,
-                    cellW * i + cellW / 2,
-                    headerHeight - 4f,
-                    headerPaint,
-                )
+                val textPaint =
+                    Paint().apply {
+                        textSize = with(density) { 12.sp.toPx() }
+                        textAlign = Paint.Align.CENTER
+                        typeface = Typeface.DEFAULT
+                    }
+
+                for (day in 1..daysInMonth) {
+                    val idx = offset + day - 1
+                    val row = idx / 7
+                    val col = idx % 7
+                    val x = col * cellW + cellPadding
+                    val y = headerHeight + row * cellH + cellPadding
+                    val w = cellW - cellPadding * 2
+                    val h = cellH - cellPadding * 2
+
+                    val dateStr = LocalDate(year, month, day).toString()
+                    val calDay = dayMap[dateStr]
+
+                    val bgColor =
+                        if (calDay != null && calDay.hasEntries && calorieGoal > 0) {
+                            val ratio = calDay.calories / calorieGoal
+                            val dist = abs(1.0 - ratio)
+                            if (dist <= 0.10) {
+                                FiberGreen.copy(alpha = 0.9f * revealFraction.value)
+                            } else if (ratio > 1.0) {
+                                val intensity = min(dist / 0.5, 1.0).toFloat()
+                                ProteinRed.copy(alpha = (0.2f + 0.6f * intensity) * revealFraction.value)
+                            } else {
+                                val intensity = min(dist / 0.5, 1.0).toFloat()
+                                CaloriesBlue.copy(alpha = (0.2f + 0.6f * intensity) * revealFraction.value)
+                            }
+                        } else {
+                            surfaceVariant.copy(alpha = 0.3f * revealFraction.value)
+                        }
+
+                    drawRoundRect(
+                        color = bgColor,
+                        topLeft = Offset(x, y),
+                        size = Size(w, h),
+                        cornerRadius = CornerRadius(4f, 4f),
+                    )
+
+                    val textColor =
+                        if (calDay != null && calDay.hasEntries && calorieGoal > 0) {
+                            onSurface
+                        } else {
+                            onSurface.copy(alpha = 0.4f)
+                        }
+                    textPaint.color = textColor.toArgb()
+
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "$day",
+                        x + w / 2,
+                        y + h / 2 + textPaint.textSize / 3,
+                        textPaint,
+                    )
+                }
             }
 
-            val textPaint =
-                Paint().apply {
-                    textSize = with(density) { 12.sp.toPx() }
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.DEFAULT
-                }
-
-            for (day in 1..daysInMonth) {
-                val idx = offset + day - 1
-                val row = idx / 7
-                val col = idx % 7
-                val x = col * cellW + cellPadding
-                val y = headerHeight + row * cellH + cellPadding
-                val w = cellW - cellPadding * 2
-                val h = cellH - cellPadding * 2
-
-                val dateStr = LocalDate(year, month, day).toString()
-                val calDay = dayMap[dateStr]
-
-                val bgColor =
-                    if (calDay != null && calDay.hasEntries && calorieGoal > 0) {
-                        val ratio = calDay.calories / calorieGoal
-                        val dist = abs(1.0 - ratio)
-                        if (dist <= 0.10) {
-                            FiberGreen.copy(alpha = 0.9f * revealFraction.value)
-                        } else if (ratio > 1.0) {
-                            val intensity = min(dist / 0.5, 1.0).toFloat()
-                            ProteinRed.copy(alpha = (0.2f + 0.6f * intensity) * revealFraction.value)
+            val selDay = selectedDay
+            val calDay = selDay?.let { dayMap[it] }
+            ChartTooltip(
+                visible = selDay != null,
+                touchOffset = tooltipOffset,
+                containerSize = containerSize,
+            ) {
+                if (selDay != null) {
+                    Column {
+                        Text(
+                            selDay,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
+                        )
+                        if (calDay != null && calDay.hasEntries) {
+                            Text(
+                                "${calDay.calories.roundToInt()} kcal",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.inverseOnSurface,
+                            )
+                            if (calorieGoal > 0) {
+                                val pct = (calDay.calories / calorieGoal * 100).roundToInt()
+                                Text(
+                                    "$pct% of goal",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
+                                )
+                            }
                         } else {
-                            val intensity = min(dist / 0.5, 1.0).toFloat()
-                            CaloriesBlue.copy(alpha = (0.2f + 0.6f * intensity) * revealFraction.value)
+                            Text(
+                                "No data",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.5f),
+                            )
                         }
-                    } else {
-                        surfaceVariant.copy(alpha = 0.3f * revealFraction.value)
                     }
-
-                drawRoundRect(
-                    color = bgColor,
-                    topLeft = Offset(x, y),
-                    size = Size(w, h),
-                    cornerRadius = CornerRadius(4f, 4f),
-                )
-
-                val textColor =
-                    if (calDay != null && calDay.hasEntries && calorieGoal > 0) {
-                        onSurface
-                    } else {
-                        onSurface.copy(alpha = 0.4f)
-                    }
-                textPaint.color = textColor.toArgb()
-
-                drawContext.canvas.nativeCanvas.drawText(
-                    "$day",
-                    x + w / 2,
-                    y + h / 2 + textPaint.textSize / 3,
-                    textPaint,
-                )
+                }
             }
         }
 
