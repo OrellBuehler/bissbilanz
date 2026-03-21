@@ -125,13 +125,17 @@ fun FavoritesScreen(navController: NavController) {
                 Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { viewModel.selectTab(0) }, text = { Text("Foods (${favorites.size})") })
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { viewModel.selectTab(1) },
-                        text = { Text("Recipes (${favoriteRecipes.size})") },
-                    )
+                val tabLabels = listOf("Foods (${favorites.size})", "Recipes (${favoriteRecipes.size})")
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    tabLabels.forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = selectedTab == index,
+                            onClick = { viewModel.selectTab(index) },
+                            shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
+                        ) {
+                            Text(label)
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
