@@ -2,20 +2,17 @@ package com.bissbilanz.android.widget
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.MainActivity
-import com.bissbilanz.android.R
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.resolveDefaultMeal
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -50,14 +47,15 @@ class LogFavoriteFoodAction : ActionCallback {
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                 val entry = EntryCreate(foodId = foodId, mealType = meal, servings = 1.0, date = today)
                 entryRepo.createEntry(entry)
-                withContext(Dispatchers.Main) {
-                    Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.favorites_widget_logged, foodName),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }
+
+                loggedFoodId = foodId
+                FavoritesWidget.updateAllWidgets(context)
+
+                delay(1200)
+
+                loggedFoodId = null
+                FavoritesWidget.updateAllWidgets(context)
+
                 MacroWidget.updateAllWidgets(context)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -72,5 +70,10 @@ class LogFavoriteFoodAction : ActionCallback {
                 }
             context.startActivity(intent)
         }
+    }
+
+    companion object {
+        @Volatile
+        var loggedFoodId: String? = null
     }
 }

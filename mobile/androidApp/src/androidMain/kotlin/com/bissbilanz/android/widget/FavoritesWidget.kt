@@ -100,9 +100,13 @@ class FavoritesWidget : GlanceAppWidget() {
         val plusBitmap = PlusPlaceholderRenderer.render(tilePx, isDark)
         val plusProvider = ImageProvider(plusBitmap)
 
+        val loggedId = LogFavoriteFoodAction.loggedFoodId
+        val checkBitmap = CheckmarkRenderer.render(tilePx)
+        val checkProvider = ImageProvider(checkBitmap)
+
         provideContent {
             GlanceTheme {
-                FavoritesContent(tiles, plusProvider)
+                FavoritesContent(tiles, plusProvider, loggedId, checkProvider)
             }
         }
     }
@@ -120,6 +124,8 @@ class FavoritesWidget : GlanceAppWidget() {
 private fun FavoritesContent(
     tiles: List<FavoriteTile>,
     plusProvider: ImageProvider,
+    loggedFoodId: String?,
+    checkProvider: ImageProvider,
 ) {
     val context = LocalContext.current
     val size = LocalSize.current
@@ -174,9 +180,10 @@ private fun FavoritesContent(
                     val index = row * columns + col
                     if (index < tiles.size) {
                         val tile = tiles[index]
+                        val isLogged = tile.id == loggedFoodId
                         Image(
-                            provider = tile.imageProvider,
-                            contentDescription = tile.name,
+                            provider = if (isLogged) checkProvider else tile.imageProvider,
+                            contentDescription = if (isLogged) "Logged" else tile.name,
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
