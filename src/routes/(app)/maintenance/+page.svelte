@@ -204,12 +204,11 @@
 				</div>
 			</div>
 
-			<Button class="w-full" onclick={calculate} disabled={loading}>
-				{#if loading}
+			{#if loading}
+				<div class="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
 					<Loader class="size-4 animate-spin" />
-				{/if}
-				{m.maintenance_calculate()}
-			</Button>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
