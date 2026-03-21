@@ -44,7 +44,7 @@
 		{/if}
 	{/snippet}
 	{#if weightKg != null}
-		<p class="text-2xl font-semibold">
+		<p class="text-3xl font-bold tabular-nums">
 			{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}
 		</p>
 	{:else}

@@ -82,7 +82,7 @@
 				<Icon class="size-4" />
 			</div>
 			<div class="min-w-0">
-				<div class={cn('truncate text-sm font-semibold tracking-tight', toneClasses[tone].title)}>
+				<div class={cn('truncate text-sm font-medium', toneClasses[tone].title)}>
 					{title}
 				</div>
 			</div>

@@ -65,7 +65,7 @@
 					</span>
 					<span class="min-w-0 flex-1 truncate text-sm font-medium">{food.foodName}</span>
 					<span class="text-muted-foreground shrink-0 text-xs">{food.count}x</span>
-					<span class="shrink-0 text-right text-xs tabular-nums"
+					<span class="shrink-0 text-right text-xs font-medium tabular-nums"
 						>{Math.round(food.calories)} kcal</span
 					>
 				</div>
