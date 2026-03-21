@@ -154,18 +154,66 @@ fun DashboardScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    MacroRing(
+                        "Calories",
+                        totalCalories,
+                        goals?.calorieGoal ?: DefaultGoals.CALORIES,
+                        CaloriesBlue,
+                        size = 88.dp,
+                        strokeWidth = 8.dp,
+                        showGoal = true,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    MacroRing("Cal", totalCalories, goals?.calorieGoal ?: DefaultGoals.CALORIES, CaloriesBlue, showGoal = true)
-                    MacroRing("Protein", totalProtein, goals?.proteinGoal ?: DefaultGoals.PROTEIN, ProteinRed, showGoal = true)
-                    MacroRing("Carbs", totalCarbs, goals?.carbGoal ?: DefaultGoals.CARBS, CarbsOrange, showGoal = true)
-                    MacroRing("Fat", totalFat, goals?.fatGoal ?: DefaultGoals.FAT, FatYellow, showGoal = true)
-                    MacroRing("Fiber", totalFiber, goals?.fiberGoal ?: DefaultGoals.FIBER, FiberGreen, showGoal = true)
+                    MacroRing(
+                        "Protein",
+                        totalProtein,
+                        goals?.proteinGoal ?: DefaultGoals.PROTEIN,
+                        ProteinRed,
+                        size = 56.dp,
+                        strokeWidth = 5.dp,
+                        showGoal = true,
+                    )
+                    MacroRing(
+                        "Carbs",
+                        totalCarbs,
+                        goals?.carbGoal ?: DefaultGoals.CARBS,
+                        CarbsOrange,
+                        size = 56.dp,
+                        strokeWidth = 5.dp,
+                        showGoal = true,
+                    )
+                    MacroRing(
+                        "Fat",
+                        totalFat,
+                        goals?.fatGoal ?: DefaultGoals.FAT,
+                        FatYellow,
+                        size = 56.dp,
+                        strokeWidth = 5.dp,
+                        showGoal = true,
+                    )
+                    MacroRing(
+                        "Fiber",
+                        totalFiber,
+                        goals?.fiberGoal ?: DefaultGoals.FIBER,
+                        FiberGreen,
+                        size = 56.dp,
+                        strokeWidth = 5.dp,
+                        showGoal = true,
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Crossfade(targetState = isLoading, label = "dashboard") { loading ->
                     if (loading) {
@@ -219,7 +267,7 @@ fun DashboardScreen(navController: NavController) {
 
                             // Supplements widget
                             if (prefs?.showSupplementsWidget == true) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                                 SupplementsWidget(
                                     date = selectedDate.toString(),
                                     onViewAll = { navController.navigate("supplements") },
@@ -228,13 +276,15 @@ fun DashboardScreen(navController: NavController) {
 
                             // Weight widget
                             if (prefs?.showWeightWidget == true) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                                 WeightWidget(
                                     date = selectedDate.toString(),
                                     onViewAll = { navController.navigate("weight") },
                                     onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                                 )
                             }
+
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
