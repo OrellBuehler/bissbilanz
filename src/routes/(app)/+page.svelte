@@ -117,7 +117,6 @@
 			</Button>
 		</div>
 
-		<!-- Hero section: chart/goals -->
 		{#each order as sectionKey (sectionKey)}
 			{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
 				<div class="mt-6">
@@ -133,30 +132,21 @@
 						</DashboardCard>
 					{/if}
 				</div>
-			{/if}
-		{/each}
-
-		<!-- Compact widgets row: streak + weight side by side on sm+ -->
-		{#if (order.includes('streaks') && streaks) || (order.includes('weight') && isToday && userPrefs?.showWeightWidget)}
-			<div class="mt-4 grid gap-4 sm:grid-cols-2">
-				{#if order.includes('streaks') && streaks}
+			{:else if sectionKey === 'streaks' && streaks}
+				<div class="mt-4">
 					<StreakWidget
 						currentStreak={streaks.currentStreak}
 						longestStreak={streaks.longestStreak}
 					/>
-				{/if}
-				{#if order.includes('weight') && isToday && userPrefs?.showWeightWidget}
+				</div>
+			{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
+				<div class="mt-4">
 					<WeightWidget
 						weightKg={latestWeight?.weightKg ?? null}
 						entryDate={latestWeight?.entryDate ?? null}
 					/>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Supplements + Favorites + other content widgets -->
-		{#each order as sectionKey (sectionKey)}
-			{#if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
+				</div>
+			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
 				<div class="mt-4">
 					<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 				</div>
@@ -183,20 +173,17 @@
 				<div class="mt-4">
 					<MacroSummaryCard totals={daylogTotals} />
 				</div>
+			{:else if sectionKey === 'daylog'}
+				<div class="mt-8">
+					<DayLog
+						date={activeDate}
+						dashboardStyle={true}
+						onTotalsChange={(t) => (daylogTotals = t)}
+						bind:scanModalOpen
+						bind:addModalOpen
+					/>
+				</div>
 			{/if}
 		{/each}
-
-		<!-- Day log: separated with more spacing -->
-		{#if order.includes('daylog')}
-			<div class="mt-8">
-				<DayLog
-					date={activeDate}
-					dashboardStyle={true}
-					onTotalsChange={(t) => (daylogTotals = t)}
-					bind:scanModalOpen
-					bind:addModalOpen
-				/>
-			</div>
-		{/if}
 	</div>
 {/if}
