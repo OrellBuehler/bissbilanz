@@ -14,6 +14,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(project(":shared"))
+            implementation(libs.kotlinx.serialization.json)
         }
     }
 }
