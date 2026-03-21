@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.bissbilanz.model.SupplementLog
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -22,14 +21,12 @@ fun SupplementsWidget(
 ) {
     val supplementRepo: SupplementRepository = koinInject()
     val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
-    var checklist by remember { mutableStateOf<List<SupplementLog>>(emptyList()) }
+    var takenIds by remember { mutableStateOf(setOf<String>()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(date) {
-        checklist = supplementRepo.getChecklist(date)
+        takenIds = supplementRepo.getChecklist(date).map { it.supplementId }.toSet()
     }
-
-    val takenCount = supplements.count { supp -> checklist.any { it.supplementId == supp.id } }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -53,14 +50,14 @@ fun SupplementsWidget(
                     )
                 }
                 Text(
-                    "$takenCount of ${supplements.size} taken",
+                    "${takenIds.size} of ${supplements.size} taken",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             supplements.forEach { supplement ->
-                val isTaken = checklist.any { it.supplementId == supplement.id }
+                val isTaken = takenIds.contains(supplement.id)
                 Row(
                     modifier =
                         Modifier
@@ -71,13 +68,17 @@ fun SupplementsWidget(
                     Checkbox(
                         checked = isTaken,
                         onCheckedChange = { checked ->
+                            takenIds =
+                                if (checked) takenIds + supplement.id else takenIds - supplement.id
                             scope.launch {
                                 if (checked) {
                                     supplementRepo.logSupplement(supplement.id, date)
                                 } else {
                                     supplementRepo.unlogSupplement(supplement.id, date)
                                 }
-                                checklist = supplementRepo.getChecklist(date)
+                                takenIds =
+                                    supplementRepo.getChecklist(date)
+                                        .map { it.supplementId }.toSet()
                             }
                         },
                     )

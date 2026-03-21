@@ -171,17 +171,19 @@ fun SupplementsScreen(navController: NavController) {
                                 onEdit = { editingSupplementId = supplement.id },
                                 modifier = Modifier.animateItem(),
                                 onToggle = {
+                                    takenIds =
+                                        if (isTaken) takenIds - supplement.id else takenIds + supplement.id
                                     scope.launch {
                                         try {
                                             if (isTaken) {
                                                 supplementRepo.unlogSupplement(supplement.id, today)
-                                                takenIds = takenIds - supplement.id
                                             } else {
                                                 supplementRepo.logSupplement(supplement.id, today)
-                                                takenIds = takenIds + supplement.id
                                             }
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
+                                            takenIds =
+                                                if (isTaken) takenIds + supplement.id else takenIds - supplement.id
                                             errorReporter.captureException(e)
                                             snackbarHostState.showSnackbar("Failed to update supplement")
                                         }
