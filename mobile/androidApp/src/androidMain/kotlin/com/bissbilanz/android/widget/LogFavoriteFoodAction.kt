@@ -32,7 +32,9 @@ class LogFavoriteFoodAction : ActionCallback {
         val foodId = parameters[FoodIdKey] ?: return
         val foodName = parameters[FoodNameKey] ?: ""
 
-        val koin = org.koin.java.KoinJavaComponent.getKoin()
+        val koin =
+            org.koin.java.KoinJavaComponent
+                .getKoin()
         val entryRepo = koin.get<EntryRepository>()
         val db = koin.get<BissbilanzDatabase>()
         val json = koin.get<Json>()
@@ -56,11 +58,12 @@ class LogFavoriteFoodAction : ActionCallback {
                 errorReporter.captureException(e)
             }
         } else {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                putExtra(MainActivity.EXTRA_NAVIGATE_TO, "favorites")
-                putExtra("food_id", foodId)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
+            val intent =
+                Intent(context, MainActivity::class.java).apply {
+                    putExtra(MainActivity.EXTRA_NAVIGATE_TO, "favorites")
+                    putExtra("food_id", foodId)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
             context.startActivity(intent)
         }
     }

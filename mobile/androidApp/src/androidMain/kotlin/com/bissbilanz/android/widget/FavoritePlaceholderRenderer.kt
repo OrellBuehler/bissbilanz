@@ -7,7 +7,11 @@ import android.graphics.RectF
 import android.graphics.Typeface
 
 object FavoritePlaceholderRenderer {
-    fun render(name: String, sizePx: Int, isDarkMode: Boolean): Bitmap {
+    fun render(
+        name: String,
+        sizePx: Int,
+        isDarkMode: Boolean,
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -15,19 +19,21 @@ object FavoritePlaceholderRenderer {
         val textColor = if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF666666.toInt()
         val cornerRadius = sizePx / 6f
 
-        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = bgColor
-            style = Paint.Style.FILL
-        }
+        val bgPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = bgColor
+                style = Paint.Style.FILL
+            }
         canvas.drawRoundRect(RectF(0f, 0f, sizePx.toFloat(), sizePx.toFloat()), cornerRadius, cornerRadius, bgPaint)
 
         val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = textColor
-            textSize = sizePx * 0.4f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            textAlign = Paint.Align.CENTER
-        }
+        val textPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = textColor
+                textSize = sizePx * 0.4f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                textAlign = Paint.Align.CENTER
+            }
 
         val textBounds = android.graphics.Rect()
         textPaint.getTextBounds(initial, 0, initial.length, textBounds)
