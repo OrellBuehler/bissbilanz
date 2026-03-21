@@ -177,6 +177,8 @@ private fun FavoritesContent(tiles: List<FavoriteTile>) {
                                             ),
                                         ),
                             )
+                        } else {
+                            Spacer(modifier = GlanceModifier.fillMaxSize())
                         }
                     }
                 }
