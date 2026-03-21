@@ -107,7 +107,7 @@ class SyncManager(
                     break
                 }
 
-                _state.value = _state.value.copy(pendingCount = (queued.size - synced).toLong())
+                _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
             }
         } finally {
             val pending = syncQueue.pendingCount()
