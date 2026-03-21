@@ -242,7 +242,7 @@ fun SettingsScreen(navController: NavController) {
                                             }
                                         }
                                     },
-                                    enabled = if (isSelected) selectedTabs.size > 1 else selectedTabs.size < 3,
+                                    enabled = if (isSelected) selectedTabs.size >= 3 else selectedTabs.size < 3,
                                 )
                                 Text(label, style = MaterialTheme.typography.bodyMedium)
                             }

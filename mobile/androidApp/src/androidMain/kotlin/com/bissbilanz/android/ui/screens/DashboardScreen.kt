@@ -21,8 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.bissbilanz.ErrorReporter
-import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
@@ -31,8 +29,6 @@ import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
-import com.bissbilanz.repository.EntryRepository
-import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
@@ -43,7 +39,6 @@ import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(navController: NavController) {
@@ -53,13 +48,17 @@ fun DashboardScreen(navController: NavController) {
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
-    val entryRepo: EntryRepository = koinInject()
-    val prefsRepo: PreferencesRepository = koinInject()
-    val refreshManager: RefreshManager = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
-    val scope = rememberCoroutineScope()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
 
@@ -111,7 +110,7 @@ fun DashboardScreen(navController: NavController) {
         }
 
         PullToRefreshWrapper(
-            onRefresh = { refreshManager.refreshAll(selectedDate.toString()) },
+            onRefresh = { viewModel.refreshAll() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             Column(
@@ -208,20 +207,7 @@ fun DashboardScreen(navController: NavController) {
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         OutlinedButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    try {
-                                                        val yesterday = selectedDate.minus(1, DateTimeUnit.DAY).toString()
-                                                        val count = entryRepo.copyEntries(yesterday, selectedDate.toString())
-                                                        snackbarHostState.showSnackbar("Copied $count entries from yesterday")
-                                                        viewModel.loadData()
-                                                    } catch (e: Exception) {
-                                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                                        errorReporter.captureException(e)
-                                                        snackbarHostState.showSnackbar("No entries to copy from yesterday")
-                                                    }
-                                                }
-                                            },
+                                            onClick = { viewModel.copyEntriesFromYesterday() },
                                         ) {
                                             Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
