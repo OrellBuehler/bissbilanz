@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -65,6 +67,16 @@ fun MacroRadarChart(
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var selectedOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val textPaint =
+        remember(density) {
+            Paint().apply {
+                textSize = with(density) { 11.sp.toPx() }
+                textAlign = Paint.Align.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                isAntiAlias = true
+            }
+        }
 
     Box(
         modifier =
@@ -222,14 +234,6 @@ fun MacroRadarChart(
                 }
             }
 
-            val textPaint =
-                Paint().apply {
-                    textSize = with(density) { 11.sp.toPx() }
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
-                    isAntiAlias = true
-                }
-
             for (i in 0 until n) {
                 val angle = startAngle + i * angleStep
                 val labelR = radius + with(density) { 16.dp.toPx() }
@@ -261,7 +265,7 @@ fun MacroRadarChart(
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                     )
                     Text(
-                        "${(axis.value * 100).toInt()}% of goal",
+                        stringResource(R.string.chart_percent_of_goal, (axis.value * 100).toInt()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
                     )

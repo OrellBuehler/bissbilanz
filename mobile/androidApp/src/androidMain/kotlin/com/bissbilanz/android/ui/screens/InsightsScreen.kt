@@ -1,46 +1,54 @@
 package com.bissbilanz.android.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.CalendarHeatmap
-import com.bissbilanz.android.ui.components.ChartTooltip
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.components.MacroRadarChart
+import com.bissbilanz.android.ui.components.MealColors
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RadarAxis
-import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.components.SimpleLineChart
+import com.bissbilanz.android.ui.components.SimplePieChart
+import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.FatYellow
+import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.GentleSpring
+import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -283,109 +291,6 @@ fun InsightsScreen() {
     }
 }
 
-@Composable
-fun SimpleLineChart(
-    data: List<Float>,
-    color: Color,
-    modifier: Modifier = Modifier,
-    unit: String = "",
-) {
-    if (data.isEmpty()) return
-    val maxVal = data.max().coerceAtLeast(1f)
-    val minVal = data.min()
-
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(500, easing = EaseOutCubic))
-    }
-
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var selectedIndex by remember { mutableStateOf<Int?>(null) }
-    var touchOffset by remember { mutableStateOf<Offset?>(null) }
-
-    Box(modifier = modifier.onSizeChanged { containerSize = it }) {
-        Canvas(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .pointerInput(data) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
-                                val idx = (offset.x / stepX).toInt().coerceIn(0, data.lastIndex)
-                                selectedIndex = idx
-                                touchOffset = offset
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
-                                val idx = (change.position.x / stepX).toInt().coerceIn(0, data.lastIndex)
-                                selectedIndex = idx
-                                touchOffset = change.position
-                            },
-                            onDragEnd = {
-                                selectedIndex = null
-                                touchOffset = null
-                            },
-                            onDragCancel = {
-                                selectedIndex = null
-                                touchOffset = null
-                            },
-                        )
-                    },
-        ) {
-            clipRect(right = size.width * revealFraction.value) {
-                val stepX = size.width / (data.size - 1).coerceAtLeast(1)
-                val range = (maxVal - minVal).coerceAtLeast(1f)
-                val padding = 8f
-
-                val path = Path()
-                data.forEachIndexed { i, value ->
-                    val x = i * stepX
-                    val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                }
-
-                drawPath(path, color = color, style = Stroke(width = 3f, cap = StrokeCap.Round))
-
-                data.forEachIndexed { i, value ->
-                    val x = i * stepX
-                    val y = size.height - padding - ((value - minVal) / range) * (size.height - padding * 2)
-                    val isSelected = selectedIndex == i
-                    drawCircle(color = color, radius = if (isSelected) 6f else 3f, center = Offset(x, y))
-                    if (isSelected) {
-                        drawCircle(color = Color.White, radius = 3f, center = Offset(x, y))
-                        drawLine(
-                            color = Color.Gray.copy(alpha = 0.4f),
-                            start = Offset(x, 0f),
-                            end = Offset(x, size.height),
-                            strokeWidth = 1f,
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)),
-                        )
-                    }
-                }
-            }
-        }
-
-        val selIdx = selectedIndex
-        val tOff = touchOffset
-        ChartTooltip(
-            visible = selIdx != null && tOff != null,
-            touchOffset = tOff ?: Offset.Zero,
-            containerSize = containerSize,
-        ) {
-            if (selIdx != null && selIdx in data.indices) {
-                Text(
-                    "${data[selIdx].roundToInt()}${ if (unit.isNotEmpty()) " $unit" else "" }",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun ComparisonRow(
@@ -497,140 +402,6 @@ private fun MacroTrendRow(
     }
 }
 
-private val MealColors =
-    listOf(
-        Color(0xFF3B82F6),
-        Color(0xFFEF4444),
-        Color(0xFFF97316),
-        Color(0xFFEAB308),
-        Color(0xFF22C55E),
-        Color(0xFF8B5CF6),
-        Color(0xFFEC4899),
-        Color(0xFF14B8A6),
-    )
-
-@Composable
-private fun SimplePieChart(
-    entries: List<MealBreakdownEntry>,
-    modifier: Modifier = Modifier,
-) {
-    val total = entries.sumOf { it.calories }.toFloat()
-    if (total <= 0f) return
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
-
-    val sweepFraction = remember { Animatable(0f) }
-    LaunchedEffect(entries) {
-        sweepFraction.snapTo(0f)
-        sweepFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
-
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var selectedIndex by remember { mutableStateOf<Int?>(null) }
-    var tapOffset by remember { mutableStateOf(Offset.Zero) }
-
-    Box(modifier = modifier.onSizeChanged { containerSize = it }) {
-        Canvas(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .pointerInput(entries) {
-                        detectTapGestures { offset ->
-                            val cx = size.width / 2f
-                            val cy = size.height / 2f
-                            val diameter = minOf(size.width, size.height) * 0.8f
-                            val radius = diameter / 2f
-                            val innerRadius = radius * 0.5f
-
-                            val dx = offset.x - cx
-                            val dy = offset.y - cy
-                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-
-                            if (dist < innerRadius || dist > radius) {
-                                selectedIndex = null
-                                return@detectTapGestures
-                            }
-
-                            var angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                            angle = (angle + 90f + 360f) % 360f
-
-                            var cumulative = 0f
-                            var found = -1
-                            for (i in entries.indices) {
-                                val sweep = (entries[i].calories.toFloat() / total) * 360f
-                                if (angle >= cumulative && angle < cumulative + sweep) {
-                                    found = i
-                                    break
-                                }
-                                cumulative += sweep
-                            }
-
-                            if (found >= 0) {
-                                if (selectedIndex == found) {
-                                    selectedIndex = null
-                                } else {
-                                    selectedIndex = found
-                                    tapOffset = offset
-                                }
-                            } else {
-                                selectedIndex = null
-                            }
-                        }
-                    },
-        ) {
-            val diameter = minOf(size.width, size.height) * 0.8f
-            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
-            var startAngle = -90f
-
-            entries.forEachIndexed { index, entry ->
-                val sweep = (entry.calories.toFloat() / total) * 360f * sweepFraction.value
-                val isSelected = selectedIndex == index
-                val arcColor = MealColors[index % MealColors.size]
-                drawArc(
-                    color = if (isSelected) arcColor else arcColor.copy(alpha = if (selectedIndex != null) 0.5f else 1f),
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
-                    useCenter = true,
-                    topLeft = topLeft,
-                    size = Size(diameter, diameter),
-                )
-                startAngle += sweep
-            }
-
-            val innerDiameter = diameter * 0.5f
-            val innerTopLeft = Offset((size.width - innerDiameter) / 2f, (size.height - innerDiameter) / 2f)
-            drawOval(
-                color = surfaceColor,
-                topLeft = innerTopLeft,
-                size = Size(innerDiameter, innerDiameter),
-            )
-        }
-
-        val selIdx = selectedIndex
-        ChartTooltip(
-            visible = selIdx != null,
-            touchOffset = tapOffset,
-            containerSize = containerSize,
-        ) {
-            if (selIdx != null && selIdx in entries.indices) {
-                val entry = entries[selIdx]
-                val pct = (entry.calories / total * 100).roundToInt()
-                Column {
-                    Text(
-                        entry.mealType.replaceFirstChar { it.uppercase() },
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
-                    Text(
-                        "${entry.calories.roundToInt()} kcal ($pct%)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun MealBreakdownLegend(

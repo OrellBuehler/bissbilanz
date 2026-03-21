@@ -29,10 +29,12 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
@@ -118,6 +120,30 @@ fun WeightTrendChart(
     val topPaddingDp = 8.dp
     val rightPaddingDp = 8.dp
 
+    val textPaint =
+        remember(textColorArgb, labelSizePx) {
+            Paint().apply {
+                color = textColorArgb
+                textSize = labelSizePx
+                isAntiAlias = true
+                textAlign = Paint.Align.RIGHT
+                typeface = Typeface.DEFAULT
+            }
+        }
+    val xLabelPaint =
+        remember(textColorArgb, labelSizePx) {
+            Paint().apply {
+                color = textColorArgb
+                textSize = labelSizePx * 0.9f
+                isAntiAlias = true
+                textAlign = Paint.Align.CENTER
+                typeface = Typeface.DEFAULT
+            }
+        }
+
+    val weightFormat = stringResource(R.string.chart_weight_format)
+    val weightAvgFormat = stringResource(R.string.chart_weight_avg_format)
+
     Box(
         modifier = modifier.onSizeChanged { containerSize = it },
     ) {
@@ -192,19 +218,11 @@ fun WeightTrendChart(
             fun yPos(value: Float): Float = topPadding + (1f - (value - yMin) / yRange) * chartHeight
 
             val yTicks = 5
-            val textPaint =
-                Paint().apply {
-                    color = textColorArgb
-                    textSize = labelSizePx
-                    isAntiAlias = true
-                    textAlign = Paint.Align.RIGHT
-                    typeface = Typeface.DEFAULT
-                }
             for (i in 0..yTicks) {
                 val value = yMin + (yMax - yMin) * i / yTicks
                 val y = yPos(value)
                 drawContext.canvas.nativeCanvas.drawText(
-                    "%.1f".format(value),
+                    weightFormat.format(value),
                     leftPadding - 6.dp.toPx(),
                     y + labelSizePx / 3,
                     textPaint,
@@ -217,14 +235,6 @@ fun WeightTrendChart(
                 )
             }
 
-            val xLabelPaint =
-                Paint().apply {
-                    color = textColorArgb
-                    textSize = labelSizePx * 0.9f
-                    isAntiAlias = true
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.DEFAULT
-                }
             val xLabelStep = ceil(state.dateLabels.size.toFloat() / 7f).toInt().coerceAtLeast(1)
             for (i in state.dateLabels.indices step xLabelStep) {
                 val (dayIndex, label) = state.dateLabels[i]
@@ -326,14 +336,14 @@ fun WeightTrendChart(
                         color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
                     )
                     Text(
-                        "%.1f kg".format(sel.weight),
+                        weightFormat.format(sel.weight),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                     )
                     if (sel.movingAvg != null) {
                         Text(
-                            "Avg: %.1f kg".format(sel.movingAvg),
+                            weightAvgFormat.format(sel.movingAvg),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
                         )

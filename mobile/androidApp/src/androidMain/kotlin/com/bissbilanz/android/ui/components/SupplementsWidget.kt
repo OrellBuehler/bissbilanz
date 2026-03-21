@@ -7,9 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.R
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -38,19 +40,19 @@ fun SupplementsWidget(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Medication,
-                        contentDescription = "Supplements",
+                        contentDescription = stringResource(R.string.chart_supplements),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Supplements",
+                        stringResource(R.string.chart_supplements),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Text(
-                    "${takenIds.size} of ${supplements.size} taken",
+                    stringResource(R.string.chart_supplements_taken, takenIds.size, supplements.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -71,14 +73,17 @@ fun SupplementsWidget(
                             takenIds =
                                 if (checked) takenIds + supplement.id else takenIds - supplement.id
                             scope.launch {
-                                if (checked) {
-                                    supplementRepo.logSupplement(supplement.id, date)
-                                } else {
-                                    supplementRepo.unlogSupplement(supplement.id, date)
+                                try {
+                                    if (checked) {
+                                        supplementRepo.logSupplement(supplement.id, date)
+                                    } else {
+                                        supplementRepo.unlogSupplement(supplement.id, date)
+                                    }
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    takenIds =
+                                        if (checked) takenIds - supplement.id else takenIds + supplement.id
                                 }
-                                takenIds =
-                                    supplementRepo.getChecklist(date)
-                                        .map { it.supplementId }.toSet()
                             }
                         },
                     )
@@ -93,7 +98,7 @@ fun SupplementsWidget(
                 onClick = onViewAll,
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Text("View All")
+                Text(stringResource(R.string.chart_view_all))
             }
         }
     }

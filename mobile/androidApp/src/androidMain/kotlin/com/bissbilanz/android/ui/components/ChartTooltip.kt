@@ -12,8 +12,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -27,21 +32,20 @@ fun BoxScope.ChartTooltip(
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
-    val tooltipWidth = with(density) { 140.dp.toPx() }
-    val tooltipHeight = with(density) { 60.dp.toPx() }
     val margin = with(density) { 12.dp.toPx() }
+    var tooltipSize by remember { mutableStateOf(IntSize.Zero) }
 
     val x =
-        if (touchOffset.x + margin + tooltipWidth > containerSize.width) {
-            (touchOffset.x - margin - tooltipWidth).toInt()
+        if (touchOffset.x + margin + tooltipSize.width > containerSize.width) {
+            (touchOffset.x - margin - tooltipSize.width).toInt()
         } else {
             (touchOffset.x + margin).toInt()
         }
     val y =
-        if (touchOffset.y - tooltipHeight - margin < 0) {
+        if (touchOffset.y - tooltipSize.height - margin < 0) {
             (touchOffset.y + margin).toInt()
         } else {
-            (touchOffset.y - tooltipHeight - margin).toInt()
+            (touchOffset.y - tooltipSize.height - margin).toInt()
         }
 
     AnimatedVisibility(
@@ -57,6 +61,7 @@ fun BoxScope.ChartTooltip(
             color = MaterialTheme.colorScheme.inverseSurface,
             tonalElevation = 4.dp,
             shadowElevation = 4.dp,
+            modifier = Modifier.onSizeChanged { tooltipSize = it },
         ) {
             Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
