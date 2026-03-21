@@ -8,7 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                 return
             }
             val code = uri.getQueryParameter("code") ?: return
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 authManager.handleCallback(code)
             }
         }
