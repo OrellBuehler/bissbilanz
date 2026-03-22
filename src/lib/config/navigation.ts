@@ -113,7 +113,7 @@ export function getNavGroups(): NavGroup[] {
 				},
 				{
 					title: () => m.nav_weight(),
-					href: '/weight',
+					href: '/insights?tab=weight',
 					icon: Weight,
 					badgeColor: 'bg-teal-100 text-teal-600',
 					activeRing: 'ring-2 ring-inset ring-teal-300/80 dark:ring-teal-700/80'
