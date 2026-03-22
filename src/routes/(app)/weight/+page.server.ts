@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 
 export const load = () => {
-	redirect(301, '/insights?tab=weight');
+	redirect(302, '/insights?tab=weight');
 };

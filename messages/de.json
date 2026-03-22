@@ -595,6 +595,7 @@
 	"analytics_caloric_lag_chart_label": "Korrelationsstärke nach Tagesversatz",
 	"analytics_caloric_lag_override": "Verzögerung überschreiben",
 	"analytics_caloric_lag_auto": "Automatisch erkennen",
+	"analytics_caloric_lag_day": "Tag {n}",
 	"analytics_macro_impact": "Makro-Einfluss auf Gewicht",
 	"analytics_macro_impact_headline": "Wie Makros mit Gewichtsveränderungen korrelieren",
 	"analytics_meal_timing_weight": "Essenszeiten & Gewicht",
@@ -615,6 +616,8 @@
 	"analytics_nutrient_sleep_headline": "Nährstoff-Korrelationen mit Schlafqualität",
 	"analytics_presleep_window": "Essen vor dem Schlafen",
 	"analytics_presleep_headline": "Du schläfst besser, wenn deine letzte Mahlzeit {hours}+ Stunden vor dem Schlafen ist",
+	"analytics_presleep_avg_gap": "Ø Abstand vor dem Schlafen",
+	"analytics_presleep_correlation": "Abstand vs. Schlafqualität-Korrelation",
 	"analytics_correlation_disclaimer": "Diese Korrelationen zeigen erforschenswerte Muster — sie sind kein Beweis für Kausalität",
 
 	"confidence_insufficient": "Nicht genügend Daten",

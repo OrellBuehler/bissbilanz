@@ -595,6 +595,7 @@
 	"analytics_caloric_lag_chart_label": "Correlation strength by day offset",
 	"analytics_caloric_lag_override": "Override lag",
 	"analytics_caloric_lag_auto": "Auto-detect",
+	"analytics_caloric_lag_day": "Day {n}",
 	"analytics_macro_impact": "Macro Impact on Weight",
 	"analytics_macro_impact_headline": "How macros correlate with weight changes",
 	"analytics_meal_timing_weight": "Meal Timing & Weight",
@@ -615,6 +616,8 @@
 	"analytics_nutrient_sleep_headline": "Nutrient correlations with sleep quality",
 	"analytics_presleep_window": "Pre-Sleep Eating",
 	"analytics_presleep_headline": "You sleep better when your last meal is {hours}+ hours before bed",
+	"analytics_presleep_avg_gap": "Avg gap before sleep",
+	"analytics_presleep_correlation": "Gap vs quality correlation",
 	"analytics_correlation_disclaimer": "These correlations suggest patterns worth exploring — they are not proof of causation",
 
 	"confidence_insufficient": "Not enough data",

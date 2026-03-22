@@ -4,6 +4,8 @@
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { db } from '$lib/db';
+	import type { DexieSleepEntry } from '$lib/db/types';
 
 	type SleepFoodPoint = {
 		date: string;
@@ -32,7 +34,9 @@
 
 	let sleepEntries = $state<SleepEntry[]>([]);
 
-	const analysis = $derived(() => {
+	let bedHour = $state(22);
+
+	const analysis = $derived.by(() => {
 		if (sleepFoodData.length === 0 || mealEntries.length === 0) return null;
 
 		const lastMealByDate = new Map<string, number>();
@@ -50,7 +54,6 @@
 			if (point.sleepQuality === null) continue;
 			const lastMealHour = lastMealByDate.get(point.date);
 			if (lastMealHour === undefined) continue;
-			const bedHour = 22;
 			const gap = Math.max(0, bedHour - lastMealHour);
 			if (gap > 0) {
 				pairs.push({ gapHours: gap, quality: point.sleepQuality });
@@ -69,13 +72,13 @@
 		return { corr, avgGap: Math.round(avgGap * 10) / 10, sampleSize: pairs.length };
 	});
 
-	const sampleSize = $derived(
-		() => analysis()?.sampleSize ?? sleepFoodData.filter((d) => d.sleepQuality !== null).length
+	const sampleSize = $derived.by(
+		() => analysis?.sampleSize ?? sleepFoodData.filter((d) => d.sleepQuality !== null).length
 	);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
-	const bestGap = $derived(() => {
-		const a = analysis();
+	const bestGap = $derived.by(() => {
+		const a = analysis;
 		if (!a) return 2;
 		return Math.round(a.avgGap + (a.corr.r > 0 ? 1 : 0));
 	});
@@ -84,14 +87,24 @@
 		try {
 			const endDate = today();
 			const startDate = shiftDate(endDate, -59);
-			const [sfRes, mRes] = await Promise.all([
+			const [sfRes, mRes, sleepWithBedtime] = await Promise.all([
 				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`)
+				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
+				db.sleepEntries.filter((e: DexieSleepEntry) => e.bedtime !== null).toArray()
 			]);
 			if (!sfRes.ok || !mRes.ok) throw new Error('Failed to fetch');
 			const [sfJson, mJson] = await Promise.all([sfRes.json(), mRes.json()]);
 			sleepFoodData = sfJson.data ?? [];
 			mealEntries = mJson.data ?? [];
+			// Use actual average bedtime from sleep entries; fall back to 22:00 if no data
+			if (sleepWithBedtime.length > 0) {
+				const avgBedHour =
+					sleepWithBedtime.reduce((sum: number, e: DexieSleepEntry) => {
+						const d = new Date(e.bedtime!);
+						return sum + d.getHours() + d.getMinutes() / 60;
+					}, 0) / sleepWithBedtime.length;
+				bedHour = Math.round(avgBedHour);
+			}
 		} catch {
 			error = 'Failed to load data';
 		} finally {
@@ -111,22 +124,22 @@
 {:else}
 	<InsightCard
 		title={m.analytics_presleep_window()}
-		headline={m.analytics_presleep_headline({ hours: bestGap().toString() })}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		headline={m.analytics_presleep_headline({ hours: bestGap.toString() })}
+		{confidence}
+		{sampleSize}
 		borderColor="border-purple-500"
 	>
 		{#snippet children()}
-			{@const a = analysis()}
+			{@const a = analysis}
 			{#if a}
 				<div class="space-y-2">
 					<div class="rounded-lg bg-muted/30 p-3 text-xs space-y-1">
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Avg gap before sleep</span>
+							<span class="text-muted-foreground">{m.analytics_presleep_avg_gap()}</span>
 							<span class="font-semibold tabular-nums">{a.avgGap}h</span>
 						</div>
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Gap vs quality correlation</span>
+							<span class="text-muted-foreground">{m.analytics_presleep_correlation()}</span>
 							<span
 								class="font-semibold tabular-nums {a.corr.r > 0
 									? 'text-green-600 dark:text-green-400'

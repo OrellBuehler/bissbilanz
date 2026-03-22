@@ -819,7 +819,11 @@ export function createMcpServer(userId: string): McpServer {
 					.min(1)
 					.max(10)
 					.describe('Sleep quality rating from 1 (poor) to 10 (great)'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				date: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
 				bedtime: z.string().optional().describe('Bedtime as ISO datetime string'),
 				wakeTime: z.string().optional().describe('Wake time as ISO datetime string'),
 				wakeUps: z
@@ -840,8 +844,16 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get the latest sleep entry, or sleep entries over a date range.',
 			inputSchema: {
-				from: z.string().optional().describe('Start date in YYYY-MM-DD format'),
-				to: z.string().optional().describe('End date in YYYY-MM-DD format')
+				from: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('Start date in YYYY-MM-DD format'),
+				to: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('End date in YYYY-MM-DD format')
 			},
 			annotations: READ_ONLY
 		},
@@ -861,7 +873,7 @@ export function createMcpServer(userId: string): McpServer {
 				wakeUps: z.number().int().min(0).optional().nullable(),
 				notes: z.string().optional().nullable()
 			},
-			annotations: WRITE
+			annotations: UPDATE
 		},
 		safe((args) => handleUpdateSleep(userId, args))
 	);

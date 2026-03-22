@@ -18,7 +18,7 @@
 	let series = $state<WeightFoodPoint[]>([]);
 	let overrideLag = $state<number | null>(null);
 
-	const lagResult = $derived(() => {
+	const lagResult = $derived.by(() => {
 		if (series.length === 0) return null;
 		const calorieData = series
 			.filter((d) => d.calories !== null)
@@ -29,25 +29,25 @@
 		return computeCaloricLag(calorieData, weightData, 7);
 	});
 
-	const bestLag = $derived(() => overrideLag ?? lagResult()?.bestLag ?? null);
+	const bestLag = $derived.by(() => overrideLag ?? lagResult?.bestLag ?? null);
 
-	const sampleSize = $derived(() => {
-		const result = lagResult();
+	const sampleSize = $derived.by(() => {
+		const result = lagResult;
 		if (!result) return 0;
 		const validResults = result.results.filter((r) => r.correlation !== null);
 		return validResults.length > 0 ? (validResults[0].correlation?.sampleSize ?? 0) : 0;
 	});
 
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
-	const headline = $derived(() => {
-		const lag = bestLag();
+	const headline = $derived.by(() => {
+		const lag = bestLag;
 		if (lag === null) return m.analytics_caloric_lag_no_result();
 		return m.analytics_caloric_lag_headline({ days: lag.toString() });
 	});
 
-	const maxAbsR = $derived(() => {
-		const result = lagResult();
+	const maxAbsR = $derived.by(() => {
+		const result = lagResult;
 		if (!result) return 0;
 		let max = 0;
 		for (const r of result.results) {
@@ -88,23 +88,23 @@
 {:else}
 	<InsightCard
 		title={m.analytics_caloric_lag()}
-		headline={headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{headline}
+		{confidence}
+		{sampleSize}
 		borderColor="border-blue-500"
 	>
 		{#snippet children()}
-			{#if lagResult()}
+			{#if lagResult}
 				<div class="space-y-3">
 					<div class="space-y-1.5">
-						{#each lagResult()?.results ?? [] as result (result.lag)}
+						{#each lagResult?.results ?? [] as result (result.lag)}
 							{@const r = result.correlation?.r ?? 0}
 							{@const absR = Math.abs(r)}
-							{@const isActive = result.lag === bestLag()}
-							{@const barPct = maxAbsR() > 0 ? (absR / maxAbsR()) * 100 : 0}
+							{@const isActive = result.lag === bestLag}
+							{@const barPct = maxAbsR > 0 ? (absR / maxAbsR) * 100 : 0}
 							<div class="flex items-center gap-2">
 								<span class="w-12 shrink-0 text-xs tabular-nums text-muted-foreground">
-									Day {result.lag}
+									{m.analytics_caloric_lag_day({ n: result.lag.toString() })}
 								</span>
 								<div class="relative flex-1 h-5 bg-muted/40 rounded overflow-hidden">
 									<div
