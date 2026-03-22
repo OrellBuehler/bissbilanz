@@ -106,7 +106,7 @@ export default defineConfig({
 					},
 					{
 						urlPattern:
-							/\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts)/,
+							/\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts|sleep|analytics)/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',

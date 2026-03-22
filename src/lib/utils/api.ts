@@ -72,7 +72,8 @@ export function urlToMeta(
 		preferences: 'userPreferences',
 		'meal-types': 'customMealTypes',
 		supplements: 'supplements',
-		weight: 'weightEntries'
+		weight: 'weightEntries',
+		sleep: 'sleepEntries'
 	};
 
 	const table = tableMap[parts[1]];
