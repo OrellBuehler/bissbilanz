@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
+import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
@@ -62,6 +64,7 @@ fun WeightScreen(navController: NavController) {
     var entryToEdit by remember { mutableStateOf<WeightEntry?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = rememberHaptic()
 
     val ranges = listOf("7d", "30d", "90d", "All")
     val projectionOptions = listOf(0, 14, 30, 60)
@@ -153,7 +156,10 @@ fun WeightScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(onClick = {
+                haptic(HapticFeedbackType.LongPress)
+                showAddDialog = true
+            }) {
                 Icon(Icons.Default.Add, "Add weight")
             }
         },
@@ -251,10 +257,10 @@ fun WeightScreen(navController: NavController) {
                                     trailingContent = {
                                         Row {
                                             IconButton(onClick = { entryToEdit = entry }) {
-                                                Icon(Icons.Default.Edit, "Edit")
+                                                Icon(Icons.Default.Edit, "Edit weight entry")
                                             }
                                             IconButton(onClick = { entryToDelete = entry }) {
-                                                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                                Icon(Icons.Default.Delete, "Delete weight entry", tint = MaterialTheme.colorScheme.error)
                                             }
                                         }
                                     },

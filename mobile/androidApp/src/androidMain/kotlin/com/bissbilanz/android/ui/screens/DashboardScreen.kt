@@ -15,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
@@ -52,6 +54,7 @@ fun DashboardScreen(navController: NavController) {
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val haptic = rememberHaptic()
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
@@ -62,11 +65,11 @@ fun DashboardScreen(navController: NavController) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
 
-    val totalCalories = entries.sumOf { it.resolvedCalories() }
-    val totalProtein = entries.sumOf { it.resolvedProtein() }
-    val totalCarbs = entries.sumOf { it.resolvedCarbs() }
-    val totalFat = entries.sumOf { it.resolvedFat() }
-    val totalFiber = entries.sumOf { it.resolvedFiber() }
+    val totalCalories = remember(entries) { entries.sumOf { it.resolvedCalories() } }
+    val totalProtein = remember(entries) { entries.sumOf { it.resolvedProtein() } }
+    val totalCarbs = remember(entries) { entries.sumOf { it.resolvedCarbs() } }
+    val totalFat = remember(entries) { entries.sumOf { it.resolvedFat() } }
+    val totalFiber = remember(entries) { entries.sumOf { it.resolvedFiber() } }
 
     val dateLabel =
         when (selectedDate) {
@@ -82,14 +85,20 @@ fun DashboardScreen(navController: NavController) {
         floatingActionButton = {
             Column {
                 SmallFloatingActionButton(
-                    onClick = { navController.navigate("scanner") },
+                    onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        navController.navigate("scanner")
+                    },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
                     Icon(Icons.Default.QrCodeScanner, "Scan barcode")
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 FloatingActionButton(
-                    onClick = { showQuickAddSheet = true },
+                    onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        showQuickAddSheet = true
+                    },
                 ) {
                     Icon(Icons.Default.Add, "Add entry")
                 }
@@ -125,7 +134,10 @@ fun DashboardScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { viewModel.previousDay() }) {
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.previousDay()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous day")
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -147,7 +159,10 @@ fun DashboardScreen(navController: NavController) {
                             Text("Go to today")
                         }
                     }
-                    IconButton(onClick = { viewModel.nextDay() }) {
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.nextDay()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next day")
                     }
                 }
@@ -217,18 +232,15 @@ fun DashboardScreen(navController: NavController) {
 
                 Crossfade(targetState = isLoading, label = "dashboard") { loading ->
                     if (loading) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        DashboardSkeleton()
                     } else {
                         Column {
-                            val mealGroups = entries.groupBy { it.mealType }
+                            val mealGroups = remember(entries) { entries.groupBy { it.mealType } }
                             val sortedMeals =
-                                mealTypes.filter { mealGroups.containsKey(it) } +
-                                    mealGroups.keys.filter { it !in mealTypes }
+                                remember(entries) {
+                                    mealTypes.filter { mealGroups.containsKey(it) } +
+                                        mealGroups.keys.filter { it !in mealTypes }
+                                }
 
                             sortedMeals.forEach { meal ->
                                 val mealEntries = mealGroups[meal] ?: return@forEach
