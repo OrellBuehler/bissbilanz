@@ -11,7 +11,7 @@ import {
 } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, setError, reset } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -43,7 +43,8 @@ const {
 	getLogsForDate,
 	getLogsForRange,
 	getSupplementIngredients,
-	getIngredientsForSupplements
+	getIngredientsForSupplements,
+	getSupplementChecklist
 } = await import('$lib/server/supplements');
 
 // Note: The mock DB returns the SAME result for all queries in a call chain.
@@ -399,6 +400,178 @@ describe('supplements-db', () => {
 			const result = await getIngredientsForSupplements([TEST_MULTI_SUPPLEMENT.id]);
 			expect(result.get(TEST_MULTI_SUPPLEMENT.id)?.length).toBe(3);
 			expect(result.get(TEST_MULTI_SUPPLEMENT.id)?.[0].name).toBe('Vitamin A');
+		});
+
+		test('groups ingredients from multiple supplements', async () => {
+			const mixedIngredients = [
+				...TEST_SUPPLEMENT_INGREDIENTS,
+				{
+					id: '10000000-0000-4000-8000-000000000080',
+					supplementId: TEST_SUPPLEMENT.id,
+					name: 'Vitamin D',
+					dosage: 1000,
+					dosageUnit: 'IU',
+					sortOrder: 0
+				}
+			];
+			setResult(mixedIngredients);
+			const result = await getIngredientsForSupplements([
+				TEST_MULTI_SUPPLEMENT.id,
+				TEST_SUPPLEMENT.id
+			]);
+			expect(result.get(TEST_MULTI_SUPPLEMENT.id)?.length).toBe(3);
+			expect(result.get(TEST_SUPPLEMENT.id)?.length).toBe(1);
+			expect(result.get(TEST_SUPPLEMENT.id)?.[0].name).toBe('Vitamin D');
+		});
+
+		test('returns empty map entries for supplements with no ingredients', async () => {
+			setResult([]);
+			const result = await getIngredientsForSupplements([TEST_SUPPLEMENT.id]);
+			expect(result.size).toBe(0);
+		});
+	});
+
+	describe('logSupplement', () => {
+		test('returns existing log when supplement already logged for date', async () => {
+			// onConflictDoNothing returns empty array, then fallback select returns existing log
+			// Mock returns TEST_SUPPLEMENT_LOG for all queries including the ownership check
+			// and the fallback select — this simulates the "already logged" path
+			setResult([TEST_SUPPLEMENT_LOG]);
+			const result = await logSupplement(TEST_USER.id, TEST_SUPPLEMENT.id, '2026-02-17');
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.supplementId).toBe(TEST_SUPPLEMENT.id);
+				expect(result.data.date).toBe('2026-02-17');
+			}
+		});
+
+		test('returns error when db throws', async () => {
+			setError(new Error('DB connection failed'));
+			const result = await logSupplement(TEST_USER.id, TEST_SUPPLEMENT.id, '2026-02-17');
+			expect(result.success).toBe(false);
+		});
+	});
+
+	describe('createSupplement', () => {
+		test('returns error when db throws during insert', async () => {
+			setError(new Error('DB connection failed'));
+			const result = await createSupplement(TEST_USER.id, VALID_SUPPLEMENT_PAYLOAD);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.message).toBe('DB connection failed');
+			}
+		});
+	});
+
+	describe('updateSupplement', () => {
+		test('returns error when db throws during update', async () => {
+			setError(new Error('DB connection failed'));
+			const result = await updateSupplement(TEST_USER.id, TEST_SUPPLEMENT.id, { dosage: 2000 });
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.message).toBe('DB connection failed');
+			}
+		});
+	});
+
+	describe('getSupplementChecklist', () => {
+		test('returns due supplements with taken status false when not logged', async () => {
+			// Mock returns the same result for listSupplements (supplement rows) and
+			// getLogsForDate (empty). Because the mock returns one result for all queries,
+			// we set the supplement result and accept that the log query also returns it.
+			// The logMap uses supplementId as key — supplement rows lack that field, so
+			// logMap will be empty and taken will be false.
+			setResult([TEST_SUPPLEMENT]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(Array.isArray(result)).toBe(true);
+			expect(result.length).toBe(1);
+			expect(result[0].supplement.id).toBe(TEST_SUPPLEMENT.id);
+			expect(result[0].taken).toBe(false);
+			expect(result[0].takenAt).toBeNull();
+		});
+
+		test('returns empty array when no active supplements', async () => {
+			setResult([]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(result).toEqual([]);
+		});
+
+		test('filters out supplements not due on the given date', async () => {
+			// 2026-02-17 is a Tuesday (day 2). A supplement scheduled only on Mondays
+			// should not appear.
+			const mondayOnly = {
+				...TEST_SUPPLEMENT,
+				scheduleType: 'specific_days' as const,
+				scheduleDays: [1]
+			};
+			setResult([mondayOnly]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(result).toEqual([]);
+		});
+
+		test('includes supplements due on the given day of week', async () => {
+			// 2026-02-17 is a Tuesday (day 2).
+			const tuesdaySupplement = {
+				...TEST_SUPPLEMENT,
+				id: '10000000-0000-4000-8000-000000000065',
+				scheduleType: 'specific_days' as const,
+				scheduleDays: [2]
+			};
+			setResult([tuesdaySupplement]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(result.length).toBe(1);
+			expect(result[0].supplement.id).toBe(tuesdaySupplement.id);
+		});
+
+		test('marks supplement as taken when log exists', async () => {
+			// When the mock result includes objects with a supplementId field that matches,
+			// the logMap will find it and mark taken=true.
+			// We build a result that works for both the supplement query and the log query:
+			// supplement rows are identified by having an `id` field that matches the log's
+			// `supplementId`. The trick: set result to an array where one item looks like a
+			// supplement (for listSupplements) and the same item also looks like a log (for
+			// getLogsForDate). The logMap.has(s.id) check requires the log's supplementId
+			// to equal the supplement's id.
+			//
+			// Since both queries get the same mock result, we craft an object that satisfies
+			// both: a supplement row where id === supplementId so it appears in both contexts.
+			const hybridRow = {
+				...TEST_SUPPLEMENT,
+				supplementId: TEST_SUPPLEMENT.id,
+				takenAt: new Date('2026-02-17T08:00:00Z'),
+				date: '2026-02-17'
+			};
+			setResult([hybridRow]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(result.length).toBe(1);
+			expect(result[0].taken).toBe(true);
+			expect(result[0].takenAt).toEqual(new Date('2026-02-17T08:00:00Z'));
+		});
+
+		test('handles every_other_day schedule correctly', async () => {
+			// scheduleStartDate '2026-02-01', date '2026-02-17'
+			// diff = 16 days (even) → due
+			const everyOtherDay = {
+				...TEST_SUPPLEMENT,
+				scheduleType: 'every_other_day' as const,
+				scheduleStartDate: '2026-02-01'
+			};
+			setResult([everyOtherDay]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-17');
+			expect(result.length).toBe(1);
+		});
+
+		test('handles every_other_day schedule on off day', async () => {
+			// scheduleStartDate '2026-02-01', date '2026-02-18'
+			// diff = 17 days (odd) → not due
+			const everyOtherDay = {
+				...TEST_SUPPLEMENT,
+				scheduleType: 'every_other_day' as const,
+				scheduleStartDate: '2026-02-01'
+			};
+			setResult([everyOtherDay]);
+			const result = await getSupplementChecklist(TEST_USER.id, '2026-02-18');
+			expect(result).toEqual([]);
 		});
 	});
 });

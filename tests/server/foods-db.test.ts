@@ -1,9 +1,10 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_FOOD, TEST_FOOD_2, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
+import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, setError, reset } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -15,8 +16,15 @@ vi.mock('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listFoods, createFood, updateFood, deleteFood, findFoodByBarcode, listRecentFoods } =
-	await import('$lib/server/foods');
+const {
+	listFoods,
+	createFood,
+	updateFood,
+	deleteFood,
+	findFoodByBarcode,
+	listRecentFoods,
+	toFoodInsert
+} = await import('$lib/server/foods');
 
 describe('foods-db', () => {
 	beforeEach(() => {
@@ -230,6 +238,131 @@ describe('foods-db', () => {
 
 			const result = await listRecentFoods(TEST_USER.id);
 			expect(result).toEqual([]);
+		});
+	});
+
+	describe('toFoodInsert', () => {
+		test('maps all 43 extended nutrients from input', () => {
+			const allNutrients = Object.fromEntries(ALL_NUTRIENT_KEYS.map((k, i) => [k, i + 1]));
+			const input = { ...VALID_FOOD_PAYLOAD, ...allNutrients };
+
+			const result = toFoodInsert(TEST_USER.id, input as Parameters<typeof toFoodInsert>[1]);
+
+			for (const key of ALL_NUTRIENT_KEYS) {
+				expect(result).toHaveProperty(key);
+				expect((result as Record<string, unknown>)[key]).toBe(allNutrients[key]);
+			}
+		});
+
+		test('defaults missing extended nutrients to null', () => {
+			const result = toFoodInsert(
+				TEST_USER.id,
+				VALID_FOOD_PAYLOAD as Parameters<typeof toFoodInsert>[1]
+			);
+
+			for (const key of ALL_NUTRIENT_KEYS) {
+				expect((result as Record<string, unknown>)[key]).toBeNull();
+			}
+		});
+
+		test('maps core fields correctly', () => {
+			const result = toFoodInsert(
+				TEST_USER.id,
+				VALID_FOOD_PAYLOAD as Parameters<typeof toFoodInsert>[1]
+			);
+
+			expect(result.userId).toBe(TEST_USER.id);
+			expect(result.name).toBe(VALID_FOOD_PAYLOAD.name);
+			expect(result.calories).toBe(VALID_FOOD_PAYLOAD.calories);
+			expect(result.protein).toBe(VALID_FOOD_PAYLOAD.protein);
+			expect(result.carbs).toBe(VALID_FOOD_PAYLOAD.carbs);
+			expect(result.fat).toBe(VALID_FOOD_PAYLOAD.fat);
+			expect(result.fiber).toBe(VALID_FOOD_PAYLOAD.fiber);
+			expect(result.barcode).toBe(VALID_FOOD_PAYLOAD.barcode);
+		});
+
+		test('coerces empty string barcode to null', () => {
+			const input = { ...VALID_FOOD_PAYLOAD, barcode: '' };
+			const result = toFoodInsert(TEST_USER.id, input as Parameters<typeof toFoodInsert>[1]);
+			expect(result.barcode).toBeNull();
+		});
+
+		test('defaults isFavorite to false when not provided', () => {
+			const result = toFoodInsert(
+				TEST_USER.id,
+				VALID_FOOD_PAYLOAD as Parameters<typeof toFoodInsert>[1]
+			);
+			expect(result.isFavorite).toBe(false);
+		});
+	});
+
+	describe('barcode conflict handling', () => {
+		test('createFood returns 409 ApiError when barcode is a duplicate', async () => {
+			const duplicateError = new Error(
+				'duplicate key value violates unique constraint "foods_barcode_unique"'
+			);
+			setError(duplicateError);
+
+			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect((result.error as { status?: number }).status).toBe(409);
+				expect(result.error.message).toContain('1234567890123');
+			}
+		});
+
+		test('createFood propagates non-barcode unique constraint errors unchanged', async () => {
+			const otherConstraintError = new Error(
+				'duplicate key value violates unique constraint "foods_some_other_constraint"'
+			);
+			setError(otherConstraintError);
+
+			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.message).toContain('some_other_constraint');
+				expect((result.error as { status?: number }).status).toBeUndefined();
+			}
+		});
+
+		test('createFood propagates non-Error throws unchanged', async () => {
+			const genericError = new Error('connection refused');
+			setError(genericError);
+
+			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error).toBe(genericError);
+			}
+		});
+
+		test('updateFood returns 409 ApiError when barcode is a duplicate', async () => {
+			const duplicateError = new Error(
+				'duplicate key value violates unique constraint "foods_barcode_unique"'
+			);
+			setError(duplicateError);
+
+			const result = await updateFood(TEST_USER.id, TEST_FOOD.id, {
+				barcode: VALID_FOOD_PAYLOAD.barcode
+			});
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect((result.error as { status?: number }).status).toBe(409);
+			}
+		});
+
+		test('createFood without barcode does not trigger conflict resolution on unique constraint error', async () => {
+			const duplicateError = new Error(
+				'duplicate key value violates unique constraint "foods_barcode_unique"'
+			);
+			setError(duplicateError);
+
+			const payloadWithoutBarcode = { ...VALID_FOOD_PAYLOAD, barcode: undefined };
+			const result = await createFood(TEST_USER.id, payloadWithoutBarcode);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect((result.error as { status?: number }).status).toBeUndefined();
+			}
 		});
 	});
 });

@@ -5,6 +5,7 @@ import {
 	TEST_ENTRY,
 	TEST_ENTRY_2,
 	TEST_FOOD,
+	TEST_MEAL_TYPE,
 	VALID_ENTRY_PAYLOAD
 } from '../helpers/fixtures';
 
@@ -158,6 +159,66 @@ describe('entries-db', () => {
 				expect(result.data.notes).toBe('Extra protein');
 			}
 		});
+
+		test('accepts quick log entry with quickCalories only', async () => {
+			const quickEntry = {
+				...TEST_ENTRY,
+				foodId: null,
+				recipeId: null,
+				quickName: 'Restaurant meal',
+				quickCalories: 650
+			};
+			setResult([quickEntry]);
+
+			const result = await createEntry(TEST_USER.id, {
+				date: '2026-02-10',
+				mealType: 'Lunch',
+				servings: 1,
+				quickName: 'Restaurant meal',
+				quickCalories: 650
+			});
+			expect(result.success).toBe(true);
+		});
+
+		test('rejects quick log entry with zero quickCalories and no foodId or recipeId', async () => {
+			const result = await createEntry(TEST_USER.id, {
+				date: '2026-02-10',
+				mealType: 'Lunch',
+				servings: 1,
+				quickCalories: 0
+			});
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
+		});
+
+		test('rejects unknown custom meal type when not in DB', async () => {
+			setResult([]);
+
+			const result = await createEntry(TEST_USER.id, {
+				date: '2026-02-10',
+				mealType: 'Pre-Workout',
+				foodId: TEST_FOOD.id,
+				servings: 1
+			});
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.message).toContain('Invalid meal type');
+			}
+		});
+
+		test('accepts valid custom meal type found in DB', async () => {
+			setResult([{ id: TEST_MEAL_TYPE.id }]);
+
+			const result = await createEntry(TEST_USER.id, {
+				date: '2026-02-10',
+				mealType: 'Pre-Workout',
+				foodId: TEST_FOOD.id,
+				servings: 1
+			});
+			expect(result.success).toBe(true);
+		});
 	});
 
 	describe('updateEntry', () => {
@@ -201,6 +262,29 @@ describe('entries-db', () => {
 			expect(result.success).toBe(true);
 			if (result.success) {
 				expect(result.data?.notes).toBeNull();
+			}
+		});
+
+		test('rejects unknown custom meal type', async () => {
+			setResult([]);
+
+			const result = await updateEntry(TEST_USER.id, TEST_ENTRY.id, {
+				mealType: 'NonExistentMeal'
+			});
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.message).toContain('Invalid meal type');
+			}
+		});
+
+		test('accepts default meal type without DB lookup', async () => {
+			const updated = { ...TEST_ENTRY, mealType: 'Dinner' };
+			setResult([updated]);
+
+			const result = await updateEntry(TEST_USER.id, TEST_ENTRY.id, { mealType: 'Dinner' });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data?.mealType).toBe('Dinner');
 			}
 		});
 	});
