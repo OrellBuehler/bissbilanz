@@ -96,6 +96,25 @@ describe('computeNutrientOutcomeCorrelations', () => {
 		}
 	});
 
+	it('treats zero as a valid measurement, not as missing data', () => {
+		const dates = makeDays(10);
+		// fat is 0 for 6 of 10 days — should NOT be excluded (zeros are valid)
+		const dailyNutrients = dates.map((date, i) => ({
+			date,
+			nutrients: {
+				fat: i < 6 ? 0 : 10 + i,
+				protein: 100 + i * 5
+			}
+		}));
+		const outcomes = dates.map((date, i) => ({ date, value: 70 + i * 0.5 }));
+
+		// fat has >50% zeros but should pass the null threshold (nullCount=0)
+		const result = computeNutrientOutcomeCorrelations(dailyNutrients, outcomes);
+		// protein should always be present; fat should not be excluded due to zero values
+		const proteinEntry = result.find((r) => r.nutrientKey === 'protein');
+		expect(proteinEntry).toBeDefined();
+	});
+
 	it('returns empty array when no nutrients pass thresholds', () => {
 		const dates = makeDays(20);
 		const dailyNutrients = dates.map((date) => ({

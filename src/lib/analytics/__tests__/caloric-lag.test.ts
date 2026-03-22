@@ -128,4 +128,18 @@ describe('computeCaloricLag', () => {
 		const result = computeCaloricLag(calories, weight);
 		expect(result.results).toHaveLength(7);
 	});
+
+	it('returns empty results for maxLag=0', () => {
+		const calories = [
+			{ date: '2024-01-01', value: 2000 },
+			{ date: '2024-01-02', value: 2500 }
+		];
+		const weight = [
+			{ date: '2024-01-01', value: 80 },
+			{ date: '2024-01-02', value: 80.1 }
+		];
+		const result = computeCaloricLag(calories, weight, 0);
+		expect(result.bestLag).toBeNull();
+		expect(result.results).toHaveLength(0);
+	});
 });

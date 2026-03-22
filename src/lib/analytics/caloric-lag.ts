@@ -31,6 +31,8 @@ export function computeCaloricLag(
 
 	const results: LagResult[] = [];
 
+	// Start at lag=1: same-day correlation (lag=0) is excluded because
+	// caloric intake cannot measurably affect weight on the same day
 	for (let lag = 1; lag <= maxLag; lag++) {
 		const pairedCalories: number[] = [];
 		const pairedWeights: number[] = [];

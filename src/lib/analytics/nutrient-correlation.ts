@@ -26,12 +26,12 @@ export function computeNutrientOutcomeCorrelations(
 
 	for (const key of allKeys) {
 		const paired: { nutrient: number; outcome: number }[] = [];
-		let nullOrZeroCount = 0;
+		let nullCount = 0;
 
 		for (const day of dailyNutrients) {
 			const nutrientValue = day.nutrients[key] ?? null;
-			if (nutrientValue === null || nutrientValue === 0) {
-				nullOrZeroCount++;
+			if (nutrientValue === null || nutrientValue === undefined) {
+				nullCount++;
 				continue;
 			}
 
@@ -43,7 +43,7 @@ export function computeNutrientOutcomeCorrelations(
 		}
 
 		const totalDays = dailyNutrients.length;
-		if (totalDays === 0 || nullOrZeroCount / totalDays > 0.5) continue;
+		if (totalDays === 0 || nullCount / totalDays > 0.5) continue;
 
 		if (paired.length < 2) continue;
 
