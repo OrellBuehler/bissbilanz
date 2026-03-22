@@ -74,6 +74,7 @@ fun WeightScreen(navController: NavController) {
         AddWeightDialog(
             onDismiss = { showAddDialog = false },
             onSave = { weight, notes ->
+                haptic(HapticFeedbackType.LongPress)
                 scope.launch {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
@@ -156,10 +157,12 @@ fun WeightScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                haptic(HapticFeedbackType.LongPress)
-                showAddDialog = true
-            }) {
+            FloatingActionButton(
+                onClick = {
+                    haptic(HapticFeedbackType.LongPress)
+                    showAddDialog = true
+                },
+            ) {
                 Icon(Icons.Default.Add, "Add weight")
             }
         },
@@ -257,10 +260,10 @@ fun WeightScreen(navController: NavController) {
                                     trailingContent = {
                                         Row {
                                             IconButton(onClick = { entryToEdit = entry }) {
-                                                Icon(Icons.Default.Edit, "Edit weight entry")
+                                                Icon(Icons.Default.Edit, "Edit")
                                             }
                                             IconButton(onClick = { entryToDelete = entry }) {
-                                                Icon(Icons.Default.Delete, "Delete weight entry", tint = MaterialTheme.colorScheme.error)
+                                                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
                                             }
                                         }
                                     },
