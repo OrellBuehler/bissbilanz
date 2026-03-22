@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,8 +25,10 @@ import coil.compose.AsyncImage
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.FoodSearchSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -50,6 +53,7 @@ fun FoodSearchScreen(navController: NavController) {
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = rememberHaptic()
     var foodToLog by remember { mutableStateOf<Food?>(null) }
     var showCreateFoodSheet by remember { mutableStateOf(false) }
 
@@ -83,7 +87,10 @@ fun FoodSearchScreen(navController: NavController) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateFoodSheet = true }) {
+            FloatingActionButton(onClick = {
+                haptic(HapticFeedbackType.LongPress)
+                showCreateFoodSheet = true
+            }) {
                 Icon(Icons.Default.Add, "Create food")
             }
         },
@@ -120,9 +127,7 @@ fun FoodSearchScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Crossfade(targetState = isSearching, label = "search") { searching ->
                         if (searching) {
-                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
+                            FoodSearchSkeleton()
                         } else if (searchResults.isEmpty()) {
                             EmptyState("No foods found for \"$query\"")
                         } else {
@@ -132,7 +137,10 @@ fun FoodSearchScreen(navController: NavController) {
                                         food = food,
                                         baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = { foodToLog = food },
+                                        onQuickLog = {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            foodToLog = food
+                                        },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
@@ -179,7 +187,10 @@ fun FoodSearchScreen(navController: NavController) {
                                         food = food,
                                         baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = { foodToLog = food },
+                                        onQuickLog = {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            foodToLog = food
+                                        },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
@@ -195,7 +206,10 @@ fun FoodSearchScreen(navController: NavController) {
                                         food = food,
                                         baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = { foodToLog = food },
+                                        onQuickLog = {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            foodToLog = food
+                                        },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
