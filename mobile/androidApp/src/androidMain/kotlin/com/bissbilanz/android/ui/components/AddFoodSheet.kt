@@ -204,6 +204,7 @@ fun AddFoodSheet(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
                             shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
+                            icon = {},
                         ) {
                             Text(label, maxLines = 1)
                         }
