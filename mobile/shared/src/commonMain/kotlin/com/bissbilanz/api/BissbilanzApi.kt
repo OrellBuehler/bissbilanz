@@ -25,6 +25,8 @@ import com.bissbilanz.api.generated.model.MealType
 import com.bissbilanz.api.generated.model.MealTypeCreate
 import com.bissbilanz.api.generated.model.MealTypesListResponse
 import com.bissbilanz.api.generated.model.MonthlyStatsResponse
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
+import com.bissbilanz.api.generated.model.OpenFoodFactsResponse
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesResponse
 import com.bissbilanz.api.generated.model.PreferencesUpdate
@@ -255,6 +257,15 @@ class BissbilanzApi(
         try {
             val response: FoodResponse = get("/api/foods") { parameter("barcode", barcode) }
             response.food
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            null
+        }
+
+    suspend fun lookupOpenFoodFacts(barcode: String): OpenFoodFactsProduct? =
+        try {
+            val response: OpenFoodFactsResponse = get("/api/openfoodfacts/$barcode")
+            response.product
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             null

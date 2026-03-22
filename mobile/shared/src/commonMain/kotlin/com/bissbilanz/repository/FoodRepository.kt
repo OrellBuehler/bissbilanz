@@ -7,6 +7,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodsListResponse
+import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -154,6 +155,82 @@ class FoodRepository(
                 .executeAsList()
                 .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
         }
+
+    suspend fun enrichFood(
+        id: String,
+        barcode: String,
+    ): Food {
+        val product =
+            api.lookupOpenFoodFacts(barcode)
+                ?: throw IllegalStateException("Product not found in Open Food Facts")
+        val current = api.getFood(id)
+        val enriched =
+            FoodCreate(
+                name = current.name,
+                servingSize = current.servingSize,
+                servingUnit = ServingUnit.valueOf(current.servingUnit.name),
+                calories = current.calories,
+                protein = current.protein,
+                carbs = current.carbs,
+                fat = current.fat,
+                fiber = current.fiber,
+                brand = current.brand,
+                barcode = current.barcode,
+                isFavorite = current.isFavorite,
+                nutriScore = product.nutriScore?.let { FoodCreate.NutriScore.valueOf(it.name) },
+                novaGroup = product.novaGroup?.toInt(),
+                additives = product.additives,
+                ingredientsText = product.ingredientsText,
+                imageUrl = product.imageUrl ?: current.imageUrl,
+                saturatedFat = product.saturatedFat ?: current.saturatedFat,
+                monounsaturatedFat = product.monounsaturatedFat ?: current.monounsaturatedFat,
+                polyunsaturatedFat = product.polyunsaturatedFat ?: current.polyunsaturatedFat,
+                transFat = product.transFat ?: current.transFat,
+                cholesterol = product.cholesterol ?: current.cholesterol,
+                omega3 = product.omega3 ?: current.omega3,
+                omega6 = product.omega6 ?: current.omega6,
+                sugar = product.sugar ?: current.sugar,
+                addedSugars = product.addedSugars ?: current.addedSugars,
+                sugarAlcohols = product.sugarAlcohols ?: current.sugarAlcohols,
+                starch = product.starch ?: current.starch,
+                sodium = product.sodium ?: current.sodium,
+                potassium = product.potassium ?: current.potassium,
+                calcium = product.calcium ?: current.calcium,
+                iron = product.iron ?: current.iron,
+                magnesium = product.magnesium ?: current.magnesium,
+                phosphorus = product.phosphorus ?: current.phosphorus,
+                zinc = product.zinc ?: current.zinc,
+                copper = product.copper ?: current.copper,
+                manganese = product.manganese ?: current.manganese,
+                selenium = product.selenium ?: current.selenium,
+                iodine = product.iodine ?: current.iodine,
+                fluoride = product.fluoride ?: current.fluoride,
+                chromium = product.chromium ?: current.chromium,
+                molybdenum = product.molybdenum ?: current.molybdenum,
+                chloride = product.chloride ?: current.chloride,
+                vitaminA = product.vitaminA ?: current.vitaminA,
+                vitaminC = product.vitaminC ?: current.vitaminC,
+                vitaminD = product.vitaminD ?: current.vitaminD,
+                vitaminE = product.vitaminE ?: current.vitaminE,
+                vitaminK = product.vitaminK ?: current.vitaminK,
+                vitaminB1 = product.vitaminB1 ?: current.vitaminB1,
+                vitaminB2 = product.vitaminB2 ?: current.vitaminB2,
+                vitaminB3 = product.vitaminB3 ?: current.vitaminB3,
+                vitaminB5 = product.vitaminB5 ?: current.vitaminB5,
+                vitaminB6 = product.vitaminB6 ?: current.vitaminB6,
+                vitaminB7 = product.vitaminB7 ?: current.vitaminB7,
+                vitaminB9 = product.vitaminB9 ?: current.vitaminB9,
+                vitaminB12 = product.vitaminB12 ?: current.vitaminB12,
+                caffeine = product.caffeine ?: current.caffeine,
+                alcohol = product.alcohol ?: current.alcohol,
+                water = product.water ?: current.water,
+                salt = product.salt ?: current.salt,
+            )
+        val updated = api.updateFood(id, enriched)
+        cacheFood(updated)
+        onFoodChanged?.invoke()
+        return updated
+    }
 
     suspend fun findByBarcode(barcode: String): Food? =
         coroutineScope {

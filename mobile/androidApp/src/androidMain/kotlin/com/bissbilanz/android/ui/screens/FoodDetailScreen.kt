@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -80,6 +81,7 @@ fun FoodDetailScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
+    var isEnriching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -194,6 +196,36 @@ fun FoodDetailScreen(
                 },
                 actions = {
                     if (food != null) {
+                        if (food?.barcode != null) {
+                            IconButton(
+                                onClick = {
+                                    if (!isEnriching) {
+                                        isEnriching = true
+                                        scope.launch {
+                                            try {
+                                                food = foodRepo.enrichFood(foodId, food!!.barcode!!)
+                                                snackbarHostState.showSnackbar("Food enriched with Open Food Facts data")
+                                            } catch (e: Exception) {
+                                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                                errorReporter.captureException(e)
+                                                snackbarHostState.showSnackbar("Failed to enrich food")
+                                            }
+                                            isEnriching = false
+                                        }
+                                    }
+                                },
+                                enabled = !isEnriching,
+                            ) {
+                                if (isEnriching) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Icon(Icons.Default.AutoAwesome, "Enrich")
+                                }
+                            }
+                        }
                         IconButton(onClick = { showEditSheet = true }) {
                             Icon(Icons.Default.Edit, "Edit")
                         }
