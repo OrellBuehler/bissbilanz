@@ -31,25 +31,32 @@ export const listFavoriteFoods = async (userId: string, limit = 50) => {
 export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 	const db = getDB();
 
+	const logCountSq = db
+		.select({
+			recipeId: foodEntries.recipeId,
+			logCount: count(foodEntries.id).as('log_count')
+		})
+		.from(foodEntries)
+		.where(eq(foodEntries.userId, userId))
+		.groupBy(foodEntries.recipeId)
+		.as('log_counts');
+
 	const results = await db
 		.select({
 			id: recipes.id,
 			name: recipes.name,
 			imageUrl: recipes.imageUrl,
 			totalServings: recipes.totalServings,
-			logCount: count(foodEntries.id),
+			logCount: sql<number>`COALESCE(${logCountSq.logCount}, 0)`,
 			...macroAggregations
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipes.id, recipeIngredients.recipeId))
 		.leftJoin(foods, eq(recipeIngredients.foodId, foods.id))
-		.leftJoin(
-			foodEntries,
-			and(eq(recipes.id, foodEntries.recipeId), eq(foodEntries.userId, userId))
-		)
+		.leftJoin(logCountSq, eq(recipes.id, logCountSq.recipeId))
 		.where(and(eq(recipes.userId, userId), eq(recipes.isFavorite, true)))
-		.groupBy(recipes.id)
-		.orderBy(sql`count(${foodEntries.id}) DESC`)
+		.groupBy(recipes.id, logCountSq.logCount)
+		.orderBy(sql`COALESCE(${logCountSq.logCount}, 0) DESC`)
 		.limit(limit);
 
 	return roundNutrition(

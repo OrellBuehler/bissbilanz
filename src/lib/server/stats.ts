@@ -257,7 +257,9 @@ export const getTopFoods = async (
 		}
 	> = {};
 	for (const entry of entries) {
-		const key = entry.foodId ?? `recipe:${entry.recipeId}`;
+		const key =
+			entry.foodId ??
+			(entry.recipeId ? `recipe:${entry.recipeId}` : `quick:${entry.foodName ?? 'unknown'}`);
 		if (!groups[key]) {
 			groups[key] = {
 				foodName: entry.foodName ?? 'Unknown',

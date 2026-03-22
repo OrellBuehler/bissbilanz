@@ -11,4 +11,6 @@ export type SuccessResult<T> = { success: true; data: T };
 export type ErrorResult = { success: false; error: ZodError | Error };
 export type Result<T> = SuccessResult<T> | ErrorResult;
 
-export type DeleteResult = { blocked: true; entryCount: number } | { blocked: false };
+export type DeleteResult =
+	| { blocked: true; entryCount: number; ingredientCount?: number }
+	| { blocked: false };

@@ -14,6 +14,17 @@ vi.mock('$lib/server/rate-limit', () => ({
 	rateLimitRegistration: () => {}
 }));
 
+vi.mock('$lib/server/errors', async (importOriginal) => {
+	const actual = (await importOriginal()) as Record<string, unknown>;
+	return {
+		...actual,
+		requireAuth: (locals: any) => {
+			if (!locals.user) throw new Error('Unauthorized');
+			return locals.user.id;
+		}
+	};
+});
+
 vi.mock('$lib/server/oauth', () => ({
 	...allOAuthExports,
 	generateClientId: () => 'generated-client-id',
@@ -34,7 +45,7 @@ function createRegisterRequest(body: unknown) {
 		request,
 		url: new URL('http://localhost:5173/api/oauth/register'),
 		params: {},
-		locals: {},
+		locals: { user: { id: 'test-user-id' } },
 		cookies: { get: () => undefined, set: () => {}, delete: () => {}, serialize: () => '' },
 		fetch: globalThis.fetch,
 		getClientAddress: () => '127.0.0.1',
@@ -174,7 +185,7 @@ describe('POST /api/oauth/register', () => {
 			request,
 			url: new URL('http://localhost:5173/api/oauth/register'),
 			params: {},
-			locals: {},
+			locals: { user: { id: 'test-user-id' } },
 			cookies: { get: () => undefined, set: () => {}, delete: () => {}, serialize: () => '' },
 			fetch: globalThis.fetch,
 			getClientAddress: () => '127.0.0.1',
@@ -198,5 +209,16 @@ describe('POST /api/oauth/register', () => {
 		const data = await response.json();
 		expect(response.status).toBe(201);
 		expect(data.redirect_uris).toEqual(['https://example.com/callback']);
+	});
+
+	test('rejects unauthenticated requests', async () => {
+		const event = createRegisterRequest({
+			redirect_uris: ['https://example.com/callback']
+		});
+		event.locals = {};
+		const response = await POST(event);
+		const data = await response.json();
+		expect(response.status).toBe(401);
+		expect(data.error).toBe('unauthorized');
 	});
 });

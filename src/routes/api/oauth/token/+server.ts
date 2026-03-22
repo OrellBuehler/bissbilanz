@@ -9,6 +9,7 @@ import {
 	ACCESS_TOKEN_LIFETIME_MS,
 	isValidCodeVerifier
 } from '$lib/server/oauth';
+import { rateLimit } from '$lib/server/rate-limit';
 
 const MAX_FIELD_LENGTH = 2048;
 
@@ -16,7 +17,16 @@ function isValidField(value: FormDataEntryValue | null): value is string {
 	return typeof value === 'string' && value.length > 0 && value.length <= MAX_FIELD_LENGTH;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	try {
+		rateLimit(`oauth:token:${getClientAddress()}`, 20, 60_000);
+	} catch {
+		return json(
+			{ error: 'too_many_requests', error_description: 'Rate limit exceeded' },
+			{ status: 429 }
+		);
+	}
+
 	const formData = await request.formData();
 	const grantType = formData.get('grant_type');
 	const clientId = formData.get('client_id');

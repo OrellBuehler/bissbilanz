@@ -578,21 +578,6 @@ export function generateSpec() {
 				}
 			},
 			'/api/supplements/{id}/log/{date}': {
-				post: {
-					operationId: 'logSupplementForDate',
-					tags: ['Supplements'],
-					description: 'Log a supplement as taken on a specific date.',
-					requestParams: {
-						path: z.object({ id: z.string().uuid(), date: z.string().date() })
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: supplementLogResponseSchema } }
-						},
-						'401': res401
-					}
-				},
 				delete: {
 					operationId: 'unlogSupplementForDate',
 					tags: ['Supplements'],

@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { compareSync, hashSync } from 'bcrypt';
 import { eq, and, gt, lt, isNull } from 'drizzle-orm';
 import {
@@ -42,7 +42,8 @@ export function verifyToken(token: string, hash: string): boolean {
 
 export function verifyPKCE(codeVerifier: string, codeChallenge: string): boolean {
 	const hash = createHash('sha256').update(codeVerifier).digest('base64url');
-	return hash === codeChallenge;
+	if (hash.length !== codeChallenge.length) return false;
+	return timingSafeEqual(Buffer.from(hash), Buffer.from(codeChallenge));
 }
 
 export function isValidRedirectUriFormat(uri: string): boolean {
