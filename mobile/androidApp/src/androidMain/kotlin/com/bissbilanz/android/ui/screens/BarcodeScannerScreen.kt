@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +33,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.repository.FoodRepository
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -54,6 +58,7 @@ fun BarcodeScannerScreen(navController: NavController) {
     }
     var scanState by remember { mutableStateOf(ScanState.SCANNING) }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
+    val haptic = rememberHaptic()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -90,6 +95,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                     lifecycleOwner = lifecycleOwner,
                     onBarcodeScanned = { barcode ->
                         if (scanState == ScanState.SCANNING) {
+                            haptic(HapticFeedbackType.LongPress)
                             scannedBarcode = barcode
                             scanState = ScanState.SEARCHING
                             scope.launch {
@@ -127,8 +133,8 @@ fun BarcodeScannerScreen(navController: NavController) {
                     val borderColor =
                         when (scanState) {
                             ScanState.SCANNING -> Color.White
-                            ScanState.SEARCHING -> Color(0xFF3B82F6)
-                            ScanState.NOT_FOUND -> Color(0xFFEF4444)
+                            ScanState.SEARCHING -> CaloriesBlue
+                            ScanState.NOT_FOUND -> ProteinRed
                         }
                     drawRoundRect(
                         color = borderColor,
