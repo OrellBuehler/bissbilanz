@@ -47,6 +47,7 @@ async function refresh() {
 					sortOrder: t.sortOrder
 				}))
 			};
+			await db.userPreferences.where('userId').notEqual('me').delete();
 			await db.userPreferences.put(row);
 		}
 	} catch {

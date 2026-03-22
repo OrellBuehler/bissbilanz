@@ -69,8 +69,16 @@ const ALL_SECTION_KEYS = [
 
 const normalizeSectionOrder = (order: string[]): string[] => {
 	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));
-	if (!result.includes('chart')) result.unshift('chart');
-	if (!result.includes('daylog')) result.push('daylog');
+	for (const key of ALL_SECTION_KEYS) {
+		if (!result.includes(key)) {
+			const daylogIndex = result.indexOf('daylog');
+			if (daylogIndex >= 0) {
+				result.splice(daylogIndex, 0, key);
+			} else {
+				result.push(key);
+			}
+		}
+	}
 	return result;
 };
 
