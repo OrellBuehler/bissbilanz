@@ -602,6 +602,59 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/sleep': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List sleep entries, optionally filtered by date range. */
+		get: operations['listSleepEntries'];
+		put?: never;
+		/** @description Create a new sleep entry. */
+		post: operations['createSleepEntry'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/sleep/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a sleep entry. */
+		delete: operations['deleteSleepEntry'];
+		options?: never;
+		head?: never;
+		/** @description Update a sleep entry. */
+		patch: operations['updateSleepEntry'];
+		trace?: never;
+	};
+	'/api/analytics/sleep-food': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get sleep-food correlation data for a date range. */
+		get: operations['getSleepFoodCorrelation'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/openfoodfacts/{barcode}': {
 		parameters: {
 			query?: never;
@@ -866,6 +919,7 @@ export interface components {
 			showWeightWidget?: boolean;
 			showMealBreakdownWidget?: boolean;
 			showTopFoodsWidget?: boolean;
+			showSleepWidget?: boolean;
 			widgetOrder?: (
 				| 'chart'
 				| 'favorites'
@@ -873,6 +927,7 @@ export interface components {
 				| 'weight'
 				| 'meal-breakdown'
 				| 'top-foods'
+				| 'sleep'
 				| 'summary'
 				| 'daylog'
 			)[];
@@ -900,6 +955,24 @@ export interface components {
 		MealTypeUpdate: {
 			name?: string;
 			sortOrder?: number;
+		};
+		SleepCreate: {
+			durationMinutes: number;
+			quality: number;
+			entryDate: string;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
+		};
+		SleepUpdate: {
+			durationMinutes?: number;
+			quality?: number;
+			entryDate?: string;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
 		};
 		GoalsResponse: {
 			goals: components['schemas']['Goals'] | null;
@@ -1348,6 +1421,7 @@ export interface components {
 			showWeightWidget: boolean;
 			showMealBreakdownWidget: boolean;
 			showTopFoodsWidget: boolean;
+			showSleepWidget: boolean;
 			widgetOrder: string[];
 			startPage: string;
 			favoriteTapAction: string;
@@ -1503,6 +1577,42 @@ export interface components {
 		};
 		ImageUploadResponse: {
 			imageUrl: string;
+		};
+		SleepEntriesResponse: {
+			entries: components['schemas']['SleepEntry'][];
+		};
+		SleepEntry: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			entryDate: string;
+			durationMinutes: number;
+			quality: number;
+			bedtime: string | null;
+			wakeTime: string | null;
+			wakeUps: number | null;
+			sleepLatencyMinutes: number | null;
+			deepSleepMinutes: number | null;
+			lightSleepMinutes: number | null;
+			remSleepMinutes: number | null;
+			source: string | null;
+			notes: string | null;
+			loggedAt?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		SleepEntryResponse: {
+			entry: components['schemas']['SleepEntry'];
+		};
+		SleepFoodCorrelationResponse: {
+			data: components['schemas']['SleepFoodCorrelationEntry'][];
+		};
+		SleepFoodCorrelationEntry: {
+			date: string;
+			eveningCalories: number | null;
+			sleepDurationMinutes: number;
+			sleepQuality: number;
 		};
 		OpenFoodFactsResponse: {
 			product: components['schemas']['OpenFoodFactsProduct'];
@@ -2863,6 +2973,124 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['ImageUploadResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listSleepEntries: {
+		parameters: {
+			query?: {
+				from?: string;
+				to?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntriesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SleepCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SleepUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getSleepFoodCorrelation: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepFoodCorrelationResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];

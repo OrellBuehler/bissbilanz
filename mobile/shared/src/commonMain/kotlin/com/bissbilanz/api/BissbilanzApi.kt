@@ -36,6 +36,13 @@ import com.bissbilanz.api.generated.model.RecipeResponse
 import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.RecipesListResponse
+import com.bissbilanz.api.generated.model.SleepCreate
+import com.bissbilanz.api.generated.model.SleepEntriesResponse
+import com.bissbilanz.api.generated.model.SleepEntry
+import com.bissbilanz.api.generated.model.SleepEntryResponse
+import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry
+import com.bissbilanz.api.generated.model.SleepFoodCorrelationResponse
+import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.api.generated.model.StreaksResponse
 import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementChecklistItem
@@ -580,6 +587,47 @@ class BissbilanzApi(
     suspend fun getSupplementChecklist(date: String): List<SupplementChecklistItem> {
         val response: SupplementChecklistResponse = get("/api/supplements/$date/checklist")
         return response.checklist
+    }
+
+    // Sleep
+    suspend fun getSleepEntries(
+        from: String? = null,
+        to: String? = null,
+    ): List<SleepEntry> {
+        val response: SleepEntriesResponse =
+            get("/api/sleep") {
+                from?.let { parameter("from", it) }
+                to?.let { parameter("to", it) }
+            }
+        return response.propertyEntries
+    }
+
+    suspend fun createSleepEntry(entry: SleepCreate): SleepEntry {
+        val response: SleepEntryResponse = post("/api/sleep", entry)
+        return response.entry
+    }
+
+    suspend fun updateSleepEntry(
+        id: String,
+        entry: SleepUpdate,
+    ): SleepEntry {
+        val response: SleepEntryResponse = patch("/api/sleep/$id", entry)
+        return response.entry
+    }
+
+    suspend fun deleteSleepEntry(id: String) = delete("/api/sleep/$id")
+
+    // Analytics
+    suspend fun getSleepFoodCorrelation(
+        startDate: String,
+        endDate: String,
+    ): List<SleepFoodCorrelationEntry> {
+        val response: SleepFoodCorrelationResponse =
+            get("/api/analytics/sleep-food") {
+                parameter("startDate", startDate)
+                parameter("endDate", endDate)
+            }
+        return response.data
     }
 
     suspend fun downloadBytes(url: String): ByteArray {

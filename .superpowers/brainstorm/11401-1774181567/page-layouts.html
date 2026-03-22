@@ -1,0 +1,133 @@
+<h2>Analytics Page Layouts</h2>
+<p class="subtitle">Where each insight lives — three enhanced pages</p>
+
+<div class="options">
+	<div class="option" data-choice="weight" onclick="toggleSelect(this)">
+		<div class="letter">1</div>
+		<div class="content">
+			<h3>/weight — Enhanced Weight Page</h3>
+			<p>Existing weight chart + log stays at top. New sections below:</p>
+			<div
+				style="
+					background: var(--bg-secondary);
+					border-radius: 8px;
+					padding: 16px;
+					margin-top: 12px;
+					font-size: 14px;
+				"
+			>
+				<div
+					style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px"
+				>
+					<strong>📊 Existing:</strong> Weight chart (moving avg + projection) · Weight log form ·
+					History list
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #6cabf7">NEW — Caloric Lag Detector</strong><br />
+					Auto-detected lag shown as "Your weight responds to eating ~3 days later" with correlation
+					chart showing each offset. Slider to override.
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #6cabf7">NEW — Macro Impact on Weight</strong><br />
+					Bar chart: correlation of each macro (protein/carbs/fat/fiber) with weight change rate.
+					E.g. "Higher protein days correlate with -0.05kg/day"
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #6cabf7">NEW — Meal Timing & Weight</strong><br />
+					Scatter plot: eating window width vs. weight change. "Days with eating window <10h
+					correlate with weight loss"
+				</div>
+				<div>
+					<strong style="color: #6cabf7">NEW — Micronutrient Gaps</strong><br />
+					Heatmap: nutrient adequacy vs. weight trend. Flags nutrients where deficiency correlates
+					with weight plateaus.
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="option" data-choice="sleep" onclick="toggleSelect(this)">
+		<div class="letter">2</div>
+		<div class="content">
+			<h3>/sleep — New Sleep Page</h3>
+			<p>Brand new page with logging + analytics:</p>
+			<div
+				style="
+					background: var(--bg-secondary);
+					border-radius: 8px;
+					padding: 16px;
+					margin-top: 12px;
+					font-size: 14px;
+				"
+			>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #a78bfa">Sleep Log Form</strong><br />
+					Quick entry: duration (hours:minutes picker) + quality slider (1-10). Expandable "more
+					details" for bedtime, wake time, wake-ups.
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #a78bfa">Sleep Trend Chart</strong><br />
+					Dual-axis: duration bars + quality line over 7/30/90 days. Moving average overlay.
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #a78bfa">Food → Sleep Correlations</strong><br />
+					"Foods that help your sleep" / "Foods that hurt your sleep" — ranked lists with
+					correlation strength. Based on evening meals vs. that night's sleep.
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #a78bfa">Nutrient → Sleep Matrix</strong><br />
+					Which nutrients correlate with better/worse sleep? Highlights tryptophan, magnesium,
+					fiber, saturated fat.
+				</div>
+				<div>
+					<strong style="color: #a78bfa">Pre-Sleep Eating Window</strong><br />
+					"You sleep better when your last meal is 3+ hours before bed" — correlation of
+					dinner-to-bed gap vs. sleep quality.
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="option" data-choice="insights" onclick="toggleSelect(this)">
+		<div class="letter">3</div>
+		<div class="content">
+			<h3>/insights — Enhanced Insights Page</h3>
+			<p>Existing sections stay. New chrononutrition section added:</p>
+			<div
+				style="
+					background: var(--bg-secondary);
+					border-radius: 8px;
+					padding: 16px;
+					margin-top: 12px;
+					font-size: 14px;
+				"
+			>
+				<div
+					style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px"
+				>
+					<strong>📊 Existing:</strong> Trends chart · Goal adherence · Calendar heatmap · Macro
+					radar · Meal distribution · Top foods
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #f59e0b">NEW — Eating Window Analysis</strong><br />
+					Daily eating window visualization (first meal → last meal). Average window width trend.
+					Intermittent fasting pattern detection.
+				</div>
+				<div style="margin-bottom: 8px">
+					<strong style="color: #f59e0b">NEW — Meal Spacing Timeline</strong><br />
+					Hourly distribution: when do you eat? Heatmap of meal frequency by hour × day of week.
+				</div>
+				<div>
+					<strong style="color: #f59e0b">NEW — Nutrient Adequacy Dashboard</strong><br />
+					Weekly micronutrient coverage vs. RDA. Traffic light indicators (red/yellow/green). Trend
+					over time — are deficiencies improving?
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<p class="subtitle" style="margin-top: 24px">
+	These three pages together cover all 6 insight areas. Click any to review details, or respond in
+	terminal.
+</p>

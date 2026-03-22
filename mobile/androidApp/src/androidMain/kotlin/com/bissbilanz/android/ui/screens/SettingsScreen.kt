@@ -165,6 +165,18 @@ fun SettingsScreen(navController: NavController) {
                         SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
                             navController.navigate("maintenance")
                         }
+                        HorizontalDivider()
+                        SettingsNavItem("Insights", Icons.Default.BarChart) {
+                            if ("insights" in selectedTabs) {
+                                navController.navigate("insights") {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                navController.navigate("insights")
+                            }
+                        }
                     }
                 }
 

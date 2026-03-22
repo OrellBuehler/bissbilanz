@@ -1941,6 +1941,200 @@
 				}
 			}
 		},
+		"/api/sleep": {
+			"get": {
+				"operationId": "listSleepEntries",
+				"tags": ["Sleep"],
+				"description": "List sleep entries, optionally filtered by date range.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "from",
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
+					},
+					{
+						"in": "query",
+						"name": "to",
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SleepEntriesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createSleepEntry",
+				"tags": ["Sleep"],
+				"description": "Create a new sleep entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SleepCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SleepEntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/sleep/{id}": {
+			"patch": {
+				"operationId": "updateSleepEntry",
+				"tags": ["Sleep"],
+				"description": "Update a sleep entry.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SleepUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SleepEntryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteSleepEntry",
+				"tags": ["Sleep"],
+				"description": "Delete a sleep entry.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/analytics/sleep-food": {
+			"get": {
+				"operationId": "getSleepFoodCorrelation",
+				"tags": ["Analytics"],
+				"description": "Get sleep-food correlation data for a date range.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "startDate",
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
+					},
+					{
+						"in": "query",
+						"name": "endDate",
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SleepFoodCorrelationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/openfoodfacts/{barcode}": {
 			"get": {
 				"operationId": "lookupOpenFoodFacts",
@@ -3796,6 +3990,9 @@
 					"showTopFoodsWidget": {
 						"type": "boolean"
 					},
+					"showSleepWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
@@ -3807,6 +4004,7 @@
 								"weight",
 								"meal-breakdown",
 								"top-foods",
+								"sleep",
 								"summary",
 								"daylog"
 							]
@@ -3902,6 +4100,139 @@
 						"type": "integer",
 						"minimum": 0,
 						"maximum": 9007199254740991
+					}
+				}
+			},
+			"SleepCreate": {
+				"type": "object",
+				"properties": {
+					"durationMinutes": {
+						"type": "integer",
+						"exclusiveMinimum": 0,
+						"maximum": 1440
+					},
+					"quality": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 10
+					},
+					"entryDate": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"bedtime": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeTime": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeUps": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 0,
+								"maximum": 9007199254740991
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["durationMinutes", "quality", "entryDate"]
+			},
+			"SleepUpdate": {
+				"type": "object",
+				"properties": {
+					"durationMinutes": {
+						"type": "integer",
+						"exclusiveMinimum": 0,
+						"maximum": 1440
+					},
+					"quality": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 10
+					},
+					"entryDate": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"bedtime": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeTime": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "date-time",
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeUps": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 0,
+								"maximum": 9007199254740991
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				}
 			},
@@ -6164,6 +6495,9 @@
 					"showTopFoodsWidget": {
 						"type": "boolean"
 					},
+					"showSleepWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
@@ -6212,6 +6546,7 @@
 					"showWeightWidget",
 					"showMealBreakdownWidget",
 					"showTopFoodsWidget",
+					"showSleepWidget",
 					"widgetOrder",
 					"startPage",
 					"favoriteTapAction",
@@ -7119,6 +7454,208 @@
 					}
 				},
 				"required": ["imageUrl"],
+				"additionalProperties": false
+			},
+			"SleepEntriesResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SleepEntry"
+						}
+					}
+				},
+				"required": ["entries"],
+				"additionalProperties": false
+			},
+			"SleepEntry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"entryDate": {
+						"type": "string"
+					},
+					"durationMinutes": {
+						"type": "number"
+					},
+					"quality": {
+						"type": "number"
+					},
+					"bedtime": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeTime": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"wakeUps": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sleepLatencyMinutes": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"deepSleepMinutes": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"lightSleepMinutes": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"remSleepMinutes": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"source": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"loggedAt": {
+						"type": "string"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"entryDate",
+					"durationMinutes",
+					"quality",
+					"bedtime",
+					"wakeTime",
+					"wakeUps",
+					"sleepLatencyMinutes",
+					"deepSleepMinutes",
+					"lightSleepMinutes",
+					"remSleepMinutes",
+					"source",
+					"notes"
+				],
+				"additionalProperties": false
+			},
+			"SleepEntryResponse": {
+				"type": "object",
+				"properties": {
+					"entry": {
+						"$ref": "#/components/schemas/SleepEntry"
+					}
+				},
+				"required": ["entry"],
+				"additionalProperties": false
+			},
+			"SleepFoodCorrelationResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SleepFoodCorrelationEntry"
+						}
+					}
+				},
+				"required": ["data"],
+				"additionalProperties": false
+			},
+			"SleepFoodCorrelationEntry": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string"
+					},
+					"eveningCalories": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sleepDurationMinutes": {
+						"type": "number"
+					},
+					"sleepQuality": {
+						"type": "number"
+					}
+				},
+				"required": ["date", "eveningCalories", "sleepDurationMinutes", "sleepQuality"],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsResponse": {

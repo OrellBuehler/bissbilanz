@@ -1,0 +1,246 @@
+<h2>Navigation — Adding Sleep</h2>
+<p class="subtitle">How /sleep fits into the existing bottom nav (mobile PWA)</p>
+
+<div class="cards">
+	<div class="card" data-choice="add-tab" onclick="toggleSelect(this)">
+		<div class="card-image" style="padding: 20px">
+			<div
+				style="background: #1a1a2e; border-radius: 16px; overflow: hidden; font-family: system-ui"
+			>
+				<!-- Page content placeholder -->
+				<div
+					style="
+						height: 120px;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						color: #444;
+						font-size: 14px;
+					"
+				>
+					Page content
+				</div>
+				<!-- Bottom nav with 5 items -->
+				<div
+					style="
+						display: flex;
+						border-top: 1px solid #2a2a4a;
+						background: #12122a;
+						padding: 8px 0 12px;
+					"
+				>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Home</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Foods</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #6cabf7"></div>
+						<span style="font-size: 10px; color: #6cabf7">Insights</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Weight</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #a78bfa"></div>
+						<span style="font-size: 10px; color: #a78bfa; font-weight: 500">Sleep</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			<h3>A: Add Sleep as 5th Tab</h3>
+			<p>
+				Direct access from bottom nav. Sleep is a daily logging action (like food), so it deserves
+				top-level placement. 5 tabs is still comfortable on mobile.
+			</p>
+		</div>
+	</div>
+
+	<div class="card" data-choice="sub-insights" onclick="toggleSelect(this)">
+		<div class="card-image" style="padding: 20px">
+			<div
+				style="background: #1a1a2e; border-radius: 16px; overflow: hidden; font-family: system-ui"
+			>
+				<!-- Page content with sub-tabs -->
+				<div style="padding: 16px">
+					<div style="display: flex; gap: 8px; margin-bottom: 16px">
+						<div
+							style="
+								padding: 6px 14px;
+								background: #2a2a4a;
+								border-radius: 8px;
+								font-size: 12px;
+								color: #888;
+							"
+						>
+							Nutrition
+						</div>
+						<div
+							style="
+								padding: 6px 14px;
+								background: #2a2a4a;
+								border-radius: 8px;
+								font-size: 12px;
+								color: #888;
+							"
+						>
+							Weight
+						</div>
+						<div
+							style="
+								padding: 6px 14px;
+								background: #a78bfa33;
+								border-radius: 8px;
+								font-size: 12px;
+								color: #a78bfa;
+								border: 1px solid #a78bfa55;
+							"
+						>
+							Sleep
+						</div>
+					</div>
+					<div
+						style="
+							height: 80px;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+							color: #444;
+							font-size: 14px;
+						"
+					>
+						Sleep content
+					</div>
+				</div>
+				<!-- Bottom nav with 4 items -->
+				<div
+					style="
+						display: flex;
+						border-top: 1px solid #2a2a4a;
+						background: #12122a;
+						padding: 8px 0 12px;
+					"
+				>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Home</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Foods</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #6cabf7"></div>
+						<span style="font-size: 10px; color: #6cabf7">Insights</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Settings</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			<h3>B: Sub-tabs Under Insights</h3>
+			<p>
+				Merge weight + sleep + nutrition insights into one "Insights" page with sub-tabs. Keeps
+				bottom nav at 4 items. But nests sleep logging 2 taps deep.
+			</p>
+		</div>
+	</div>
+
+	<div class="card" data-choice="more-menu" onclick="toggleSelect(this)">
+		<div class="card-image" style="padding: 20px">
+			<div
+				style="background: #1a1a2e; border-radius: 16px; overflow: hidden; font-family: system-ui"
+			>
+				<div
+					style="
+						height: 120px;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						color: #444;
+						font-size: 14px;
+					"
+				>
+					Page content
+				</div>
+				<!-- Bottom nav with 4 items + more -->
+				<div
+					style="
+						display: flex;
+						border-top: 1px solid #2a2a4a;
+						background: #12122a;
+						padding: 8px 0 12px;
+					"
+				>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Home</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Foods</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #6cabf7"></div>
+						<span style="font-size: 10px; color: #6cabf7">Insights</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="width: 20px; height: 20px; border-radius: 4px; background: #2a2a4a"></div>
+						<span style="font-size: 10px; color: #666">Weight</span>
+					</div>
+					<div
+						style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"
+					>
+						<div style="font-size: 16px; color: #666">•••</div>
+						<span style="font-size: 10px; color: #666">More</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			<h3>C: "More" Menu</h3>
+			<p>
+				Keep current 4 tabs, add a "More" menu that holds Sleep, Settings, and future features.
+				Scales well but hides sleep behind an extra tap.
+			</p>
+		</div>
+	</div>
+</div>
+
+<p class="subtitle" style="margin-top: 16px">
+	Sleep is a daily action — how accessible should it be?
+</p>

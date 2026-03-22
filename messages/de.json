@@ -493,6 +493,8 @@
 	"settings_widget_meal_breakdown_desc": "Kalorienverteilung über Mahlzeiten",
 	"settings_widget_top_foods": "Top-Lebensmittel",
 	"settings_widget_top_foods_desc": "Am häufigsten protokollierte Lebensmittel",
+	"settings_widget_sleep": "Schlaf",
+	"settings_widget_sleep_desc": "Schlafdauer und -qualität der letzten Nacht",
 
 	"dashboard_goal_progress": "Zielfortschritt",
 	"dashboard_remaining": "{amount} verbleibend",
@@ -588,6 +590,10 @@
 	"sleep_hours": "{hours}h {minutes}m",
 	"sleep_date_label": "Datum",
 	"sleep_notes_label": "Notizen",
+	"sleep_widget_title": "Schlaf",
+	"sleep_widget_no_data": "Noch kein Schlaf protokolliert",
+	"sleep_widget_quality_label": "Qualität",
+	"sleep_widget_log_prompt": "Schlaf der letzten Nacht protokollieren",
 
 	"analytics_caloric_lag": "Kalorische Verzögerung",
 	"analytics_caloric_lag_headline": "Dein Gewicht reagiert {days} Tage nach dem Essen",

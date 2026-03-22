@@ -29,6 +29,10 @@ import com.bissbilanz.api.generated.model.RecipeIngredient as GeneratedRecipeIng
 import com.bissbilanz.api.generated.model.RecipeIngredientInput as GeneratedRecipeIngredientInput
 import com.bissbilanz.api.generated.model.RecipeUpdate as GeneratedRecipeUpdate
 import com.bissbilanz.api.generated.model.ServingUnit as GeneratedServingUnit
+import com.bissbilanz.api.generated.model.SleepCreate as GeneratedSleepCreate
+import com.bissbilanz.api.generated.model.SleepEntry as GeneratedSleepEntry
+import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry as GeneratedSleepFoodCorrelationEntry
+import com.bissbilanz.api.generated.model.SleepUpdate as GeneratedSleepUpdate
 import com.bissbilanz.api.generated.model.StreaksResponse as GeneratedStreaksResponse
 import com.bissbilanz.api.generated.model.Supplement as GeneratedSupplement
 import com.bissbilanz.api.generated.model.SupplementCreate as GeneratedSupplementCreate
@@ -72,6 +76,10 @@ typealias EntryUpdate = GeneratedEntryUpdate
 typealias DayProperties = GeneratedDayProperties
 typealias MealType = GeneratedMealType
 typealias MealTypeCreate = GeneratedMealTypeCreate
+typealias SleepEntry = GeneratedSleepEntry
+typealias SleepCreate = GeneratedSleepCreate
+typealias SleepUpdate = GeneratedSleepUpdate
+typealias SleepFoodCorrelationEntry = GeneratedSleepFoodCorrelationEntry
 
 // Nested enum aliases
 typealias ScheduleType = GeneratedSupplement.ScheduleType

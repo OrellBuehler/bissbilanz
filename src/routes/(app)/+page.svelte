@@ -16,6 +16,7 @@
 	import StreakWidget from '$lib/components/dashboard/StreakWidget.svelte';
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
+	import SleepWidget from '$lib/components/dashboard/SleepWidget.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
@@ -23,6 +24,7 @@
 	import { supplementService } from '$lib/services/supplement-service.svelte';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { entryService } from '$lib/services/entry-service.svelte';
+	import { sleepService } from '$lib/services/sleep-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -80,6 +82,7 @@
 		weightService.refresh();
 		supplementService.refreshChecklist(activeDate);
 		loadStreaks();
+		sleepService.refresh();
 
 		// Handle PWA shortcut query params
 		const params = new URLSearchParams(window.location.search);
@@ -168,6 +171,10 @@
 			{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
 				<div class="mt-4">
 					<TopFoodsWidget />
+				</div>
+			{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
+				<div class="mt-4">
+					<SleepWidget date={activeDate} />
 				</div>
 			{:else if sectionKey === 'summary'}
 				<div class="mt-4">

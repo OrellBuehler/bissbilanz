@@ -39,6 +39,7 @@
 	let showWeightWidget = $state(true);
 	let showMealBreakdownWidget = $state(true);
 	let showTopFoodsWidget = $state(true);
+	let showSleepWidget = $state(true);
 	let widgetOrder = $state<
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
@@ -72,6 +73,7 @@
 			showWeightWidget = p.showWeightWidget ?? true;
 			showMealBreakdownWidget = p.showMealBreakdownWidget ?? true;
 			showTopFoodsWidget = p.showTopFoodsWidget ?? true;
+			showSleepWidget = p.showSleepWidget ?? true;
 			widgetOrder = buildWidgetOrder(
 				p.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']
 			);
@@ -162,6 +164,10 @@
 		'top-foods': {
 			name: () => m.settings_widget_top_foods(),
 			desc: () => m.settings_widget_top_foods_desc()
+		},
+		sleep: {
+			name: () => m.settings_widget_sleep(),
+			desc: () => m.settings_widget_sleep_desc()
 		},
 		summary: {
 			name: () => m.settings_section_summary(),
@@ -444,6 +450,11 @@
 									<Switch
 										bind:checked={showTopFoodsWidget}
 										onCheckedChange={(v) => savePreference('showTopFoodsWidget', v)}
+									/>
+								{:else if widget.key === 'sleep'}
+									<Switch
+										bind:checked={showSleepWidget}
+										onCheckedChange={(v) => savePreference('showSleepWidget', v)}
 									/>
 								{/if}
 							</div>

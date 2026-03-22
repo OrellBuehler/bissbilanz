@@ -50,3 +50,18 @@ export const mealTimingResponseSchema = z
 		data: z.array(mealTimingEntrySchema)
 	})
 	.meta({ id: 'MealTimingResponse' });
+
+const sleepFoodCorrelationEntrySchema = z
+	.object({
+		date: z.string(),
+		eveningCalories: z.number().nullable(),
+		sleepDurationMinutes: z.number(),
+		sleepQuality: z.number()
+	})
+	.meta({ id: 'SleepFoodCorrelationEntry' });
+
+export const sleepFoodCorrelationResponseSchema = z
+	.object({
+		data: z.array(sleepFoodCorrelationEntrySchema)
+	})
+	.meta({ id: 'SleepFoodCorrelationResponse' });

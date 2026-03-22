@@ -225,6 +225,13 @@
       "when": 1774184448789,
       "tag": "0031_pretty_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1774194796671,
+      "tag": "0032_material_cerebro",
+      "breakpoints": true
     }
   ]
 }

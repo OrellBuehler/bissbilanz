@@ -35,6 +35,7 @@ export const DEFAULT_PREFERENCES = {
 	showWeightWidget: true,
 	showMealBreakdownWidget: true,
 	showTopFoodsWidget: true,
+	showSleepWidget: true,
 	widgetOrder: [
 		'chart',
 		'favorites',
@@ -42,6 +43,7 @@ export const DEFAULT_PREFERENCES = {
 		'weight',
 		'meal-breakdown',
 		'top-foods',
+		'sleep',
 		'summary',
 		'daylog'
 	] as string[],
@@ -60,6 +62,7 @@ const ALL_SECTION_KEYS = [
 	'weight',
 	'meal-breakdown',
 	'top-foods',
+	'sleep',
 	'summary',
 	'daylog'
 ];

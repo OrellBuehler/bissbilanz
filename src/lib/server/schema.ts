@@ -255,6 +255,7 @@ export const userPreferences = pgTable('user_preferences', {
 	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
 	showMealBreakdownWidget: boolean('show_meal_breakdown_widget').notNull().default(true),
 	showTopFoodsWidget: boolean('show_top_foods_widget').notNull().default(true),
+	showSleepWidget: boolean('show_sleep_widget').notNull().default(true),
 	widgetOrder: text('widget_order')
 		.array()
 		.notNull()

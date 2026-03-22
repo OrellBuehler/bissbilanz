@@ -7,6 +7,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,9 +37,14 @@ import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
@@ -267,6 +276,231 @@ fun InsightsScreen() {
                         }
                     }
                 }
+            }
+
+            // 7. Sleep Tracking
+            val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
+            val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
+            val scope = rememberCoroutineScope()
+
+            var showSleepDialog by remember { mutableStateOf(false) }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CollapsibleCard(title = "Sleep", sectionId = "sleep") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Recent Sleep", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    IconButton(onClick = { showSleepDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Log sleep")
+                    }
+                }
+
+                if (sleepEntries.isEmpty()) {
+                    Text(
+                        "No sleep entries yet. Tap + to log your sleep.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    // Sleep quality trend chart
+                    if (sleepEntries.size >= 3) {
+                        Text("Quality Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SimpleLineChart(
+                            data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.fillMaxWidth().height(80.dp),
+                            unit = "",
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text("Duration Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SimpleLineChart(
+                            data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().height(80.dp),
+                            unit = "h",
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // Summary stats
+                    val avgQuality = sleepEntries.map { it.quality }.average()
+                    val avgDuration = sleepEntries.map { it.durationMinutes }.average()
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "%.1f".format(avgQuality),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                "Avg Quality",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "%.1fh".format(avgDuration / 60.0),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                "Avg Duration",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Recent entries list (last 5)
+                    sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    Icons.Default.Bedtime,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality.toInt()),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { scope.launch { viewModel.deleteSleepEntry(entry.id) } },
+                                modifier = Modifier.size(32.dp),
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+
+            // 8. Sleep-Food Correlation
+            if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
+                Spacer(modifier = Modifier.height(12.dp))
+                CollapsibleCard(title = "Sleep & Evening Eating", sectionId = "sleepfood") {
+                    Text(
+                        "How evening calories relate to your sleep",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val withCalories = sleepFoodCorrelation.filter { it.eveningCalories != null }
+                    if (withCalories.size >= 3) {
+                        val avgCalories = withCalories.map { it.eveningCalories!! }.average()
+                        val highCalDays = withCalories.filter { it.eveningCalories!! > avgCalories }
+                        val lowCalDays = withCalories.filter { it.eveningCalories!! <= avgCalories }
+
+                        val highCalAvgQuality = if (highCalDays.isNotEmpty()) highCalDays.map { it.sleepQuality }.average() else 0.0
+                        val lowCalAvgQuality = if (lowCalDays.isNotEmpty()) lowCalDays.map { it.sleepQuality }.average() else 0.0
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "%.1f".format(lowCalAvgQuality),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = FiberGreen,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    "Light evening",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    "< ${avgCalories.roundToInt()} cal",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "%.1f".format(highCalAvgQuality),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = CarbsOrange,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    "Heavy evening",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    "> ${avgCalories.roundToInt()} cal",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+
+                        val delta = lowCalAvgQuality - highCalAvgQuality
+                        if (kotlin.math.abs(delta) > 0.3) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val message =
+                                if (delta > 0) {
+                                    "Lighter evening meals correlate with better sleep quality (+%.1f)".format(delta)
+                                } else {
+                                    "Heavier evening meals correlate with better sleep quality (+%.1f)".format(-delta)
+                                }
+                            Text(
+                                message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Need more data with evening food entries to show correlations.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // Sleep log dialog
+            if (showSleepDialog) {
+                SleepLogDialog(
+                    onDismiss = { showSleepDialog = false },
+                    onSave = { duration, quality, date, notes ->
+                        scope.launch {
+                            viewModel.createSleepEntry(
+                                SleepCreate(
+                                    durationMinutes = duration,
+                                    quality = quality,
+                                    entryDate = date,
+                                    notes = notes.ifBlank { null },
+                                ),
+                            )
+                            showSleepDialog = false
+                        }
+                    },
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -533,4 +767,83 @@ private fun GoalAdherenceCard(
             }
         }
     }
+}
+
+@Composable
+private fun SleepLogDialog(
+    onDismiss: () -> Unit,
+    onSave: (duration: Int, quality: Int, date: String, notes: String) -> Unit,
+) {
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    var durationHours by remember { mutableStateOf("8") }
+    var durationMinutes by remember { mutableStateOf("0") }
+    var quality by remember { mutableFloatStateOf(7f) }
+    var date by remember { mutableStateOf(today.toString()) }
+    var notes by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Log Sleep") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Date", style = MaterialTheme.typography.labelMedium)
+                TextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("YYYY-MM-DD") },
+                )
+
+                Text("Duration", style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextField(
+                        value = durationHours,
+                        onValueChange = { durationHours = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        suffix = { Text("h") },
+                    )
+                    TextField(
+                        value = durationMinutes,
+                        onValueChange = { durationMinutes = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        suffix = { Text("min") },
+                    )
+                }
+
+                Text("Quality: ${quality.roundToInt()}/10", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = quality,
+                    onValueChange = { quality = it },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                )
+
+                Text("Notes (optional)", style = MaterialTheme.typography.labelMedium)
+                TextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val totalMinutes = (durationHours.toIntOrNull() ?: 0) * 60 + (durationMinutes.toIntOrNull() ?: 0)
+                    if (totalMinutes > 0 && date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
+                        onSave(totalMinutes, quality.roundToInt(), date, notes)
+                    }
+                },
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }

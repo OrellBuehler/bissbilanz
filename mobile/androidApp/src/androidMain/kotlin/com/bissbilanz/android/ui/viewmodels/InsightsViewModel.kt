@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -19,6 +20,7 @@ import kotlinx.datetime.*
 class InsightsViewModel(
     private val statsRepo: StatsRepository,
     private val goalsRepo: GoalsRepository,
+    private val sleepRepo: SleepRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     private val _weeklyStats = MutableStateFlow<MacroTotals?>(null)
@@ -59,9 +61,19 @@ class InsightsViewModel(
     private val _calendarYear = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()).year)
     val calendarYear: StateFlow<Int> = _calendarYear.asStateFlow()
 
+    // Sleep
+    val sleepEntries: StateFlow<List<SleepEntry>> =
+        sleepRepo
+            .entries
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _sleepFoodCorrelation = MutableStateFlow<List<SleepFoodCorrelationEntry>>(emptyList())
+    val sleepFoodCorrelation: StateFlow<List<SleepFoodCorrelationEntry>> = _sleepFoodCorrelation.asStateFlow()
+
     init {
         loadData()
         loadCalendarStats()
+        loadSleepData()
     }
 
     fun selectRange(index: Int) {
@@ -103,6 +115,47 @@ class InsightsViewModel(
                 errorReporter.captureException(e)
                 _calendarDays.value = emptyList()
             }
+        }
+    }
+
+    fun loadSleepData() {
+        viewModelScope.launch {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val startDate = today.minus(59, DateTimeUnit.DAY).toString()
+            val endDate = today.toString()
+            try {
+                coroutineScope {
+                    launch { sleepRepo.refresh(startDate, endDate) }
+                    launch {
+                        _sleepFoodCorrelation.value = sleepRepo.getSleepFoodCorrelation(startDate, endDate)
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
+    suspend fun createSleepEntry(entry: SleepCreate) {
+        try {
+            sleepRepo.createEntry(entry)
+            _snackbarMessage.value = "Sleep logged"
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            _snackbarMessage.value = "Failed to log sleep"
+        }
+    }
+
+    suspend fun deleteSleepEntry(id: String) {
+        try {
+            sleepRepo.deleteEntry(id)
+            _snackbarMessage.value = "Sleep entry deleted"
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            _snackbarMessage.value = "Failed to delete"
         }
     }
 
