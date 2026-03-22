@@ -4,11 +4,11 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.SleepCreate
+import com.bissbilanz.api.generated.model.SleepEntry
+import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry
+import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.model.SleepCreate
-import com.bissbilanz.model.SleepEntry
-import com.bissbilanz.model.SleepFoodCorrelationEntry
-import com.bissbilanz.model.SleepUpdate
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.util.decodeOrNull
@@ -66,12 +66,12 @@ class SleepRepository(
             if (existing != null) {
                 val updated =
                     existing.copy(
-                        durationMinutes = entry.durationMinutes?.toDouble() ?: existing.durationMinutes,
-                        quality = entry.quality?.toDouble() ?: existing.quality,
+                        durationMinutes = entry.durationMinutes ?: existing.durationMinutes,
+                        quality = entry.quality ?: existing.quality,
                         entryDate = entry.entryDate ?: existing.entryDate,
                         bedtime = entry.bedtime ?: existing.bedtime,
                         wakeTime = entry.wakeTime ?: existing.wakeTime,
-                        wakeUps = entry.wakeUps?.toDouble() ?: existing.wakeUps,
+                        wakeUps = entry.wakeUps ?: existing.wakeUps,
                         notes = entry.notes ?: existing.notes,
                     )
                 cacheSleepEntry(updated)
@@ -81,11 +81,11 @@ class SleepRepository(
                     id = id,
                     userId = "",
                     entryDate = entry.entryDate ?: "",
-                    durationMinutes = entry.durationMinutes?.toDouble() ?: 0.0,
-                    quality = entry.quality?.toDouble() ?: 0.0,
+                    durationMinutes = entry.durationMinutes ?: 0,
+                    quality = entry.quality ?: 0,
                     bedtime = entry.bedtime,
                     wakeTime = entry.wakeTime,
-                    wakeUps = entry.wakeUps?.toDouble(),
+                    wakeUps = entry.wakeUps,
                     sleepLatencyMinutes = null,
                     deepSleepMinutes = null,
                     lightSleepMinutes = null,
@@ -119,8 +119,8 @@ class SleepRepository(
         db.bissbilanzDatabaseQueries.insertSleepEntry(
             id = entry.id,
             entryDate = entry.entryDate,
-            durationMinutes = entry.durationMinutes,
-            quality = entry.quality,
+            durationMinutes = entry.durationMinutes.toLong(),
+            quality = entry.quality.toLong(),
             loggedAt = entry.loggedAt,
             jsonData = json.encodeToString(entry),
         )
@@ -143,11 +143,11 @@ class SleepRepository(
             id = "temp_${Uuid.random()}",
             userId = "",
             entryDate = entry.entryDate,
-            durationMinutes = entry.durationMinutes.toDouble(),
-            quality = entry.quality.toDouble(),
+            durationMinutes = entry.durationMinutes,
+            quality = entry.quality,
             bedtime = entry.bedtime,
             wakeTime = entry.wakeTime,
-            wakeUps = entry.wakeUps?.toDouble(),
+            wakeUps = entry.wakeUps,
             sleepLatencyMinutes = null,
             deepSleepMinutes = null,
             lightSleepMinutes = null,

@@ -171,6 +171,12 @@ class SyncManager(
                 api.unlogSupplement(op.supplementId, op.date)
             is SyncOperation.UpdatePreferences ->
                 api.updatePreferences(json.decodeFromString<PreferencesUpdate>(op.body))
+            is SyncOperation.CreateSleep ->
+                api.createSleepEntry(json.decodeFromString<SleepCreate>(op.body))
+            is SyncOperation.UpdateSleep ->
+                api.updateSleepEntry(op.id, json.decodeFromString<SleepUpdate>(op.body))
+            is SyncOperation.DeleteSleep ->
+                api.deleteSleepEntry(op.id)
         }
     }
 

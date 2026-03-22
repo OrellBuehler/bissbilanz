@@ -64,7 +64,7 @@ class InsightsViewModel(
     // Sleep
     val sleepEntries: StateFlow<List<SleepEntry>> =
         sleepRepo
-            .entries
+            .entries()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _sleepFoodCorrelation = MutableStateFlow<List<SleepFoodCorrelationEntry>>(emptyList())

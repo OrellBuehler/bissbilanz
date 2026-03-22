@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +45,7 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
 import com.bissbilanz.model.SleepCreate
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -765,6 +769,7 @@ private fun GoalAdherenceCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SleepLogDialog(
     onDismiss: () -> Unit,
@@ -776,36 +781,81 @@ private fun SleepLogDialog(
     var quality by remember { mutableFloatStateOf(7f) }
     var date by remember { mutableStateOf(today.toString()) }
     var notes by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val totalMinutes = (durationHours.toIntOrNull() ?: 0) * 60 + (durationMinutes.toIntOrNull() ?: 0)
+    val durationError = totalMinutes == 0
+
+    val todayEpochMillis = today.toEpochDays().toLong() * 24L * 60L * 60L * 1000L
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = todayEpochMillis)
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val epochDays = (millis / (24L * 60L * 60L * 1000L)).toInt()
+                            date = LocalDate.fromEpochDays(epochDays).toString()
+                        }
+                        showDatePicker = false
+                    },
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Log Sleep") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Date", style = MaterialTheme.typography.labelMedium)
-                TextField(
+                OutlinedTextField(
                     value = date,
-                    onValueChange = { date = it },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = "Pick date")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("YYYY-MM-DD") },
                 )
 
                 Text("Duration", style = MaterialTheme.typography.labelMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
+                    OutlinedTextField(
                         value = durationHours,
                         onValueChange = { durationHours = it.filter { c -> c.isDigit() } },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         suffix = { Text("h") },
+                        isError = durationError,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
-                    TextField(
+                    OutlinedTextField(
                         value = durationMinutes,
                         onValueChange = { durationMinutes = it.filter { c -> c.isDigit() } },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         suffix = { Text("min") },
+                        isError = durationError,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+                if (durationError) {
+                    Text(
+                        "Duration must be greater than 0",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
 
@@ -817,10 +867,10 @@ private fun SleepLogDialog(
                     steps = 8,
                 )
 
-                Text("Notes (optional)", style = MaterialTheme.typography.labelMedium)
-                TextField(
+                OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
                 )
@@ -829,11 +879,11 @@ private fun SleepLogDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val totalMinutes = (durationHours.toIntOrNull() ?: 0) * 60 + (durationMinutes.toIntOrNull() ?: 0)
-                    if (totalMinutes > 0 && date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
+                    if (!durationError) {
                         onSave(totalMinutes, quality.roundToInt(), date, notes)
                     }
                 },
+                enabled = !durationError,
             ) {
                 Text("Save")
             }
