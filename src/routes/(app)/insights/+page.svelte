@@ -576,8 +576,9 @@
 						</div>
 					</Card.Header>
 					<Card.Content class="pt-0">
-						<WeightHistoryList {entries} onChanged={() => loadWeightChart()} limit={7} />
-						{#if entries.length > 7}
+						{@const previewLimit = 7}
+						<WeightHistoryList {entries} onChanged={() => loadWeightChart()} limit={previewLimit} />
+						{#if entries.length > previewLimit}
 							<div class="mt-3 flex justify-end border-t pt-3">
 								<Button variant="ghost" size="sm" href="/weight" class="gap-1.5">
 									{m.weight_view_all({ count: String(entries.length) })}

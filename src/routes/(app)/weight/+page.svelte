@@ -17,6 +17,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{m.weight_history_page_title()}</title>
+</svelte:head>
+
 <div class="mx-auto max-w-2xl space-y-4">
 	<div class="flex items-center gap-3">
 		<Button variant="ghost" size="icon" href="/insights?tab=weight">
