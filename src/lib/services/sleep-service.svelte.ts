@@ -12,7 +12,9 @@ function entries() {
 }
 
 function entryForDate(date: string) {
-	return liveQuery(() => db.sleepEntries.where('entryDate').equals(date).first());
+	return liveQuery(
+		async () => (await db.sleepEntries.where('entryDate').equals(date).first()) ?? null
+	);
 }
 
 async function refresh(): Promise<void> {

@@ -11,8 +11,8 @@
 	let { date }: { date: string } = $props();
 
 	const entryQuery = useLiveQuery(() => sleepService.entryForDate(date), undefined);
-	const entry = $derived(entryQuery.value ?? null);
-	const loading = $derived(entryQuery.value === undefined);
+	const entry = $derived(entryQuery.value);
+	const loading = $derived(entryQuery.loading);
 
 	const formatted = $derived.by(() => {
 		if (!entry) return null;

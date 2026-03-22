@@ -283,6 +283,8 @@
 	"settings_dashboard_sections": "Dashboard-Bereiche",
 	"settings_section_chart": "Zielfortschritt",
 	"settings_section_chart_desc": "Makro-Ringe oder Kaloriendiagramm",
+	"settings_section_streaks": "Serien",
+	"settings_section_streaks_desc": "Aktuelle und längste Logging-Serien",
 	"settings_section_daylog": "Tagesprotokoll",
 	"settings_section_daylog_desc": "Heutige Lebensmitteleinträge nach Mahlzeit",
 	"settings_section_summary": "Makro-Zusammenfassung",

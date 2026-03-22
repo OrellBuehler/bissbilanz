@@ -57,6 +57,7 @@ export const DEFAULT_PREFERENCES = {
 
 const ALL_SECTION_KEYS = [
 	'chart',
+	'streaks',
 	'favorites',
 	'supplements',
 	'weight',

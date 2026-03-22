@@ -145,6 +145,10 @@
 			name: () => m.settings_section_chart(),
 			desc: () => m.settings_section_chart_desc()
 		},
+		streaks: {
+			name: () => m.settings_section_streaks(),
+			desc: () => m.settings_section_streaks_desc()
+		},
 		favorites: {
 			name: () => m.settings_widget_favorites(),
 			desc: () => m.settings_widget_favorites_desc()

@@ -27,6 +27,7 @@ export const preferencesUpdateSchema = z
 			.array(
 				z.enum([
 					'chart',
+					'streaks',
 					'favorites',
 					'supplements',
 					'weight',
