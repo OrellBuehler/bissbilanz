@@ -46,7 +46,7 @@ class InsightsViewModelTest {
             }
         sleepRepo =
             mockk(relaxed = true) {
-                every { entries } returns sleepEntriesFlow
+                every { entries() } returns sleepEntriesFlow
             }
     }
 
@@ -73,8 +73,8 @@ class InsightsViewModelTest {
                     SleepFoodCorrelationEntry(
                         date = "2024-01-15",
                         eveningCalories = 400.0,
-                        sleepDurationMinutes = 480.0,
-                        sleepQuality = 7.0,
+                        sleepDurationMinutes = 480,
+                        sleepQuality = 7,
                     ),
                 )
             coEvery { sleepRepo.getSleepFoodCorrelation(any(), any()) } returns correlations
@@ -187,8 +187,8 @@ class InsightsViewModelTest {
                 id = id,
                 userId = "user-1",
                 entryDate = "2024-01-20",
-                durationMinutes = 480.0,
-                quality = 8.0,
+                durationMinutes = 480,
+                quality = 8,
                 bedtime = null,
                 wakeTime = null,
                 wakeUps = null,
