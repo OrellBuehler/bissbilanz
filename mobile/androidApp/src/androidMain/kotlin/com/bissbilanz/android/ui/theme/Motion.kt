@@ -12,3 +12,4 @@ object Motion {
 }
 
 val GentleSpring = spring<Float>(dampingRatio = Motion.GENTLE_DAMPING, stiffness = Motion.GENTLE_STIFFNESS)
+val SnapSpring = spring<Float>(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS)
