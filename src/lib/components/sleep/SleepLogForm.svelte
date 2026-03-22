@@ -6,6 +6,8 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
 	import { toast } from 'svelte-sonner';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onLogged }: { onLogged?: () => void } = $props();
@@ -29,14 +31,16 @@
 		if (durationMinutes <= 0 || durationMinutes > 24 * 60) return;
 		if (!entryDate) return;
 
+		const toIso = (timeStr: string) => (timeStr ? `${entryDate}T${timeStr}:00.000Z` : null);
+
 		saving = true;
 		try {
 			await sleepService.create({
 				durationMinutes,
 				quality: quality,
 				entryDate,
-				bedtime: bedtime || null,
-				wakeTime: wakeTime || null,
+				bedtime: toIso(bedtime),
+				wakeTime: toIso(wakeTime),
 				wakeUps: wakeUps !== '' ? Number(wakeUps) : null,
 				notes: notes || null
 			});
@@ -112,7 +116,7 @@
 			class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
 			onclick={() => (showDetails = !showDetails)}
 		>
-			<span>{showDetails ? '▴' : '▾'}</span>
+			{#if showDetails}<ChevronUp class="size-3.5" />{:else}<ChevronDown class="size-3.5" />{/if}
 			<span>{showDetails ? m.sleep_less_details() : m.sleep_more_details()}</span>
 		</button>
 
