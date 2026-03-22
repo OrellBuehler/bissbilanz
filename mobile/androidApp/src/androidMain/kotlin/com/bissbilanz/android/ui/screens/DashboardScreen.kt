@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FoodEditSheet
@@ -68,6 +69,7 @@ fun DashboardScreen(navController: NavController) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
+    var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
@@ -139,6 +141,18 @@ fun DashboardScreen(navController: NavController) {
                     viewModel.loadData()
                 },
                 initialBarcode = barcode,
+            )
+        }
+
+        addFoodForMeal?.let { meal ->
+            AddFoodSheet(
+                mealType = meal,
+                date = selectedDate.toString(),
+                onDismiss = { addFoodForMeal = null },
+                onLogged = {
+                    addFoodForMeal = null
+                    viewModel.loadData()
+                },
             )
         }
 
@@ -260,44 +274,36 @@ fun DashboardScreen(navController: NavController) {
                     } else {
                         Column {
                             val mealGroups = remember(entries) { entries.groupBy { it.mealType } }
-                            val sortedMeals =
-                                remember(mealGroups) {
-                                    mealTypes.filter { mealGroups.containsKey(it) } +
-                                        mealGroups.keys.filter { it !in mealTypes }
-                                }
 
-                            sortedMeals.forEach { meal ->
-                                val mealEntries = mealGroups[meal] ?: return@forEach
-                                MealCard(meal, mealEntries) {
-                                    navController.navigate("daylog/$selectedDate")
-                                }
+                            mealTypes.forEach { meal ->
+                                val mealEntries = mealGroups[meal] ?: emptyList()
+                                MealCard(
+                                    meal,
+                                    mealEntries,
+                                    onClick = { navController.navigate("daylog/$selectedDate") },
+                                    onAddClick = { addFoodForMeal = meal },
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            mealGroups.keys.filter { it !in mealTypes }.forEach { meal ->
+                                val mealEntries = mealGroups[meal] ?: emptyList()
+                                MealCard(
+                                    meal,
+                                    mealEntries,
+                                    onClick = { navController.navigate("daylog/$selectedDate") },
+                                    onAddClick = { addFoodForMeal = meal },
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
 
                             if (entries.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 48.dp),
-                                    contentAlignment = Alignment.Center,
+                                OutlinedButton(
+                                    onClick = { viewModel.copyEntriesFromYesterday() },
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            "No entries yet.\nTap + to add food.",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        OutlinedButton(
-                                            onClick = { viewModel.copyEntriesFromYesterday() },
-                                        ) {
-                                            Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Copy from yesterday")
-                                        }
-                                    }
+                                    Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy from yesterday")
                                 }
                             }
 

@@ -6,6 +6,7 @@ import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
@@ -63,6 +64,7 @@ class BissbilanzApplication : Application() {
                 viewModelOf(::FavoritesViewModel)
                 viewModelOf(::WeightViewModel)
                 viewModelOf(::SettingsViewModel)
+                viewModelOf(::AddFoodViewModel)
             }
 
         startKoin {
