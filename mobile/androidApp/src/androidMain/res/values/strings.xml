@@ -27,4 +27,6 @@
     <string name="chart_supplements">Supplements</string>
     <string name="chart_supplements_taken">%1$d of %2$d taken</string>
     <string name="chart_view_all">View All</string>
+    <string name="entry_deleted">Deleted %1$s</string>
+    <string name="undo">Undo</string>
 </resources>
