@@ -197,6 +197,9 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 }
                                 Button(
                                     onClick = {
+                                        navController.previousBackStackEntry
+                                            ?.savedStateHandle
+                                            ?.set("create_food_barcode", scannedBarcode)
                                         navController.popBackStack()
                                     },
                                 ) {

@@ -22,8 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
+import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -64,6 +66,15 @@ fun DashboardScreen(navController: NavController) {
     }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var createFoodBarcode by remember { mutableStateOf<String?>(null) }
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        val barcode = navBackStackEntry?.savedStateHandle?.remove<String>("create_food_barcode")
+        if (barcode != null) {
+            createFoodBarcode = barcode
+        }
+    }
 
     val totalCalories = remember(entries) { entries.sumOf { it.resolvedCalories() } }
     val totalProtein = remember(entries) { entries.sumOf { it.resolvedProtein() } }
@@ -115,6 +126,18 @@ fun DashboardScreen(navController: NavController) {
                     showQuickAddSheet = false
                     viewModel.loadData()
                 },
+            )
+        }
+
+        createFoodBarcode?.let { barcode ->
+            FoodEditSheet(
+                foodId = null,
+                onDismiss = { createFoodBarcode = null },
+                onSaved = {
+                    createFoodBarcode = null
+                    viewModel.loadData()
+                },
+                initialBarcode = barcode,
             )
         }
 
