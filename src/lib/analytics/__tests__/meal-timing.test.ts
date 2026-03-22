@@ -94,4 +94,73 @@ describe('extractMealTimingPatterns', () => {
 		const result = extractMealTimingPatterns(entries);
 		expect(result.lateNightFrequency).toBeCloseTo(33.33, 1);
 	});
+
+	it('handles India timezone offset +05:30 correctly', () => {
+		// parseLocalMinutes treats digits as UTC, then adds offset
+		// T12:30+05:30: utcMinutes=750, offset=+330 => localMinutes=1080 => 18:00
+		const entries = [{ date: '2024-01-01', eatenAt: '2024-01-01T12:30:00+05:30', calories: 500 }];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows).toHaveLength(1);
+		expect(result.dailyWindows[0].firstMealTime).toBe('18:00');
+	});
+
+	it('handles PST timezone offset -08:00 correctly', () => {
+		// parseLocalMinutes treats digits as UTC, then adds offset
+		// T20:00-08:00: utcMinutes=1200, offset=-480 => localMinutes=720 => 12:00
+		// T08:00-08:00: utcMinutes=480, offset=-480 => localMinutes=0 => 00:00
+		const entries = [
+			{ date: '2024-01-01', eatenAt: '2024-01-01T20:00:00-08:00', calories: 500 },
+			{ date: '2024-01-01', eatenAt: '2024-01-01T08:00:00-08:00', calories: 300 }
+		];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows).toHaveLength(1);
+		expect(result.dailyWindows[0].firstMealTime).toBe('00:00');
+		expect(result.dailyWindows[0].lastMealTime).toBe('12:00');
+	});
+
+	it('handles UTC (Z) timezone correctly', () => {
+		const entries = [
+			{ date: '2024-01-01', eatenAt: '2024-01-01T09:00:00Z', calories: 300 },
+			{ date: '2024-01-01', eatenAt: '2024-01-01T18:00:00Z', calories: 600 }
+		];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows[0].firstMealTime).toBe('09:00');
+		expect(result.dailyWindows[0].lastMealTime).toBe('18:00');
+		expect(result.dailyWindows[0].windowMinutes).toBe(540);
+	});
+
+	it('handles mixed timezone offsets in the same dataset', () => {
+		const entries = [
+			{ date: '2024-01-01', eatenAt: '2024-01-01T09:00:00Z', calories: 300 },
+			{ date: '2024-01-01', eatenAt: '2024-01-01T18:00:00+02:00', calories: 600 }
+		];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows).toHaveLength(1);
+		// Z entry = 09:00 local; +02:00 entry = 20:00 local
+		expect(result.dailyWindows[0].firstMealTime).toBe('09:00');
+		expect(result.dailyWindows[0].lastMealTime).toBe('20:00');
+	});
+
+	it('handles timestamps with seconds and milliseconds', () => {
+		const entries = [
+			{ date: '2024-01-01', eatenAt: '2024-01-01T07:30:45.123+00:00', calories: 300 },
+			{ date: '2024-01-01', eatenAt: '2024-01-01T19:15:30.000+00:00', calories: 700 }
+		];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows[0].firstMealTime).toBe('07:30');
+		expect(result.dailyWindows[0].lastMealTime).toBe('19:15');
+	});
+
+	it('single entry per day yields window of 0 minutes', () => {
+		const entries = [
+			{ date: '2024-01-01', eatenAt: '2024-01-01T12:00:00Z', calories: 600 },
+			{ date: '2024-01-02', eatenAt: '2024-01-02T08:30:00Z', calories: 400 }
+		];
+		const result = extractMealTimingPatterns(entries);
+		expect(result.dailyWindows).toHaveLength(2);
+		for (const day of result.dailyWindows) {
+			expect(day.windowMinutes).toBe(0);
+			expect(day.firstMealTime).toBe(day.lastMealTime);
+		}
+	});
 });

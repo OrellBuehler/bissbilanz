@@ -126,4 +126,53 @@ describe('computeNutrientOutcomeCorrelations', () => {
 		const result = computeNutrientOutcomeCorrelations(dailyNutrients, outcomes);
 		expect(Array.isArray(result)).toBe(true);
 	});
+
+	it('all-zero nutrient values are valid measurements and are not skipped', () => {
+		const dates = makeDays(20);
+		const dailyNutrients = dates.map((date, i) => ({
+			date,
+			nutrients: { zeroNutrient: 0, protein: 100 + i * 5 }
+		}));
+		const outcomes = dates.map((date, i) => ({ date, value: 70 + i * 0.5 }));
+
+		const result = computeNutrientOutcomeCorrelations(dailyNutrients, outcomes);
+		const proteinEntry = result.find((r) => r.nutrientKey === 'protein');
+		expect(proteinEntry).toBeDefined();
+	});
+
+	it('mixed null and zero values — zero counted as valid, null counted as missing', () => {
+		const dates = makeDays(14);
+		// half null, half zero — null count = 7, which is exactly 50% -> borderline
+		// use 8 nulls (>50%) to ensure exclusion
+		const dailyNutrients = dates.map((date, i) => ({
+			date,
+			nutrients: {
+				mixedNutrient: i < 8 ? null : 0,
+				protein: 100 + i * 5
+			}
+		}));
+		const outcomes = dates.map((date, i) => ({ date, value: 70 + i * 0.5 }));
+
+		const result = computeNutrientOutcomeCorrelations(dailyNutrients, outcomes);
+		const mixedEntry = result.find((r) => r.nutrientKey === 'mixedNutrient');
+		expect(mixedEntry).toBeUndefined();
+	});
+
+	it('handles 30+ nutrients without errors', () => {
+		const dates = makeDays(20);
+		const nutrientKeys = Array.from({ length: 35 }, (_, i) => `nutrient_${i}`);
+		const dailyNutrients = dates.map((date, i) => ({
+			date,
+			nutrients: Object.fromEntries(nutrientKeys.map((k, j) => [k, i * (j + 1)]))
+		}));
+		const outcomes = dates.map((date, i) => ({ date, value: i * 2 }));
+
+		const result = computeNutrientOutcomeCorrelations(dailyNutrients, outcomes);
+		expect(Array.isArray(result)).toBe(true);
+		for (let i = 1; i < result.length; i++) {
+			expect(Math.abs(result[i - 1].correlation.r)).toBeGreaterThanOrEqual(
+				Math.abs(result[i].correlation.r)
+			);
+		}
+	});
 });

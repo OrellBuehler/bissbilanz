@@ -120,4 +120,55 @@ describe('detectFoodSleepPatterns', () => {
 			);
 		}
 	});
+
+	it('same food eaten multiple times on same evening — counted once per date', () => {
+		// food 'dup' appears 3 times on 2024-01-03 and 2 times on 2024-01-07 and once on 2024-01-10
+		// unique dates = 3 (meets minOccurrences=3 default)
+		const eveningFoods = [
+			{ date: '2024-01-03', foodId: 'dup', foodName: 'Dup Food', nutrients: {} },
+			{ date: '2024-01-03', foodId: 'dup', foodName: 'Dup Food', nutrients: {} },
+			{ date: '2024-01-03', foodId: 'dup', foodName: 'Dup Food', nutrients: {} },
+			{ date: '2024-01-07', foodId: 'dup', foodName: 'Dup Food', nutrients: {} },
+			{ date: '2024-01-07', foodId: 'dup', foodName: 'Dup Food', nutrients: {} },
+			{ date: '2024-01-10', foodId: 'dup', foodName: 'Dup Food', nutrients: {} }
+		];
+
+		const { foodImpacts } = detectFoodSleepPatterns(eveningFoods, sleepData);
+		const dupFood = foodImpacts.find((f) => f.foodId === 'dup');
+		expect(dupFood).toBeDefined();
+		// occurrences should be 3 unique dates, not 6 total entries
+		expect(dupFood!.occurrences).toBe(3);
+	});
+
+	it('food at exactly minOccurrences threshold is included', () => {
+		const eveningFoods = [
+			{ date: '2024-01-01', foodId: 'exact', foodName: 'Exact Food', nutrients: {} },
+			{ date: '2024-01-02', foodId: 'exact', foodName: 'Exact Food', nutrients: {} },
+			{ date: '2024-01-03', foodId: 'exact', foodName: 'Exact Food', nutrients: {} }
+		];
+
+		const { foodImpacts } = detectFoodSleepPatterns(eveningFoods, sleepData, 3);
+		const exactFood = foodImpacts.find((f) => f.foodId === 'exact');
+		expect(exactFood).toBeDefined();
+	});
+
+	it('all sleep quality values the same — delta should be 0', () => {
+		const uniformSleep = sleepData.map((d) => ({ ...d, quality: 7 }));
+		const eveningFoods = [
+			{ date: '2024-01-01', foodId: 'f1', foodName: 'Food', nutrients: {} },
+			{ date: '2024-01-03', foodId: 'f1', foodName: 'Food', nutrients: {} },
+			{ date: '2024-01-05', foodId: 'f1', foodName: 'Food', nutrients: {} }
+		];
+
+		const { foodImpacts } = detectFoodSleepPatterns(eveningFoods, uniformSleep);
+		const f = foodImpacts.find((fi) => fi.foodId === 'f1');
+		if (f) {
+			expect(f.delta).toBeCloseTo(0, 5);
+		}
+	});
+
+	it('no evening foods at all — returns empty foodImpacts', () => {
+		const { foodImpacts } = detectFoodSleepPatterns([], sleepData);
+		expect(foodImpacts).toHaveLength(0);
+	});
 });

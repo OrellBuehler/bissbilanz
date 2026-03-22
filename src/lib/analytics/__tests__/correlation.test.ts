@@ -103,4 +103,33 @@ describe('pearsonCorrelation', () => {
 		expect(result.pValue).toBeLessThan(0.05);
 		expect(result.sampleSize).toBe(7);
 	});
+
+	it('handles large arrays (1000 items) without overflow', () => {
+		const x = Array.from({ length: 1000 }, (_, i) => i + 1);
+		const y = x.map((v) => v * 3 + 5);
+		const result = pearsonCorrelation(x, y);
+		expect(result.r).toBeCloseTo(1.0, 5);
+		expect(Number.isFinite(result.r)).toBe(true);
+		expect(Number.isFinite(result.pValue)).toBe(true);
+		expect(result.sampleSize).toBe(1000);
+		expect(result.confidence).toBe('high');
+	});
+
+	it('r=1.0 yields near-zero p-value', () => {
+		const x = Array.from({ length: 30 }, (_, i) => i + 1);
+		const y = x.map((v) => v * 2);
+		const result = pearsonCorrelation(x, y);
+		expect(result.r).toBeCloseTo(1.0, 5);
+		expect(result.pValue).toBeLessThan(0.001);
+	});
+
+	it('r near 0 yields p-value near 1', () => {
+		// orthogonal vectors: sin and cos over a full period -> r = 0
+		const n = 100;
+		const x = Array.from({ length: n }, (_, i) => Math.sin((2 * Math.PI * i) / n));
+		const y = Array.from({ length: n }, (_, i) => Math.cos((2 * Math.PI * i) / n));
+		const result = pearsonCorrelation(x, y);
+		expect(Math.abs(result.r)).toBeLessThan(0.01);
+		expect(result.pValue).toBeGreaterThan(0.5);
+	});
 });

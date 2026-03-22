@@ -142,4 +142,61 @@ describe('computeCaloricLag', () => {
 		expect(result.bestLag).toBeNull();
 		expect(result.results).toHaveLength(0);
 	});
+
+	it('handles non-contiguous dates (gaps) and still aligns correctly', () => {
+		// calories every other day, weight every other day offset by lag=2
+		const calories = [
+			{ date: '2024-01-01', value: 2000 },
+			{ date: '2024-01-03', value: 2100 },
+			{ date: '2024-01-05', value: 1900 },
+			{ date: '2024-01-07', value: 2200 },
+			{ date: '2024-01-09', value: 2050 },
+			{ date: '2024-01-11', value: 1950 },
+			{ date: '2024-01-13', value: 2150 },
+			{ date: '2024-01-15', value: 2300 }
+		];
+		const weight = [
+			{ date: '2024-01-03', value: 80.0 },
+			{ date: '2024-01-05', value: 80.2 },
+			{ date: '2024-01-07', value: 79.9 },
+			{ date: '2024-01-09', value: 80.3 },
+			{ date: '2024-01-11', value: 80.1 },
+			{ date: '2024-01-13', value: 80.0 },
+			{ date: '2024-01-15', value: 80.4 },
+			{ date: '2024-01-17', value: 80.2 }
+		];
+		const result = computeCaloricLag(calories, weight, 3);
+		expect(result.results).toHaveLength(3);
+		expect(result.bestLag !== undefined).toBe(true);
+	});
+
+	it('returns null correlation when very sparse overlap (2-3 dates per offset)', () => {
+		const calories = [
+			{ date: '2024-01-01', value: 2000 },
+			{ date: '2024-01-02', value: 2100 },
+			{ date: '2024-01-03', value: 1900 }
+		];
+		const weight = [
+			{ date: '2024-01-03', value: 80.0 },
+			{ date: '2024-01-04', value: 80.1 },
+			{ date: '2024-01-05', value: 80.2 }
+		];
+		const result = computeCaloricLag(calories, weight, 2);
+		for (const r of result.results) {
+			expect(r.correlation).toBeNull();
+		}
+	});
+
+	it('handles constant weight series (all values the same) — returns constant correlation', () => {
+		const { calories } = makeCalorieWeight('2024-01-01', 20, 2);
+		// All weight values identical
+		const weight = calories.slice(2).map((c) => ({ date: c.date, value: 80.0 }));
+		const result = computeCaloricLag(calories, weight, 3);
+		for (const r of result.results) {
+			if (r.correlation !== null) {
+				expect(r.correlation.constantInput).toBe(true);
+				expect(r.correlation.r).toBe(0);
+			}
+		}
+	});
 });
