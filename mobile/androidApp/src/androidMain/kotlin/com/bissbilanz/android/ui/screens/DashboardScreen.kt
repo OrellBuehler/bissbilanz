@@ -273,7 +273,7 @@ fun DashboardScreen(navController: NavController) {
                         DashboardSkeleton()
                     } else {
                         Column {
-                            val mealGroups = remember(entries) { entries.groupBy { it.mealType } }
+                            val mealGroups = remember(entries) { entries.groupBy { it.mealType.lowercase() } }
 
                             mealTypes.forEach { meal ->
                                 val mealEntries = mealGroups[meal] ?: emptyList()

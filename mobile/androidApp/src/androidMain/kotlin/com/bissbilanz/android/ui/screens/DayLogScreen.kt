@@ -83,7 +83,7 @@ fun DayLogScreen(
         remember(entries, pendingDeleteIds) {
             entries.filter { it.id !in pendingDeleteIds }
         }
-    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { it.mealType } }
+    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { it.mealType.lowercase() } }
     val sortedMeals =
         remember(mealGroups) {
             mealTypes.filter { mealGroups.containsKey(it) } +
