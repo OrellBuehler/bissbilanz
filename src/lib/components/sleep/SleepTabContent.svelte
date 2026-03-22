@@ -9,6 +9,9 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
 	import type { DexieSleepEntry } from '$lib/db/types';
+	import FoodSleepCard from '$lib/components/analytics/FoodSleepCard.svelte';
+	import NutrientSleepCard from '$lib/components/analytics/NutrientSleepCard.svelte';
+	import PreSleepWindowCard from '$lib/components/analytics/PreSleepWindowCard.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	const live = useLiveQuery(() => sleepService.entries(), [] as DexieSleepEntry[]);
@@ -75,4 +78,10 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	<div class="space-y-4">
+		<FoodSleepCard />
+		<NutrientSleepCard />
+		<PreSleepWindowCard />
+	</div>
 </div>
