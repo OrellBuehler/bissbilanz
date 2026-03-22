@@ -260,10 +260,10 @@ fun WeightScreen(navController: NavController) {
                                     trailingContent = {
                                         Row {
                                             IconButton(onClick = { entryToEdit = entry }) {
-                                                Icon(Icons.Default.Edit, "Edit")
+                                                Icon(Icons.Default.Edit, "Edit weight entry")
                                             }
                                             IconButton(onClick = { entryToDelete = entry }) {
-                                                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                                Icon(Icons.Default.Delete, "Delete weight entry", tint = MaterialTheme.colorScheme.error)
                                             }
                                         }
                                     },

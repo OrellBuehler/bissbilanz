@@ -237,7 +237,7 @@ fun DashboardScreen(navController: NavController) {
                         Column {
                             val mealGroups = remember(entries) { entries.groupBy { it.mealType } }
                             val sortedMeals =
-                                remember(entries) {
+                                remember(mealGroups) {
                                     mealTypes.filter { mealGroups.containsKey(it) } +
                                         mealGroups.keys.filter { it !in mealTypes }
                                 }
