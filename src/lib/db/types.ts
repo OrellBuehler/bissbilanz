@@ -223,6 +223,27 @@ export type DexieWeightEntry = {
 	updatedAt: string | null;
 };
 
+// ── Sleep ───────────────────────────────────────────────────────────
+export type DexieSleepEntry = {
+	id: string;
+	userId: string;
+	entryDate: string;
+	durationMinutes: number;
+	quality: number;
+	bedtime: string | null;
+	wakeTime: string | null;
+	wakeUps: number | null;
+	sleepLatencyMinutes: number | null;
+	deepSleepMinutes: number | null;
+	lightSleepMinutes: number | null;
+	remSleepMinutes: number | null;
+	source: string | null;
+	notes: string | null;
+	loggedAt: string;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
 // ── Day Properties ────────────────────────────────────────────────
 export type DexieDayProperties = {
 	date: string;
