@@ -15,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,8 +26,8 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
-import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
@@ -53,12 +55,14 @@ fun DayLogScreen(
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val context = LocalContext.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isFastingDay by viewModel.isFastingDay.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var entryToDelete by remember { mutableStateOf<Entry?>(null) }
+    val haptic = rememberHaptic()
+    var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
     var editingEntryId by remember { mutableStateOf<String?>(null) }
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showCopyDialog by remember { mutableStateOf(false) }
@@ -75,34 +79,16 @@ fun DayLogScreen(
         }
     }
 
-    val mealGroups = entries.groupBy { it.mealType }
+    val visibleEntries =
+        remember(entries, pendingDeleteIds) {
+            entries.filter { it.id !in pendingDeleteIds }
+        }
+    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { it.mealType } }
     val sortedMeals =
-        mealTypes.filter { mealGroups.containsKey(it) } +
-            mealGroups.keys.filter { it !in mealTypes }
-
-    if (entryToDelete != null) {
-        val entry = entryToDelete!!
-        val name = entry.resolvedName()
-        AlertDialog(
-            onDismissRequest = { entryToDelete = null },
-            title = { Text("Delete Entry") },
-            text = { Text("Remove \"$name\" from your log?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteEntry(entry.id)
-                        entryToDelete = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { entryToDelete = null }) { Text("Cancel") }
-            },
-        )
-    }
+        remember(mealGroups) {
+            mealTypes.filter { mealGroups.containsKey(it) } +
+                mealGroups.keys.filter { it !in mealTypes }
+        }
 
     if (showCopyDialog) {
         val parsedDate = LocalDate.parse(date)
@@ -157,7 +143,12 @@ fun DayLogScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate("foods") }) {
+            FloatingActionButton(
+                onClick = {
+                    haptic(HapticFeedbackType.LongPress)
+                    navController.navigate("foods")
+                },
+            ) {
                 Icon(Icons.Default.Add, "Add entry")
             }
         },
@@ -188,9 +179,9 @@ fun DayLogScreen(
         }
 
         if (isLoading) {
-            LoadingScreen()
+            DayLogSkeleton()
         } else {
-            val totalCalories = entries.sumOf { it.resolvedCalories() }
+            val totalCalories = remember(visibleEntries) { visibleEntries.sumOf { it.resolvedCalories() } }
 
             PullToRefreshWrapper(
                 onRefresh = {
@@ -233,14 +224,17 @@ fun DayLogScreen(
                                     }
                                     Switch(
                                         checked = isFastingDay,
-                                        onCheckedChange = { viewModel.toggleFastingDay(date) },
+                                        onCheckedChange = {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            viewModel.toggleFastingDay(date)
+                                        },
                                     )
                                 }
                             }
                         }
                     }
 
-                    if (entries.isEmpty()) {
+                    if (visibleEntries.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
@@ -294,7 +288,28 @@ fun DayLogScreen(
                                 Box(modifier = Modifier.animateItem().padding(vertical = 2.dp)) {
                                     SwipeToDismissEntry(
                                         entry = entry,
-                                        onDelete = { entryToDelete = entry },
+                                        onDelete = {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            val deletedEntry = entry
+                                            pendingDeleteIds = pendingDeleteIds + entry.id
+                                            scope.launch {
+                                                val result =
+                                                    snackbarHostState.showSnackbar(
+                                                        message = context.getString(R.string.entry_deleted, deletedEntry.resolvedName()),
+                                                        actionLabel = context.getString(R.string.undo),
+                                                        duration = SnackbarDuration.Short,
+                                                    )
+                                                when (result) {
+                                                    SnackbarResult.ActionPerformed -> {
+                                                        pendingDeleteIds = pendingDeleteIds - deletedEntry.id
+                                                    }
+                                                    SnackbarResult.Dismissed -> {
+                                                        viewModel.deleteEntry(deletedEntry.id)
+                                                        pendingDeleteIds = pendingDeleteIds - deletedEntry.id
+                                                    }
+                                                }
+                                            }
+                                        },
                                         onClick = {
                                             editingEntryId = entry.id
                                         },
@@ -347,7 +362,7 @@ fun SwipeToDismissEntry(
                         .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, "Delete entry", tint = MaterialTheme.colorScheme.error)
             }
         },
         enableDismissFromStartToEnd = false,
