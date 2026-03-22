@@ -56,6 +56,8 @@ Note: This spec covers the TypeScript (web) implementation. Kotlin (KMP) port is
 | `source`              | text            | no       | 'manual', 'health_connect', 'healthkit' |
 | `notes`               | text            | no       |                                         |
 | `loggedAt`            | timestamp w/ tz | yes      |                                         |
+| `createdAt`           | timestamp w/ tz | yes      | row creation time                       |
+| `updatedAt`           | timestamp w/ tz | yes      | set by service layer on mutations       |
 
 Constraints:
 
@@ -65,11 +67,12 @@ Constraints:
 - Unique index on (userId, entryDate)
 - Index on userId for range queries
 
-### New Table: `userAnalyticsPreferences`
+### Analytics Preferences
+
+Add two columns to the existing `userPreferences` table (avoids a separate table, API, and Dexie store):
 
 | Column                   | Type    | Notes              |
 | ------------------------ | ------- | ------------------ |
-| `userId`                 | UUID    | PK, FK → users     |
 | `caloricLagDaysOverride` | integer | null = auto-detect |
 | `correlationWindowDays`  | integer | default 30         |
 
@@ -87,13 +90,15 @@ All algorithms share a common pattern: two numeric series in, correlation coeffi
 - **Output:** coefficient (-1 to +1), p-value, sample size, confidence level
 - **Confidence thresholds:** <7 = insufficient, 7-13 = low, 14-29 = medium, 30+ = high
 - **Filter:** correlations with |r| < 0.15 are treated as noise and not shown
+- **Edge case — zero variance:** if either series has zero standard deviation (constant values), return r = 0 with confidence = "insufficient" and a flag `constantInput: true`
 
 ### Algorithm 2: Time-Shifted Cross-Correlation (Caloric Lag)
 
 - **Input:** daily calorie series, daily weight series, max lag (1-7 days)
 - **Process:** compute Pearson at each lag offset, find strongest |r|
 - **Output:** best lag (days), correlation at each offset, recommended lag
-- **User override:** stored in `userAnalyticsPreferences.caloricLagDaysOverride`
+- **User override:** stored in `userPreferences.caloricLagDaysOverride`
+- **Missing data handling:** days without weight or food entries are excluded from the paired series. Both series are aligned by date; only dates present in both are used. Minimum 7 paired data points required per lag offset; offsets with fewer pairs return null
 
 ### Algorithm 3: Moving Average
 
@@ -104,20 +109,23 @@ All algorithms share a common pattern: two numeric series in, correlation coeffi
 ### Algorithm 4: Meal Timing Pattern Extraction
 
 - **Input:** food entries with `eatenAt` timestamps over a date range
-- **Output:** eating window (first meal → last meal per day), average start/end times, late-night eating frequency (meals after 21:00), meal spacing distribution
+- **Output:** eating window (first meal → last meal per day), average start/end times, late-night eating frequency (meals after 21:00 user local time), meal spacing distribution
+- **Timezone:** all timestamps resolved to user local time (derived from `eatenAt` timezone offset). The 21:00 threshold operates on local time, not UTC
 - **Correlation:** eating window width vs. weight trend slope
 
 ### Algorithm 5: Nutrient-Outcome Correlation Matrix
 
 - **Input:** daily nutrient totals (all 48 nutrients), outcome series (weight change or sleep quality)
 - **Process:** Pearson correlation for each nutrient vs. outcome, with optional time lag
+- **Pre-filter:** skip nutrients where >50% of daily totals are zero/null (insufficient data for meaningful correlation)
 - **Output:** ranked list of nutrients by |correlation|, filtered by confidence threshold
 - **Display threshold:** |r| > 0.3 flagged as "potentially impactful"
+- **Multiple comparisons:** with 48 nutrients, spurious correlations are expected. UI messaging notes this: "These correlations suggest patterns worth exploring — they are not proof of causation"
 
 ### Algorithm 6: Food-Sleep Pattern Detection
 
 - **Input:** food entries from evening meals (after 17:00), sleep entries for corresponding nights
-- **Process:** for each food eaten ≥5 times in the evening, compute average sleep quality delta from user's overall average on nights that food was eaten vs. nights it wasn't
+- **Process:** for each food eaten ≥3 times in the evening (configurable threshold, default 3), compute average sleep quality delta from user's overall average on nights that food was eaten vs. nights it wasn't
 - **Output:** foods positively or negatively associated with sleep quality, sorted by |delta|
 - **Secondary:** per-nutrient correlation (same approach but aggregated by nutrient totals)
 
@@ -195,7 +203,7 @@ Horizontal pill-style sub-tab bar below page header: **Nutrition | Weight | Slee
 ### Sleep CRUD
 
 - `GET /api/sleep` — list sleep entries (with date range filter)
-- `POST /api/sleep` — create/upsert sleep entry
+- `POST /api/sleep` — create sleep entry (returns 409 if entry exists for date; use PATCH to update)
 - `GET /api/sleep/[id]` — get single entry
 - `PATCH /api/sleep/[id]` — update entry
 - `DELETE /api/sleep/[id]` — delete entry
@@ -204,14 +212,16 @@ Horizontal pill-style sub-tab bar below page header: **Nutrition | Weight | Slee
 
 - `GET /api/analytics/weight-food` — daily calorie + weight series for date range (raw data for client-side correlation)
 - `GET /api/analytics/nutrients-daily` — daily nutrient totals (all 48) for date range
-- `GET /api/analytics/meal-timing` — food entries with eatenAt timestamps for date range
+- `GET /api/analytics/meal-timing` — food entries with eatenAt timestamps for date range (adds aggregation by hour/day not available from `/api/entries`)
 - `GET /api/analytics/sleep-food` — evening food entries + sleep data for correlation
-- `GET /api/analytics/preferences` — user analytics preferences
-- `PATCH /api/analytics/preferences` — update preferences (lag override, window)
+
+Analytics preferences (caloricLagDaysOverride, correlationWindowDays) are managed through the existing `/api/preferences` endpoint since they live in the `userPreferences` table.
+
+Note: existing `/api/stats/*` endpoints remain unchanged. The `/api/analytics/*` namespace is for raw data export to the client-side correlation engine, while `/api/stats/*` continues to serve pre-aggregated data for the Nutrition tab's existing sections.
 
 ### Validation
 
-All inputs validated with Zod schemas in `src/lib/server/validation/sleep.ts` and `src/lib/server/validation/analytics.ts`.
+All inputs validated with Zod schemas in `src/lib/server/validation/sleep.ts` and `src/lib/server/validation/analytics.ts`. Response schemas added to `src/lib/server/validation/responses/` for OpenAPI client compatibility.
 
 ## i18n
 
@@ -234,11 +244,14 @@ Extend existing MCP tools to support sleep logging:
 
 ### Phase 1: Foundation
 
-- Database schema (sleepEntries, userAnalyticsPreferences)
+- Database schema (sleepEntries table, analytics columns on userPreferences)
 - Migration generation
-- Sleep CRUD API routes + validation
+- Sleep CRUD API routes + validation + response schemas
 - Sleep Zod schemas
-- Analytics data API endpoints
+- Server-side sleep service (`src/lib/server/sleep.ts`)
+- Dexie offline store for sleep entries (DexieSleepEntry type, version bump, sync service)
+- Analytics data API endpoints + response schemas
+- RDA reference data constants (`src/lib/analytics/rda.ts`) for Nutrient Adequacy Dashboard
 
 ### Phase 2: Analytics Engine
 
@@ -255,8 +268,12 @@ Extend existing MCP tools to support sleep logging:
 
 - Sub-tab navigation (Nutrition / Weight / Sleep)
 - Relocate weight page content to Weight sub-tab
-- `/weight` redirect
+- `/weight` redirect to `/insights?tab=weight`
+- Update WeightWidget dashboard link to `/insights?tab=weight`
+- Update navigation config (`src/lib/config/navigation.ts`): remove `/weight` nav entry or update href
 - Preserve all existing insight sections in Nutrition tab
+- SSR strategy: load Nutrition tab data on initial server render (default tab); Weight and Sleep tabs lazy-load client-side
+- Update any existing weight page tests
 
 ### Phase 4: Sleep UI
 
@@ -296,5 +313,6 @@ Extend existing MCP tools to support sleep logging:
 
 - Health Connect / Apple HealthKit sync (schema ready, sync deferred)
 - Kotlin KMP algorithm port (spec + test vectors available for next quarter)
+- KMP shared API client updates for sleep endpoints (required follow-up for mobile)
 - Sleep stage tracking UI (columns exist but hidden until wearable sync)
 - AI-powered insight summaries (potential future feature)
