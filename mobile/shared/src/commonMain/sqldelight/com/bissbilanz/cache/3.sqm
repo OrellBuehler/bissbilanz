@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS CachedSleepEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    entryDate TEXT NOT NULL,
+    durationMinutes REAL NOT NULL,
+    quality REAL NOT NULL,
+    loggedAt TEXT,
+    jsonData TEXT NOT NULL
+);

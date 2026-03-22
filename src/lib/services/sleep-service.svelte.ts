@@ -11,6 +11,10 @@ function entries() {
 	return liveQuery(() => db.sleepEntries.orderBy('entryDate').reverse().toArray());
 }
 
+function entryForDate(date: string) {
+	return liveQuery(() => db.sleepEntries.where('entryDate').equals(date).first());
+}
+
 async function refresh(): Promise<void> {
 	if (!browser) return;
 	try {
@@ -121,4 +125,4 @@ async function deleteEntry(id: string): Promise<void> {
 	}
 }
 
-export const sleepService = { entries, refresh, create, update, delete: deleteEntry };
+export const sleepService = { entries, entryForDate, refresh, create, update, delete: deleteEntry };

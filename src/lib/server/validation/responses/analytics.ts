@@ -55,8 +55,8 @@ const sleepFoodCorrelationEntrySchema = z
 	.object({
 		date: z.string(),
 		eveningCalories: z.number().nullable(),
-		sleepDurationMinutes: z.number(),
-		sleepQuality: z.number()
+		sleepDurationMinutes: z.number().int(),
+		sleepQuality: z.number().int()
 	})
 	.meta({ id: 'SleepFoodCorrelationEntry' });
 

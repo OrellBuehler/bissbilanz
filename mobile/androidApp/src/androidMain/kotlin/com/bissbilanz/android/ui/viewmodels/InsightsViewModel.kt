@@ -137,25 +137,29 @@ class InsightsViewModel(
         }
     }
 
-    suspend fun createSleepEntry(entry: SleepCreate) {
-        try {
-            sleepRepo.createEntry(entry)
-            _snackbarMessage.value = "Sleep logged"
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            _snackbarMessage.value = "Failed to log sleep"
+    fun createSleepEntry(entry: SleepCreate) {
+        viewModelScope.launch {
+            try {
+                sleepRepo.createEntry(entry)
+                _snackbarMessage.value = "Sleep logged"
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to log sleep"
+            }
         }
     }
 
-    suspend fun deleteSleepEntry(id: String) {
-        try {
-            sleepRepo.deleteEntry(id)
-            _snackbarMessage.value = "Sleep entry deleted"
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            _snackbarMessage.value = "Failed to delete"
+    fun deleteSleepEntry(id: String) {
+        viewModelScope.launch {
+            try {
+                sleepRepo.deleteEntry(id)
+                _snackbarMessage.value = "Sleep entry deleted"
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to delete"
+            }
         }
     }
 

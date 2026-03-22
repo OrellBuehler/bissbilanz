@@ -588,6 +588,7 @@
 	"sleep_history": "History",
 	"sleep_trend": "Sleep Trend",
 	"sleep_hours": "{hours}h {minutes}m",
+	"sleep_hours_exact": "{hours}h",
 	"sleep_date_label": "Date",
 	"sleep_notes_label": "Notes",
 	"sleep_widget_title": "Sleep",

@@ -31,6 +31,6 @@ import kotlinx.serialization.encoding.*
 data class SleepFoodCorrelationEntry(
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "eveningCalories") @Required val eveningCalories: kotlin.Double?,
-    @SerialName(value = "sleepDurationMinutes") @Required val sleepDurationMinutes: kotlin.Double,
-    @SerialName(value = "sleepQuality") @Required val sleepQuality: kotlin.Double,
+    @SerialName(value = "sleepDurationMinutes") @Required val sleepDurationMinutes: kotlin.Int,
+    @SerialName(value = "sleepQuality") @Required val sleepQuality: kotlin.Int,
 )

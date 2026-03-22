@@ -7486,10 +7486,14 @@
 						"type": "string"
 					},
 					"durationMinutes": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"quality": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"bedtime": {
 						"anyOf": [
@@ -7514,7 +7518,9 @@
 					"wakeUps": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -7524,7 +7530,9 @@
 					"sleepLatencyMinutes": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -7534,7 +7542,9 @@
 					"deepSleepMinutes": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -7544,7 +7554,9 @@
 					"lightSleepMinutes": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -7554,7 +7566,9 @@
 					"remSleepMinutes": {
 						"anyOf": [
 							{
-								"type": "number"
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
 							},
 							{
 								"type": "null"
@@ -7649,10 +7663,14 @@
 						]
 					},
 					"sleepDurationMinutes": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					},
 					"sleepQuality": {
-						"type": "number"
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["date", "eveningCalories", "sleepDurationMinutes", "sleepQuality"],

@@ -37,11 +37,10 @@ import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
-import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
-import kotlinx.coroutines.launch
+import com.bissbilanz.model.SleepCreate
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -73,6 +72,7 @@ fun InsightsScreen() {
             refreshManager.refreshAll()
             viewModel.loadData()
             viewModel.loadCalendarStats()
+            viewModel.loadSleepData()
         },
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -281,8 +281,6 @@ fun InsightsScreen() {
             // 7. Sleep Tracking
             val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
             val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
-            val scope = rememberCoroutineScope()
-
             var showSleepDialog by remember { mutableStateOf(false) }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -381,14 +379,14 @@ fun InsightsScreen() {
                                 Column {
                                     Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
                                     Text(
-                                        "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality.toInt()),
+                                        "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
                             IconButton(
-                                onClick = { scope.launch { viewModel.deleteSleepEntry(entry.id) } },
+                                onClick = { viewModel.deleteSleepEntry(entry.id) },
                                 modifier = Modifier.size(32.dp),
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
@@ -488,17 +486,15 @@ fun InsightsScreen() {
                 SleepLogDialog(
                     onDismiss = { showSleepDialog = false },
                     onSave = { duration, quality, date, notes ->
-                        scope.launch {
-                            viewModel.createSleepEntry(
-                                SleepCreate(
-                                    durationMinutes = duration,
-                                    quality = quality,
-                                    entryDate = date,
-                                    notes = notes.ifBlank { null },
-                                ),
-                            )
-                            showSleepDialog = false
-                        }
+                        viewModel.createSleepEntry(
+                            SleepCreate(
+                                durationMinutes = duration,
+                                quality = quality,
+                                entryDate = date,
+                                notes = notes.ifBlank { null },
+                            ),
+                        )
+                        showSleepDialog = false
                     },
                 )
             }

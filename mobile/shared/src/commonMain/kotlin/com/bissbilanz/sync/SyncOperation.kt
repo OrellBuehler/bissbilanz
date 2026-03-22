@@ -205,4 +205,35 @@ sealed class SyncOperation {
         override val affectedId: String? = null
         override val description = "update preferences"
     }
+
+    @Serializable
+    @SerialName("create_sleep")
+    data class CreateSleep(
+        val body: String,
+    ) : SyncOperation() {
+        override val affectedTable = "sleep"
+        override val affectedId: String? = null
+        override val description = "create sleep entry"
+    }
+
+    @Serializable
+    @SerialName("update_sleep")
+    data class UpdateSleep(
+        val id: String,
+        val body: String,
+    ) : SyncOperation() {
+        override val affectedTable = "sleep"
+        override val affectedId get() = id
+        override val description get() = "update sleep entry $id"
+    }
+
+    @Serializable
+    @SerialName("delete_sleep")
+    data class DeleteSleep(
+        val id: String,
+    ) : SyncOperation() {
+        override val affectedTable = "sleep"
+        override val affectedId get() = id
+        override val description get() = "delete sleep entry $id"
+    }
 }
