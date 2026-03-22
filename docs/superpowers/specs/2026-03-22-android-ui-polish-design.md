@@ -26,17 +26,18 @@ fun rememberHaptic(): (HapticFeedbackType) -> Unit {
 
 ### Where to Add Haptics
 
-| Action                                  | Feedback Type    | Screen(s)                                        |
-| --------------------------------------- | ---------------- | ------------------------------------------------ |
-| Log food (quick log, favorites)         | `LongPress`      | FavoritesScreen, FoodSearchScreen                |
-| Toggle supplement                       | `TextHandleMove` | SupplementsScreen                                |
-| Swipe-to-delete threshold               | `LongPress`      | DayLogScreen                                     |
-| Successful delete (undo snackbar shown) | `TextHandleMove` | DayLogScreen                                     |
-| FAB tap                                 | `TextHandleMove` | DashboardScreen, DayLogScreen, SupplementsScreen |
-| Date navigation arrows                  | `TextHandleMove` | DashboardScreen                                  |
-| Barcode scan success                    | `LongPress`      | BarcodeScannerScreen                             |
-| Weight logged                           | `LongPress`      | WeightScreen                                     |
-| Switch/checkbox toggle                  | `TextHandleMove` | DayLogScreen (fasting), SettingsScreen           |
+Use `LongPress` for all discrete tap actions (despite the name, this is the standard "click" haptic on Android). Reserve `TextHandleMove` only for continuous/drag interactions if needed in future.
+
+| Action                    | Feedback Type | Screen(s)                                        |
+| ------------------------- | ------------- | ------------------------------------------------ |
+| Log food (quick log)      | `LongPress`   | FavoritesScreen, FoodSearchScreen                |
+| Toggle supplement         | `LongPress`   | SupplementsScreen                                |
+| Swipe-to-delete threshold | `LongPress`   | DayLogScreen                                     |
+| FAB tap                   | `LongPress`   | DashboardScreen, DayLogScreen, SupplementsScreen |
+| Date navigation arrows    | `LongPress`   | DashboardScreen                                  |
+| Barcode scan success      | `LongPress`   | BarcodeScannerScreen                             |
+| Weight logged             | `LongPress`   | WeightScreen                                     |
+| Switch/checkbox toggle    | `LongPress`   | DayLogScreen (fasting), SettingsScreen           |
 
 ## 2. Shimmer Skeleton Loading
 
@@ -48,8 +49,9 @@ Create a reusable `Modifier.shimmer()` extension that applies an animated gradie
 
 Location: `ui/components/ShimmerEffect.kt`
 
-- `Modifier.shimmer()` — applies an infinite horizontal shimmer animation using `drawWithContent` and a linear gradient. Uses `surfaceVariant` and `surface` colors from the theme so it works in both light and dark mode.
-- Animation: infinite `translateX` with `tween(1000ms, easeInOut)`.
+- `Modifier.shimmer()` — applies an infinite horizontal shimmer animation using `drawBehind` and a linear gradient. Uses `surfaceVariant` and `surface` colors from the theme so it works in both light and dark mode. `drawBehind` is used (not `drawWithContent`) since skeletons are solid placeholder shapes with no content underneath.
+- Animation: infinite `translateX` with `tween(1200ms, easeInOut)`.
+- Note: when `dynamicColor = true` (default), contrast between `surface` and `surfaceVariant` varies by wallpaper. Worth a visual check on low-contrast dynamic themes.
 
 ### New File: `SkeletonLoaders.kt`
 
@@ -91,12 +93,17 @@ Replace the confirmation dialog for swipe-to-delete in `DayLogScreen` with an im
 
 ### Implementation
 
+Since `DayLogViewModel.entries` is a reactive `StateFlow` backed by the repository, we cannot simply remove an item from it at the UI level. Instead, use a filtering approach:
+
 - Remove `entryToDelete` state and `AlertDialog` block from `DayLogScreen`
-- Add `pendingDelete` state holding the entry and its position
-- In `SwipeToDismissEntry.confirmValueChange`: set `pendingDelete`, return `true` to dismiss
+- Add `pendingDeleteIds` state: `var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }`
+- Derive the visible entries: `val visibleEntries = remember(entries, pendingDeleteIds) { entries.filter { it.id !in pendingDeleteIds } }`
+- Use `visibleEntries` instead of `entries` for the meal grouping and LazyColumn
+- In `SwipeToDismissEntry.confirmValueChange`: add entry ID to `pendingDeleteIds`, return `false` (don't let SwipeToDismissBox handle the dismissal — we handle removal via the filtered list + `animateItem()`)
 - Show snackbar with `SnackbarDuration.Short` and "Undo" action
-- On undo: clear `pendingDelete`, reload entries
-- On dismiss without undo: call `viewModel.deleteEntry()`
+- On undo: remove entry ID from `pendingDeleteIds`
+- On dismiss without undo: call `viewModel.deleteEntry()` and remove from `pendingDeleteIds`
+- New snackbar strings should use string resources (`R.string.deleted_entry`, `R.string.undo`) to stay consistent with existing i18n patterns in this screen
 
 ### Detail Screen Delete
 
@@ -148,7 +155,7 @@ Wrap expensive calculations in `remember`/`derivedStateOf`:
 - `WeightScreen.kt` — haptics, contentDescription
 - `BarcodeScannerScreen.kt` — haptics, fix hard-coded colors
 - `SettingsScreen.kt` — haptics on toggles
-- `Motion.kt` — add snap spring as top-level val (like `GentleSpring`)
+- `Motion.kt` — add `val SnapSpring = spring<Float>(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS)`
 
 ## Out of Scope
 
