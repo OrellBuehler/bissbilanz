@@ -34,7 +34,7 @@
 		color: string;
 	};
 
-	const macroCorrelations = $derived((): MacroCorrelation[] => {
+	const macroCorrelations = $derived.by((): MacroCorrelation[] => {
 		if (weightSeries.length === 0 || nutrientSeries.length === 0) return [];
 
 		const weightByDate = new Map(
@@ -84,13 +84,13 @@
 			.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
 	});
 
-	const sampleSize = $derived(() => {
+	const sampleSize = $derived.by(() => {
 		const wt = weightSeries.filter((d) => d.weightKg !== null).length;
 		const nt = nutrientSeries.length;
 		return Math.min(wt, nt);
 	});
 
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
 	onMount(async () => {
 		try {
@@ -124,12 +124,12 @@
 	<InsightCard
 		title={m.analytics_macro_impact()}
 		headline={m.analytics_macro_impact_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-blue-500"
 	>
 		{#snippet children()}
-			{@const correlations = macroCorrelations()}
+			{@const correlations = macroCorrelations}
 			{#if correlations.length > 0}
 				<div class="space-y-2">
 					{#each correlations as macro (macro.key)}

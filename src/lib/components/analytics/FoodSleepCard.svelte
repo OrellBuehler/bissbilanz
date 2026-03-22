@@ -17,6 +17,8 @@
 		date: string;
 		mealType: string;
 		eatenAt: string | null;
+		foodId: string | null;
+		recipeId: string | null;
 		calories: number;
 		foodName: string;
 	};
@@ -26,7 +28,7 @@
 	let sleepFoodData = $state<SleepFoodPoint[]>([]);
 	let mealEntries = $state<MealEntry[]>([]);
 
-	const patterns = $derived(() => {
+	const patterns = $derived.by(() => {
 		if (sleepFoodData.length === 0 || mealEntries.length === 0) return null;
 
 		const sleepData = sleepFoodData
@@ -43,7 +45,7 @@
 			})
 			.map((e) => ({
 				date: e.date,
-				foodId: e.foodName,
+				foodId: e.foodId ?? e.recipeId ?? e.foodName,
 				foodName: e.foodName,
 				nutrients: {}
 			}));
@@ -51,14 +53,14 @@
 		return detectFoodSleepPatterns(eveningFoods, sleepData, 3);
 	});
 
-	const sampleSize = $derived(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const sampleSize = $derived.by(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
-	const betterSleep = $derived(() =>
-		(patterns()?.foodImpacts ?? []).filter((f) => f.delta > 0.3).slice(0, 5)
+	const betterSleep = $derived.by(() =>
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta > 0.3).slice(0, 5)
 	);
-	const worseSleep = $derived(() =>
-		(patterns()?.foodImpacts ?? []).filter((f) => f.delta < -0.3).slice(0, 5)
+	const worseSleep = $derived.by(() =>
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta < -0.3).slice(0, 5)
 	);
 
 	onMount(async () => {
@@ -93,13 +95,13 @@
 	<InsightCard
 		title={m.analytics_food_sleep()}
 		headline={m.analytics_food_sleep_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-purple-500"
 	>
 		{#snippet children()}
-			{@const better = betterSleep()}
-			{@const worse = worseSleep()}
+			{@const better = betterSleep}
+			{@const worse = worseSleep}
 			{#if better.length > 0 || worse.length > 0}
 				<div class="space-y-3">
 					{#if better.length > 0}

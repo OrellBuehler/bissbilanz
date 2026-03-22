@@ -26,19 +26,19 @@
 	let weightSeries = $state<WeightFoodPoint[]>([]);
 	let mealEntries = $state<MealEntry[]>([]);
 
-	const timingAnalysis = $derived(() => {
+	const timingAnalysis = $derived.by(() => {
 		if (mealEntries.length === 0) return null;
 		return extractMealTimingPatterns(mealEntries);
 	});
 
-	const avgWindowHours = $derived(() => {
-		const analysis = timingAnalysis();
+	const avgWindowHours = $derived.by(() => {
+		const analysis = timingAnalysis;
 		if (!analysis) return 0;
 		return Math.round(analysis.avgWindowMinutes / 60);
 	});
 
-	const correlationResult = $derived(() => {
-		const analysis = timingAnalysis();
+	const correlationResult = $derived.by(() => {
+		const analysis = timingAnalysis;
 		if (!analysis || analysis.dailyWindows.length < 3) return null;
 
 		const weightByDate = new Map(
@@ -74,19 +74,19 @@
 		);
 	});
 
-	const sampleSize = $derived(
-		() => correlationResult()?.sampleSize ?? timingAnalysis()?.dailyWindows.length ?? 0
+	const sampleSize = $derived.by(
+		() => correlationResult?.sampleSize ?? timingAnalysis?.dailyWindows.length ?? 0
 	);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
-	const firstMealHour = $derived(() => {
-		const analysis = timingAnalysis();
+	const firstMealHour = $derived.by(() => {
+		const analysis = timingAnalysis;
 		if (!analysis) return 8;
 		return parseInt(analysis.avgFirstMealTime.split(':')[0]);
 	});
 
-	const lastMealHour = $derived(() => {
-		const analysis = timingAnalysis();
+	const lastMealHour = $derived.by(() => {
+		const analysis = timingAnalysis;
 		if (!analysis) return 20;
 		return parseInt(analysis.avgLastMealTime.split(':')[0]);
 	});
@@ -122,16 +122,16 @@
 {:else}
 	<InsightCard
 		title={m.analytics_meal_timing_weight()}
-		headline={m.analytics_meal_timing_headline({ hours: avgWindowHours().toString() })}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		headline={m.analytics_meal_timing_headline({ hours: avgWindowHours.toString() })}
+		{confidence}
+		{sampleSize}
 		borderColor="border-amber-500"
 	>
 		{#snippet children()}
-			{@const analysis = timingAnalysis()}
+			{@const analysis = timingAnalysis}
 			{#if analysis}
-				{@const startPct = (firstMealHour() / 24) * 100}
-				{@const widthPct = ((lastMealHour() - firstMealHour()) / 24) * 100}
+				{@const startPct = (firstMealHour / 24) * 100}
+				{@const widthPct = ((lastMealHour - firstMealHour) / 24) * 100}
 				<div class="space-y-3">
 					<div class="space-y-1">
 						<p class="text-xs text-muted-foreground">Average eating window (24h)</p>
@@ -145,21 +145,21 @@
 							<span>0h</span>
 							<span class="text-amber-600 dark:text-amber-400 font-medium">
 								{analysis.avgFirstMealTime} – {analysis.avgLastMealTime}
-								({avgWindowHours()}h window)
+								({avgWindowHours}h window)
 							</span>
 							<span>24h</span>
 						</div>
 					</div>
 
-					{#if correlationResult()}
+					{#if correlationResult}
 						<div class="rounded-lg bg-muted/30 p-3 text-xs">
 							<span class="text-muted-foreground">Window vs weight change correlation: </span>
 							<span
-								class="font-semibold tabular-nums {correlationResult()!.r < 0
+								class="font-semibold tabular-nums {correlationResult!.r < 0
 									? 'text-green-600 dark:text-green-400'
 									: 'text-red-600 dark:text-red-400'}"
 							>
-								r = {correlationResult()!.r.toFixed(2)}
+								r = {correlationResult!.r.toFixed(2)}
 							</span>
 							<span class="text-muted-foreground ml-1 text-[10px]">
 								(negative = smaller window correlates with weight loss)

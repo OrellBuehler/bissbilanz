@@ -20,7 +20,7 @@
 	let error = $state<string | null>(null);
 	let nutrientSeries = $state<DailyNutrient[]>([]);
 
-	const adequacyData = $derived(() => {
+	const adequacyData = $derived.by(() => {
 		if (nutrientSeries.length === 0) return [];
 
 		return RDA_VALUES.map((rda) => {
@@ -46,8 +46,8 @@
 			.sort((a, b) => a.pct - b.pct);
 	});
 
-	const sampleSize = $derived(() => nutrientSeries.length);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const sampleSize = $derived.by(() => nutrientSeries.length);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
 	onMount(async () => {
 		try {
@@ -79,12 +79,12 @@
 	<InsightCard
 		title={m.analytics_nutrient_adequacy()}
 		headline={m.analytics_nutrient_adequacy_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-green-500"
 	>
 		{#snippet children()}
-			{@const nutrients = adequacyData()}
+			{@const nutrients = adequacyData}
 			{#if nutrients.length > 0}
 				<div class="space-y-1.5">
 					{#each nutrients as nutrient (nutrient.key)}
@@ -122,7 +122,7 @@
 						</div>
 					{/each}
 					<p class="text-[11px] text-muted-foreground pt-1">
-						Based on {sampleSize()}-day average vs. average RDA
+						Based on {sampleSize}-day average vs. average RDA
 					</p>
 				</div>
 			{:else}

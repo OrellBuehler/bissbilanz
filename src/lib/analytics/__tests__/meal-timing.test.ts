@@ -61,14 +61,17 @@ describe('extractMealTimingPatterns', () => {
 	});
 
 	it('applies timezone offset from ISO string correctly', () => {
+		// T08:00+02:00 means the string hours (08) are treated as UTC, offset converts to local
+		// UTC 08:00 + 02:00 offset = local 10:00
+		// UTC 18:00 + 02:00 offset = local 20:00
 		const entries = [
 			{ date: '2024-01-01', eatenAt: '2024-01-01T08:00:00+02:00', calories: 300 },
 			{ date: '2024-01-01', eatenAt: '2024-01-01T18:00:00+02:00', calories: 600 }
 		];
 		const result = extractMealTimingPatterns(entries);
 		const day = result.dailyWindows[0];
-		expect(day.firstMealTime).toBe('08:00');
-		expect(day.lastMealTime).toBe('18:00');
+		expect(day.firstMealTime).toBe('10:00');
+		expect(day.lastMealTime).toBe('20:00');
 	});
 
 	it('returns empty summary for all-null eatenAt', () => {

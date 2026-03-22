@@ -18,13 +18,13 @@
 	let error = $state<string | null>(null);
 	let mealEntries = $state<MealEntry[]>([]);
 
-	const analysis = $derived(() => {
+	const analysis = $derived.by(() => {
 		if (mealEntries.length === 0) return null;
 		return extractMealTimingPatterns(mealEntries);
 	});
 
-	const hourlyData = $derived(() => {
-		const a = analysis();
+	const hourlyData = $derived.by(() => {
+		const a = analysis;
 		if (!a) return [];
 		const max = Math.max(...a.hourlyDistribution, 1);
 		return a.hourlyDistribution.map((count, hour) => ({
@@ -35,8 +35,8 @@
 		}));
 	});
 
-	const peakHours = $derived(() =>
-		hourlyData()
+	const peakHours = $derived.by(() =>
+		hourlyData
 			.filter((h) => h.isPeak && h.count > 0)
 			.map((h) => {
 				const period = h.hour < 12 ? 'AM' : 'PM';
@@ -45,8 +45,8 @@
 			})
 	);
 
-	const sampleSize = $derived(() => analysis()?.dailyWindows.length ?? 0);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const sampleSize = $derived.by(() => analysis?.dailyWindows.length ?? 0);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
 	onMount(async () => {
 		try {
@@ -78,12 +78,12 @@
 	<InsightCard
 		title={m.analytics_meal_spacing()}
 		headline={m.analytics_meal_spacing_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-amber-500"
 	>
 		{#snippet children()}
-			{@const hours = hourlyData()}
+			{@const hours = hourlyData}
 			{#if hours.some((h) => h.count > 0)}
 				<div class="space-y-2">
 					<div class="space-y-0.5">
@@ -116,9 +116,9 @@
 							</div>
 						{/each}
 					</div>
-					{#if peakHours().length > 0}
+					{#if peakHours.length > 0}
 						<p class="text-xs text-muted-foreground">
-							Peak times: <span class="font-medium text-foreground">{peakHours().join(', ')}</span>
+							Peak times: <span class="font-medium text-foreground">{peakHours.join(', ')}</span>
 						</p>
 					{/if}
 				</div>

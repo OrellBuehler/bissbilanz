@@ -26,6 +26,8 @@ const mealTimingEntrySchema = z
 		date: z.string(),
 		mealType: z.string(),
 		eatenAt: z.string().nullable(),
+		foodId: z.string().nullable(),
+		recipeId: z.string().nullable(),
 		calories: z.number(),
 		foodName: z.string()
 	})

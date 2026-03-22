@@ -29,7 +29,7 @@
 	let sleepFoodData = $state<SleepFoodPoint[]>([]);
 	let nutrientSeries = $state<DailyNutrient[]>([]);
 
-	const correlations = $derived(() => {
+	const correlations = $derived.by(() => {
 		if (sleepFoodData.length === 0 || nutrientSeries.length === 0) return [];
 
 		const sleepOutcomes = sleepFoodData
@@ -51,11 +51,11 @@
 		return computeNutrientOutcomeCorrelations(dailyNutrients, sleepOutcomes, 0).slice(0, 8);
 	});
 
-	const sampleSize = $derived(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const sampleSize = $derived.by(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
-	const maxAbsR = $derived(() => {
-		const corrs = correlations();
+	const maxAbsR = $derived.by(() => {
+		const corrs = correlations;
 		if (corrs.length === 0) return 0;
 		return Math.max(...corrs.map((c) => Math.abs(c.correlation.r)));
 	});
@@ -92,13 +92,13 @@
 	<InsightCard
 		title={m.analytics_nutrient_sleep()}
 		headline={m.analytics_nutrient_sleep_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-purple-500"
 	>
 		{#snippet children()}
-			{@const corrs = correlations()}
-			{@const maxR = maxAbsR()}
+			{@const corrs = correlations}
+			{@const maxR = maxAbsR}
 			{#if corrs.length > 0}
 				<div class="space-y-2">
 					{#each corrs as nc (nc.nutrientKey)}

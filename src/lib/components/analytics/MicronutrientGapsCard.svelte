@@ -29,7 +29,7 @@
 	let weightSeries = $state<WeightFoodPoint[]>([]);
 	let nutrientSeries = $state<DailyNutrient[]>([]);
 
-	const nutrientCorrelations = $derived(() => {
+	const nutrientCorrelations = $derived.by(() => {
 		if (weightSeries.length === 0 || nutrientSeries.length === 0) return [];
 
 		const weightOutcomes = weightSeries
@@ -49,7 +49,7 @@
 		return computeNutrientOutcomeCorrelations(dailyNutrients, weightOutcomes, 0);
 	});
 
-	const avgNutrients = $derived(() => {
+	const avgNutrients = $derived.by(() => {
 		if (nutrientSeries.length === 0) return new Map<string, number>();
 		const totals = new Map<string, number>();
 		for (const day of nutrientSeries) {
@@ -65,9 +65,9 @@
 		return avgs;
 	});
 
-	const displayNutrients = $derived(() => {
-		const corrs = nutrientCorrelations();
-		const avgs = avgNutrients();
+	const displayNutrients = $derived.by(() => {
+		const corrs = nutrientCorrelations;
+		const avgs = avgNutrients;
 		return corrs
 			.slice(0, 6)
 			.map((nc) => {
@@ -89,10 +89,10 @@
 			.filter((n): n is NonNullable<typeof n> => n !== null);
 	});
 
-	const sampleSize = $derived(() =>
+	const sampleSize = $derived.by(() =>
 		Math.min(weightSeries.filter((d) => d.weightKg !== null).length, nutrientSeries.length)
 	);
-	const confidence = $derived(() => getConfidenceLevel(sampleSize()));
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
 	onMount(async () => {
 		try {
@@ -126,12 +126,12 @@
 	<InsightCard
 		title={m.analytics_micronutrient_gaps()}
 		headline={m.analytics_micronutrient_gaps_headline()}
-		confidence={confidence()}
-		sampleSize={sampleSize()}
+		{confidence}
+		{sampleSize}
 		borderColor="border-green-500"
 	>
 		{#snippet children()}
-			{@const nutrients = displayNutrients()}
+			{@const nutrients = displayNutrients}
 			{#if nutrients.length > 0}
 				<div class="space-y-2">
 					{#each nutrients as nutrient (nutrient.key)}

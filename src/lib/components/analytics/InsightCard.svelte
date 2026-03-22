@@ -19,7 +19,7 @@
 		children: Snippet;
 	} = $props();
 
-	const badgeClass = $derived(() => {
+	const badgeClass = $derived.by(() => {
 		if (confidence === 'high')
 			return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
 		if (confidence === 'medium')
@@ -29,10 +29,10 @@
 		return 'bg-muted text-muted-foreground';
 	});
 
-	const cardBorderClass = $derived(() => (confidence === 'low' ? 'border-dashed' : ''));
+	const cardBorderClass = $derived.by(() => (confidence === 'low' ? 'border-dashed' : ''));
 </script>
 
-<div class="rounded-lg border {cardBorderClass()} bg-card overflow-hidden">
+<div class="rounded-lg border {cardBorderClass} bg-card overflow-hidden">
 	<div class="border-l-4 {borderColor} p-4 sm:p-5">
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0 flex-1">
@@ -49,7 +49,7 @@
 				{/if}
 			</div>
 			{#if confidence !== 'insufficient'}
-				<span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {badgeClass()}">
+				<span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {badgeClass}">
 					{#if confidence === 'high' || confidence === 'medium'}
 						{m.confidence_high({ days: sampleSize.toString() })}
 					{:else}

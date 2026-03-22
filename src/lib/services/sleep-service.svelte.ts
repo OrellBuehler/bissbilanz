@@ -1,6 +1,7 @@
 import { liveQuery } from 'dexie';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
+// TODO: switch to typed api client once sleep endpoints are added to the OpenAPI schema
 import { apiFetch } from '$lib/utils/api';
 import { enqueue } from '$lib/stores/offline-queue';
 import { urlToMeta } from '$lib/utils/api';

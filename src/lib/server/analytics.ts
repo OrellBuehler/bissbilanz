@@ -134,6 +134,8 @@ export const getMealTimingData = async (userId: string, startDate: string, endDa
 			date: foodEntries.date,
 			mealType: foodEntries.mealType,
 			eatenAt: foodEntries.eatenAt,
+			foodId: foodEntries.foodId,
+			recipeId: foodEntries.recipeId,
 			calories: sql<number>`CASE
 				WHEN ${foodEntries.foodId} IS NOT NULL THEN ${foods.calories} * ${foodEntries.servings}
 				ELSE COALESCE(${foodEntries.quickCalories}, 0) * ${foodEntries.servings}
@@ -157,6 +159,8 @@ export const getMealTimingData = async (userId: string, startDate: string, endDa
 		date: r.date,
 		mealType: r.mealType,
 		eatenAt: r.eatenAt ? r.eatenAt.toISOString() : null,
+		foodId: r.foodId,
+		recipeId: r.recipeId,
 		calories: r.calories,
 		foodName: r.foodName
 	}));

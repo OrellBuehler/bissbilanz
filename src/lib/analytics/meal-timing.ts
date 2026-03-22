@@ -110,10 +110,10 @@ function parseLocalMinutes(isoString: string): number | null {
 		}
 	}
 
-	// The hours/minutes in the ISO string ARE already local time.
-	// The timezone offset describes the relationship to UTC, not a correction to apply.
-	void offsetMinutes;
-	return hours * 60 + minutes;
+	const utcMinutes = hours * 60 + minutes;
+	const localMinutes = (((utcMinutes + offsetMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
+
+	return localMinutes;
 }
 
 function minutesToHHmm(totalMinutes: number): string {
