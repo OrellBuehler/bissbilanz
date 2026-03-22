@@ -457,6 +457,8 @@
 	"weight_projection_30d": "30d",
 	"weight_projection_60d": "60d",
 	"weight_projected": "Projected",
+	"weight_view_all": "View all {count} entries",
+	"weight_history_page_title": "Weight History",
 
 	"settings_tab_general": "General",
 	"settings_tab_mcp": "MCP",

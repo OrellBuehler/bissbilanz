@@ -21,6 +21,7 @@
 	import NutrientAdequacyCard from '$lib/components/analytics/NutrientAdequacyCard.svelte';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { today, shiftDate, daysAgo } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
@@ -575,7 +576,15 @@
 						</div>
 					</Card.Header>
 					<Card.Content class="pt-0">
-						<WeightHistoryList {entries} onChanged={() => loadWeightChart()} />
+						<WeightHistoryList {entries} onChanged={() => loadWeightChart()} limit={7} />
+						{#if entries.length > 7}
+							<div class="mt-3 flex justify-end border-t pt-3">
+								<Button variant="ghost" size="sm" href="/weight" class="gap-1.5">
+									{m.weight_view_all({ count: String(entries.length) })}
+									<ArrowRight class="size-3.5" />
+								</Button>
+							</div>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{/if}

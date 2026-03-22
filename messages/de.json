@@ -457,6 +457,8 @@
 	"weight_projection_30d": "30T",
 	"weight_projection_60d": "60T",
 	"weight_projected": "Prognose",
+	"weight_view_all": "Alle {count} Einträge anzeigen",
+	"weight_history_page_title": "Gewichtsverlauf",
 
 	"settings_tab_general": "Allgemein",
 	"settings_tab_mcp": "MCP",
