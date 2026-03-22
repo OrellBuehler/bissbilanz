@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FoodEditSheet
@@ -70,7 +71,7 @@ fun DashboardScreen(navController: NavController) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
-        val barcode = navBackStackEntry?.savedStateHandle?.remove<String>("create_food_barcode")
+        val barcode = navBackStackEntry?.savedStateHandle?.remove<String>(NAV_KEY_CREATE_FOOD_BARCODE)
         if (barcode != null) {
             createFoodBarcode = barcode
         }

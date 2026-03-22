@@ -40,6 +40,8 @@ sealed class Screen(
 }
 
 val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
+
+const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
 @Composable

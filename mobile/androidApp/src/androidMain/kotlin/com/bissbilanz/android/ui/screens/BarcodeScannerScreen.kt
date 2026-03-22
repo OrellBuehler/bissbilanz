@@ -33,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.rememberHaptic
@@ -199,7 +200,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                                     onClick = {
                                         navController.previousBackStackEntry
                                             ?.savedStateHandle
-                                            ?.set("create_food_barcode", scannedBarcode)
+                                            ?.set(NAV_KEY_CREATE_FOOD_BARCODE, scannedBarcode)
                                         navController.popBackStack()
                                     },
                                 ) {
