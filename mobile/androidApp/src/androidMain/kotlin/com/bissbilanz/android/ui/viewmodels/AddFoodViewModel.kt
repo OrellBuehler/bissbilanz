@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,8 +30,14 @@ class AddFoodViewModel(
     val favoriteFoods: StateFlow<List<Food>> =
         foodRepo.favorites().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val recipes: StateFlow<List<Recipe>> =
+    val allRecipes: StateFlow<List<Recipe>> =
         recipeRepo.allRecipes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val favoriteRecipes: StateFlow<List<Recipe>> =
+        recipeRepo
+            .allRecipes()
+            .map { list -> list.filter { it.isFavorite } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -40,6 +47,9 @@ class AddFoodViewModel(
 
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
@@ -57,6 +67,13 @@ class AddFoodViewModel(
                 errorReporter.captureException(e)
             }
         }
+    }
+
+    fun reset() {
+        _query.value = ""
+        _searchResults.value = emptyList()
+        _isSearching.value = false
+        searchJob?.cancel()
     }
 
     fun updateQuery(newQuery: String) {
@@ -88,7 +105,9 @@ class AddFoodViewModel(
         mealType: String,
         servings: Double,
         date: String,
+        onComplete: () -> Unit,
     ) {
+        _isSaving.value = true
         viewModelScope.launch {
             try {
                 entryRepo.createEntry(
@@ -96,11 +115,13 @@ class AddFoodViewModel(
                     food = food,
                 )
                 _snackbarMessage.value = "Logged ${food.name}"
+                onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
             }
+            _isSaving.value = false
         }
     }
 
@@ -109,7 +130,9 @@ class AddFoodViewModel(
         mealType: String,
         servings: Double,
         date: String,
+        onComplete: () -> Unit,
     ) {
+        _isSaving.value = true
         viewModelScope.launch {
             try {
                 entryRepo.createEntry(
@@ -117,11 +140,13 @@ class AddFoodViewModel(
                     recipe = recipe,
                 )
                 _snackbarMessage.value = "Logged ${recipe.name}"
+                onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log recipe"
             }
+            _isSaving.value = false
         }
     }
 
@@ -135,7 +160,9 @@ class AddFoodViewModel(
         fat: Double?,
         fiber: Double?,
         notes: String?,
+        onComplete: () -> Unit,
     ) {
+        _isSaving.value = true
         viewModelScope.launch {
             try {
                 entryRepo.createEntry(
@@ -153,11 +180,13 @@ class AddFoodViewModel(
                     ),
                 )
                 _snackbarMessage.value = "Logged $name"
+                onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log entry"
             }
+            _isSaving.value = false
         }
     }
 

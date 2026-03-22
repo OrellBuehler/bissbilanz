@@ -23,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -74,13 +75,17 @@ fun AddFoodSheet(
     val baseUrl: String = koinInject(named("baseUrl"))
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    LaunchedEffect(Unit) { viewModel.reset() }
+
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val favoriteFoods by viewModel.favoriteFoods.collectAsStateWithLifecycle()
-    val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val favoriteRecipes by viewModel.favoriteRecipes.collectAsStateWithLifecycle()
+    val recipes by viewModel.allRecipes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabLabels = listOf("Search", "Favorites", "Recent", "Recipes", "Quick")
@@ -153,6 +158,10 @@ fun AddFoodSheet(
                     singleLine = true,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+                if (isSaving) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -164,21 +173,19 @@ fun AddFoodSheet(
                             servingsText = "1"
                         },
                         modifier = Modifier.weight(1f),
+                        enabled = !isSaving,
                     ) { Text("Cancel") }
                     Button(
                         onClick = {
                             val servings = servingsText.toDoubleOrNull() ?: 1.0
                             if (selectedFood != null) {
-                                viewModel.logFood(selectedFood!!, mealType, servings, date)
+                                viewModel.logFood(selectedFood!!, mealType, servings, date) { onLogged() }
                             } else if (selectedRecipe != null) {
-                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, date)
+                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, date) { onLogged() }
                             }
-                            selectedFood = null
-                            selectedRecipe = null
-                            servingsText = "1"
-                            onLogged()
                         },
                         modifier = Modifier.weight(1f),
+                        enabled = !isSaving,
                     ) { Text("Log") }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -216,7 +223,14 @@ fun AddFoodSheet(
                                 isSearching,
                                 onSelect = { selectedFood = it },
                             )
-                        1 -> FavoritesTab(favoriteFoods, baseUrl, onSelectFood = { selectedFood = it })
+                        1 ->
+                            FavoritesTab(
+                                favoriteFoods,
+                                favoriteRecipes,
+                                baseUrl,
+                                onSelectFood = { selectedFood = it },
+                                onSelectRecipe = { selectedRecipe = it },
+                            )
                         2 -> RecentTab(recentFoods, baseUrl, onSelect = { selectedFood = it })
                         3 -> RecipesTab(recipes, onSelect = { selectedRecipe = it })
                         4 ->
@@ -228,6 +242,7 @@ fun AddFoodSheet(
                                 quickFat,
                                 quickFiber,
                                 quickNotes,
+                                isSaving,
                                 onNameChange = { quickName = it },
                                 onCaloriesChange = { quickCalories = it },
                                 onProteinChange = { quickProtein = it },
@@ -246,8 +261,7 @@ fun AddFoodSheet(
                                         quickFat.toDoubleOrNull(),
                                         quickFiber.toDoubleOrNull(),
                                         quickNotes,
-                                    )
-                                    onLogged()
+                                    ) { onLogged() }
                                 },
                             )
                     }
@@ -302,20 +316,29 @@ private fun SearchTab(
 
 @Composable
 private fun FavoritesTab(
-    favorites: List<Food>,
+    favoriteFoods: List<Food>,
+    favoriteRecipes: List<Recipe>,
     baseUrl: String,
     onSelectFood: (Food) -> Unit,
+    onSelectRecipe: (Recipe) -> Unit,
 ) {
-    if (favorites.isEmpty()) {
+    if (favoriteFoods.isEmpty() && favoriteRecipes.isEmpty()) {
         EmptyState("No favorites yet")
     } else {
         LazyColumn(modifier = Modifier.fillMaxHeight()) {
-            items(favorites, key = { it.id }) { food ->
+            items(favoriteFoods, key = { "food-${it.id}" }) { food ->
                 FoodListItem(
                     food = food,
                     baseUrl = baseUrl,
                     onClick = { onSelectFood(food) },
                     onQuickLog = { onSelectFood(food) },
+                )
+            }
+            items(favoriteRecipes, key = { "recipe-${it.id}" }) { recipe ->
+                RecipeListItem(
+                    recipe = recipe,
+                    onClick = { onSelectRecipe(recipe) },
+                    onQuickLog = { onSelectRecipe(recipe) },
                 )
             }
         }
@@ -373,6 +396,7 @@ private fun QuickTab(
     fat: String,
     fiber: String,
     notes: String,
+    isSaving: Boolean,
     onNameChange: (String) -> Unit,
     onCaloriesChange: (String) -> Unit,
     onProteinChange: (String) -> Unit,
@@ -406,10 +430,13 @@ private fun QuickTab(
             minLines = 2,
             maxLines = 4,
         )
+        if (isSaving) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank(),
+            enabled = name.isNotBlank() && !isSaving,
         ) { Text("Save") }
         Spacer(modifier = Modifier.height(16.dp))
     }
