@@ -34,8 +34,7 @@ class AddFoodViewModel(
         recipeRepo.allRecipes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val favoriteRecipes: StateFlow<List<Recipe>> =
-        recipeRepo
-            .allRecipes()
+        allRecipes
             .map { list -> list.filter { it.isFavorite } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -120,8 +119,9 @@ class AddFoodViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log food"
+            } finally {
+                _isSaving.value = false
             }
-            _isSaving.value = false
         }
     }
 
@@ -145,8 +145,9 @@ class AddFoodViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log recipe"
+            } finally {
+                _isSaving.value = false
             }
-            _isSaving.value = false
         }
     }
 
@@ -185,8 +186,9 @@ class AddFoodViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to log entry"
+            } finally {
+                _isSaving.value = false
             }
-            _isSaving.value = false
         }
     }
 
