@@ -20,7 +20,6 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
-import kotlin.math.roundToInt
 
 @Composable
 fun OmegaRatioCard(result: OmegaResult) {
@@ -49,7 +48,7 @@ fun OmegaRatioCard(result: OmegaResult) {
         ) {
             Column {
                 Text(
-                    "${result.ratio.roundToInt()}:1",
+                    "${"%.1f".format(result.ratio)}:1",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     color = statusColor,

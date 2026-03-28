@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.components.insights
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +45,7 @@ fun FoodDiversityCard(result: FoodDiversityResult) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            androidx.compose.foundation.layout.Column {
+            Column {
                 Text(
                     "${result.avgUniquePerWeek.roundToInt()}",
                     style = MaterialTheme.typography.displaySmall,
