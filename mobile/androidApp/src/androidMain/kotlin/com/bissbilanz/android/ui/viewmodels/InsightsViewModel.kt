@@ -553,7 +553,8 @@ class InsightsViewModel(
                         extData
                             .filter { entry ->
                                 val eatenAt = entry.eatenAt ?: return@filter false
-                                val hour = eatenAt.substring(11, 13).toIntOrNull() ?: return@filter false
+                                val localMinutes = parseLocalMinutes(eatenAt) ?: return@filter false
+                                val hour = localMinutes / 60
                                 hour >= 19
                             }.mapNotNull { entry ->
                                 val id = entry.foodId ?: entry.recipeId ?: return@mapNotNull null

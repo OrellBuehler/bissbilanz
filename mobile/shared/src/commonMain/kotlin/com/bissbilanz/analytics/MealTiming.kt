@@ -86,7 +86,7 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
     )
 }
 
-internal fun parseLocalMinutes(isoString: String): Int? {
+fun parseLocalMinutes(isoString: String): Int? {
     val match =
         Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$""")
             .matchEntire(isoString) ?: return null
