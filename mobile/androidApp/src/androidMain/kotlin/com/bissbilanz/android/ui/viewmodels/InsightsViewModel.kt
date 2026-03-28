@@ -139,6 +139,28 @@ class InsightsViewModel(
 
     private val loadedTabs = mutableSetOf<Int>()
 
+    private var cachedExtendedNutrients: NutrientsExtendedResponse? = null
+    private var cachedMealTiming: MealTimingResponse? = null
+    private var cachedDailyNutrients: NutrientsDailyResponse? = null
+
+    private suspend fun getExtendedNutrients(): NutrientsExtendedResponse? {
+        cachedExtendedNutrients?.let { return it }
+        val (start, end) = dateRange()
+        return analyticsRepo.getNutrientsExtended(start, end).also { cachedExtendedNutrients = it }
+    }
+
+    private suspend fun getMealTiming(): MealTimingResponse? {
+        cachedMealTiming?.let { return it }
+        val (start, end) = dateRange()
+        return analyticsRepo.getMealTiming(start, end).also { cachedMealTiming = it }
+    }
+
+    private suspend fun getDailyNutrients(): NutrientsDailyResponse? {
+        cachedDailyNutrients?.let { return it }
+        val (start, end) = dateRange()
+        return analyticsRepo.getNutrientsDaily(start, end).also { cachedDailyNutrients = it }
+    }
+
     init {
         loadData()
         loadCalendarStats()
@@ -161,6 +183,9 @@ class InsightsViewModel(
         _selectedRange.value = index
         loadedTabs.clear()
         loadedTabs.add(0)
+        cachedExtendedNutrients = null
+        cachedMealTiming = null
+        cachedDailyNutrients = null
         loadData()
         if (_selectedTab.value != 0) {
             selectTab(_selectedTab.value)
@@ -368,12 +393,9 @@ class InsightsViewModel(
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
-                    // getNutrientsExtended and getMealTiming are also fetched in loadWeightAnalytics
-                    // and loadSleepAnalytics. The duplication is deliberate: the user base is small
-                    // and adding a shared cache layer would add complexity that isn't warranted yet.
-                    val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
-                    val dailyDeferred = async { analyticsRepo.getNutrientsDaily(startDate, endDate) }
-                    val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
+                    val extDeferred = async { getExtendedNutrients() }
+                    val dailyDeferred = async { getDailyNutrients() }
+                    val timingDeferred = async { getMealTiming() }
                     val divDeferred = async { analyticsRepo.getFoodDiversity(startDate, endDate) }
 
                     val extResponse = extDeferred.await()
@@ -449,11 +471,9 @@ class InsightsViewModel(
             try {
                 coroutineScope {
                     val weightDeferred = async { analyticsRepo.getWeightFood(startDate, endDate) }
-                    // getNutrientsExtended and getMealTiming are also fetched in loadNutritionAnalytics
-                    // and loadSleepAnalytics. See the comment in loadNutritionAnalytics for rationale.
-                    val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
-                    val dailyDeferred = async { analyticsRepo.getNutrientsDaily(startDate, endDate) }
-                    val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
+                    val extDeferred = async { getExtendedNutrients() }
+                    val dailyDeferred = async { getDailyNutrients() }
+                    val timingDeferred = async { getMealTiming() }
 
                     val weightResponse = weightDeferred.await()
                     val extResponse = extDeferred.await()
@@ -470,7 +490,14 @@ class InsightsViewModel(
 
                     val tdee = computeAdaptiveTDEE(weightSeries, calorieSeries)
                     _tdeeResult.value = tdee
-                    _plateauResult.value = detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE)
+                    val sodiumAvg =
+                        extData
+                            .groupBy { it.date }
+                            .values
+                            .map { entries -> entries.sumOf { it.sodium ?: 0.0 } }
+                            .takeIf { it.isNotEmpty() }
+                            ?.average()
+                    _plateauResult.value = detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE, sodiumAvg)
                     _weightForecastResult.value = projectWeight(weightSeries, tdee.weeklyRate)
                     _sodiumWeightResult.value =
                         computeSodiumWeightCorrelation(
@@ -550,10 +577,8 @@ class InsightsViewModel(
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
-                    // getNutrientsExtended and getMealTiming are also fetched in loadNutritionAnalytics
-                    // and loadWeightAnalytics. See the comment in loadNutritionAnalytics for rationale.
-                    val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
-                    val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
+                    val extDeferred = async { getExtendedNutrients() }
+                    val timingDeferred = async { getMealTiming() }
                     val sleepFoodDeferred = async { analyticsRepo.getSleepFood(startDate, endDate) }
 
                     val extResponse = extDeferred.await()
