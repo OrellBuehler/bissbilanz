@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
@@ -139,7 +140,7 @@ private fun lgamma(z: Double): Double {
             1.5056327351493116e-7,
         )
     if (z < 0.5) {
-        return ln(Math.PI / sin(Math.PI * z)) - lgamma(1 - z)
+        return ln(PI / sin(PI * z)) - lgamma(1 - z)
     }
     var zz = z - 1
     var x = c[0]
@@ -147,5 +148,5 @@ private fun lgamma(z: Double): Double {
         x += c[i] / (zz + i)
     }
     val t = zz + g + 0.5
-    return 0.5 * ln(2 * Math.PI) + (zz + 0.5) * ln(t) - t + ln(x)
+    return 0.5 * ln(2 * PI) + (zz + 0.5) * ln(t) - t + ln(x)
 }
