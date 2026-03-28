@@ -7,24 +7,23 @@
 	import CookingPot from '@lucide/svelte/icons/cooking-pot';
 	import Pill from '@lucide/svelte/icons/pill';
 	import { login } from '$lib/stores/auth.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages';
-
-	function scrollToFeatures() {
-		document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-	}
 </script>
 
-<div class="min-h-screen bg-background text-foreground">
+<svelte:head>
+	<title>{m.app_title()} — {m.app_tagline()}</title>
+	<meta name="description" content={m.landing_subheading()} />
+</svelte:head>
+
+<div class="scroll-smooth min-h-screen bg-background text-foreground">
 	<!-- Header -->
 	<header class="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 			<span class="manrope text-xl font-bold tracking-tight">{m.app_title()}</span>
-			<button
-				class="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-				onclick={login}
-			>
+			<Button onclick={login}>
 				{m.auth_login()}
-			</button>
+			</Button>
 		</div>
 	</header>
 
@@ -44,18 +43,12 @@
 				{m.landing_subheading()}
 			</p>
 			<div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
-				<button
-					class="rounded-full bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-					onclick={login}
-				>
+				<Button size="lg" onclick={login}>
 					{m.landing_cta_primary()}
-				</button>
-				<button
-					class="rounded-full border border-border px-8 py-3.5 text-base font-semibold text-foreground transition-colors hover:bg-muted"
-					onclick={scrollToFeatures}
-				>
+				</Button>
+				<Button variant="outline" size="lg" href="#features">
 					{m.landing_cta_secondary()}
-				</button>
+				</Button>
 			</div>
 		</div>
 	</section>
@@ -118,12 +111,9 @@
 		<div class="mx-auto max-w-2xl">
 			<h2 class="manrope mb-4 text-4xl font-bold tracking-tight">{m.landing_cta_headline()}</h2>
 			<p class="mb-8 text-muted-foreground">{m.landing_cta_subtext()}</p>
-			<button
-				class="rounded-full bg-primary px-10 py-4 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-				onclick={login}
-			>
+			<Button size="lg" onclick={login}>
 				{m.landing_cta_primary()}
-			</button>
+			</Button>
 		</div>
 	</section>
 
@@ -133,9 +123,13 @@
 			class="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row"
 		>
 			<span class="manrope font-bold">{m.app_title()}</span>
-			<a href="/privacy" class="transition-colors hover:text-foreground">
+			<Button
+				variant="link"
+				href="/privacy"
+				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
+			>
 				{m.landing_footer_privacy()}
-			</a>
+			</Button>
 			<span>© {new Date().getFullYear()} {m.app_title()}</span>
 		</div>
 	</footer>
