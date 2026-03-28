@@ -33,6 +33,28 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RadarAxis
 import com.bissbilanz.android.ui.components.SimpleLineChart
 import com.bissbilanz.android.ui.components.SimplePieChart
+import com.bissbilanz.android.ui.components.insights.AdaptiveTDEECard
+import com.bissbilanz.android.ui.components.insights.CaffeineSleepCard
+import com.bissbilanz.android.ui.components.insights.CaloricLagCard
+import com.bissbilanz.android.ui.components.insights.CalorieCyclingCard
+import com.bissbilanz.android.ui.components.insights.CalorieFrontLoadingCard
+import com.bissbilanz.android.ui.components.insights.DIIScoreCard
+import com.bissbilanz.android.ui.components.insights.FoodDiversityCard
+import com.bissbilanz.android.ui.components.insights.FoodSleepCard
+import com.bissbilanz.android.ui.components.insights.MacroImpactCard
+import com.bissbilanz.android.ui.components.insights.MealRegularityCard
+import com.bissbilanz.android.ui.components.insights.MealTimingWeightCard
+import com.bissbilanz.android.ui.components.insights.NOVAScoreCard
+import com.bissbilanz.android.ui.components.insights.NutrientAdequacyCard
+import com.bissbilanz.android.ui.components.insights.NutrientSleepCard
+import com.bissbilanz.android.ui.components.insights.OmegaRatioCard
+import com.bissbilanz.android.ui.components.insights.PlateauDetectionCard
+import com.bissbilanz.android.ui.components.insights.PreSleepWindowCard
+import com.bissbilanz.android.ui.components.insights.ProteinDistributionCard
+import com.bissbilanz.android.ui.components.insights.SodiumWeightCard
+import com.bissbilanz.android.ui.components.insights.TEFCard
+import com.bissbilanz.android.ui.components.insights.WeekdayWeekendCard
+import com.bissbilanz.android.ui.components.insights.WeightForecastCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
@@ -68,8 +90,11 @@ fun InsightsScreen() {
     val calendarDays by viewModel.calendarDays.collectAsStateWithLifecycle()
     val calendarMonth by viewModel.calendarMonth.collectAsStateWithLifecycle()
     val calendarYear by viewModel.calendarYear.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+    val analyticsLoading by viewModel.analyticsLoading.collectAsStateWithLifecycle()
 
     val ranges = listOf("7 Days", "30 Days", "90 Days")
+    val tabs = listOf("Overview", "Nutrition", "Weight", "Sleep")
 
     PullToRefreshWrapper(
         onRefresh = {
@@ -102,405 +127,550 @@ fun InsightsScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Streaks
-            streaks?.let { s ->
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Streaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ScrollableTabRow(
+                selectedTabIndex = selectedTab,
+                modifier = Modifier.fillMaxWidth(),
+                edgePadding = 0.dp,
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { viewModel.selectTab(index) },
+                        text = { Text(title) },
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when (selectedTab) {
+                0 -> {
+                    // Streaks
+                    streaks?.let { s ->
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("Streaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "${s.currentStreak}",
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            color = CaloriesBlue,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            "Current",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "${s.longestStreak}",
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            color = FiberGreen,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            "Longest",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // 1. Trends
+                    if (dailyStats.isNotEmpty()) {
+                        CollapsibleCard(title = "Trends", sectionId = "trends") {
+                            Text("Calorie Trend", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SimpleLineChart(
+                                data = dailyStats.map { it.calories.toFloat() },
+                                color = CaloriesBlue,
+                                modifier = Modifier.fillMaxWidth().height(120.dp),
+                                unit = "cal",
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                val avgCal = dailyStats.map { it.calories }.average()
                                 Text(
-                                    "${s.currentStreak}",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    color = CaloriesBlue,
-                                    fontWeight = FontWeight.Bold,
+                                    "Avg: ${avgCal.roundToInt()} cal",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    "Current",
+                                    "${dailyStats.size} days",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "${s.longestStreak}",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    color = FiberGreen,
-                                    fontWeight = FontWeight.Bold,
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Macro Trends", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            MacroTrendRow("Protein", dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            MacroTrendRow("Carbs", dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            MacroTrendRow("Fat", dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            MacroTrendRow("Fiber", dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // 2. Goal Adherence
+                    if (goals != null && dailyStats.isNotEmpty()) {
+                        GoalAdherenceCard(dailyStats, goals!!)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // 3. Calendar Heatmap
+                    if (goals != null) {
+                        CollapsibleCard(title = "Calendar Heatmap", sectionId = "calendar") {
+                            CalendarHeatmap(
+                                days = calendarDays,
+                                calorieGoal = goals!!.calorieGoal,
+                                month = calendarMonth,
+                                year = calendarYear,
+                                onPrevMonth = { viewModel.prevMonth() },
+                                onNextMonth = { viewModel.nextMonth() },
+                                onDayClick = { },
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // 4. Macro Balance Radar
+                    if (goals != null && dailyStats.isNotEmpty()) {
+                        CollapsibleCard(title = "Macro Balance", sectionId = "radar") {
+                            val g = goals!!
+                            val avgCal = dailyStats.map { it.calories }.average()
+                            val avgPro = dailyStats.map { it.protein }.average()
+                            val avgCarb = dailyStats.map { it.carbs }.average()
+                            val avgFat = dailyStats.map { it.fat }.average()
+                            val avgFib = dailyStats.map { it.fiber }.average()
+
+                            val radarAxes =
+                                listOf(
+                                    RadarAxis("Cal", (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(), CaloriesBlue),
+                                    RadarAxis("Protein", (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(), ProteinRed),
+                                    RadarAxis("Carbs", (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(), CarbsOrange),
+                                    RadarAxis("Fat", (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(), FatYellow),
+                                    RadarAxis("Fiber", (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(), FiberGreen),
                                 )
-                                Text(
-                                    "Longest",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            MacroRadarChart(axes = radarAxes)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // 5. Meal Distribution
+                    if (mealBreakdown.isNotEmpty()) {
+                        val totalCalories = mealBreakdown.sumOf { it.calories }
+                        if (totalCalories > 0) {
+                            CollapsibleCard(title = "Meal Distribution", sectionId = "meals") {
+                                SimplePieChart(
+                                    entries = mealBreakdown,
+                                    modifier = Modifier.fillMaxWidth().height(180.dp),
                                 )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                MealBreakdownLegend(mealBreakdown, totalCalories)
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+
+                    // 6. Top Foods
+                    if (topFoods.isNotEmpty()) {
+                        CollapsibleCard(title = "Top Foods", sectionId = "topfoods") {
+                            topFoods.forEachIndexed { i, f ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "${i + 1}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.width(28.dp),
+                                        )
+                                        Text(f.foodName, modifier = Modifier.weight(1f))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "${f.calories.roundToInt()} cal",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                if (i < topFoods.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                1 -> {
+                    if (analyticsLoading) {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
+                        val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
+                        val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
+                        val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
+                        val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
+                        val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
+                        val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
+                        val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
+                        val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
+                        val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
 
-            // 1. Trends
-            if (dailyStats.isNotEmpty()) {
-                CollapsibleCard(title = "Trends", sectionId = "trends") {
-                    Text("Calorie Trend", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SimpleLineChart(
-                        data = dailyStats.map { it.calories.toFloat() },
-                        color = CaloriesBlue,
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        unit = "cal",
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        val avgCal = dailyStats.map { it.calories }.average()
-                        Text(
-                            "Avg: ${avgCal.roundToInt()} cal",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            "${dailyStats.size} days",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        novaResult?.let {
+                            NOVAScoreCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        omegaResult?.let {
+                            OmegaRatioCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        diiResult?.let {
+                            DIIScoreCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        tefResult?.let {
+                            TEFCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        proteinDistResult?.let {
+                            ProteinDistributionCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        frontLoadResult?.let {
+                            CalorieFrontLoadingCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        calorieCyclingResult?.let {
+                            CalorieCyclingCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        weekdayWeekendResult?.let {
+                            WeekdayWeekendCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        mealRegularityResult?.let {
+                            MealRegularityCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        foodDiversityResult?.let {
+                            FoodDiversityCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Macro Trends", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    MacroTrendRow("Protein", dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Carbs", dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Fat", dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MacroTrendRow("Fiber", dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
                 }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                2 -> {
+                    if (analyticsLoading) {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
+                        val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
+                        val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
+                        val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
+                        val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
+                        val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
+                        val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
+                        val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
 
-            // 2. Goal Adherence
-            if (goals != null && dailyStats.isNotEmpty()) {
-                GoalAdherenceCard(dailyStats, goals!!)
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 3. Calendar Heatmap
-            if (goals != null) {
-                CollapsibleCard(title = "Calendar Heatmap", sectionId = "calendar") {
-                    CalendarHeatmap(
-                        days = calendarDays,
-                        calorieGoal = goals!!.calorieGoal,
-                        month = calendarMonth,
-                        year = calendarYear,
-                        onPrevMonth = { viewModel.prevMonth() },
-                        onNextMonth = { viewModel.nextMonth() },
-                        onDayClick = { },
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 4. Macro Balance Radar
-            if (goals != null && dailyStats.isNotEmpty()) {
-                CollapsibleCard(title = "Macro Balance", sectionId = "radar") {
-                    val g = goals!!
-                    val avgCal = dailyStats.map { it.calories }.average()
-                    val avgPro = dailyStats.map { it.protein }.average()
-                    val avgCarb = dailyStats.map { it.carbs }.average()
-                    val avgFat = dailyStats.map { it.fat }.average()
-                    val avgFib = dailyStats.map { it.fiber }.average()
-
-                    val radarAxes =
-                        listOf(
-                            RadarAxis("Cal", (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(), CaloriesBlue),
-                            RadarAxis("Protein", (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(), ProteinRed),
-                            RadarAxis("Carbs", (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(), CarbsOrange),
-                            RadarAxis("Fat", (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(), FatYellow),
-                            RadarAxis("Fiber", (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(), FiberGreen),
-                        )
-                    MacroRadarChart(axes = radarAxes)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 5. Meal Distribution
-            if (mealBreakdown.isNotEmpty()) {
-                val totalCalories = mealBreakdown.sumOf { it.calories }
-                if (totalCalories > 0) {
-                    CollapsibleCard(title = "Meal Distribution", sectionId = "meals") {
-                        SimplePieChart(
-                            entries = mealBreakdown,
-                            modifier = Modifier.fillMaxWidth().height(180.dp),
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        MealBreakdownLegend(mealBreakdown, totalCalories)
+                        tdeeResult?.let {
+                            AdaptiveTDEECard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        plateauResult?.let {
+                            PlateauDetectionCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        weightForecastResult?.let {
+                            WeightForecastCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        sodiumWeightResult?.let {
+                            SodiumWeightCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        caloricLagResult?.let {
+                            CaloricLagCard(it)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        if (macroImpactResult.isNotEmpty()) {
+                            MacroImpactCard(macroImpactResult)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        MealTimingWeightCard(mealTimingSummary)
+                        Spacer(Modifier.height(12.dp))
+                        if (nutrientAdequacyResult.isNotEmpty()) {
+                            NutrientAdequacyCard(nutrientAdequacyResult)
+                        }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
-            }
 
-            // 6. Top Foods
-            if (topFoods.isNotEmpty()) {
-                CollapsibleCard(title = "Top Foods", sectionId = "topfoods") {
-                    topFoods.forEachIndexed { i, f ->
+                3 -> {
+                    val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
+                    val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
+                    var showSleepDialog by remember { mutableStateOf(false) }
+
+                    CollapsibleCard(title = "Sleep", sectionId = "sleep") {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "${i + 1}",
-                                    style = MaterialTheme.typography.titleMedium,
+                            Text("Recent Sleep", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = { showSleepDialog = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Log sleep")
+                            }
+                        }
+
+                        if (sleepEntries.isEmpty()) {
+                            Text(
+                                "No sleep entries yet. Tap + to log your sleep.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            // Sleep quality trend chart
+                            if (sleepEntries.size >= 3) {
+                                Text("Quality Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                SimpleLineChart(
+                                    data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                                    unit = "",
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("Duration Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                SimpleLineChart(
+                                    data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
                                     color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.width(28.dp),
+                                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                                    unit = "h",
                                 )
-                                Text(f.foodName, modifier = Modifier.weight(1f))
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                Text(
-                                    "${f.calories.roundToInt()} cal",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                        if (i < topFoods.lastIndex) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
-                        }
-                    }
-                }
-            }
 
-            // 7. Sleep Tracking
-            val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
-            val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
-            var showSleepDialog by remember { mutableStateOf(false) }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            CollapsibleCard(title = "Sleep", sectionId = "sleep") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Recent Sleep", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    IconButton(onClick = { showSleepDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Log sleep")
-                    }
-                }
-
-                if (sleepEntries.isEmpty()) {
-                    Text(
-                        "No sleep entries yet. Tap + to log your sleep.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    // Sleep quality trend chart
-                    if (sleepEntries.size >= 3) {
-                        Text("Quality Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SimpleLineChart(
-                            data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
-                            color = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            unit = "",
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text("Duration Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SimpleLineChart(
-                            data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            unit = "h",
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // Summary stats
-                    val avgQuality = sleepEntries.map { it.quality }.average()
-                    val avgDuration = sleepEntries.map { it.durationMinutes }.average()
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "%.1f".format(avgQuality),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.tertiary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                "Avg Quality",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "%.1fh".format(avgDuration / 60.0),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                "Avg Duration",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Recent entries list (last 5)
-                    sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Icon(
-                                    Icons.Default.Bedtime,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.tertiary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                            // Summary stats
+                            val avgQuality = sleepEntries.map { it.quality }.average()
+                            val avgDuration = sleepEntries.map { it.durationMinutes }.average()
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality),
+                                        "%.1f".format(avgQuality),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        "Avg Quality",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        "%.1fh".format(avgDuration / 60.0),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        "Avg Duration",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                            IconButton(
-                                onClick = { viewModel.deleteSleepEntry(entry.id) },
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
-                            }
-                        }
-                        HorizontalDivider()
-                    }
-                }
-            }
 
-            // 8. Sleep-Food Correlation
-            if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
-                Spacer(modifier = Modifier.height(12.dp))
-                CollapsibleCard(title = "Sleep & Evening Eating", sectionId = "sleepfood") {
-                    Text(
-                        "How evening calories relate to your sleep",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                    val withCalories = sleepFoodCorrelation.filter { it.eveningCalories != null }
-                    if (withCalories.size >= 3) {
-                        val avgCalories = withCalories.map { it.eveningCalories!! }.average()
-                        val highCalDays = withCalories.filter { it.eveningCalories!! > avgCalories }
-                        val lowCalDays = withCalories.filter { it.eveningCalories!! <= avgCalories }
-
-                        val highCalAvgQuality = if (highCalDays.isNotEmpty()) highCalDays.map { it.sleepQuality }.average() else 0.0
-                        val lowCalAvgQuality = if (lowCalDays.isNotEmpty()) lowCalDays.map { it.sleepQuality }.average() else 0.0
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "%.1f".format(lowCalAvgQuality),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = FiberGreen,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    "Light evening",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    "< ${avgCalories.roundToInt()} cal",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "%.1f".format(highCalAvgQuality),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = CarbsOrange,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    "Heavy evening",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    "> ${avgCalories.roundToInt()} cal",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-
-                        val delta = lowCalAvgQuality - highCalAvgQuality
-                        if (kotlin.math.abs(delta) > 0.3) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val message =
-                                if (delta > 0) {
-                                    "Lighter evening meals correlate with better sleep quality (+%.1f)".format(delta)
-                                } else {
-                                    "Heavier evening meals correlate with better sleep quality (+%.1f)".format(-delta)
+                            // Recent entries list (last 5)
+                            sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                        Icon(
+                                            Icons.Default.Bedtime,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                                            Text(
+                                                "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteSleepEntry(entry.id) },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                                    }
                                 }
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+
+                    // Sleep-Food Correlation
+                    if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        CollapsibleCard(title = "Sleep & Evening Eating", sectionId = "sleepfood") {
                             Text(
-                                message,
+                                "How evening calories relate to your sleep",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val withCalories = sleepFoodCorrelation.filter { it.eveningCalories != null }
+                            if (withCalories.size >= 3) {
+                                val avgCalories = withCalories.map { it.eveningCalories!! }.average()
+                                val highCalDays = withCalories.filter { it.eveningCalories!! > avgCalories }
+                                val lowCalDays = withCalories.filter { it.eveningCalories!! <= avgCalories }
+
+                                val highCalAvgQuality = if (highCalDays.isNotEmpty()) highCalDays.map { it.sleepQuality }.average() else 0.0
+                                val lowCalAvgQuality = if (lowCalDays.isNotEmpty()) lowCalDays.map { it.sleepQuality }.average() else 0.0
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "%.1f".format(lowCalAvgQuality),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = FiberGreen,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            "Light evening",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            "< ${avgCalories.roundToInt()} cal",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "%.1f".format(highCalAvgQuality),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = CarbsOrange,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            "Heavy evening",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            "> ${avgCalories.roundToInt()} cal",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+
+                                val delta = lowCalAvgQuality - highCalAvgQuality
+                                if (kotlin.math.abs(delta) > 0.3) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    val message =
+                                        if (delta > 0) {
+                                            "Lighter evening meals correlate with better sleep quality (+%.1f)".format(delta)
+                                        } else {
+                                            "Heavier evening meals correlate with better sleep quality (+%.1f)".format(-delta)
+                                        }
+                                    Text(
+                                        message,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    "Need more data with evening food entries to show correlations.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (analyticsLoading) {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     } else {
-                        Text(
-                            "Need more data with evening food entries to show correlations.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
+                        val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
+                        val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
+                        val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+
+                        FoodSleepCard(foodSleepResult)
+                        Spacer(Modifier.height(12.dp))
+                        NutrientSleepCard(nutrientSleepCorrelations)
+                        Spacer(Modifier.height(12.dp))
+                        PreSleepWindowCard(preSleepTimingSummary)
+                        Spacer(Modifier.height(12.dp))
+                        CaffeineSleepCard(caffeineSleepResult)
+                    }
+
+                    if (showSleepDialog) {
+                        SleepLogDialog(
+                            onDismiss = { showSleepDialog = false },
+                            onSave = { duration, quality, date, notes ->
+                                viewModel.createSleepEntry(
+                                    SleepCreate(
+                                        durationMinutes = duration,
+                                        quality = quality,
+                                        entryDate = date,
+                                        notes = notes.ifBlank { null },
+                                    ),
+                                )
+                                showSleepDialog = false
+                            },
                         )
                     }
                 }
-            }
-
-            // Sleep log dialog
-            if (showSleepDialog) {
-                SleepLogDialog(
-                    onDismiss = { showSleepDialog = false },
-                    onSave = { duration, quality, date, notes ->
-                        viewModel.createSleepEntry(
-                            SleepCreate(
-                                durationMinutes = duration,
-                                quality = quality,
-                                entryDate = date,
-                                notes = notes.ifBlank { null },
-                            ),
-                        )
-                        showSleepDialog = false
-                    },
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
