@@ -23,7 +23,7 @@
 	});
 
 	function isActive(href: string, pathname: string): boolean {
-		if (href === '/') return pathname === '/';
+		if (href === '/home') return pathname === '/home';
 		return pathname.startsWith(href);
 	}
 
@@ -68,7 +68,7 @@
 						class="min-h-0 flex-1 rounded-xl bg-transparent data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-sidebar-accent"
 					>
 						{#snippet child({ props })}
-							<a href="/" {...withMobileCloseClick(props)}>
+							<a href="/home" {...withMobileCloseClick(props)}>
 								<img
 									src="/icon.svg"
 									alt="Bissbilanz"
