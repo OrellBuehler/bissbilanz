@@ -58,7 +58,7 @@ data class PreferencesUpdate(
     /**
      *
      *
-     * Values: chart,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
+     * Values: chart,streaks,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
      */
     @Serializable
     enum class WidgetOrder(
@@ -66,6 +66,9 @@ data class PreferencesUpdate(
     ) {
         @SerialName(value = "chart")
         chart("chart"),
+
+        @SerialName(value = "streaks")
+        streaks("streaks"),
 
         @SerialName(value = "favorites")
         favorites("favorites"),

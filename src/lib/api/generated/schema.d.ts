@@ -280,8 +280,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Log a supplement as taken on a specific date. */
-		post: operations['logSupplementForDate'];
+		post?: never;
 		/** @description Remove a supplement log entry for a specific date. */
 		delete: operations['unlogSupplementForDate'];
 		options?: never;
@@ -922,6 +921,7 @@ export interface components {
 			showSleepWidget?: boolean;
 			widgetOrder?: (
 				| 'chart'
+				| 'streaks'
 				| 'favorites'
 				| 'supplements'
 				| 'weight'
@@ -2345,30 +2345,6 @@ export interface operations {
 				'application/json': components['schemas']['SupplementLogCreate'];
 			};
 		};
-		responses: {
-			/** @description Created */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['SupplementLogResponse'];
-				};
-			};
-			401: components['responses']['UnauthorizedResponse'];
-		};
-	};
-	logSupplementForDate: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				id: string;
-				date: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
 		responses: {
 			/** @description Created */
 			201: {
