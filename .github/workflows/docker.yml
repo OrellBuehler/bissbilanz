@@ -45,27 +45,6 @@ jobs:
           context: .
           push: false
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:scan
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            APP_VERSION=${{ github.ref_name }}
-            GIT_HASH=${{ github.sha }}
-            BUILD_TIMESTAMP=${{ github.event.release.created_at }}
-
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: image
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:scan
-          severity: CRITICAL,HIGH
-          exit-code: 1
-
-      - name: Push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -74,6 +53,17 @@ jobs:
             APP_VERSION=${{ github.ref_name }}
             GIT_HASH=${{ github.sha }}
             BUILD_TIMESTAMP=${{ github.event.release.created_at }}
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      - name: Push Docker image
+        run: docker image push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
   deploy:
     runs-on: ubuntu-latest

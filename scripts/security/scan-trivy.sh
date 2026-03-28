@@ -68,7 +68,7 @@ if [[ "${SCAN_IMAGES}" == "true" ]]; then
     echo "=== Building and scanning Docker image: bissbilanz ==="
     if docker build -t "bissbilanz:scan" -f "${REPO_ROOT}/Dockerfile" "${REPO_ROOT}" --quiet; then
       if ! trivy image "bissbilanz:scan" \
-          --severity CRITICAL \
+          --severity CRITICAL,HIGH \
           --exit-code 1; then
         EXIT_CODE=1
       fi
