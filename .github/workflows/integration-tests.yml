@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+permissions:
+  contents: read
+
 jobs:
   integration-tests:
     if: github.event.pull_request.draft == false

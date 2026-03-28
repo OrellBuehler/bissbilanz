@@ -10,6 +10,9 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build:
     if: github.event.pull_request.draft == false
