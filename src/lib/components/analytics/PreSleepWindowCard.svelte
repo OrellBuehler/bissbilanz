@@ -2,20 +2,13 @@
 	import InsightCard from './InsightCard.svelte';
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
+	import type { MealEntry } from './types';
 
 	type SleepFoodPoint = {
 		date: string;
 		eveningCalories: number | null;
 		sleepDurationMinutes: number | null;
 		sleepQuality: number | null;
-	};
-
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		calories: number;
-		foodName: string;
 	};
 
 	let {

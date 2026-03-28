@@ -2,13 +2,7 @@
 	import InsightCard from './InsightCard.svelte';
 	import { computeSodiumWeightCorrelation } from '$lib/analytics/sodium-weight';
 	import * as m from '$lib/paraglide/messages';
-
-	type WeightFoodPoint = {
-		date: string;
-		calories: number | null;
-		weightKg: number | null;
-		movingAvg: number | null;
-	};
+	import type { WeightFoodPoint } from './types';
 
 	type NutrientEntry = {
 		date: string;

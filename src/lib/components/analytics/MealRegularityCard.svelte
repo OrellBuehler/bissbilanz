@@ -2,12 +2,7 @@
 	import InsightCard from './InsightCard.svelte';
 	import { computeMealRegularity } from '$lib/analytics/meal-regularity';
 	import * as m from '$lib/paraglide/messages';
-
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-	};
+	import type { MealEntry } from './types';
 
 	let {
 		mealEntries,

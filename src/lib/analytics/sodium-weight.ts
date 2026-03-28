@@ -1,4 +1,5 @@
 import { pearsonCorrelation, getConfidenceLevel, type ConfidenceLevel } from './correlation';
+import { shiftDate } from '$lib/utils/dates';
 
 export type SodiumWeightResult = {
 	correlation: { r: number; pValue: number | null; sampleSize: number };
@@ -75,10 +76,4 @@ export function computeSodiumWeightCorrelation(
 		confidence,
 		sampleSize
 	};
-}
-
-function shiftDate(dateStr: string, days: number): string {
-	const date = new Date(dateStr + 'T00:00:00Z');
-	date.setUTCDate(date.getUTCDate() + days);
-	return date.toISOString().slice(0, 10);
 }

@@ -53,7 +53,7 @@
 					{#if confidence === 'high' || confidence === 'medium'}
 						{m.confidence_high({ days: sampleSize.toString() })}
 					{:else}
-						{m.confidence_low()}
+						{m.confidence_low_badge()}
 					{/if}
 				</span>
 			{/if}

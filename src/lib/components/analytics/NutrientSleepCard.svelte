@@ -4,22 +4,13 @@
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { RDA_VALUES } from '$lib/analytics/rda';
 	import * as m from '$lib/paraglide/messages';
+	import type { DailyNutrient } from './types';
 
 	type SleepFoodPoint = {
 		date: string;
 		eveningCalories: number | null;
 		sleepDurationMinutes: number | null;
 		sleepQuality: number | null;
-	};
-
-	type DailyNutrient = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-		[key: string]: number | string;
 	};
 
 	let {

@@ -11,6 +11,7 @@
 	import CalorieCyclingCard from './CalorieCyclingCard.svelte';
 	import MealRegularityCard from './MealRegularityCard.svelte';
 	import FoodDiversityCard from './FoodDiversityCard.svelte';
+	import type { MealEntry } from './types';
 
 	type NutrientEntry = {
 		date: string;
@@ -35,14 +36,6 @@
 		vitaminD: number | null;
 		vitaminE: number | null;
 		alcohol: number | null;
-	};
-
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		calories: number;
-		foodName: string;
 	};
 
 	type DiversityEntry = {

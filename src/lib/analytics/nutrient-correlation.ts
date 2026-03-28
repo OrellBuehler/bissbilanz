@@ -1,4 +1,5 @@
 import { pearsonCorrelation, type CorrelationResult } from './correlation';
+import { shiftDate } from '$lib/utils/dates';
 
 export type NutrientCorrelation = {
 	nutrientKey: string;
@@ -60,10 +61,4 @@ export function computeNutrientOutcomeCorrelations(
 	results.sort((a, b) => Math.abs(b.correlation.r) - Math.abs(a.correlation.r));
 
 	return results;
-}
-
-function shiftDate(dateStr: string, days: number): string {
-	const date = new Date(dateStr + 'T00:00:00Z');
-	date.setUTCDate(date.getUTCDate() + days);
-	return date.toISOString().slice(0, 10);
 }
