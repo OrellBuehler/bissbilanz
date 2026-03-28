@@ -38,7 +38,9 @@ fun computeMealRegularity(entries: List<RegularityInputEntry>): MealRegularityRe
     for ((mealType, dateMap) in byMealDate) byMealType[mealType] = dateMap.values.toList()
 
     val dates = mutableSetOf<String>()
-    for (entry in entries) { if (entry.eatenAt != null) dates.add(entry.date) }
+    for (entry in entries) {
+        if (entry.eatenAt != null) dates.add(entry.date)
+    }
     val sampleSize = dates.size
 
     if (byMealType.isEmpty()) {
@@ -53,12 +55,15 @@ fun computeMealRegularity(entries: List<RegularityInputEntry>): MealRegularityRe
         val avgMinute = minutesList.sumOf { it.toDouble() } / n
         val variance = minutesList.sumOf { (it - avgMinute) * (it - avgMinute) } / n
         val stddevMinutes = sqrt(variance)
-        val regularity = when {
-            stddevMinutes < 30 -> "high"
-            stddevMinutes < 60 -> "medium"
-            else -> "low"
-        }
-        mealResults.add(MealRegularityEntry(mealType = mealType, avgMinute = avgMinute, stddevMinutes = stddevMinutes, regularity = regularity))
+        val regularity =
+            when {
+                stddevMinutes < 30 -> "high"
+                stddevMinutes < 60 -> "medium"
+                else -> "low"
+            }
+        mealResults.add(
+            MealRegularityEntry(mealType = mealType, avgMinute = avgMinute, stddevMinutes = stddevMinutes, regularity = regularity),
+        )
         stddevValues.add(stddevMinutes)
     }
 

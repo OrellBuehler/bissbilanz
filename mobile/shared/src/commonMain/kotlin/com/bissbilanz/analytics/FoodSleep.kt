@@ -66,7 +66,7 @@ fun detectFoodSleepPatterns(
                 avgQualityWithout = avgQualityWithout,
                 delta = delta,
                 occurrences = dates.size,
-            )
+            ),
         )
     }
 

@@ -1,7 +1,5 @@
 package com.bissbilanz.analytics
 
-import kotlin.math.max
-
 data class HourlyImpact(
     val hour: Int,
     val avgQuality: Double,
@@ -34,8 +32,9 @@ fun computeCaffeineSleepCutoff(
 ): CaffeineSleepResult {
     val sleepByDate = mutableMapOf<String, Pair<Double, Double>>()
     for (s in sleepData) {
-        if (s.sleepQuality != null && s.sleepDurationMinutes != null)
+        if (s.sleepQuality != null && s.sleepDurationMinutes != null) {
             sleepByDate[s.date] = Pair(s.sleepQuality, s.sleepDurationMinutes)
+        }
     }
 
     val lastCaffeineHourByDate = mutableMapOf<String, Int>()
@@ -55,16 +54,17 @@ fun computeCaffeineSleepCutoff(
         bucket.second.add(sleep.second)
     }
 
-    val hourlyImpact = hourBuckets.entries.sortedBy { it.key }.map { (hour, pair) ->
-        val quality = pair.first
-        val duration = pair.second
-        HourlyImpact(
-            hour = hour,
-            avgQuality = quality.sum() / quality.size,
-            avgDuration = duration.sum() / duration.size,
-            count = quality.size,
-        )
-    }
+    val hourlyImpact =
+        hourBuckets.entries.sortedBy { it.key }.map { (hour, pair) ->
+            val quality = pair.first
+            val duration = pair.second
+            HourlyImpact(
+                hour = hour,
+                avgQuality = quality.sum() / quality.size,
+                avgDuration = duration.sum() / duration.size,
+                count = quality.size,
+            )
+        }
 
     val sampleSize = hourlyImpact.sumOf { it.count }
 

@@ -17,15 +17,17 @@ class CaffeineSleepTest {
 
     @Test
     fun hourlyBucketingTracksLastHourPerDay() {
-        val caffeineEntries = listOf(
-            CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", caffeine = 100.0),
-            CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T14:00:00Z", caffeine = 80.0),
-            CaffeineEntry(date = "2024-01-02", eatenAt = "2024-01-02T09:00:00Z", caffeine = 100.0),
-        )
-        val sleepData = listOf(
-            SleepDataPoint(date = "2024-01-02", sleepQuality = 7.0, sleepDurationMinutes = 420.0),
-            SleepDataPoint(date = "2024-01-03", sleepQuality = 8.0, sleepDurationMinutes = 450.0),
-        )
+        val caffeineEntries =
+            listOf(
+                CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", caffeine = 100.0),
+                CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T14:00:00Z", caffeine = 80.0),
+                CaffeineEntry(date = "2024-01-02", eatenAt = "2024-01-02T09:00:00Z", caffeine = 100.0),
+            )
+        val sleepData =
+            listOf(
+                SleepDataPoint(date = "2024-01-02", sleepQuality = 7.0, sleepDurationMinutes = 420.0),
+                SleepDataPoint(date = "2024-01-03", sleepQuality = 8.0, sleepDurationMinutes = 450.0),
+            )
         val result = computeCaffeineSleepCutoff(caffeineEntries, sleepData)
         // 2024-01-01 last caffeine at hour 14, sleep on 2024-01-02
         // 2024-01-02 last caffeine at hour 9, sleep on 2024-01-03
@@ -65,13 +67,15 @@ class CaffeineSleepTest {
 
     @Test
     fun missingSleepdataIsSkipped() {
-        val caffeineEntries = listOf(
-            CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T14:00:00Z", caffeine = 100.0),
-        )
+        val caffeineEntries =
+            listOf(
+                CaffeineEntry(date = "2024-01-01", eatenAt = "2024-01-01T14:00:00Z", caffeine = 100.0),
+            )
         // No sleep data for 2024-01-02 (the next date)
-        val sleepData = listOf(
-            SleepDataPoint(date = "2024-01-05", sleepQuality = 8.0, sleepDurationMinutes = 450.0),
-        )
+        val sleepData =
+            listOf(
+                SleepDataPoint(date = "2024-01-05", sleepQuality = 8.0, sleepDurationMinutes = 450.0),
+            )
         val result = computeCaffeineSleepCutoff(caffeineEntries, sleepData)
         assertEquals(0, result.sampleSize)
         assertEquals(emptyList(), result.hourlyImpact)

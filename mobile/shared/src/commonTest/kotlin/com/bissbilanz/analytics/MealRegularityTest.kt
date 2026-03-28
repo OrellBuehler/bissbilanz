@@ -7,10 +7,11 @@ import kotlin.test.assertTrue
 class MealRegularityTest {
     @Test
     fun noEatenAtEntriesReturnsEmpty() {
-        val entries = listOf(
-            RegularityInputEntry(date = "2024-01-01", mealType = "Breakfast", eatenAt = null),
-            RegularityInputEntry(date = "2024-01-02", mealType = "Breakfast", eatenAt = null),
-        )
+        val entries =
+            listOf(
+                RegularityInputEntry(date = "2024-01-01", mealType = "Breakfast", eatenAt = null),
+                RegularityInputEntry(date = "2024-01-02", mealType = "Breakfast", eatenAt = null),
+            )
         val result = computeMealRegularity(entries)
         assertEquals(emptyList(), result.meals)
         assertEquals(0.0, result.overallScore)
@@ -21,10 +22,11 @@ class MealRegularityTest {
     @Test
     fun highRegularityWhenStddevBelow30() {
         // Breakfast every day at ~08:00, very consistent (stddev < 30 min)
-        val entries = (1..14).map { i ->
-            val date = "2024-01-%02d".format(i)
-            RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T08:0${i % 10}:00Z")
-        }
+        val entries =
+            (1..14).map { i ->
+                val date = "2024-01-%02d".format(i)
+                RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T08:0${i % 10}:00Z")
+            }
         val result = computeMealRegularity(entries)
         assertEquals(1, result.meals.size)
         assertEquals("high", result.meals[0].regularity)
@@ -35,10 +37,11 @@ class MealRegularityTest {
     fun lowRegularityWhenStddevAbove60() {
         // Breakfast at wildly varying times (hour 6 to 13 = 420 to 780 min)
         val times = listOf(6, 13, 7, 12, 6, 13, 7, 12, 6, 13)
-        val entries = times.mapIndexed { i, hour ->
-            val date = "2024-01-%02d".format(i + 1)
-            RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T%02d:00:00Z".format(hour))
-        }
+        val entries =
+            times.mapIndexed { i, hour ->
+                val date = "2024-01-%02d".format(i + 1)
+                RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T%02d:00:00Z".format(hour))
+            }
         val result = computeMealRegularity(entries)
         assertEquals(1, result.meals.size)
         assertEquals("low", result.meals[0].regularity)
@@ -48,21 +51,23 @@ class MealRegularityTest {
     @Test
     fun overallScoreCalculation() {
         // All meals at exact same time => stddev=0 => score=100
-        val entries = (1..10).map { i ->
-            val date = "2024-01-%02d".format(i)
-            RegularityInputEntry(date = date, mealType = "Lunch", eatenAt = "${date}T12:00:00Z")
-        }
+        val entries =
+            (1..10).map { i ->
+                val date = "2024-01-%02d".format(i)
+                RegularityInputEntry(date = date, mealType = "Lunch", eatenAt = "${date}T12:00:00Z")
+            }
         val result = computeMealRegularity(entries)
         assertEquals(100.0, result.overallScore, 0.001)
     }
 
     @Test
     fun sampleSizeCountsUniqueDates() {
-        val entries = listOf(
-            RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T08:00:00Z"),
-            RegularityInputEntry("2024-01-01", "Lunch", "2024-01-01T12:00:00Z"),
-            RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
-        )
+        val entries =
+            listOf(
+                RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T08:00:00Z"),
+                RegularityInputEntry("2024-01-01", "Lunch", "2024-01-01T12:00:00Z"),
+                RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
+            )
         val result = computeMealRegularity(entries)
         assertEquals(2, result.sampleSize)
     }
@@ -70,11 +75,12 @@ class MealRegularityTest {
     @Test
     fun earliestTimePerMealPerDayUsed() {
         // Two breakfast entries on same day — should use earliest (08:00 not 09:00)
-        val entries = listOf(
-            RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T09:00:00Z"),
-            RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T08:00:00Z"),
-            RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
-        )
+        val entries =
+            listOf(
+                RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T09:00:00Z"),
+                RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T08:00:00Z"),
+                RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
+            )
         val result = computeMealRegularity(entries)
         assertEquals(1, result.meals.size)
         val meal = result.meals[0]

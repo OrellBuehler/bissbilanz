@@ -41,11 +41,12 @@ class MealTimingTest {
 
     @Test
     fun extractMealTimingPatternsProducesCorrectWindow() {
-        val entries = listOf(
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T07:00:00Z", calories = 400.0),
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T12:30:00Z", calories = 600.0),
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T19:00:00Z", calories = 700.0),
-        )
+        val entries =
+            listOf(
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T07:00:00Z", calories = 400.0),
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T12:30:00Z", calories = 600.0),
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T19:00:00Z", calories = 700.0),
+            )
         val result = extractMealTimingPatterns(entries)
         assertEquals(1, result.dailyWindows.size)
         val window = result.dailyWindows[0]
@@ -58,10 +59,11 @@ class MealTimingTest {
 
     @Test
     fun extractMealTimingPatternsLateNightDetection() {
-        val entries = listOf(
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", calories = 400.0),
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T21:30:00Z", calories = 200.0),
-        )
+        val entries =
+            listOf(
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", calories = 400.0),
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T21:30:00Z", calories = 200.0),
+            )
         val result = extractMealTimingPatterns(entries)
         assertEquals(1, result.dailyWindows[0].lateNightMeals)
     }
@@ -78,11 +80,12 @@ class MealTimingTest {
 
     @Test
     fun extractMealTimingPatternsHourlyDistribution() {
-        val entries = listOf(
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", calories = 400.0),
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:45:00Z", calories = 100.0),
-            MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T12:00:00Z", calories = 600.0),
-        )
+        val entries =
+            listOf(
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:00:00Z", calories = 400.0),
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T08:45:00Z", calories = 100.0),
+                MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T12:00:00Z", calories = 600.0),
+            )
         val result = extractMealTimingPatterns(entries)
         assertEquals(2, result.hourlyDistribution[8])
         assertEquals(1, result.hourlyDistribution[12])

@@ -1,8 +1,7 @@
 package com.bissbilanz.analytics
 
-import kotlin.math.floor
-import kotlin.math.min
 import kotlin.math.max
+import kotlin.math.min
 
 data class DailyEatingWindow(
     val date: String,
@@ -54,7 +53,7 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
                 windowMinutes = last - first,
                 mealCount = meals.size,
                 lateNightMeals = lateNightMeals,
-            )
+            ),
         )
     }
 
@@ -88,8 +87,9 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
 }
 
 internal fun parseLocalMinutes(isoString: String): Int? {
-    val match = Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$""")
-        .matchEntire(isoString) ?: return null
+    val match =
+        Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$""")
+            .matchEntire(isoString) ?: return null
     val hours = match.groupValues[2].toIntOrNull() ?: return null
     val minutes = match.groupValues[3].toIntOrNull() ?: return null
     val tzStr = match.groupValues[4].ifEmpty { "Z" }
