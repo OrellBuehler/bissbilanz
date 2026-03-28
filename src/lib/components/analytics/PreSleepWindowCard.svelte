@@ -1,11 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
-	import { db } from '$lib/db';
-	import type { DexieSleepEntry } from '$lib/db/types';
 
 	type SleepFoodPoint = {
 		date: string;
@@ -22,19 +18,27 @@
 		foodName: string;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let sleepFoodData = $state<SleepFoodPoint[]>([]);
-	let mealEntries = $state<MealEntry[]>([]);
+	let {
+		sleepFoodData = [],
+		mealEntries = [],
+		sleepWithBedtime = [],
+		loading = false
+	}: {
+		sleepFoodData: SleepFoodPoint[];
+		mealEntries: MealEntry[];
+		sleepWithBedtime: { bedtime: string }[];
+		loading?: boolean;
+	} = $props();
 
-	type SleepEntry = {
-		date: string;
-		bedtimeIso: string | null;
-	};
-
-	let sleepEntries = $state<SleepEntry[]>([]);
-
-	let bedHour = $state(22);
+	const bedHour = $derived.by(() => {
+		if (sleepWithBedtime.length === 0) return 22;
+		const avg =
+			sleepWithBedtime.reduce((sum, e) => {
+				const d = new Date(e.bedtime);
+				return sum + d.getHours() + d.getMinutes() / 60;
+			}, 0) / sleepWithBedtime.length;
+		return Math.round(avg);
+	});
 
 	const analysis = $derived.by(() => {
 		if (sleepFoodData.length === 0 || mealEntries.length === 0) return null;
@@ -82,35 +86,6 @@
 		if (!a) return 2;
 		return Math.round(a.avgGap + (a.corr.r > 0 ? 1 : 0));
 	});
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -59);
-			const [sfRes, mRes, sleepWithBedtime] = await Promise.all([
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
-				db.sleepEntries.filter((e: DexieSleepEntry) => e.bedtime !== null).toArray()
-			]);
-			if (!sfRes.ok || !mRes.ok) throw new Error('Failed to fetch');
-			const [sfJson, mJson] = await Promise.all([sfRes.json(), mRes.json()]);
-			sleepFoodData = sfJson.data ?? [];
-			mealEntries = mJson.data ?? [];
-			// Use actual average bedtime from sleep entries; fall back to 22:00 if no data
-			if (sleepWithBedtime.length > 0) {
-				const avgBedHour =
-					sleepWithBedtime.reduce((sum: number, e: DexieSleepEntry) => {
-						const d = new Date(e.bedtime!);
-						return sum + d.getHours() + d.getMinutes() / 60;
-					}, 0) / sleepWithBedtime.length;
-				bedHour = Math.round(avgBedHour);
-			}
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -119,8 +94,6 @@
 			<div class="bg-muted/50 h-16 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_presleep_window()}

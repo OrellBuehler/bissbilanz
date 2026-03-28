@@ -3,6 +3,7 @@
 	import InsightCard from './InsightCard.svelte';
 	import { computeCaloricLag } from '$lib/analytics/caloric-lag';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
 
@@ -59,16 +60,31 @@
 		return max;
 	});
 
+	let initialOverride: number | null = null;
+
+	const saveOverride = (lag: number | null) => {
+		if (lag === initialOverride) return;
+		initialOverride = lag;
+		preferencesService.update({ caloricLagDaysOverride: lag } as Record<string, unknown>);
+	};
+
 	onMount(async () => {
 		try {
 			const endDate = today();
 			const startDate = shiftDate(endDate, -29);
-			const res = await fetch(
-				`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`
-			);
+			const [res, prefsRes] = await Promise.all([
+				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
+				fetch('/api/preferences')
+			]);
 			if (!res.ok) throw new Error('Failed to fetch');
 			const json = await res.json();
 			series = json.data ?? [];
+			if (prefsRes.ok) {
+				const prefsJson = await prefsRes.json();
+				const saved = prefsJson.preferences?.caloricLagDaysOverride ?? null;
+				overrideLag = saved;
+				initialOverride = saved;
+			}
 		} catch {
 			error = 'Failed to load data';
 		} finally {
@@ -132,7 +148,10 @@
 								class="rounded px-2 py-0.5 text-xs {overrideLag === null
 									? 'bg-blue-500 text-white'
 									: 'bg-muted text-muted-foreground hover:bg-muted/70'}"
-								onclick={() => (overrideLag = null)}
+								onclick={() => {
+									overrideLag = null;
+									saveOverride(null);
+								}}
 							>
 								{m.analytics_caloric_lag_auto()}
 							</button>
@@ -141,7 +160,10 @@
 									class="rounded px-2 py-0.5 text-xs {overrideLag === day
 										? 'bg-blue-500 text-white'
 										: 'bg-muted text-muted-foreground hover:bg-muted/70'}"
-									onclick={() => (overrideLag = day)}
+									onclick={() => {
+										overrideLag = day;
+										saveOverride(day);
+									}}
 								>
 									{day}
 								</button>

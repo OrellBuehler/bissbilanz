@@ -941,6 +941,7 @@ export interface components {
 			visibleNutrients?: string[];
 			/** @enum {string} */
 			locale?: 'en' | 'de';
+			caloricLagDaysOverride?: number | null;
 		};
 		FavoriteMealTimeframeInput: {
 			mealType: string;

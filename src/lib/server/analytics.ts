@@ -15,23 +15,23 @@ const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
 			.select({
 				recipeId: recipeIngredients.recipeId,
 				rmCalories:
-					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 						'rm_calories'
 					),
 				rmProtein:
-					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 						'rm_protein'
 					),
 				rmCarbs:
-					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 						'rm_carbs'
 					),
 				rmFat:
-					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 						'rm_fat'
 					),
 				rmFiber:
-					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
+					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 						'rm_fiber'
 					)
 			})
@@ -109,14 +109,17 @@ export const getWeightFoodSeries = async (userId: string, startDate: string, end
 		movingAvg: null as number | null
 	}));
 
-	// Compute 7-day moving average for weight
 	for (let i = 0; i < series.length; i++) {
-		const window = series
-			.slice(Math.max(0, i - 6), i + 1)
-			.map((r) => r.weightKg)
-			.filter((v): v is number => v !== null);
-		if (window.length > 0) {
-			series[i].movingAvg = window.reduce((a, b) => a + b, 0) / window.length;
+		const currentDate = new Date(series[i].date + 'T00:00:00Z').getTime();
+		const windowStart = currentDate - 6 * 86_400_000;
+		const values: number[] = [];
+		for (let j = i; j >= 0; j--) {
+			const d = new Date(series[j].date + 'T00:00:00Z').getTime();
+			if (d < windowStart) break;
+			if (series[j].weightKg !== null) values.push(series[j].weightKg!);
+		}
+		if (values.length > 0) {
+			series[i].movingAvg = values.reduce((a, b) => a + b, 0) / values.length;
 		}
 	}
 
@@ -221,7 +224,7 @@ export const getSleepFoodCorrelationData = async (
 				eq(foodEntries.userId, userId),
 				gte(foodEntries.date, startDate),
 				lte(foodEntries.date, endDate),
-				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt}) >= 17`
+				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt} AT TIME ZONE 'Europe/Berlin') >= 17`
 			)
 		)
 		.orderBy(asc(foodEntries.date));
@@ -248,10 +251,15 @@ export const getSleepFoodCorrelationData = async (
 		eveningCaloriesByDate.set(row.date, prev + row.calories);
 	}
 
-	return sleepRows.map((row) => ({
-		date: row.entryDate,
-		eveningCalories: eveningCaloriesByDate.get(row.entryDate) ?? null,
-		sleepDurationMinutes: row.durationMinutes,
-		sleepQuality: row.quality
-	}));
+	return sleepRows.map((row) => {
+		const prevDate = new Date(row.entryDate + 'T00:00:00Z');
+		prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+		const prevDateStr = prevDate.toISOString().slice(0, 10);
+		return {
+			date: row.entryDate,
+			eveningCalories: eveningCaloriesByDate.get(prevDateStr) ?? null,
+			sleepDurationMinutes: row.durationMinutes,
+			sleepQuality: row.quality
+		};
+	});
 };

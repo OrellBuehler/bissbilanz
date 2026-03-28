@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { computeNutrientOutcomeCorrelations } from '$lib/analytics/nutrient-correlation';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { RDA_VALUES } from '$lib/analytics/rda';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
 
 	type SleepFoodPoint = {
 		date: string;
@@ -24,10 +22,31 @@
 		[key: string]: number | string;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let sleepFoodData = $state<SleepFoodPoint[]>([]);
-	let nutrientSeries = $state<DailyNutrient[]>([]);
+	let {
+		sleepFoodData = [],
+		nutrientSeries = [],
+		loading = false
+	}: {
+		sleepFoodData: SleepFoodPoint[];
+		nutrientSeries: DailyNutrient[];
+		loading?: boolean;
+	} = $props();
+
+	const CORE_NUTRIENT_RDAS: typeof RDA_VALUES = [
+		{ nutrientKey: 'calories', unit: 'kcal', rdaMale: 2500, rdaFemale: 2000, label: 'Calories' },
+		{ nutrientKey: 'protein', unit: 'g', rdaMale: 56, rdaFemale: 46, label: 'Protein' },
+		{ nutrientKey: 'carbs', unit: 'g', rdaMale: 325, rdaFemale: 325, label: 'Carbs' },
+		{ nutrientKey: 'fat', unit: 'g', rdaMale: 78, rdaFemale: 78, label: 'Fat' }
+	];
+
+	const availableRdas = $derived.by(() => {
+		if (nutrientSeries.length === 0) return [];
+		const sample = nutrientSeries[0];
+		const allRdas = [...CORE_NUTRIENT_RDAS, ...RDA_VALUES];
+		return allRdas.filter(
+			(rda) => sample[rda.nutrientKey] !== undefined && sample[rda.nutrientKey] !== null
+		);
+	});
 
 	const correlations = $derived.by(() => {
 		if (sleepFoodData.length === 0 || nutrientSeries.length === 0) return [];
@@ -38,10 +57,11 @@
 
 		if (sleepOutcomes.length < 7) return [];
 
+		const rdas = availableRdas;
 		const dailyNutrients = nutrientSeries.map((d) => ({
 			date: d.date,
 			nutrients: Object.fromEntries(
-				RDA_VALUES.map((rda) => [
+				rdas.map((rda) => [
 					rda.nutrientKey,
 					(d[rda.nutrientKey] as number | null | undefined) ?? null
 				])
@@ -59,25 +79,6 @@
 		if (corrs.length === 0) return 0;
 		return Math.max(...corrs.map((c) => Math.abs(c.correlation.r)));
 	});
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -59);
-			const [sfRes, nRes] = await Promise.all([
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (!sfRes.ok || !nRes.ok) throw new Error('Failed to fetch');
-			const [sfJson, nJson] = await Promise.all([sfRes.json(), nRes.json()]);
-			sleepFoodData = sfJson.data ?? [];
-			nutrientSeries = nJson.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -86,8 +87,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_nutrient_sleep()}
@@ -102,7 +101,7 @@
 			{#if corrs.length > 0}
 				<div class="space-y-2">
 					{#each corrs as nc (nc.nutrientKey)}
-						{@const rda = RDA_VALUES.find((r) => r.nutrientKey === nc.nutrientKey)}
+						{@const rda = availableRdas.find((r) => r.nutrientKey === nc.nutrientKey)}
 						{@const label = rda?.label ?? nc.nutrientKey}
 						{@const absR = Math.abs(nc.correlation.r)}
 						{@const barPct = maxR > 0 ? (absR / maxR) * 100 : 0}

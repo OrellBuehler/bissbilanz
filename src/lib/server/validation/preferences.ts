@@ -46,7 +46,8 @@ export const preferencesUpdateSchema = z
 		visibleNutrients: z
 			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))
 			.optional(),
-		locale: z.enum(['en', 'de']).optional()
+		locale: z.enum(['en', 'de']).optional(),
+		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional()
 	})
 	.strict()
 	.meta({ id: 'PreferencesUpdate' });

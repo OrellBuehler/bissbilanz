@@ -42,13 +42,14 @@ export const createSleepEntry = async (
 	}
 };
 
-export const getSleepEntries = async (userId: string) => {
+export const getSleepEntries = async (userId: string, limit = 100) => {
 	const db = getDB();
 	return db
 		.select()
 		.from(sleepEntries)
 		.where(eq(sleepEntries.userId, userId))
-		.orderBy(desc(sleepEntries.entryDate));
+		.orderBy(desc(sleepEntries.entryDate))
+		.limit(limit);
 };
 
 export const getSleepEntriesByDateRange = async (

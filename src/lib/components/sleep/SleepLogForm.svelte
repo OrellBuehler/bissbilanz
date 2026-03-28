@@ -31,7 +31,8 @@
 		if (durationMinutes <= 0 || durationMinutes > 24 * 60) return;
 		if (!entryDate) return;
 
-		const toIso = (timeStr: string) => (timeStr ? `${entryDate}T${timeStr}:00.000Z` : null);
+		const toIso = (timeStr: string) =>
+			timeStr ? new Date(`${entryDate}T${timeStr}`).toISOString() : null;
 
 		saving = true;
 		try {

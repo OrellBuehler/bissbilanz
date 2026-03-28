@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { detectFoodSleepPatterns } from '$lib/analytics/food-sleep';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
 
 	type SleepFoodPoint = {
 		date: string;
@@ -23,10 +21,15 @@
 		foodName: string;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let sleepFoodData = $state<SleepFoodPoint[]>([]);
-	let mealEntries = $state<MealEntry[]>([]);
+	let {
+		sleepFoodData = [],
+		mealEntries = [],
+		loading = false
+	}: {
+		sleepFoodData: SleepFoodPoint[];
+		mealEntries: MealEntry[];
+		loading?: boolean;
+	} = $props();
 
 	const patterns = $derived.by(() => {
 		if (sleepFoodData.length === 0 || mealEntries.length === 0) return null;
@@ -62,25 +65,6 @@
 	const worseSleep = $derived.by(() =>
 		(patterns?.foodImpacts ?? []).filter((f) => f.delta < -0.3).slice(0, 5)
 	);
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -59);
-			const [sfRes, mRes] = await Promise.all([
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (!sfRes.ok || !mRes.ok) throw new Error('Failed to fetch');
-			const [sfJson, mJson] = await Promise.all([sfRes.json(), mRes.json()]);
-			sleepFoodData = sfJson.data ?? [];
-			mealEntries = mJson.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -89,8 +73,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_food_sleep()}

@@ -92,11 +92,13 @@ describe('preferences', () => {
 		test('preserves a complete valid order unchanged', async () => {
 			const order = [
 				'chart',
+				'streaks',
 				'favorites',
 				'supplements',
 				'weight',
 				'meal-breakdown',
 				'top-foods',
+				'sleep',
 				'summary',
 				'daylog'
 			];
@@ -107,12 +109,15 @@ describe('preferences', () => {
 			expect(result?.widgetOrder).toEqual(order);
 		});
 
-		test('prepends chart when missing', async () => {
+		test('inserts missing keys before daylog', async () => {
 			setResult([makePrefsRow(['favorites', 'daylog'])]);
 
 			const result = await getPreferences(TEST_USER.id);
 
-			expect(result?.widgetOrder[0]).toBe('chart');
+			const order = result?.widgetOrder ?? [];
+			expect(order).toContain('chart');
+			expect(order).toContain('streaks');
+			expect(order[order.length - 1]).toBe('daylog');
 		});
 
 		test('appends daylog when missing', async () => {
@@ -124,13 +129,14 @@ describe('preferences', () => {
 			expect(order[order.length - 1]).toBe('daylog');
 		});
 
-		test('prepends chart and appends daylog when both missing', async () => {
+		test('inserts all missing keys and appends daylog', async () => {
 			setResult([makePrefsRow(['favorites', 'weight'])]);
 
 			const result = await getPreferences(TEST_USER.id);
 
 			const order = result?.widgetOrder ?? [];
-			expect(order[0]).toBe('chart');
+			expect(order).toContain('chart');
+			expect(order).toContain('streaks');
 			expect(order[order.length - 1]).toBe('daylog');
 		});
 

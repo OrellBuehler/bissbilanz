@@ -12,13 +12,68 @@
 	import FoodSleepCard from '$lib/components/analytics/FoodSleepCard.svelte';
 	import NutrientSleepCard from '$lib/components/analytics/NutrientSleepCard.svelte';
 	import PreSleepWindowCard from '$lib/components/analytics/PreSleepWindowCard.svelte';
+	import { today, shiftDate } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+
+	type SleepFoodPoint = {
+		date: string;
+		eveningCalories: number | null;
+		sleepDurationMinutes: number | null;
+		sleepQuality: number | null;
+	};
+
+	type MealEntry = {
+		date: string;
+		mealType: string;
+		eatenAt: string | null;
+		foodId: string | null;
+		recipeId: string | null;
+		calories: number;
+		foodName: string;
+	};
+
+	type DailyNutrient = {
+		date: string;
+		calories: number;
+		protein: number;
+		carbs: number;
+		fat: number;
+		fiber: number;
+		[key: string]: number | string;
+	};
 
 	const live = useLiveQuery(() => sleepService.entries(), [] as DexieSleepEntry[]);
 	const entries = $derived(live.value);
 
-	onMount(() => {
+	let analyticsLoading = $state(true);
+	let sleepFoodData = $state<SleepFoodPoint[]>([]);
+	let mealEntries = $state<MealEntry[]>([]);
+	let nutrientSeries = $state<DailyNutrient[]>([]);
+	let sleepWithBedtime = $state<{ bedtime: string }[]>([]);
+
+	onMount(async () => {
 		sleepService.refresh();
+		const endDate = today();
+		const startDate = shiftDate(endDate, -59);
+		try {
+			const [sfRes, mRes, nRes, sleepRes] = await Promise.all([
+				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
+				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
+				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`),
+				fetch(`/api/sleep?from=${startDate}&to=${endDate}`)
+			]);
+			if (sfRes.ok) sleepFoodData = (await sfRes.json()).data ?? [];
+			if (mRes.ok) mealEntries = (await mRes.json()).data ?? [];
+			if (nRes.ok) nutrientSeries = (await nRes.json()).data ?? [];
+			if (sleepRes.ok) {
+				const all = (await sleepRes.json()).entries ?? [];
+				sleepWithBedtime = all.filter((e: { bedtime: string | null }) => e.bedtime !== null);
+			}
+		} catch {
+			// analytics cards will show no-data state
+		} finally {
+			analyticsLoading = false;
+		}
 	});
 </script>
 
@@ -80,8 +135,13 @@
 	</Card.Root>
 
 	<div class="space-y-4">
-		<FoodSleepCard />
-		<NutrientSleepCard />
-		<PreSleepWindowCard />
+		<FoodSleepCard {sleepFoodData} {mealEntries} loading={analyticsLoading} />
+		<NutrientSleepCard {sleepFoodData} {nutrientSeries} loading={analyticsLoading} />
+		<PreSleepWindowCard
+			{sleepFoodData}
+			{mealEntries}
+			{sleepWithBedtime}
+			loading={analyticsLoading}
+		/>
 	</div>
 </div>
