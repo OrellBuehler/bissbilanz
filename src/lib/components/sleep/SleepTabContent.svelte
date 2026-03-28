@@ -12,6 +12,7 @@
 	import FoodSleepCard from '$lib/components/analytics/FoodSleepCard.svelte';
 	import NutrientSleepCard from '$lib/components/analytics/NutrientSleepCard.svelte';
 	import PreSleepWindowCard from '$lib/components/analytics/PreSleepWindowCard.svelte';
+	import CaffeineSleepCard from '$lib/components/analytics/CaffeineSleepCard.svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
@@ -143,5 +144,6 @@
 			{sleepWithBedtime}
 			loading={analyticsLoading}
 		/>
+		<CaffeineSleepCard />
 	</div>
 </div>
