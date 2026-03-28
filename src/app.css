@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html {
+	scroll-behavior: smooth;
+}
+
 :root {
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
@@ -132,7 +136,6 @@
 	@media (display-mode: standalone) {
 		html {
 			overscroll-behavior: none;
-			scroll-behavior: smooth;
 		}
 		* {
 			-webkit-tap-highlight-color: transparent;
