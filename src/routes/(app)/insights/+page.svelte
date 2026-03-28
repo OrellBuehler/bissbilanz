@@ -16,6 +16,7 @@
 	import MacroImpactCard from '$lib/components/analytics/MacroImpactCard.svelte';
 	import MealTimingWeightCard from '$lib/components/analytics/MealTimingWeightCard.svelte';
 	import MicronutrientGapsCard from '$lib/components/analytics/MicronutrientGapsCard.svelte';
+	import WeightInsightsGroup from '$lib/components/analytics/WeightInsightsGroup.svelte';
 	import EatingWindowCard from '$lib/components/analytics/EatingWindowCard.svelte';
 	import MealSpacingCard from '$lib/components/analytics/MealSpacingCard.svelte';
 	import NutrientAdequacyCard from '$lib/components/analytics/NutrientAdequacyCard.svelte';
@@ -596,6 +597,8 @@
 				<MealTimingWeightCard />
 				<MicronutrientGapsCard />
 			</div>
+
+			<WeightInsightsGroup />
 		</div>
 	{:else if activeTab === 'sleep'}
 		<SleepTabContent />
