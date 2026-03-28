@@ -91,7 +91,9 @@ fun InsightsScreen() {
     val calendarMonth by viewModel.calendarMonth.collectAsStateWithLifecycle()
     val calendarYear by viewModel.calendarYear.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
-    val analyticsLoading by viewModel.analyticsLoading.collectAsStateWithLifecycle()
+    val nutritionLoading by viewModel.nutritionLoading.collectAsStateWithLifecycle()
+    val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
+    val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
 
     val ranges = listOf("7 Days", "30 Days", "90 Days")
     val tabs = listOf("Overview", "Nutrition", "Weight", "Sleep")
@@ -326,7 +328,7 @@ fun InsightsScreen() {
                 }
 
                 1 -> {
-                    if (analyticsLoading) {
+                    if (nutritionLoading) {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
@@ -386,7 +388,7 @@ fun InsightsScreen() {
                 }
 
                 2 -> {
-                    if (analyticsLoading) {
+                    if (weightLoading) {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
@@ -635,7 +637,7 @@ fun InsightsScreen() {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (analyticsLoading) {
+                    if (sleepLoading) {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }

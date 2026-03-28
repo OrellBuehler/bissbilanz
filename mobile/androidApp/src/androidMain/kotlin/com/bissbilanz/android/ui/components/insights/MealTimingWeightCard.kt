@@ -65,7 +65,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "${(summary.lateNightFrequency * 100).roundToInt()}% of days with late-night meals",
+            "${summary.lateNightFrequency.roundToInt()}% of days with late-night meals",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -40,7 +40,8 @@ fun computeCaffeineSleepCutoff(
     val lastCaffeineHourByDate = mutableMapOf<String, Int>()
     for (entry in caffeineEntries) {
         if (entry.eatenAt == null || entry.caffeine <= 0) continue
-        val hour = entry.eatenAt.substring(11, 13).toIntOrNull() ?: continue
+        val localMinutes = parseLocalMinutes(entry.eatenAt) ?: continue
+        val hour = localMinutes / 60
         val existing = lastCaffeineHourByDate[entry.date]
         if (existing == null || hour > existing) lastCaffeineHourByDate[entry.date] = hour
     }

@@ -62,7 +62,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        val lateNightPct = summary.lateNightFrequency * 100
+        val lateNightPct = summary.lateNightFrequency
         val lateNightColor =
             when {
                 lateNightPct < 20 -> FiberGreen

@@ -50,8 +50,8 @@ fun AdaptiveTDEECard(result: TDEEResult) {
         Spacer(modifier = Modifier.height(4.dp))
         val trendColor =
             when (result.trend) {
-                "gaining" -> CarbsOrange
-                "losing" -> FiberGreen
+                "gain" -> CarbsOrange
+                "loss" -> FiberGreen
                 else -> CaloriesBlue
             }
         Text(

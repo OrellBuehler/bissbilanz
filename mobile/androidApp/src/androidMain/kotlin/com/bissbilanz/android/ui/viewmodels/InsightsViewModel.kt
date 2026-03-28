@@ -78,8 +78,12 @@ class InsightsViewModel(
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     // Loading
-    private val _analyticsLoading = MutableStateFlow(false)
-    val analyticsLoading: StateFlow<Boolean> = _analyticsLoading.asStateFlow()
+    private val _nutritionLoading = MutableStateFlow(false)
+    val nutritionLoading: StateFlow<Boolean> = _nutritionLoading.asStateFlow()
+    private val _weightLoading = MutableStateFlow(false)
+    val weightLoading: StateFlow<Boolean> = _weightLoading.asStateFlow()
+    private val _sleepLoading = MutableStateFlow(false)
+    val sleepLoading: StateFlow<Boolean> = _sleepLoading.asStateFlow()
 
     // Nutrition results (10)
     private val _novaResult = MutableStateFlow<NOVAResult?>(null)
@@ -358,7 +362,7 @@ class InsightsViewModel(
 
     fun loadNutritionAnalytics() {
         viewModelScope.launch {
-            _analyticsLoading.value = true
+            _nutritionLoading.value = true
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
@@ -428,14 +432,14 @@ class InsightsViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
             } finally {
-                _analyticsLoading.value = false
+                _nutritionLoading.value = false
             }
         }
     }
 
     fun loadWeightAnalytics() {
         viewModelScope.launch {
-            _analyticsLoading.value = true
+            _weightLoading.value = true
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
@@ -522,14 +526,14 @@ class InsightsViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
             } finally {
-                _analyticsLoading.value = false
+                _weightLoading.value = false
             }
         }
     }
 
     fun loadSleepAnalytics() {
         viewModelScope.launch {
-            _analyticsLoading.value = true
+            _sleepLoading.value = true
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
@@ -604,7 +608,7 @@ class InsightsViewModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
             } finally {
-                _analyticsLoading.value = false
+                _sleepLoading.value = false
             }
         }
     }
