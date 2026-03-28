@@ -15,13 +15,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.ui.components.AddFoodSheet
+import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
+import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -52,6 +58,7 @@ fun DashboardScreen(navController: NavController) {
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val haptic = rememberHaptic()
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
@@ -61,12 +68,22 @@ fun DashboardScreen(navController: NavController) {
     }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var createFoodBarcode by remember { mutableStateOf<String?>(null) }
+    var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
-    val totalCalories = entries.sumOf { it.resolvedCalories() }
-    val totalProtein = entries.sumOf { it.resolvedProtein() }
-    val totalCarbs = entries.sumOf { it.resolvedCarbs() }
-    val totalFat = entries.sumOf { it.resolvedFat() }
-    val totalFiber = entries.sumOf { it.resolvedFiber() }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        val barcode = navBackStackEntry?.savedStateHandle?.remove<String>(NAV_KEY_CREATE_FOOD_BARCODE)
+        if (barcode != null) {
+            createFoodBarcode = barcode
+        }
+    }
+
+    val totalCalories = remember(entries) { entries.sumOf { it.resolvedCalories() } }
+    val totalProtein = remember(entries) { entries.sumOf { it.resolvedProtein() } }
+    val totalCarbs = remember(entries) { entries.sumOf { it.resolvedCarbs() } }
+    val totalFat = remember(entries) { entries.sumOf { it.resolvedFat() } }
+    val totalFiber = remember(entries) { entries.sumOf { it.resolvedFiber() } }
 
     val dateLabel =
         when (selectedDate) {
@@ -82,14 +99,20 @@ fun DashboardScreen(navController: NavController) {
         floatingActionButton = {
             Column {
                 SmallFloatingActionButton(
-                    onClick = { navController.navigate("scanner") },
+                    onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        navController.navigate("scanner")
+                    },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
                     Icon(Icons.Default.QrCodeScanner, "Scan barcode")
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 FloatingActionButton(
-                    onClick = { showQuickAddSheet = true },
+                    onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        showQuickAddSheet = true
+                    },
                 ) {
                     Icon(Icons.Default.Add, "Add entry")
                 }
@@ -104,6 +127,30 @@ fun DashboardScreen(navController: NavController) {
                 onDismiss = { showQuickAddSheet = false },
                 onSaved = {
                     showQuickAddSheet = false
+                    viewModel.loadData()
+                },
+            )
+        }
+
+        createFoodBarcode?.let { barcode ->
+            FoodEditSheet(
+                foodId = null,
+                onDismiss = { createFoodBarcode = null },
+                onSaved = {
+                    createFoodBarcode = null
+                    viewModel.loadData()
+                },
+                initialBarcode = barcode,
+            )
+        }
+
+        addFoodForMeal?.let { meal ->
+            AddFoodSheet(
+                mealType = meal,
+                date = selectedDate.toString(),
+                onDismiss = { addFoodForMeal = null },
+                onLogged = {
+                    addFoodForMeal = null
                     viewModel.loadData()
                 },
             )
@@ -125,7 +172,10 @@ fun DashboardScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { viewModel.previousDay() }) {
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.previousDay()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous day")
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -147,7 +197,10 @@ fun DashboardScreen(navController: NavController) {
                             Text("Go to today")
                         }
                     }
-                    IconButton(onClick = { viewModel.nextDay() }) {
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.nextDay()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next day")
                     }
                 }
@@ -217,51 +270,40 @@ fun DashboardScreen(navController: NavController) {
 
                 Crossfade(targetState = isLoading, label = "dashboard") { loading ->
                     if (loading) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        DashboardSkeleton()
                     } else {
                         Column {
-                            val mealGroups = entries.groupBy { it.mealType }
-                            val sortedMeals =
-                                mealTypes.filter { mealGroups.containsKey(it) } +
-                                    mealGroups.keys.filter { it !in mealTypes }
+                            val mealGroups = remember(entries) { entries.groupBy { it.mealType.lowercase() } }
 
-                            sortedMeals.forEach { meal ->
-                                val mealEntries = mealGroups[meal] ?: return@forEach
-                                MealCard(meal, mealEntries) {
-                                    navController.navigate("daylog/$selectedDate")
-                                }
+                            mealTypes.forEach { meal ->
+                                val mealEntries = mealGroups[meal] ?: emptyList()
+                                MealCard(
+                                    meal,
+                                    mealEntries,
+                                    onClick = { navController.navigate("daylog/$selectedDate") },
+                                    onAddClick = { addFoodForMeal = meal },
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            mealGroups.keys.filter { it !in mealTypes }.forEach { meal ->
+                                val mealEntries = mealGroups[meal] ?: emptyList()
+                                MealCard(
+                                    meal,
+                                    mealEntries,
+                                    onClick = { navController.navigate("daylog/$selectedDate") },
+                                    onAddClick = { addFoodForMeal = meal },
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
 
                             if (entries.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 48.dp),
-                                    contentAlignment = Alignment.Center,
+                                OutlinedButton(
+                                    onClick = { viewModel.copyEntriesFromYesterday() },
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            "No entries yet.\nTap + to add food.",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        OutlinedButton(
-                                            onClick = { viewModel.copyEntriesFromYesterday() },
-                                        ) {
-                                            Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Copy from yesterday")
-                                        }
-                                    }
+                                    Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy from yesterday")
                                 }
                             }
 

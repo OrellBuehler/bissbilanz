@@ -10,6 +10,7 @@ import type {
 	DexieSupplement,
 	DexieSupplementLog,
 	DexieWeightEntry,
+	DexieSleepEntry,
 	DexieDayProperties,
 	DexieSyncQueueItem,
 	DexieSyncMeta
@@ -26,6 +27,7 @@ type BissbilanzDB = Dexie & {
 	supplements: EntityTable<DexieSupplement, 'id'>;
 	supplementLogs: EntityTable<DexieSupplementLog, 'id'>;
 	weightEntries: EntityTable<DexieWeightEntry, 'id'>;
+	sleepEntries: EntityTable<DexieSleepEntry, 'id'>;
 	dayProperties: EntityTable<DexieDayProperties, 'date'>;
 	syncQueue: EntityTable<DexieSyncQueueItem, 'id'>;
 	syncMeta: EntityTable<DexieSyncMeta, 'tableName'>;
@@ -51,6 +53,10 @@ db.version(1).stores({
 // Additive: only new/changed stores need to be listed; existing v1 stores are preserved
 db.version(2).stores({
 	dayProperties: 'date'
+});
+
+db.version(3).stores({
+	sleepEntries: 'id, entryDate, loggedAt'
 });
 
 export { db };

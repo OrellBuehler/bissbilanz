@@ -9,7 +9,7 @@ import {
 } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, setError, reset } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -21,7 +21,7 @@ vi.mock('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listRecipes, createRecipe, getRecipe, updateRecipe, deleteRecipe } =
+const { listRecipes, createRecipe, getRecipe, updateRecipe, deleteRecipe, toRecipeInsert } =
 	await import('$lib/server/recipes');
 
 describe('recipes-db', () => {
@@ -288,6 +288,118 @@ describe('recipes-db', () => {
 
 			const result = await deleteRecipe(TEST_USER.id, TEST_RECIPE.id, true);
 			expect(result.blocked).toBe(false);
+		});
+	});
+
+	describe('toRecipeInsert', () => {
+		test('maps userId and required fields', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 4
+			});
+
+			expect(result.userId).toBe(TEST_USER.id);
+			expect(result.name).toBe('My Recipe');
+			expect(result.totalServings).toBe(4);
+		});
+
+		test('defaults isFavorite to false when not provided', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 1
+			});
+
+			expect(result.isFavorite).toBe(false);
+		});
+
+		test('uses provided isFavorite value', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 1,
+				isFavorite: true
+			});
+
+			expect(result.isFavorite).toBe(true);
+		});
+
+		test('defaults imageUrl to null when not provided', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 1
+			});
+
+			expect(result.imageUrl).toBeNull();
+		});
+
+		test('uses provided imageUrl value', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 1,
+				imageUrl: 'https://example.com/img.jpg'
+			});
+
+			expect(result.imageUrl).toBe('https://example.com/img.jpg');
+		});
+
+		test('coerces explicit null imageUrl to null', () => {
+			const result = toRecipeInsert(TEST_USER.id, {
+				name: 'My Recipe',
+				totalServings: 1,
+				imageUrl: null
+			});
+
+			expect(result.imageUrl).toBeNull();
+		});
+	});
+
+	describe('createRecipe error handling', () => {
+		test('returns error when DB throws during transaction', async () => {
+			setError(new Error('DB connection lost'));
+
+			const result = await createRecipe(TEST_USER.id, VALID_RECIPE_PAYLOAD);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error).toBeInstanceOf(Error);
+				expect((result.error as Error).message).toBe('DB connection lost');
+			}
+		});
+	});
+
+	describe('updateRecipe error handling', () => {
+		test('returns error when DB throws during transaction', async () => {
+			setError(new Error('DB write failed'));
+
+			const payload = { name: 'Updated', totalServings: 2 };
+			const result = await updateRecipe(TEST_USER.id, TEST_RECIPE.id, payload);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error).toBeInstanceOf(Error);
+				expect((result.error as Error).message).toBe('DB write failed');
+			}
+		});
+	});
+
+	describe('listRecipes with options', () => {
+		test('returns items and total when options are omitted', async () => {
+			setResult([TEST_RECIPE]);
+
+			const result = await listRecipes(TEST_USER.id);
+			expect(result).toHaveProperty('items');
+			expect(result).toHaveProperty('total');
+		});
+
+		test('accepts limit option without throwing', async () => {
+			setResult([TEST_RECIPE]);
+
+			const result = await listRecipes(TEST_USER.id, { limit: 5 });
+			expect(result.items).toBeDefined();
+		});
+
+		test('accepts offset option without throwing', async () => {
+			setResult([TEST_RECIPE]);
+
+			const result = await listRecipes(TEST_USER.id, { limit: 10, offset: 5 });
+			expect(result.items).toBeDefined();
 		});
 	});
 });

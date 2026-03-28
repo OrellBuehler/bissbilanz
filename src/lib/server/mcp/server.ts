@@ -40,7 +40,11 @@ import {
 	handleGetStreaks,
 	handleCopyEntries,
 	handleFindFoodByBarcode,
-	handleSearchOpenFoodFacts
+	handleSearchOpenFoodFacts,
+	handleLogSleep,
+	handleGetSleep,
+	handleUpdateSleep,
+	handleDeleteSleep
 } from './handlers';
 import { today } from '$lib/utils/dates';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
@@ -796,6 +800,94 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteWeight(userId, args))
+	);
+
+	server.registerTool(
+		'log_sleep',
+		{
+			description: 'Log a sleep entry. Records duration and quality for a given date.',
+			inputSchema: {
+				durationMinutes: z
+					.number()
+					.int()
+					.min(1)
+					.max(1440)
+					.describe('Total sleep duration in minutes'),
+				quality: z
+					.number()
+					.int()
+					.min(1)
+					.max(10)
+					.describe('Sleep quality rating from 1 (poor) to 10 (great)'),
+				date: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				bedtime: z.string().optional().describe('Bedtime as ISO datetime string'),
+				wakeTime: z.string().optional().describe('Wake time as ISO datetime string'),
+				wakeUps: z
+					.number()
+					.int()
+					.min(0)
+					.optional()
+					.describe('Number of times woken up during the night'),
+				notes: z.string().optional().describe('Optional notes')
+			},
+			annotations: WRITE
+		},
+		safe((args) => handleLogSleep(userId, args))
+	);
+
+	server.registerTool(
+		'get_sleep',
+		{
+			description: 'Get the latest sleep entry, or sleep entries over a date range.',
+			inputSchema: {
+				from: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('Start date in YYYY-MM-DD format'),
+				to: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('End date in YYYY-MM-DD format')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetSleep(userId, args))
+	);
+
+	server.registerTool(
+		'update_sleep',
+		{
+			description: 'Update an existing sleep entry.',
+			inputSchema: {
+				id: z.string().uuid().describe('Sleep entry ID to update'),
+				durationMinutes: z.number().int().min(1).max(1440).optional(),
+				quality: z.number().int().min(1).max(10).optional(),
+				bedtime: z.string().optional().nullable(),
+				wakeTime: z.string().optional().nullable(),
+				wakeUps: z.number().int().min(0).optional().nullable(),
+				notes: z.string().optional().nullable()
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleUpdateSleep(userId, args))
+	);
+
+	server.registerTool(
+		'delete_sleep',
+		{
+			description: 'Delete a sleep entry.',
+			inputSchema: {
+				id: z.string().uuid().describe('Sleep entry ID to delete')
+			},
+			annotations: WRITE
+		},
+		safe((args) => handleDeleteSleep(userId, args))
 	);
 
 	server.registerTool(

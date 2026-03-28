@@ -156,6 +156,7 @@ export type DexieUserPreferences = {
 	showWeightWidget: boolean;
 	showMealBreakdownWidget: boolean;
 	showTopFoodsWidget: boolean;
+	showSleepWidget: boolean;
 	widgetOrder: string[];
 	startPage: string;
 	favoriteTapAction: string;
@@ -219,6 +220,27 @@ export type DexieWeightEntry = {
 	entryDate: string;
 	loggedAt: string;
 	notes: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
+// ── Sleep ───────────────────────────────────────────────────────────
+export type DexieSleepEntry = {
+	id: string;
+	userId: string;
+	entryDate: string;
+	durationMinutes: number;
+	quality: number;
+	bedtime: string | null;
+	wakeTime: string | null;
+	wakeUps: number | null;
+	sleepLatencyMinutes: number | null;
+	deepSleepMinutes: number | null;
+	lightSleepMinutes: number | null;
+	remSleepMinutes: number | null;
+	source: string | null;
+	notes: string | null;
+	loggedAt: string;
 	createdAt: string | null;
 	updatedAt: string | null;
 };

@@ -1,5 +1,5 @@
 import { getDB } from '$lib/server/db';
-import { foods, foodEntries } from '$lib/server/schema';
+import { foods, foodEntries, recipeIngredients } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, getTableColumns, ilike, isNotNull, sql } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
@@ -157,14 +157,18 @@ export const deleteFood = async (
 	const db = getDB();
 
 	return db.transaction(async (tx) => {
-		const entries = await tx
-			.select({ count: count() })
-			.from(foodEntries)
-			.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
+		const [entries, ingredients] = await Promise.all([
+			tx
+				.select({ count: count() })
+				.from(foodEntries)
+				.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId))),
+			tx.select({ count: count() }).from(recipeIngredients).where(eq(recipeIngredients.foodId, id))
+		]);
 		const entryCount = entries[0].count;
+		const ingredientCount = ingredients[0].count;
 
-		if (entryCount > 0 && !force) {
-			return { blocked: true, entryCount } as DeleteResult;
+		if ((entryCount > 0 || ingredientCount > 0) && !force) {
+			return { blocked: true, entryCount, ingredientCount } as DeleteResult;
 		}
 
 		if (entryCount > 0) {

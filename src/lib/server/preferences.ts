@@ -35,6 +35,7 @@ export const DEFAULT_PREFERENCES = {
 	showWeightWidget: true,
 	showMealBreakdownWidget: true,
 	showTopFoodsWidget: true,
+	showSleepWidget: true,
 	widgetOrder: [
 		'chart',
 		'favorites',
@@ -42,6 +43,7 @@ export const DEFAULT_PREFERENCES = {
 		'weight',
 		'meal-breakdown',
 		'top-foods',
+		'sleep',
 		'summary',
 		'daylog'
 	] as string[],
@@ -55,19 +57,29 @@ export const DEFAULT_PREFERENCES = {
 
 const ALL_SECTION_KEYS = [
 	'chart',
+	'streaks',
 	'favorites',
 	'supplements',
 	'weight',
 	'meal-breakdown',
 	'top-foods',
+	'sleep',
 	'summary',
 	'daylog'
 ];
 
 const normalizeSectionOrder = (order: string[]): string[] => {
 	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));
-	if (!result.includes('chart')) result.unshift('chart');
-	if (!result.includes('daylog')) result.push('daylog');
+	for (const key of ALL_SECTION_KEYS) {
+		if (!result.includes(key)) {
+			const daylogIndex = result.indexOf('daylog');
+			if (daylogIndex >= 0) {
+				result.splice(daylogIndex, 0, key);
+			} else {
+				result.push(key);
+			}
+		}
+	}
 	return result;
 };
 

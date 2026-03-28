@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -20,7 +21,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
-import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.FavoritesSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
@@ -42,6 +43,7 @@ fun FavoritesScreen(navController: NavController) {
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = rememberHaptic()
 
     var foodToLog by remember { mutableStateOf<Food?>(null) }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
@@ -142,7 +144,7 @@ fun FavoritesScreen(navController: NavController) {
 
                 Crossfade(targetState = isLoading, label = "favorites") { loading ->
                     if (loading) {
-                        LoadingScreen()
+                        FavoritesSkeleton()
                     } else if (selectedTab == 0) {
                         if (favorites.isEmpty()) {
                             EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
@@ -157,6 +159,7 @@ fun FavoritesScreen(navController: NavController) {
                                         name = food.name,
                                         imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
                                         onQuickLog = {
+                                            haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(
                                                 viewModel = viewModel,
                                                 onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
@@ -183,6 +186,7 @@ fun FavoritesScreen(navController: NavController) {
                                         name = recipe.name,
                                         imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
                                         onQuickLog = {
+                                            haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(
                                                 viewModel = viewModel,
                                                 onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },

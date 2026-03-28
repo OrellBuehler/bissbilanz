@@ -62,6 +62,13 @@ import type {
 import type { formatDailyStatus } from '$lib/server/mcp/format';
 import type { today } from '$lib/utils/dates';
 import type { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
+import type {
+	createSleepEntry,
+	getSleepEntriesByDateRange,
+	getLatestSleep,
+	updateSleepEntry,
+	deleteSleepEntry
+} from '$lib/server/sleep';
 
 export type HandlerDeps = {
 	// Foods
@@ -113,6 +120,12 @@ export type HandlerDeps = {
 	logSupplement: typeof logSupplement;
 	getSupplementById: typeof getSupplementById;
 	getSupplementChecklist: typeof getSupplementChecklist;
+	// Sleep
+	createSleepEntry: typeof createSleepEntry;
+	getSleepEntriesByDateRange: typeof getSleepEntriesByDateRange;
+	getLatestSleep: typeof getLatestSleep;
+	updateSleepEntry: typeof updateSleepEntry;
+	deleteSleepEntry: typeof deleteSleepEntry;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	today: typeof today;
@@ -680,6 +693,85 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	const handleLogSleep = async (
+		userId: string,
+		args: {
+			durationMinutes: number;
+			quality: number;
+			date?: string;
+			bedtime?: string;
+			wakeTime?: string;
+			wakeUps?: number;
+			notes?: string;
+		}
+	) => {
+		try {
+			const result = await d.createSleepEntry(userId, {
+				durationMinutes: args.durationMinutes,
+				quality: args.quality,
+				entryDate: args.date ?? d.today(),
+				bedtime: args.bedtime ?? null,
+				wakeTime: args.wakeTime ?? null,
+				wakeUps: args.wakeUps ?? null,
+				notes: args.notes ?? null
+			});
+			if (!result.success) return { error: result.error.message };
+			return { success: true, entryId: result.data.id, entry: result.data };
+		} catch (e) {
+			wrapError('log sleep', e);
+		}
+	};
+
+	const handleGetSleep = async (userId: string, args: { from?: string; to?: string }) => {
+		try {
+			if (args.from || args.to) {
+				if (!args.from || !args.to) {
+					return {
+						error: 'Provide both "from" and "to" for a date range, or omit both for latest entry'
+					};
+				}
+				const entries = await d.getSleepEntriesByDateRange(userId, args.from, args.to);
+				return { entries };
+			}
+			const latest = await d.getLatestSleep(userId);
+			return latest ?? { error: 'No sleep entries found' };
+		} catch (e) {
+			wrapError('get sleep', e);
+		}
+	};
+
+	const handleUpdateSleep = async (
+		userId: string,
+		args: {
+			id: string;
+			durationMinutes?: number;
+			quality?: number;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
+		}
+	) => {
+		try {
+			const { id, ...rest } = args;
+			const result = await d.updateSleepEntry(userId, id, rest);
+			if (!result.success) return { error: result.error.message };
+			return { success: true, entryId: id };
+		} catch (e) {
+			wrapError('update sleep', e);
+		}
+	};
+
+	const handleDeleteSleep = async (userId: string, args: { id: string }) => {
+		try {
+			const deleted = await d.deleteSleepEntry(userId, args.id);
+			if (!deleted) return { error: 'Sleep entry not found' };
+			return { success: true };
+		} catch (e) {
+			wrapError('delete sleep', e);
+		}
+	};
+
 	return {
 		handleGetDailyStatus,
 		handleSearchFoods,
@@ -719,6 +811,10 @@ export function createHandlers(d: HandlerDeps) {
 		handleGetMealBreakdown,
 		handleGetTopFoods,
 		handleGetStreaks,
-		handleSearchOpenFoodFacts
+		handleSearchOpenFoodFacts,
+		handleLogSleep,
+		handleGetSleep,
+		handleUpdateSleep,
+		handleDeleteSleep
 	};
 }

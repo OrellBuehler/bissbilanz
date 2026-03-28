@@ -66,6 +66,17 @@ import {
 	dayPropertiesRangeResponseSchema
 } from './validation/responses/day-properties';
 import { dayPropertiesSetSchema } from './validation/day-properties';
+import { sleepCreateSchema, sleepUpdateSchema } from './validation/sleep';
+import { sleepEntriesResponseSchema, sleepEntryResponseSchema } from './validation/responses/sleep';
+import {
+	foodDiversityResponseSchema,
+	mealTimingResponseSchema,
+	nutrientsDailyResponseSchema,
+	nutrientsExtendedResponseSchema,
+	sleepFoodCorrelationResponseSchema,
+	weightFoodResponseSchema
+} from './validation/responses/analytics';
+import { analyticsDateRangeSchema } from './validation/analytics';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -574,21 +585,6 @@ export function generateSpec() {
 				}
 			},
 			'/api/supplements/{id}/log/{date}': {
-				post: {
-					operationId: 'logSupplementForDate',
-					tags: ['Supplements'],
-					description: 'Log a supplement as taken on a specific date.',
-					requestParams: {
-						path: z.object({ id: z.string().uuid(), date: z.string().date() })
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: supplementLogResponseSchema } }
-						},
-						'401': res401
-					}
-				},
 				delete: {
 					operationId: 'unlogSupplementForDate',
 					tags: ['Supplements'],
@@ -1052,6 +1048,203 @@ export function generateSpec() {
 						'201': {
 							description: 'Created',
 							content: { 'application/json': { schema: imageUploadResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+
+			// ── Sleep ─────────────────────────────────────────────
+			'/api/sleep': {
+				get: {
+					operationId: 'listSleepEntries',
+					tags: ['Sleep'],
+					description: 'List sleep entries, optionally filtered by date range.',
+					requestParams: {
+						query: z.object({
+							from: z.string().date().optional(),
+							to: z.string().date().optional()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: sleepEntriesResponseSchema } }
+						},
+						'401': res401
+					}
+				},
+				post: {
+					operationId: 'createSleepEntry',
+					tags: ['Sleep'],
+					description: 'Create a new sleep entry.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: sleepCreateSchema } }
+					},
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: sleepEntryResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/sleep/{id}': {
+				patch: {
+					operationId: 'updateSleepEntry',
+					tags: ['Sleep'],
+					description: 'Update a sleep entry.',
+					requestParams: { path: uuidPathId },
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: sleepUpdateSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: sleepEntryResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				},
+				delete: {
+					operationId: 'deleteSleepEntry',
+					tags: ['Sleep'],
+					description: 'Delete a sleep entry.',
+					requestParams: { path: uuidPathId },
+					responses: {
+						'204': res204,
+						'401': res401
+					}
+				}
+			},
+
+			// ── Analytics ─────────────────────────────────────────
+			'/api/analytics/food-diversity': {
+				get: {
+					operationId: 'getFoodDiversity',
+					tags: ['Analytics'],
+					description: 'Get food diversity data for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodDiversityResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/meal-timing': {
+				get: {
+					operationId: 'getMealTiming',
+					tags: ['Analytics'],
+					description: 'Get meal timing data for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: mealTimingResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/nutrients-daily': {
+				get: {
+					operationId: 'getNutrientsDaily',
+					tags: ['Analytics'],
+					description: 'Get daily nutrient totals for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: nutrientsDailyResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/nutrients-extended': {
+				get: {
+					operationId: 'getNutrientsExtended',
+					tags: ['Analytics'],
+					description: 'Get extended nutrient entries for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: nutrientsExtendedResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/weight-food': {
+				get: {
+					operationId: 'getWeightFood',
+					tags: ['Analytics'],
+					description: 'Get weight and food data correlation for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: weightFoodResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/sleep-food': {
+				get: {
+					operationId: 'getSleepFoodCorrelation',
+					tags: ['Analytics'],
+					description: 'Get sleep-food correlation data for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: sleepFoodCorrelationResponseSchema } }
 						},
 						'400': res400,
 						'401': res401

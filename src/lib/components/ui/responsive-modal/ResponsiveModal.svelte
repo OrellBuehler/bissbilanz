@@ -33,6 +33,14 @@
 	});
 
 	const isExpanded = $derived(openFull || activeSnapPoint === 1);
+
+	let wasOpen = $state(false);
+	$effect(() => {
+		if (wasOpen && !open && !isDesktop.current) {
+			setTimeout(() => onAnimationEnd?.(false), 500);
+		}
+		wasOpen = open;
+	});
 </script>
 
 {#if isDesktop.current}
@@ -53,7 +61,7 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {:else if openFull}
-	<Drawer.Root bind:open {onAnimationEnd}>
+	<Drawer.Root bind:open>
 		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0!">
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
@@ -67,7 +75,7 @@
 		</Drawer.Content>
 	</Drawer.Root>
 {:else}
-	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1} {onAnimationEnd}>
+	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
 		<Drawer.Content
 			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] {isExpanded ? 'mt-0!' : ''}"
 		>

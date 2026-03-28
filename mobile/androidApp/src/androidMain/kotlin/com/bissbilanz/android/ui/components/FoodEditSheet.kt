@@ -28,6 +28,7 @@ fun FoodEditSheet(
     foodId: String?,
     onDismiss: () -> Unit,
     onSaved: () -> Unit,
+    initialBarcode: String? = null,
 ) {
     val foodRepo: FoodRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
@@ -48,7 +49,7 @@ fun FoodEditSheet(
     var carbs by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
     var fiber by remember { mutableStateOf("") }
-    var barcode by remember { mutableStateOf("") }
+    var barcode by remember { mutableStateOf(initialBarcode ?: "") }
     var isFavorite by remember { mutableStateOf(false) }
 
     // Extended nutrients

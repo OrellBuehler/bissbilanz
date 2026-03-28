@@ -59,6 +59,7 @@
 	} | null = $state(null);
 
 	let pendingBarcodeAction: (() => void) | null = $state(null);
+	let barcodeFoodId: string | null = $state(null);
 	let isFastingDay = $state(false);
 	let fastingLoading = $state(false);
 
@@ -143,6 +144,7 @@
 		pendingBarcodeAction = async () => {
 			const food = await foodService.findByBarcode(barcode);
 			if (food) {
+				barcodeFoodId = food.id;
 				addModalOpen = true;
 			} else {
 				goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
@@ -202,8 +204,10 @@
 		{recipes}
 		{date}
 		mealType={activeMeal}
+		initialFoodId={barcodeFoodId}
 		onClose={() => {
 			addModalOpen = false;
+			barcodeFoodId = null;
 		}}
 		onSave={addEntry}
 	/>

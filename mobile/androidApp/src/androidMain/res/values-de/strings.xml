@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Tägliche Makro-Fortschrittsringe für Kalorien, Protein, Kohlenhydrate, Fett und Ballaststoffe</string>
+    <string name="scan_widget_description">Tippen, um den Barcode-Scanner zu öffnen</string>
+    <string name="scan_widget_content_desc">Barcode scannen</string>
+    <string name="weight_widget_description">Gewicht heute anzeigen und erfassen</string>
+    <string name="weight_widget_title">Gewicht</string>
+    <string name="weight_widget_today">Heute</string>
+    <string name="weight_widget_tap_to_log">Tippen zum Erfassen</string>
+    <string name="weight_log_title">Gewicht erfassen</string>
+    <string name="weight_edit_title">Gewicht bearbeiten</string>
+    <string name="weight_input_label">Gewicht (kg)</string>
+    <string name="weight_notes_label">Notizen (optional)</string>
+    <string name="weight_save">Speichern</string>
+    <string name="weight_cancel">Abbrechen</string>
+    <string name="fasting_day">Fastentag</string>
+    <string name="fasting_day_description">Diesen Tag mit 0 Kalorien in die Statistik einbeziehen</string>
+    <string name="favorites_widget_description">Lieblingsgerichte mit einem Tippen erfassen</string>
+    <string name="favorites_widget_empty">Noch keine Favoriten</string>
+    <string name="favorites_widget_logged">%1$s erfasst</string>
+    <string name="chart_weight_format">%.1f kg</string>
+    <string name="chart_weight_avg_format">Ø: %.1f kg</string>
+    <string name="chart_percent_of_goal">%1$d%% des Ziels</string>
+    <string name="chart_no_data">Keine Daten</string>
+    <string name="chart_kcal_format">%1$d kcal</string>
+    <string name="chart_kcal_pct_format">%1$d kcal (%2$d%%)</string>
+    <string name="chart_supplements">Nahrungsergänzungsmittel</string>
+    <string name="chart_supplements_taken">%1$d von %2$d genommen</string>
+    <string name="chart_view_all">Alle anzeigen</string>
+    <string name="entry_deleted">%1$s gelöscht</string>
+    <string name="undo">Rückgängig</string>
+    <string name="sleep_logged">Schlaf erfasst</string>
+    <string name="sleep_log_failed">Schlaf konnte nicht erfasst werden</string>
+    <string name="sleep_deleted">Schlafeintrag gelöscht</string>
+    <string name="sleep_delete_failed">Löschen fehlgeschlagen</string>
+    <string name="insights_load_failed">Auswertungen konnten nicht geladen werden</string>
+    <string name="insights_not_enough_data">Noch nicht genug Daten.</string>
+    <string name="sleep_section_title">Schlaf</string>
+    <string name="sleep_recent">Letzter Schlaf</string>
+    <string name="sleep_log_content_desc">Schlaf erfassen</string>
+    <string name="sleep_no_entries">Noch keine Schlafeinträge. Tippe +, um Schlaf zu erfassen.</string>
+    <string name="sleep_quality_trend">Qualitätsverlauf</string>
+    <string name="sleep_avg_quality">Ø Qualität</string>
+    <string name="sleep_log_dialog_title">Schlaf erfassen</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Abbrechen</string>
+</resources>

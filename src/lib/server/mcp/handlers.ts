@@ -52,6 +52,13 @@ import {
 	getSupplementChecklist
 } from '$lib/server/supplements';
 import { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
+import {
+	createSleepEntry,
+	getSleepEntriesByDateRange,
+	getLatestSleep,
+	updateSleepEntry,
+	deleteSleepEntry
+} from '$lib/server/sleep';
 import { createHandlers } from './create-handlers';
 
 export { createHandlers, type HandlerDeps } from './create-handlers';
@@ -95,7 +102,11 @@ export const {
 	handleGetMealBreakdown,
 	handleGetTopFoods,
 	handleGetStreaks,
-	handleSearchOpenFoodFacts
+	handleSearchOpenFoodFacts,
+	handleLogSleep,
+	handleGetSleep,
+	handleUpdateSleep,
+	handleDeleteSleep
 } = createHandlers({
 	listFoods,
 	createFood,
@@ -141,5 +152,10 @@ export const {
 	getSupplementById,
 	getSupplementChecklist,
 	fetchProduct,
-	searchProducts
+	searchProducts,
+	createSleepEntry,
+	getSleepEntriesByDateRange,
+	getLatestSleep,
+	updateSleepEntry,
+	deleteSleepEntry
 });

@@ -27,4 +27,21 @@
     <string name="chart_supplements">Supplements</string>
     <string name="chart_supplements_taken">%1$d of %2$d taken</string>
     <string name="chart_view_all">View All</string>
+    <string name="entry_deleted">Deleted %1$s</string>
+    <string name="undo">Undo</string>
+    <string name="sleep_logged">Sleep logged</string>
+    <string name="sleep_log_failed">Failed to log sleep</string>
+    <string name="sleep_deleted">Sleep entry deleted</string>
+    <string name="sleep_delete_failed">Failed to delete</string>
+    <string name="insights_load_failed">Failed to load insights</string>
+    <string name="insights_not_enough_data">Not enough data yet.</string>
+    <string name="sleep_section_title">Sleep</string>
+    <string name="sleep_recent">Recent Sleep</string>
+    <string name="sleep_log_content_desc">Log sleep</string>
+    <string name="sleep_no_entries">No sleep entries yet. Tap + to log your sleep.</string>
+    <string name="sleep_quality_trend">Quality Trend</string>
+    <string name="sleep_avg_quality">Avg Quality</string>
+    <string name="sleep_log_dialog_title">Log Sleep</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Cancel</string>
 </resources>

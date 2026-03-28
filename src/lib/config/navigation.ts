@@ -27,6 +27,7 @@ export type NavGroup = {
 
 export const breadcrumbLabelKeys = [
 	'app',
+	'home',
 	'foods',
 	'recipes',
 	'goals',
@@ -47,7 +48,7 @@ export function getNavGroups(): NavGroup[] {
 			items: [
 				{
 					title: () => m.nav_dashboard(),
-					href: '/',
+					href: '/home',
 					icon: Home,
 					badgeColor: 'bg-blue-100 text-blue-600',
 					activeRing: 'ring-2 ring-inset ring-blue-300/80 dark:ring-blue-700/80'
@@ -113,7 +114,7 @@ export function getNavGroups(): NavGroup[] {
 				},
 				{
 					title: () => m.nav_weight(),
-					href: '/weight',
+					href: '/insights?tab=weight',
 					icon: Weight,
 					badgeColor: 'bg-teal-100 text-teal-600',
 					activeRing: 'ring-2 ring-inset ring-teal-300/80 dark:ring-teal-700/80'

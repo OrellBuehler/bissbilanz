@@ -34,15 +34,25 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Cache Gradle dependencies
+      - name: Cache Gradle and Kotlin/Native dependencies
         uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.gradle/build-cache
+            ~/.konan
           key: gradle-ios-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-ios-${{ runner.os }}-
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/xcodegen
+          key: brew-xcodegen-${{ runner.os }}
 
       - name: Install XcodeGen
         run: brew install --formula xcodegen

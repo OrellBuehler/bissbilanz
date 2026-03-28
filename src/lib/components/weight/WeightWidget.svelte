@@ -65,7 +65,7 @@
 			</Button>
 		</form>
 	{/if}
-	<Button variant="outline" size="sm" href="/weight" class="mt-3 w-full">
+	<Button variant="outline" size="sm" href="/insights?tab=weight" class="mt-3 w-full">
 		{m.dashboard_weight_view_all()}
 	</Button>
 </DashboardCard>

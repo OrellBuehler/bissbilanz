@@ -29,6 +29,7 @@ import kotlinx.serialization.encoding.*
  * @param showWeightWidget
  * @param showMealBreakdownWidget
  * @param showTopFoodsWidget
+ * @param showSleepWidget
  * @param widgetOrder
  * @param startPage
  * @param favoriteTapAction
@@ -36,6 +37,7 @@ import kotlinx.serialization.encoding.*
  * @param visibleNutrients
  * @param locale
  * @param favoriteMealTimeframes
+ * @param caloricLagDaysOverride
  * @param updatedAt
  */
 @Serializable
@@ -46,6 +48,7 @@ data class Preferences(
     @SerialName(value = "showWeightWidget") @Required val showWeightWidget: kotlin.Boolean,
     @SerialName(value = "showMealBreakdownWidget") @Required val showMealBreakdownWidget: kotlin.Boolean,
     @SerialName(value = "showTopFoodsWidget") @Required val showTopFoodsWidget: kotlin.Boolean,
+    @SerialName(value = "showSleepWidget") @Required val showSleepWidget: kotlin.Boolean,
     @SerialName(value = "widgetOrder") @Required val widgetOrder: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "startPage") @Required val startPage: kotlin.String,
     @SerialName(value = "favoriteTapAction") @Required val favoriteTapAction: kotlin.String,
@@ -53,5 +56,6 @@ data class Preferences(
     @SerialName(value = "visibleNutrients") @Required val visibleNutrients: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "locale") @Required val locale: kotlin.String?,
     @SerialName(value = "favoriteMealTimeframes") @Required val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframe>,
+    @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

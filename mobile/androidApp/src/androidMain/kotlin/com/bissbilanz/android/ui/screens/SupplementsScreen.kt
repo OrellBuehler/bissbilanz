@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
+import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
@@ -48,6 +50,7 @@ fun SupplementsScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = rememberHaptic()
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
     var showCreateSheet by remember { mutableStateOf(false) }
@@ -83,7 +86,10 @@ fun SupplementsScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateSheet = true }) {
+            FloatingActionButton(onClick = {
+                haptic(HapticFeedbackType.LongPress)
+                showCreateSheet = true
+            }) {
                 Icon(Icons.Default.Add, "Add supplement")
             }
         },
@@ -171,6 +177,7 @@ fun SupplementsScreen(navController: NavController) {
                                 onEdit = { editingSupplementId = supplement.id },
                                 modifier = Modifier.animateItem(),
                                 onToggle = {
+                                    haptic(HapticFeedbackType.LongPress)
                                     takenIds =
                                         if (isTaken) takenIds - supplement.id else takenIds + supplement.id
                                     scope.launch {
@@ -286,7 +293,7 @@ fun SupplementChecklistItem(
                         IconButton(onClick = it) {
                             Icon(
                                 Icons.Default.Edit,
-                                "Edit",
+                                "Edit supplement",
                                 modifier =
                                     androidx.compose.ui.Modifier
                                         .size(20.dp),
@@ -296,7 +303,7 @@ fun SupplementChecklistItem(
                     if (isTaken) {
                         Icon(
                             Icons.Default.Check,
-                            "Taken",
+                            "Supplement taken",
                             tint = FiberGreen,
                             modifier =
                                 androidx.compose.ui.Modifier

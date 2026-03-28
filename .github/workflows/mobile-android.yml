@@ -41,6 +41,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.gradle/build-cache
           key: gradle-android-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-android-${{ runner.os }}-
@@ -85,6 +86,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.gradle/build-cache
           key: gradle-android-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-android-${{ runner.os }}-
@@ -95,4 +97,8 @@ jobs:
 
       - name: Run shared module tests
         run: ./gradlew shared:allTests
+        continue-on-error: true
+
+      - name: Run Android ViewModel unit tests
+        run: ./gradlew androidApp:testDebugUnitTest
         continue-on-error: true

@@ -11,7 +11,13 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieWeightEntry } from '$lib/db/types';
 
-	let { entries, onChanged }: { entries: DexieWeightEntry[]; onChanged?: () => void } = $props();
+	let {
+		entries,
+		onChanged,
+		limit
+	}: { entries: DexieWeightEntry[]; onChanged?: () => void; limit?: number } = $props();
+
+	const displayed = $derived(limit != null ? entries.slice(0, limit) : entries);
 
 	let editingId: string | null = $state(null);
 	let editWeight = $state('');
@@ -53,7 +59,7 @@
 	{#if entries.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.weight_no_entries()}</p>
 	{:else}
-		{#each entries as entry (entry.id)}
+		{#each displayed as entry (entry.id)}
 			<div class="flex items-center gap-3 rounded-lg border px-3 py-2">
 				{#if editingId === entry.id}
 					<div class="flex flex-1 items-center gap-2">

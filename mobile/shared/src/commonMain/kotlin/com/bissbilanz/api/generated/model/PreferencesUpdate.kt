@@ -29,6 +29,7 @@ import kotlinx.serialization.encoding.*
  * @param showWeightWidget
  * @param showMealBreakdownWidget
  * @param showTopFoodsWidget
+ * @param showSleepWidget
  * @param widgetOrder
  * @param startPage
  * @param favoriteTapAction
@@ -36,6 +37,7 @@ import kotlinx.serialization.encoding.*
  * @param favoriteMealTimeframes
  * @param visibleNutrients
  * @param locale
+ * @param caloricLagDaysOverride
  */
 @Serializable
 data class PreferencesUpdate(
@@ -45,6 +47,7 @@ data class PreferencesUpdate(
     @SerialName(value = "showWeightWidget") val showWeightWidget: kotlin.Boolean? = null,
     @SerialName(value = "showMealBreakdownWidget") val showMealBreakdownWidget: kotlin.Boolean? = null,
     @SerialName(value = "showTopFoodsWidget") val showTopFoodsWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showSleepWidget") val showSleepWidget: kotlin.Boolean? = null,
     @SerialName(value = "widgetOrder") val widgetOrder: kotlin.collections.List<PreferencesUpdate.WidgetOrder>? = null,
     @SerialName(value = "startPage") val startPage: PreferencesUpdate.StartPage? = null,
     @SerialName(value = "favoriteTapAction") val favoriteTapAction: PreferencesUpdate.FavoriteTapAction? = null,
@@ -52,11 +55,12 @@ data class PreferencesUpdate(
     @SerialName(value = "favoriteMealTimeframes") val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframeInput>? = null,
     @SerialName(value = "visibleNutrients") val visibleNutrients: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "locale") val locale: PreferencesUpdate.Locale? = null,
+    @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
 ) {
     /**
      *
      *
-     * Values: chart,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,summary,daylog
+     * Values: chart,streaks,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
      */
     @Serializable
     enum class WidgetOrder(
@@ -64,6 +68,9 @@ data class PreferencesUpdate(
     ) {
         @SerialName(value = "chart")
         chart("chart"),
+
+        @SerialName(value = "streaks")
+        streaks("streaks"),
 
         @SerialName(value = "favorites")
         favorites("favorites"),
@@ -79,6 +86,9 @@ data class PreferencesUpdate(
 
         @SerialName(value = "top-foods")
         topMinusFoods("top-foods"),
+
+        @SerialName(value = "sleep")
+        sleep("sleep"),
 
         @SerialName(value = "summary")
         summary("summary"),

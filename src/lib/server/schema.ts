@@ -255,6 +255,7 @@ export const userPreferences = pgTable('user_preferences', {
 	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
 	showMealBreakdownWidget: boolean('show_meal_breakdown_widget').notNull().default(true),
 	showTopFoodsWidget: boolean('show_top_foods_widget').notNull().default(true),
+	showSleepWidget: boolean('show_sleep_widget').notNull().default(true),
 	widgetOrder: text('widget_order')
 		.array()
 		.notNull()
@@ -266,6 +267,8 @@ export const userPreferences = pgTable('user_preferences', {
 		.array()
 		.notNull()
 		.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
+	caloricLagDaysOverride: integer('caloric_lag_days_override'),
+	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
@@ -466,6 +469,45 @@ export const weightEntries = pgTable(
 		check('weight_entries_valid', sql`${table.weightKg} > 0 AND ${table.weightKg} <= 500`)
 	]
 );
+
+// Sleep Entries
+export const sleepEntries = pgTable(
+	'sleep_entries',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		entryDate: date('entry_date').notNull(),
+		durationMinutes: integer('duration_minutes').notNull(),
+		quality: integer('quality').notNull(),
+		bedtime: timestamp('bedtime', { withTimezone: true }),
+		wakeTime: timestamp('wake_time', { withTimezone: true }),
+		wakeUps: integer('wake_ups'),
+		sleepLatencyMinutes: integer('sleep_latency_minutes'),
+		deepSleepMinutes: integer('deep_sleep_minutes'),
+		lightSleepMinutes: integer('light_sleep_minutes'),
+		remSleepMinutes: integer('rem_sleep_minutes'),
+		source: text('source'),
+		notes: text('notes'),
+		loggedAt: timestamp('logged_at', { withTimezone: true }).notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		unique('sleep_entries_user_date_unique').on(table.userId, table.entryDate),
+		index('idx_sleep_entries_user_date').on(table.userId, table.entryDate),
+		check('sleep_quality_range', sql`${table.quality} >= 1 AND ${table.quality} <= 10`),
+		check(
+			'sleep_duration_range',
+			sql`${table.durationMinutes} > 0 AND ${table.durationMinutes} <= 1440`
+		),
+		check('sleep_wakeups_valid', sql`${table.wakeUps} IS NULL OR ${table.wakeUps} >= 0`)
+	]
+);
+
+export type SleepEntry = typeof sleepEntries.$inferSelect;
+export type NewSleepEntry = typeof sleepEntries.$inferInsert;
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(

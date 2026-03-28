@@ -1,0 +1,130 @@
+<script lang="ts">
+	import InsightCard from './InsightCard.svelte';
+	import { detectFoodSleepPatterns } from '$lib/analytics/food-sleep';
+	import { getConfidenceLevel } from '$lib/analytics/correlation';
+	import * as m from '$lib/paraglide/messages';
+
+	type SleepFoodPoint = {
+		date: string;
+		eveningCalories: number | null;
+		sleepDurationMinutes: number | null;
+		sleepQuality: number | null;
+	};
+
+	type MealEntry = {
+		date: string;
+		mealType: string;
+		eatenAt: string | null;
+		foodId: string | null;
+		recipeId: string | null;
+		calories: number;
+		foodName: string;
+	};
+
+	let {
+		sleepFoodData = [],
+		mealEntries = [],
+		loading = false
+	}: {
+		sleepFoodData: SleepFoodPoint[];
+		mealEntries: MealEntry[];
+		loading?: boolean;
+	} = $props();
+
+	const patterns = $derived.by(() => {
+		if (sleepFoodData.length === 0 || mealEntries.length === 0) return null;
+
+		const sleepData = sleepFoodData
+			.filter((d) => d.sleepQuality !== null)
+			.map((d) => ({ date: d.date, quality: d.sleepQuality as number }));
+
+		if (sleepData.length === 0) return null;
+
+		const eveningFoods = mealEntries
+			.filter((e) => {
+				if (!e.eatenAt) return false;
+				const hour = new Date(e.eatenAt).getHours();
+				return hour >= 17;
+			})
+			.map((e) => ({
+				date: e.date,
+				foodId: e.foodId ?? e.recipeId ?? e.foodName,
+				foodName: e.foodName,
+				nutrients: {}
+			}));
+
+		return detectFoodSleepPatterns(eveningFoods, sleepData, 3);
+	});
+
+	const sampleSize = $derived.by(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
+
+	const betterSleep = $derived.by(() =>
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta > 0.3).slice(0, 5)
+	);
+	const worseSleep = $derived.by(() =>
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta < -0.3).slice(0, 5)
+	);
+</script>
+
+{#if loading}
+	<div class="rounded-lg border bg-card overflow-hidden">
+		<div class="border-l-4 border-purple-500 p-4 sm:p-5">
+			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
+		</div>
+	</div>
+{:else}
+	<InsightCard
+		title={m.analytics_food_sleep()}
+		headline={m.analytics_food_sleep_headline()}
+		{confidence}
+		{sampleSize}
+		borderColor="border-purple-500"
+	>
+		{#snippet children()}
+			{@const better = betterSleep}
+			{@const worse = worseSleep}
+			{#if better.length > 0 || worse.length > 0}
+				<div class="space-y-3">
+					{#if better.length > 0}
+						<div>
+							<p class="text-xs font-medium text-green-600 dark:text-green-400 mb-1.5">
+								{m.analytics_food_sleep_helps()}
+							</p>
+							<div class="flex flex-wrap gap-1.5">
+								{#each better as food (food.foodId)}
+									<span
+										class="rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2.5 py-0.5 text-xs font-medium"
+									>
+										{food.foodName}
+										<span class="opacity-70">(+{food.delta.toFixed(1)})</span>
+									</span>
+								{/each}
+							</div>
+						</div>
+					{/if}
+					{#if worse.length > 0}
+						<div>
+							<p class="text-xs font-medium text-red-600 dark:text-red-400 mb-1.5">
+								{m.analytics_food_sleep_hurts()}
+							</p>
+							<div class="flex flex-wrap gap-1.5">
+								{#each worse as food (food.foodId)}
+									<span
+										class="rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2.5 py-0.5 text-xs font-medium"
+									>
+										{food.foodName}
+										<span class="opacity-70">({food.delta.toFixed(1)})</span>
+									</span>
+								{/each}
+							</div>
+						</div>
+					{/if}
+					<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+				</div>
+			{:else}
+				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+			{/if}
+		{/snippet}
+	</InsightCard>
+{/if}

@@ -1,0 +1,58 @@
+name: Update Third-Party Licenses
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - bun.lock
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-licenses:
+    name: Regenerate Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate license report
+        run: |
+          echo '{"name":"","version":"","description":"","repository":"","publisher":"","email":"","url":"","licenses":"","licenseFile":"","licenseText":""}' > /tmp/custom-format.json
+          bunx license-checker --production --customPath /tmp/custom-format.json --json > /tmp/licenses.json
+          bun scripts/generate-licenses.mjs /tmp/licenses.json
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet THIRD_PARTY_LICENSES.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated licenses
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add THIRD_PARTY_LICENSES.md
+          git commit -m "docs: update third-party licenses [skip ci]"
+          git push

@@ -122,6 +122,15 @@ export function requireUuid(value: string): string {
 	return value;
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function requireDate(value: string | null, name = 'date'): string {
+	if (!value || !DATE_RE.test(value)) {
+		throw new ApiError(400, `Invalid ${name} format, expected YYYY-MM-DD`);
+	}
+	return value;
+}
+
 /**
  * Checks if an error is a ZodError
  * @param error - The error to check

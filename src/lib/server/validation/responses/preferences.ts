@@ -22,11 +22,13 @@ const preferencesSchema = z
 		showWeightWidget: z.boolean(),
 		showMealBreakdownWidget: z.boolean(),
 		showTopFoodsWidget: z.boolean(),
+		showSleepWidget: z.boolean(),
 		widgetOrder: z.array(z.string()),
 		startPage: z.string(),
 		favoriteTapAction: z.string(),
 		favoriteMealAssignmentMode: z.string(),
 		visibleNutrients: z.array(z.string()),
+		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		locale: z.string().nullable(),
 		updatedAt: z.string().optional(),
 		favoriteMealTimeframes: z.array(favoriteMealTimeframeSchema)

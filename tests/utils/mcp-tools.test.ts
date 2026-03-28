@@ -22,7 +22,8 @@ const READ_ONLY_TOOLS = [
 	'get_streaks',
 	'get_supplement_status',
 	'list_supplements',
-	'search_openfoodfacts'
+	'search_openfoodfacts',
+	'get_sleep'
 ] as const;
 
 const WRITE_TOOLS = [
@@ -32,7 +33,10 @@ const WRITE_TOOLS = [
 	'log_supplement',
 	'log_weight',
 	'create_supplement',
-	'copy_entries'
+	'copy_entries',
+	'log_sleep',
+	'update_sleep',
+	'delete_sleep'
 ] as const;
 
 const UPDATE_TOOLS = [
@@ -101,9 +105,9 @@ describe('tool annotations', () => {
 		}
 	});
 
-	test('all 39 tools are classified', () => {
+	test('all 43 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(39);
+		expect(all).toHaveLength(43);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -151,11 +155,15 @@ describe('toolNames', () => {
 			'get_meal_breakdown',
 			'get_top_foods',
 			'get_streaks',
-			'search_openfoodfacts'
+			'search_openfoodfacts',
+			'log_sleep',
+			'get_sleep',
+			'update_sleep',
+			'delete_sleep'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(39);
+		expect(toolNames).toHaveLength(43);
 	});
 });

@@ -2,16 +2,13 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDailyBreakdown } from '$lib/server/stats';
 import { getGoals } from '$lib/server/goals';
-import { handleApiError, requireAuth, ApiError } from '$lib/server/errors';
+import { handleApiError, requireAuth, requireDate } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const userId = requireAuth(locals);
-		const startDate = url.searchParams.get('startDate');
-		const endDate = url.searchParams.get('endDate');
-		if (!startDate || !endDate) {
-			throw new ApiError(400, 'Start date and end date required');
-		}
+		const startDate = requireDate(url.searchParams.get('startDate'), 'startDate');
+		const endDate = requireDate(url.searchParams.get('endDate'), 'endDate');
 		const [data, goals] = await Promise.all([
 			getDailyBreakdown(userId, startDate, endDate),
 			getGoals(userId)

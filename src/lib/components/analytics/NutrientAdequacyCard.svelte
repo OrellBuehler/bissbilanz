@@ -1,0 +1,106 @@
+<script lang="ts">
+	import InsightCard from './InsightCard.svelte';
+	import { getConfidenceLevel } from '$lib/analytics/correlation';
+	import { RDA_VALUES } from '$lib/analytics/rda';
+	import * as m from '$lib/paraglide/messages';
+	import type { DailyNutrient } from './types';
+
+	type Props = {
+		nutrientDailyData: DailyNutrient[];
+		loading: boolean;
+	};
+
+	let { nutrientDailyData, loading }: Props = $props();
+
+	const adequacyData = $derived.by(() => {
+		if (nutrientDailyData.length === 0) return [];
+
+		return RDA_VALUES.map((rda) => {
+			const avg =
+				nutrientDailyData.reduce((sum, day) => {
+					const val = (day[rda.nutrientKey] as number | undefined) ?? 0;
+					return sum + val;
+				}, 0) / nutrientDailyData.length;
+
+			const rdaVal = (rda.rdaMale + rda.rdaFemale) / 2;
+			const pct = rdaVal > 0 ? Math.min((avg / rdaVal) * 100, 200) : 0;
+
+			return {
+				key: rda.nutrientKey,
+				label: rda.label,
+				unit: rda.unit,
+				avg: Math.round(avg * 10) / 10,
+				rda: Math.round(rdaVal * 10) / 10,
+				pct: Math.round(pct)
+			};
+		})
+			.filter((n) => n.avg > 0)
+			.sort((a, b) => a.pct - b.pct);
+	});
+
+	const sampleSize = $derived.by(() => nutrientDailyData.length);
+	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
+</script>
+
+{#if loading}
+	<div class="rounded-lg border bg-card overflow-hidden">
+		<div class="border-l-4 border-green-500 p-4 sm:p-5">
+			<div class="bg-muted/50 h-48 animate-pulse rounded-lg"></div>
+		</div>
+	</div>
+{:else}
+	<InsightCard
+		title={m.analytics_nutrient_adequacy()}
+		headline={m.analytics_nutrient_adequacy_headline()}
+		{confidence}
+		{sampleSize}
+		borderColor="border-green-500"
+	>
+		{#snippet children()}
+			{@const nutrients = adequacyData}
+			{#if nutrients.length > 0}
+				<div class="space-y-1.5">
+					{#each nutrients as nutrient (nutrient.key)}
+						{@const barColor =
+							nutrient.pct >= 80
+								? 'bg-green-500'
+								: nutrient.pct >= 50
+									? 'bg-amber-400'
+									: 'bg-red-500'}
+						{@const textColor =
+							nutrient.pct >= 80
+								? 'text-green-600 dark:text-green-400'
+								: nutrient.pct >= 50
+									? 'text-amber-600 dark:text-amber-400'
+									: 'text-red-600 dark:text-red-400'}
+						<div class="flex items-center gap-2">
+							<span
+								class="w-28 shrink-0 text-xs truncate text-muted-foreground"
+								title={nutrient.label}
+							>
+								{nutrient.label}
+							</span>
+							<div class="relative flex-1 h-3 bg-muted/40 rounded overflow-hidden">
+								<div
+									class="h-full rounded {barColor} opacity-70"
+									style="width: {Math.min(nutrient.pct, 100)}%"
+								></div>
+								{#if nutrient.pct > 100}
+									<div class="absolute right-0 top-0 h-full w-0.5 bg-border"></div>
+								{/if}
+							</div>
+							<span class="w-10 shrink-0 text-right text-xs tabular-nums {textColor}">
+								{nutrient.pct}%
+							</span>
+						</div>
+					{/each}
+					<p class="text-[11px] text-muted-foreground pt-1">
+						{m.analytics_rda_basis({ days: sampleSize.toString() })}
+					</p>
+				</div>
+			{:else}
+				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+			{/if}
+		{/snippet}
+	</InsightCard>
+{/if}

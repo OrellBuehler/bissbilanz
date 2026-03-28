@@ -6,7 +6,10 @@ import {
 	getTopFoods
 } from '$lib/server/stats';
 import { getGoals } from '$lib/server/goals';
-import { today, shiftDate } from '$lib/utils/dates';
+import { getWeightWithTrend } from '$lib/server/weight';
+import { today, shiftDate, daysAgo } from '$lib/utils/dates';
+
+type ChartPoint = { entry_date: string; weight_kg: number; moving_avg: number | null };
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
@@ -14,13 +17,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const start7 = shiftDate(endDate, -6);
 	const now = new Date();
 
-	const [dailyData, goals, calendarStats, mealBreakdown, topFoods] = await Promise.all([
-		getDailyBreakdown(userId, start7, endDate),
-		getGoals(userId),
-		getCalendarStats(userId, now.getFullYear(), now.getMonth()),
-		getMealBreakdown(userId, endDate, endDate),
-		getTopFoods(userId, 7, 10)
-	]);
+	const [dailyData, goals, calendarStats, mealBreakdown, topFoods, initialChartData] =
+		await Promise.all([
+			getDailyBreakdown(userId, start7, endDate),
+			getGoals(userId),
+			getCalendarStats(userId, now.getFullYear(), now.getMonth()),
+			getMealBreakdown(userId, endDate, endDate),
+			getTopFoods(userId, 7, 10),
+			getWeightWithTrend(userId, daysAgo(30), endDate) as Promise<ChartPoint[]>
+		]);
 
 	const goalsData = goals
 		? {
@@ -36,6 +41,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		dailyStatus: { data: dailyData, goals: goalsData },
 		calendarDays: calendarStats.days,
 		mealBreakdown,
-		topFoods
+		topFoods,
+		initialChartData
 	};
 };

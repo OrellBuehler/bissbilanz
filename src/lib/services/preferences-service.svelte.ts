@@ -29,6 +29,7 @@ async function refresh() {
 				showWeightWidget: p.showWeightWidget,
 				showMealBreakdownWidget: p.showMealBreakdownWidget,
 				showTopFoodsWidget: p.showTopFoodsWidget,
+				showSleepWidget: p.showSleepWidget,
 				widgetOrder: p.widgetOrder,
 				startPage: p.startPage,
 				favoriteTapAction: p.favoriteTapAction,
@@ -46,6 +47,7 @@ async function refresh() {
 					sortOrder: t.sortOrder
 				}))
 			};
+			await db.userPreferences.where('userId').notEqual('me').delete();
 			await db.userPreferences.put(row);
 		}
 	} catch {

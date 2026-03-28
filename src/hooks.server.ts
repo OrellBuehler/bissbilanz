@@ -76,7 +76,7 @@ function isOriginMismatch(request: Request, url: URL): boolean {
 	}
 
 	const origin = request.headers.get('origin');
-	if (!origin) return false;
+	if (!origin) return true;
 
 	return origin !== url.origin;
 }
@@ -143,6 +143,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 
 	// Protect all routes except public ones
 	const PUBLIC_PATHS = [
+		'/',
 		'/login',
 		'/privacy',
 		'/api/',

@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -26,6 +27,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
@@ -46,6 +48,7 @@ fun SettingsScreen(navController: NavController) {
     val healthPermGranted by viewModel.healthPermGranted.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = rememberHaptic()
     var showMealTypeDialog by remember { mutableStateOf(false) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
@@ -162,6 +165,18 @@ fun SettingsScreen(navController: NavController) {
                         SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
                             navController.navigate("maintenance")
                         }
+                        HorizontalDivider()
+                        SettingsNavItem("Insights", Icons.Default.BarChart) {
+                            if ("insights" in selectedTabs) {
+                                navController.navigate("insights") {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                navController.navigate("insights")
+                            }
+                        }
                     }
                 }
 
@@ -201,6 +216,7 @@ fun SettingsScreen(navController: NavController) {
                                 Checkbox(
                                     checked = isSelected,
                                     onCheckedChange = { checked ->
+                                        haptic(HapticFeedbackType.LongPress)
                                         val updated = if (checked) selectedTabs + route else selectedTabs - route
                                         if (updated.size in 1..5) {
                                             selectedTabs = updated
@@ -386,6 +402,7 @@ fun SettingsScreen(navController: NavController) {
                                 Switch(
                                     checked = healthSyncEnabled,
                                     onCheckedChange = { enabled ->
+                                        haptic(HapticFeedbackType.LongPress)
                                         healthSyncEnabled = enabled
                                         healthPrefs.edit().putBoolean("sync_enabled", enabled).apply()
                                     },
@@ -581,6 +598,7 @@ fun SettingsScreen(navController: NavController) {
                                             Checkbox(
                                                 checked = key in selected,
                                                 onCheckedChange = { checked ->
+                                                    haptic(HapticFeedbackType.LongPress)
                                                     editedNutrients = if (checked) selected + key else selected - key
                                                     nutrientsDirty = true
                                                 },
@@ -669,13 +687,20 @@ fun WidgetToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val haptic = rememberHaptic()
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = { value ->
+                haptic(HapticFeedbackType.LongPress)
+                onCheckedChange(value)
+            },
+        )
     }
 }
 
