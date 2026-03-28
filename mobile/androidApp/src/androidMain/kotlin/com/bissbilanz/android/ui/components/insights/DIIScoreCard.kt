@@ -11,10 +11,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.analytics.ConfidenceLevel
 import com.bissbilanz.analytics.DIIResult
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
@@ -25,7 +27,7 @@ fun DIIScoreCard(result: DIIResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = "Dietary Inflammatory Index", sectionId = "dii_score") {
             Text(
-                "Not enough data yet.",
+                stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

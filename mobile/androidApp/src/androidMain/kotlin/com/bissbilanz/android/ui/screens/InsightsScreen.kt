@@ -19,11 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.CalendarHeatmap
 import com.bissbilanz.android.ui.components.CollapsibleCard
@@ -67,7 +69,6 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
 import com.bissbilanz.model.SleepCreate
 import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -439,28 +440,36 @@ fun InsightsScreen() {
                     val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
                     var showSleepDialog by remember { mutableStateOf(false) }
 
-                    CollapsibleCard(title = "Sleep", sectionId = "sleep") {
+                    CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Recent Sleep", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.sleep_recent),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             IconButton(onClick = { showSleepDialog = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Log sleep")
+                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
                             }
                         }
 
                         if (sleepEntries.isEmpty()) {
                             Text(
-                                "No sleep entries yet. Tap + to log your sleep.",
+                                stringResource(R.string.sleep_no_entries),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
                             // Sleep quality trend chart
                             if (sleepEntries.size >= 3) {
-                                Text("Quality Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.sleep_quality_trend),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 SimpleLineChart(
                                     data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
@@ -493,7 +502,7 @@ fun InsightsScreen() {
                                         fontWeight = FontWeight.Bold,
                                     )
                                     Text(
-                                        "Avg Quality",
+                                        stringResource(R.string.sleep_avg_quality),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -968,15 +977,19 @@ private fun SleepLogDialog(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val epochDays = (millis / (24L * 60L * 60L * 1000L)).toInt()
-                            date = LocalDate.fromEpochDays(epochDays).toString()
+                            date =
+                                kotlinx.datetime.Instant
+                                    .fromEpochMilliseconds(millis)
+                                    .toLocalDateTime(kotlinx.datetime.TimeZone.UTC)
+                                    .date
+                                    .toString()
                         }
                         showDatePicker = false
                     },
-                ) { Text("OK") }
+                ) { Text(stringResource(R.string.dialog_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         ) {
             DatePicker(state = datePickerState)
@@ -985,7 +998,7 @@ private fun SleepLogDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log Sleep") },
+        title = { Text(stringResource(R.string.sleep_log_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -1057,11 +1070,11 @@ private fun SleepLogDialog(
                 },
                 enabled = !durationError,
             ) {
-                Text("Save")
+                Text(stringResource(R.string.weight_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
         },
     )
 }

@@ -98,3 +98,7 @@ jobs:
       - name: Run shared module tests
         run: ./gradlew shared:allTests
         continue-on-error: true
+
+      - name: Run Android ViewModel unit tests
+        run: ./gradlew androidApp:testDebugUnitTest
+        continue-on-error: true

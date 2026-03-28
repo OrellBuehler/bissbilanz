@@ -1,9 +1,11 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.analytics.*
+import com.bissbilanz.android.R
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.repository.GoalsRepository
@@ -49,8 +51,8 @@ class InsightsViewModel(
             .goals()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<@StringRes Int?>(null)
+    val snackbarMessage: StateFlow<@StringRes Int?> = _snackbarMessage.asStateFlow()
 
     private val _selectedRange = MutableStateFlow(0)
     val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
@@ -238,11 +240,11 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.createEntry(entry)
-                _snackbarMessage.value = "Sleep logged"
+                _snackbarMessage.value = R.string.sleep_logged
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log sleep"
+                _snackbarMessage.value = R.string.sleep_log_failed
             }
         }
     }
@@ -251,11 +253,11 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.deleteEntry(id)
-                _snackbarMessage.value = "Sleep entry deleted"
+                _snackbarMessage.value = R.string.sleep_deleted
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to delete"
+                _snackbarMessage.value = R.string.sleep_delete_failed
             }
         }
     }
@@ -355,7 +357,7 @@ class InsightsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load insights"
+                _snackbarMessage.value = R.string.insights_load_failed
             }
         }
     }
@@ -366,6 +368,9 @@ class InsightsViewModel(
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
+                    // getNutrientsExtended and getMealTiming are also fetched in loadWeightAnalytics
+                    // and loadSleepAnalytics. The duplication is deliberate: the user base is small
+                    // and adding a shared cache layer would add complexity that isn't warranted yet.
                     val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
                     val dailyDeferred = async { analyticsRepo.getNutrientsDaily(startDate, endDate) }
                     val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
@@ -444,6 +449,8 @@ class InsightsViewModel(
             try {
                 coroutineScope {
                     val weightDeferred = async { analyticsRepo.getWeightFood(startDate, endDate) }
+                    // getNutrientsExtended and getMealTiming are also fetched in loadNutritionAnalytics
+                    // and loadSleepAnalytics. See the comment in loadNutritionAnalytics for rationale.
                     val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
                     val dailyDeferred = async { analyticsRepo.getNutrientsDaily(startDate, endDate) }
                     val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
@@ -483,10 +490,10 @@ class InsightsViewModel(
                                 Pair(
                                     d.date,
                                     mapOf(
-                                        "protein" to d.protein as Double?,
-                                        "carbs" to d.carbs as Double?,
-                                        "fat" to d.fat as Double?,
-                                        "fiber" to d.fiber as Double?,
+                                        "protein" to d.protein,
+                                        "carbs" to d.carbs,
+                                        "fat" to d.fat,
+                                        "fiber" to d.fiber,
                                     ),
                                 )
                             },
@@ -497,6 +504,9 @@ class InsightsViewModel(
                             timingData.map { MealEntry(it.date, it.eatenAt, it.calories) },
                         )
 
+                    // Intentionally limited to the 7 nutrients most relevant for dietary adequacy
+                    // assessment. Update this set if new tracked nutrient fields are added to
+                    // ExtendedNutrientEntry.
                     val trackedKeys = setOf("vitaminC", "vitaminD", "vitaminE", "sodium", "omega3", "omega6", "fiber")
                     val dayCount =
                         extData
@@ -514,12 +524,15 @@ class InsightsViewModel(
                         sumByKey["omega6"] = (sumByKey["omega6"] ?: 0.0) + (entry.omega6 ?: 0.0)
                         sumByKey["fiber"] = (sumByKey["fiber"] ?: 0.0) + entry.fiber
                     }
+                    // Sex is not available in the current user model, so use the more
+                    // conservative (higher) RDA value to avoid over-reporting adequacy.
                     _nutrientAdequacyResult.value =
                         RDA_VALUES
                             .filter { it.nutrientKey in trackedKeys }
                             .map { rda ->
                                 val avg = (sumByKey[rda.nutrientKey] ?: 0.0) / dayCount
-                                Pair(rda, avg / rda.rdaMale)
+                                val rdaTarget = maxOf(rda.rdaMale, rda.rdaFemale)
+                                Pair(rda, avg / rdaTarget)
                             }
                 }
             } catch (e: Exception) {
@@ -537,6 +550,8 @@ class InsightsViewModel(
             val (startDate, endDate) = dateRange()
             try {
                 coroutineScope {
+                    // getNutrientsExtended and getMealTiming are also fetched in loadNutritionAnalytics
+                    // and loadWeightAnalytics. See the comment in loadNutritionAnalytics for rationale.
                     val extDeferred = async { analyticsRepo.getNutrientsExtended(startDate, endDate) }
                     val timingDeferred = async { analyticsRepo.getMealTiming(startDate, endDate) }
                     val sleepFoodDeferred = async { analyticsRepo.getSleepFood(startDate, endDate) }
@@ -581,10 +596,10 @@ class InsightsViewModel(
                                 Pair(
                                     date,
                                     mapOf(
-                                        "protein" to entries.sumOf { it.protein } as Double?,
-                                        "carbs" to entries.sumOf { it.carbs } as Double?,
-                                        "fat" to entries.sumOf { it.fat } as Double?,
-                                        "fiber" to entries.sumOf { it.fiber } as Double?,
+                                        "protein" to entries.sumOf { it.protein },
+                                        "carbs" to entries.sumOf { it.carbs },
+                                        "fat" to entries.sumOf { it.fat },
+                                        "fiber" to entries.sumOf { it.fiber },
                                     ),
                                 )
                             },

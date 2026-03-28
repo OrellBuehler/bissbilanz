@@ -86,6 +86,19 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
     )
 }
 
+/**
+ * Parses a local-time ISO 8601 datetime string from the API and returns the time as
+ * minutes since midnight in local time.
+ *
+ * Expected input format: "2024-03-15T19:30:00+01:00" or "2024-03-15T19:30:00Z"
+ *
+ * The function extracts the wall-clock time from the string and applies the embedded
+ * UTC offset to return the correct local minutes-since-midnight value.
+ *
+ * Assumption: `eatenAt` from the Bissbilanz API is always a local-time ISO string with
+ * an explicit UTC offset, not a pure UTC timestamp. Do not use this function with UTC
+ * timestamps that lack an offset.
+ */
 fun parseLocalMinutes(isoString: String): Int? {
     val match =
         Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$""")

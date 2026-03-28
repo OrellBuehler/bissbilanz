@@ -12,11 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.analytics.ConfidenceLevel
 import com.bissbilanz.analytics.DayStats
 import com.bissbilanz.analytics.WeekdayWeekendResult
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -29,7 +31,7 @@ fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = "Weekday vs Weekend", sectionId = "weekday_weekend") {
             Text(
-                "Not enough data yet.",
+                stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
