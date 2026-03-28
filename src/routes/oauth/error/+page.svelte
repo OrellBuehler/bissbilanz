@@ -52,7 +52,7 @@
 			</Card.Content>
 
 			<div class="px-6 pb-6">
-				<Button href="/" variant="outline" class="w-full">{m.oauth_error_go_home()}</Button>
+				<Button href="/home" variant="outline" class="w-full">{m.oauth_error_go_home()}</Button>
 			</div>
 		</Card.Root>
 	</div>

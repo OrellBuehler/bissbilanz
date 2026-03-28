@@ -88,10 +88,10 @@
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('scan') === 'true') {
 			scanModalOpen = true;
-			goto('/', { replaceState: true });
+			goto('/home', { replaceState: true });
 		} else if (params.get('add') === 'true') {
 			addModalOpen = true;
-			goto('/', { replaceState: true });
+			goto('/home', { replaceState: true });
 		}
 	});
 
