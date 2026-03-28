@@ -1,34 +1,26 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { RDA_VALUES } from '$lib/analytics/rda';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { DailyNutrient } from './types';
 
-	type DailyNutrient = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-		[key: string]: number | string;
+	type Props = {
+		nutrientDailyData: DailyNutrient[];
+		loading: boolean;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let nutrientSeries = $state<DailyNutrient[]>([]);
+	let { nutrientDailyData, loading }: Props = $props();
 
 	const adequacyData = $derived.by(() => {
-		if (nutrientSeries.length === 0) return [];
+		if (nutrientDailyData.length === 0) return [];
 
 		return RDA_VALUES.map((rda) => {
 			const avg =
-				nutrientSeries.reduce((sum, day) => {
+				nutrientDailyData.reduce((sum, day) => {
 					const val = (day[rda.nutrientKey] as number | undefined) ?? 0;
 					return sum + val;
-				}, 0) / nutrientSeries.length;
+				}, 0) / nutrientDailyData.length;
 
 			const rdaVal = (rda.rdaMale + rda.rdaFemale) / 2;
 			const pct = rdaVal > 0 ? Math.min((avg / rdaVal) * 100, 200) : 0;
@@ -46,25 +38,8 @@
 			.sort((a, b) => a.pct - b.pct);
 	});
 
-	const sampleSize = $derived.by(() => nutrientSeries.length);
+	const sampleSize = $derived.by(() => nutrientDailyData.length);
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const res = await fetch(
-				`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`
-			);
-			if (!res.ok) throw new Error('Failed to fetch');
-			const json = await res.json();
-			nutrientSeries = json.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -73,8 +48,6 @@
 			<div class="bg-muted/50 h-48 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_nutrient_adequacy()}
@@ -122,7 +95,7 @@
 						</div>
 					{/each}
 					<p class="text-[11px] text-muted-foreground pt-1">
-						Based on {sampleSize}-day average vs. average RDA
+						{m.analytics_rda_basis({ days: sampleSize.toString() })}
 					</p>
 				</div>
 			{:else}

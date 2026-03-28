@@ -721,8 +721,19 @@
 
 	"confidence_insufficient": "Nicht genügend Daten",
 	"confidence_low": "Frühes Muster — weiter erfassen für mehr Genauigkeit",
+	"confidence_low_badge": "Geringe Konfidenz",
 	"confidence_medium": "Basierend auf {days} Tagen Daten",
 	"confidence_high": "Basierend auf {days} Tagen Daten",
 	"confidence_data_needed": "Noch {days} Tage Daten nötig um dieses Insight freizuschalten",
-	"confidence_keep_logging": "Weiter erfassen!"
+	"confidence_keep_logging": "Weiter erfassen!",
+
+	"analytics_rda_basis": "Basierend auf {days}-Tage-Durchschnitt vs. durchschnittlicher RDA",
+	"analytics_avg_window_24h": "Durchschnittliches Fenster (24h)",
+	"analytics_avg_eating_window_24h": "Durchschnittliches Essensfenster (24h)",
+	"analytics_window_trend": "Fensterbreite-Trend (letzte {days} Tage)",
+	"analytics_late_night_eating": "Spätes Essen an {pct}% der Tage",
+	"analytics_peak_times": "Hauptzeiten:",
+	"analytics_window_vs_weight": "Korrelation Essensfenster vs. Gewichtsänderung: ",
+	"analytics_window_vs_weight_hint": "(negativ = kleineres Fenster korreliert mit Gewichtsverlust)",
+	"analytics_error_loading": "Daten konnten nicht geladen werden"
 }

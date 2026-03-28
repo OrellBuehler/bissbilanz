@@ -1,31 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
 	import { MACRO_COLORS } from '$lib/colors';
+	import type { WeightFoodPoint, DailyNutrient } from './types';
 
-	type WeightFoodPoint = {
-		date: string;
-		calories: number | null;
-		weightKg: number | null;
-		movingAvg: number | null;
+	type Props = {
+		weightFoodData: WeightFoodPoint[];
+		nutrientDailyData: DailyNutrient[];
+		loading: boolean;
 	};
 
-	type DailyNutrient = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-	};
-
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let weightSeries = $state<WeightFoodPoint[]>([]);
-	let nutrientSeries = $state<DailyNutrient[]>([]);
+	let { weightFoodData, nutrientDailyData, loading }: Props = $props();
 
 	type MacroCorrelation = {
 		key: keyof typeof MACRO_COLORS;
@@ -35,12 +21,12 @@
 	};
 
 	const macroCorrelations = $derived.by((): MacroCorrelation[] => {
-		if (weightSeries.length === 0 || nutrientSeries.length === 0) return [];
+		if (weightFoodData.length === 0 || nutrientDailyData.length === 0) return [];
 
 		const weightByDate = new Map(
-			weightSeries.filter((d) => d.weightKg !== null).map((d) => [d.date, d.weightKg as number])
+			weightFoodData.filter((d) => d.weightKg !== null).map((d) => [d.date, d.weightKg as number])
 		);
-		const nutrientByDate = new Map(nutrientSeries.map((d) => [d.date, d]));
+		const nutrientByDate = new Map(nutrientDailyData.map((d) => [d.date, d]));
 
 		const dates = [...weightByDate.keys()].sort();
 		if (dates.length < 3) return [];
@@ -85,31 +71,12 @@
 	});
 
 	const sampleSize = $derived.by(() => {
-		const wt = weightSeries.filter((d) => d.weightKg !== null).length;
-		const nt = nutrientSeries.length;
+		const wt = weightFoodData.filter((d) => d.weightKg !== null).length;
+		const nt = nutrientDailyData.length;
 		return Math.min(wt, nt);
 	});
 
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const [wRes, nRes] = await Promise.all([
-				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (!wRes.ok || !nRes.ok) throw new Error('Failed to fetch');
-			const [wJson, nJson] = await Promise.all([wRes.json(), nRes.json()]);
-			weightSeries = wJson.data ?? [];
-			nutrientSeries = nJson.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -118,8 +85,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_macro_impact()}

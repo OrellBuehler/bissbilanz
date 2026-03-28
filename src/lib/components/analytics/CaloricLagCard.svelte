@@ -5,26 +5,23 @@
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { WeightFoodPoint } from './types';
 
-	type WeightFoodPoint = {
-		date: string;
-		calories: number | null;
-		weightKg: number | null;
-		movingAvg: number | null;
+	type Props = {
+		weightFoodData: WeightFoodPoint[];
+		loading: boolean;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let series = $state<WeightFoodPoint[]>([]);
+	let { weightFoodData, loading }: Props = $props();
+
 	let overrideLag = $state<number | null>(null);
 
 	const lagResult = $derived.by(() => {
-		if (series.length === 0) return null;
-		const calorieData = series
+		if (weightFoodData.length === 0) return null;
+		const calorieData = weightFoodData
 			.filter((d) => d.calories !== null)
 			.map((d) => ({ date: d.date, value: d.calories }));
-		const weightData = series
+		const weightData = weightFoodData
 			.filter((d) => d.weightKg !== null)
 			.map((d) => ({ date: d.date, value: d.weightKg }));
 		return computeCaloricLag(calorieData, weightData, 7);
@@ -65,20 +62,12 @@
 	const saveOverride = (lag: number | null) => {
 		if (lag === initialOverride) return;
 		initialOverride = lag;
-		preferencesService.update({ caloricLagDaysOverride: lag } as Record<string, unknown>);
+		preferencesService.update({ caloricLagDaysOverride: lag });
 	};
 
 	onMount(async () => {
 		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const [res, prefsRes] = await Promise.all([
-				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch('/api/preferences')
-			]);
-			if (!res.ok) throw new Error('Failed to fetch');
-			const json = await res.json();
-			series = json.data ?? [];
+			const prefsRes = await fetch('/api/preferences');
 			if (prefsRes.ok) {
 				const prefsJson = await prefsRes.json();
 				const saved = prefsJson.preferences?.caloricLagDaysOverride ?? null;
@@ -86,9 +75,7 @@
 				initialOverride = saved;
 			}
 		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
+			// use default
 		}
 	});
 </script>
@@ -99,8 +86,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_caloric_lag()}

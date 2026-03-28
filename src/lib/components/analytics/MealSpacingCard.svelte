@@ -1,26 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { MealEntry } from './types';
 
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		calories: number;
-		foodName: string;
+	type Props = {
+		mealTimingData: MealEntry[];
+		loading: boolean;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let mealEntries = $state<MealEntry[]>([]);
+	let { mealTimingData, loading }: Props = $props();
 
 	const analysis = $derived.by(() => {
-		if (mealEntries.length === 0) return null;
-		return extractMealTimingPatterns(mealEntries);
+		if (mealTimingData.length === 0) return null;
+		return extractMealTimingPatterns(mealTimingData);
 	});
 
 	const hourlyData = $derived.by(() => {
@@ -39,31 +33,13 @@
 		hourlyData
 			.filter((h) => h.isPeak && h.count > 0)
 			.map((h) => {
-				const period = h.hour < 12 ? 'AM' : 'PM';
-				const displayHour = h.hour === 0 ? 12 : h.hour > 12 ? h.hour - 12 : h.hour;
-				return `${displayHour}${period}`;
+				const d = new Date(2000, 0, 1, h.hour);
+				return d.toLocaleTimeString(undefined, { hour: 'numeric' });
 			})
 	);
 
 	const sampleSize = $derived.by(() => analysis?.dailyWindows.length ?? 0);
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const res = await fetch(
-				`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`
-			);
-			if (!res.ok) throw new Error('Failed to fetch');
-			const json = await res.json();
-			mealEntries = json.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -72,8 +48,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_meal_spacing()}
@@ -88,14 +62,8 @@
 				<div class="space-y-2">
 					<div class="space-y-0.5">
 						{#each hours.filter((h) => h.count > 0) as h (h.hour)}
-							{@const displayHour =
-								h.hour === 0
-									? '12 AM'
-									: h.hour < 12
-										? `${h.hour} AM`
-										: h.hour === 12
-											? '12 PM'
-											: `${h.hour - 12} PM`}
+							{@const d = new Date(2000, 0, 1, h.hour)}
+							{@const displayHour = d.toLocaleTimeString(undefined, { hour: 'numeric' })}
 							<div class="flex items-center gap-2">
 								<span class="w-10 shrink-0 text-[10px] tabular-nums text-muted-foreground">
 									{displayHour}
@@ -118,7 +86,8 @@
 					</div>
 					{#if peakHours.length > 0}
 						<p class="text-xs text-muted-foreground">
-							Peak times: <span class="font-medium text-foreground">{peakHours.join(', ')}</span>
+							{m.analytics_peak_times()}
+							<span class="font-medium text-foreground">{peakHours.join(', ')}</span>
 						</p>
 					{/if}
 				</div>

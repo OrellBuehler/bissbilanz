@@ -1,34 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { WeightFoodPoint, MealEntry } from './types';
 
-	type WeightFoodPoint = {
-		date: string;
-		calories: number | null;
-		weightKg: number | null;
-		movingAvg: number | null;
+	type Props = {
+		weightFoodData: WeightFoodPoint[];
+		mealTimingData: MealEntry[];
+		loading: boolean;
 	};
 
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		calories: number;
-		foodName: string;
-	};
-
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let weightSeries = $state<WeightFoodPoint[]>([]);
-	let mealEntries = $state<MealEntry[]>([]);
+	let { weightFoodData, mealTimingData, loading }: Props = $props();
 
 	const timingAnalysis = $derived.by(() => {
-		if (mealEntries.length === 0) return null;
-		return extractMealTimingPatterns(mealEntries);
+		if (mealTimingData.length === 0) return null;
+		return extractMealTimingPatterns(mealTimingData);
 	});
 
 	const avgWindowHours = $derived.by(() => {
@@ -42,7 +29,7 @@
 		if (!analysis || analysis.dailyWindows.length < 3) return null;
 
 		const weightByDate = new Map(
-			weightSeries.filter((d) => d.weightKg !== null).map((d) => [d.date, d.weightKg as number])
+			weightFoodData.filter((d) => d.weightKg !== null).map((d) => [d.date, d.weightKg as number])
 		);
 		const dates = [...weightByDate.keys()].sort();
 		if (dates.length < 3) return null;
@@ -90,25 +77,6 @@
 		if (!analysis) return 20;
 		return parseInt(analysis.avgLastMealTime.split(':')[0]);
 	});
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const [wRes, mRes] = await Promise.all([
-				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (!wRes.ok || !mRes.ok) throw new Error('Failed to fetch');
-			const [wJson, mJson] = await Promise.all([wRes.json(), mRes.json()]);
-			weightSeries = wJson.data ?? [];
-			mealEntries = mJson.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -117,8 +85,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_meal_timing_weight()}
@@ -134,7 +100,7 @@
 				{@const widthPct = ((lastMealHour - firstMealHour) / 24) * 100}
 				<div class="space-y-3">
 					<div class="space-y-1">
-						<p class="text-xs text-muted-foreground">Average eating window (24h)</p>
+						<p class="text-xs text-muted-foreground">{m.analytics_avg_eating_window_24h()}</p>
 						<div class="relative h-6 bg-muted/40 rounded overflow-hidden">
 							<div
 								class="absolute h-full rounded bg-amber-400/70 dark:bg-amber-600/50"
@@ -153,7 +119,7 @@
 
 					{#if correlationResult}
 						<div class="rounded-lg bg-muted/30 p-3 text-xs">
-							<span class="text-muted-foreground">Window vs weight change correlation: </span>
+							<span class="text-muted-foreground">{m.analytics_window_vs_weight()}</span>
 							<span
 								class="font-semibold tabular-nums {correlationResult!.r < 0
 									? 'text-green-600 dark:text-green-400'
@@ -162,7 +128,7 @@
 								r = {correlationResult!.r.toFixed(2)}
 							</span>
 							<span class="text-muted-foreground ml-1 text-[10px]">
-								(negative = smaller window correlates with weight loss)
+								{m.analytics_window_vs_weight_hint()}
 							</span>
 						</div>
 					{/if}

@@ -1,26 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { MealEntry } from './types';
 
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		calories: number;
-		foodName: string;
+	type Props = {
+		mealTimingData: MealEntry[];
+		loading: boolean;
 	};
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let mealEntries = $state<MealEntry[]>([]);
+	let { mealTimingData, loading }: Props = $props();
 
 	const analysis = $derived.by(() => {
-		if (mealEntries.length === 0) return null;
-		return extractMealTimingPatterns(mealEntries);
+		if (mealTimingData.length === 0) return null;
+		return extractMealTimingPatterns(mealTimingData);
 	});
 
 	const avgWindowHours = $derived.by(() => {
@@ -58,23 +52,6 @@
 
 	const sampleSize = $derived.by(() => analysis?.dailyWindows.length ?? 0);
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const res = await fetch(
-				`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`
-			);
-			if (!res.ok) throw new Error('Failed to fetch');
-			const json = await res.json();
-			mealEntries = json.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -83,8 +60,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_eating_window()}
@@ -100,7 +75,7 @@
 				{@const widthPct = ((lastMealHour - firstMealHour) / 24) * 100}
 				<div class="space-y-3">
 					<div class="space-y-1">
-						<p class="text-xs text-muted-foreground">Average window (24h)</p>
+						<p class="text-xs text-muted-foreground">{m.analytics_avg_window_24h()}</p>
 						<div class="relative h-6 bg-muted/40 rounded overflow-hidden">
 							<div
 								class="absolute h-full rounded bg-amber-400/80 dark:bg-amber-600/60"
@@ -119,7 +94,7 @@
 					{#if windowTrend.length > 0}
 						<div class="space-y-1">
 							<p class="text-xs text-muted-foreground">
-								Window width trend (last {windowTrend.length} days)
+								{m.analytics_window_trend({ days: windowTrend.length.toString() })}
 							</p>
 							<div class="flex items-end gap-0.5 h-10">
 								{#each windowTrend as day (day.date)}
@@ -136,7 +111,7 @@
 
 					<div class="text-xs text-muted-foreground">
 						{#if a.lateNightFrequency > 20}
-							Late night eating on {Math.round(a.lateNightFrequency)}% of days
+							{m.analytics_late_night_eating({ pct: Math.round(a.lateNightFrequency).toString() })}
 						{/if}
 					</div>
 				</div>

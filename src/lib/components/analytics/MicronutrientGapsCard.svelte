@@ -1,42 +1,27 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { computeNutrientOutcomeCorrelations } from '$lib/analytics/nutrient-correlation';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { RDA_VALUES } from '$lib/analytics/rda';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import type { WeightFoodPoint, DailyNutrient } from './types';
 
-	type WeightFoodPoint = {
-		date: string;
-		calories: number | null;
-		weightKg: number | null;
-		movingAvg: number | null;
+	type Props = {
+		weightFoodData: WeightFoodPoint[];
+		nutrientDailyData: DailyNutrient[];
+		loading: boolean;
 	};
 
-	type DailyNutrient = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-		[key: string]: number | string;
-	};
-
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let weightSeries = $state<WeightFoodPoint[]>([]);
-	let nutrientSeries = $state<DailyNutrient[]>([]);
+	let { weightFoodData, nutrientDailyData, loading }: Props = $props();
 
 	const nutrientCorrelations = $derived.by(() => {
-		if (weightSeries.length === 0 || nutrientSeries.length === 0) return [];
+		if (weightFoodData.length === 0 || nutrientDailyData.length === 0) return [];
 
-		const weightOutcomes = weightSeries
+		const weightOutcomes = weightFoodData
 			.filter((d) => d.weightKg !== null)
 			.map((d) => ({ date: d.date, value: d.weightKg as number }));
 
-		const dailyNutrients = nutrientSeries.map((d) => ({
+		const dailyNutrients = nutrientDailyData.map((d) => ({
 			date: d.date,
 			nutrients: Object.fromEntries(
 				RDA_VALUES.map((rda) => [
@@ -50,9 +35,9 @@
 	});
 
 	const avgNutrients = $derived.by(() => {
-		if (nutrientSeries.length === 0) return new Map<string, number>();
+		if (nutrientDailyData.length === 0) return new Map<string, number>();
 		const totals = new Map<string, number>();
-		for (const day of nutrientSeries) {
+		for (const day of nutrientDailyData) {
 			for (const rda of RDA_VALUES) {
 				const val = (day[rda.nutrientKey] as number | undefined) ?? 0;
 				totals.set(rda.nutrientKey, (totals.get(rda.nutrientKey) ?? 0) + val);
@@ -60,7 +45,7 @@
 		}
 		const avgs = new Map<string, number>();
 		for (const [key, total] of totals) {
-			avgs.set(key, total / nutrientSeries.length);
+			avgs.set(key, total / nutrientDailyData.length);
 		}
 		return avgs;
 	});
@@ -90,28 +75,9 @@
 	});
 
 	const sampleSize = $derived.by(() =>
-		Math.min(weightSeries.filter((d) => d.weightKg !== null).length, nutrientSeries.length)
+		Math.min(weightFoodData.filter((d) => d.weightKg !== null).length, nutrientDailyData.length)
 	);
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
-
-	onMount(async () => {
-		try {
-			const endDate = today();
-			const startDate = shiftDate(endDate, -29);
-			const [wRes, nRes] = await Promise.all([
-				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (!wRes.ok || !nRes.ok) throw new Error('Failed to fetch');
-			const [wJson, nJson] = await Promise.all([wRes.json(), nRes.json()]);
-			weightSeries = wJson.data ?? [];
-			nutrientSeries = nJson.data ?? [];
-		} catch {
-			error = 'Failed to load data';
-		} finally {
-			loading = false;
-		}
-	});
 </script>
 
 {#if loading}
@@ -120,8 +86,6 @@
 			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
 		</div>
 	</div>
-{:else if error}
-	<div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">{error}</div>
 {:else}
 	<InsightCard
 		title={m.analytics_micronutrient_gaps()}

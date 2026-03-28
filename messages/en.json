@@ -721,8 +721,19 @@
 
 	"confidence_insufficient": "Not enough data",
 	"confidence_low": "Early pattern — keep logging for more accuracy",
+	"confidence_low_badge": "Low confidence",
 	"confidence_medium": "Based on {days} days of data",
 	"confidence_high": "Based on {days} days of data",
 	"confidence_data_needed": "{days} more days of data needed to unlock this insight",
-	"confidence_keep_logging": "Keep logging!"
+	"confidence_keep_logging": "Keep logging!",
+
+	"analytics_rda_basis": "Based on {days}-day average vs. average RDA",
+	"analytics_avg_window_24h": "Average window (24h)",
+	"analytics_avg_eating_window_24h": "Average eating window (24h)",
+	"analytics_window_trend": "Window width trend (last {days} days)",
+	"analytics_late_night_eating": "Late night eating on {pct}% of days",
+	"analytics_peak_times": "Peak times:",
+	"analytics_window_vs_weight": "Window vs weight change correlation: ",
+	"analytics_window_vs_weight_hint": "(negative = smaller window correlates with weight loss)",
+	"analytics_error_loading": "Failed to load data"
 }

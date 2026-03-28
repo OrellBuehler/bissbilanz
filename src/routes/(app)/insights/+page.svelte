@@ -12,15 +12,10 @@
 	import WeightChart from '$lib/components/weight/WeightChart.svelte';
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
 	import SleepTabContent from '$lib/components/sleep/SleepTabContent.svelte';
-	import CaloricLagCard from '$lib/components/analytics/CaloricLagCard.svelte';
-	import MacroImpactCard from '$lib/components/analytics/MacroImpactCard.svelte';
-	import MealTimingWeightCard from '$lib/components/analytics/MealTimingWeightCard.svelte';
-	import MicronutrientGapsCard from '$lib/components/analytics/MicronutrientGapsCard.svelte';
 	import WeightInsightsGroup from '$lib/components/analytics/WeightInsightsGroup.svelte';
-	import EatingWindowCard from '$lib/components/analytics/EatingWindowCard.svelte';
-	import MealSpacingCard from '$lib/components/analytics/MealSpacingCard.svelte';
-	import NutrientAdequacyCard from '$lib/components/analytics/NutrientAdequacyCard.svelte';
+	import WeightCorrelationGroup from '$lib/components/analytics/WeightCorrelationGroup.svelte';
 	import NutritionInsightsGroup from '$lib/components/analytics/NutritionInsightsGroup.svelte';
+	import NutritionCorrelationGroup from '$lib/components/analytics/NutritionCorrelationGroup.svelte';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -460,11 +455,7 @@
 			</div>
 		</CollapsibleCard>
 
-		<div class="space-y-4 pt-2">
-			<EatingWindowCard />
-			<MealSpacingCard />
-			<NutrientAdequacyCard />
-		</div>
+		<NutritionCorrelationGroup />
 		<NutritionInsightsGroup />
 	{:else if activeTab === 'weight'}
 		<div class="space-y-6 pb-8">
@@ -593,13 +584,7 @@
 				</Card.Root>
 			{/if}
 
-			<div class="space-y-4">
-				<CaloricLagCard />
-				<MacroImpactCard />
-				<MealTimingWeightCard />
-				<MicronutrientGapsCard />
-			</div>
-
+			<WeightCorrelationGroup />
 			<WeightInsightsGroup />
 		</div>
 	{:else if activeTab === 'sleep'}
