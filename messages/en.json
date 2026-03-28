@@ -736,5 +736,18 @@
 	"analytics_peak_times": "Peak times:",
 	"analytics_window_vs_weight": "Window vs weight change correlation: ",
 	"analytics_window_vs_weight_hint": "(negative = smaller window correlates with weight loss)",
-	"analytics_error_loading": "Failed to load data"
+	"analytics_error_loading": "Failed to load data",
+	"analytics_kg_per_week": "kg/week",
+	"oauth_error_title": "Authorization Error",
+	"oauth_error_description": "Unable to complete the authorization request",
+	"oauth_error_missing_params": "The authorization request is missing required parameters.",
+	"oauth_error_invalid_response_type": "The requested response type is not supported.",
+	"oauth_error_invalid_code_challenge_method": "The code challenge method is not supported.",
+	"oauth_error_invalid_code_challenge": "The code challenge value is invalid.",
+	"oauth_error_invalid_client": "The client application is not recognized.",
+	"oauth_error_unregistered_redirect_uri": "The redirect URI is not registered for this client.",
+	"oauth_error_invalid_redirect_uri_format": "The redirect URI format is invalid.",
+	"oauth_error_unknown": "An unexpected error occurred during authorization.",
+	"oauth_error_code_label": "Error code:",
+	"oauth_error_go_home": "Go to Bissbilanz"
 }

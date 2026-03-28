@@ -1,4 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
+import { parseLocalMinutes } from './meal-timing';
 
 export type MealRegularityResult = {
 	meals: {
@@ -11,29 +12,6 @@ export type MealRegularityResult = {
 	confidence: ConfidenceLevel;
 	sampleSize: number;
 };
-
-function parseLocalMinutes(isoString: string): number | null {
-	const match = isoString.match(
-		/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$/
-	);
-	if (!match) return null;
-
-	const hours = parseInt(match[2], 10);
-	const minutes = parseInt(match[3], 10);
-	const tzStr = match[4] ?? 'Z';
-
-	let offsetMinutes = 0;
-	if (tzStr !== 'Z') {
-		const tzMatch = tzStr.match(/([+-])(\d{2}):(\d{2})/);
-		if (tzMatch) {
-			const sign = tzMatch[1] === '+' ? 1 : -1;
-			offsetMinutes = sign * (parseInt(tzMatch[2], 10) * 60 + parseInt(tzMatch[3], 10));
-		}
-	}
-
-	const utcMinutes = hours * 60 + minutes;
-	return (((utcMinutes + offsetMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
-}
 
 export function computeMealRegularity(
 	entries: { date: string; mealType: string; eatenAt: string | null }[]

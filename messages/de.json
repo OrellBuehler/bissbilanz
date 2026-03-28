@@ -736,5 +736,18 @@
 	"analytics_peak_times": "Hauptzeiten:",
 	"analytics_window_vs_weight": "Korrelation Essensfenster vs. Gewichtsänderung: ",
 	"analytics_window_vs_weight_hint": "(negativ = kleineres Fenster korreliert mit Gewichtsverlust)",
-	"analytics_error_loading": "Daten konnten nicht geladen werden"
+	"analytics_error_loading": "Daten konnten nicht geladen werden",
+	"analytics_kg_per_week": "kg/Woche",
+	"oauth_error_title": "Autorisierungsfehler",
+	"oauth_error_description": "Die Autorisierungsanfrage konnte nicht abgeschlossen werden",
+	"oauth_error_missing_params": "Der Autorisierungsanfrage fehlen erforderliche Parameter.",
+	"oauth_error_invalid_response_type": "Der angeforderte Antworttyp wird nicht unterstützt.",
+	"oauth_error_invalid_code_challenge_method": "Die Code-Challenge-Methode wird nicht unterstützt.",
+	"oauth_error_invalid_code_challenge": "Der Code-Challenge-Wert ist ungültig.",
+	"oauth_error_invalid_client": "Die Client-Anwendung wird nicht erkannt.",
+	"oauth_error_unregistered_redirect_uri": "Die Redirect-URI ist für diesen Client nicht registriert.",
+	"oauth_error_invalid_redirect_uri_format": "Das Format der Redirect-URI ist ungültig.",
+	"oauth_error_unknown": "Ein unerwarteter Fehler ist bei der Autorisierung aufgetreten.",
+	"oauth_error_code_label": "Fehlercode:",
+	"oauth_error_go_home": "Zu Bissbilanz"
 }

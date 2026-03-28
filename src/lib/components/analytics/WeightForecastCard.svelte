@@ -106,7 +106,8 @@
 									? 'text-red-600 dark:text-red-400'
 									: 'text-muted-foreground'}"
 						>
-							{forecast.weeklyRate >= 0 ? '+' : ''}{forecast.weeklyRate.toFixed(2)} kg/week
+							{forecast.weeklyRate >= 0 ? '+' : ''}{forecast.weeklyRate.toFixed(2)}
+							{m.analytics_kg_per_week()}
 						</span>
 					</div>
 

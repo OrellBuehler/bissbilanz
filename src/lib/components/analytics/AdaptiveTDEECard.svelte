@@ -99,7 +99,8 @@
 									? 'text-red-600 dark:text-red-400'
 									: 'text-muted-foreground'}"
 						>
-							{tdee.weeklyRate >= 0 ? '+' : ''}{tdee.weeklyRate.toFixed(2)} kg/week
+							{tdee.weeklyRate >= 0 ? '+' : ''}{tdee.weeklyRate.toFixed(2)}
+							{m.analytics_kg_per_week()}
 						</span>
 					</div>
 				</div>

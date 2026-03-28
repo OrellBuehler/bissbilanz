@@ -321,7 +321,8 @@ export const getMealTimingData = async (userId: string, startDate: string, endDa
 export const getSleepFoodCorrelationData = async (
 	userId: string,
 	startDate: string,
-	endDate: string
+	endDate: string,
+	timezone: string = 'Europe/Berlin'
 ) => {
 	const db = getDB();
 
@@ -342,7 +343,7 @@ export const getSleepFoodCorrelationData = async (
 				eq(foodEntries.userId, userId),
 				gte(foodEntries.date, startDate),
 				lte(foodEntries.date, endDate),
-				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt} AT TIME ZONE 'Europe/Berlin') >= 17`
+				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt} AT TIME ZONE ${timezone}) >= 17`
 			)
 		)
 		.orderBy(asc(foodEntries.date));
