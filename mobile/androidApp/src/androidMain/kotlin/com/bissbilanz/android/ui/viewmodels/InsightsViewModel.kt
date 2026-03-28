@@ -77,13 +77,6 @@ class InsightsViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    // Raw analytics data (internal caches, no public exposure)
-    private val rawNutrientsExtended = MutableStateFlow<List<ExtendedNutrientEntry>>(emptyList())
-    private val rawNutrientsDaily = MutableStateFlow<List<DailyNutrients>>(emptyList())
-    private val rawMealTimingData = MutableStateFlow<List<MealTimingEntry>>(emptyList())
-    private val rawFoodDiversityData = MutableStateFlow<List<FoodDiversityEntry>>(emptyList())
-    private val rawWeightFoodData = MutableStateFlow<List<DailyWeightFood>>(emptyList())
-
     // Loading
     private val _analyticsLoading = MutableStateFlow(false)
     val analyticsLoading: StateFlow<Boolean> = _analyticsLoading.asStateFlow()
@@ -384,11 +377,6 @@ class InsightsViewModel(
                     val timingData = timingResponse?.data ?: emptyList()
                     val divData = divResponse?.data ?: emptyList()
 
-                    rawNutrientsExtended.value = extData
-                    rawNutrientsDaily.value = dailyData
-                    rawMealTimingData.value = timingData
-                    rawFoodDiversityData.value = divData
-
                     _novaResult.value = computeNOVAScore(extData.map { Pair(it.calories, it.novaGroup) })
                     _omegaResult.value =
                         computeOmegaRatio(
@@ -465,11 +453,6 @@ class InsightsViewModel(
                     val extData = extResponse?.data ?: emptyList()
                     val dailyData = dailyResponse?.data ?: emptyList()
                     val timingData = timingResponse?.data ?: emptyList()
-
-                    rawWeightFoodData.value = weightFoodData
-                    rawNutrientsExtended.value = extData
-                    rawNutrientsDaily.value = dailyData
-                    rawMealTimingData.value = timingData
 
                     val weightSeries = weightFoodData.map { Pair(it.date, it.weightKg) }
                     val calorieSeries = weightFoodData.map { Pair(it.date, it.calories) }
@@ -561,9 +544,6 @@ class InsightsViewModel(
                     val extData = extResponse?.data ?: emptyList()
                     val timingData = timingResponse?.data ?: emptyList()
                     val sleepFoodData = sleepFoodResponse?.data ?: emptyList()
-
-                    rawNutrientsExtended.value = extData
-                    rawMealTimingData.value = timingData
 
                     val eveningFoods =
                         extData
