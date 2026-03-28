@@ -42,4 +42,5 @@ val sharedModule =
         single { StatsRepository(get(), get(), get(), get()) }
         single { SleepRepository(get(), get(), get(), get(), get()) }
         single { PreferencesRepository(get(), get(), get(), get()) }
+        single { AnalyticsRepository(get(), get()) }
     }
