@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
+		date: string;
 		calories: number;
 		novaGroup: number | null;
 	};
@@ -18,7 +19,11 @@
 
 	const result = $derived.by(() => {
 		if (nutrientEntries.length === 0) return null;
-		return computeNOVAScore(nutrientEntries);
+		const raw = computeNOVAScore(nutrientEntries);
+		const uniqueDays = new Set(
+			nutrientEntries.filter((e) => e.novaGroup !== null).map((e) => e.date)
+		).size;
+		return { ...raw, sampleSize: uniqueDays };
 	});
 
 	const groupColors: Record<number, string> = {

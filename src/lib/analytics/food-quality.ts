@@ -70,10 +70,10 @@ export function computeOmegaRatio(
 
 	const avgOmega3 = validDays.reduce((sum, d) => sum + d.omega3, 0) / sampleSize;
 	const avgOmega6 = validDays.reduce((sum, d) => sum + d.omega6, 0) / sampleSize;
-	const ratio = validDays.reduce((sum, d) => sum + d.omega6 / d.omega3, 0) / sampleSize;
+	const ratio = avgOmega3 > 0 ? avgOmega6 / avgOmega3 : null;
 
 	let status: OmegaResult['status'];
-	if (ratio <= 4) status = 'optimal';
+	if (ratio === null || ratio <= 4) status = 'optimal';
 	else if (ratio <= 10) status = 'elevated';
 	else if (ratio <= 20) status = 'high';
 	else status = 'critical';
@@ -166,10 +166,12 @@ export function computeDIIScore(dailyNutrients: DIIInput[]): DIIResult {
 	const nutrientMeans: Record<string, number> = {};
 	const nutrientCoverage: Record<string, number> = {};
 
+	const zeroValidNutrients = new Set(['alcohol', 'transFat', 'caffeine']);
 	for (const nutrient of nutrients) {
+		const isZeroValid = zeroValidNutrients.has(nutrient);
 		const values = dailyNutrients
 			.map((d) => d[nutrient as keyof DIIInput])
-			.filter((v): v is number => v !== undefined && v !== null && v > 0);
+			.filter((v): v is number => v !== undefined && v !== null && (isZeroValid || v > 0));
 		nutrientCoverage[nutrient] = values.length / sampleSize;
 		nutrientMeans[nutrient] =
 			values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;

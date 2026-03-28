@@ -490,7 +490,7 @@ export const getFoodDiversityData = async (userId: string, startDate: string, en
 	const db = getDB();
 
 	const rows = await db
-		.selectDistinctOn([foodEntries.date, foodEntries.foodId, foodEntries.recipeId], {
+		.select({
 			date: foodEntries.date,
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
@@ -508,7 +508,7 @@ export const getFoodDiversityData = async (userId: string, startDate: string, en
 				lte(foodEntries.date, endDate)
 			)
 		)
-		.orderBy(asc(foodEntries.date), asc(foodEntries.foodId), asc(foodEntries.recipeId));
+		.orderBy(asc(foodEntries.date));
 
 	return rows;
 };

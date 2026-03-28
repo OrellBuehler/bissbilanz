@@ -24,6 +24,7 @@ export type WeightForecast = {
 	day30: number | null;
 	day60: number | null;
 	day90: number | null;
+	sampleSize: number;
 	confidence: ConfidenceLevel;
 };
 
@@ -51,8 +52,10 @@ function stddev(values: number[]): number {
 	return Math.sqrt(variance);
 }
 
-function cutoffDate(windowDays: number): string {
-	const d = new Date();
+function cutoffFromData(dates: string[], windowDays: number): string {
+	if (dates.length === 0) return '';
+	const maxDate = dates.sort().at(-1)!;
+	const d = new Date(maxDate + 'T00:00:00Z');
 	d.setUTCDate(d.getUTCDate() - windowDays);
 	return d.toISOString().slice(0, 10);
 }
@@ -62,7 +65,8 @@ export function computeAdaptiveTDEE(
 	calorieSeries: { date: string; calories: number | null }[],
 	windowDays = 14
 ): TDEEResult {
-	const cutoff = cutoffDate(windowDays);
+	const allDates = [...weightSeries.map((e) => e.date), ...calorieSeries.map((e) => e.date)];
+	const cutoff = cutoffFromData(allDates, windowDays);
 
 	const weights = weightSeries
 		.filter((e) => e.date >= cutoff && e.weightKg !== null)
@@ -111,7 +115,8 @@ export function detectPlateau(
 	estimatedTDEE: number | null,
 	sodiumAvg?: number | null
 ): PlateauResult {
-	const cutoff = cutoffDate(14);
+	const allDates = [...weightSeries.map((e) => e.date), ...calorieSeries.map((e) => e.date)];
+	const cutoff = cutoffFromData(allDates, 14);
 
 	const weights = weightSeries
 		.filter((e) => e.date >= cutoff && e.weightKg !== null)
@@ -193,5 +198,5 @@ export function projectWeight(
 	const day60 = currentWeight !== null ? currentWeight + (weeklyRate * 60) / 7 : null;
 	const day90 = currentWeight !== null ? currentWeight + (weeklyRate * 90) / 7 : null;
 
-	return { currentWeight, weeklyRate, day30, day60, day90, confidence };
+	return { currentWeight, weeklyRate, day30, day60, day90, sampleSize, confidence };
 }

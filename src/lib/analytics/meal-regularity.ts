@@ -38,25 +38,24 @@ function parseLocalMinutes(isoString: string): number | null {
 export function computeMealRegularity(
 	entries: { date: string; mealType: string; eatenAt: string | null }[]
 ): MealRegularityResult {
-	const byMealDate = new Map<string, number>();
+	const byMealDate = new Map<string, Map<string, number>>();
 
 	for (const entry of entries) {
 		if (!entry.eatenAt) continue;
 		const minutes = parseLocalMinutes(entry.eatenAt);
 		if (minutes === null) continue;
 
-		const key = `${entry.mealType}__${entry.date}`;
-		const existing = byMealDate.get(key);
+		if (!byMealDate.has(entry.mealType)) byMealDate.set(entry.mealType, new Map());
+		const dateMap = byMealDate.get(entry.mealType)!;
+		const existing = dateMap.get(entry.date);
 		if (existing === undefined || minutes < existing) {
-			byMealDate.set(key, minutes);
+			dateMap.set(entry.date, minutes);
 		}
 	}
 
 	const byMealType = new Map<string, number[]>();
-	for (const [key, minutes] of byMealDate) {
-		const mealType = key.split('__')[0];
-		if (!byMealType.has(mealType)) byMealType.set(mealType, []);
-		byMealType.get(mealType)!.push(minutes);
+	for (const [mealType, dateMap] of byMealDate) {
+		byMealType.set(mealType, [...dateMap.values()]);
 	}
 
 	const dates = new Set<string>();

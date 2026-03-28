@@ -46,7 +46,7 @@
 		title={m.analytics_forecast()}
 		{headline}
 		confidence={forecast?.confidence ?? 'insufficient'}
-		sampleSize={forecast ? (forecast.currentWeight !== null ? 1 : 0) : 0}
+		sampleSize={forecast?.sampleSize ?? 0}
 		borderColor="border-emerald-500"
 	>
 		{#snippet children()}

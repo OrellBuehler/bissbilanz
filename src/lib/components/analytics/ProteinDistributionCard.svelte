@@ -79,6 +79,9 @@
 									threshold: '20'
 								})}
 							</p>
+							<p class="text-sm font-semibold tabular-nums">
+								{result.mealsBelowThreshold}/{result.totalMeals}
+							</p>
 						</div>
 					</div>
 				</div>
