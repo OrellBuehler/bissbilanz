@@ -132,6 +132,7 @@
 	@media (display-mode: standalone) {
 		html {
 			overscroll-behavior: none;
+			scroll-behavior: smooth;
 		}
 		* {
 			-webkit-tap-highlight-color: transparent;

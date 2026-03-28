@@ -16,7 +16,7 @@
 	<meta name="description" content={m.landing_subheading()} />
 </svelte:head>
 
-<div class="scroll-smooth min-h-screen bg-background text-foreground">
+<div class="min-h-screen bg-background text-foreground">
 	<!-- Header -->
 	<header class="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
