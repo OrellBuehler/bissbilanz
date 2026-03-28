@@ -36,9 +36,7 @@ export const createSleepEntry = async (
 		}
 		return { success: true, data: created };
 	} catch (error) {
-		const err = error as Error & { cause?: Error };
-		const msg = err.cause?.message ? `${err.message} — ${err.cause.message}` : err.message;
-		return { success: false, error: new Error(msg) };
+		return { success: false, error: error as Error };
 	}
 };
 

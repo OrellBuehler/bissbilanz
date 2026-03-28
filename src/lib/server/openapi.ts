@@ -68,7 +68,14 @@ import {
 import { dayPropertiesSetSchema } from './validation/day-properties';
 import { sleepCreateSchema, sleepUpdateSchema } from './validation/sleep';
 import { sleepEntriesResponseSchema, sleepEntryResponseSchema } from './validation/responses/sleep';
-import { sleepFoodCorrelationResponseSchema } from './validation/responses/analytics';
+import {
+	foodDiversityResponseSchema,
+	mealTimingResponseSchema,
+	nutrientsDailyResponseSchema,
+	nutrientsExtendedResponseSchema,
+	sleepFoodCorrelationResponseSchema,
+	weightFoodResponseSchema
+} from './validation/responses/analytics';
 import { analyticsDateRangeSchema } from './validation/analytics';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
@@ -1118,6 +1125,111 @@ export function generateSpec() {
 			},
 
 			// ── Analytics ─────────────────────────────────────────
+			'/api/analytics/food-diversity': {
+				get: {
+					operationId: 'getFoodDiversity',
+					tags: ['Analytics'],
+					description: 'Get food diversity data for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodDiversityResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/meal-timing': {
+				get: {
+					operationId: 'getMealTiming',
+					tags: ['Analytics'],
+					description: 'Get meal timing data for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: mealTimingResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/nutrients-daily': {
+				get: {
+					operationId: 'getNutrientsDaily',
+					tags: ['Analytics'],
+					description: 'Get daily nutrient totals for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: nutrientsDailyResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/nutrients-extended': {
+				get: {
+					operationId: 'getNutrientsExtended',
+					tags: ['Analytics'],
+					description: 'Get extended nutrient entries for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: nutrientsExtendedResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/analytics/weight-food': {
+				get: {
+					operationId: 'getWeightFood',
+					tags: ['Analytics'],
+					description: 'Get weight and food data correlation for a date range.',
+					requestParams: {
+						query: z.object({
+							startDate: z.string().date(),
+							endDate: z.string().date()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: weightFoodResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
 			'/api/analytics/sleep-food': {
 				get: {
 					operationId: 'getSleepFoodCorrelation',

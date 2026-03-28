@@ -637,6 +637,91 @@ export interface paths {
 		patch: operations['updateSleepEntry'];
 		trace?: never;
 	};
+	'/api/analytics/food-diversity': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get food diversity data for a date range. */
+		get: operations['getFoodDiversity'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/meal-timing': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get meal timing data for a date range. */
+		get: operations['getMealTiming'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/nutrients-daily': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get daily nutrient totals for a date range. */
+		get: operations['getNutrientsDaily'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/nutrients-extended': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get extended nutrient entries for a date range. */
+		get: operations['getNutrientsExtended'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/weight-food': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get weight and food data correlation for a date range. */
+		get: operations['getWeightFood'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/analytics/sleep-food': {
 		parameters: {
 			query?: never;
@@ -1428,6 +1513,7 @@ export interface components {
 			favoriteTapAction: string;
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
+			caloricLagDaysOverride?: number | null;
 			locale: string | null;
 			updatedAt?: string;
 			favoriteMealTimeframes: components['schemas']['FavoriteMealTimeframe'][];
@@ -1605,6 +1691,76 @@ export interface components {
 		};
 		SleepEntryResponse: {
 			entry: components['schemas']['SleepEntry'];
+		};
+		FoodDiversityResponse: {
+			data: components['schemas']['FoodDiversityEntry'][];
+		};
+		FoodDiversityEntry: {
+			date: string;
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string;
+			novaGroup: number | null;
+		};
+		MealTimingResponse: {
+			data: components['schemas']['MealTimingEntry'][];
+		};
+		MealTimingEntry: {
+			date: string;
+			mealType: string;
+			eatenAt: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			calories: number;
+			foodName: string;
+		};
+		NutrientsDailyResponse: {
+			data: components['schemas']['DailyNutrients'][];
+		};
+		DailyNutrients: {
+			date: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		NutrientsExtendedResponse: {
+			data: components['schemas']['ExtendedNutrientEntry'][];
+		};
+		ExtendedNutrientEntry: {
+			date: string;
+			mealType: string;
+			eatenAt: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			novaGroup: number | null;
+			omega3: number | null;
+			omega6: number | null;
+			sodium: number | null;
+			caffeine: number | null;
+			saturatedFat: number | null;
+			transFat: number | null;
+			vitaminC: number | null;
+			vitaminD: number | null;
+			vitaminE: number | null;
+			alcohol: number | null;
+			addedSugars: number | null;
+		};
+		WeightFoodResponse: {
+			data: components['schemas']['DailyWeightFood'][];
+		};
+		DailyWeightFood: {
+			date: string;
+			calories: number | null;
+			weightKg: number | null;
+			movingAvg: number | null;
 		};
 		SleepFoodCorrelationResponse: {
 			data: components['schemas']['SleepFoodCorrelationEntry'][];
@@ -3043,6 +3199,131 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['SleepEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getFoodDiversity: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodDiversityResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getMealTiming: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealTimingResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getNutrientsDaily: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NutrientsDailyResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getNutrientsExtended: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NutrientsExtendedResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getWeightFood: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeightFoodResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];
