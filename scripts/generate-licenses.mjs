@@ -11,10 +11,9 @@ if (!inputPath) {
 const data = JSON.parse(readFileSync(inputPath, 'utf8'));
 const lines = ['# Third-Party Licenses\n'];
 lines.push('This file lists all third-party dependencies used in production and their licenses.\n');
-lines.push(`Generated: ${new Date().toISOString().split('T')[0]}\n`);
 
 const entries = Object.entries(data)
-	.filter(([k]) => k !== 'bissbilanz@0.0.1')
+	.filter(([k]) => !k.startsWith('bissbilanz@'))
 	.sort((a, b) => a[0].localeCompare(b[0]));
 
 const byLicense = {};

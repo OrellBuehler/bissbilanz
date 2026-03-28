@@ -2,8 +2,6 @@
 
 This file lists all third-party dependencies used in production and their licenses.
 
-Generated: 2026-03-28
-
 ## Summary
 
 | License                   | Count |

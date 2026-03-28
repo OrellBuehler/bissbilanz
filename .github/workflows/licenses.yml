@@ -6,9 +6,7 @@ on:
     paths:
       - package.json
       - bun.lock
-      - mobile/shared/build.gradle.kts
-      - mobile/androidApp/build.gradle.kts
-      - mobile/gradle/libs.versions.toml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,11 +27,9 @@ jobs:
 
       - name: Generate license report
         run: |
-          bunx license-checker --production \
-            --customPath <(echo '{"name":"","version":"","description":"","repository":"","publisher":"","email":"","url":"","licenses":"","licenseFile":"","licenseText":""}') \
-            --json > /tmp/licenses.json
-
-          node scripts/generate-licenses.mjs /tmp/licenses.json
+          echo '{"name":"","version":"","description":"","repository":"","publisher":"","email":"","url":"","licenses":"","licenseFile":"","licenseText":""}' > /tmp/custom-format.json
+          bunx license-checker --production --customPath /tmp/custom-format.json --json > /tmp/licenses.json
+          bun scripts/generate-licenses.mjs /tmp/licenses.json
 
       - name: Check for changes
         id: diff
