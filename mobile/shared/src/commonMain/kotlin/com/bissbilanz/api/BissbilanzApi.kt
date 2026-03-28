@@ -12,6 +12,7 @@ import com.bissbilanz.api.generated.model.EntryResponse
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodDiversityResponse
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
@@ -21,10 +22,13 @@ import com.bissbilanz.api.generated.model.GoalsResponse
 import com.bissbilanz.api.generated.model.GoalsSetResponse
 import com.bissbilanz.api.generated.model.MaintenanceResponse
 import com.bissbilanz.api.generated.model.MealBreakdownResponse
+import com.bissbilanz.api.generated.model.MealTimingResponse
 import com.bissbilanz.api.generated.model.MealType
 import com.bissbilanz.api.generated.model.MealTypeCreate
 import com.bissbilanz.api.generated.model.MealTypesListResponse
 import com.bissbilanz.api.generated.model.MonthlyStatsResponse
+import com.bissbilanz.api.generated.model.NutrientsDailyResponse
+import com.bissbilanz.api.generated.model.NutrientsExtendedResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.OpenFoodFactsResponse
 import com.bissbilanz.api.generated.model.Preferences
@@ -59,6 +63,7 @@ import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntriesResponse
 import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightEntryResponse
+import com.bissbilanz.api.generated.model.WeightFoodResponse
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
@@ -629,6 +634,60 @@ class BissbilanzApi(
             }
         return response.data
     }
+
+    suspend fun getAnalyticsFoodDiversity(
+        startDate: String,
+        endDate: String,
+    ): FoodDiversityResponse =
+        get("/api/analytics/food-diversity") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
+    suspend fun getAnalyticsMealTiming(
+        startDate: String,
+        endDate: String,
+    ): MealTimingResponse =
+        get("/api/analytics/meal-timing") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
+    suspend fun getAnalyticsNutrientsDaily(
+        startDate: String,
+        endDate: String,
+    ): NutrientsDailyResponse =
+        get("/api/analytics/nutrients-daily") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
+    suspend fun getAnalyticsNutrientsExtended(
+        startDate: String,
+        endDate: String,
+    ): NutrientsExtendedResponse =
+        get("/api/analytics/nutrients-extended") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
+    suspend fun getAnalyticsWeightFood(
+        startDate: String,
+        endDate: String,
+    ): WeightFoodResponse =
+        get("/api/analytics/weight-food") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
+
+    suspend fun getAnalyticsSleepFood(
+        startDate: String,
+        endDate: String,
+    ): SleepFoodCorrelationResponse =
+        get("/api/analytics/sleep-food") {
+            parameter("startDate", startDate)
+            parameter("endDate", endDate)
+        }
 
     suspend fun downloadBytes(url: String): ByteArray {
         val response = client.get(url)

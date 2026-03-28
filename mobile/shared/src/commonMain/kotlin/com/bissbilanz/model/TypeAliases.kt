@@ -7,21 +7,30 @@ import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.SupplementHistoryItem
 import com.bissbilanz.api.generated.model.TopFoodItem
 import kotlinx.serialization.Serializable
+import com.bissbilanz.api.generated.model.DailyNutrients as GeneratedDailyNutrients
 import com.bissbilanz.api.generated.model.DailyStatsResponse as GeneratedDailyStatsResponse
+import com.bissbilanz.api.generated.model.DailyWeightFood as GeneratedDailyWeightFood
 import com.bissbilanz.api.generated.model.DayProperties as GeneratedDayProperties
 import com.bissbilanz.api.generated.model.EntryCreate as GeneratedEntryCreate
 import com.bissbilanz.api.generated.model.EntryUpdate as GeneratedEntryUpdate
+import com.bissbilanz.api.generated.model.ExtendedNutrientEntry as GeneratedExtendedNutrientEntry
 import com.bissbilanz.api.generated.model.FavoriteMealTimeframe as GeneratedFavoriteMealTimeframe
 import com.bissbilanz.api.generated.model.Food as GeneratedFood
 import com.bissbilanz.api.generated.model.FoodCreate as GeneratedFoodCreate
+import com.bissbilanz.api.generated.model.FoodDiversityEntry as GeneratedFoodDiversityEntry
+import com.bissbilanz.api.generated.model.FoodDiversityResponse as GeneratedFoodDiversityResponse
 import com.bissbilanz.api.generated.model.Goals as GeneratedGoals
 import com.bissbilanz.api.generated.model.GoalsSummary as GeneratedGoalsSummary
 import com.bissbilanz.api.generated.model.GoalsUpdate as GeneratedGoalsUpdate
 import com.bissbilanz.api.generated.model.MaintenanceResponse as GeneratedMaintenanceResponse
 import com.bissbilanz.api.generated.model.MealBreakdownResponse as GeneratedMealBreakdownResponse
+import com.bissbilanz.api.generated.model.MealTimingEntry as GeneratedMealTimingEntry
+import com.bissbilanz.api.generated.model.MealTimingResponse as GeneratedMealTimingResponse
 import com.bissbilanz.api.generated.model.MealType as GeneratedMealType
 import com.bissbilanz.api.generated.model.MealTypeCreate as GeneratedMealTypeCreate
 import com.bissbilanz.api.generated.model.MonthlyStatsResponse as GeneratedMonthlyStatsResponse
+import com.bissbilanz.api.generated.model.NutrientsDailyResponse as GeneratedNutrientsDailyResponse
+import com.bissbilanz.api.generated.model.NutrientsExtendedResponse as GeneratedNutrientsExtendedResponse
 import com.bissbilanz.api.generated.model.Preferences as GeneratedPreferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GeneratedPreferencesUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate as GeneratedRecipeCreate
@@ -32,6 +41,7 @@ import com.bissbilanz.api.generated.model.ServingUnit as GeneratedServingUnit
 import com.bissbilanz.api.generated.model.SleepCreate as GeneratedSleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry as GeneratedSleepEntry
 import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry as GeneratedSleepFoodCorrelationEntry
+import com.bissbilanz.api.generated.model.SleepFoodCorrelationResponse as GeneratedSleepFoodCorrelationResponse
 import com.bissbilanz.api.generated.model.SleepUpdate as GeneratedSleepUpdate
 import com.bissbilanz.api.generated.model.StreaksResponse as GeneratedStreaksResponse
 import com.bissbilanz.api.generated.model.Supplement as GeneratedSupplement
@@ -44,6 +54,7 @@ import com.bissbilanz.api.generated.model.TopFoodsResponse as GeneratedTopFoodsR
 import com.bissbilanz.api.generated.model.WeeklyStatsResponse as GeneratedWeeklyStatsResponse
 import com.bissbilanz.api.generated.model.WeightCreate as GeneratedWeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry as GeneratedWeightEntry
+import com.bissbilanz.api.generated.model.WeightFoodResponse as GeneratedWeightFoodResponse
 import com.bissbilanz.api.generated.model.WeightTrendEntry as GeneratedWeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightUpdate as GeneratedWeightUpdate
 
@@ -80,6 +91,7 @@ typealias SleepEntry = GeneratedSleepEntry
 typealias SleepCreate = GeneratedSleepCreate
 typealias SleepUpdate = GeneratedSleepUpdate
 typealias SleepFoodCorrelationEntry = GeneratedSleepFoodCorrelationEntry
+typealias SleepFoodCorrelationResponse = GeneratedSleepFoodCorrelationResponse
 
 // Nested enum aliases
 typealias ScheduleType = GeneratedSupplement.ScheduleType
@@ -101,6 +113,16 @@ typealias TopFoodsResponse = GeneratedTopFoodsResponse
 typealias StreaksResponse = GeneratedStreaksResponse
 typealias SupplementHistoryResponse = GeneratedSupplementHistoryResponse
 typealias MaintenanceResponse = GeneratedMaintenanceResponse
+typealias FoodDiversityResponse = GeneratedFoodDiversityResponse
+typealias FoodDiversityEntry = GeneratedFoodDiversityEntry
+typealias MealTimingResponse = GeneratedMealTimingResponse
+typealias MealTimingEntry = GeneratedMealTimingEntry
+typealias NutrientsDailyResponse = GeneratedNutrientsDailyResponse
+typealias DailyNutrients = GeneratedDailyNutrients
+typealias NutrientsExtendedResponse = GeneratedNutrientsExtendedResponse
+typealias ExtendedNutrientEntry = GeneratedExtendedNutrientEntry
+typealias WeightFoodResponse = GeneratedWeightFoodResponse
+typealias DailyWeightFood = GeneratedDailyWeightFood
 
 // Backwards-compatible alias for old unified type
 typealias WeeklyMonthlyStatsResponse = GeneratedWeeklyStatsResponse
