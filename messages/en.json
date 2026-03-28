@@ -690,6 +690,7 @@
 	"analytics_front_loading": "Calorie Front-Loading",
 	"analytics_front_loading_headline": "{pct}% of calories before 2 PM",
 	"analytics_front_loading_days": "{count} of {total} days front-loaded",
+	"analytics_front_loading_before": "{pct}% before 14:00",
 	"analytics_dii": "Inflammatory Index",
 	"analytics_dii_headline": "DII Score: {score}",
 	"analytics_dii_anti": "Anti-inflammatory",

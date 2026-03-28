@@ -690,6 +690,7 @@
 	"analytics_front_loading": "Kalorienverteilung",
 	"analytics_front_loading_headline": "{pct}% der Kalorien vor 14 Uhr",
 	"analytics_front_loading_days": "{count} von {total} Tagen frontlastig",
+	"analytics_front_loading_before": "{pct}% vor 14:00",
 	"analytics_dii": "Entzündungsindex",
 	"analytics_dii_headline": "DII-Score: {score}",
 	"analytics_dii_anti": "Entzündungshemmend",

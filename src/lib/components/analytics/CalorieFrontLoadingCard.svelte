@@ -60,7 +60,9 @@
 							></div>
 						</div>
 						<p class="text-xs {morningTextColor} font-medium tabular-nums">
-							{Math.round(result.avgMorningPct)}% before 14:00
+							{m.analytics_front_loading_before({
+								pct: Math.round(result.avgMorningPct).toString()
+							})}
 						</p>
 					</div>
 					<p class="text-xs text-muted-foreground">
