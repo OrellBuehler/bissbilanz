@@ -6,6 +6,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+private fun pad2(n: Int): String = n.toString().padStart(2, '0')
+
 class TdeeTest {
     private fun makeWeights(
         dates: List<String>,
@@ -19,7 +21,7 @@ class TdeeTest {
 
     @Test
     fun sufficientDataReturnsNonNullTDEE() {
-        val dates = (1..20).map { "2024-01-%02d".format(it) }
+        val dates = (1..20).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..20).map { 80.0 - it * 0.05 })
         val calories = makeCalories(dates, (1..20).map { 2000.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -30,7 +32,7 @@ class TdeeTest {
 
     @Test
     fun insufficientWeightsReturnsNullTDEE() {
-        val dates = (1..14).map { "2024-01-%02d".format(it) }
+        val dates = (1..14).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates.take(4), (1..4).map { 80.0 })
         val calories = makeCalories(dates, (1..14).map { 2000.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -40,7 +42,7 @@ class TdeeTest {
 
     @Test
     fun insufficientCaloriesReturnsNullTDEE() {
-        val dates = (1..14).map { "2024-01-%02d".format(it) }
+        val dates = (1..14).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..14).map { 80.0 })
         val calories = makeCalories(dates.take(9), (1..9).map { 2000.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -50,7 +52,7 @@ class TdeeTest {
 
     @Test
     fun trendClassifiedAsLoss() {
-        val dates = (1..20).map { "2024-01-%02d".format(it) }
+        val dates = (1..20).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..20).map { 80.0 - it * 0.2 })
         val calories = makeCalories(dates, (1..20).map { 1800.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -60,7 +62,7 @@ class TdeeTest {
 
     @Test
     fun trendClassifiedAsGain() {
-        val dates = (1..20).map { "2024-01-%02d".format(it) }
+        val dates = (1..20).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..20).map { 70.0 + it * 0.2 })
         val calories = makeCalories(dates, (1..20).map { 3000.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -70,7 +72,7 @@ class TdeeTest {
 
     @Test
     fun trendClassifiedAsMaintenance() {
-        val dates = (1..20).map { "2024-01-%02d".format(it) }
+        val dates = (1..20).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..20).map { 75.0 })
         val calories = makeCalories(dates, (1..20).map { 2200.0 })
         val result = computeAdaptiveTDEE(weights, calories)
@@ -79,7 +81,7 @@ class TdeeTest {
 
     @Test
     fun plateauDetectionWithFlatSeries() {
-        val dates = (1..14).map { "2024-01-%02d".format(it) }
+        val dates = (1..14).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..14).map { 75.0 })
         val calories = makeCalories(dates, (1..14).map { 1900.0 })
         val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0)
@@ -90,7 +92,7 @@ class TdeeTest {
 
     @Test
     fun plateauNotDetectedWithSteepSlope() {
-        val dates = (1..14).map { "2024-01-%02d".format(it) }
+        val dates = (1..14).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..14).map { 80.0 - it * 0.3 })
         val calories = makeCalories(dates, (1..14).map { 1600.0 })
         val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0)
@@ -99,7 +101,7 @@ class TdeeTest {
 
     @Test
     fun plateauCauseHighSodium() {
-        val dates = (1..14).map { "2024-01-%02d".format(it) }
+        val dates = (1..14).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..14).map { 75.0 })
         val calories = makeCalories(dates, (1..14).map { 2200.0 })
         val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0, sodiumAvg = 3500.0)
@@ -119,7 +121,7 @@ class TdeeTest {
 
     @Test
     fun weightForecastProjections() {
-        val dates = (1..25).map { "2024-01-%02d".format(it) }
+        val dates = (1..25).map { "2024-01-${pad2(it)}" }
         val weights = makeWeights(dates, (1..25).map { 80.0 - it * 0.1 })
         val result = projectWeight(weights, weeklyRate = -0.5)
         assertNotNull(result.currentWeight)

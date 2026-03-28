@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+private fun pad2(n: Int): String = n.toString().padStart(2, '0')
+
 class FoodSleepTest {
     @Test
     fun emptySleepdataReturnsEmpty() {
@@ -18,7 +20,7 @@ class FoodSleepTest {
 
     @Test
     fun foodBelowMinOccurrencesExcluded() {
-        val sleepData = (1..10).map { SleepQualityPoint("2024-01-%02d".format(it), 7.0) }
+        val sleepData = (1..10).map { SleepQualityPoint("2024-01-${pad2(it)}", 7.0) }
         // food appears only twice — below default minOccurrences=3
         val eveningFoods =
             listOf(
@@ -33,7 +35,7 @@ class FoodSleepTest {
     fun foodWith3OccurrencesIncluded() {
         val sleepData =
             (1..10).map { i ->
-                SleepQualityPoint("2024-01-%02d".format(i), if (i <= 3) 9.0 else 6.0)
+                SleepQualityPoint("2024-01-${pad2(i)}", if (i <= 3) 9.0 else 6.0)
             }
         val eveningFoods =
             listOf(
@@ -54,7 +56,7 @@ class FoodSleepTest {
 
     @Test
     fun customMinOccurrencesRespected() {
-        val sleepData = (1..10).map { SleepQualityPoint("2024-01-%02d".format(it), 7.0) }
+        val sleepData = (1..10).map { i -> SleepQualityPoint("2024-01-${pad2(i)}", 7.0) }
         val eveningFoods =
             listOf(
                 EveningFoodEntry("2024-01-01", "f1", "X", emptyMap()),

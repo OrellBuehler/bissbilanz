@@ -5,6 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
+private fun pad2(n: Int): String = n.toString().padStart(2, '0')
+
 class CaffeineSleepTest {
     @Test
     fun emptyDataReturnsEmpty() {
@@ -49,15 +51,15 @@ class CaffeineSleepTest {
         val baseDate = "2024-01"
         // 5 days with early caffeine (hour 8-11) -> good sleep
         for (i in 1..5) {
-            val date = "$baseDate-%02d".format(i)
-            val nextDate = "$baseDate-%02d".format(i + 1)
+            val date = "$baseDate-${pad2(i)}"
+            val nextDate = "$baseDate-${pad2(i + 1)}"
             caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T08:00:00Z", caffeine = 100.0))
             sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 9.0, sleepDurationMinutes = 480.0))
         }
         // 5 days with late caffeine (hour 18-19) -> poor sleep
         for (i in 10..14) {
-            val date = "$baseDate-%02d".format(i)
-            val nextDate = "$baseDate-%02d".format(i + 1)
+            val date = "$baseDate-${pad2(i)}"
+            val nextDate = "$baseDate-${pad2(i + 1)}"
             caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T18:00:00Z", caffeine = 100.0))
             sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 4.0, sleepDurationMinutes = 360.0))
         }

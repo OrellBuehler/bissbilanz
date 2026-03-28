@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+private fun pad2(n: Int): String = n.toString().padStart(2, '0')
+
 class MealRegularityTest {
     @Test
     fun noEatenAtEntriesReturnsEmpty() {
@@ -24,7 +26,7 @@ class MealRegularityTest {
         // Breakfast every day at ~08:00, very consistent (stddev < 30 min)
         val entries =
             (1..14).map { i ->
-                val date = "2024-01-%02d".format(i)
+                val date = "2024-01-${pad2(i)}"
                 RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T08:0${i % 10}:00Z")
             }
         val result = computeMealRegularity(entries)
@@ -39,8 +41,8 @@ class MealRegularityTest {
         val times = listOf(6, 13, 7, 12, 6, 13, 7, 12, 6, 13)
         val entries =
             times.mapIndexed { i, hour ->
-                val date = "2024-01-%02d".format(i + 1)
-                RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T%02d:00:00Z".format(hour))
+                val date = "2024-01-${pad2(i + 1)}"
+                RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T${pad2(hour)}:00:00Z")
             }
         val result = computeMealRegularity(entries)
         assertEquals(1, result.meals.size)
@@ -53,7 +55,7 @@ class MealRegularityTest {
         // All meals at exact same time => stddev=0 => score=100
         val entries =
             (1..10).map { i ->
-                val date = "2024-01-%02d".format(i)
+                val date = "2024-01-${pad2(i)}"
                 RegularityInputEntry(date = date, mealType = "Lunch", eatenAt = "${date}T12:00:00Z")
             }
         val result = computeMealRegularity(entries)
