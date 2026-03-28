@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.viewmodels
 
-import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
@@ -51,8 +50,8 @@ class InsightsViewModel(
             .goals()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _snackbarMessage = MutableStateFlow<@StringRes Int?>(null)
-    val snackbarMessage: StateFlow<@StringRes Int?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<Int?>(null)
+    val snackbarMessage: StateFlow<Int?> = _snackbarMessage.asStateFlow()
 
     private val _selectedRange = MutableStateFlow(0)
     val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()

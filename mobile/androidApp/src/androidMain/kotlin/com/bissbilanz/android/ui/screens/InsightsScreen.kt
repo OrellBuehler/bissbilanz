@@ -69,7 +69,9 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
 import com.bissbilanz.model.SleepCreate
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -978,9 +980,9 @@ private fun SleepLogDialog(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             date =
-                                kotlinx.datetime.Instant
+                                Instant
                                     .fromEpochMilliseconds(millis)
-                                    .toLocalDateTime(kotlinx.datetime.TimeZone.UTC)
+                                    .toLocalDateTime(TimeZone.UTC)
                                     .date
                                     .toString()
                         }
