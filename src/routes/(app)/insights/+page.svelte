@@ -20,6 +20,7 @@
 	import EatingWindowCard from '$lib/components/analytics/EatingWindowCard.svelte';
 	import MealSpacingCard from '$lib/components/analytics/MealSpacingCard.svelte';
 	import NutrientAdequacyCard from '$lib/components/analytics/NutrientAdequacyCard.svelte';
+	import NutritionInsightsGroup from '$lib/components/analytics/NutritionInsightsGroup.svelte';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -464,6 +465,7 @@
 			<MealSpacingCard />
 			<NutrientAdequacyCard />
 		</div>
+		<NutritionInsightsGroup />
 	{:else if activeTab === 'weight'}
 		<div class="space-y-6 pb-8">
 			<Card.Root
