@@ -49,6 +49,7 @@
 		recipes?: Array<{ id: string; name: string; isFavorite?: boolean }>;
 		mealType?: string;
 		date: string;
+		initialFoodId?: string | null;
 		onClose: () => void;
 		onSave: (payload: {
 			foodId?: string;
@@ -71,6 +72,7 @@
 		recipes = [],
 		mealType = 'Breakfast',
 		date,
+		initialFoodId,
 		onClose,
 		onSave
 	}: Props = $props();
@@ -110,6 +112,10 @@
 	$effect(() => {
 		if (wasOpen && !open) {
 			onClose();
+		}
+		if (!wasOpen && open && initialFoodId) {
+			const food = foods.find((f) => f.id === initialFoodId);
+			if (food) selectFood(food);
 		}
 		wasOpen = open;
 	});
