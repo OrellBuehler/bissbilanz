@@ -91,4 +91,42 @@ class MealTimingTest {
         assertEquals(1, result.hourlyDistribution[12])
         assertEquals(0, result.hourlyDistribution[9])
     }
+
+    @Test
+    fun singleMealEntryProducesOneWindow() {
+        val entries = listOf(MealEntry(date = "2024-01-01", eatenAt = "2024-01-01T12:00:00Z", calories = 500.0))
+        val result = extractMealTimingPatterns(entries)
+        assertEquals(1, result.dailyWindows.size)
+        assertEquals(1, result.dailyWindows[0].mealCount)
+        assertEquals(0, result.dailyWindows[0].windowMinutes)
+    }
+
+    @Test
+    fun allNullEatenAtReturnsEmpty() {
+        val entries =
+            listOf(
+                MealEntry(date = "2024-01-01", eatenAt = null, calories = 500.0),
+                MealEntry(date = "2024-01-02", eatenAt = null, calories = 400.0),
+            )
+        val result = extractMealTimingPatterns(entries)
+        assertEquals(0, result.dailyWindows.size)
+    }
+
+    @Test
+    fun parseLocalMinutesMidnightExact() {
+        val result = parseLocalMinutes("2024-01-01T00:00:00Z")
+        assertEquals(0, result)
+    }
+
+    @Test
+    fun parseLocalMinutesEndOfDay() {
+        val result = parseLocalMinutes("2024-01-01T23:59:00Z")
+        assertEquals(23 * 60 + 59, result)
+    }
+
+    @Test
+    fun parseLocalMinutesWithSeconds() {
+        val result = parseLocalMinutes("2024-01-01T08:30:45Z")
+        assertEquals(8 * 60 + 30, result)
+    }
 }
