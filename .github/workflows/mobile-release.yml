@@ -17,6 +17,8 @@ concurrency:
   group: mobile-release
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   android-release:
     runs-on: ubuntu-latest

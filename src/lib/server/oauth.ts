@@ -46,6 +46,22 @@ export function verifyPKCE(codeVerifier: string, codeChallenge: string): boolean
 	return timingSafeEqual(Buffer.from(hash), Buffer.from(codeChallenge));
 }
 
+const ALLOWED_SCHEMES = new Set(['https:', 'http:']);
+const CUSTOM_APP_SCHEME = /^[a-z][a-z0-9+.-]*:$/;
+const BROWSER_SCHEMES = new Set([
+	'javascript:',
+	'vbscript:',
+	'data:',
+	'blob:',
+	'file:',
+	'about:',
+	'chrome:',
+	'chrome-extension:',
+	'moz-extension:',
+	'ms-browser-extension:',
+	'view-source:'
+]);
+
 export function isValidRedirectUriFormat(uri: string): boolean {
 	try {
 		const url = new URL(uri);
@@ -55,12 +71,7 @@ export function isValidRedirectUriFormat(uri: string): boolean {
 				url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
 			);
 		}
-		const allowedCustomSchemes = /^[a-z][a-z0-9+.-]*:$/;
-		const dangerousSchemes = new Set(['javascript:', 'vbscript:', 'data:', 'blob:']);
-		if (allowedCustomSchemes.test(url.protocol) && !dangerousSchemes.has(url.protocol)) {
-			return true;
-		}
-		return false;
+		return CUSTOM_APP_SCHEME.test(url.protocol) && !BROWSER_SCHEMES.has(url.protocol);
 	} catch {
 		return false;
 	}
