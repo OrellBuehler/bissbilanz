@@ -99,23 +99,12 @@ class CorrelationTest {
     }
 
     @Test
-    fun emptyArraysThrowsOrReturnsZero() {
-        try {
-            val result = pearsonCorrelation(doubleArrayOf(), doubleArrayOf())
-            assertEquals(0, result.sampleSize)
-        } catch (_: Exception) {
-            // Division by zero is acceptable for empty input
-        }
-    }
-
-    @Test
-    fun confidenceLevelBoundariesExact() {
-        assertEquals(ConfidenceLevel.INSUFFICIENT, getConfidenceLevel(0))
-        assertEquals(ConfidenceLevel.INSUFFICIENT, getConfidenceLevel(6))
-        assertEquals(ConfidenceLevel.LOW, getConfidenceLevel(7))
-        assertEquals(ConfidenceLevel.LOW, getConfidenceLevel(13))
-        assertEquals(ConfidenceLevel.MEDIUM, getConfidenceLevel(14))
-        assertEquals(ConfidenceLevel.MEDIUM, getConfidenceLevel(29))
-        assertEquals(ConfidenceLevel.HIGH, getConfidenceLevel(30))
+    fun emptyArraysReturnsConstantInput() {
+        val result = pearsonCorrelation(doubleArrayOf(), doubleArrayOf())
+        assertEquals(0, result.sampleSize)
+        assertEquals(0.0, result.r)
+        assertEquals(1.0, result.pValue)
+        assertEquals(true, result.constantInput)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
     }
 }

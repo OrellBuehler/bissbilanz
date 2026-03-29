@@ -129,7 +129,9 @@ class NutrientCorrelationTest {
             )
         val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
         val result = computeNutrientOutcomeCorrelations(nutrients, outcomes)
-        assertTrue(result.any { it.nutrientKey == "protein" } || result.isEmpty())
+        assertEquals(1, result.size)
+        assertEquals("protein", result[0].nutrientKey)
+        assertEquals(1.0, result[0].correlation.r, 1e-9)
     }
 
     @Test
