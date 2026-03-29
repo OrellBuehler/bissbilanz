@@ -73,7 +73,7 @@ class BissbilanzApplication : Application() {
             modules(androidModule, sharedModule)
         }
 
-        if (BuildConfig.TEST_AUTH_TOKEN.isNotEmpty()) {
+        if (BuildConfig.TEST_AUTH_TOKEN.isNotEmpty() && isInstrumentedTest()) {
             val koinForAuth =
                 org.koin.java.KoinJavaComponent
                     .getKoin()
@@ -112,4 +112,12 @@ class BissbilanzApplication : Application() {
                 )
         }
     }
+
+    private fun isInstrumentedTest(): Boolean =
+        try {
+            Class.forName("androidx.test.InstrumentationRegistry")
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
 }

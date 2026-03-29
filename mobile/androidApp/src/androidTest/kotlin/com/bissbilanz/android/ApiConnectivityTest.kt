@@ -27,7 +27,7 @@ class ApiConnectivityTest {
     }
 
     @Test
-    fun dashboardDisplaysMacroRings() {
+    fun dashboardDisplaysSeededEntries() {
         composeTestRule.waitUntil(timeoutMillis = 30_000) {
             try {
                 composeTestRule.onNodeWithText("Calories").assertIsDisplayed()
@@ -38,5 +38,7 @@ class ApiConnectivityTest {
         }
         composeTestRule.onNodeWithText("Calories").assertIsDisplayed()
         composeTestRule.onNodeWithText("Protein").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Carbs").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fat").assertIsDisplayed()
     }
 }

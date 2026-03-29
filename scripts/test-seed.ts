@@ -23,9 +23,10 @@ await db
 	.insert(users)
 	.values({
 		id: TEST_USER_ID,
-		infomaniakSub: 'test-user-sub',
+		infomaniakSub: 'playwright-test',
 		email: 'test@example.com',
-		name: 'Test User'
+		name: 'Test User',
+		locale: 'en'
 	})
 	.onConflictDoNothing();
 
@@ -93,5 +94,6 @@ await db
 	})
 	.onConflictDoNothing();
 
+client.close();
 console.log('Test data seeded successfully');
 process.exit(0);
