@@ -25,7 +25,8 @@
 		"api:client:kt": "scripts/generate-kotlin-dtos.sh",
 		"api:generate": "bun run api:spec && bun run api:client:ts && bun run api:client:kt",
 		"api:generate:ts": "bun run api:spec && bun run api:client:ts",
-		"api:check": "bun run api:generate:ts && bunx prettier --write docs/openapi.json src/lib/api/generated/ && git diff --exit-code docs/openapi.json src/lib/api/generated/"
+		"api:check": "bun run api:generate:ts && bunx prettier --write docs/openapi.json src/lib/api/generated/ && git diff --exit-code docs/openapi.json src/lib/api/generated/",
+		"test:seed": "bun run scripts/test-seed.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.0",
