@@ -40,6 +40,7 @@ android {
         versionName = appVersion
         buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
         buildConfigField("String", "BASE_URL", "\"https://bissbilanz.orellbuehler.ch\"")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -57,6 +58,7 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:4000\"")
+            buildConfigField("String", "TEST_AUTH_TOKEN", "\"test-integration-token\"")
         }
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -127,5 +129,9 @@ android {
         testImplementation(libs.robolectric)
         testImplementation("androidx.navigation:navigation-testing:2.8.5")
         debugImplementation(libs.compose.ui.test.manifest)
+        androidTestImplementation(platform(libs.compose.bom))
+        androidTestImplementation(libs.compose.ui.test.junit4.android)
+        androidTestImplementation(libs.test.runner)
+        androidTestImplementation(libs.test.rules)
     }
 }
