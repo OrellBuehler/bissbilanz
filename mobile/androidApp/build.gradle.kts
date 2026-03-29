@@ -86,6 +86,12 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     dependencies {
         implementation(platform(libs.compose.bom))
         implementation(libs.compose.ui)
@@ -117,5 +123,9 @@ android {
         testImplementation(libs.mockk)
         testImplementation(libs.kotlinx.coroutines.test)
         testImplementation(libs.turbine)
+        testImplementation(libs.compose.ui.test.junit4)
+        testImplementation(libs.robolectric)
+        testImplementation("androidx.navigation:navigation-testing:2.8.5")
+        debugImplementation(libs.compose.ui.test.manifest)
     }
 }
