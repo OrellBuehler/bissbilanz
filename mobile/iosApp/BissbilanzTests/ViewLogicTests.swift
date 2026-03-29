@@ -300,6 +300,7 @@ struct LocalizationMealNameTests {
     @Test("Weekday headers differ by locale")
     func weekdayHeaders() {
         let saved = L10n.currentLocale
+        defer { L10n.currentLocale = saved }
 
         L10n.currentLocale = .en
         let enHeaders = L10n.weekdayHeaders
@@ -310,19 +311,18 @@ struct LocalizationMealNameTests {
         L10n.currentLocale = .de
         let deHeaders = L10n.weekdayHeaders
         #expect(deHeaders[2] == "M") // Mittwoch
-
-        L10n.currentLocale = saved
     }
 
     @Test("Entries copied interpolation")
     func entriesCopiedMessage() {
+        let saved = L10n.currentLocale
+        defer { L10n.currentLocale = saved }
+
         L10n.currentLocale = .en
         #expect(L10n.entriesCopied(3) == "3 entries copied")
 
         L10n.currentLocale = .de
         #expect(L10n.entriesCopied(3) == "3 Einträge kopiert")
-
-        L10n.currentLocale = .en
     }
 }
 

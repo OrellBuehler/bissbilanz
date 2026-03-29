@@ -299,7 +299,7 @@ struct FoodNutrientGroupsTests {
             createdAt: nil, updatedAt: nil
         )
 
-        #expect(food.fatBreakdownNutrients.count == 5) // sat, mono, poly, chol, omega3, omega6
+        #expect(food.fatBreakdownNutrients.count == 6) // sat, mono, poly, chol, omega3, omega6
         let names = food.fatBreakdownNutrients.map(\.0)
         #expect(names.contains("Saturated Fat"))
         #expect(names.contains("Omega-3"))

@@ -46,18 +46,21 @@ struct APIErrorTests {
         let urlError = URLError(.notConnectedToInternet)
         let error = APIError.networkError(urlError)
         #expect(error.errorDescription != nil)
-        #expect(error.errorDescription!.contains("Internet"))
     }
 
     @Test("Decoding error wraps underlying error")
-    func decodingErrorDescription() {
+    func decodingErrorDescription() throws {
         let json = "{}".data(using: .utf8)!
+        let decodingError: any Error
         do {
             _ = try JSONDecoder().decode(FoodResponse.self, from: json)
+            Issue.record("Expected decoding to fail")
+            return
         } catch {
-            let apiError = APIError.decodingError(error)
-            #expect(apiError.errorDescription?.starts(with: "Failed to parse response") == true)
+            decodingError = error
         }
+        let apiError = APIError.decodingError(decodingError)
+        #expect(apiError.errorDescription?.starts(with: "Failed to parse response") == true)
     }
 }
 

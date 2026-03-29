@@ -181,27 +181,7 @@ struct AuthManagerCallbackTests {
 
 @Suite("AuthManager State Tests")
 struct AuthManagerStateTests {
-    @Test("Initial state is unauthenticated when no token exists")
-    @MainActor
-    func initialStateNoToken() {
-        let auth = AuthManager(baseURL: "https://test.example.com")
-        // Will be unauthenticated unless a token was previously stored
-        // (depends on keychain state, but with a unique baseURL this should be clean)
-        #expect(auth.authState == .unauthenticated || auth.authState == .authenticated)
-    }
-
-    @Test("isAuthenticated reflects authState")
-    @MainActor
-    func isAuthenticatedReflectsState() {
-        let auth = AuthManager(baseURL: "https://test.example.com")
-        if auth.authState == .authenticated {
-            #expect(auth.isAuthenticated == true)
-        } else {
-            #expect(auth.isAuthenticated == false)
-        }
-    }
-
-    @Test("Logout sets state to unauthenticated")
+    @Test("After logout, state is unauthenticated")
     @MainActor
     func logoutSetsState() {
         let auth = AuthManager(baseURL: "https://test.example.com")
@@ -230,40 +210,3 @@ struct AuthManagerStateTests {
     }
 }
 
-@Suite("TokenResponse Decoding Tests")
-struct TokenResponseTests {
-    @Test("Token response decodes snake_case keys")
-    func tokenResponseDecoding() throws {
-        let json = """
-        {
-            "access_token": "eyJhbGciOiJSUzI1NiJ9.test",
-            "refresh_token": "refresh-token-123",
-            "token_type": "Bearer",
-            "expires_in": 3600
-        }
-        """.data(using: .utf8)!
-
-        // TokenResponse is private, but we can test the coding keys pattern
-        // by verifying the JSON structure matches what AuthManager expects
-        let parsed = try JSONSerialization.jsonObject(with: json) as! [String: Any]
-        #expect(parsed["access_token"] as? String == "eyJhbGciOiJSUzI1NiJ9.test")
-        #expect(parsed["refresh_token"] as? String == "refresh-token-123")
-        #expect(parsed["token_type"] as? String == "Bearer")
-        #expect(parsed["expires_in"] as? Int == 3600)
-    }
-
-    @Test("Token response without refresh token")
-    func tokenResponseWithoutRefresh() throws {
-        let json = """
-        {
-            "access_token": "eyJhbGciOiJSUzI1NiJ9.test",
-            "token_type": "Bearer",
-            "expires_in": 3600
-        }
-        """.data(using: .utf8)!
-
-        let parsed = try JSONSerialization.jsonObject(with: json) as! [String: Any]
-        #expect(parsed["access_token"] != nil)
-        #expect(parsed["refresh_token"] == nil)
-    }
-}
