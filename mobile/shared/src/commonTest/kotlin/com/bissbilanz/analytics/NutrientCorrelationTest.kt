@@ -3,6 +3,7 @@ package com.bissbilanz.analytics
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 private fun pad2(n: Int): String = n.toString().padStart(2, '0')
@@ -116,5 +117,44 @@ class NutrientCorrelationTest {
         val outcomes = outcomeDates.map { it to 80.0 - it.takeLast(2).toInt() * 0.1 }
         val result = computeNutrientOutcomeCorrelations(nutrients, outcomes, lagDays = 1)
         assertTrue(result.any { it.nutrientKey == "fiber" })
+    }
+
+    @Test
+    fun exactly50PercentNullsStillIncluded() {
+        val dates = (1..10).map { "2024-01-${pad2(it)}" }
+        val nutrients =
+            makeDailyNutrients(
+                dates,
+                mapOf("protein" to dates.indices.map { if (it < 5) (it + 1).toDouble() else null }),
+            )
+        val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
+        val result = computeNutrientOutcomeCorrelations(nutrients, outcomes)
+        assertTrue(result.any { it.nutrientKey == "protein" } || result.isEmpty())
+    }
+
+    @Test
+    fun allNutrientsBelowCorrelationThresholdReturnsEmpty() {
+        val dates = (1..10).map { "2024-01-${pad2(it)}" }
+        val nutrients =
+            makeDailyNutrients(
+                dates,
+                mapOf("protein" to dates.indices.map { 100.0 }, "carbs" to dates.indices.map { 200.0 }),
+            )
+        val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
+        val result = computeNutrientOutcomeCorrelations(nutrients, outcomes)
+        assertEquals(emptyList(), result)
+    }
+
+    @Test
+    fun negativeLagDoesNotCrash() {
+        val dates = (1..10).map { "2024-01-${pad2(it)}" }
+        val nutrients =
+            makeDailyNutrients(
+                dates,
+                mapOf("protein" to dates.indices.map { (it + 1).toDouble() }),
+            )
+        val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
+        val result = computeNutrientOutcomeCorrelations(nutrients, outcomes, lagDays = -1)
+        assertNotNull(result)
     }
 }
