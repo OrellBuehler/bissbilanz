@@ -50,8 +50,7 @@ export const preferencesUpdateSchema = z
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		navTabs: z
 			.array(z.enum(['favorites', 'foods', 'insights', 'weight', 'supplements']))
-			.min(1)
-			.max(5)
+			.length(3)
 			.optional()
 	})
 	.strict()

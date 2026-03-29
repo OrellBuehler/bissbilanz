@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ChevronLeft } from '@lucide/svelte';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
@@ -45,7 +46,7 @@
 </script>
 
 <header
-	class="sticky top-0 z-30 flex h-12 items-center gap-2 bg-background/95 px-3 backdrop-blur-sm md:hidden"
+	class="sticky top-0 z-30 flex h-12 items-center gap-2 bg-background/95 px-3 backdrop-blur-sm"
 >
 	{#if isHome}
 		<div class="flex items-center gap-1">
@@ -59,7 +60,18 @@
 		</div>
 	{:else}
 		{#if canGoBack}
-			<Button variant="ghost" size="icon" class="size-9 shrink-0" onclick={() => history.back()}>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="size-9 shrink-0"
+				onclick={() => {
+					if (window.history.length > 1) {
+						history.back();
+					} else {
+						goto('/home');
+					}
+				}}
+			>
 				<ChevronLeft class="size-5" />
 			</Button>
 		{/if}

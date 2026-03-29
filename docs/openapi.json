@@ -4245,8 +4245,8 @@
 						]
 					},
 					"navTabs": {
-						"minItems": 1,
-						"maxItems": 5,
+						"minItems": 3,
+						"maxItems": 3,
 						"type": "array",
 						"items": {
 							"type": "string",

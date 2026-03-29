@@ -16,7 +16,7 @@
 </script>
 
 <nav
-	class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/50 bg-background/80 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-xl md:hidden"
+	class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/50 bg-background/80 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-xl"
 >
 	{#each tabs as tab (tab.id)}
 		{@const active = isActive(tab.href, $page.url.pathname)}

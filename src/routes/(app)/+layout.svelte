@@ -11,9 +11,13 @@
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
+
+	let isMobile = $state(!browser || window.innerWidth < 768);
+	let mqlCleanup: (() => void) | undefined;
 
 	function edgeSwipeAction(node: HTMLElement) {
 		let startX = 0;
@@ -48,18 +52,36 @@
 	});
 
 	onMount(async () => {
+		const mql = window.matchMedia('(min-width: 768px)');
+		isMobile = !mql.matches;
+		const handler = (e: MediaQueryListEvent) => (isMobile = !e.matches);
+		mql.addEventListener('change', handler);
+		mqlCleanup = () => mql.removeEventListener('change', handler);
+
 		if (data.user?.id) {
 			await ensureUserScope(data.user.id).catch(() => {});
 		}
 		migrateOldOfflineQueue().then(() => refreshPendingCount());
 		startSyncListener();
 	});
+
+	onDestroy(() => mqlCleanup?.());
 </script>
 
 <InstallBanner />
 <div use:edgeSwipeAction class="contents">
-	<!-- Desktop: sidebar layout (hidden on mobile) -->
-	<div class="hidden md:contents">
+	{#if isMobile}
+		<!-- Mobile: bottom tab bar layout -->
+		<div class="flex min-h-dvh flex-col">
+			<MobileHeader />
+			<OfflineIndicator />
+			<main class="flex-1 px-3 py-3 pb-20">
+				{@render children()}
+			</main>
+			<BottomTabBar />
+		</div>
+	{:else}
+		<!-- Desktop: sidebar layout -->
 		<Sidebar.Provider
 			style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
 		>
@@ -74,16 +96,6 @@
 				</div>
 			</Sidebar.Inset>
 		</Sidebar.Provider>
-	</div>
-
-	<!-- Mobile: bottom tab bar layout (hidden on desktop) -->
-	<div class="flex min-h-dvh flex-col md:hidden">
-		<MobileHeader />
-		<OfflineIndicator />
-		<main class="flex-1 px-3 py-3 pb-20">
-			{@render children()}
-		</main>
-		<BottomTabBar />
-	</div>
+	{/if}
 </div>
 <UpdateToast />
