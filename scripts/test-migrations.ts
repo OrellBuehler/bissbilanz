@@ -27,7 +27,7 @@ if (!BASE_SHA) {
 // Phase 1: Detect new migrations
 console.log(`\nDetecting new migrations since ${BASE_SHA}...`);
 
-const diffOutput = await $`git diff --name-only --diff-filter=A ${BASE_SHA} -- drizzle/`
+const diffOutput = await $`git diff --name-only --diff-filter=A ${BASE_SHA} HEAD -- drizzle/`
 	.quiet()
 	.nothrow()
 	.text();
@@ -44,7 +44,7 @@ if (newMigrationFiles.length === 0) {
 
 console.log(`New migrations: ${newMigrationFiles.join(', ')}`);
 
-const modifiedOutput = await $`git diff --name-only --diff-filter=M ${BASE_SHA} -- drizzle/`
+const modifiedOutput = await $`git diff --name-only --diff-filter=M ${BASE_SHA} HEAD -- drizzle/`
 	.quiet()
 	.nothrow()
 	.text();
@@ -135,6 +135,38 @@ try {
 			process.exit(1);
 		}
 		console.log(`foods: ${foodCount} rows`);
+
+		const [{ count: entryCount }] =
+			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1}`;
+		if (entryCount !== 1) {
+			console.error(`FAIL: expected 1 seeded food_entry after migration, found ${entryCount}`);
+			process.exit(1);
+		}
+		console.log(`food_entries: ${entryCount} rows`);
+
+		const [{ count: recipeCount }] =
+			await client`SELECT count(*)::int AS count FROM recipes WHERE user_id = ${U1}`;
+		if (recipeCount !== 1) {
+			console.error(`FAIL: expected 1 seeded recipe after migration, found ${recipeCount}`);
+			process.exit(1);
+		}
+		console.log(`recipes: ${recipeCount} rows`);
+
+		const [{ count: supplementCount }] =
+			await client`SELECT count(*)::int AS count FROM supplements WHERE user_id = ${U1}`;
+		if (supplementCount !== 1) {
+			console.error(`FAIL: expected 1 seeded supplement after migration, found ${supplementCount}`);
+			process.exit(1);
+		}
+		console.log(`supplements: ${supplementCount} rows`);
+
+		const [{ count: weightCount }] =
+			await client`SELECT count(*)::int AS count FROM weight_entries WHERE user_id = ${U1}`;
+		if (weightCount !== 1) {
+			console.error(`FAIL: expected 1 seeded weight_entry after migration, found ${weightCount}`);
+			process.exit(1);
+		}
+		console.log(`weight_entries: ${weightCount} rows`);
 	}
 
 	console.log('\nMigration test PASSED.');
