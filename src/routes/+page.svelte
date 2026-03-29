@@ -1,5 +1,4 @@
 <script lang="ts">
-	import '@fontsource-variable/manrope';
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import Bot from '@lucide/svelte/icons/bot';
@@ -18,9 +17,11 @@
 
 <div class="min-h-screen bg-background text-foreground">
 	<!-- Header -->
-	<header class="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+	<header
+		class="sticky top-0 z-50 border-b border-outline-variant/15 bg-background/80 backdrop-blur-sm"
+	>
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-			<span class="manrope text-xl font-bold tracking-tight">{m.app_title()}</span>
+			<span class="font-heading text-xl font-bold tracking-tight">{m.app_title()}</span>
 			<Button onclick={login}>
 				{m.auth_login()}
 			</Button>
@@ -35,7 +36,9 @@
 			>
 				{m.landing_badge()}
 			</div>
-			<h1 class="manrope mb-6 text-5xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl">
+			<h1
+				class="font-heading mb-6 text-5xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl"
+			>
 				{m.landing_headline_1()}<br />
 				<span class="text-primary">{m.landing_headline_2()}</span>
 			</h1>
@@ -54,48 +57,48 @@
 	</section>
 
 	<!-- Features -->
-	<section id="features" class="bg-muted/30 px-6 py-24">
+	<section id="features" class="bg-surface-container/50 px-6 py-24">
 		<div class="mx-auto max-w-5xl">
-			<h2 class="manrope mb-16 text-center text-3xl font-bold tracking-tight">
+			<h2 class="font-heading mb-16 text-center text-3xl font-bold tracking-tight">
 				{m.landing_features_title()}
 			</h2>
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<ChartColumn class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_macros_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
 						{m.landing_feature_macros_desc()}
 					</p>
 				</div>
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<ScanBarcode class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_barcode_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
 						{m.landing_feature_barcode_desc()}
 					</p>
 				</div>
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<Bot class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_ai_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
 						{m.landing_feature_ai_desc()}
 					</p>
 				</div>
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<Smartphone class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_pwa_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
 						{m.landing_feature_pwa_desc()}
 					</p>
 				</div>
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<CookingPot class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_recipes_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
 						{m.landing_feature_recipes_desc()}
 					</p>
 				</div>
-				<div class="rounded-xl border border-border bg-card p-6">
+				<div class="rounded-2xl bg-surface-container-low p-6">
 					<Pill class="mb-4 text-primary" size={24} />
 					<h3 class="mb-2 font-semibold">{m.landing_feature_supplements_title()}</h3>
 					<p class="text-sm leading-relaxed text-muted-foreground">
@@ -109,7 +112,9 @@
 	<!-- CTA -->
 	<section class="px-6 py-24 text-center">
 		<div class="mx-auto max-w-2xl">
-			<h2 class="manrope mb-4 text-4xl font-bold tracking-tight">{m.landing_cta_headline()}</h2>
+			<h2 class="font-heading mb-4 text-4xl font-bold tracking-tight">
+				{m.landing_cta_headline()}
+			</h2>
 			<p class="mb-8 text-muted-foreground">{m.landing_cta_subtext()}</p>
 			<Button size="lg" onclick={login}>
 				{m.landing_cta_primary()}
@@ -118,11 +123,11 @@
 	</section>
 
 	<!-- Footer -->
-	<footer class="border-t border-border px-6 py-8">
+	<footer class="border-t border-outline-variant/15 px-6 py-8">
 		<div
 			class="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row"
 		>
-			<span class="manrope font-bold">{m.app_title()}</span>
+			<span class="font-heading font-bold">{m.app_title()}</span>
 			<Button
 				variant="link"
 				href="/privacy"
@@ -134,9 +139,3 @@
 		</div>
 	</footer>
 </div>
-
-<style>
-	.manrope {
-		font-family: 'Manrope Variable', sans-serif;
-	}
-</style>

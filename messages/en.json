@@ -772,5 +772,11 @@
 	"oauth_error_invalid_redirect_uri_format": "The redirect URI format is invalid.",
 	"oauth_error_unknown": "An unexpected error occurred during authorization.",
 	"oauth_error_code_label": "Error code:",
-	"oauth_error_go_home": "Go to Bissbilanz"
+	"oauth_error_go_home": "Go to Bissbilanz",
+
+	"insights_teaser_label": "Insights",
+	"insights_teaser_text": "View your nutrition trends, correlations, and personalized recommendations.",
+	"settings_nav_tabs": "Navigation Tabs",
+	"settings_nav_tabs_desc": "Choose which tabs appear in the bottom navigation bar (select exactly 3).",
+	"settings_nav_tabs_saved": "Navigation tabs saved"
 }
