@@ -45,6 +45,7 @@ src/lib/paraglide/
 # Playwright test auth state and results
 tests/e2e/.auth/
 test-results/
+playwright-report/
 
 # Android / KMP
 mobile/local.properties
