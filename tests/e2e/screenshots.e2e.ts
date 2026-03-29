@@ -16,7 +16,7 @@ for (const { name, path } of pages) {
 		await page.goto(path);
 		await page.waitForLoadState('networkidle');
 		await expect(page).toHaveScreenshot(`${name.toLowerCase().replace(/ /g, '-')}.png`, {
-			maxDiffPixels: 200,
+			maxDiffPixelRatio: 0.001,
 			fullPage: true
 		});
 	});
