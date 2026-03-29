@@ -1,0 +1,2 @@
+# kysely — transitive via @inlang/sdk, no direct dependency to upgrade
+CVE-2026-32763
