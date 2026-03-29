@@ -28,7 +28,7 @@ function collectPageFiles(dir: string): string[] {
 describe('mobile page padding', () => {
 	test('app layout uses compact mobile padding in the shared main container', () => {
 		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
-		expect(layout).toMatch(/<main class="flex-1 p[x-]/);
+		expect(layout).toContain('<main class="flex-1 px-3 py-4 sm:p-4 lg:p-6">');
 	});
 
 	test('pages do not add duplicate mobile horizontal gutters on top-level wrappers', () => {

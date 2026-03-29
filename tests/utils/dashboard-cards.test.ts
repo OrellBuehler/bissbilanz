@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
 describe('dashboard card styling', () => {
 	test('dashboard page uses DashboardCard and enables DayLog dashboard styling', () => {
-		const source = read('src/routes/(app)/home/+page.svelte');
+		const source = read('src/routes/(app)/+page.svelte');
 
 		expect(source).toContain(
 			"import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';"

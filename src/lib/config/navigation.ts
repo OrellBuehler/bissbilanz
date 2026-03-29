@@ -145,32 +145,3 @@ export function getNavGroups(): NavGroup[] {
 export function getNavItems(): NavItem[] {
 	return getNavGroups().flatMap((g) => g.items);
 }
-
-export type BottomNavTab = {
-	id: string;
-	title: () => string;
-	href: string;
-	icon: Component;
-	activeIcon?: Component;
-};
-
-export const ALL_CONFIGURABLE_TABS: BottomNavTab[] = [
-	{ id: 'favorites', title: () => m.nav_favorites(), href: '/favorites', icon: Heart },
-	{ id: 'foods', title: () => m.nav_foods(), href: '/foods', icon: Utensils },
-	{ id: 'insights', title: () => m.nav_insights(), href: '/insights', icon: ChartBar },
-	{ id: 'weight', title: () => m.nav_weight(), href: '/insights?tab=weight', icon: Weight },
-	{ id: 'supplements', title: () => m.nav_supplements(), href: '/supplements', icon: Pill }
-];
-
-export const DEFAULT_NAV_TABS = ['favorites', 'foods', 'insights'];
-
-export function getBottomNavTabs(selectedIds: string[]): BottomNavTab[] {
-	const fixed: BottomNavTab[] = [
-		{ id: 'dashboard', title: () => m.nav_dashboard(), href: '/home', icon: Home }
-	];
-	const middle = ALL_CONFIGURABLE_TABS.filter((t) => selectedIds.includes(t.id));
-	const settings: BottomNavTab[] = [
-		{ id: 'settings', title: () => m.nav_settings(), href: '/settings', icon: Settings }
-	];
-	return [...fixed, ...middle, ...settings];
-}

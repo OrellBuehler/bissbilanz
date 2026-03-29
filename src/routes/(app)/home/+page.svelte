@@ -25,7 +25,6 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { entryService } from '$lib/services/entry-service.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
-	import InsightsTeaser from '$lib/components/dashboard/InsightsTeaser.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -157,8 +156,6 @@
 		<TopFoodsWidget />
 	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
 		<SleepWidget date={activeDate} />
-	{:else if sectionKey === 'insights-teaser'}
-		<InsightsTeaser />
 	{:else if sectionKey === 'summary'}
 		<MacroSummaryCard totals={daylogTotals} />
 	{:else if sectionKey === 'daylog'}
@@ -176,26 +173,11 @@
 	<div>
 		<div class="flex min-w-0 items-start justify-between gap-2">
 			<DateNavigator date={activeDate} />
-			<Button
-				variant="outline"
-				size="sm"
-				class="hidden md:inline-flex"
-				onclick={() => (scanModalOpen = true)}
-			>
+			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
 				<ScanBarcode class="h-4 w-4" />
 				{m.dashboard_scan()}
 			</Button>
 		</div>
-
-		<!-- Mobile FAB for barcode scanner -->
-		<button
-			type="button"
-			class="fixed bottom-22 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
-			onclick={() => (scanModalOpen = true)}
-			aria-label={m.dashboard_scan()}
-		>
-			<ScanBarcode class="size-6" />
-		</button>
 
 		{#if isLg}
 			<!-- Desktop: main + sidebar -->
@@ -217,9 +199,6 @@
 				{#each order as key (key)}
 					{@render widget(key)}
 				{/each}
-				{#if !order.includes('insights-teaser')}
-					<InsightsTeaser />
-				{/if}
 			</div>
 		{/if}
 	</div>

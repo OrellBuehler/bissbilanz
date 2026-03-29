@@ -269,10 +269,6 @@ export const userPreferences = pgTable('user_preferences', {
 		.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
 	caloricLagDaysOverride: integer('caloric_lag_days_override'),
 	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
-	navTabs: text('nav_tabs')
-		.array()
-		.notNull()
-		.default(sql`ARRAY['favorites', 'foods', 'insights']::text[]`),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 

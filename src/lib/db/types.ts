@@ -162,7 +162,6 @@ export type DexieUserPreferences = {
 	favoriteTapAction: string;
 	favoriteMealAssignmentMode: string;
 	visibleNutrients: string[];
-	navTabs: string[];
 	updatedAt: string | null;
 	locale: string | null;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];

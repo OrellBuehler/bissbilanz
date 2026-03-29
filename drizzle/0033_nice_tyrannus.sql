@@ -1,1 +1,0 @@
-ALTER TABLE "user_preferences" ADD COLUMN "nav_tabs" text[] DEFAULT ARRAY['favorites', 'foods', 'insights']::text[] NOT NULL;

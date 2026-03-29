@@ -29,7 +29,6 @@
 		type NutrientCategory
 	} from '$lib/nutrients';
 	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
-	import { ALL_CONFIGURABLE_TABS } from '$lib/config/navigation';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let newName = $state('');
@@ -58,7 +57,6 @@
 	let savingFavoriteLogging = $state(false);
 	let visibleNutrients = $state<Set<string>>(new Set(DEFAULT_VISIBLE_NUTRIENTS));
 	let savingNutrients = $state(false);
-	let navTabs = $state<Set<string>>(new Set(['favorites', 'foods', 'insights']));
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
 
@@ -101,9 +99,6 @@
 			});
 			if (p.visibleNutrients) {
 				visibleNutrients = new Set(p.visibleNutrients);
-			}
-			if (p.navTabs) {
-				navTabs = new Set(p.navTabs);
 			}
 			prefsLoaded = true;
 		}
@@ -380,20 +375,6 @@
 		savePreference('widgetOrder', newOrder);
 	};
 
-	const toggleNavTab = (tabId: string) => {
-		const next = new Set(navTabs);
-		if (next.has(tabId)) {
-			next.delete(tabId);
-		} else {
-			next.add(tabId);
-		}
-		navTabs = next;
-		if (next.size === 3) {
-			savePreference('navTabs', [...next]);
-			toast.success(m.settings_nav_tabs_saved(), { duration: 1500 });
-		}
-	};
-
 	const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
 	const user = $derived(getUser());
 
@@ -427,37 +408,6 @@
 		</Card.Root>
 	</div>
 
-	<!-- Navigation Tabs (mobile bottom bar) -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_nav_tabs()}</Card.Title>
-			<Card.Description>{m.settings_nav_tabs_desc()}</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			<div class="space-y-2">
-				{#each ALL_CONFIGURABLE_TABS as tab (tab.id)}
-					{@const isSelected = navTabs.has(tab.id)}
-					<label
-						class="flex items-center gap-3 rounded-md border p-3 {isSelected
-							? 'border-primary/40 bg-primary/5'
-							: ''}"
-					>
-						<NutrientCheckbox
-							checked={isSelected}
-							onCheckedChange={() => toggleNavTab(tab.id)}
-							disabled={isSelected ? navTabs.size <= 3 : navTabs.size >= 3}
-						/>
-						<tab.icon class="size-4 text-muted-foreground" />
-						<span class="text-sm font-medium">{tab.title()}</span>
-					</label>
-				{/each}
-			</div>
-			<p class="mt-2 text-xs text-muted-foreground">
-				{navTabs.size}/3
-			</p>
-		</Card.Content>
-	</Card.Root>
-
 	<!-- 3. Dashboard Sections -->
 	<Card.Root>
 		<Card.Header>
@@ -468,7 +418,7 @@
 				<SortableList.Root gap={8} ondrop={handleWidgetSort}>
 					{#each widgetOrder as widget, index (widget.id)}
 						<SortableList.Item id={widget.id} {index}>
-							<div class="flex items-center gap-3 rounded-xl border border-outline-variant/15 p-3">
+							<div class="flex items-center gap-3 rounded-md border p-3">
 								<SortableList.ItemHandle>
 									<GripVertical class="text-muted-foreground h-5 w-5 cursor-grab" />
 								</SortableList.ItemHandle>
@@ -537,9 +487,7 @@
 			</div>
 			<ul class="space-y-2">
 				{#each mealTypes as meal}
-					<li
-						class="flex items-center justify-between rounded-xl border border-outline-variant/15 p-2"
-					>
+					<li class="flex items-center justify-between rounded-md border p-2">
 						<span>{meal.name}</span>
 						<Button
 							variant="outline"
@@ -603,10 +551,8 @@
 				<div class="space-y-2">
 					{#each favoriteMealTimeframes as row (row.id)}
 						<div
-							class={`grid gap-2 rounded-xl border p-3 md:grid-cols-[minmax(0,1.2fr)_1fr_1fr_auto] ${
-								overlappingRowIds.has(row.id)
-									? 'border-destructive/60 bg-destructive/5'
-									: 'border-outline-variant/15'
+							class={`grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1.2fr)_1fr_1fr_auto] ${
+								overlappingRowIds.has(row.id) ? 'border-destructive/60 bg-destructive/5' : ''
 							}`}
 						>
 							<div class="space-y-1">

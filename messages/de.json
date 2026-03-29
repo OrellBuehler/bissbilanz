@@ -772,11 +772,5 @@
 	"oauth_error_invalid_redirect_uri_format": "Das Format der Redirect-URI ist ungültig.",
 	"oauth_error_unknown": "Ein unerwarteter Fehler ist bei der Autorisierung aufgetreten.",
 	"oauth_error_code_label": "Fehlercode:",
-	"oauth_error_go_home": "Zu Bissbilanz",
-
-	"insights_teaser_label": "Einblicke",
-	"insights_teaser_text": "Sieh dir deine Ernährungstrends, Korrelationen und persönlichen Empfehlungen an.",
-	"settings_nav_tabs": "Navigationsleiste",
-	"settings_nav_tabs_desc": "Wähle die Tabs für die untere Navigationsleiste (genau 3 auswählen).",
-	"settings_nav_tabs_saved": "Navigationsleiste gespeichert"
+	"oauth_error_go_home": "Zu Bissbilanz"
 }
