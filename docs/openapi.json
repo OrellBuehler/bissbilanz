@@ -4243,6 +4243,15 @@
 								"type": "null"
 							}
 						]
+					},
+					"navTabs": {
+						"minItems": 1,
+						"maxItems": 5,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["favorites", "foods", "insights", "weight", "supplements"]
+						}
 					}
 				},
 				"additionalProperties": false
