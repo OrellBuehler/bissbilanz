@@ -32,7 +32,7 @@
 			const dx = e.changedTouches[0].clientX - startX;
 			const dy = e.changedTouches[0].clientY - startY;
 			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
-				history.back();
+				if (window.history.length > 1) history.back();
 			}
 		}
 
@@ -75,7 +75,7 @@
 		<div class="flex min-h-dvh flex-col">
 			<MobileHeader />
 			<OfflineIndicator />
-			<main class="flex-1 px-3 py-3 pb-20">
+			<main class="flex-1 px-3 py-3 pb-24">
 				{@render children()}
 			</main>
 			<BottomTabBar />

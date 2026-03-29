@@ -31,11 +31,18 @@
 
 	const isHome = $derived(deLocalizeHref($page.url.pathname) === '/home');
 
+	const UUID_RE = /^[0-9a-f]{8}-/i;
+
 	const pageTitle = $derived.by(() => {
 		const pathname = deLocalizeHref($page.url.pathname);
 		const segments = pathname.split('/').filter(Boolean);
-		const last = segments[segments.length - 1];
-		return labelMap[last]?.() ?? last ?? '';
+		for (let i = segments.length - 1; i >= 0; i--) {
+			if (!UUID_RE.test(segments[i])) {
+				const label = labelMap[segments[i]];
+				if (label) return label();
+			}
+		}
+		return segments[segments.length - 1] ?? '';
 	});
 
 	const canGoBack = $derived.by(() => {

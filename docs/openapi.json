@@ -6734,6 +6734,12 @@
 							"type": "string"
 						}
 					},
+					"navTabs": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
 					"caloricLagDaysOverride": {
 						"anyOf": [
 							{
@@ -6779,6 +6785,7 @@
 					"favoriteTapAction",
 					"favoriteMealAssignmentMode",
 					"visibleNutrients",
+					"navTabs",
 					"locale",
 					"favoriteMealTimeframes"
 				],

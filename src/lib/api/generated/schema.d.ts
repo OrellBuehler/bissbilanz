@@ -1514,6 +1514,7 @@ export interface components {
 			favoriteTapAction: string;
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
+			navTabs: string[];
 			caloricLagDaysOverride?: number | null;
 			locale: string | null;
 			updatedAt?: string;

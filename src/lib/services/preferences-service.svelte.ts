@@ -35,7 +35,7 @@ async function refresh() {
 				favoriteTapAction: p.favoriteTapAction,
 				favoriteMealAssignmentMode: p.favoriteMealAssignmentMode,
 				visibleNutrients: p.visibleNutrients,
-				navTabs: (p as { navTabs?: string[] }).navTabs ?? ['favorites', 'foods', 'insights'],
+				navTabs: p.navTabs ?? ['favorites', 'foods', 'insights'],
 				updatedAt: p.updatedAt ?? null,
 				locale: p.locale,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({

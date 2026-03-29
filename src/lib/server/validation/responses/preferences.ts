@@ -28,6 +28,7 @@ const preferencesSchema = z
 		favoriteTapAction: z.string(),
 		favoriteMealAssignmentMode: z.string(),
 		visibleNutrients: z.array(z.string()),
+		navTabs: z.array(z.string()),
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		locale: z.string().nullable(),
 		updatedAt: z.string().optional(),
