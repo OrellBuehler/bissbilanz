@@ -40,6 +40,7 @@ android {
         versionName = appVersion
         buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
         buildConfigField("String", "BASE_URL", "\"https://bissbilanz.orellbuehler.ch\"")
+        buildConfigField("String", "TEST_AUTH_TOKEN", "\"\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
