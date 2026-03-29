@@ -130,13 +130,24 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		const authHeader = event.request.headers.get('authorization');
 		if (authHeader?.startsWith('Bearer ')) {
 			const token = authHeader.slice(7);
-			const tokenResult = await validateAccessToken(token);
-			if (tokenResult) {
-				const user = await getUserById(tokenResult.userId);
-				if (!user) {
-					return json({ error: 'Unauthorized' }, { status: 401 });
+
+			// Test auth bypass — only active when TEST_MODE is set
+			if (config.testMode && token === 'test-integration-token') {
+				const user = await getUserById(config.testUserId);
+				if (user) {
+					event.locals.user = user;
 				}
-				event.locals.user = user;
+			}
+
+			if (!event.locals.user) {
+				const tokenResult = await validateAccessToken(token);
+				if (tokenResult) {
+					const user = await getUserById(tokenResult.userId);
+					if (!user) {
+						return json({ error: 'Unauthorized' }, { status: 401 });
+					}
+					event.locals.user = user;
+				}
 			}
 		}
 	}
