@@ -383,29 +383,30 @@
 	});
 </script>
 
-<div class="space-y-6">
-	<!-- 1. Account Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_account()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			{#if user}
-				<p class="font-bold">{user.name ?? ''}</p>
-				<p class="text-muted-foreground text-sm">{user.email ?? ''}</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
+<div class="mx-auto max-w-4xl space-y-6">
+	<!-- Account & Language — compact, side by side on desktop -->
+	<div class="grid gap-6 lg:grid-cols-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_account()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				{#if user}
+					<p class="font-bold">{user.name ?? ''}</p>
+					<p class="text-muted-foreground text-sm">{user.email ?? ''}</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
 
-	<!-- 2. Language Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_language()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<LanguageSwitcher {savePreference} />
-		</Card.Content>
-	</Card.Root>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_language()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<LanguageSwitcher {savePreference} />
+			</Card.Content>
+		</Card.Root>
+	</div>
 
 	<!-- 3. Dashboard Sections -->
 	<Card.Root>
@@ -647,7 +648,7 @@
 				{@const nutrients = NUTRIENTS_BY_CATEGORY[category]}
 				<div>
 					<p class="mb-2 text-sm font-medium">{getCategoryLabel(msgs, category)}</p>
-					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
 						{#each nutrients as nutrient}
 							<div class="flex items-center gap-2">
 								<NutrientCheckbox
@@ -671,39 +672,40 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 7. About Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_about()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-muted-foreground text-sm">{m.settings_version()} {appVersion}</p>
-		</Card.Content>
-	</Card.Root>
+	<!-- About & Start Page — compact, side by side on desktop -->
+	<div class="grid gap-6 lg:grid-cols-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_about()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<p class="text-muted-foreground text-sm">{m.settings_version()} {appVersion}</p>
+			</Card.Content>
+		</Card.Root>
 
-	<!-- 7. Start Page Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_start_page()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<RadioGroup.Root
-				value={startPage}
-				onValueChange={(v) => {
-					startPage = v;
-					savePreference('startPage', v);
-				}}
-				class="flex flex-col gap-3"
-			>
-				<div class="flex items-center gap-2">
-					<RadioGroup.Item value="dashboard" id="start-dashboard" />
-					<Label for="start-dashboard">{m.settings_start_page_dashboard()}</Label>
-				</div>
-				<div class="flex items-center gap-2">
-					<RadioGroup.Item value="favorites" id="start-favorites" />
-					<Label for="start-favorites">{m.settings_start_page_favorites()}</Label>
-				</div>
-			</RadioGroup.Root>
-		</Card.Content>
-	</Card.Root>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_start_page()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<RadioGroup.Root
+					value={startPage}
+					onValueChange={(v) => {
+						startPage = v;
+						savePreference('startPage', v);
+					}}
+					class="flex flex-col gap-3"
+				>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="dashboard" id="start-dashboard" />
+						<Label for="start-dashboard">{m.settings_start_page_dashboard()}</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="favorites" id="start-favorites" />
+						<Label for="start-favorites">{m.settings_start_page_favorites()}</Label>
+					</div>
+				</RadioGroup.Root>
+			</Card.Content>
+		</Card.Root>
+	</div>
 </div>

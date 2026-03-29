@@ -45,6 +45,7 @@
 
 	let streaks: { currentStreak: number; longestStreak: number } | null = $state(null);
 	let ready = $state(false);
+	let isLg = $state(false);
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
@@ -53,6 +54,10 @@
 	const order = $derived(
 		userPrefs?.widgetOrder ?? ['chart', 'streaks', 'favorites', 'supplements', 'weight', 'daylog']
 	);
+
+	const SIDEBAR_WIDGETS = new Set(['streaks', 'favorites', 'sleep', 'supplements', 'weight']);
+	const mainOrder = $derived(order.filter((k) => !SIDEBAR_WIDGETS.has(k)));
+	const sidebarOrder = $derived(order.filter((k) => SIDEBAR_WIDGETS.has(k)));
 
 	const toggleSupplement = async (supplementId: string, taken: boolean) => {
 		if (taken) {
@@ -75,6 +80,10 @@
 			return;
 		}
 		ready = true;
+
+		const mql = window.matchMedia('(min-width: 1024px)');
+		isLg = mql.matches;
+		mql.addEventListener('change', (e) => (isLg = e.matches));
 
 		// Fire background refreshes
 		goalsService.refresh();
@@ -110,9 +119,58 @@
 	});
 </script>
 
+{#snippet widget(sectionKey: string)}
+	{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
+		{#if userGoals}
+			<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
+				<GoalProgressRings totals={daylogTotals} goals={userGoals} />
+			</DashboardCard>
+		{:else}
+			<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
+				<div class="h-[200px] sm:h-[220px]">
+					<DailyMacroChart totals={daylogTotals} />
+				</div>
+			</DashboardCard>
+		{/if}
+	{:else if sectionKey === 'streaks' && streaks}
+		<StreakWidget currentStreak={streaks.currentStreak} longestStreak={streaks.longestStreak} />
+	{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
+		<WeightWidget
+			weightKg={latestWeight?.weightKg ?? null}
+			entryDate={latestWeight?.entryDate ?? null}
+		/>
+	{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
+		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+	{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
+		<FavoritesWidget
+			onEntryLogged={() => entryService.refresh(activeDate)}
+			favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
+			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
+				| 'time_based'
+				| 'ask_meal'}
+			favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
+		/>
+	{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
+		<MealBreakdownWidget date={activeDate} />
+	{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
+		<TopFoodsWidget />
+	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
+		<SleepWidget date={activeDate} />
+	{:else if sectionKey === 'summary'}
+		<MacroSummaryCard totals={daylogTotals} />
+	{:else if sectionKey === 'daylog'}
+		<DayLog
+			date={activeDate}
+			dashboardStyle={true}
+			onTotalsChange={(t) => (daylogTotals = t)}
+			bind:scanModalOpen
+			bind:addModalOpen
+		/>
+	{/if}
+{/snippet}
+
 {#if ready}
-	{@const FULL_WIDTH = new Set(['chart', 'daylog', 'meal-breakdown', 'top-foods'])}
-	<div class="mx-auto max-w-4xl lg:max-w-5xl">
+	<div>
 		<div class="flex min-w-0 items-start justify-between gap-2">
 			<DateNavigator date={activeDate} />
 			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
@@ -121,80 +179,27 @@
 			</Button>
 		</div>
 
-		<div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-			{#each order as sectionKey (sectionKey)}
-				{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
-					<div class="lg:col-span-2">
-						{#if userGoals}
-							<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
-								<GoalProgressRings totals={daylogTotals} goals={userGoals} />
-							</DashboardCard>
-						{:else}
-							<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
-								<div class="h-[200px] sm:h-[220px]">
-									<DailyMacroChart totals={daylogTotals} />
-								</div>
-							</DashboardCard>
-						{/if}
-					</div>
-				{:else if sectionKey === 'streaks' && streaks}
-					<div>
-						<StreakWidget
-							currentStreak={streaks.currentStreak}
-							longestStreak={streaks.longestStreak}
-						/>
-					</div>
-				{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
-					<div>
-						<WeightWidget
-							weightKg={latestWeight?.weightKg ?? null}
-							entryDate={latestWeight?.entryDate ?? null}
-						/>
-					</div>
-				{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
-					<div>
-						<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
-					</div>
-				{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
-					<div>
-						<FavoritesWidget
-							onEntryLogged={() => entryService.refresh(activeDate)}
-							favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as
-								| 'instant'
-								| 'picker'}
-							favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ??
-								'time_based') as 'time_based' | 'ask_meal'}
-							favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
-						/>
-					</div>
-				{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
-					<div class="lg:col-span-2">
-						<MealBreakdownWidget date={activeDate} />
-					</div>
-				{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
-					<div class="lg:col-span-2">
-						<TopFoodsWidget />
-					</div>
-				{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
-					<div>
-						<SleepWidget date={activeDate} />
-					</div>
-				{:else if sectionKey === 'summary'}
-					<div>
-						<MacroSummaryCard totals={daylogTotals} />
-					</div>
-				{:else if sectionKey === 'daylog'}
-					<div class="lg:col-span-2">
-						<DayLog
-							date={activeDate}
-							dashboardStyle={true}
-							onTotalsChange={(t) => (daylogTotals = t)}
-							bind:scanModalOpen
-							bind:addModalOpen
-						/>
-					</div>
-				{/if}
-			{/each}
-		</div>
+		{#if isLg}
+			<!-- Desktop: main + sidebar -->
+			<div class="mt-5 flex gap-6">
+				<div class="min-w-0 flex-1 space-y-5">
+					{#each mainOrder as key (key)}
+						{@render widget(key)}
+					{/each}
+				</div>
+				<div class="w-[340px] shrink-0 space-y-4">
+					{#each sidebarOrder as key (key)}
+						{@render widget(key)}
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<!-- Mobile: single column -->
+			<div class="mt-5 space-y-4">
+				{#each order as key (key)}
+					{@render widget(key)}
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/if}
