@@ -61,7 +61,7 @@
 	};
 </script>
 
-<div class="mx-auto max-w-xl space-y-6">
+<div class="mx-auto max-w-xl space-y-6 pb-4">
 	<Card.Root>
 		<Card.Content class="grid gap-6 pt-6">
 			<div class="grid gap-2">

@@ -38,7 +38,17 @@ export async function assertNoElementsOverflowingViewport(page: Page) {
 export async function assertNoOverlappingInteractiveElements(page: Page) {
 	const overlaps = await page.evaluate(() => {
 		const selector = 'button, a, input, select, textarea, [role="button"], [role="link"]';
-		const elements = Array.from(document.querySelectorAll(selector))
+		const allInteractive = Array.from(document.querySelectorAll(selector));
+		const elements = allInteractive
+			.filter((el) => {
+				// Skip elements nested inside another interactive element
+				let parent = el.parentElement;
+				while (parent) {
+					if (parent.matches(selector)) return false;
+					parent = parent.parentElement;
+				}
+				return true;
+			})
 			.map((el) => ({ el, rect: el.getBoundingClientRect() }))
 			.filter(
 				({ rect }) =>

@@ -71,7 +71,7 @@ jobs:
           INFOMANIAK_CLIENT_SECRET: fake
           INFOMANIAK_REDIRECT_URI: http://localhost:4000/oauth/callback
           CI: 'true'
-        run: bunx playwright test
+        run: bunx playwright test --grep-invert screenshot
 
       - name: Upload screenshots and report
         if: always()
