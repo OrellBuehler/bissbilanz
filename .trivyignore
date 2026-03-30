@@ -1,0 +1,3 @@
+# kysely — transitive via @inlang/sdk, MySQL-only SQL injection (we use PostgreSQL)
+CVE-2026-32763
+CVE-2026-33468

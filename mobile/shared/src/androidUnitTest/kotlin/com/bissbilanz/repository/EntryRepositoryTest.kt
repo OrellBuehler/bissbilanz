@@ -1,17 +1,16 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.cache.BissbilanzDatabaseQueries
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -23,7 +22,6 @@ import kotlin.test.assertTrue
 class EntryRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
-    private lateinit var queries: BissbilanzDatabaseQueries
     private lateinit var healthSync: HealthSyncService
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: EntryRepository
@@ -32,11 +30,9 @@ class EntryRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        queries = mockk(relaxUnitFun = true, relaxed = true)
-        db =
-            mockk {
-                every { bissbilanzDatabaseQueries } returns queries
-            }
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        BissbilanzDatabase.Schema.create(driver)
+        db = BissbilanzDatabase(driver)
         healthSync = mockk(relaxed = true)
         syncQueue = mockk(relaxed = true)
         repository = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter())
@@ -50,7 +46,7 @@ class EntryRepositoryTest {
 
             repository.refresh("2024-01-15")
 
-            coVerify { queries.transaction(any(), any()) }
+            coVerify { api.getEntries("2024-01-15") }
         }
 
     @Test

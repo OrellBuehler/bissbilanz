@@ -25,6 +25,7 @@ sentry-android = "7.19.1"
 coil = "2.7.0"
 glance = "1.1.1"
 work = "2.11.1"
+robolectric = "4.14.1"
 
 [libraries]
 # Compose
@@ -96,6 +97,12 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+compose-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android" }
+test-runner = { group = "androidx.test", name = "runner", version = "1.6.2" }
+test-rules = { group = "androidx.test", name = "rules", version = "1.6.1" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

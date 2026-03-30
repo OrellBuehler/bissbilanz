@@ -13,6 +13,9 @@ concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build:
     if: github.event.pull_request.draft == false
@@ -97,8 +100,16 @@ jobs:
 
       - name: Run shared module tests
         run: ./gradlew shared:allTests
-        continue-on-error: true
 
       - name: Run Android ViewModel unit tests
         run: ./gradlew androidApp:testDebugUnitTest
-        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: |
+            mobile/androidApp/build/reports/tests/
+            mobile/shared/build/reports/tests/
+          retention-days: 7

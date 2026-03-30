@@ -65,10 +65,10 @@
 
 	const mealVisual = $derived.by(() => {
 		const key = title.trim().toLowerCase();
-		if (key.includes('breakfast')) return { Icon: Sunrise, tone: 'amber' as const };
-		if (key.includes('lunch')) return { Icon: Sun, tone: 'blue' as const };
-		if (key.includes('dinner')) return { Icon: Sunset, tone: 'rose' as const };
-		if (key.includes('snack')) return { Icon: Moon, tone: 'violet' as const };
+		if (key.includes('breakfast')) return { Icon: Sunrise, tone: 'primary' as const };
+		if (key.includes('lunch')) return { Icon: Sun, tone: 'tertiary' as const };
+		if (key.includes('dinner')) return { Icon: Sunset, tone: 'primary' as const };
+		if (key.includes('snack')) return { Icon: Moon, tone: 'tertiary' as const };
 		return { Icon: UtensilsCrossed, tone: 'neutral' as const };
 	});
 </script>
@@ -158,7 +158,7 @@
 		{:else}
 			<li
 				class={dashboardStyle
-					? 'rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground'
+					? 'rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground'
 					: 'text-sm text-muted-foreground'}
 			>
 				{m.meal_no_entries()}

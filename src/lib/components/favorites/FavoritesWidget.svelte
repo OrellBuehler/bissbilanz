@@ -157,7 +157,7 @@
 </script>
 
 {#if items.length > 0}
-	<DashboardCard title={m.favorites_title()} Icon={Star} tone="rose">
+	<DashboardCard title={m.favorites_title()} Icon={Star} tone="primary">
 		<FavoritesGrid>
 			{#each items as item (item.id)}
 				<FavoriteCard

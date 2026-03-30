@@ -81,4 +81,46 @@ class FoodSleepTest {
         val result = detectFoodSleepPatterns(emptyList(), sleepData)
         assertEquals(8.0, result.overallAvgQuality)
     }
+
+    @Test
+    fun emptyEveningFoodsWithValidSleep() {
+        val sleep =
+            listOf(
+                SleepQualityPoint("2024-01-01", 7.0),
+                SleepQualityPoint("2024-01-02", 8.0),
+            )
+        val result = detectFoodSleepPatterns(emptyList(), sleep)
+        assertEquals(emptyList(), result.foodImpacts)
+        assertEquals(7.5, result.overallAvgQuality, 1e-9)
+    }
+
+    @Test
+    fun singleOccurrenceBelowDefault3MinExcluded() {
+        val foods = listOf(EveningFoodEntry("2024-01-01", "f1", "Pizza", mapOf("calories" to 400.0)))
+        val sleep = listOf(SleepQualityPoint("2024-01-01", 5.0))
+        val result = detectFoodSleepPatterns(foods, sleep)
+        assertEquals(0, result.foodImpacts.size)
+    }
+
+    @Test
+    fun foodWithZeroDeltaStillIncluded() {
+        val foods = (1..3).map { EveningFoodEntry("2024-01-0$it", "f1", "Rice", mapOf("calories" to 200.0)) }
+        val sleep = (1..5).map { SleepQualityPoint("2024-01-0$it", 7.0) }
+        val result = detectFoodSleepPatterns(foods, sleep)
+        assertEquals(1, result.foodImpacts.size)
+        assertEquals(0.0, result.foodImpacts[0].delta, 1e-9)
+    }
+
+    @Test
+    fun foodsOnDatesWithoutSleepDataExcluded() {
+        val foods =
+            listOf(
+                EveningFoodEntry("2024-01-10", "f1", "Pizza", mapOf()),
+                EveningFoodEntry("2024-01-11", "f1", "Pizza", mapOf()),
+                EveningFoodEntry("2024-01-12", "f1", "Pizza", mapOf()),
+            )
+        val sleep = listOf(SleepQualityPoint("2024-01-01", 7.0))
+        val result = detectFoodSleepPatterns(foods, sleep)
+        assertEquals(0, result.foodImpacts.size)
+    }
 }

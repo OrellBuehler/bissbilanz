@@ -39,7 +39,7 @@
 	});
 </script>
 
-<DashboardCard title={m.insights_top_foods()} Icon={TrendingUp} tone="emerald">
+<DashboardCard title={m.insights_top_foods()} Icon={TrendingUp} tone="primary">
 	{#snippet headerRight()}
 		<Button variant="ghost" size="sm" href="/insights" class="text-xs">
 			{m.insights_see_more()}

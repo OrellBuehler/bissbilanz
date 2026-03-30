@@ -129,4 +129,46 @@ class FoodDiversityTest {
         val result = computeFoodDiversity(entries)
         assertEquals(1.5, result.avgUniquePerWeek)
     }
+
+    @Test
+    fun singleEntryReturnsOneWeek() {
+        val entries = listOf(FoodEntry("2024-01-15", "f1", null, "Apple"))
+        val result = computeFoodDiversity(entries)
+        assertEquals(1, result.weeklyEntries.size)
+        assertEquals(1.0, result.avgUniquePerWeek)
+        assertEquals("stable", result.trend)
+    }
+
+    @Test
+    fun duplicateFoodSameDayCountedOnce() {
+        val entries =
+            listOf(
+                FoodEntry("2024-01-15", "f1", null, "Apple"),
+                FoodEntry("2024-01-15", "f1", null, "Apple"),
+                FoodEntry("2024-01-15", "f1", null, "Apple"),
+            )
+        val result = computeFoodDiversity(entries)
+        assertEquals(1, result.weeklyEntries[0].uniqueFoods)
+    }
+
+    @Test
+    fun exactlyFourWeeksTrendComputed() {
+        val entries =
+            listOf(
+                FoodEntry("2024-01-01", "f1", null, "A"),
+                FoodEntry("2024-01-01", "f2", null, "B"),
+                FoodEntry("2024-01-08", "f1", null, "A"),
+                FoodEntry("2024-01-08", "f2", null, "B"),
+                FoodEntry("2024-01-15", "f1", null, "A"),
+                FoodEntry("2024-01-15", "f2", null, "B"),
+                FoodEntry("2024-01-15", "f3", null, "C"),
+                FoodEntry("2024-01-22", "f1", null, "A"),
+                FoodEntry("2024-01-22", "f2", null, "B"),
+                FoodEntry("2024-01-22", "f3", null, "C"),
+                FoodEntry("2024-01-22", "f4", null, "D"),
+            )
+        val result = computeFoodDiversity(entries)
+        assertEquals(4, result.weeklyEntries.size)
+        assertEquals("increasing", result.trend)
+    }
 }

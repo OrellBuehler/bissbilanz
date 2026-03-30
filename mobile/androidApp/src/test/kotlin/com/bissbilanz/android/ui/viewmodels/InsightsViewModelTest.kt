@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.SleepCreate
 import com.bissbilanz.model.SleepEntry
 import com.bissbilanz.model.SleepFoodCorrelationEntry
@@ -122,7 +123,7 @@ class InsightsViewModelTest {
             val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
             viewModel.createSleepEntry(entry)
 
-            assertEquals("Sleep logged", viewModel.snackbarMessage.value)
+            assertEquals(R.string.sleep_logged, viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -134,7 +135,7 @@ class InsightsViewModelTest {
             val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
             viewModel.createSleepEntry(entry)
 
-            assertEquals("Failed to log sleep", viewModel.snackbarMessage.value)
+            assertEquals(R.string.sleep_log_failed, viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -145,7 +146,7 @@ class InsightsViewModelTest {
             val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals("Sleep entry deleted", viewModel.snackbarMessage.value)
+            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -156,7 +157,7 @@ class InsightsViewModelTest {
             val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals("Failed to delete", viewModel.snackbarMessage.value)
+            assertEquals(R.string.sleep_delete_failed, viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -178,7 +179,7 @@ class InsightsViewModelTest {
 
             val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
             viewModel.deleteSleepEntry("entry-1")
-            assertEquals("Sleep entry deleted", viewModel.snackbarMessage.value)
+            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
 
             viewModel.clearSnackbar()
 
@@ -225,6 +226,70 @@ class InsightsViewModelTest {
             viewModel.loadNutritionAnalytics()
 
             assertNotNull(viewModel.novaResult.value)
+        }
+
+    @Test
+    fun selectTabWeightTriggersWeightLoad() =
+        runTest {
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+
+            viewModel.selectTab(2)
+
+            coVerify(atLeast = 1) { analyticsRepo.getWeightFood(any(), any()) }
+        }
+
+    @Test
+    fun selectTabSleepTriggersSleepLoad() =
+        runTest {
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+
+            viewModel.selectTab(3)
+
+            coVerify(atLeast = 1) { analyticsRepo.getSleepFood(any(), any()) }
+        }
+
+    @Test
+    fun selectTabWeightIsLazySecondCallSkipped() =
+        runTest {
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+
+            viewModel.selectTab(2)
+            viewModel.selectTab(2)
+
+            coVerify(exactly = 1) { analyticsRepo.getWeightFood(any(), any()) }
+        }
+
+    @Test
+    fun nutritionLoadErrorDoesNotCrash() =
+        runTest {
+            coEvery { analyticsRepo.getNutrientsExtended(any(), any()) } throws RuntimeException("fail")
+
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+            viewModel.loadNutritionAnalytics()
+
+            assertEquals(false, viewModel.nutritionLoading.value)
+        }
+
+    @Test
+    fun weightLoadErrorDoesNotCrash() =
+        runTest {
+            coEvery { analyticsRepo.getWeightFood(any(), any()) } throws RuntimeException("fail")
+
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+            viewModel.loadWeightAnalytics()
+
+            assertEquals(false, viewModel.weightLoading.value)
+        }
+
+    @Test
+    fun sleepAnalyticsLoadErrorDoesNotCrash() =
+        runTest {
+            coEvery { analyticsRepo.getSleepFood(any(), any()) } throws RuntimeException("fail")
+
+            val viewModel = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo)
+            viewModel.loadSleepAnalytics()
+
+            assertEquals(false, viewModel.sleepLoading.value)
         }
 
     companion object {

@@ -17,6 +17,7 @@ import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
+import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
@@ -72,6 +73,13 @@ class BissbilanzApplication : Application() {
             modules(androidModule, sharedModule)
         }
 
+        if (BuildConfig.TEST_AUTH_TOKEN.isNotEmpty() && isInstrumentedTest()) {
+            val koinForAuth =
+                org.koin.java.KoinJavaComponent
+                    .getKoin()
+            koinForAuth.get<AuthManager>().injectTestToken(BuildConfig.TEST_AUTH_TOKEN)
+        }
+
         // Start sync manager to auto-sync queued writes when connectivity is restored
         val koin =
             org.koin.java.KoinJavaComponent
@@ -104,4 +112,12 @@ class BissbilanzApplication : Application() {
                 )
         }
     }
+
+    private fun isInstrumentedTest(): Boolean =
+        try {
+            Class.forName("androidx.test.InstrumentationRegistry")
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
 }

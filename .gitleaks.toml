@@ -2,8 +2,9 @@
 useDefault = true
 
 [allowlist]
-description = "Allowlist Open Food Facts field names and i18n keys — these match generic-api-key entropy heuristic but are not secrets"
+description = "Allowlist false positives — field names, i18n keys, and test fixtures"
 regexes = [
   '''[\w-]+_100g''',
   '''nutrient_\w+''',
+  '''eyJhbGciOiJSUzI1NiJ9\.test''',
 ]

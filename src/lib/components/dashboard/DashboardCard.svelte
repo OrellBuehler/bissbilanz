@@ -3,7 +3,7 @@
 	import { cn } from '$lib/utils.js';
 	import type { Snippet } from 'svelte';
 
-	type Tone = 'neutral' | 'blue' | 'emerald' | 'amber' | 'rose' | 'violet';
+	type Tone = 'neutral' | 'primary' | 'tertiary';
 
 	type Props = {
 		title: string;
@@ -29,44 +29,24 @@
 		neutral: {
 			badge: 'bg-muted text-muted-foreground',
 			title: 'text-foreground',
-			shell: 'border-border/70 bg-card'
+			shell: 'bg-card'
 		},
-		blue: {
-			badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+		primary: {
+			badge: 'bg-primary/10 text-primary',
 			title: 'text-foreground',
-			shell:
-				'border-blue-200/40 bg-gradient-to-b from-blue-50/20 to-card dark:border-blue-900/30 dark:from-blue-950/10'
+			shell: 'bg-card'
 		},
-		emerald: {
-			badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+		tertiary: {
+			badge: 'bg-tertiary/10 text-tertiary',
 			title: 'text-foreground',
-			shell:
-				'border-emerald-200/40 bg-gradient-to-b from-emerald-50/20 to-card dark:border-emerald-900/30 dark:from-emerald-950/10'
-		},
-		amber: {
-			badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-			title: 'text-foreground',
-			shell:
-				'border-amber-200/40 bg-gradient-to-b from-amber-50/20 to-card dark:border-amber-900/30 dark:from-amber-950/10'
-		},
-		rose: {
-			badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-			title: 'text-foreground',
-			shell:
-				'border-rose-200/40 bg-gradient-to-b from-rose-50/20 to-card dark:border-rose-900/30 dark:from-rose-950/10'
-		},
-		violet: {
-			badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-			title: 'text-foreground',
-			shell:
-				'border-violet-200/40 bg-gradient-to-b from-violet-50/20 to-card dark:border-violet-900/30 dark:from-violet-950/10'
+			shell: 'bg-card'
 		}
 	};
 </script>
 
 <Card.Root
 	class={cn(
-		'gap-0 overflow-hidden rounded-2xl border shadow-sm shadow-black/[0.03]',
+		'gap-0 overflow-hidden rounded-2xl border border-border/40 shadow-sm',
 		toneClasses[tone].shell,
 		className
 	)}

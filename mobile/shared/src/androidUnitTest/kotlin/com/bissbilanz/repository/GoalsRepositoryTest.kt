@@ -1,14 +1,14 @@
 package com.bissbilanz.repository
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.cache.BissbilanzDatabaseQueries
 import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
+import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -19,7 +19,6 @@ import kotlin.test.assertEquals
 class GoalsRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: BissbilanzDatabase
-    private lateinit var queries: BissbilanzDatabaseQueries
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: GoalsRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -27,11 +26,9 @@ class GoalsRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        queries = mockk(relaxed = true)
-        db =
-            mockk {
-                every { bissbilanzDatabaseQueries } returns queries
-            }
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        BissbilanzDatabase.Schema.create(driver)
+        db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
         repository = GoalsRepository(api, db, syncQueue, json)
     }
@@ -47,17 +44,18 @@ class GoalsRepositoryTest {
     fun refreshCachesGoalsOnSuccess() =
         runTest {
             val goals = TestFixtures.goals()
-            io.mockk.coEvery { api.getGoals() } returns goals
+            coEvery { api.getGoals() } returns goals
 
             repository.refresh()
 
-            coVerify { queries.transaction(any(), any()) }
+            val cached = repository.goalsOnce()
+            assertEquals(goals, cached)
         }
 
     @Test
     fun refreshDoesNotThrowWhenApiReturnsNull() =
         runTest {
-            io.mockk.coEvery { api.getGoals() } returns null
+            coEvery { api.getGoals() } returns null
 
             repository.refresh()
         }
@@ -70,7 +68,8 @@ class GoalsRepositoryTest {
             val result = repository.setGoals(goals)
 
             assertEquals(goals, result)
-            coVerify { queries.transaction(any(), any()) }
+            val cached = repository.goalsOnce()
+            assertEquals(goals, cached)
         }
 
     @Test

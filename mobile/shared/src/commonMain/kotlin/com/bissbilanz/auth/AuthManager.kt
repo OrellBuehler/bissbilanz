@@ -65,6 +65,11 @@ class AuthManager(
         _authState.value = if (token != null) AuthState.Authenticated else AuthState.Unauthenticated
     }
 
+    fun injectTestToken(token: String) {
+        secureStorage.save(KEY_ACCESS_TOKEN, token)
+        _authState.value = AuthState.Authenticated
+    }
+
     fun buildLoginUrl(state: String): String {
         pendingState = state
         return "$baseUrl/api/auth/mobile/login?state=$state"

@@ -17,8 +17,7 @@ export default async function globalSetup() {
 		res = await page.request.post(`${baseURL}/api/auth/test-session`);
 	} catch {
 		throw new Error(
-			`Could not reach dev server at ${baseURL}.\n` +
-				'Start it with: PLAYWRIGHT_TEST_AUTH_BYPASS=true bun run dev'
+			`Could not reach dev server at ${baseURL}.\n` + 'Start it with: TEST_MODE=true bun run dev'
 		);
 	}
 
@@ -26,7 +25,7 @@ export default async function globalSetup() {
 		const body = await res.text();
 		throw new Error(
 			`Test session creation failed (${res.status()}): ${body}\n` +
-				'Make sure dev server is running with PLAYWRIGHT_TEST_AUTH_BYPASS=true'
+				'Make sure the server is running with TEST_MODE=true'
 		);
 	}
 

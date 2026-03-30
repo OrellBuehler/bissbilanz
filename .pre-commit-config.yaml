@@ -37,3 +37,9 @@ repos:
         language: system
         types:
           - swift
+
+      - id: gitleaks
+        name: gitleaks
+        entry: gitleaks protect --staged --verbose --redact
+        language: system
+        pass_filenames: false

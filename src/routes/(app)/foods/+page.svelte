@@ -297,7 +297,7 @@
 
 <Button
 	size="icon"
-	class="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
+	class="fixed bottom-20 right-6 z-50 size-14 rounded-full shadow-lg md:bottom-6"
 	aria-label={m.foods_new()}
 	onclick={() => {
 		resetFormState();

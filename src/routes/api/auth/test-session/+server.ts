@@ -2,10 +2,11 @@ import { json, error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, users } from '$lib/server/db';
 import { createSession } from '$lib/server/session';
+import { config } from '$lib/server/env';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ cookies }) => {
-	if (!import.meta.env.DEV || process.env.PLAYWRIGHT_TEST_AUTH_BYPASS !== 'true') {
+	if (!config.testMode) {
 		throw error(404, 'Not found');
 	}
 

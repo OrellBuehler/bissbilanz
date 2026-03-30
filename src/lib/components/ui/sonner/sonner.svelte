@@ -14,7 +14,9 @@
 <Sonner
 	theme={mode.current}
 	class="toaster group"
-	style="--normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
+	style="--normal-bg: var(--color-card); --normal-text: var(--color-card-foreground); --normal-border: var(--color-border);"
+	gap={8}
+	offset="calc(env(safe-area-inset-bottom, 0px) + 16px)"
 	{...restProps}
 	>{#snippet loadingIcon()}
 		<Loader2Icon class="size-4 animate-spin" />

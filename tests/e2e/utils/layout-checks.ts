@@ -38,8 +38,27 @@ export async function assertNoElementsOverflowingViewport(page: Page) {
 export async function assertNoOverlappingInteractiveElements(page: Page) {
 	const overlaps = await page.evaluate(() => {
 		const selector = 'button, a, input, select, textarea, [role="button"], [role="link"]';
-		const elements = Array.from(document.querySelectorAll(selector))
-			.map((el) => ({ el, rect: el.getBoundingClientRect() }))
+		const allInteractive = Array.from(document.querySelectorAll(selector));
+
+		function isInFixedContainer(el: Element): boolean {
+			let node: Element | null = el;
+			while (node) {
+				if (getComputedStyle(node).position === 'fixed') return true;
+				node = node.parentElement;
+			}
+			return false;
+		}
+
+		const elements = allInteractive
+			.filter((el) => {
+				let parent = el.parentElement;
+				while (parent) {
+					if (parent.matches(selector)) return false;
+					parent = parent.parentElement;
+				}
+				return true;
+			})
+			.map((el) => ({ el, rect: el.getBoundingClientRect(), fixed: isInFixedContainer(el) }))
 			.filter(
 				({ rect }) =>
 					rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0
@@ -48,6 +67,8 @@ export async function assertNoOverlappingInteractiveElements(page: Page) {
 		const results: string[] = [];
 		for (let i = 0; i < elements.length; i++) {
 			for (let j = i + 1; j < elements.length; j++) {
+				// Skip overlaps between fixed and non-fixed elements (different layers)
+				if (elements[i].fixed !== elements[j].fixed) continue;
 				const a = elements[i].rect;
 				const b = elements[j].rect;
 				const intersects =

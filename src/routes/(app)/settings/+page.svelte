@@ -28,7 +28,7 @@
 		getCategoryLabel,
 		type NutrientCategory
 	} from '$lib/nutrients';
-	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let newName = $state('');
@@ -383,29 +383,30 @@
 	});
 </script>
 
-<div class="space-y-6">
-	<!-- 1. Account Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_account()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			{#if user}
-				<p class="font-bold">{user.name ?? ''}</p>
-				<p class="text-muted-foreground text-sm">{user.email ?? ''}</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
+<div class="mx-auto max-w-4xl space-y-6">
+	<!-- Account & Language — compact, side by side on desktop -->
+	<div class="grid gap-6 lg:grid-cols-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_account()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				{#if user}
+					<p class="font-bold">{user.name ?? ''}</p>
+					<p class="text-muted-foreground text-sm">{user.email ?? ''}</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
 
-	<!-- 2. Language Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_language()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<LanguageSwitcher {savePreference} />
-		</Card.Content>
-	</Card.Root>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_language()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<LanguageSwitcher {savePreference} />
+			</Card.Content>
+		</Card.Root>
+	</div>
 
 	<!-- 3. Dashboard Sections -->
 	<Card.Root>
@@ -505,11 +506,11 @@
 	<!-- 5. Favorites Logging Section -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Favorites Logging</Card.Title>
+			<Card.Title>{m.settings_favorites_logging()}</Card.Title>
 		</Card.Header>
 		<Card.Content class="space-y-4">
 			<div class="space-y-2">
-				<Label>Meal assignment</Label>
+				<Label>{m.settings_meal_assignment()}</Label>
 				<RadioGroup.Root
 					value={favoriteMealAssignmentMode}
 					onValueChange={(v) => (favoriteMealAssignmentMode = v as 'time_based' | 'ask_meal')}
@@ -517,11 +518,11 @@
 				>
 					<div class="flex items-center gap-2">
 						<RadioGroup.Item value="time_based" id="favorites-meal-time-based" />
-						<Label for="favorites-meal-time-based">Auto-assign by timeframes</Label>
+						<Label for="favorites-meal-time-based">{m.settings_meal_auto_assign()}</Label>
 					</div>
 					<div class="flex items-center gap-2">
 						<RadioGroup.Item value="ask_meal" id="favorites-meal-ask" />
-						<Label for="favorites-meal-ask">Always ask which meal</Label>
+						<Label for="favorites-meal-ask">{m.settings_meal_always_ask()}</Label>
 					</div>
 				</RadioGroup.Root>
 			</div>
@@ -529,22 +530,19 @@
 			<div class="space-y-3">
 				<div class="flex items-center justify-between gap-2">
 					<div>
-						<p class="text-sm font-medium">Auto-assignment timeframes</p>
+						<p class="text-sm font-medium">{m.settings_auto_assignment_timeframes()}</p>
 						<p class="text-muted-foreground text-xs">
-							Outside configured timeframes, the app asks which meal to use.
+							{m.settings_auto_assignment_timeframes_desc()}
 						</p>
 					</div>
 					<Button variant="outline" size="sm" onclick={addFavoriteMealTimeframe}>
 						<Plus class="size-4" />
-						Add timeframe
+						{m.settings_add_timeframe()}
 					</Button>
 				</div>
 
 				{#if favoriteMealTimeframes.length === 0}
-					<p class="text-muted-foreground text-sm">
-						No timeframes configured. Favorites will ask for a meal unless you add a matching
-						window.
-					</p>
+					<p class="text-muted-foreground text-sm">{m.settings_no_timeframes()}</p>
 				{/if}
 
 				<div class="space-y-2">
@@ -555,7 +553,7 @@
 							}`}
 						>
 							<div class="space-y-1">
-								<Label class="text-xs">Meal</Label>
+								<Label class="text-xs">{m.settings_timeframe_meal()}</Label>
 								<Select.Root
 									type="single"
 									value={mealTypeSelectValue(row)}
@@ -575,7 +573,7 @@
 								</Select.Root>
 							</div>
 							<div class="space-y-1">
-								<Label for={`start-${row.id}`} class="text-xs">From</Label>
+								<Label for={`start-${row.id}`} class="text-xs">{m.settings_timeframe_from()}</Label>
 								<Input
 									id={`start-${row.id}`}
 									type="time"
@@ -587,7 +585,7 @@
 								/>
 							</div>
 							<div class="space-y-1">
-								<Label for={`end-${row.id}`} class="text-xs">To</Label>
+								<Label for={`end-${row.id}`} class="text-xs">{m.settings_timeframe_to()}</Label>
 								<Input
 									id={`end-${row.id}`}
 									type="time"
@@ -622,7 +620,7 @@
 					onclick={saveFavoriteLoggingConfig}
 					disabled={savingFavoriteLogging || !timeframeValidation.valid}
 				>
-					{savingFavoriteLogging ? 'Saving...' : 'Save'}
+					{savingFavoriteLogging ? m.settings_saving() : m.settings_save()}
 				</Button>
 			</div>
 		</Card.Content>
@@ -647,10 +645,10 @@
 				{@const nutrients = NUTRIENTS_BY_CATEGORY[category]}
 				<div>
 					<p class="mb-2 text-sm font-medium">{getCategoryLabel(msgs, category)}</p>
-					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
 						{#each nutrients as nutrient}
 							<div class="flex items-center gap-2">
-								<NutrientCheckbox
+								<Checkbox
 									id={`nutrient-${nutrient.key}`}
 									checked={visibleNutrients.has(nutrient.key)}
 									onCheckedChange={() => toggleNutrient(nutrient.key)}
@@ -671,39 +669,40 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 7. About Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_about()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-muted-foreground text-sm">{m.settings_version()} {appVersion}</p>
-		</Card.Content>
-	</Card.Root>
+	<!-- About & Start Page — compact, side by side on desktop -->
+	<div class="grid gap-6 lg:grid-cols-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_about()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<p class="text-muted-foreground text-sm">{m.settings_version()} {appVersion}</p>
+			</Card.Content>
+		</Card.Root>
 
-	<!-- 7. Start Page Section -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.settings_start_page()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<RadioGroup.Root
-				value={startPage}
-				onValueChange={(v) => {
-					startPage = v;
-					savePreference('startPage', v);
-				}}
-				class="flex flex-col gap-3"
-			>
-				<div class="flex items-center gap-2">
-					<RadioGroup.Item value="dashboard" id="start-dashboard" />
-					<Label for="start-dashboard">{m.settings_start_page_dashboard()}</Label>
-				</div>
-				<div class="flex items-center gap-2">
-					<RadioGroup.Item value="favorites" id="start-favorites" />
-					<Label for="start-favorites">{m.settings_start_page_favorites()}</Label>
-				</div>
-			</RadioGroup.Root>
-		</Card.Content>
-	</Card.Root>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.settings_start_page()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<RadioGroup.Root
+					value={startPage}
+					onValueChange={(v) => {
+						startPage = v;
+						savePreference('startPage', v);
+					}}
+					class="flex flex-col gap-3"
+				>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="dashboard" id="start-dashboard" />
+						<Label for="start-dashboard">{m.settings_start_page_dashboard()}</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="favorites" id="start-favorites" />
+						<Label for="start-favorites">{m.settings_start_page_favorites()}</Label>
+					</div>
+				</RadioGroup.Root>
+			</Card.Content>
+		</Card.Root>
+	</div>
 </div>

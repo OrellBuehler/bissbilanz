@@ -96,4 +96,51 @@ class CaloriePatternsTest {
         assertEquals("consistent", result.pattern)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
     }
+
+    @Test
+    fun frontLoadingSingleDayProducesResult() {
+        val entries = listOf(Triple("2024-01-01", "2024-01-01T10:00:00Z", 500.0))
+        val result = computeCalorieFrontLoading(entries)
+        assertEquals(1, result.totalDays)
+        assertEquals(100.0, result.avgMorningPct, 1e-9)
+    }
+
+    @Test
+    fun frontLoadingAllNullEatenAtReturnsEmpty() {
+        val entries =
+            listOf(
+                Triple("2024-01-01", null as String?, 500.0),
+                Triple("2024-01-02", null, 600.0),
+            )
+        val result = computeCalorieFrontLoading(entries)
+        assertEquals(0, result.totalDays)
+        assertEquals(0.0, result.avgMorningPct)
+    }
+
+    @Test
+    fun frontLoadingCustomCutoffHour() {
+        val entries =
+            listOf(
+                Triple("2024-01-01", "2024-01-01T10:00:00Z", 500.0),
+                Triple("2024-01-01", "2024-01-01T11:00:00Z", 500.0),
+            )
+        val result10 = computeCalorieFrontLoading(entries, cutoffHour = 10)
+        assertEquals(0.0, result10.avgMorningPct, 1e-9)
+        val result12 = computeCalorieFrontLoading(entries, cutoffHour = 12)
+        assertEquals(100.0, result12.avgMorningPct, 1e-9)
+    }
+
+    @Test
+    fun cyclingSingleDayReturnsConsistentWithZeroCV() {
+        val result = computeCalorieCycling(listOf(Pair("2024-01-01", 2000.0)))
+        assertEquals(1, result.sampleSize)
+        assertEquals(0.0, result.cv)
+        assertEquals("consistent", result.pattern)
+    }
+
+    @Test
+    fun cyclingCVAtBoundary15Percent() {
+        val result = computeCalorieCycling(listOf(Pair("d1", 1700.0), Pair("d2", 2300.0)))
+        assertEquals("moderate", result.pattern)
+    }
 }

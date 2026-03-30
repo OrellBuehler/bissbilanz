@@ -7,7 +7,9 @@ import com.bissbilanz.api.generated.model.DayPropertiesResponse
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.EntriesCopyResponse
 import com.bissbilanz.api.generated.model.EntriesListResponse
+import com.bissbilanz.api.generated.model.EntriesRangeResponse
 import com.bissbilanz.api.generated.model.EntryCreate
+import com.bissbilanz.api.generated.model.EntryRangeItem
 import com.bissbilanz.api.generated.model.EntryResponse
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.Food
@@ -20,11 +22,14 @@ import com.bissbilanz.api.generated.model.FoodsRecentResponse
 import com.bissbilanz.api.generated.model.Goals
 import com.bissbilanz.api.generated.model.GoalsResponse
 import com.bissbilanz.api.generated.model.GoalsSetResponse
+import com.bissbilanz.api.generated.model.ImageUploadResponse
 import com.bissbilanz.api.generated.model.MaintenanceResponse
 import com.bissbilanz.api.generated.model.MealBreakdownResponse
 import com.bissbilanz.api.generated.model.MealTimingResponse
 import com.bissbilanz.api.generated.model.MealType
 import com.bissbilanz.api.generated.model.MealTypeCreate
+import com.bissbilanz.api.generated.model.MealTypeResponse
+import com.bissbilanz.api.generated.model.MealTypeUpdate
 import com.bissbilanz.api.generated.model.MealTypesListResponse
 import com.bissbilanz.api.generated.model.MonthlyStatsResponse
 import com.bissbilanz.api.generated.model.NutrientsDailyResponse
@@ -64,6 +69,7 @@ import com.bissbilanz.api.generated.model.WeightEntriesResponse
 import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightEntryResponse
 import com.bissbilanz.api.generated.model.WeightFoodResponse
+import com.bissbilanz.api.generated.model.WeightLatestResponse
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
@@ -77,6 +83,7 @@ import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -368,6 +375,18 @@ class BissbilanzApi(
 
     suspend fun deleteEntry(id: String) = delete("/api/entries/$id")
 
+    suspend fun getEntriesRange(
+        startDate: String,
+        endDate: String,
+    ): List<EntryRangeItem> {
+        val response: EntriesRangeResponse =
+            get("/api/entries/range") {
+                parameter("startDate", startDate)
+                parameter("endDate", endDate)
+            }
+        return response.propertyEntries
+    }
+
     // Recipes
     suspend fun getRecipes(): List<RecipeSummary> {
         val response: RecipesListResponse = get("/api/recipes")
@@ -429,6 +448,11 @@ class BissbilanzApi(
     }
 
     suspend fun deleteWeightEntry(id: String) = delete("/api/weight/$id")
+
+    suspend fun getLatestWeightEntry(): WeightEntry? {
+        val response: WeightLatestResponse = get("/api/weight/latest")
+        return response.entry
+    }
 
     suspend fun getWeightTrend(
         from: String,
@@ -519,6 +543,16 @@ class BissbilanzApi(
     suspend fun getMealTypes(): MealTypesListResponse = get("/api/meal-types")
 
     suspend fun createMealType(mealType: MealTypeCreate): MealType = post("/api/meal-types", mealType)
+
+    suspend fun updateMealType(
+        id: String,
+        mealType: MealTypeUpdate,
+    ): MealType {
+        val response: MealTypeResponse = patch("/api/meal-types/$id", mealType)
+        return response.mealType
+    }
+
+    suspend fun deleteMealType(id: String) = delete("/api/meal-types/$id")
 
     // Copy entries
     suspend fun copyEntries(
@@ -688,6 +722,37 @@ class BissbilanzApi(
             parameter("startDate", startDate)
             parameter("endDate", endDate)
         }
+
+    // Images
+    suspend fun uploadImage(
+        fileName: String,
+        fileBytes: ByteArray,
+        contentType: String = "image/jpeg",
+    ): String {
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/images/upload",
+                formData =
+                    formData {
+                        append(
+                            "file",
+                            fileBytes,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, contentType)
+                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                            },
+                        )
+                    },
+            )
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "POST /api/images/upload failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+            )
+        }
+        val body: ImageUploadResponse = response.body()
+        return body.imageUrl
+    }
 
     suspend fun downloadBytes(url: String): ByteArray {
         val response = client.get(url)

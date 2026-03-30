@@ -9,7 +9,7 @@
 	import { type MacroTotals } from '$lib/utils/nutrition';
 	import { today } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
@@ -45,6 +45,8 @@
 
 	let streaks: { currentStreak: number; longestStreak: number } | null = $state(null);
 	let ready = $state(false);
+	let isLg = $state(false);
+	let mqlCleanup: (() => void) | undefined;
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
@@ -53,6 +55,10 @@
 	const order = $derived(
 		userPrefs?.widgetOrder ?? ['chart', 'streaks', 'favorites', 'supplements', 'weight', 'daylog']
 	);
+
+	const SIDEBAR_WIDGETS = new Set(['streaks', 'favorites', 'sleep', 'supplements', 'weight']);
+	const mainOrder = $derived(order.filter((k) => !SIDEBAR_WIDGETS.has(k)));
+	const sidebarOrder = $derived(order.filter((k) => SIDEBAR_WIDGETS.has(k)));
 
 	const toggleSupplement = async (supplementId: string, taken: boolean) => {
 		if (taken) {
@@ -76,6 +82,14 @@
 		}
 		ready = true;
 
+		const mql = window.matchMedia('(min-width: 1024px)');
+		isLg = mql.matches;
+		const mqlHandler = (e: MediaQueryListEvent) => {
+			isLg = e.matches;
+		};
+		mql.addEventListener('change', mqlHandler);
+		mqlCleanup = () => mql.removeEventListener('change', mqlHandler);
+
 		// Fire background refreshes
 		goalsService.refresh();
 		preferencesService.refresh();
@@ -95,6 +109,8 @@
 		}
 	});
 
+	onDestroy(() => mqlCleanup?.());
+
 	// Re-check startPage once preferences load from network
 	$effect(() => {
 		const prefs = prefsQuery.value;
@@ -110,87 +126,102 @@
 	});
 </script>
 
+{#snippet widget(sectionKey: string)}
+	{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
+		{#if userGoals}
+			<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="primary">
+				<GoalProgressRings totals={daylogTotals} goals={userGoals} />
+			</DashboardCard>
+		{:else}
+			<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="tertiary">
+				<div class="h-[200px] sm:h-[220px]">
+					<DailyMacroChart totals={daylogTotals} />
+				</div>
+			</DashboardCard>
+		{/if}
+	{:else if sectionKey === 'streaks' && streaks}
+		<StreakWidget currentStreak={streaks.currentStreak} longestStreak={streaks.longestStreak} />
+	{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
+		<WeightWidget
+			weightKg={latestWeight?.weightKg ?? null}
+			entryDate={latestWeight?.entryDate ?? null}
+		/>
+	{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
+		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
+	{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
+		<FavoritesWidget
+			onEntryLogged={() => entryService.refresh(activeDate)}
+			favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
+			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
+				| 'time_based'
+				| 'ask_meal'}
+			favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
+		/>
+	{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
+		<MealBreakdownWidget date={activeDate} />
+	{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
+		<TopFoodsWidget />
+	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
+		<SleepWidget date={activeDate} />
+	{:else if sectionKey === 'summary'}
+		<MacroSummaryCard totals={daylogTotals} />
+	{:else if sectionKey === 'daylog'}
+		<DayLog
+			date={activeDate}
+			dashboardStyle={true}
+			onTotalsChange={(t) => (daylogTotals = t)}
+			bind:scanModalOpen
+			bind:addModalOpen
+		/>
+	{/if}
+{/snippet}
+
 {#if ready}
-	<div class="mx-auto max-w-4xl">
+	<div>
 		<div class="flex min-w-0 items-start justify-between gap-2">
 			<DateNavigator date={activeDate} />
-			<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
+			<Button
+				variant="outline"
+				size="sm"
+				class="hidden md:inline-flex"
+				onclick={() => (scanModalOpen = true)}
+			>
 				<ScanBarcode class="h-4 w-4" />
 				{m.dashboard_scan()}
 			</Button>
 		</div>
 
-		{#each order as sectionKey (sectionKey)}
-			{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
-				<div class="mt-6">
-					{#if userGoals}
-						<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
-							<GoalProgressRings totals={daylogTotals} goals={userGoals} />
-						</DashboardCard>
-					{:else}
-						<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
-							<div class="h-[200px] sm:h-[220px]">
-								<DailyMacroChart totals={daylogTotals} />
-							</div>
-						</DashboardCard>
-					{/if}
+		<!-- Mobile FAB for barcode scanner -->
+		<button
+			type="button"
+			class="fixed bottom-20 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
+			onclick={() => (scanModalOpen = true)}
+			aria-label={m.dashboard_scan()}
+		>
+			<ScanBarcode class="size-6" />
+		</button>
+
+		{#if isLg}
+			<!-- Desktop: main + sidebar -->
+			<div class="mt-5 flex gap-6">
+				<div class="min-w-0 flex-1 space-y-5">
+					{#each mainOrder as key (key)}
+						{@render widget(key)}
+					{/each}
 				</div>
-			{:else if sectionKey === 'streaks' && streaks}
-				<div class="mt-4">
-					<StreakWidget
-						currentStreak={streaks.currentStreak}
-						longestStreak={streaks.longestStreak}
-					/>
+				<div class="w-[340px] shrink-0 space-y-4">
+					{#each sidebarOrder as key (key)}
+						{@render widget(key)}
+					{/each}
 				</div>
-			{:else if sectionKey === 'weight' && isToday && userPrefs?.showWeightWidget}
-				<div class="mt-4">
-					<WeightWidget
-						weightKg={latestWeight?.weightKg ?? null}
-						entryDate={latestWeight?.entryDate ?? null}
-					/>
-				</div>
-			{:else if sectionKey === 'supplements' && userPrefs?.showSupplementsWidget}
-				<div class="mt-4">
-					<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
-				</div>
-			{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
-				<div class="mt-4">
-					<FavoritesWidget
-						onEntryLogged={() => entryService.refresh(activeDate)}
-						favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
-						favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
-							| 'time_based'
-							| 'ask_meal'}
-						favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
-					/>
-				</div>
-			{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
-				<div class="mt-4">
-					<MealBreakdownWidget date={activeDate} />
-				</div>
-			{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
-				<div class="mt-4">
-					<TopFoodsWidget />
-				</div>
-			{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
-				<div class="mt-4">
-					<SleepWidget date={activeDate} />
-				</div>
-			{:else if sectionKey === 'summary'}
-				<div class="mt-4">
-					<MacroSummaryCard totals={daylogTotals} />
-				</div>
-			{:else if sectionKey === 'daylog'}
-				<div class="mt-8">
-					<DayLog
-						date={activeDate}
-						dashboardStyle={true}
-						onTotalsChange={(t) => (daylogTotals = t)}
-						bind:scanModalOpen
-						bind:addModalOpen
-					/>
-				</div>
-			{/if}
-		{/each}
+			</div>
+		{:else}
+			<!-- Mobile: single column -->
+			<div class="mt-5 space-y-4">
+				{#each order as key (key)}
+					{@render widget(key)}
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/if}

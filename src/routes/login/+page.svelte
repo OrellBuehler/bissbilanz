@@ -5,7 +5,7 @@
 	import * as m from '$lib/paraglide/messages';
 </script>
 
-<div class="bg-muted/40 flex min-h-screen w-full items-center justify-center px-4">
+<div class="bg-surface-container-low flex min-h-screen w-full items-center justify-center px-4">
 	<Card.Root class="mx-auto w-full max-w-md">
 		<Card.Header class="text-center">
 			<Card.Title class="text-2xl">{m.app_title()}</Card.Title>

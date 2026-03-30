@@ -1,0 +1,96 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  e2e:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: e2e_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: bunx playwright install chromium --with-deps
+
+      - name: Seed test database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
+        run: bun run test:seed
+
+      - name: Build app
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
+          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+          PUBLIC_APP_URL: http://localhost:4000
+          INFOMANIAK_CLIENT_ID: fake
+          INFOMANIAK_CLIENT_SECRET: fake
+          INFOMANIAK_REDIRECT_URI: http://localhost:4000/oauth/callback
+          TEST_MODE: 'true'
+        run: bun run build
+
+      - name: Run Playwright tests
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
+          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+          PUBLIC_APP_URL: http://localhost:4000
+          INFOMANIAK_CLIENT_ID: fake
+          INFOMANIAK_CLIENT_SECRET: fake
+          INFOMANIAK_REDIRECT_URI: http://localhost:4000/oauth/callback
+          CI: 'true'
+        run: bunx playwright test --grep-invert screenshot
+
+      - name: Upload screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: |
+            tests/e2e/screenshots/
+            playwright-report/
+          retention-days: 30
+
+      - name: Comment on PR
+        if: always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### Playwright E2E Results
+
+            ${{ job.status == 'success' && '✅ All tests passed' || '❌ Tests failed' }}
+
+            [Download screenshots & report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

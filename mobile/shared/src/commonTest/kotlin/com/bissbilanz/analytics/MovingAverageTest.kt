@@ -67,4 +67,18 @@ class MovingAverageTest {
         assertNull(result[0])
         assertNull(result[1])
     }
+
+    @Test
+    fun singleElementSeries() {
+        val result = movingAverage(listOf(42.0), 1)
+        assertEquals(1, result.size)
+        assertEquals(42.0, result[0])
+    }
+
+    @Test
+    fun singleElementWithLargerWindow() {
+        val result = movingAverage(listOf(42.0), 3)
+        assertEquals(1, result.size)
+        assertNull(result[0])
+    }
 }

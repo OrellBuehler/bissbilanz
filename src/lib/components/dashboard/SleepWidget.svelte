@@ -26,7 +26,7 @@
 		new Date(iso).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
 </script>
 
-<DashboardCard title={m.sleep_widget_title()} Icon={Moon} tone="violet">
+<DashboardCard title={m.sleep_widget_title()} Icon={Moon} tone="tertiary">
 	{#snippet headerRight()}
 		<Button variant="ghost" size="sm" href="/insights?tab=sleep" class="text-xs">
 			{m.insights_see_more()}

@@ -4,10 +4,32 @@ export default defineConfig({
 	testDir: './tests/e2e',
 	testMatch: '**/*.e2e.ts',
 	globalSetup: './tests/e2e/global-setup.ts',
+	reporter: process.env.CI
+		? [['github'], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
+		: [['list'], ['html', { open: 'on-failure' }]],
 	use: {
-		baseURL: 'http://localhost:4000',
+		baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'http://localhost:4000',
 		storageState: 'tests/e2e/.auth/session.json'
 	},
+	webServer: process.env.CI
+		? {
+				command: 'bun build/index.js',
+				port: 4000,
+				timeout: 30_000,
+				reuseExistingServer: false,
+				env: {
+					DATABASE_URL: process.env.DATABASE_URL ?? '',
+					SESSION_SECRET: process.env.SESSION_SECRET ?? '',
+					PUBLIC_APP_URL: 'http://localhost:4000',
+					INFOMANIAK_CLIENT_ID: process.env.INFOMANIAK_CLIENT_ID ?? 'fake',
+					INFOMANIAK_CLIENT_SECRET: process.env.INFOMANIAK_CLIENT_SECRET ?? 'fake',
+					INFOMANIAK_REDIRECT_URI:
+						process.env.INFOMANIAK_REDIRECT_URI ?? 'http://localhost:4000/oauth/callback',
+					TEST_MODE: 'true',
+					PORT: '4000'
+				}
+			}
+		: undefined,
 	projects: [
 		{
 			name: 'Small Phone (320px)',

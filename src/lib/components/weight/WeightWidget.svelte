@@ -37,7 +37,7 @@
 	};
 </script>
 
-<DashboardCard title={m.dashboard_weight()} Icon={Weight} tone="amber">
+<DashboardCard title={m.dashboard_weight()} Icon={Weight} tone="primary">
 	{#snippet headerRight()}
 		{#if weightKg != null}
 			<span class="text-muted-foreground text-xs sm:text-sm">{entryDate}</span>

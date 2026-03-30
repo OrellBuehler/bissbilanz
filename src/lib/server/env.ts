@@ -30,5 +30,7 @@ export const config = {
 	},
 	mcp: {
 		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'
-	}
+	},
+	testMode: process.env.TEST_MODE === 'true',
+	testUserId: process.env.TEST_USER_ID ?? '00000000-0000-0000-0000-000000000001'
 };
