@@ -37,10 +37,11 @@
 		return labelMap[last]?.() ?? last ?? '';
 	});
 
+	const tabPaths = new Set(['/home', '/favorites', '/foods', '/insights', '/settings']);
+
 	const canGoBack = $derived.by(() => {
 		const pathname = deLocalizeHref($page.url.pathname);
-		const segments = pathname.split('/').filter(Boolean);
-		return segments.length > 1 || (!isHome && segments.length === 1);
+		return !tabPaths.has(pathname);
 	});
 </script>
 
