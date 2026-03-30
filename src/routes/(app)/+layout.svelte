@@ -4,20 +4,14 @@
 	import { migrateOldOfflineQueue, ensureUserScope } from '$lib/db';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
-	import MobileHeader from '$lib/components/navigation/mobile-header.svelte';
-	import BottomTabBar from '$lib/components/navigation/bottom-tab-bar.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/pwa/OfflineIndicator.svelte';
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
-	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
-
-	let isMobile = $state(browser && window.innerWidth < 768);
-	let mqlCleanup: (() => void) | undefined;
 
 	function edgeSwipeAction(node: HTMLElement) {
 		let startX = 0;
@@ -32,7 +26,7 @@
 			const dx = e.changedTouches[0].clientX - startX;
 			const dy = e.changedTouches[0].clientY - startY;
 			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
-				if (window.history.length > 1) history.back();
+				history.back();
 			}
 		}
 
@@ -52,50 +46,32 @@
 	});
 
 	onMount(async () => {
-		const mql = window.matchMedia('(min-width: 768px)');
-		isMobile = !mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isMobile = !e.matches);
-		mql.addEventListener('change', handler);
-		mqlCleanup = () => mql.removeEventListener('change', handler);
-
+		// Ensure Dexie data belongs to the current user (clears on user switch).
+		// Awaited so no component reads stale data from a previous user.
 		if (data.user?.id) {
 			await ensureUserScope(data.user.id).catch(() => {});
 		}
+		// Migrate any pending items from the old bissbilanz-offline IndexedDB
 		migrateOldOfflineQueue().then(() => refreshPendingCount());
 		startSyncListener();
 	});
-
-	onDestroy(() => mqlCleanup?.());
 </script>
 
 <InstallBanner />
 <div use:edgeSwipeAction class="contents">
-	{#if isMobile}
-		<!-- Mobile: bottom tab bar layout -->
-		<div class="flex min-h-dvh flex-col">
-			<MobileHeader />
+	<Sidebar.Provider
+		style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
+	>
+		<AppSidebar variant="inset" />
+		<Sidebar.Inset>
+			<SiteHeader />
 			<OfflineIndicator />
-			<main class="flex-1 px-3 py-3 pb-24">
-				{@render children()}
-			</main>
-			<BottomTabBar />
-		</div>
-	{:else}
-		<!-- Desktop: sidebar layout -->
-		<Sidebar.Provider
-			style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
-		>
-			<AppSidebar variant="inset" />
-			<Sidebar.Inset>
-				<SiteHeader />
-				<OfflineIndicator />
-				<div class="flex flex-1 flex-col">
-					<main class="flex-1 p-4 lg:p-6">
-						{@render children()}
-					</main>
-				</div>
-			</Sidebar.Inset>
-		</Sidebar.Provider>
-	{/if}
+			<div class="flex flex-1 flex-col">
+				<main class="flex-1 px-3 py-4 sm:p-4 lg:p-6">
+					{@render children()}
+				</main>
+			</div>
+		</Sidebar.Inset>
+	</Sidebar.Provider>
 </div>
 <UpdateToast />

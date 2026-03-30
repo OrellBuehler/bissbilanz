@@ -28,7 +28,7 @@
 		getCategoryLabel,
 		type NutrientCategory
 	} from '$lib/nutrients';
-	import { Checkbox as NutrientCheckbox } from '$lib/components/ui/checkbox/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let newName = $state('');
@@ -648,7 +648,7 @@
 					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
 						{#each nutrients as nutrient}
 							<div class="flex items-center gap-2">
-								<NutrientCheckbox
+								<Checkbox
 									id={`nutrient-${nutrient.key}`}
 									checked={visibleNutrients.has(nutrient.key)}
 									onCheckedChange={() => toggleNutrient(nutrient.key)}
