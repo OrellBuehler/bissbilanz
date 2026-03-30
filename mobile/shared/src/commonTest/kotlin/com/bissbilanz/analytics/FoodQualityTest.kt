@@ -185,4 +185,76 @@ class FoodQualityTest {
         assertEquals(0.0, result.avgTEFPct)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
     }
+
+    @Test
+    fun novaSingleEntry() {
+        val result = computeNOVAScore(listOf(Pair(200.0, 4)))
+        assertEquals(100.0, result.ultraProcessedPct, 1e-9)
+        assertEquals(1, result.sampleSize)
+    }
+
+    @Test
+    fun novaAllNullGroups() {
+        val entries = listOf(Pair(200.0, null as Int?), Pair(300.0, null))
+        val result = computeNOVAScore(entries)
+        assertEquals(0.0, result.ultraProcessedPct)
+        assertEquals(0.0, result.coveragePct)
+        assertEquals(2, result.sampleSize)
+    }
+
+    @Test
+    fun omegaSingleDay() {
+        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 2.0, 8.0)))
+        assertEquals(4.0, result.ratio, 1e-9)
+        assertEquals("optimal", result.status)
+        assertEquals(1, result.sampleSize)
+    }
+
+    @Test
+    fun omegaBothZeroFiltered() {
+        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 0.0, 0.0)))
+        assertEquals(0, result.sampleSize)
+        assertEquals("insufficient", result.status)
+    }
+
+    @Test
+    fun omegaOnlyOmega3ZeroFiltered() {
+        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 0.0, 10.0)))
+        assertEquals(0, result.sampleSize)
+    }
+
+    @Test
+    fun diiAllNullNutrientsReturnsNeutral() {
+        val entries =
+            listOf(
+                DIIInput(),
+                DIIInput(),
+                DIIInput(),
+            )
+        val result = computeDIIScore(entries)
+        assertEquals(0.0, result.score)
+        assertEquals("neutral", result.classification)
+        assertEquals(emptyList(), result.contributors)
+    }
+
+    @Test
+    fun diiSingleDay() {
+        val result = computeDIIScore(listOf(DIIInput(fiber = 30.0, omega3 = 2.0)))
+        assertEquals(1, result.sampleSize)
+        assertTrue(result.score < 0)
+    }
+
+    @Test
+    fun tefSingleDay() {
+        val result = computeTEF(listOf(TEFInput(protein = 100.0, carbs = 250.0, fat = 80.0, calories = 2000.0)))
+        assertEquals(1, result.sampleSize)
+        assertEquals(201.6, result.avgTEF, 1e-9)
+        assertEquals(201.6 / 2000.0 * 100.0, result.avgTEFPct, 1e-9)
+    }
+
+    @Test
+    fun tefZeroCaloriesReturnZeroPct() {
+        val result = computeTEF(listOf(TEFInput(protein = 0.0, carbs = 0.0, fat = 0.0, calories = 0.0)))
+        assertEquals(0.0, result.avgTEFPct)
+    }
 }

@@ -158,7 +158,7 @@
 		{:else}
 			<li
 				class={dashboardStyle
-					? 'rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground'
+					? 'rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground'
 					: 'text-sm text-muted-foreground'}
 			>
 				{m.meal_no_entries()}

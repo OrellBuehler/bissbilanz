@@ -81,4 +81,38 @@ class ProteinDistributionTest {
         val result = computeProteinDistribution(entries, threshold = 20.0)
         assertEquals(4, result.mealsBelowThreshold)
     }
+
+    @Test
+    fun singleEntryTotalHasOneMealPerDay() {
+        val entries = listOf(Triple("2024-01-01", "lunch", 30.0))
+        val result = computeProteinDistribution(entries)
+        assertEquals(1, result.sampleSize)
+        assertEquals(1.0, result.mealsPerDay)
+        assertEquals(100.0, result.score, 1e-9)
+    }
+
+    @Test
+    fun zeroProteinValuesCountedBelowThreshold() {
+        val entries =
+            listOf(
+                Triple("2024-01-01", "breakfast", 0.0),
+                Triple("2024-01-01", "lunch", 40.0),
+                Triple("2024-01-01", "dinner", 0.0),
+            )
+        val result = computeProteinDistribution(entries)
+        assertEquals(2, result.mealsBelowThreshold)
+    }
+
+    @Test
+    fun customThresholdRespected() {
+        val entries =
+            listOf(
+                Triple("2024-01-01", "breakfast", 15.0),
+                Triple("2024-01-01", "lunch", 25.0),
+            )
+        val result10 = computeProteinDistribution(entries, threshold = 10.0)
+        assertEquals(0, result10.mealsBelowThreshold)
+        val result30 = computeProteinDistribution(entries, threshold = 30.0)
+        assertEquals(2, result30.mealsBelowThreshold)
+    }
 }

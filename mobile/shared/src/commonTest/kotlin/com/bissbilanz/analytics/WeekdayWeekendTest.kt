@@ -92,4 +92,53 @@ class WeekdayWeekendTest {
         assertEquals(150.0, result.weekday.avgProtein)
         assertEquals(100.0, result.weekend.avgProtein)
     }
+
+    @Test
+    fun weekendOnlyData() {
+        val entries =
+            listOf(
+                DayEntry("2024-01-06", 2500.0, 100.0, 300.0, 80.0, 25.0),
+                DayEntry("2024-01-07", 2600.0, 110.0, 310.0, 85.0, 28.0),
+            )
+        val result = computeWeekdayWeekendSplit(entries)
+        assertEquals(0, result.weekday.days)
+        assertEquals(2, result.weekend.days)
+        assertEquals(0.0, result.calorieDeltaPct)
+    }
+
+    @Test
+    fun singleWeekday() {
+        val entries =
+            listOf(
+                DayEntry("2024-01-08", 2000.0, 100.0, 250.0, 70.0, 25.0),
+            )
+        val result = computeWeekdayWeekendSplit(entries)
+        assertEquals(1, result.weekday.days)
+        assertEquals(0, result.weekend.days)
+        assertEquals(2000.0, result.weekday.avgCalories)
+    }
+
+    @Test
+    fun singleWeekend() {
+        val entries =
+            listOf(
+                DayEntry("2024-01-06", 2500.0, 120.0, 300.0, 80.0, 30.0),
+            )
+        val result = computeWeekdayWeekendSplit(entries)
+        assertEquals(0, result.weekday.days)
+        assertEquals(1, result.weekend.days)
+        assertEquals(2500.0, result.weekend.avgCalories)
+    }
+
+    @Test
+    fun equalCaloriesZeroDelta() {
+        val entries =
+            listOf(
+                DayEntry("2024-01-08", 2000.0, 100.0, 250.0, 70.0, 25.0),
+                DayEntry("2024-01-06", 2000.0, 100.0, 250.0, 70.0, 25.0),
+            )
+        val result = computeWeekdayWeekendSplit(entries)
+        assertEquals(0.0, result.calorieDelta, 1e-9)
+        assertEquals(0.0, result.calorieDeltaPct, 1e-9)
+    }
 }

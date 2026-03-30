@@ -9,14 +9,13 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import * as m from '$lib/paraglide/messages';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
-	import { breadcrumbLabelKeys } from '$lib/config/navigation';
-
 	const user = $derived(getUser());
 	const userInitial = $derived((user?.name || user?.email || '?').charAt(0).toUpperCase());
 	const userDisplay = $derived(user?.name || user?.email || '');
 
 	const labelMap: Record<string, () => string> = {
 		app: () => m.nav_dashboard(),
+		home: () => m.nav_dashboard(),
 		foods: () => m.nav_foods(),
 		recipes: () => m.nav_recipes(),
 		goals: () => m.nav_goals(),
@@ -56,7 +55,7 @@
 </script>
 
 <header
-	class="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-border/70 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) md:px-0"
+	class="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-outline-variant/15 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) md:px-0"
 >
 	<div class="flex w-full items-center gap-1 px-3 py-1.5 md:px-4 md:py-0 lg:gap-2 lg:px-6">
 		<Sidebar.Trigger class="-ms-1" />

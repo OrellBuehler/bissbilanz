@@ -1,14 +1,11 @@
 {
 	"app_title": "Bissbilanz",
 	"app_tagline": "Track your nutrition with ease",
-
 	"confirm_delete_title": "Delete",
 	"confirm_delete_description": "Are you sure? This cannot be undone.",
 	"cancel": "Cancel",
-
 	"auth_login": "Login with Infomaniak",
 	"auth_logout": "Logout",
-
 	"landing_badge": "Track what matters",
 	"landing_headline_1": "Know every bite.",
 	"landing_headline_2": "Own every goal.",
@@ -31,14 +28,12 @@
 	"landing_cta_headline": "Start tracking today",
 	"landing_cta_subtext": "Free to use. No credit card. Just sign in and go.",
 	"landing_footer_privacy": "Privacy",
-
 	"nav_dashboard": "Dashboard",
 	"nav_foods": "Foods",
 	"nav_recipes": "Recipes",
 	"nav_history": "History",
 	"nav_goals": "Goals",
 	"nav_settings": "Settings",
-
 	"dashboard_today": "Today",
 	"dashboard_scan": "Scan",
 	"dashboard_copy_yesterday": "Copy Yesterday",
@@ -49,14 +44,12 @@
 	"dashboard_yesterday": "Yesterday",
 	"dashboard_tomorrow": "Tomorrow",
 	"dashboard_go_to_today": "Today",
-
 	"meal_breakfast": "Breakfast",
 	"meal_lunch": "Lunch",
 	"meal_dinner": "Dinner",
 	"meal_snacks": "Snacks",
 	"meal_add_food": "Add Food",
 	"meal_no_entries": "No entries",
-
 	"add_food_title": "Add Food",
 	"add_food_tab_search": "Search",
 	"add_food_tab_favorites": "Favorites",
@@ -80,15 +73,12 @@
 	"quick_log_add": "Log",
 	"quick_log_macro_calories": "{calories} kcal from macros",
 	"add_food_servings": "Servings",
-
 	"amount_mode_servings": "Servings",
 	"amount_mode_unit": "Amount",
 	"amount_preview_equals": "= {amount} {unit}",
 	"amount_preview_kcal": "{kcal} kcal",
-
 	"add_food_time": "Time (optional)",
 	"edit_entry_time": "Time",
-
 	"edit_entry_title": "Edit Entry",
 	"edit_entry_servings": "Servings",
 	"edit_entry_meal": "Meal",
@@ -96,7 +86,6 @@
 	"edit_entry_delete": "Delete",
 	"edit_entry_cancel": "Cancel",
 	"edit_entry_save": "Save",
-
 	"foods_title": "Foods",
 	"foods_search_placeholder": "Search foods",
 	"foods_new": "New Food",
@@ -108,7 +97,6 @@
 	"foods_empty": "No foods yet. Add your first food!",
 	"foods_no_results": "No foods match your search.",
 	"foods_delete_has_entries": "This food is used in <strong>{count} food log entries</strong>. Delete them too?",
-
 	"food_form_name": "Name",
 	"food_form_brand": "Brand",
 	"food_form_barcode": "Barcode",
@@ -134,13 +122,11 @@
 	"food_form_sugar": "Sugar (g)",
 	"food_form_saturated_fat": "Saturated Fat (g)",
 	"food_form_cholesterol": "Cholesterol (mg)",
-
 	"nutrient_category_fat_breakdown": "Fat Breakdown",
 	"nutrient_category_sugar_carb": "Sugar & Carbs",
 	"nutrient_category_mineral": "Minerals",
 	"nutrient_category_vitamin": "Vitamins",
 	"nutrient_category_other": "Other",
-
 	"nutrient_saturated_fat": "Saturated Fat (g)",
 	"nutrient_monounsaturated_fat": "Monounsaturated Fat (g)",
 	"nutrient_polyunsaturated_fat": "Polyunsaturated Fat (g)",
@@ -148,12 +134,10 @@
 	"nutrient_cholesterol": "Cholesterol (mg)",
 	"nutrient_omega3": "Omega-3 (g)",
 	"nutrient_omega6": "Omega-6 (g)",
-
 	"nutrient_sugar": "Sugar (g)",
 	"nutrient_added_sugars": "Added Sugars (g)",
 	"nutrient_sugar_alcohols": "Sugar Alcohols (g)",
 	"nutrient_starch": "Starch (g)",
-
 	"nutrient_sodium": "Sodium (mg)",
 	"nutrient_potassium": "Potassium (mg)",
 	"nutrient_calcium": "Calcium (mg)",
@@ -169,7 +153,6 @@
 	"nutrient_chromium": "Chromium (µg)",
 	"nutrient_molybdenum": "Molybdenum (µg)",
 	"nutrient_chloride": "Chloride (mg)",
-
 	"nutrient_vitamin_a": "Vitamin A (µg)",
 	"nutrient_vitamin_c": "Vitamin C (mg)",
 	"nutrient_vitamin_d": "Vitamin D (µg)",
@@ -183,30 +166,25 @@
 	"nutrient_vitamin_b7": "Vitamin B7 (µg)",
 	"nutrient_vitamin_b9": "Vitamin B9 / Folate (µg)",
 	"nutrient_vitamin_b12": "Vitamin B12 (µg)",
-
 	"nutrient_caffeine": "Caffeine (mg)",
 	"nutrient_alcohol": "Alcohol (g)",
 	"nutrient_water": "Water (g)",
 	"nutrient_salt": "Salt (g)",
-
 	"settings_visible_nutrients": "Visible Nutrients",
 	"settings_visible_nutrients_desc": "Choose which nutrients to show in the food form",
 	"settings_select_all": "Select All",
 	"settings_deselect_all": "Deselect All",
-
 	"food_form_favorite": "Favorite",
 	"food_form_save": "Save",
 	"food_form_cancel": "Cancel",
 	"food_form_barcode_label": "Barcode: {barcode}",
 	"food_form_calorie_hint": "Expected ~{expected} kcal from macros (P×4 + C×4 + F×9 + Fi×2), but you entered {actual} kcal.",
-
 	"recipes_title": "Recipes",
 	"recipes_new": "New Recipe",
 	"recipes_new_description": "Create a new recipe with ingredients",
 	"recipes_servings": "({count} servings)",
 	"recipes_no_recipes": "No recipes yet",
 	"recipes_delete_has_entries": "This recipe is used in <strong>{count} food log entries</strong>. Delete them too?",
-
 	"recipe_form_title": "New Recipe",
 	"recipe_form_name": "Recipe name",
 	"recipe_form_servings": "Total servings:",
@@ -217,9 +195,7 @@
 	"recipe_form_select_food": "Select food",
 	"recipe_form_qty": "Qty",
 	"recipe_form_unit": "Unit",
-
 	"nav_supplements": "Supplements",
-
 	"supplements_title": "Supplements",
 	"supplements_add": "Add Supplement",
 	"supplements_empty": "No supplements yet",
@@ -246,7 +222,6 @@
 	"supplements_time_noon": "Noon",
 	"supplements_time_evening": "Evening",
 	"supplements_time_anytime": "Anytime",
-
 	"supplements_ingredients": "Ingredients",
 	"supplements_add_ingredient": "Add ingredient",
 	"supplements_remove_ingredient": "Remove",
@@ -254,7 +229,6 @@
 	"supplements_ingredient_count": "{count} ingredients",
 	"supplements_ingredient_count_one": "1 ingredient",
 	"supplements_serving_form": "Serving form",
-
 	"supplements_day_sun": "Sun",
 	"supplements_day_mon": "Mon",
 	"supplements_day_tue": "Tue",
@@ -262,7 +236,6 @@
 	"supplements_day_thu": "Thu",
 	"supplements_day_fri": "Fri",
 	"supplements_day_sat": "Sat",
-
 	"supplements_history_title": "Supplement History",
 	"supplements_history_empty": "No supplement history for this period",
 	"supplements_history_from": "From",
@@ -270,11 +243,9 @@
 	"supplements_history_filter": "Filter",
 	"supplements_history_missed": "Missed",
 	"supplements_history_adherence": "{taken}/{total} taken",
-
 	"dashboard_supplements": "Supplements",
 	"dashboard_supplements_all_taken": "All taken!",
 	"dashboard_supplements_progress": "{taken} / {total} taken",
-
 	"goals_title": "Goals",
 	"goals_calories": "Calories",
 	"goals_protein": "Protein (g)",
@@ -287,14 +258,12 @@
 	"goals_save_failed": "Failed to save goals",
 	"goals_macro_split": "Macro Split",
 	"goals_total": "Total",
-
 	"history_title": "History",
 	"history_weekly": "Weekly Average (7 days)",
 	"history_monthly": "Monthly Average (30 days)",
 	"history_loading": "Loading...",
 	"history_back": "Back to Calendar",
 	"history_daily_totals": "Daily Totals",
-
 	"settings_title": "Settings",
 	"settings_custom_meals": "Custom Meal Types",
 	"settings_add_meal_placeholder": "Add meal type",
@@ -326,13 +295,11 @@
 	"settings_save_failed": "Failed to save",
 	"settings_about": "About",
 	"settings_version": "Version",
-
 	"macro_calories": "Calories",
 	"macro_protein": "Protein",
 	"macro_carbs": "Carbs",
 	"macro_fat": "Fat",
 	"macro_fiber": "Fiber",
-
 	"barcode_title": "Scan Barcode",
 	"barcode_error": "Error",
 	"barcode_starting": "Starting camera...",
@@ -340,7 +307,6 @@
 	"barcode_camera_not_found": "No camera found on this device.",
 	"barcode_camera_overconstrained": "Camera does not support the required settings. Try a different camera.",
 	"barcode_camera_error": "Could not access the camera. Please try again.",
-
 	"calendar_on_target": "On target",
 	"calendar_off_target": "Off target",
 	"calendar_logged": "Logged",
@@ -351,7 +317,6 @@
 	"calendar_fri": "Fri",
 	"calendar_sat": "Sat",
 	"calendar_sun": "Sun",
-
 	"month_january": "January",
 	"month_february": "February",
 	"month_march": "March",
@@ -364,7 +329,6 @@
 	"month_october": "October",
 	"month_november": "November",
 	"month_december": "December",
-
 	"quality_title": "Food Quality",
 	"quality_nutriscore": "Nutri-Score",
 	"quality_nova": "NOVA Group",
@@ -385,7 +349,6 @@
 	"quality_off_loading": "Looking up product...",
 	"quality_off_not_found": "Product not found in Open Food Facts",
 	"quality_off_prefilled": "Pre-filled from Open Food Facts",
-
 	"charts_this_week": "This Week",
 	"charts_calories_trend": "Calorie Trend",
 	"charts_macro_breakdown": "Macro Breakdown",
@@ -395,7 +358,6 @@
 	"charts_start_date": "Start",
 	"charts_end_date": "End",
 	"charts_no_data": "No data for this period",
-
 	"error_unauthorized": "Unauthorized",
 	"error_missing_date": "Missing date",
 	"error_date_range_required": "Start date and end date required",
@@ -404,7 +366,6 @@
 	"error_food_required": "Food or recipe is required",
 	"error_weight_range": "Weight must be between 20 and 500 kg",
 	"error_generic": "An error occurred",
-
 	"pwa_install_prompt": "Install Bissbilanz for quick access",
 	"pwa_install": "Install",
 	"pwa_offline": "You're offline — changes will sync when reconnected",
@@ -413,9 +374,7 @@
 	"pwa_update_dismiss": "Later",
 	"pwa_syncing": "Syncing changes…",
 	"pwa_ios_install_prompt": "Install this app: tap {shareIcon} then \"Add to Home Screen\"",
-
 	"nav_favorites": "Favorites",
-
 	"favorites_title": "Favorites",
 	"favorites_foods_tab": "Foods",
 	"favorites_recipes_tab": "Recipes",
@@ -428,7 +387,6 @@
 	"favorites_servings": "Servings",
 	"favorites_log": "Log",
 	"favorites_loading": "Loading...",
-
 	"food_detail_title": "Food Details",
 	"recipe_detail_title": "Recipe Details",
 	"mark_as_favorite": "Mark as favorite",
@@ -446,7 +404,6 @@
 	"image_upload_failed": "Image upload failed",
 	"detail_ingredients": "Ingredients",
 	"detail_servings": "{count} servings",
-
 	"dashboard_weight": "Weight",
 	"dashboard_weight_latest": "{value} kg",
 	"dashboard_weight_no_entries": "No entries yet",
@@ -454,9 +411,7 @@
 	"dashboard_weight_log": "Log",
 	"dashboard_weight_placeholder": "kg",
 	"dashboard_weight_view_all": "Weight",
-
 	"nav_weight": "Weight",
-
 	"weight_page_title": "Weight Tracking",
 	"weight_log": "Log Weight",
 	"weight_history": "History",
@@ -484,10 +439,8 @@
 	"weight_projected": "Projected",
 	"weight_view_all": "View all {count} entries",
 	"weight_history_page_title": "Weight History",
-
 	"settings_tab_general": "General",
 	"settings_tab_mcp": "MCP",
-
 	"mcp_connected_apps": "Connected Applications",
 	"mcp_connected_apps_desc": "Applications that have been authorized to access your account via MCP",
 	"mcp_no_connected_apps": "No applications are currently connected.",
@@ -495,7 +448,6 @@
 	"mcp_client_name_fallback": "Unknown Application",
 	"mcp_approved_at": "Approved {date}",
 	"mcp_revoke_confirm": "Revoke access for this application? It will need to be re-authorized.",
-
 	"streaks_title": "Streak",
 	"streaks_days": "{count} days",
 	"streaks_day": "1 day",
@@ -503,7 +455,6 @@
 	"streaks_longest": "Longest: {count} days",
 	"streaks_personal_best": "Personal best!",
 	"streaks_no_streak": "Start logging to build a streak",
-
 	"nav_insights": "Insights",
 	"insights_title": "Insights",
 	"insights_meal_distribution": "Meal Distribution",
@@ -522,18 +473,14 @@
 	"settings_widget_top_foods_desc": "Most frequently logged foods",
 	"settings_widget_sleep": "Sleep",
 	"settings_widget_sleep_desc": "Last night's sleep duration and quality",
-
 	"dashboard_goal_progress": "Goal Progress",
 	"dashboard_remaining": "{amount} remaining",
 	"dashboard_over": "{amount} over",
-
 	"delete_related_entries": "Delete related entries",
 	"recipes_delete": "Delete recipe",
-
 	"nav_maintenance": "Maintenance",
 	"nav_group_manage": "Manage",
 	"nav_group_analyze": "Analyze",
-
 	"maintenance_title": "Maintenance Calculator",
 	"maintenance_description": "Estimate your maintenance calories based on weight change and calorie intake over a period.",
 	"maintenance_date_range": "Date Range",
@@ -564,13 +511,11 @@
 	"maintenance_low_coverage_warning": "Only {days} of {total} days have food logs. Results may be inaccurate.",
 	"maintenance_data_note": "Based on {weightEntries} weight entries, {foodDays} days with food logs, over {days} days.",
 	"maintenance_weight_range": "Weight: {first} kg → {last} kg",
-
 	"fasting_day": "Fasting Day",
 	"fasting_day_toggle": "Mark as fasting day",
 	"fasting_day_description": "Include this 0-calorie day in statistics and predictions",
 	"fasting_day_marked": "Marked as fasting day",
 	"fasting_day_unmarked": "Removed fasting day mark",
-
 	"insights_trends": "Trends",
 	"insights_goal_adherence": "Goal Adherence",
 	"insights_calendar": "Calendar",
@@ -590,12 +535,10 @@
 	"insights_no_goals": "No goals set",
 	"insights_avg": "Avg",
 	"insights_meal": "Meal",
-
 	"insights_tab_nutrition": "Nutrition",
 	"insights_tab_weight": "Weight",
 	"insights_tab_sleep": "Sleep",
 	"insights_sleep_coming_soon": "Sleep tracking coming soon",
-
 	"sleep_page_title": "Sleep Tracking",
 	"sleep_log": "Log Sleep",
 	"sleep_duration": "Duration",
@@ -622,7 +565,6 @@
 	"sleep_widget_no_data": "No sleep logged yet",
 	"sleep_widget_quality_label": "Quality",
 	"sleep_widget_log_prompt": "Log last night's sleep",
-
 	"analytics_caloric_lag": "Caloric Lag",
 	"analytics_caloric_lag_headline": "Your weight responds {days} days after eating",
 	"analytics_caloric_lag_no_result": "Not enough data to detect caloric lag",
@@ -658,7 +600,6 @@
 	"analytics_caffeine_no_pattern": "No clear caffeine-sleep pattern",
 	"analytics_caffeine_quality": "Avg. sleep quality",
 	"analytics_caffeine_hour": "{hour}:00",
-
 	"analytics_tdee": "Estimated TDEE",
 	"analytics_tdee_headline": "Your estimated TDEE is {kcal} kcal",
 	"analytics_tdee_no_data": "Need more weight & food data",
@@ -686,7 +627,6 @@
 	"analytics_sodium_avg": "Avg. daily sodium",
 	"analytics_sodium_high_days": "High sodium days (>2300mg)",
 	"analytics_sodium_delta": "Avg. next-day weight change",
-
 	"analytics_nova": "Food Processing",
 	"analytics_nova_headline": "{pct}% ultra-processed calories",
 	"analytics_nova_coverage": "Coverage: {pct}% of calories",
@@ -742,7 +682,6 @@
 	"analytics_diversity_trend_increasing": "Increasing",
 	"analytics_diversity_trend_stable": "Stable",
 	"analytics_diversity_trend_decreasing": "Decreasing",
-
 	"confidence_insufficient": "Not enough data",
 	"confidence_low": "Early pattern — keep logging for more accuracy",
 	"confidence_low_badge": "Low confidence",
@@ -750,7 +689,6 @@
 	"confidence_high": "Based on {days} days of data",
 	"confidence_data_needed": "{days} more days of data needed to unlock this insight",
 	"confidence_keep_logging": "Keep logging!",
-
 	"analytics_rda_basis": "Based on {days}-day average vs. average RDA",
 	"analytics_avg_window_24h": "Average window (24h)",
 	"analytics_avg_eating_window_24h": "Average eating window (24h)",
@@ -772,5 +710,22 @@
 	"oauth_error_invalid_redirect_uri_format": "The redirect URI format is invalid.",
 	"oauth_error_unknown": "An unexpected error occurred during authorization.",
 	"oauth_error_code_label": "Error code:",
-	"oauth_error_go_home": "Go to Bissbilanz"
+	"oauth_error_go_home": "Go to Bissbilanz",
+	"insights_teaser_label": "Insights",
+	"insights_teaser_text": "View your nutrition trends, correlations, and personalized recommendations.",
+	"settings_widget_insights_teaser": "Insights Teaser",
+	"settings_widget_insights_teaser_desc": "Quick link to nutrition insights and trends",
+	"settings_favorites_logging": "Favorites Logging",
+	"settings_meal_assignment": "Meal assignment",
+	"settings_meal_auto_assign": "Auto-assign by timeframes",
+	"settings_meal_always_ask": "Always ask which meal",
+	"settings_auto_assignment_timeframes": "Auto-assignment timeframes",
+	"settings_auto_assignment_timeframes_desc": "Outside configured timeframes, the app asks which meal to use.",
+	"settings_add_timeframe": "Add timeframe",
+	"settings_no_timeframes": "No timeframes configured. Favorites will ask for a meal unless you add a matching window.",
+	"settings_timeframe_meal": "Meal",
+	"settings_timeframe_from": "From",
+	"settings_timeframe_to": "To",
+	"settings_saving": "Saving...",
+	"settings_save": "Save"
 }

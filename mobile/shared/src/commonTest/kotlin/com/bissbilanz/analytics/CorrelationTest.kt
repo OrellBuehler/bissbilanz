@@ -87,4 +87,24 @@ class CorrelationTest {
         assertTrue(result.r >= -1.0)
         assertTrue(result.r <= 1.0)
     }
+
+    @Test
+    fun singleElementReturnsConstantInput() {
+        val result = pearsonCorrelation(doubleArrayOf(5.0), doubleArrayOf(3.0))
+        assertEquals(0.0, result.r)
+        assertEquals(1.0, result.pValue)
+        assertEquals(true, result.constantInput)
+        assertEquals(1, result.sampleSize)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+    }
+
+    @Test
+    fun emptyArraysReturnsConstantInput() {
+        val result = pearsonCorrelation(doubleArrayOf(), doubleArrayOf())
+        assertEquals(0, result.sampleSize)
+        assertEquals(0.0, result.r)
+        assertEquals(1.0, result.pValue)
+        assertEquals(true, result.constantInput)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+    }
 }
