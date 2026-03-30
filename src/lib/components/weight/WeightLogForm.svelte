@@ -40,7 +40,13 @@
 	};
 </script>
 
-<form onsubmit={submit} class="space-y-3">
+<form
+	onsubmit={(e) => {
+		e.preventDefault();
+		submit();
+	}}
+	class="space-y-3"
+>
 	<div class="grid gap-3 md:grid-cols-12">
 		<div class="md:col-span-4">
 			<label for="weight-kg" class="mb-1 block text-sm font-medium">{m.weight_kg_label()}</label>
