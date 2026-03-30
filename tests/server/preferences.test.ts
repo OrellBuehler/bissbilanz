@@ -99,6 +99,7 @@ describe('preferences', () => {
 				'meal-breakdown',
 				'top-foods',
 				'sleep',
+				'insights-teaser',
 				'summary',
 				'daylog'
 			];
