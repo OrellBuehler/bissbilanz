@@ -260,9 +260,7 @@
 						</div>
 					{/if}
 				</div>
-				<div
-					class="rounded-xl border border-blue-200/50 bg-gradient-to-b from-blue-50/70 via-blue-50/20 to-background py-2 pr-2 pl-3 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10"
-				>
+				<div class="rounded-xl border border-border/40 bg-card py-2 pr-2 pl-3">
 					<div class="h-[228px] sm:h-[236px]">
 						<CalorieTrendChart data={chartData} {calorieGoal} />
 					</div>
@@ -303,9 +301,7 @@
 						{/each}
 					</div>
 				</div>
-				<div
-					class="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/60 via-emerald-50/10 to-background py-2 pr-2 pl-3 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-emerald-950/5"
-				>
+				<div class="rounded-xl border border-border/40 bg-card py-2 pr-2 pl-3">
 					<div class="h-[228px] sm:h-[236px]">
 						<MacroBreakdownChart data={chartData} visibleKeys={visibleMacroKeys} />
 					</div>

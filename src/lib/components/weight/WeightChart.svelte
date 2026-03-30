@@ -273,9 +273,7 @@
 			</div>
 		{/if}
 
-		<div
-			class="relative overflow-hidden rounded-xl border border-blue-200/60 bg-gradient-to-b from-blue-50/80 via-blue-50/20 to-background p-1 dark:border-blue-900/40 dark:from-blue-950/25 dark:via-blue-950/10"
-		>
+		<div class="relative overflow-hidden rounded-xl border border-border/40 bg-card p-1">
 			<div class="absolute -top-8 right-8 h-20 w-20 rounded-full bg-blue-500/10 blur-2xl"></div>
 			<div
 				class="absolute -bottom-10 left-10 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl"
@@ -334,7 +332,7 @@
 		</div>
 	{:else}
 		<div
-			class="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/70 bg-gradient-to-b from-muted/20 to-background px-4 text-center text-sm text-muted-foreground"
+			class="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground"
 		>
 			<div class="flex items-center gap-2">
 				<Weight class="size-4" />
