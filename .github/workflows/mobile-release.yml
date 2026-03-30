@@ -60,11 +60,15 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "release" ]; then
+            echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build release AAB
@@ -73,7 +77,9 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN=${{ secrets.SENTRY_DSN }} -PAPP_VERSION=${{ steps.version.outputs.tag }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          APP_VERSION: ${{ steps.version.outputs.tag }}
+        run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN="$SENTRY_DSN" -PAPP_VERSION="$APP_VERSION"
 
       - name: Upload release AAB artifact
         uses: actions/upload-artifact@v7

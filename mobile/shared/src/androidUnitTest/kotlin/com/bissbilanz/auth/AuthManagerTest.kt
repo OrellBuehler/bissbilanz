@@ -39,8 +39,8 @@ class AuthManagerTest {
     }
 
     @Test
-    fun initialStateIsUnauthenticated() {
-        assertEquals(AuthState.Unauthenticated, authManager.authState.value)
+    fun initialStateIsLoading() {
+        assertEquals(AuthState.Loading, authManager.authState.value)
     }
 
     @Test

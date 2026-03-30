@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- False positive: remember { list.sumOf { ... } } is flagged as returning Unit -->
+    <issue id="RememberReturnType" severity="ignore" />
+</lint>

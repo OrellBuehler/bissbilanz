@@ -84,4 +84,45 @@ class SodiumWeightTest {
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
         assertEquals(0.0, result.avgSodium, 1e-9)
     }
+
+    @Test
+    fun emptyWeightSeriesReturnsInsufficient() {
+        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0) }
+        val result = computeSodiumWeightCorrelation(nutrients, emptyList())
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+        assertEquals(0, result.sampleSize)
+    }
+
+    @Test
+    fun allNullWeightsReturnsInsufficient() {
+        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0) }
+        val weights = (1..10).map { Pair("2024-01-${pad2(it)}", null as Double?) }
+        val result = computeSodiumWeightCorrelation(nutrients, weights)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+    }
+
+    @Test
+    fun sodiumExactly2300NotCountedAsHigh() {
+        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2300.0) }
+        val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeSodiumWeightCorrelation(nutrients, weights)
+        assertEquals(0, result.highSodiumDays)
+    }
+
+    @Test
+    fun sodiumAbove2300CountedAsHigh() {
+        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2301.0) }
+        val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeSodiumWeightCorrelation(nutrients, weights)
+        assertEquals(10, result.highSodiumDays)
+    }
+
+    @Test
+    fun sodiumZeroValuesHandled() {
+        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 0.0) }
+        val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeSodiumWeightCorrelation(nutrients, weights)
+        assertEquals(0.0, result.avgSodium)
+        assertEquals(0, result.highSodiumDays)
+    }
 }

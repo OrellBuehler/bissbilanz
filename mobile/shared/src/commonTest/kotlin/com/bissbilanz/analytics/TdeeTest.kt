@@ -143,4 +143,47 @@ class TdeeTest {
         assertNull(result.day90)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
     }
+
+    @Test
+    fun weightSeriesWithNullsMixedIn() {
+        val weights = (1..20).map { Pair("2024-01-${pad2(it)}", if (it % 3 == 0) null else 80.0 - it * 0.1) }
+        val calories = (1..20).map { Pair("2024-01-${pad2(it)}", 2000.0 as Double?) }
+        val result = computeAdaptiveTDEE(weights, calories)
+        assertTrue(result.sampleSize > 0)
+    }
+
+    @Test
+    fun singleWeightEntryReturnsInsufficient() {
+        val weights = listOf(Pair("2024-01-15", 80.0 as Double?))
+        val calories = (1..15).map { Pair("2024-01-${pad2(it)}", 2000.0 as Double?) }
+        val result = computeAdaptiveTDEE(weights, calories)
+        assertNull(result.estimatedTDEE)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+    }
+
+    @Test
+    fun emptyWeightAndCaloriesReturnsInsufficient() {
+        val result = computeAdaptiveTDEE(emptyList(), emptyList())
+        assertNull(result.estimatedTDEE)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+        assertEquals(0.0, result.avgIntake)
+    }
+
+    @Test
+    fun projectWeightSingleEntry() {
+        val weights = listOf(Pair("2024-01-01", 80.0 as Double?))
+        val result = projectWeight(weights, -0.5)
+        assertEquals(80.0, result.currentWeight)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+        assertNotNull(result.day30)
+    }
+
+    @Test
+    fun plateauDetectionSingleWeightReturnsNotPlateaued() {
+        val weights = listOf(Pair("2024-01-15", 80.0 as Double?))
+        val calories = listOf(Pair("2024-01-15", 2000.0 as Double?))
+        val result = detectPlateau(weights, calories, 2000.0)
+        assertEquals(false, result.isPlateaued)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+    }
 }

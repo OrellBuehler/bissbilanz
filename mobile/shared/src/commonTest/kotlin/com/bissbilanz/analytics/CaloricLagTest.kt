@@ -82,4 +82,38 @@ class CaloricLagTest {
             }
         }
     }
+
+    @Test
+    fun emptyCaloriesReturnsAllNullCorrelations() {
+        val weight = (1..10).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeCaloricLag(emptyList(), weight)
+        assertEquals(7, result.results.size)
+        assertNull(result.bestLag)
+        for (r in result.results) assertNull(r.correlation)
+    }
+
+    @Test
+    fun emptyWeightReturnsAllNullCorrelations() {
+        val calories = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0 as Double?) }
+        val result = computeCaloricLag(calories, emptyList())
+        assertEquals(7, result.results.size)
+        assertNull(result.bestLag)
+    }
+
+    @Test
+    fun allNullCaloriesReturnsAllNullCorrelations() {
+        val calories = (1..10).map { Pair("2024-01-${pad2(it)}", null as Double?) }
+        val weight = (1..10).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeCaloricLag(calories, weight)
+        assertNull(result.bestLag)
+    }
+
+    @Test
+    fun maxLagOneReturnsSingleResult() {
+        val calories = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0 as Double?) }
+        val weight = (1..10).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
+        val result = computeCaloricLag(calories, weight, maxLag = 1)
+        assertEquals(1, result.results.size)
+        assertEquals(1, result.results[0].lag)
+    }
 }

@@ -46,6 +46,7 @@ import org.koin.compose.koinInject
 enum class ScanState { SCANNING, SEARCHING, NOT_FOUND }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 @Composable
 fun BarcodeScannerScreen(navController: NavController) {
     val context = LocalContext.current

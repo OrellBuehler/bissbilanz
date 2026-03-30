@@ -82,4 +82,62 @@ class CaffeineSleepTest {
         assertEquals(0, result.sampleSize)
         assertEquals(emptyList(), result.hourlyImpact)
     }
+
+    @Test
+    fun singleEntryReturnsSampleSizeOne() {
+        val caffeine = listOf(CaffeineEntry("2024-01-01", "2024-01-01T14:00:00Z", 100.0))
+        val sleep = listOf(SleepDataPoint("2024-01-02", 7.0, 420.0))
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(1, result.sampleSize)
+        assertNull(result.estimatedCutoffHour)
+    }
+
+    @Test
+    fun nullEatenAtEntriesSkipped() {
+        val caffeine =
+            listOf(
+                CaffeineEntry("2024-01-01", null, 100.0),
+                CaffeineEntry("2024-01-02", null, 200.0),
+            )
+        val sleep =
+            listOf(
+                SleepDataPoint("2024-01-02", 7.0, 420.0),
+                SleepDataPoint("2024-01-03", 8.0, 480.0),
+            )
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(0, result.sampleSize)
+        assertEquals(emptyList(), result.hourlyImpact)
+    }
+
+    @Test
+    fun zeroCaffeineEntriesSkipped() {
+        val caffeine = listOf(CaffeineEntry("2024-01-01", "2024-01-01T14:00:00Z", 0.0))
+        val sleep = listOf(SleepDataPoint("2024-01-02", 7.0, 420.0))
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(0, result.sampleSize)
+    }
+
+    @Test
+    fun negativeCaffeineEntriesSkipped() {
+        val caffeine = listOf(CaffeineEntry("2024-01-01", "2024-01-01T14:00:00Z", -50.0))
+        val sleep = listOf(SleepDataPoint("2024-01-02", 7.0, 420.0))
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(0, result.sampleSize)
+    }
+
+    @Test
+    fun nullQualityOnlySleepSkipped() {
+        val caffeine = listOf(CaffeineEntry("2024-01-01", "2024-01-01T14:00:00Z", 100.0))
+        val sleep = listOf(SleepDataPoint("2024-01-02", null, 420.0))
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(0, result.sampleSize)
+    }
+
+    @Test
+    fun nullDurationOnlySleepSkipped() {
+        val caffeine = listOf(CaffeineEntry("2024-01-01", "2024-01-01T14:00:00Z", 100.0))
+        val sleep = listOf(SleepDataPoint("2024-01-02", 7.0, null))
+        val result = computeCaffeineSleepCutoff(caffeine, sleep)
+        assertEquals(0, result.sampleSize)
+    }
 }
