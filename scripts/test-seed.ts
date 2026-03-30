@@ -1,5 +1,7 @@
 import { drizzle } from 'drizzle-orm/bun-sql';
+import { migrate } from 'drizzle-orm/bun-sql/migrator';
 import { SQL } from 'bun';
+import { join } from 'node:path';
 import { users, foods, foodEntries, userGoals } from '../src/lib/server/schema';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -16,6 +18,9 @@ if (!databaseUrl) {
 
 const client = new SQL({ url: databaseUrl });
 const db = drizzle({ client });
+
+await migrate(db, { migrationsFolder: join(import.meta.dir, '..', 'drizzle') });
+console.log('Migrations applied');
 
 const today = new Date().toISOString().split('T')[0];
 

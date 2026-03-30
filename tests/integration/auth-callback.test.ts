@@ -167,7 +167,7 @@ describe('Auth callback flow', () => {
 			expect(true).toBe(false);
 		} catch (e: any) {
 			expect(e.status).toBe(302);
-			expect(e.location).toBe('/');
+			expect(e.location).toBe('/home');
 		}
 	});
 
