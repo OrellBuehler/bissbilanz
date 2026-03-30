@@ -16,7 +16,7 @@
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
-	let isMobile = $state(!browser || window.innerWidth < 768);
+	let isMobile = $state(browser && window.innerWidth < 768);
 	let mqlCleanup: (() => void) | undefined;
 
 	function edgeSwipeAction(node: HTMLElement) {

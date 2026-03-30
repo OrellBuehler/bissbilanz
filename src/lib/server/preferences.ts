@@ -44,6 +44,7 @@ export const DEFAULT_PREFERENCES = {
 		'meal-breakdown',
 		'top-foods',
 		'sleep',
+		'insights-teaser',
 		'summary',
 		'daylog'
 	] as string[],
@@ -52,7 +53,6 @@ export const DEFAULT_PREFERENCES = {
 	favoriteTapAction: 'instant' as const,
 	favoriteMealAssignmentMode: 'time_based' as const,
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
-	navTabs: ['favorites', 'foods', 'insights'] as string[],
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 
@@ -65,6 +65,7 @@ const ALL_SECTION_KEYS = [
 	'meal-breakdown',
 	'top-foods',
 	'sleep',
+	'insights-teaser',
 	'summary',
 	'daylog'
 ];

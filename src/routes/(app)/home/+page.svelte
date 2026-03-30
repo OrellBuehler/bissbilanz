@@ -9,7 +9,7 @@
 	import { type MacroTotals } from '$lib/utils/nutrition';
 	import { today } from '$lib/utils/dates';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
@@ -25,7 +25,6 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { entryService } from '$lib/services/entry-service.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
-	import InsightsTeaser from '$lib/components/dashboard/InsightsTeaser.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
@@ -47,6 +46,7 @@
 	let streaks: { currentStreak: number; longestStreak: number } | null = $state(null);
 	let ready = $state(false);
 	let isLg = $state(false);
+	let mqlCleanup: (() => void) | undefined;
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
@@ -84,7 +84,11 @@
 
 		const mql = window.matchMedia('(min-width: 1024px)');
 		isLg = mql.matches;
-		mql.addEventListener('change', (e) => (isLg = e.matches));
+		const mqlHandler = (e: MediaQueryListEvent) => {
+			isLg = e.matches;
+		};
+		mql.addEventListener('change', mqlHandler);
+		mqlCleanup = () => mql.removeEventListener('change', mqlHandler);
 
 		// Fire background refreshes
 		goalsService.refresh();
@@ -104,6 +108,8 @@
 			goto('/home', { replaceState: true });
 		}
 	});
+
+	onDestroy(() => mqlCleanup?.());
 
 	// Re-check startPage once preferences load from network
 	$effect(() => {
@@ -157,8 +163,6 @@
 		<TopFoodsWidget />
 	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
 		<SleepWidget date={activeDate} />
-	{:else if sectionKey === 'insights-teaser'}
-		<InsightsTeaser />
 	{:else if sectionKey === 'summary'}
 		<MacroSummaryCard totals={daylogTotals} />
 	{:else if sectionKey === 'daylog'}
@@ -190,7 +194,7 @@
 		<!-- Mobile FAB for barcode scanner -->
 		<button
 			type="button"
-			class="fixed bottom-22 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
+			class="fixed bottom-6 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
 			onclick={() => (scanModalOpen = true)}
 			aria-label={m.dashboard_scan()}
 		>
@@ -217,9 +221,6 @@
 				{#each order as key (key)}
 					{@render widget(key)}
 				{/each}
-				{#if !order.includes('insights-teaser')}
-					<InsightsTeaser />
-				{/if}
 			</div>
 		{/if}
 	</div>

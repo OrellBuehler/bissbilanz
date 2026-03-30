@@ -4199,6 +4199,7 @@
 								"meal-breakdown",
 								"top-foods",
 								"sleep",
+								"insights-teaser",
 								"summary",
 								"daylog"
 							]
@@ -4243,15 +4244,6 @@
 								"type": "null"
 							}
 						]
-					},
-					"navTabs": {
-						"minItems": 3,
-						"maxItems": 3,
-						"type": "array",
-						"items": {
-							"type": "string",
-							"enum": ["favorites", "foods", "insights", "weight", "supplements"]
-						}
 					}
 				},
 				"additionalProperties": false

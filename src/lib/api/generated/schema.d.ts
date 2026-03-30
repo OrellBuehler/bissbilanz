@@ -1013,6 +1013,7 @@ export interface components {
 				| 'meal-breakdown'
 				| 'top-foods'
 				| 'sleep'
+				| 'insights-teaser'
 				| 'summary'
 				| 'daylog'
 			)[];
@@ -1027,7 +1028,6 @@ export interface components {
 			/** @enum {string} */
 			locale?: 'en' | 'de';
 			caloricLagDaysOverride?: number | null;
-			navTabs?: ('favorites' | 'foods' | 'insights' | 'weight' | 'supplements')[];
 		};
 		FavoriteMealTimeframeInput: {
 			mealType: string;
