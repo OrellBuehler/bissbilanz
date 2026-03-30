@@ -25,7 +25,8 @@ export default defineConfig({
 					INFOMANIAK_CLIENT_SECRET: process.env.INFOMANIAK_CLIENT_SECRET ?? 'fake',
 					INFOMANIAK_REDIRECT_URI:
 						process.env.INFOMANIAK_REDIRECT_URI ?? 'http://localhost:4000/oauth/callback',
-					TEST_MODE: 'true'
+					TEST_MODE: 'true',
+					PORT: '4000'
 				}
 			}
 		: undefined,
