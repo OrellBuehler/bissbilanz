@@ -15,6 +15,7 @@
 
 	const labelMap: Record<string, () => string> = {
 		app: () => m.nav_dashboard(),
+		home: () => m.nav_dashboard(),
 		foods: () => m.nav_foods(),
 		recipes: () => m.nav_recipes(),
 		goals: () => m.nav_goals(),
