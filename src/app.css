@@ -44,7 +44,7 @@ html {
 
 	/* Borders: ghost borders per spec (outline-variant at 15%) */
 	--border: oklch(0.825 0.028 145 / 15%);
-	--input: oklch(0.825 0.028 145 / 30%);
+	--input: oklch(0.825 0.028 145 / 50%);
 	--ring: oklch(0.469 0.121 153);
 
 	/* Charts */

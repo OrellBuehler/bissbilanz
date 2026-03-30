@@ -232,13 +232,6 @@
       "when": 1774194796671,
       "tag": "0032_material_cerebro",
       "breakpoints": true
-    },
-    {
-      "idx": 33,
-      "version": "7",
-      "when": 1774823172131,
-      "tag": "0033_nice_tyrannus",
-      "breakpoints": true
     }
   ]
 }
