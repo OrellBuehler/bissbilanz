@@ -1,0 +1,90 @@
+name: Docker PR Smoke Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_TAG: bissbilanz-pr:${{ github.sha }}
+
+jobs:
+  docker-smoke-test:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: bissbilanz
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=pr-${{ github.event.pull_request.number }}
+            GIT_HASH=${{ github.sha }}
+            BUILD_TIMESTAMP=${{ github.event.pull_request.updated_at }}
+
+      - name: Start container
+        run: |
+          docker run -d --name bissbilanz-smoke --network host \
+            -e DATABASE_URL=postgres://test:test@127.0.0.1:5432/bissbilanz \
+            -e SESSION_SECRET=test-session-secret-for-ci \
+            -e PUBLIC_APP_URL=http://127.0.0.1:3000 \
+            -e INFOMANIAK_CLIENT_ID=fake \
+            -e INFOMANIAK_CLIENT_SECRET=fake \
+            -e INFOMANIAK_REDIRECT_URI=http://127.0.0.1:3000/oauth/callback \
+            "$IMAGE_TAG"
+
+      - name: Wait for container to become ready
+        run: |
+          for attempt in {1..30}; do
+            if ! docker ps --filter name=bissbilanz-smoke --filter status=running | grep -q bissbilanz-smoke; then
+              echo "Container exited before becoming ready"
+              docker logs bissbilanz-smoke
+              exit 1
+            fi
+
+            status_code="$(curl -sS -o /tmp/bissbilanz-health.json -w '%{http_code}' http://127.0.0.1:3000/api/auth/me || true)"
+            if [ "$status_code" = "200" ]; then
+              cat /tmp/bissbilanz-health.json
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Container did not become ready in time"
+          docker logs bissbilanz-smoke
+          exit 1
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f bissbilanz-smoke
