@@ -44,7 +44,6 @@ export const DEFAULT_PREFERENCES = {
 		'meal-breakdown',
 		'top-foods',
 		'sleep',
-		'insights-teaser',
 		'summary',
 		'daylog'
 	] as string[],
@@ -65,7 +64,6 @@ const ALL_SECTION_KEYS = [
 	'meal-breakdown',
 	'top-foods',
 	'sleep',
-	'insights-teaser',
 	'summary',
 	'daylog'
 ];

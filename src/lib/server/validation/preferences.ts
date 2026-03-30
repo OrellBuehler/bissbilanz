@@ -34,7 +34,6 @@ export const preferencesUpdateSchema = z
 					'meal-breakdown',
 					'top-foods',
 					'sleep',
-					'insights-teaser',
 					'summary',
 					'daylog'
 				])
