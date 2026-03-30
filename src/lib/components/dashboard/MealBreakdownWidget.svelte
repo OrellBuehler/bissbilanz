@@ -66,7 +66,7 @@
 	const hasData = $derived(chartData.length > 0);
 </script>
 
-<DashboardCard title={m.insights_meal_distribution()} Icon={ChartPie} tone="rose">
+<DashboardCard title={m.insights_meal_distribution()} Icon={ChartPie} tone="tertiary">
 	{#snippet headerRight()}
 		<Button variant="ghost" size="sm" href="/insights" class="text-xs">
 			{m.insights_see_more()}

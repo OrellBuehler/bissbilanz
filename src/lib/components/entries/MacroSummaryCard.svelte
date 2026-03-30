@@ -11,7 +11,7 @@
 	let { totals }: Props = $props();
 </script>
 
-<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet" class="@container">
+<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="tertiary" class="@container">
 	<div class="grid grid-cols-2 gap-2 text-sm @lg:grid-cols-5">
 		<div class="rounded-2xl bg-blue-50/60 px-3 py-2.5 dark:bg-blue-950/20">
 			<div class="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80">

@@ -15,7 +15,7 @@
 	const longestLabel = $derived(m.streaks_longest({ count: String(longestStreak) }));
 </script>
 
-<DashboardCard title={m.streaks_title()} Icon={Flame} tone="amber">
+<DashboardCard title={m.streaks_title()} Icon={Flame} tone="primary">
 	<div class="flex items-baseline gap-2">
 		<span class="text-3xl font-bold tabular-nums">{currentStreak}</span>
 		<span class="text-muted-foreground text-sm">

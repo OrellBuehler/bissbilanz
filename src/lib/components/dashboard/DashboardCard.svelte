@@ -3,7 +3,7 @@
 	import { cn } from '$lib/utils.js';
 	import type { Snippet } from 'svelte';
 
-	type Tone = 'neutral' | 'blue' | 'emerald' | 'amber' | 'rose' | 'violet';
+	type Tone = 'neutral' | 'primary' | 'tertiary';
 
 	type Props = {
 		title: string;
@@ -29,44 +29,24 @@
 		neutral: {
 			badge: 'bg-muted text-muted-foreground',
 			title: 'text-foreground',
-			shell: 'bg-surface-container-low'
+			shell: 'bg-card'
 		},
-		blue: {
-			badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+		primary: {
+			badge: 'bg-primary/10 text-primary',
 			title: 'text-foreground',
-			shell:
-				'bg-gradient-to-b from-blue-50/30 to-surface-container-low dark:from-blue-950/15 dark:to-card'
+			shell: 'bg-card'
 		},
-		emerald: {
-			badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+		tertiary: {
+			badge: 'bg-tertiary/10 text-tertiary',
 			title: 'text-foreground',
-			shell:
-				'bg-gradient-to-b from-emerald-50/30 to-surface-container-low dark:from-emerald-950/15 dark:to-card'
-		},
-		amber: {
-			badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-			title: 'text-foreground',
-			shell:
-				'bg-gradient-to-b from-amber-50/30 to-surface-container-low dark:from-amber-950/15 dark:to-card'
-		},
-		rose: {
-			badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-			title: 'text-foreground',
-			shell:
-				'bg-gradient-to-b from-rose-50/30 to-surface-container-low dark:from-rose-950/15 dark:to-card'
-		},
-		violet: {
-			badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-			title: 'text-foreground',
-			shell:
-				'bg-gradient-to-b from-violet-50/30 to-surface-container-low dark:from-violet-950/15 dark:to-card'
+			shell: 'bg-card'
 		}
 	};
 </script>
 
 <Card.Root
 	class={cn(
-		'gap-0 overflow-hidden rounded-2xl border-0 shadow-none',
+		'gap-0 overflow-hidden rounded-2xl border border-border/40 shadow-sm',
 		toneClasses[tone].shell,
 		className
 	)}

@@ -129,11 +129,11 @@
 {#snippet widget(sectionKey: string)}
 	{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
 		{#if userGoals}
-			<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="blue">
+			<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="primary">
 				<GoalProgressRings totals={daylogTotals} goals={userGoals} />
 			</DashboardCard>
 		{:else}
-			<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="violet">
+			<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="tertiary">
 				<div class="h-[200px] sm:h-[220px]">
 					<DailyMacroChart totals={daylogTotals} />
 				</div>

@@ -50,7 +50,7 @@
 	});
 </script>
 
-<DashboardCard title={m.dashboard_supplements()} Icon={Pill} tone="emerald">
+<DashboardCard title={m.dashboard_supplements()} Icon={Pill} tone="primary">
 	{#snippet headerRight()}
 		{#if checklist.length > 0}
 			<span class="text-muted-foreground max-w-[11rem] text-right text-xs sm:text-sm">
@@ -77,7 +77,7 @@
 				{/if}
 				{#each group.items as item (item.supplement.id)}
 					<label
-						class="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-transparent bg-background/60 p-2.5 transition-colors hover:border-emerald-200/60 hover:bg-background dark:hover:border-emerald-900/40"
+						class="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-transparent bg-background/60 p-2.5 transition-colors hover:border-primary/20 hover:bg-background dark:hover:border-primary/15"
 					>
 						<Checkbox
 							checked={item.taken}
