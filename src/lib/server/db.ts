@@ -19,7 +19,14 @@ export function getDB(): Database {
 			max: config.database.poolMax,
 			idleTimeout: config.database.idleTimeoutSeconds,
 			maxLifetime: config.database.maxLifetimeSeconds,
-			connectionTimeout: config.database.connectTimeoutSeconds
+			connectionTimeout: config.database.connectTimeoutSeconds,
+			connection: {
+				statement_timeout: String(config.database.statementTimeoutMs),
+				application_name: config.database.applicationName
+			},
+			onclose: (err) => {
+				if (err) console.warn('[db] Connection closed with error:', err.message);
+			}
 		});
 		db = drizzle({ client, schema });
 	}
