@@ -28,15 +28,23 @@ export function getDB(): Database {
 
 /**
  * Resets the connection pool so the next getDB() call creates fresh connections.
- * Use after a transient connection error.
+ * Closes the old pool's TCP connections to avoid leaking file descriptors.
  */
 export function resetPool(): void {
+	const old = db;
 	db = null;
+	if (old) {
+		// $client is the underlying Bun SQL instance; close with a short grace period
+		old.$client.close({ timeout: 1 }).catch(() => {});
+	}
 }
 
 /**
  * Executes a database operation with automatic retry on transient connection errors.
  * On failure, resets the pool and retries once with a fresh connection.
+ *
+ * Only use for idempotent operations (reads, or writes guarded by unique constraints).
+ * A retry may re-execute `fn` after the first call partially succeeded on the server.
  */
 export async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
 	try {

@@ -92,7 +92,9 @@ export function handleApiError(error: unknown): Response {
 
 	// Reset the connection pool on transient DB errors so subsequent requests get fresh connections
 	if (isTransientDbError(error)) {
-		import('./db').then(({ resetPool }) => resetPool()).catch(() => {});
+		import('./db')
+			.then(({ resetPool }) => resetPool())
+			.catch((e) => console.warn('[handleApiError] Failed to reset DB pool:', e));
 	}
 
 	return json({ error: 'Internal server error' }, { status: 500 });
