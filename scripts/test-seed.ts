@@ -1,6 +1,6 @@
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { migrate } from 'drizzle-orm/bun-sql/migrator';
-import { SQL } from 'bun';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import postgres from 'postgres';
 import { join } from 'node:path';
 import { users, foods, foodEntries, userGoals } from '../src/lib/server/schema';
 
@@ -16,8 +16,8 @@ if (!databaseUrl) {
 	process.exit(1);
 }
 
-const client = new SQL({ url: databaseUrl });
-const db = drizzle({ client });
+const client = postgres(databaseUrl);
+const db = drizzle(client);
 
 await migrate(db, { migrationsFolder: join(import.meta.dir, '..', 'drizzle') });
 console.log('Migrations applied');
@@ -99,6 +99,6 @@ await db
 	})
 	.onConflictDoNothing();
 
-client.close();
+await client.end();
 console.log('Test data seeded successfully');
 process.exit(0);

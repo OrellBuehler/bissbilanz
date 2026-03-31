@@ -1,6 +1,6 @@
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { migrate } from 'drizzle-orm/bun-sql/migrator';
-import { SQL } from 'bun';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import postgres from 'postgres';
 import { join } from 'node:path';
 import { config } from './env';
 import { isTransientDbError } from './db-retry';
@@ -10,55 +10,42 @@ export { isTransientDbError } from './db-retry';
 
 type Database = ReturnType<typeof drizzle<typeof schema>>;
 
+let sql: ReturnType<typeof postgres> | null = null;
 let db: Database | null = null;
+
+function getClient() {
+	if (!sql) {
+		sql = postgres(config.database.url, {
+			max: config.database.poolMax,
+			idle_timeout: config.database.idleTimeoutSeconds || undefined,
+			max_lifetime: config.database.maxLifetimeSeconds,
+			connect_timeout: config.database.connectTimeoutSeconds,
+			connection: {
+				statement_timeout: config.database.statementTimeoutMs,
+				application_name: config.database.applicationName
+			}
+		});
+	}
+	return sql;
+}
 
 export function getDB(): Database {
 	if (!db) {
-		const client = new SQL({
-			url: config.database.url,
-			max: config.database.poolMax,
-			idleTimeout: config.database.idleTimeoutSeconds,
-			maxLifetime: config.database.maxLifetimeSeconds,
-			connectionTimeout: config.database.connectTimeoutSeconds,
-			connection: {
-				statement_timeout: String(config.database.statementTimeoutMs),
-				application_name: config.database.applicationName
-			},
-			onclose: (err) => {
-				if (err) console.warn('[db] Connection closed with error:', err.message);
-			}
-		});
-		db = drizzle({ client, schema });
+		db = drizzle(getClient(), { schema });
 	}
 	return db;
 }
 
 /**
- * Resets the connection pool so the next getDB() call creates fresh connections.
- * Closes the old pool's TCP connections to avoid leaking file descriptors.
- */
-export function resetPool(): void {
-	const old = db;
-	db = null;
-	if (old) {
-		// $client is the underlying Bun SQL instance; close with a short grace period
-		old.$client.close({ timeout: 1 }).catch(() => {});
-	}
-}
-
-/**
  * Executes a database operation with automatic retry on transient connection errors.
- * On failure, resets the pool and retries once with a fresh connection.
- *
- * Only use for idempotent operations (reads, or writes guarded by unique constraints).
- * A retry may re-execute `fn` after the first call partially succeeded on the server.
+ * postgres.js handles reconnection internally, so this is a thin safety net
+ * for edge cases where the first attempt hits a closing connection.
  */
 export async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
 	try {
 		return await fn();
 	} catch (error) {
 		if (isTransientDbError(error)) {
-			resetPool();
 			return await fn();
 		}
 		throw error;

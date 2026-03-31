@@ -48,16 +48,14 @@ describe('isTransientDbError', () => {
 	});
 });
 
-// Test withDbRetry logic in isolation (without importing db.ts which pulls in Bun SQL)
+// Test withDbRetry logic in isolation (without importing db.ts which pulls in postgres)
 describe('withDbRetry logic', () => {
-	// Replicate the retry logic here to test it without the db.ts dependency chain
-	function createRetry(isTransient: (e: unknown) => boolean, onReset: () => void) {
+	function createRetry(isTransient: (e: unknown) => boolean) {
 		return async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 			try {
 				return await fn();
 			} catch (error) {
 				if (isTransient(error)) {
-					onReset();
 					return await fn();
 				}
 				throw error;
@@ -65,14 +63,10 @@ describe('withDbRetry logic', () => {
 		};
 	}
 
-	let resetCalls: number;
 	let withRetry: <T>(fn: () => Promise<T>) => Promise<T>;
 
 	beforeEach(() => {
-		resetCalls = 0;
-		withRetry = createRetry(isTransientDbError, () => {
-			resetCalls++;
-		});
+		withRetry = createRetry(isTransientDbError);
 	});
 
 	test('returns result on success without retry', async () => {
@@ -80,7 +74,7 @@ describe('withDbRetry logic', () => {
 		const result = await withRetry(fn);
 		expect(result).toBe('ok');
 		expect(fn).toHaveBeenCalledTimes(1);
-		expect(resetCalls).toBe(0);
+		// no retry needed
 	});
 
 	test('retries once on transient error and succeeds', async () => {
@@ -92,7 +86,7 @@ describe('withDbRetry logic', () => {
 		const result = await withRetry(fn);
 		expect(result).toBe('recovered');
 		expect(fn).toHaveBeenCalledTimes(2);
-		expect(resetCalls).toBe(1);
+		// retried once
 	});
 
 	test('retries once on transient error and throws on second failure', async () => {
@@ -101,7 +95,7 @@ describe('withDbRetry logic', () => {
 
 		await expect(withRetry(fn)).rejects.toThrow('Idle timeout reached after 10s');
 		expect(fn).toHaveBeenCalledTimes(2);
-		expect(resetCalls).toBe(1);
+		// retried once
 	});
 
 	test('throws immediately on non-transient error without retry', async () => {
@@ -109,6 +103,6 @@ describe('withDbRetry logic', () => {
 
 		await expect(withRetry(fn)).rejects.toThrow('syntax error');
 		expect(fn).toHaveBeenCalledTimes(1);
-		expect(resetCalls).toBe(0);
+		// no retry needed
 	});
 });

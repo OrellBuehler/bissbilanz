@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { $, SQL } from 'bun';
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { migrate } from 'drizzle-orm/bun-sql/migrator';
+import { $ } from 'bun';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import postgres from 'postgres';
 import { mkdtemp, writeFile, copyFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -71,8 +72,8 @@ const baseEntries: Array<{ tag: string }> = journal.entries.filter(
 
 console.log(`\nBase migrations: ${baseEntries.length}, new migrations: ${newTags.length}`);
 
-const client = new SQL(DATABASE_URL);
-const db = drizzle({ client });
+const client = postgres(DATABASE_URL);
+const db = drizzle(client);
 let tempDir: string | null = null;
 
 try {
@@ -171,7 +172,7 @@ try {
 
 	console.log('\nMigration test PASSED.');
 } finally {
-	await client.close();
+	await client.end();
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
 	}

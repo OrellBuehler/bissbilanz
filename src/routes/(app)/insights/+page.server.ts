@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			getCalendarStats(userId, now.getFullYear(), now.getMonth()),
 			getMealBreakdown(userId, endDate, endDate),
 			getTopFoods(userId, 7, 10),
-			getWeightWithTrend(userId, daysAgo(30), endDate) as Promise<ChartPoint[]>
+			getWeightWithTrend(userId, daysAgo(30), endDate)
 		]);
 
 	const goalsData = goals

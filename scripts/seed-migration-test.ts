@@ -1,4 +1,4 @@
-import type { SQL } from 'bun';
+import type postgres from 'postgres';
 
 export const U1 = '00000000-0000-0000-0001-000000000001';
 export const U2 = '00000000-0000-0000-0001-000000000002';
@@ -16,7 +16,7 @@ const W1 = '00000000-0000-0000-0009-000000000001';
 const OC1 = '00000000-0000-0000-000a-000000000001';
 const CMT1 = '00000000-0000-0000-000b-000000000001';
 
-export async function seedData(db: SQL) {
+export async function seedData(db: ReturnType<typeof postgres>) {
 	await db`
 		INSERT INTO users (id, infomaniak_sub, email, name, locale)
 		VALUES

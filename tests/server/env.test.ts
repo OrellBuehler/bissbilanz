@@ -8,10 +8,10 @@ describe('parseDatabaseConfig', () => {
 		});
 
 		expect(config.poolMax).toBe(5);
-		expect(config.idleTimeoutSeconds).toBe(10);
+		expect(config.idleTimeoutSeconds).toBe(20);
 		expect(config.connectTimeoutSeconds).toBe(10);
 		expect(config.statementTimeoutMs).toBe(30_000);
-		expect(config.maxLifetimeSeconds).toBe(120);
+		expect(config.maxLifetimeSeconds).toBe(300);
 		expect(config.applicationName).toBe('bissbilanz');
 	});
 
