@@ -343,7 +343,6 @@
 	const defaultMealSet = new Set(DEFAULT_MEAL_TYPES as readonly string[]);
 
 	const buildMealOrder = (order: string[]) => {
-		const customNames = new Set(mealTypes.map((mt) => mt.name));
 		mealOrder = order.map((name) => ({
 			id: name,
 			name,
@@ -373,7 +372,7 @@
 		await loadMealTypes();
 		const newOrder = [...mealOrder.map((mo) => mo.name), addedName];
 		const unique = [...new Set(newOrder)];
-		savePreference('mealOrder', unique);
+		await savePreference('mealOrder', unique);
 		buildMealOrder(unique);
 	};
 
@@ -390,7 +389,7 @@
 			await loadMealTypes();
 			if (meal) {
 				const newOrder = mealOrder.filter((mo) => mo.name !== meal.name).map((mo) => mo.name);
-				savePreference('mealOrder', newOrder);
+				await savePreference('mealOrder', newOrder);
 				buildMealOrder(newOrder);
 			}
 			return;

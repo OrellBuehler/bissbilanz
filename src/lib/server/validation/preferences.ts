@@ -43,7 +43,7 @@ export const preferencesUpdateSchema = z
 		favoriteTapAction: z.enum(['instant', 'picker']).optional(),
 		favoriteMealAssignmentMode: z.enum(['time_based', 'ask_meal']).optional(),
 		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).optional(),
-		mealOrder: z.array(z.string().min(1).max(100)).optional(),
+		mealOrder: z.array(z.string().min(1).max(100)).max(50).optional(),
 		visibleNutrients: z
 			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))
 			.optional(),
