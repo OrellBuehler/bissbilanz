@@ -85,7 +85,7 @@
 	<div class="flex min-h-dvh flex-col md:hidden">
 		<MobileHeader />
 		<OfflineIndicator />
-		<main class="flex-1 px-3 py-3 pb-20">
+		<main class="flex-1 px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
 			{@render children()}
 		</main>
 		<BottomTabBar />
