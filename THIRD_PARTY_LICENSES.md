@@ -6,13 +6,14 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 253   |
+| MIT                       | 254   |
 | Apache-2.0                | 52    |
 | ISC                       | 15    |
 | BlueOak-1.0.0             | 6     |
 | BSD-2-Clause              | 5     |
 | BSD-3-Clause              | 4     |
 | MPL-2.0                   | 3     |
+| OFL-1.1                   | 2     |
 | LGPL-3.0-or-later         | 2     |
 | FSL-1.1-MIT               | 2     |
 | (Unlicense OR Apache-2.0) | 1     |
@@ -27,7 +28,6 @@ This file lists all third-party dependencies used in production and their licens
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -62,7 +62,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -97,7 +96,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -132,7 +130,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -167,7 +164,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -202,7 +198,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -237,7 +232,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -272,7 +266,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -307,7 +300,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -342,7 +334,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -377,7 +368,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -412,7 +402,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -448,7 +437,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -480,7 +468,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -512,7 +499,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -547,7 +533,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -582,7 +567,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
-- **Publisher:** The Babel Team
 
 <details><summary>License Text</summary>
 
@@ -632,7 +616,6 @@ This is the Linux 64-bit binary for esbuild, a JavaScript bundler and minifier. 
 
 - **License:** MIT
 - **Repository:** https://github.com/fastify/otel
-- **Publisher:** Carlos Fuentes - @metcoder95
 
 <details><summary>License Text</summary>
 
@@ -664,11 +647,220 @@ SOFTWARE.
 
 </details>
 
+### @fontsource-variable/inter@5.2.8
+
+- **License:** OFL-1.1
+- **Repository:** https://github.com/fontsource/font-files
+
+<details><summary>License Text</summary>
+
+```
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) Inter-Italic[opsz,wght].ttf: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+```
+
+</details>
+
+### @fontsource-variable/manrope@5.2.8
+
+- **License:** OFL-1.1
+- **Repository:** https://github.com/fontsource/font-files
+
+<details><summary>License Text</summary>
+
+```
+Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+```
+
+</details>
+
 ### @hono/node-server@1.19.11
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
-- **Publisher:** Yusuke Wada
 
 <details><summary>License Text</summary>
 
@@ -697,12 +889,6 @@ SOFTWARE.
 ```
 
 </details>
-
-### @hono/node-server@1.19.9
-
-- **License:** MIT
-- **Repository:** https://github.com/honojs/node-server
-- **Publisher:** Yusuke Wada
 
 ### @img/colour@1.0.0
 
@@ -802,7 +988,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
-- **Publisher:** Lovell Fuller
 
 <details><summary>License Text</summary>
 
@@ -861,7 +1046,6 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
-- **Publisher:** Lovell Fuller
 
 <details><summary>License Text</summary>
 
@@ -920,19 +1104,16 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
-- **Publisher:** Lovell Fuller
 
 ### @img/sharp-linuxmusl-x64@0.34.5
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
-- **Publisher:** Lovell Fuller
 
 ### @inlang/paraglide-js@2.10.0
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
-- **Publisher:** inlang
 
 <details><summary>License Text</summary>
 
@@ -1100,7 +1281,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/sourcemaps
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1132,7 +1312,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/sourcemaps
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1164,7 +1343,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/resolve-uri
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1196,7 +1374,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/sourcemaps
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1228,7 +1405,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/sourcemaps
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1260,7 +1436,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jridgewell/sourcemaps
-- **Publisher:** Justin Ridgewell
 
 <details><summary>License Text</summary>
 
@@ -1356,7 +1531,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/modelcontextprotocol/typescript-sdk
-- **Publisher:** Anthropic, PBC
 
 <details><summary>License Text</summary>
 
@@ -1390,229 +1564,191 @@ SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/api-logs@0.208.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/api-logs@0.211.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/api@1.9.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/context-async-hooks@2.5.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/core@2.5.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/core@2.5.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-amqplib@0.58.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-connect@0.54.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-dataloader@0.28.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-express@0.59.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-fs@0.30.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-generic-pool@0.54.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-graphql@0.58.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-hapi@0.57.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-http@0.211.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-ioredis@0.59.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-kafkajs@0.20.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-knex@0.55.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-koa@0.59.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-lru-memoizer@0.55.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-mongodb@0.64.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-mongoose@0.57.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-mysql@0.57.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-mysql2@0.57.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-pg@0.63.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-redis@0.59.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-tedious@0.30.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation-undici@0.21.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation@0.207.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation@0.208.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/instrumentation@0.211.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/redis-common@0.38.2
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/resources@2.5.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/sdk-trace-base@2.5.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/semantic-conventions@1.39.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
-- **Publisher:** OpenTelemetry Authors
 
 ### @opentelemetry/sql-common@0.41.2
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-- **Publisher:** OpenTelemetry Authors
 
 ### @polka/url@1.0.0-next.29
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/polka
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -1700,7 +1836,6 @@ MIT © [Luke Edwards](https://lukeed.com)
 
 - **License:** MIT
 - **Repository:** https://github.com/rodrigodagostino/svelte-sortable-list
-- **Publisher:** Rodrigo D’Agostino
 
 <details><summary>License Text</summary>
 
@@ -1736,7 +1871,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
-- **Publisher:** Lukas Taegert-Atkinson
 
 <details><summary>License Text</summary>
 
@@ -1754,7 +1888,6 @@ This is the **x86_64-unknown-linux-gnu** binary for `rollup`
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
-- **Publisher:** Lukas Taegert-Atkinson
 
 <details><summary>License Text</summary>
 
@@ -1772,7 +1905,6 @@ This is the **x86_64-unknown-linux-musl** binary for `rollup`
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1808,7 +1940,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1844,7 +1975,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1880,7 +2010,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1916,7 +2045,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1960,7 +2088,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -1996,7 +2123,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2065,7 +2191,6 @@ See https://github.com/getsentry/sentry-cli for more information.
 
 - **License:** FSL-1.1-MIT
 - **Repository:** https://github.com/getsentry/sentry-cli
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2190,7 +2315,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2226,7 +2350,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2262,7 +2385,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2298,7 +2420,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2334,7 +2455,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2370,7 +2490,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2414,7 +2533,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2450,7 +2568,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2486,7 +2603,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
-- **Publisher:** Sentry
 
 <details><summary>License Text</summary>
 
@@ -2530,7 +2646,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sinclairzx81/typebox
-- **Publisher:** sinclairzx81
 
 <details><summary>License Text</summary>
 
@@ -2568,13 +2683,11 @@ THE SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/sqlite/sqlite-wasm
-- **Publisher:** Thomas Steiner
 
 ### @standard-schema/spec@1.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/standard-schema/standard-schema
-- **Publisher:** Colin McDonnell
 
 <details><summary>License Text</summary>
 
@@ -2610,7 +2723,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/acorn-typescript
-- **Publisher:** tyrealhu and the Svelte team
 
 <details><summary>License Text</summary>
 
@@ -2668,7 +2780,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/vite-plugin-svelte
-- **Publisher:** dominikg
 
 <details><summary>License Text</summary>
 
@@ -2704,7 +2815,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/vite-plugin-svelte
-- **Publisher:** dominikg
 
 <details><summary>License Text</summary>
 
@@ -3060,7 +3170,6 @@ SOFTWARE.
 
 - **License:** (Unlicense OR Apache-2.0)
 - **Repository:** https://github.com/zxing-js/text-encoding
-- **Publisher:** Joshua Bell
 
 ### accepts@2.0.0
 
@@ -3103,7 +3212,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/xtuc/acorn-import-attributes
-- **Publisher:** Sven Sauleau
 
 <details><summary>License Text</summary>
 
@@ -3174,13 +3282,11 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/TooTallNate/node-agent-base
-- **Publisher:** Nathan Rajlich
 
 ### ajv-formats@3.0.1
 
 - **License:** MIT
 - **Repository:** https://github.com/ajv-validator/ajv-formats
-- **Publisher:** Evgeny Poberezkin
 
 <details><summary>License Text</summary>
 
@@ -3216,7 +3322,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ajv-validator/ajv
-- **Publisher:** Evgeny Poberezkin
 
 <details><summary>License Text</summary>
 
@@ -3252,7 +3357,6 @@ SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/A11yance/aria-query
-- **Publisher:** Jesse Beach
 
 ### array-timsort@1.0.3
 
@@ -3293,7 +3397,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/benjamn/ast-types
-- **Publisher:** Ben Newman
 
 <details><summary>License Text</summary>
 
@@ -3328,13 +3431,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/A11yance/axobject-query
-- **Publisher:** Jesse Beach
 
-### balanced-match@1.0.2
+### balanced-match@4.0.4
 
 - **License:** MIT
 - **Repository:** https://github.com/juliangruber/balanced-match
-- **Publisher:** Julian Gruber
 
 <details><summary>License Text</summary>
 
@@ -3342,7 +3443,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 (MIT)
 
-Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
+Original code Copyright Julian Gruber <julian@juliangruber.com>
+
+Port to TypeScript Copyright Isaac Z. Schlueter <i@izs.me>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -3375,7 +3478,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/kelektiv/node.bcrypt.js
-- **Publisher:** Nick Campbell
 
 <details><summary>License Text</summary>
 
@@ -3442,11 +3544,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### brace-expansion@2.0.2
+### brace-expansion@5.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/juliangruber/brace-expansion
-- **Publisher:** Julian Gruber
 
 <details><summary>License Text</summary>
 
@@ -3454,7 +3555,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 MIT License
 
-Copyright (c) 2013 Julian Gruber <julian@juliangruber.com>
+Copyright Julian Gruber <julian@juliangruber.com>
+
+TypeScript port Copyright Isaac Z. Schlueter <i@izs.me>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3482,7 +3585,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/browserslist/browserslist
-- **Publisher:** Andrey Sitnik
 
 <details><summary>License Text</summary>
 
@@ -3599,7 +3701,6 @@ bun build
 
 - **License:** MIT
 - **Repository:** https://github.com/visionmedia/bytes.js
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -3637,7 +3738,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/call-bind-apply-helpers
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -3673,7 +3773,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/call-bound
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -3709,13 +3808,11 @@ SOFTWARE.
 
 - **License:** CC-BY-4.0
 - **Repository:** https://github.com/browserslist/caniuse-lite
-- **Publisher:** Ben Briggs
 
 ### cjs-module-lexer@2.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/cjs-module-lexer
-- **Publisher:** Guy Bedford
 
 <details><summary>License Text</summary>
 
@@ -3739,7 +3836,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/clsx
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -3763,7 +3859,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/tj/commander.js
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -3800,7 +3895,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/tj/commander.js
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -3837,7 +3931,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/kaelzhang/node-comment-json
-- **Publisher:** kaelzhang
 
 <details><summary>License Text</summary>
 
@@ -3934,7 +4027,6 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/content-disposition
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -3971,7 +4063,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/content-type
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -4008,7 +4099,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/thlorenz/convert-source-map
-- **Publisher:** Thorsten Lorenz
 
 <details><summary>License Text</summary>
 
@@ -4046,7 +4136,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/visionmedia/node-cookie-signature
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -4083,7 +4172,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/cookie
-- **Publisher:** Roman Shtylman
 
 <details><summary>License Text</summary>
 
@@ -4121,7 +4209,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/cookie
-- **Publisher:** Roman Shtylman
 
 <details><summary>License Text</summary>
 
@@ -4159,7 +4246,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/isaacs/core-util-is
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -4193,7 +4279,6 @@ IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/expressjs/cors
-- **Publisher:** Troy Goode
 
 <details><summary>License Text</summary>
 
@@ -4230,7 +4315,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/moxystudio/node-cross-spawn
-- **Publisher:** André Cruz
 
 <details><summary>License Text</summary>
 
@@ -4266,7 +4350,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/debug-js/debug
-- **Publisher:** Josh Junon
 
 <details><summary>License Text</summary>
 
@@ -4300,7 +4383,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/dmnd/dedent
-- **Publisher:** Desmond Brand
 
 <details><summary>License Text</summary>
 
@@ -4371,7 +4453,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/dougwilson/nodejs-depd
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -4408,7 +4489,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/detect-libc
-- **Publisher:** Lovell Fuller
 
 ### devalue@5.6.2
 
@@ -4435,7 +4515,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/dexie/Dexie.js
-- **Publisher:** David Fahlander
 
 ### dotenv@16.6.1
 
@@ -4478,7 +4557,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/drizzle-team/drizzle-orm
-- **Publisher:** Drizzle Team
 
 <details><summary>License Text</summary>
 
@@ -4540,7 +4618,6 @@ Check out the full documentation on [the website](https://orm.drizzle.team/docs/
 
 - **License:** MIT
 - **Repository:** https://github.com/es-shims/dunder-proto
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -4574,7 +4651,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jonathanong/ee-first
-- **Publisher:** Jonathan Ong
 
 <details><summary>License Text</summary>
 
@@ -4608,7 +4684,6 @@ THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/kilian/electron-to-chromium
-- **Publisher:** Kilian Valkhof
 
 <details><summary>License Text</summary>
 
@@ -4660,7 +4735,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/es-define-property
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -4694,7 +4768,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/es-errors
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -4728,7 +4801,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/es-object-atoms
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -4795,7 +4867,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/escalade
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -4853,7 +4924,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/benmccann/esm-env
-- **Publisher:** Ben McCann
 
 <details><summary>License Text</summary>
 
@@ -4873,7 +4943,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/jquery/esprima
-- **Publisher:** Ariya Hidayat
 
 <details><summary>License Text</summary>
 
@@ -4960,7 +5029,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/rexxars/eventsource-parser
-- **Publisher:** Espen Hovlandsdal
 
 <details><summary>License Text</summary>
 
@@ -4994,7 +5062,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** git://git@github.com/EventSource/eventsource
-- **Publisher:** Espen Hovlandsdal
 
 <details><summary>License Text</summary>
 
@@ -5029,7 +5096,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/express-rate-limit/express-rate-limit
-- **Publisher:** Nathan Friedly
 
 <details><summary>License Text</summary>
 
@@ -5062,7 +5128,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/express-rate-limit/express-rate-limit
-- **Publisher:** Nathan Friedly
 
 <details><summary>License Text</summary>
 
@@ -5095,7 +5160,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/expressjs/express
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -5132,7 +5196,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/epoberezkin/fast-deep-equal
-- **Publisher:** Evgeny Poberezkin
 
 <details><summary>License Text</summary>
 
@@ -5166,7 +5229,6 @@ SOFTWARE.
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/fastify/fast-uri
-- **Publisher:** Vincent Le Goff
 
 <details><summary>License Text</summary>
 
@@ -5211,7 +5273,6 @@ The complete list of contributors can be found at:
 
 - **License:** MIT
 - **Repository:** https://github.com/thecodrr/fdir
-- **Publisher:** thecodrr
 
 <details><summary>License Text</summary>
 
@@ -5231,7 +5292,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/finalhandler
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -5266,7 +5326,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/find-up
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -5288,7 +5347,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/lpinca/forwarded-parse
-- **Publisher:** Luigi Pinca
 
 <details><summary>License Text</summary>
 
@@ -5354,7 +5412,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/fresh
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -5390,7 +5447,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Raynos/function-bind
-- **Publisher:** Raynos
 
 <details><summary>License Text</summary>
 
@@ -5422,7 +5478,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/loganfsmyth/gensync
-- **Publisher:** Logan Smyth
 
 <details><summary>License Text</summary>
 
@@ -5442,7 +5497,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/get-intrinsic
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -5476,7 +5530,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/get-proto
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -5510,7 +5563,6 @@ SOFTWARE.
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/node-glob
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -5586,7 +5638,6 @@ software or this license, under any kind of legal claim.***
 
 - **License:** MIT
 - **Repository:** https://github.com/terkelg/globalyzer
-- **Publisher:** Terkel Gjervig
 
 <details><summary>License Text</summary>
 
@@ -5620,7 +5671,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/terkelg/globrex
-- **Publisher:** Terkel Gjervig
 
 <details><summary>License Text</summary>
 
@@ -5654,7 +5704,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/gopd
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -5688,7 +5737,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/inspect-js/has-symbols
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -5722,7 +5770,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/inspect-js/hasOwn
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -5756,7 +5803,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
-- **Publisher:** Yusuke Wada
 
 <details><summary>License Text</summary>
 
@@ -5786,11 +5832,10 @@ SOFTWARE.
 
 </details>
 
-### hono@4.12.5
+### hono@4.12.9
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
-- **Publisher:** Yusuke Wada
 
 <details><summary>License Text</summary>
 
@@ -5824,7 +5869,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/http-errors
-- **Publisher:** Jonathan Ong
 
 <details><summary>License Text</summary>
 
@@ -5859,7 +5903,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/TooTallNate/node-https-proxy-agent
-- **Publisher:** Nathan Rajlich
 
 <details><summary>License Text</summary>
 
@@ -6005,7 +6048,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/RienNeVaPlus/human-id
-- **Publisher:** RienNeVaPlus
 
 <details><summary>License Text</summary>
 
@@ -6041,7 +6083,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/iconv-lite
-- **Publisher:** Alexander Shtuchkin
 
 <details><summary>License Text</summary>
 
@@ -6076,7 +6117,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/nodejs/import-in-the-middle
-- **Publisher:** Bryan English
 
 ### inherits@2.0.4
 
@@ -6111,7 +6151,6 @@ PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/beaugunderson/ip-address
-- **Publisher:** Beau Gunderson
 
 <details><summary>License Text</summary>
 
@@ -6145,7 +6184,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/beaugunderson/ip-address
-- **Publisher:** Beau Gunderson
 
 <details><summary>License Text</summary>
 
@@ -6179,7 +6217,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/whitequark/ipaddr.js
-- **Publisher:** whitequark
 
 <details><summary>License Text</summary>
 
@@ -6213,7 +6250,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/then/is-promise
-- **Publisher:** ForbesLindesay
 
 <details><summary>License Text</summary>
 
@@ -6247,7 +6283,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Rich-Harris/is-reference
-- **Publisher:** Rich Harris
 
 <details><summary>License Text</summary>
 
@@ -6320,7 +6355,6 @@ MIT
 
 - **License:** ISC
 - **Repository:** https://github.com/isaacs/isexe
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -6385,7 +6419,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
-- **Publisher:** Filip Skokan
 
 <details><summary>License Text</summary>
 
@@ -6421,7 +6454,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/emn178/js-sha256
-- **Publisher:** Chen, Yi-Cyuan
 
 <details><summary>License Text</summary>
 
@@ -6458,7 +6490,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lydell/js-tokens
-- **Publisher:** Simon Lydell
 
 <details><summary>License Text</summary>
 
@@ -6494,7 +6525,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/mathiasbynens/jsesc
-- **Publisher:** Mathias Bynens
 
 <details><summary>License Text</summary>
 
@@ -6529,7 +6559,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/epoberezkin/json-schema-traverse
-- **Publisher:** Evgeny Poberezkin
 
 <details><summary>License Text</summary>
 
@@ -6565,7 +6594,6 @@ SOFTWARE.
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/RemyRylan/json-schema-typed
-- **Publisher:** Remy Rylan
 
 <details><summary>License Text</summary>
 
@@ -6637,7 +6665,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/json5/json5
-- **Publisher:** Aseem Kishore
 
 <details><summary>License Text</summary>
 
@@ -6675,7 +6702,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/kleur
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -6711,7 +6737,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/kysely-org/kysely
-- **Publisher:** Sami Koskimäki
 
 <details><summary>License Text</summary>
 
@@ -6762,7 +6787,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** git+https://gitlab.com/Rich-Harris/locate-character
-- **Publisher:** Rich Harris
 
 <details><summary>License Text</summary>
 
@@ -6843,7 +6867,6 @@ MIT
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/locate-path
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -6867,7 +6890,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/node-lru-cache
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -6937,7 +6959,6 @@ software or this license, under any kind of legal claim._**
 
 - **License:** ISC
 - **Repository:** https://github.com/isaacs/node-lru-cache
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -6967,7 +6988,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Rich-Harris/magic-string
-- **Publisher:** Rich Harris
 
 <details><summary>License Text</summary>
 
@@ -6989,7 +7009,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/rich-harris/magic-string
-- **Publisher:** Rich Harris
 
 <details><summary>License Text</summary>
 
@@ -7011,7 +7030,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/es-shims/math-intrinsics
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -7047,7 +7065,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/media-typer
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -7183,7 +7200,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/minimatch
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -7253,7 +7269,6 @@ software or this license, under any kind of legal claim._**
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/minimatch
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -7323,7 +7338,6 @@ software or this license, under any kind of legal claim._**
 
 - **License:** MIT
 - **Repository:** https://github.com/minimistjs/minimist
-- **Publisher:** James Halliday
 
 <details><summary>License Text</summary>
 
@@ -7356,7 +7370,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/minipass
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -7426,7 +7439,6 @@ software or this license, under any kind of legal claim._**
 
 - **License:** MIT
 - **Repository:** https://github.com/watson/module-details-from-path
-- **Publisher:** Thomas Watson
 
 <details><summary>License Text</summary>
 
@@ -7462,7 +7474,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/mri
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -7498,7 +7509,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/mrmime
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -7569,7 +7579,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ai/nanoid
-- **Publisher:** Andrey Sitnik
 
 <details><summary>License Text</summary>
 
@@ -7665,7 +7674,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/bitinn/node-fetch
-- **Publisher:** David Frank
 
 <details><summary>License Text</summary>
 
@@ -7701,7 +7709,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/prebuild/node-gyp-build
-- **Publisher:** Mathias Buus
 
 <details><summary>License Text</summary>
 
@@ -7737,7 +7744,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/chicoxyzzy/node-releases
-- **Publisher:** Sergey Rubanov
 
 <details><summary>License Text</summary>
 
@@ -7773,7 +7779,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/object-assign
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -7809,7 +7814,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/inspect-js/object-inspect
-- **Publisher:** James Halliday
 
 <details><summary>License Text</summary>
 
@@ -7845,7 +7849,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sxzz/obug
-- **Publisher:** Kevin Deng
 
 <details><summary>License Text</summary>
 
@@ -7920,7 +7923,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/isaacs/once
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -7950,7 +7952,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/openapi-ts/openapi-typescript
-- **Publisher:** Drew Powers
 
 <details><summary>License Text</summary>
 
@@ -7986,7 +7987,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/openapi-ts/openapi-typescript
-- **Publisher:** Drew Powers
 
 <details><summary>License Text</summary>
 
@@ -8022,7 +8022,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/p-limit
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -8046,7 +8045,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/p-locate
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -8107,7 +8105,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/path-exists
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -8131,7 +8128,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/path-key
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -8155,7 +8151,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/path-scurry
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -8256,6 +8251,41 @@ THE SOFTWARE.
 
 </details>
 
+### path-to-regexp@8.4.0
+
+- **License:** MIT
+- **Repository:** https://github.com/pillarjs/path-to-regexp
+
+<details><summary>License Text</summary>
+
+```
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+```
+
+</details>
+
 ### pg-int8@1.0.1
 
 - **License:** ISC
@@ -8322,7 +8352,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/brianc/node-pg-types
-- **Publisher:** Brian M. Carlson
 
 <details><summary>License Text</summary>
 
@@ -8413,7 +8442,6 @@ THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/alexeyraspopov/picocolors
-- **Publisher:** Alexey Raspopov
 
 <details><summary>License Text</summary>
 
@@ -8443,7 +8471,41 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/micromatch/picomatch
-- **Publisher:** Jon Schlinkert
+
+<details><summary>License Text</summary>
+
+```
+
+The MIT License (MIT)
+
+Copyright (c) 2017-present, Jon Schlinkert.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+```
+
+</details>
+
+### picomatch@4.0.4
+
+- **License:** MIT
+- **Repository:** https://github.com/micromatch/picomatch
 
 <details><summary>License Text</summary>
 
@@ -8479,7 +8541,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/crouchcd/pkce-challenge
-- **Publisher:** crouchcd
 
 <details><summary>License Text</summary>
 
@@ -8515,7 +8576,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/postcss/postcss
-- **Publisher:** Andrey Sitnik
 
 <details><summary>License Text</summary>
 
@@ -8550,7 +8610,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/bendrucker/postgres-array
-- **Publisher:** Ben Drucker
 
 <details><summary>License Text</summary>
 
@@ -8586,7 +8645,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/bendrucker/postgres-bytea
-- **Publisher:** Ben Drucker
 
 <details><summary>License Text</summary>
 
@@ -8622,7 +8680,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/bendrucker/postgres-date
-- **Publisher:** Ben Drucker
 
 <details><summary>License Text</summary>
 
@@ -8658,7 +8715,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/bendrucker/postgres-interval
-- **Publisher:** Ben Drucker
 
 <details><summary>License Text</summary>
 
@@ -8694,13 +8750,11 @@ THE SOFTWARE.
 
 - **License:** Unlicense
 - **Repository:** https://github.com/porsager/postgres
-- **Publisher:** Rasmus Porsager
 
 ### progress@2.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/visionmedia/node-progress
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -8737,7 +8791,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/proxy-addr
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -8774,7 +8827,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Rob--W/proxy-from-env
-- **Publisher:** Rob Wu
 
 <details><summary>License Text</summary>
 
@@ -8852,7 +8904,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/range-parser
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -8890,7 +8941,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/stream-utils/raw-body
-- **Publisher:** Jonathan Ong
 
 <details><summary>License Text</summary>
 
@@ -8927,7 +8977,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/benjamn/recast
-- **Publisher:** Ben Newman
 
 <details><summary>License Text</summary>
 
@@ -8962,7 +9011,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/floatdrop/require-from-string
-- **Publisher:** Vsevolod Strukchinsky
 
 <details><summary>License Text</summary>
 
@@ -8998,7 +9046,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/require-in-the-middle
-- **Publisher:** Thomas Watson Steen
 
 <details><summary>License Text</summary>
 
@@ -9036,13 +9083,11 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
-- **Publisher:** Rich Harris
 
 ### router@2.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/router
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -9080,7 +9125,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/sade
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -9116,7 +9160,6 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ChALkeR/safer-buffer
-- **Publisher:** Nikita Skovoroda
 
 <details><summary>License Text</summary>
 
@@ -9152,7 +9195,6 @@ SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/npm/node-semver
-- **Publisher:** GitHub Inc.
 
 <details><summary>License Text</summary>
 
@@ -9182,7 +9224,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/npm/node-semver
-- **Publisher:** GitHub Inc.
 
 <details><summary>License Text</summary>
 
@@ -9212,7 +9253,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/send
-- **Publisher:** TJ Holowaychuk
 
 <details><summary>License Text</summary>
 
@@ -9250,7 +9290,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/expressjs/serve-static
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -9290,7 +9329,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/nfriedly/set-cookie-parser
-- **Publisher:** Nathan Friedly
 
 <details><summary>License Text</summary>
 
@@ -9326,7 +9364,6 @@ THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/wesleytodd/setprototypeof
-- **Publisher:** Wes Todd
 
 <details><summary>License Text</summary>
 
@@ -9354,13 +9391,11 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
-- **Publisher:** Lovell Fuller
 
 ### shebang-command@2.0.0
 
 - **License:** MIT
 - **Repository:** https://github.com/kevva/shebang-command
-- **Publisher:** Kevin Mårtensson
 
 <details><summary>License Text</summary>
 
@@ -9384,7 +9419,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/shebang-regex
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -9408,7 +9442,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel-list
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -9444,7 +9477,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel-map
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -9480,7 +9512,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel-weakmap
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -9516,7 +9547,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel
-- **Publisher:** Jordan Harband
 
 <details><summary>License Text</summary>
 
@@ -9552,13 +9582,11 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/sirv
-- **Publisher:** Luke Edwards
 
 ### sorcery@1.0.0
 
 - **License:** MIT
 - **Repository:** https://github.com/Rich-Harris/sorcery
-- **Publisher:** Rich Harris
 
 <details><summary>License Text</summary>
 
@@ -9706,7 +9734,6 @@ MIT
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/7rulnik/source-map-js
-- **Publisher:** Valentin 7rulnik Semirulnik
 
 <details><summary>License Text</summary>
 
@@ -9783,7 +9810,6 @@ SOFTWARE.
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/mozilla/source-map
-- **Publisher:** Nick Fitzgerald
 
 <details><summary>License Text</summary>
 
@@ -9916,7 +9942,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/terser/terser
-- **Publisher:** Mihai Bazon
 
 <details><summary>License Text</summary>
 
@@ -9958,7 +9983,6 @@ SUCH DAMAGE.
 
 - **License:** MIT
 - **Repository:** https://github.com/terkelg/tiny-glob
-- **Publisher:** Terkel Gjervig
 
 <details><summary>License Text</summary>
 
@@ -9994,7 +10018,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/alexreardon/tiny-invariant
-- **Publisher:** Alex Reardon
 
 <details><summary>License Text</summary>
 
@@ -10030,7 +10053,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/SuperchupuDev/tinyglobby
-- **Publisher:** Superchupu
 
 <details><summary>License Text</summary>
 
@@ -10066,7 +10088,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/component/toidentifier
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -10102,7 +10123,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/lukeed/totalist
-- **Publisher:** Luke Edwards
 
 <details><summary>License Text</summary>
 
@@ -10138,13 +10158,11 @@ THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Sebmaster/tr46.js
-- **Publisher:** Sebastian Mayr
 
 ### ts-custom-error@3.3.1
 
 - **License:** MIT
 - **Repository:** https://github.com/adriengibrat/ts-custom-error
-- **Publisher:** Adrien Gibrat
 
 <details><summary>License Text</summary>
 
@@ -10180,7 +10198,6 @@ THE SOFTWARE.
 
 - **License:** 0BSD
 - **Repository:** https://github.com/Microsoft/tslib
-- **Publisher:** Microsoft Corp.
 
 <details><summary>License Text</summary>
 
@@ -10207,7 +10224,6 @@ PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Wombosvideo/tw-animate-css
-- **Publisher:** Luca Bosin
 
 <details><summary>License Text</summary>
 
@@ -10280,7 +10296,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/microsoft/TypeScript
-- **Publisher:** Microsoft Corp.
 
 ### undici-types@7.16.0
 
@@ -10321,7 +10336,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/stream-utils/unpipe
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -10393,7 +10407,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/browserslist/update-db
-- **Publisher:** Andrey Sitnik
 
 <details><summary>License Text</summary>
 
@@ -10507,7 +10520,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/vary
-- **Publisher:** Douglas Christopher Wilson
 
 <details><summary>License Text</summary>
 
@@ -10544,7 +10556,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
-- **Publisher:** Evan You
 
 ### vitefu@1.1.1
 
@@ -10585,7 +10596,6 @@ SOFTWARE.
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/jsdom/webidl-conversions
-- **Publisher:** Domenic Denicola
 
 <details><summary>License Text</summary>
 
@@ -10612,7 +10622,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 - **License:** MIT
 - **Repository:** https://github.com/sysgears/webpack-virtual-modules
-- **Publisher:** SysGears INC
 
 <details><summary>License Text</summary>
 
@@ -10648,7 +10657,6 @@ SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/jsdom/whatwg-url
-- **Publisher:** Sebastian Mayr
 
 <details><summary>License Text</summary>
 
@@ -10684,7 +10692,6 @@ THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/isaacs/node-which
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -10714,7 +10721,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/npm/wrappy
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -10744,7 +10750,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Raynos/xtend
-- **Publisher:** Raynos
 
 <details><summary>License Text</summary>
 
@@ -10779,7 +10784,6 @@ THE SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/isaacs/yallist
-- **Publisher:** Isaac Z. Schlueter
 
 <details><summary>License Text</summary>
 
@@ -10809,7 +10813,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/eemeli/yaml
-- **Publisher:** Eemeli Aro
 
 <details><summary>License Text</summary>
 
@@ -10837,7 +10840,6 @@ THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/sindresorhus/yocto-queue
-- **Publisher:** Sindre Sorhus
 
 <details><summary>License Text</summary>
 
@@ -10896,7 +10898,6 @@ SOFTWARE.
 
 - **License:** ISC
 - **Repository:** https://github.com/StefanTerdell/zod-to-json-schema
-- **Publisher:** Stefan Terdell
 
 <details><summary>License Text</summary>
 
@@ -10926,7 +10927,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/colinhacks/zod
-- **Publisher:** Colin McDonnell
 
 <details><summary>License Text</summary>
 
