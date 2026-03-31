@@ -6,6 +6,10 @@ describe('isTransientDbError', () => {
 		expect(isTransientDbError(new Error('Idle timeout reached after 20s'))).toBe(true);
 	});
 
+	test('detects connection closed', () => {
+		expect(isTransientDbError(new Error('Connection closed'))).toBe(true);
+	});
+
 	test('detects connection terminated', () => {
 		expect(isTransientDbError(new Error('Connection terminated unexpectedly'))).toBe(true);
 	});

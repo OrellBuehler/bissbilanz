@@ -1,4 +1,4 @@
-import { getDB } from '$lib/server/db';
+import { getDB, withDbRetry } from '$lib/server/db';
 import { sleepEntries } from '$lib/server/schema';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { and, eq, desc, gte, lte } from 'drizzle-orm';
@@ -40,14 +40,23 @@ export const createSleepEntry = async (
 	}
 };
 
+const normalizeSleepRow = <T extends { bedtime?: unknown; wakeTime?: unknown }>(row: T): T => ({
+	...row,
+	bedtime: row.bedtime ?? null,
+	wakeTime: row.wakeTime ?? null
+});
+
 export const getSleepEntries = async (userId: string, limit = 100) => {
 	const db = getDB();
-	return db
-		.select()
-		.from(sleepEntries)
-		.where(eq(sleepEntries.userId, userId))
-		.orderBy(desc(sleepEntries.entryDate))
-		.limit(limit);
+	const rows = await withDbRetry(() =>
+		db
+			.select()
+			.from(sleepEntries)
+			.where(eq(sleepEntries.userId, userId))
+			.orderBy(desc(sleepEntries.entryDate))
+			.limit(limit)
+	);
+	return rows.map(normalizeSleepRow);
 };
 
 export const getSleepEntriesByDateRange = async (
@@ -56,28 +65,33 @@ export const getSleepEntriesByDateRange = async (
 	endDate: string
 ) => {
 	const db = getDB();
-	return db
-		.select()
-		.from(sleepEntries)
-		.where(
-			and(
-				eq(sleepEntries.userId, userId),
-				gte(sleepEntries.entryDate, startDate),
-				lte(sleepEntries.entryDate, endDate)
+	const rows = await withDbRetry(() =>
+		db
+			.select()
+			.from(sleepEntries)
+			.where(
+				and(
+					eq(sleepEntries.userId, userId),
+					gte(sleepEntries.entryDate, startDate),
+					lte(sleepEntries.entryDate, endDate)
+				)
 			)
-		)
-		.orderBy(desc(sleepEntries.entryDate));
+			.orderBy(desc(sleepEntries.entryDate))
+	);
+	return rows.map(normalizeSleepRow);
 };
 
 export const getLatestSleep = async (userId: string) => {
 	const db = getDB();
-	const [entry] = await db
-		.select()
-		.from(sleepEntries)
-		.where(eq(sleepEntries.userId, userId))
-		.orderBy(desc(sleepEntries.entryDate))
-		.limit(1);
-	return entry ?? null;
+	const [entry] = await withDbRetry(() =>
+		db
+			.select()
+			.from(sleepEntries)
+			.where(eq(sleepEntries.userId, userId))
+			.orderBy(desc(sleepEntries.entryDate))
+			.limit(1)
+	);
+	return entry ? normalizeSleepRow(entry) : null;
 };
 
 export const updateSleepEntry = async (

@@ -1,5 +1,6 @@
 const TRANSIENT_PATTERNS = [
 	'idle timeout',
+	'connection closed',
 	'connection terminated',
 	'connection refused',
 	'connection reset',
