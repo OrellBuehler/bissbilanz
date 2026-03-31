@@ -87,6 +87,7 @@ export default defineConfig({
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'ssr-data-cache',
+							networkTimeoutSeconds: 3,
 							expiration: {
 								maxEntries: 50,
 								maxAgeSeconds: 24 * 60 * 60
@@ -98,6 +99,7 @@ export default defineConfig({
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'auth-cache',
+							networkTimeoutSeconds: 5,
 							expiration: {
 								maxEntries: 1,
 								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
@@ -110,6 +112,7 @@ export default defineConfig({
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
+							networkTimeoutSeconds: 3,
 							expiration: {
 								maxEntries: 200,
 								maxAgeSeconds: 24 * 60 * 60 // 24 hours

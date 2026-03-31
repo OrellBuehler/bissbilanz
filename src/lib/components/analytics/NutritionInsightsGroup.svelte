@@ -50,23 +50,31 @@
 	let mealEntries = $state<MealEntry[]>([]);
 	let diversityData = $state<DiversityEntry[]>([]);
 
-	onMount(async () => {
+	onMount(() => {
+		const controller = new AbortController();
 		const endDate = today();
 		const startDate = shiftDate(endDate, -89);
-		try {
-			const [nRes, mRes, dRes] = await Promise.all([
-				fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/food-diversity?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (nRes.ok) nutrientEntries = (await nRes.json()).data ?? [];
-			if (mRes.ok) mealEntries = (await mRes.json()).data ?? [];
-			if (dRes.ok) diversityData = (await dRes.json()).data ?? [];
-		} catch {
-			// individual cards handle empty data gracefully
-		} finally {
-			loading = false;
-		}
+		const signal = controller.signal;
+
+		(async () => {
+			try {
+				const [nRes, mRes, dRes] = await Promise.all([
+					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/food-diversity?startDate=${startDate}&endDate=${endDate}`, { signal })
+				]);
+				if (signal.aborted) return;
+				if (nRes.ok) nutrientEntries = (await nRes.json()).data ?? [];
+				if (mRes.ok) mealEntries = (await mRes.json()).data ?? [];
+				if (dRes.ok) diversityData = (await dRes.json()).data ?? [];
+			} catch (e) {
+				if (e instanceof DOMException && e.name === 'AbortError') return;
+			} finally {
+				if (!signal.aborted) loading = false;
+			}
+		})();
+
+		return () => controller.abort();
 	});
 </script>
 
