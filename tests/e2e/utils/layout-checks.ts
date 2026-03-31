@@ -90,8 +90,51 @@ export async function assertNoOverlappingInteractiveElements(page: Page) {
 	expect(overlaps, 'interactive elements should not overlap').toEqual([]);
 }
 
+export async function assertBottomNavDoesNotOverlapContent(page: Page) {
+	const result = await page.evaluate(() => {
+		const nav = document.querySelector('nav.fixed.bottom-0');
+		const main = document.querySelector('main');
+		if (!nav || !main) return null;
+
+		const mainChildren = Array.from(main.querySelectorAll('*')).filter((el) => {
+			const rect = el.getBoundingClientRect();
+			return rect.width > 0 && rect.height > 0;
+		});
+		if (mainChildren.length === 0) return null;
+
+		// Scroll to bottom to check the worst case
+		main.scrollTop = main.scrollHeight;
+		window.scrollTo(0, document.body.scrollHeight);
+
+		const navRect = nav.getBoundingClientRect();
+		const overlapping: string[] = [];
+
+		for (const el of mainChildren) {
+			const rect = el.getBoundingClientRect();
+			if (rect.bottom > navRect.top + 2 && rect.top < navRect.bottom - 2) {
+				// Check if element is actually visible (not clipped by overflow)
+				const style = getComputedStyle(el);
+				if (style.visibility !== 'hidden' && style.opacity !== '0') {
+					const tag = el.tagName.toLowerCase();
+					const text = el.textContent?.trim().slice(0, 30) ?? '';
+					overlapping.push(
+						`${tag}("${text}") bottom:${Math.round(rect.bottom)} nav-top:${Math.round(navRect.top)}`
+					);
+				}
+			}
+		}
+
+		return overlapping.slice(0, 5);
+	});
+
+	if (result && result.length > 0) {
+		expect(result, 'main content should not be overlapped by bottom nav').toEqual([]);
+	}
+}
+
 export async function assertMobileLayout(page: Page) {
 	await assertNoHorizontalOverflow(page);
 	await assertNoElementsOverflowingViewport(page);
 	await assertNoOverlappingInteractiveElements(page);
+	await assertBottomNavDoesNotOverlapContent(page);
 }

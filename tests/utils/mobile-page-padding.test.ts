@@ -31,6 +31,11 @@ describe('mobile page padding', () => {
 		expect(layout).toMatch(/<main class="flex-1 p[x-]/);
 	});
 
+	test('mobile main padding accounts for safe-area-inset-bottom', () => {
+		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
+		expect(layout).toContain('safe-area-inset-bottom');
+	});
+
 	test('pages do not add duplicate mobile horizontal gutters on top-level wrappers', () => {
 		const pageFiles = collectPageFiles(APP_ROUTES_DIR);
 		const duplicateGutterPattern =
