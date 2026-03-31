@@ -8,7 +8,8 @@ const toNumber = (value: string | undefined, fallback: number) => {
 export const parseDatabaseConfig = (env: DatabaseEnv) => ({
 	url: env.DATABASE_URL!,
 	poolMax: toNumber(env.DATABASE_POOL_MAX, 10),
-	idleTimeoutSeconds: toNumber(env.DATABASE_IDLE_TIMEOUT_SECONDS, 30),
+	// Lower idle timeout to close connections before the server does (e.g., managed DB providers)
+	idleTimeoutSeconds: toNumber(env.DATABASE_IDLE_TIMEOUT_SECONDS, 20),
 	connectTimeoutSeconds: toNumber(env.DATABASE_CONNECT_TIMEOUT_SECONDS, 10),
 	statementTimeoutMs: toNumber(env.DATABASE_STATEMENT_TIMEOUT_MS, 30_000),
 	maxLifetimeSeconds: toNumber(env.DATABASE_MAX_LIFETIME_SECONDS, 300),
