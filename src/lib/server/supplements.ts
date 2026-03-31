@@ -1,4 +1,4 @@
-import { getDB } from '$lib/server/db';
+import { getDB, withDbRetry } from '$lib/server/db';
 import { supplements, supplementLogs, supplementIngredients } from '$lib/server/schema';
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { and, eq, desc, inArray, gte, lte } from 'drizzle-orm';
@@ -84,6 +84,8 @@ export const listSupplements = async (userId: string, activeOnly = true) => {
 	const ingredientsMap = await getIngredientsForSupplements(rows.map((r) => r.id));
 	return rows.map((r) => ({
 		...r,
+		scheduleDays: r.scheduleDays ?? null,
+		scheduleStartDate: r.scheduleStartDate ?? null,
 		ingredients: ingredientsMap.get(r.id) ?? []
 	}));
 };
@@ -285,10 +287,9 @@ export const getLogsForRange = async (userId: string, from: string, to: string) 
 export const getSupplementChecklist = async (userId: string, date: string) => {
 	const dateObj = new Date(date + 'T00:00:00');
 
-	const [allSupplements, logs] = await Promise.all([
-		listSupplements(userId, true),
-		getLogsForDate(userId, date)
-	]);
+	const [allSupplements, logs] = await withDbRetry(() =>
+		Promise.all([listSupplements(userId, true), getLogsForDate(userId, date)])
+	);
 
 	const logMap = new Map(logs.map((l) => [l.supplementId, l]));
 

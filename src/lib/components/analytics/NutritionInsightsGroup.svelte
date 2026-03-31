@@ -59,9 +59,13 @@
 		(async () => {
 			try {
 				const [nRes, mRes, dRes] = await Promise.all([
-					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					}),
 					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/food-diversity?startDate=${startDate}&endDate=${endDate}`, { signal })
+					fetch(`/api/analytics/food-diversity?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					})
 				]);
 				if (signal.aborted) return;
 				if (nRes.ok) nutrientEntries = (await nRes.json()).data ?? [];

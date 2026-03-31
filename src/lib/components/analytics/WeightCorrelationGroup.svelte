@@ -22,7 +22,9 @@
 			try {
 				const [wfRes, ndRes, mtRes] = await Promise.all([
 					fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					}),
 					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal })
 				]);
 				if (signal.aborted) return;

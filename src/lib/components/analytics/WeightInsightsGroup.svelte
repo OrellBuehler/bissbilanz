@@ -27,7 +27,9 @@
 			try {
 				const [wfRes, neRes] = await Promise.all([
 					fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, { signal })
+					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					})
 				]);
 				if (signal.aborted) return;
 				if (wfRes.ok) weightFoodData = (await wfRes.json()).data ?? [];

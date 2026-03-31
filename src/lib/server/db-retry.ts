@@ -11,7 +11,9 @@ const TRANSIENT_PATTERNS = [
 export function isTransientDbError(error: unknown): boolean {
 	const msg =
 		error instanceof Error
-			? (error.message + (error.cause instanceof Error ? ' ' + error.cause.message : '')).toLowerCase()
+			? (
+					error.message + (error.cause instanceof Error ? ' ' + error.cause.message : '')
+				).toLowerCase()
 			: String(error).toLowerCase();
 	return TRANSIENT_PATTERNS.some((p) => msg.includes(p));
 }

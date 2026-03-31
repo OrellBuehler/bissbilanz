@@ -20,7 +20,9 @@
 			try {
 				const [mtRes, ndRes] = await Promise.all([
 					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, { signal })
+					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					})
 				]);
 				if (signal.aborted) return;
 				if (mtRes.ok) mealTimingData = (await mtRes.json()).data ?? [];
