@@ -4,10 +4,12 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { onNavigate } from '$app/navigation';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
+	import { pwaInfo } from 'virtual:pwa-info';
 
 	let { children } = $props();
 
 	const isMobile = new IsMobile();
+	const webManifestLink = pwaInfo?.webManifest.linkTag ?? '';
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
@@ -27,6 +29,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	{@html webManifestLink}
 </svelte:head>
 
 {@render children()}
