@@ -158,6 +158,7 @@ export type DexieUserPreferences = {
 	showTopFoodsWidget: boolean;
 	showSleepWidget: boolean;
 	widgetOrder: string[];
+	mealOrder: string[];
 	startPage: string;
 	favoriteTapAction: string;
 	favoriteMealAssignmentMode: string;

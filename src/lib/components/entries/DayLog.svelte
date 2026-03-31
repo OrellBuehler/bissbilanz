@@ -11,6 +11,7 @@
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import * as m from '$lib/paraglide/messages';
@@ -152,13 +153,24 @@
 		};
 	};
 
+	const prefsQuery = useLiveQuery(() => preferencesService.preferences(), undefined);
+	const userPrefs = $derived(prefsQuery.value);
+
 	const totals = $derived(sumEntries(entries));
 
 	const mealTypes = $derived.by(() => {
 		const custom = entries
 			.map((e: { mealType: string }) => e.mealType)
 			.filter((mt: string) => !(DEFAULT_MEAL_TYPES as readonly string[]).includes(mt));
-		return [...DEFAULT_MEAL_TYPES, ...new Set(custom)];
+		const all = [...DEFAULT_MEAL_TYPES, ...new Set(custom)] as string[];
+		const order = userPrefs?.mealOrder;
+		if (!order || order.length === 0) return all;
+		const orderIndex = new Map(order.map((name: string, i: number) => [name, i]));
+		return all.sort((a, b) => {
+			const ai = orderIndex.get(a) ?? Infinity;
+			const bi = orderIndex.get(b) ?? Infinity;
+			return ai - bi;
+		});
 	});
 
 	$effect(() => {

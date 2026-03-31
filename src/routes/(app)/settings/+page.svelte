@@ -43,6 +43,7 @@
 	let widgetOrder = $state<
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
+	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
 	let startPage = $state('dashboard');
 	let prefsLoaded = $state(false);
 	let favoriteMealAssignmentMode = $state<'time_based' | 'ask_meal'>('time_based');
@@ -100,6 +101,7 @@
 			if (p.visibleNutrients) {
 				visibleNutrients = new Set(p.visibleNutrients);
 			}
+			buildMealOrder(p.mealOrder ?? ['Breakfast', 'Lunch', 'Dinner', 'Snacks']);
 			prefsLoaded = true;
 		}
 	});
@@ -338,9 +340,27 @@
 		}
 	};
 
+	const defaultMealSet = new Set(DEFAULT_MEAL_TYPES as readonly string[]);
+
+	const buildMealOrder = (order: string[]) => {
+		const customNames = new Set(mealTypes.map((mt) => mt.name));
+		mealOrder = order.map((name) => ({
+			id: name,
+			name,
+			isDefault: defaultMealSet.has(name)
+		}));
+		for (const mt of mealTypes) {
+			if (!order.includes(mt.name)) {
+				mealOrder = [...mealOrder, { id: mt.name, name: mt.name, isDefault: false }];
+			}
+		}
+	};
+
 	const loadMealTypes = async () => {
 		const { data } = await api.GET('/api/meal-types');
 		if (data) mealTypes = data.mealTypes;
+		const p = cachedPrefs.value;
+		buildMealOrder(p?.mealOrder ?? mealOrder.map((mo) => mo.name));
 	};
 
 	const addMealType = async () => {
@@ -348,8 +368,13 @@
 		await api.POST('/api/meal-types', {
 			body: { name: newName, sortOrder: mealTypes.length + 1 }
 		});
+		const addedName = newName.trim();
 		newName = '';
 		await loadMealTypes();
+		const newOrder = [...mealOrder.map((mo) => mo.name), addedName];
+		const unique = [...new Set(newOrder)];
+		savePreference('mealOrder', unique);
+		buildMealOrder(unique);
 	};
 
 	const removeMealType = async (id: string) => {
@@ -357,14 +382,28 @@
 			toast.error('Remove the favorites timeframe configuration for this meal first.');
 			return;
 		}
+		const meal = mealTypes.find((mt) => mt.id === id);
 		const { error } = await api.DELETE('/api/meal-types/{id}', {
 			params: { path: { id } }
 		});
 		if (!error) {
 			await loadMealTypes();
+			if (meal) {
+				const newOrder = mealOrder.filter((mo) => mo.name !== meal.name).map((mo) => mo.name);
+				savePreference('mealOrder', newOrder);
+				buildMealOrder(newOrder);
+			}
 			return;
 		}
 		toast.error((error as { error?: string })?.error ?? m.settings_save_failed());
+	};
+
+	const handleMealSort = (event: CustomEvent | { detail?: unknown } | any) => {
+		const { draggedItemIndex, targetItemIndex } = event;
+		if (draggedItemIndex == null || targetItemIndex == null) return;
+		mealOrder = sortItems(mealOrder, draggedItemIndex, targetItemIndex);
+		const newOrder = mealOrder.map((mo) => mo.name);
+		savePreference('mealOrder', newOrder);
 	};
 
 	const handleWidgetSort = (event: CustomEvent | { detail?: unknown } | any) => {
@@ -470,12 +509,45 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- 4. Custom Meal Types Section (preserved) -->
+	<!-- 4. Meal Types (order + custom) -->
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>{m.settings_custom_meals()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_meal_order_desc()}</p>
 		</Card.Header>
 		<Card.Content class="space-y-4">
+			{#if prefsLoaded}
+				<SortableList.Root gap={8} ondrop={handleMealSort}>
+					{#each mealOrder as meal, index (meal.id)}
+						<SortableList.Item id={meal.id} {index}>
+							<div class="flex items-center gap-3 rounded-md border p-3">
+								<SortableList.ItemHandle>
+									<GripVertical class="text-muted-foreground h-5 w-5 cursor-grab" />
+								</SortableList.ItemHandle>
+								<div class="flex-1">
+									<p class="text-sm font-medium">{meal.name}</p>
+									{#if meal.isDefault}
+										<p class="text-muted-foreground text-xs">{m.settings_default_meal()}</p>
+									{/if}
+								</div>
+								{#if !meal.isDefault}
+									{@const customMeal = mealTypes.find((mt) => mt.name === meal.name)}
+									{#if customMeal}
+										<Button
+											variant="outline"
+											size="icon"
+											disabled={referencedCustomMealTypeIds.has(customMeal.id)}
+											onclick={() => removeMealType(customMeal.id)}
+										>
+											<Trash2 class="h-4 w-4" />
+										</Button>
+									{/if}
+								{/if}
+							</div>
+						</SortableList.Item>
+					{/each}
+				</SortableList.Root>
+			{/if}
 			<div class="flex gap-2">
 				<Input
 					class="flex-1"
@@ -485,21 +557,6 @@
 				/>
 				<Button onclick={addMealType}>{m.settings_add()}</Button>
 			</div>
-			<ul class="space-y-2">
-				{#each mealTypes as meal}
-					<li class="flex items-center justify-between rounded-md border p-2">
-						<span>{meal.name}</span>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={referencedCustomMealTypeIds.has(meal.id)}
-							onclick={() => removeMealType(meal.id)}
-						>
-							{m.settings_remove()}
-						</Button>
-					</li>
-				{/each}
-			</ul>
 		</Card.Content>
 	</Card.Root>
 

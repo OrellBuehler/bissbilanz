@@ -1,6 +1,10 @@
 import { getDB } from '$lib/server/db';
 import { ApiError } from '$lib/server/errors';
-import { parseTimeToMinutes, validateFavoriteMealTimeframes } from '$lib/utils/meals';
+import {
+	DEFAULT_MEAL_TYPES,
+	parseTimeToMinutes,
+	validateFavoriteMealTimeframes
+} from '$lib/utils/meals';
 import {
 	customMealTypes,
 	favoriteMealTimeframes,
@@ -47,6 +51,7 @@ export const DEFAULT_PREFERENCES = {
 		'summary',
 		'daylog'
 	] as string[],
+	mealOrder: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
 	favoriteTapAction: 'instant' as const,
@@ -78,6 +83,18 @@ const normalizeSectionOrder = (order: string[]): string[] => {
 			} else {
 				result.push(key);
 			}
+		}
+	}
+	return result;
+};
+
+const normalizeMealOrder = (order: string[], customMealNames: string[]): string[] => {
+	const allMeals = [...(DEFAULT_MEAL_TYPES as readonly string[]), ...customMealNames];
+	const validSet = new Set(allMeals);
+	const result = order.filter((m) => validSet.has(m));
+	for (const meal of allMeals) {
+		if (!result.includes(meal)) {
+			result.push(meal);
 		}
 	}
 	return result;
@@ -209,24 +226,31 @@ const buildNormalizedTimeframeRows = async (
 
 export const getPreferences = async (userId: string) => {
 	const db = getDB();
-	const [prefsResult, timeframeRows, userResult] = await Promise.all([
+	const [prefsResult, timeframeRows, userResult, customMeals] = await Promise.all([
 		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
 		db
 			.select()
 			.from(favoriteMealTimeframes)
 			.where(eq(favoriteMealTimeframes.userId, userId))
 			.orderBy(asc(favoriteMealTimeframes.startMinute), asc(favoriteMealTimeframes.sortOrder)),
-		db.select({ locale: users.locale }).from(users).where(eq(users.id, userId))
+		db.select({ locale: users.locale }).from(users).where(eq(users.id, userId)),
+		db
+			.select({ name: customMealTypes.name })
+			.from(customMealTypes)
+			.where(eq(customMealTypes.userId, userId))
+			.orderBy(asc(customMealTypes.sortOrder))
 	]);
 
 	const [prefs] = prefsResult;
 	if (!prefs) return null;
 
 	const [user] = userResult;
+	const customMealNames = customMeals.map((m) => m.name);
 
 	return {
 		...prefs,
 		widgetOrder: normalizeSectionOrder(prefs.widgetOrder),
+		mealOrder: normalizeMealOrder(prefs.mealOrder ?? [], customMealNames),
 		locale: user?.locale ?? 'en',
 		favoriteMealTimeframes: timeframeRows.map(serializeFavoriteMealTimeframe)
 	};

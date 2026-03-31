@@ -4222,6 +4222,14 @@
 							"$ref": "#/components/schemas/FavoriteMealTimeframeInput"
 						}
 					},
+					"mealOrder": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 100
+						}
+					},
 					"visibleNutrients": {
 						"type": "array",
 						"items": {
@@ -6710,6 +6718,12 @@
 							"type": "string"
 						}
 					},
+					"mealOrder": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
 					"startPage": {
 						"type": "string"
 					},
@@ -6766,6 +6780,7 @@
 					"showTopFoodsWidget",
 					"showSleepWidget",
 					"widgetOrder",
+					"mealOrder",
 					"startPage",
 					"favoriteTapAction",
 					"favoriteMealAssignmentMode",

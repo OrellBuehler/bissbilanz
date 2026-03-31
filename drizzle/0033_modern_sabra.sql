@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "meal_order" text[] DEFAULT ARRAY['Breakfast', 'Lunch', 'Dinner', 'Snacks']::text[] NOT NULL;

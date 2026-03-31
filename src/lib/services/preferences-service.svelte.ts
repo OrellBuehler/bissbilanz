@@ -31,6 +31,7 @@ async function refresh() {
 				showTopFoodsWidget: p.showTopFoodsWidget,
 				showSleepWidget: p.showSleepWidget,
 				widgetOrder: p.widgetOrder,
+				mealOrder: p.mealOrder,
 				startPage: p.startPage,
 				favoriteTapAction: p.favoriteTapAction,
 				favoriteMealAssignmentMode: p.favoriteMealAssignmentMode,

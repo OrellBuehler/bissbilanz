@@ -1023,6 +1023,7 @@ export interface components {
 			/** @enum {string} */
 			favoriteMealAssignmentMode?: 'time_based' | 'ask_meal';
 			favoriteMealTimeframes?: components['schemas']['FavoriteMealTimeframeInput'][];
+			mealOrder?: string[];
 			visibleNutrients?: string[];
 			/** @enum {string} */
 			locale?: 'en' | 'de';
@@ -1509,6 +1510,7 @@ export interface components {
 			showTopFoodsWidget: boolean;
 			showSleepWidget: boolean;
 			widgetOrder: string[];
+			mealOrder: string[];
 			startPage: string;
 			favoriteTapAction: string;
 			favoriteMealAssignmentMode: string;
