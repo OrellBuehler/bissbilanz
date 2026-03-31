@@ -548,7 +548,7 @@
 					{/each}
 				</SortableList.Root>
 			{/if}
-			<div class="flex gap-2">
+			<div class="mt-2 flex gap-2">
 				<Input
 					class="flex-1"
 					placeholder={m.settings_add_meal_placeholder()}
