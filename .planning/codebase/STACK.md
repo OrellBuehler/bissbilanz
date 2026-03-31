@@ -113,8 +113,8 @@
 **ORM:**
 
 - Drizzle ORM 0.45.1 - Type-safe database client
-- Dialect: PostgreSQL via `drizzle-orm/bun-sql` (Bun SQL driver)
-- Database connection: Bun's built-in SQL module with connection pooling
+- Dialect: PostgreSQL via `drizzle-orm/postgres-js` (postgres.js driver)
+- Database connection: postgres.js (porsager/postgres) with connection pooling
 
 **Database:**
 

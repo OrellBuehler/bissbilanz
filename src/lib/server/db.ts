@@ -17,7 +17,7 @@ function getClient() {
 	if (!sql) {
 		sql = postgres(config.database.url, {
 			max: config.database.poolMax,
-			idle_timeout: config.database.idleTimeoutSeconds || undefined,
+			idle_timeout: config.database.idleTimeoutSeconds ?? undefined,
 			max_lifetime: config.database.maxLifetimeSeconds,
 			connect_timeout: config.database.connectTimeoutSeconds,
 			connection: {

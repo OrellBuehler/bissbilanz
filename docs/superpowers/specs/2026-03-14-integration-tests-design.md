@@ -35,8 +35,8 @@ bun add -d testcontainers @testcontainers/postgresql
 
 **Helpers** (`tests/integration-db/helpers.ts`):
 
-- `getTestDB()` — creates a Drizzle instance using `bun:sql` (`new SQL(url)`) connected to the test container URL from `DATABASE_URL` env var. This uses the same driver as production.
-- `runTestMigrations(db)` — calls `migrate(db, { migrationsFolder: './drizzle' })` from `drizzle-orm/bun-sql/migrator` directly against the provided DB instance (avoids coupling to the singleton in `db.ts`).
+- `getTestDB()` — creates a Drizzle instance using postgres.js (`postgres(url)`) connected to the test container URL from `DATABASE_URL` env var. This uses the same driver as production.
+- `runTestMigrations(db)` — calls `migrate(db, { migrationsFolder: './drizzle' })` from `drizzle-orm/postgres-js/migrator` directly against the provided DB instance (avoids coupling to the singleton in `db.ts`).
 - `createTestDatabase(name)` — runs `CREATE DATABASE` via the container's root connection, returns a new connection URL. Used for per-test-file isolation.
 
 ### Test Isolation

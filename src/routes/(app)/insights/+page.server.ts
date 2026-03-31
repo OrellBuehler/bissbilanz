@@ -9,8 +9,6 @@ import { getGoals } from '$lib/server/goals';
 import { getWeightWithTrend } from '$lib/server/weight';
 import { today, shiftDate, daysAgo } from '$lib/utils/dates';
 
-type ChartPoint = { entry_date: string; weight_kg: number; moving_avg: number | null };
-
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const endDate = today();

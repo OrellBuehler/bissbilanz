@@ -57,7 +57,7 @@
 
 - PostgreSQL
   - Connection: DATABASE_URL (postgres://user:password@host:5432/bissbilanz)
-  - Client: Drizzle ORM with Bun SQL driver (`drizzle-orm/bun-sql`)
+  - Client: Drizzle ORM with postgres.js driver (`drizzle-orm/postgres-js`)
   - Schema: `src/lib/server/schema.ts`
   - Tables:
     - users - Infomaniak OIDC identity
