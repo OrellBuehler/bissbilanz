@@ -8,7 +8,6 @@ permissions: {}
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -20,6 +19,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Set image name lowercase
+        id: image
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -35,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -57,7 +60,7 @@ jobs:
             BUILD_TIMESTAMP=${{ github.event.release.created_at }}
 
       - name: Push Docker image
-        run: docker image push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: docker image push --all-tags ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
 
   deploy:
     runs-on: ubuntu-latest
