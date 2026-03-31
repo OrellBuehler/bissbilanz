@@ -10292,7 +10292,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### typescript@5.9.3
+### typescript@6.0.2
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/microsoft/TypeScript
