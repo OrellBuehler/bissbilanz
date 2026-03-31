@@ -60,7 +60,17 @@
 		</div>
 	{:else}
 		{#if canGoBack}
-			<Button variant="ghost" size="icon" class="size-9 shrink-0" onclick={() => history.back()}>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="size-9 shrink-0"
+				onclick={() => {
+					// Guard against iOS PWA showing browser chrome when history is empty
+					if (history.length > 1) {
+						history.back();
+					}
+				}}
+			>
 				<ChevronLeft class="size-5" />
 			</Button>
 		{/if}

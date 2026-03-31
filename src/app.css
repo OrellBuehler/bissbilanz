@@ -206,6 +206,12 @@ html {
 		html {
 			overscroll-behavior: none;
 		}
+		html,
+		body {
+			/* Prevent iOS Safari from showing navigation bar on overscroll */
+			overscroll-behavior-y: none;
+			-webkit-overflow-scrolling: touch;
+		}
 		* {
 			-webkit-tap-highlight-color: transparent;
 		}

@@ -27,7 +27,9 @@
 		function onTouchEnd(e: TouchEvent) {
 			const dx = e.changedTouches[0].clientX - startX;
 			const dy = e.changedTouches[0].clientY - startY;
-			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
+			// Only trigger back if there's history to go back to
+			// On iOS PWA, history.back() with empty stack shows browser chrome
+			if (startX < 30 && dx > 80 && Math.abs(dx) > Math.abs(dy) * 2 && history.length > 1) {
 				history.back();
 			}
 		}
