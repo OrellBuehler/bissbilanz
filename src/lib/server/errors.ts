@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { ZodError } from 'zod';
+import { isTransientDbError } from './db-retry';
 
 /**
  * Custom API error class for throwing errors with status codes
@@ -88,6 +89,11 @@ export function handleApiError(error: unknown): Response {
 		error: error instanceof Error ? error.message : String(error)
 	});
 	console.error('Unhandled error:', error);
+
+	// Reset the connection pool on transient DB errors so subsequent requests get fresh connections
+	if (isTransientDbError(error)) {
+		import('./db').then(({ resetPool }) => resetPool()).catch(() => {});
+	}
 
 	return json({ error: 'Internal server error' }, { status: 500 });
 }

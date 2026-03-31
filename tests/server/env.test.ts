@@ -7,11 +7,11 @@ describe('parseDatabaseConfig', () => {
 			DATABASE_URL: 'postgres://user:pass@localhost:5432/bissbilanz'
 		});
 
-		expect(config.poolMax).toBe(10);
-		expect(config.idleTimeoutSeconds).toBe(30);
+		expect(config.poolMax).toBe(5);
+		expect(config.idleTimeoutSeconds).toBe(10);
 		expect(config.connectTimeoutSeconds).toBe(10);
 		expect(config.statementTimeoutMs).toBe(30_000);
-		expect(config.maxLifetimeSeconds).toBe(300);
+		expect(config.maxLifetimeSeconds).toBe(120);
 		expect(config.applicationName).toBe('bissbilanz');
 	});
 

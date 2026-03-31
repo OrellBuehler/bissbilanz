@@ -7,7 +7,7 @@ import { validateAccessToken } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { runMigrations } from '$lib/server/db';
+import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config } from '$lib/server/env';
 import { env } from '$env/dynamic/public';
@@ -118,7 +118,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get('session');
 
 	if (sessionId) {
-		const result = await getSessionWithUser(sessionId);
+		const result = await withDbRetry(() => getSessionWithUser(sessionId));
 		if (result) {
 			event.locals.user = result.user;
 			event.locals.session = result.session;
@@ -133,16 +133,16 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 
 			// Test auth bypass — only active when TEST_MODE is set
 			if (config.testMode && token === 'test-integration-token') {
-				const user = await getUserById(config.testUserId);
+				const user = await withDbRetry(() => getUserById(config.testUserId));
 				if (user) {
 					event.locals.user = user;
 				}
 			}
 
 			if (!event.locals.user) {
-				const tokenResult = await validateAccessToken(token);
+				const tokenResult = await withDbRetry(() => validateAccessToken(token));
 				if (tokenResult) {
-					const user = await getUserById(tokenResult.userId);
+					const user = await withDbRetry(() => getUserById(tokenResult.userId));
 					if (!user) {
 						return json({ error: 'Unauthorized' }, { status: 401 });
 					}
