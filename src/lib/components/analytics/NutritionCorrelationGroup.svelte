@@ -10,21 +10,31 @@
 	let mealTimingData = $state<MealEntry[]>([]);
 	let nutrientDailyData = $state<DailyNutrient[]>([]);
 
-	onMount(async () => {
+	onMount(() => {
+		const controller = new AbortController();
 		const endDate = today();
 		const startDate = shiftDate(endDate, -29);
-		try {
-			const [mtRes, ndRes] = await Promise.all([
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (mtRes.ok) mealTimingData = (await mtRes.json()).data ?? [];
-			if (ndRes.ok) nutrientDailyData = (await ndRes.json()).data ?? [];
-		} catch {
-			// cards show no-data state
-		} finally {
-			loading = false;
-		}
+		const signal = controller.signal;
+
+		(async () => {
+			try {
+				const [mtRes, ndRes] = await Promise.all([
+					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					})
+				]);
+				if (signal.aborted) return;
+				if (mtRes.ok) mealTimingData = (await mtRes.json()).data ?? [];
+				if (ndRes.ok) nutrientDailyData = (await ndRes.json()).data ?? [];
+			} catch (e) {
+				if (e instanceof DOMException && e.name === 'AbortError') return;
+			} finally {
+				if (!signal.aborted) loading = false;
+			}
+		})();
+
+		return () => controller.abort();
 	});
 </script>
 

@@ -7,12 +7,12 @@ const toNumber = (value: string | undefined, fallback: number) => {
 
 export const parseDatabaseConfig = (env: DatabaseEnv) => ({
 	url: env.DATABASE_URL!,
-	poolMax: toNumber(env.DATABASE_POOL_MAX, 10),
-	// Lower idle timeout to close connections before the server does (e.g., managed DB providers)
-	idleTimeoutSeconds: toNumber(env.DATABASE_IDLE_TIMEOUT_SECONDS, 20),
+	poolMax: toNumber(env.DATABASE_POOL_MAX, 5),
+	// Close idle connections well before the managed DB provider does (~30s server-side)
+	idleTimeoutSeconds: toNumber(env.DATABASE_IDLE_TIMEOUT_SECONDS, 10),
 	connectTimeoutSeconds: toNumber(env.DATABASE_CONNECT_TIMEOUT_SECONDS, 10),
 	statementTimeoutMs: toNumber(env.DATABASE_STATEMENT_TIMEOUT_MS, 30_000),
-	maxLifetimeSeconds: toNumber(env.DATABASE_MAX_LIFETIME_SECONDS, 300),
+	maxLifetimeSeconds: toNumber(env.DATABASE_MAX_LIFETIME_SECONDS, 120),
 	applicationName: env.DATABASE_APPLICATION_NAME ?? 'bissbilanz'
 });
 

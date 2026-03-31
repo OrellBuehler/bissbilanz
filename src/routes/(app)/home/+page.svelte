@@ -194,7 +194,7 @@
 		<!-- Mobile FAB for barcode scanner -->
 		<button
 			type="button"
-			class="fixed bottom-20 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
+			class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
 			onclick={() => (scanModalOpen = true)}
 			aria-label={m.dashboard_scan()}
 		>

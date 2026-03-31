@@ -19,6 +19,7 @@ const schema = await import('$lib/server/schema');
 // Mock modules
 vi.mock('$lib/server/db', () => ({
 	getDB: () => db,
+	withDbRetry: <T>(fn: () => Promise<T>) => fn(),
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 

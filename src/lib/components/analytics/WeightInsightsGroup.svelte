@@ -17,21 +17,31 @@
 	let weightFoodData = $state<WeightFoodPoint[]>([]);
 	let nutrientData = $state<NutrientEntry[]>([]);
 
-	onMount(async () => {
+	onMount(() => {
+		const controller = new AbortController();
 		const endDate = today();
 		const startDate = shiftDate(endDate, -89);
-		try {
-			const [wfRes, neRes] = await Promise.all([
-				fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`)
-			]);
-			if (wfRes.ok) weightFoodData = (await wfRes.json()).data ?? [];
-			if (neRes.ok) nutrientData = (await neRes.json()).data ?? [];
-		} catch {
-			// cards show no-data state
-		} finally {
-			loading = false;
-		}
+		const signal = controller.signal;
+
+		(async () => {
+			try {
+				const [wfRes, neRes] = await Promise.all([
+					fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`, { signal }),
+					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, {
+						signal
+					})
+				]);
+				if (signal.aborted) return;
+				if (wfRes.ok) weightFoodData = (await wfRes.json()).data ?? [];
+				if (neRes.ok) nutrientData = (await neRes.json()).data ?? [];
+			} catch (e) {
+				if (e instanceof DOMException && e.name === 'AbortError') return;
+			} finally {
+				if (!signal.aborted) loading = false;
+			}
+		})();
+
+		return () => controller.abort();
 	});
 </script>
 
