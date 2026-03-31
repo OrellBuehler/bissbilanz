@@ -69,7 +69,7 @@
 			style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
 		>
 			<AppSidebar variant="inset" />
-			<Sidebar.Inset class="h-svh overflow-hidden">
+			<Sidebar.Inset class="h-[calc(100svh-1rem)] overflow-hidden">
 				<SiteHeader />
 				<OfflineIndicator />
 				<div class="flex min-h-0 flex-1 flex-col overflow-auto">
