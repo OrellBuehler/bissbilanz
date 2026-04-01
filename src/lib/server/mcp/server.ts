@@ -336,7 +336,7 @@ export function createMcpServer(userId: string): McpServer {
 					.datetime({ offset: true })
 					.optional()
 					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone. Defaults to current time if not provided.'
+						'When the food was eaten, as ISO 8601 datetime with timezone. Omit to leave unchanged.'
 					)
 			},
 			annotations: UPDATE
