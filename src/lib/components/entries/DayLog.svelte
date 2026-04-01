@@ -101,7 +101,7 @@
 		id: string;
 		servings: number;
 		mealType: string;
-		eatenAt?: string | null;
+		eatenAt?: string;
 		quickName?: string | null;
 		quickCalories?: number | null;
 		quickProtein?: number | null;

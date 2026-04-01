@@ -25,7 +25,7 @@ const mealTimingEntrySchema = z
 	.object({
 		date: z.string(),
 		mealType: z.string(),
-		eatenAt: z.string().nullable(),
+		eatenAt: z.string(),
 		foodId: z.string().nullable(),
 		recipeId: z.string().nullable(),
 		calories: z.number(),
@@ -80,7 +80,7 @@ const extendedNutrientEntrySchema = z
 	.object({
 		date: z.string(),
 		mealType: z.string(),
-		eatenAt: z.string().nullable(),
+		eatenAt: z.string(),
 		foodId: z.string().uuid().nullable(),
 		recipeId: z.string().uuid().nullable(),
 		foodName: z.string(),

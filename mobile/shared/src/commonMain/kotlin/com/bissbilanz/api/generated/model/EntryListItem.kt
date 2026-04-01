@@ -65,7 +65,7 @@ data class EntryListItem(
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
-    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String?,
+    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
     @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,

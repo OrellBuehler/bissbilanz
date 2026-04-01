@@ -39,7 +39,7 @@ async function create(entry: {
 	quickCarbs?: number | null;
 	quickFat?: number | null;
 	quickFiber?: number | null;
-	eatenAt?: string | null;
+	eatenAt?: string;
 }) {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
@@ -122,7 +122,7 @@ async function update(
 		mealType?: string;
 		notes?: string | null;
 		date?: string;
-		eatenAt?: string | null;
+		eatenAt?: string;
 		quickName?: string | null;
 		quickCalories?: number | null;
 		quickProtein?: number | null;

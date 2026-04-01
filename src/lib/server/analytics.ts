@@ -310,7 +310,7 @@ export const getMealTimingData = async (userId: string, startDate: string, endDa
 	return rows.map((r) => ({
 		date: r.date,
 		mealType: r.mealType,
-		eatenAt: r.eatenAt ? r.eatenAt.toISOString() : null,
+		eatenAt: r.eatenAt.toISOString(),
 		foodId: r.foodId,
 		recipeId: r.recipeId,
 		calories: r.calories,
@@ -463,7 +463,7 @@ export const getExtendedNutrientEntries = async (
 	return rows.map((r) => ({
 		date: r.date,
 		mealType: r.mealType,
-		eatenAt: r.eatenAt ? r.eatenAt.toISOString() : null,
+		eatenAt: r.eatenAt.toISOString(),
 		foodId: r.foodId,
 		recipeId: r.recipeId,
 		foodName: r.foodName,

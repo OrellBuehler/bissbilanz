@@ -243,7 +243,7 @@ export function createMcpServer(userId: string): McpServer {
 					.datetime({ offset: true })
 					.optional()
 					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to creation time.'
+						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
 					)
 			},
 			annotations: WRITE
@@ -335,9 +335,8 @@ export function createMcpServer(userId: string): McpServer {
 					.string()
 					.datetime({ offset: true })
 					.optional()
-					.nullable()
 					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone. Set to null to clear.'
+						'When the food was eaten, as ISO 8601 datetime with timezone. Omit to leave unchanged.'
 					)
 			},
 			annotations: UPDATE

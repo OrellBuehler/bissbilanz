@@ -315,7 +315,7 @@ export function createHandlers(d: HandlerDeps) {
 			servings?: number;
 			mealType?: string;
 			notes?: string;
-			eatenAt?: string | null;
+			eatenAt?: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
