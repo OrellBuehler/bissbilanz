@@ -5432,14 +5432,7 @@
 						"type": "number"
 					},
 					"eatenAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": "string"
 					},
 					"createdAt": {
 						"type": "string"
@@ -5617,14 +5610,7 @@
 						]
 					},
 					"eatenAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": "string"
 					},
 					"createdAt": {
 						"type": "string"
@@ -7938,14 +7924,7 @@
 						"type": "string"
 					},
 					"eatenAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": "string"
 					},
 					"foodId": {
 						"anyOf": [
@@ -8038,14 +8017,7 @@
 						"type": "string"
 					},
 					"eatenAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": "string"
 					},
 					"foodId": {
 						"anyOf": [

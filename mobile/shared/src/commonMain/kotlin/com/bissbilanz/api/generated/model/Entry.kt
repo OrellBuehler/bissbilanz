@@ -56,7 +56,7 @@ data class Entry(
     @SerialName(value = "quickCarbs") @Required val quickCarbs: kotlin.Double?,
     @SerialName(value = "quickFat") @Required val quickFat: kotlin.Double?,
     @SerialName(value = "quickFiber") @Required val quickFiber: kotlin.Double?,
-    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String?,
+    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

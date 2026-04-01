@@ -34,7 +34,7 @@ import kotlinx.serialization.encoding.*
 data class MealTimingEntry(
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "mealType") @Required val mealType: kotlin.String,
-    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String?,
+    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
     @SerialName(value = "foodId") @Required val foodId: kotlin.String?,
     @SerialName(value = "recipeId") @Required val recipeId: kotlin.String?,
     @SerialName(value = "calories") @Required val calories: kotlin.Double,

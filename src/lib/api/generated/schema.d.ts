@@ -1221,7 +1221,7 @@ export interface components {
 			carbs: number;
 			fat: number;
 			fiber: number;
-			eatenAt: string | null;
+			eatenAt: string;
 			createdAt?: string;
 			servingSize: number | null;
 			servingUnit: string | null;
@@ -1246,7 +1246,7 @@ export interface components {
 			quickCarbs: number | null;
 			quickFat: number | null;
 			quickFiber: number | null;
-			eatenAt: string | null;
+			eatenAt: string;
 			createdAt?: string;
 			updatedAt?: string;
 		};
@@ -1712,7 +1712,7 @@ export interface components {
 		MealTimingEntry: {
 			date: string;
 			mealType: string;
-			eatenAt: string | null;
+			eatenAt: string;
 			foodId: string | null;
 			recipeId: string | null;
 			calories: number;
@@ -1735,7 +1735,7 @@ export interface components {
 		ExtendedNutrientEntry: {
 			date: string;
 			mealType: string;
-			eatenAt: string | null;
+			eatenAt: string;
 			foodId: string | null;
 			recipeId: string | null;
 			foodName: string;
