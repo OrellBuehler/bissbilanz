@@ -8,22 +8,12 @@ import {
 	isValidRedirectUriFormat
 } from '$lib/server/oauth';
 import { rateLimitRegistration } from '$lib/server/rate-limit';
-import { requireAuth } from '$lib/server/errors';
 
 /**
  * RFC 7591 — OAuth 2.0 Dynamic Client Registration
- * Requires authentication to prevent abuse.
+ * Open endpoint, rate-limited to 5 requests/hour per IP.
  */
-export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
-	try {
-		requireAuth(locals);
-	} catch {
-		return json(
-			{ error: 'unauthorized', error_description: 'Authentication required' },
-			{ status: 401 }
-		);
-	}
-
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	try {
 		rateLimitRegistration(getClientAddress());
 	} catch {
