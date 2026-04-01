@@ -17,6 +17,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		authorization_endpoint: `${baseUrl}/api/oauth/authorize`,
 		token_endpoint: `${baseUrl}/api/oauth/token`,
 		registration_endpoint: `${baseUrl}/api/oauth/register`,
+		client_id_metadata_document_supported: true,
 		response_types_supported: ['code'],
 		grant_types_supported: ['authorization_code', 'refresh_token'],
 		token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
