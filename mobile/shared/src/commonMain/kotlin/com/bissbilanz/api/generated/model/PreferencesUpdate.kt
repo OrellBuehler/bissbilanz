@@ -35,6 +35,7 @@ import kotlinx.serialization.encoding.*
  * @param favoriteTapAction
  * @param favoriteMealAssignmentMode
  * @param favoriteMealTimeframes
+ * @param mealOrder
  * @param visibleNutrients
  * @param locale
  * @param caloricLagDaysOverride
@@ -53,6 +54,7 @@ data class PreferencesUpdate(
     @SerialName(value = "favoriteTapAction") val favoriteTapAction: PreferencesUpdate.FavoriteTapAction? = null,
     @SerialName(value = "favoriteMealAssignmentMode") val favoriteMealAssignmentMode: PreferencesUpdate.FavoriteMealAssignmentMode? = null,
     @SerialName(value = "favoriteMealTimeframes") val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframeInput>? = null,
+    @SerialName(value = "mealOrder") val mealOrder: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "visibleNutrients") val visibleNutrients: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "locale") val locale: PreferencesUpdate.Locale? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,

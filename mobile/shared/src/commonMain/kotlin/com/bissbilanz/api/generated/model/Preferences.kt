@@ -31,6 +31,7 @@ import kotlinx.serialization.encoding.*
  * @param showTopFoodsWidget
  * @param showSleepWidget
  * @param widgetOrder
+ * @param mealOrder
  * @param startPage
  * @param favoriteTapAction
  * @param favoriteMealAssignmentMode
@@ -50,6 +51,7 @@ data class Preferences(
     @SerialName(value = "showTopFoodsWidget") @Required val showTopFoodsWidget: kotlin.Boolean,
     @SerialName(value = "showSleepWidget") @Required val showSleepWidget: kotlin.Boolean,
     @SerialName(value = "widgetOrder") @Required val widgetOrder: kotlin.collections.List<kotlin.String>,
+    @SerialName(value = "mealOrder") @Required val mealOrder: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "startPage") @Required val startPage: kotlin.String,
     @SerialName(value = "favoriteTapAction") @Required val favoriteTapAction: kotlin.String,
     @SerialName(value = "favoriteMealAssignmentMode") @Required val favoriteMealAssignmentMode: kotlin.String,

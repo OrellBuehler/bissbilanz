@@ -908,7 +908,8 @@ export interface components {
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
-			eatenAt?: string | null;
+			/** Format: date-time */
+			eatenAt?: string;
 		};
 		EntryUpdate: {
 			/** Format: uuid */
@@ -925,7 +926,8 @@ export interface components {
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
-			eatenAt?: string | null;
+			/** Format: date-time */
+			eatenAt?: string;
 		};
 		RecipeCreate: {
 			name: string;
