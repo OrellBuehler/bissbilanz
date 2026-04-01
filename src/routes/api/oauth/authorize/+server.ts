@@ -7,7 +7,10 @@ import {
 	createAuthorizationCode,
 	validateRedirectUri,
 	isValidCodeChallengeS256,
-	isValidRedirectUriFormat
+	isValidRedirectUriFormat,
+	isUrlClientId,
+	fetchClientIdMetadata,
+	ensureUrlClientInDb
 } from '$lib/server/oauth';
 
 function oauthError(code: string, detail?: string): never {
@@ -47,13 +50,30 @@ export const GET: RequestHandler = async ({ url, request }) => {
 		oauthError('invalid_redirect_uri_format', redirectUri);
 	}
 
-	const client = await getOAuthClient(clientId);
-	if (!client) {
-		oauthError('invalid_client', clientId);
-	}
-
-	if (!validateRedirectUri(client, redirectUri)) {
-		oauthError('unregistered_redirect_uri', redirectUri);
+	let client;
+	if (isUrlClientId(clientId)) {
+		let metadata;
+		try {
+			metadata = await fetchClientIdMetadata(clientId);
+		} catch {
+			oauthError('invalid_client', 'Failed to fetch client metadata');
+		}
+		const normalizedRedirect = redirectUri.replace(/\/$/, '');
+		const allowed = metadata.redirect_uris.some(
+			(uri: string) => uri.replace(/\/$/, '') === normalizedRedirect
+		);
+		if (!allowed) {
+			oauthError('unregistered_redirect_uri', redirectUri);
+		}
+		client = await ensureUrlClientInDb(clientId, metadata);
+	} else {
+		client = await getOAuthClient(clientId);
+		if (!client) {
+			oauthError('invalid_client', clientId);
+		}
+		if (!validateRedirectUri(client, redirectUri)) {
+			oauthError('unregistered_redirect_uri', redirectUri);
+		}
 	}
 
 	// Check if user is authenticated
