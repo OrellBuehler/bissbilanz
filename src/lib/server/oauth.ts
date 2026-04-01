@@ -16,6 +16,16 @@ import {
 
 // Constants
 export const SALT_ROUNDS = 10;
+
+export type ClientIdMetadata = {
+	client_id: string;
+	client_name?: string;
+	client_uri?: string;
+	redirect_uris: string[];
+	grant_types?: string[];
+	response_types?: string[];
+	token_endpoint_auth_method?: string;
+};
 export const ACCESS_TOKEN_LIFETIME_MS = 60 * 60 * 1000; // 1 hour
 export const REFRESH_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const AUTH_CODE_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
@@ -426,4 +436,150 @@ export async function cleanupExpiredOAuthData(): Promise<void> {
 
 	await db.delete(oauthTokens).where(lt(oauthTokens.expiresAt, now));
 	await db.delete(oauthAuthorizationCodes).where(lt(oauthAuthorizationCodes.expiresAt, now));
+}
+
+export function isUrlClientId(clientId: string): boolean {
+	try {
+		const url = new URL(clientId);
+		return url.protocol === 'https:' && url.pathname !== '/';
+	} catch {
+		return false;
+	}
+}
+
+export function isPrivateIp(hostname: string): boolean {
+	if (hostname === 'localhost' || hostname === '::1') return true;
+	if (hostname.endsWith('.local')) return true;
+
+	const parts = hostname.split('.').map(Number);
+	if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+		if (parts[0] === 127) return true;
+		if (parts[0] === 10) return true;
+		if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+		if (parts[0] === 192 && parts[1] === 168) return true;
+	}
+
+	if (hostname.startsWith('fc') || hostname.startsWith('fd')) return true;
+	if (hostname.toLowerCase().startsWith('fe80')) return true;
+
+	return false;
+}
+
+const CLIENT_METADATA_CACHE = new Map<string, { metadata: ClientIdMetadata; expiresAt: number }>();
+const METADATA_CACHE_TTL_MS = 5 * 60 * 1000;
+
+export async function fetchClientIdMetadata(clientIdUrl: string): Promise<ClientIdMetadata> {
+	if (!isUrlClientId(clientIdUrl)) {
+		throw new Error('client_id must be an HTTPS URL with a path component');
+	}
+
+	const now = Date.now();
+	const cached = CLIENT_METADATA_CACHE.get(clientIdUrl);
+	if (cached && cached.expiresAt > now) {
+		return cached.metadata;
+	}
+
+	if (CLIENT_METADATA_CACHE.size > 50) {
+		for (const [key, entry] of CLIENT_METADATA_CACHE) {
+			if (entry.expiresAt <= now) {
+				CLIENT_METADATA_CACHE.delete(key);
+			}
+		}
+	}
+
+	const url = new URL(clientIdUrl);
+	if (isPrivateIp(url.hostname)) {
+		throw new Error('client_id URL hostname resolves to a private IP address');
+	}
+
+	const response = await fetch(clientIdUrl, {
+		signal: AbortSignal.timeout(5000),
+		headers: { Accept: 'application/json' }
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch client metadata: ${response.status}`);
+	}
+
+	const contentType = response.headers.get('content-type') ?? '';
+	if (!contentType.includes('application/json')) {
+		throw new Error('Client metadata response is not JSON');
+	}
+
+	const data = (await response.json()) as unknown;
+	if (typeof data !== 'object' || data === null) {
+		throw new Error('Client metadata is not a JSON object');
+	}
+
+	const obj = data as Record<string, unknown>;
+
+	if (obj.client_id !== clientIdUrl) {
+		throw new Error('client_id in metadata does not match the requested URL');
+	}
+
+	if (!Array.isArray(obj.redirect_uris) || obj.redirect_uris.length === 0) {
+		throw new Error('redirect_uris must be a non-empty array');
+	}
+
+	for (const uri of obj.redirect_uris) {
+		if (typeof uri !== 'string') {
+			throw new Error('All redirect_uris must be strings');
+		}
+		if (!isValidRedirectUriFormat(uri)) {
+			throw new Error(`Invalid redirect URI format: ${uri}`);
+		}
+	}
+
+	const metadata: ClientIdMetadata = {
+		client_id: obj.client_id as string,
+		redirect_uris: obj.redirect_uris as string[],
+		...(typeof obj.client_name === 'string' ? { client_name: obj.client_name } : {}),
+		...(typeof obj.client_uri === 'string' ? { client_uri: obj.client_uri } : {}),
+		...(Array.isArray(obj.grant_types) ? { grant_types: obj.grant_types as string[] } : {}),
+		...(Array.isArray(obj.response_types)
+			? { response_types: obj.response_types as string[] }
+			: {}),
+		...(typeof obj.token_endpoint_auth_method === 'string'
+			? { token_endpoint_auth_method: obj.token_endpoint_auth_method }
+			: {})
+	};
+
+	CLIENT_METADATA_CACHE.set(clientIdUrl, { metadata, expiresAt: now + METADATA_CACHE_TTL_MS });
+
+	return metadata;
+}
+
+export async function ensureUrlClientInDb(
+	clientIdUrl: string,
+	metadata: ClientIdMetadata
+): Promise<OAuthClient> {
+	const db = getDB();
+	const normalizedUris = metadata.redirect_uris.map((uri) => uri.replace(/\/$/, ''));
+
+	const existing = await getOAuthClient(clientIdUrl);
+
+	if (!existing) {
+		const [client] = await db
+			.insert(oauthClients)
+			.values({
+				userId: null,
+				clientId: clientIdUrl,
+				clientSecretHash: null,
+				tokenEndpointAuthMethod: 'none',
+				clientName: metadata.client_name ?? null,
+				allowedRedirectUris: normalizedUris
+			})
+			.returning();
+		return client;
+	}
+
+	const [client] = await db
+		.update(oauthClients)
+		.set({
+			allowedRedirectUris: normalizedUris,
+			clientName: metadata.client_name ?? null
+		})
+		.where(eq(oauthClients.clientId, clientIdUrl))
+		.returning();
+	return client;
 }
