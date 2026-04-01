@@ -29,8 +29,16 @@
 				<div class="space-y-4">
 					<div>
 						<p class="text-sm text-slate-600 mb-3">
-							<strong>{data.clientName ?? 'An application'}</strong> is requesting access to your account
-							with the following permissions:
+							<strong>{data.clientName ?? 'An application'}</strong>
+							{#if data.clientUri}
+								(<a
+									href={data.clientUri}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="underline hover:text-slate-700">{data.clientUri}</a
+								>)
+							{/if}
+							is requesting access to your account with the following permissions:
 						</p>
 						<ul class="space-y-2">
 							{#each permissions as permission}
@@ -53,6 +61,15 @@
 							{/each}
 						</ul>
 					</div>
+
+					{#if data.redirectUri.startsWith('http://localhost') || data.redirectUri.startsWith('http://127.0.0.1') || data.redirectUri.startsWith('http://[::1]')}
+						<div class="rounded-md bg-amber-50 border border-amber-200 p-3">
+							<p class="text-xs text-amber-800">
+								This application uses a local redirect URI ({data.redirectUri}). Only approve if you
+								initiated this request from a local application.
+							</p>
+						</div>
+					{/if}
 
 					<div class="pt-4 border-t">
 						<p class="text-xs text-slate-500">
