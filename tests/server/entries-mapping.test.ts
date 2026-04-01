@@ -14,10 +14,13 @@ describe('toEntryUpdate', () => {
 		expect((row.eatenAt as Date).toISOString()).toBe('2026-02-10T07:30:00.000Z');
 	});
 
-	test('preserves explicit null eatenAt as null', () => {
+	test('defaults falsy eatenAt to current time', () => {
+		const before = new Date();
+		// @ts-expect-error - testing runtime behavior with null
 		const row = toEntryUpdate({ eatenAt: null });
 		expect(Object.prototype.hasOwnProperty.call(row, 'eatenAt')).toBe(true);
-		expect(row.eatenAt).toBeNull();
+		expect(row.eatenAt).toBeInstanceOf(Date);
+		expect((row.eatenAt as Date).getTime()).toBeGreaterThanOrEqual(before.getTime());
 	});
 
 	test('omits eatenAt key when not provided', () => {
