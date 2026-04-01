@@ -6,7 +6,10 @@ import {
 	createAuthorization,
 	createAuthorizationCode,
 	validateRedirectUri,
-	isValidCodeChallengeS256
+	isValidCodeChallengeS256,
+	isUrlClientId,
+	fetchClientIdMetadata,
+	ensureUrlClientInDb
 } from '$lib/server/oauth';
 
 export const load: PageServerLoad = async ({ url, request }) => {
@@ -34,6 +37,49 @@ export const load: PageServerLoad = async ({ url, request }) => {
 		throw redirect(302, loginUrl.toString());
 	}
 
+	if (codeChallengeMethod !== 'S256') {
+		throw redirect(
+			302,
+			`/oauth/error?code=invalid_code_challenge_method&detail=${encodeURIComponent(codeChallengeMethod)}`
+		);
+	}
+
+	if (!isValidCodeChallengeS256(codeChallenge)) {
+		throw redirect(302, '/oauth/error?code=invalid_code_challenge');
+	}
+
+	if (isUrlClientId(clientId)) {
+		let metadata;
+		try {
+			metadata = await fetchClientIdMetadata(clientId);
+		} catch {
+			throw redirect(302, '/oauth/error?code=invalid_client');
+		}
+
+		const normalizedRedirect = redirectUri.replace(/\/$/, '');
+		const validRedirect = metadata.redirect_uris.some(
+			(uri) => uri.replace(/\/$/, '') === normalizedRedirect
+		);
+
+		if (!validRedirect) {
+			throw redirect(
+				302,
+				`/oauth/error?code=unregistered_redirect_uri&detail=${encodeURIComponent(redirectUri)}`
+			);
+		}
+
+		return {
+			clientId,
+			clientName: metadata.client_name ?? clientId,
+			clientUri: metadata.client_uri ?? null,
+			isUrlClient: true,
+			redirectUri,
+			state,
+			codeChallenge,
+			codeChallengeMethod
+		};
+	}
+
 	const client = await getOAuthClient(clientId);
 	if (!client) {
 		throw redirect(302, `/oauth/error?code=invalid_client&detail=${encodeURIComponent(clientId)}`);
@@ -46,20 +92,11 @@ export const load: PageServerLoad = async ({ url, request }) => {
 		);
 	}
 
-	if (codeChallengeMethod !== 'S256') {
-		throw redirect(
-			302,
-			`/oauth/error?code=invalid_code_challenge_method&detail=${encodeURIComponent(codeChallengeMethod)}`
-		);
-	}
-
-	if (!isValidCodeChallengeS256(codeChallenge)) {
-		throw redirect(302, '/oauth/error?code=invalid_code_challenge');
-	}
-
 	return {
 		clientId,
 		clientName: client.clientName,
+		clientUri: null,
+		isUrlClient: false,
 		redirectUri,
 		state,
 		codeChallenge,
@@ -100,6 +137,41 @@ export const actions = {
 
 		const userId = sessionData.user.id;
 
+		if (isUrlClientId(clientId)) {
+			let metadata;
+			try {
+				metadata = await fetchClientIdMetadata(clientId);
+			} catch {
+				return fail(400, { error: 'Invalid client' });
+			}
+
+			const normalizedRedirect = redirectUri.replace(/\/$/, '');
+			const validRedirect = metadata.redirect_uris.some(
+				(uri) => uri.replace(/\/$/, '') === normalizedRedirect
+			);
+
+			if (!validRedirect) {
+				return fail(400, { error: 'Invalid redirect_uri for this client' });
+			}
+
+			try {
+				await ensureUrlClientInDb(clientId, metadata);
+				await createAuthorization(userId, clientId);
+
+				const code = await createAuthorizationCode(userId, clientId, redirectUri, codeChallenge);
+
+				const callbackUrl = new URL(redirectUri);
+				callbackUrl.searchParams.set('code', code);
+				callbackUrl.searchParams.set('state', state);
+
+				throw redirect(302, callbackUrl.toString());
+			} catch (error) {
+				if (isRedirect(error)) throw error;
+				console.error('Failed to approve authorization:', error);
+				return fail(500, { error: 'Failed to complete authorization' });
+			}
+		}
+
 		const client = await getOAuthClient(clientId);
 		if (!client) {
 			return fail(400, { error: 'Invalid client' });
@@ -133,14 +205,37 @@ export const actions = {
 		const state = formData.get('state')?.toString();
 
 		if (clientId && redirectUri && state) {
-			const client = await getOAuthClient(clientId);
-			if (client && validateRedirectUri(client, redirectUri)) {
-				const callbackUrl = new URL(redirectUri);
-				callbackUrl.searchParams.set('error', 'access_denied');
-				callbackUrl.searchParams.set('error_description', 'User denied authorization');
-				callbackUrl.searchParams.set('state', state);
+			if (isUrlClientId(clientId)) {
+				let metadata;
+				try {
+					metadata = await fetchClientIdMetadata(clientId);
+				} catch {
+					throw redirect(302, '/');
+				}
 
-				throw redirect(302, callbackUrl.toString());
+				const normalizedRedirect = redirectUri.replace(/\/$/, '');
+				const validRedirect = metadata.redirect_uris.some(
+					(uri) => uri.replace(/\/$/, '') === normalizedRedirect
+				);
+
+				if (validRedirect) {
+					const callbackUrl = new URL(redirectUri);
+					callbackUrl.searchParams.set('error', 'access_denied');
+					callbackUrl.searchParams.set('error_description', 'User denied authorization');
+					callbackUrl.searchParams.set('state', state);
+
+					throw redirect(302, callbackUrl.toString());
+				}
+			} else {
+				const client = await getOAuthClient(clientId);
+				if (client && validateRedirectUri(client, redirectUri)) {
+					const callbackUrl = new URL(redirectUri);
+					callbackUrl.searchParams.set('error', 'access_denied');
+					callbackUrl.searchParams.set('error_description', 'User denied authorization');
+					callbackUrl.searchParams.set('state', state);
+
+					throw redirect(302, callbackUrl.toString());
+				}
 			}
 		}
 
