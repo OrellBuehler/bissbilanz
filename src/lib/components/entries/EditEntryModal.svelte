@@ -38,7 +38,7 @@
 			id: string;
 			servings: number;
 			mealType: string;
-			eatenAt?: string | null;
+			eatenAt?: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
 			quickProtein?: number | null;
@@ -102,7 +102,7 @@
 
 	const handleSave = () => {
 		if (!entry) return;
-		const eatenAt = timeToIsoString(editTime, date);
+		const eatenAt = timeToIsoString(editTime, date) ?? undefined;
 		if (isQuickEntry) {
 			const cal = Number(editQuickCalories);
 			if (!cal || cal < 0) return;

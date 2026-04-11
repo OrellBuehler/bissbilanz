@@ -154,7 +154,7 @@ export const createEntry = async (
 				quickCarbs: result.data.quickCarbs ?? null,
 				quickFat: result.data.quickFat ?? null,
 				quickFiber: result.data.quickFiber ?? null,
-				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : null
+				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date()
 			})
 			.returning();
 		if (!created) {
@@ -173,7 +173,7 @@ export const toEntryUpdate = (input: EntryUpdateInput) => {
 	return {
 		...rest,
 		notes: input.notes ?? null,
-		...(eatenAt !== undefined ? { eatenAt: eatenAt ? new Date(eatenAt) : null } : {})
+		...(eatenAt !== undefined ? { eatenAt: eatenAt ? new Date(eatenAt) : new Date() } : {})
 	};
 };
 

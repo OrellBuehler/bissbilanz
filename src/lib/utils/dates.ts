@@ -69,6 +69,11 @@ export const getDayOfWeek = (isoDate: string) => new Date(isoDate + 'T00:00:00Z'
 
 export const daysAgo = (days: number) => shiftDate(today(), -(days - 1));
 
+export const currentTime24h = (): string => {
+	const now = new Date();
+	return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
+
 /**
  * Convert an HH:MM time string to an ISO 8601 datetime for the given date.
  * Returns null if the time string is empty/falsy.

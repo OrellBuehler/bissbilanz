@@ -14,7 +14,7 @@
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { api } from '$lib/api/client';
-	import { timeToIsoString } from '$lib/utils/dates';
+	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	type FoodItem = {
@@ -79,7 +79,7 @@
 
 	let query = $state('');
 	let servings = $state(1);
-	let eatenTime = $state('');
+	let eatenTime = $state(currentTime24h());
 	let tab: 'search' | 'favorites' | 'recent' | 'recipes' | 'quick' = $state('search');
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
 
@@ -113,9 +113,12 @@
 		if (wasOpen && !open) {
 			onClose();
 		}
-		if (!wasOpen && open && initialFoodId) {
-			const food = foods.find((f) => f.id === initialFoodId);
-			if (food) selectFood(food);
+		if (!wasOpen && open) {
+			eatenTime = currentTime24h();
+			if (initialFoodId) {
+				const food = foods.find((f) => f.id === initialFoodId);
+				if (food) selectFood(food);
+			}
 		}
 		wasOpen = open;
 	});
@@ -190,7 +193,6 @@
 			onSave({ recipeId: selectedFood.id, ...base });
 		}
 		selectedFood = null;
-		eatenTime = '';
 	};
 
 	const confirmQuickLog = () => {
@@ -213,7 +215,6 @@
 		quickCarbs = '';
 		quickFat = '';
 		quickFiber = '';
-		eatenTime = '';
 	};
 
 	const goBack = () => {
