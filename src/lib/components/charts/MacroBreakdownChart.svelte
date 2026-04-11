@@ -73,7 +73,7 @@
 			{series}
 			{yDomain}
 			seriesLayout="stack"
-			tooltip={true}
+			tooltipContext={true}
 			axis={true}
 			grid={true}
 			legend={false}

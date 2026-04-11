@@ -173,7 +173,7 @@
 					{series}
 					{annotations}
 					yDomain={[0, yMax]}
-					tooltip={true}
+					tooltipContext={true}
 					axis={true}
 					grid={true}
 					legend={false}

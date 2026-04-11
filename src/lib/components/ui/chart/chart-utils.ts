@@ -15,9 +15,7 @@ export type ChartConfig = {
 
 export type ExtractSnippetParams<T> = T extends Snippet<[infer P]> ? P : never;
 
-export type TooltipPayload = ExtractSnippetParams<
-	ComponentProps<typeof Tooltip.Root>['children']
->['payload'][number];
+export type TooltipPayload = Record<string, unknown>;
 
 // Helper to extract item config from a payload.
 export function getPayloadConfigFromPayload(

@@ -278,7 +278,7 @@
 										cornerRadius={4}
 										padAngle={0.02}
 										legend={true}
-										tooltip={true}
+										tooltipContext={true}
 										props={{
 											tooltip: {
 												root: {
@@ -516,7 +516,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root class="overflow-hidden">
+			<Card.Root>
 				<Card.Header class="pb-3">
 					<div class="flex items-center gap-2">
 						<div
