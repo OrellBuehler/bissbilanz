@@ -17,6 +17,7 @@ import {
 import {
 	createEntry,
 	listEntriesByDate,
+	listEntriesByDateRange,
 	updateEntry,
 	deleteEntry,
 	copyEntries
@@ -36,7 +37,8 @@ import {
 	getDailyBreakdown,
 	getMealBreakdown,
 	getTopFoods,
-	getStreaks
+	getStreaks,
+	computeAverages
 } from '$lib/server/stats';
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { today } from '$lib/utils/dates';
@@ -47,6 +49,7 @@ import {
 	deleteSupplement,
 	unlogSupplement,
 	getLogsForDate,
+	getLogsForRange,
 	logSupplement,
 	getSupplementById,
 	getSupplementChecklist
@@ -59,6 +62,22 @@ import {
 	updateSleepEntry,
 	deleteSleepEntry
 } from '$lib/server/sleep';
+import {
+	getFoodDiversityData,
+	getMealTimingData,
+	getSleepFoodCorrelationData,
+	getWeightFoodSeries,
+	getExtendedNutrientEntries,
+	getDailyNutrientTotals
+} from '$lib/server/analytics';
+import { listMealTypes } from '$lib/server/meal-types';
+import {
+	getDayProperties,
+	setDayProperties,
+	deleteDayProperties,
+	getFastingDays
+} from '$lib/server/day-properties';
+import { getCalendarStats } from '$lib/server/stats';
 import { createHandlers } from './create-handlers';
 
 export { createHandlers, type HandlerDeps } from './create-handlers';
@@ -106,7 +125,19 @@ export const {
 	handleLogSleep,
 	handleGetSleep,
 	handleUpdateSleep,
-	handleDeleteSleep
+	handleDeleteSleep,
+	handleGetFoodDiversity,
+	handleGetMealTiming,
+	handleGetSleepFoodCorrelation,
+	handleGetWeightFoodSeries,
+	handleGetExtendedNutrients,
+	handleGetDailyNutrients,
+	handleListMealTypes,
+	handleGetSupplementHistory,
+	handleGetDayProperties,
+	handleSetDayProperties,
+	handleDeleteDayProperties,
+	handleGetCalendarStats
 } = createHandlers({
 	listFoods,
 	createFood,
@@ -157,5 +188,20 @@ export const {
 	getSleepEntriesByDateRange,
 	getLatestSleep,
 	updateSleepEntry,
-	deleteSleepEntry
+	deleteSleepEntry,
+	getLogsForRange,
+	computeAverages,
+	listEntriesByDateRange,
+	getFastingDays,
+	getFoodDiversityData,
+	getMealTimingData,
+	getSleepFoodCorrelationData,
+	getWeightFoodSeries,
+	getExtendedNutrientEntries,
+	getDailyNutrientTotals,
+	listMealTypes,
+	getDayProperties,
+	setDayProperties,
+	deleteDayProperties,
+	getCalendarStats
 });
