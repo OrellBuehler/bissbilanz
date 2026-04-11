@@ -66,6 +66,13 @@ const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
 
+const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD format');
+
+const dateRangeSchema = {
+	startDate: dateStr.describe('Start date in YYYY-MM-DD format'),
+	endDate: dateStr.describe('End date in YYYY-MM-DD format')
+};
+
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
 
@@ -501,12 +508,10 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get average daily nutrition over 7 days. Defaults to the past 7 days. Use startDate and endDate for a custom range.',
 			inputSchema: {
-				startDate: z
-					.string()
+				startDate: dateStr
 					.optional()
 					.describe('Custom start date in YYYY-MM-DD format. Omit for past 7 days.'),
-				endDate: z
-					.string()
+				endDate: dateStr
 					.optional()
 					.describe('Custom end date in YYYY-MM-DD format. Omit for today.')
 			},
@@ -521,12 +526,10 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get average daily nutrition over 30 days. Defaults to the past 30 days. Use startDate and endDate for a custom range.',
 			inputSchema: {
-				startDate: z
-					.string()
+				startDate: dateStr
 					.optional()
 					.describe('Custom start date in YYYY-MM-DD format. Omit for past 30 days.'),
-				endDate: z
-					.string()
+				endDate: dateStr
 					.optional()
 					.describe('Custom end date in YYYY-MM-DD format. Omit for today.')
 			},
@@ -953,8 +956,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get daily nutrition totals for a date range, with one row per day.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -966,8 +968,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get nutrition totals broken down by meal type for a date range.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -979,8 +980,20 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get the most frequently logged foods over a period.',
 			inputSchema: {
-				days: z.number().optional().describe('Number of days to look back. Defaults to 7.'),
-				limit: z.number().optional().describe('Max number of foods to return. Defaults to 10.')
+				days: z
+					.number()
+					.int()
+					.min(1)
+					.max(365)
+					.optional()
+					.describe('Number of days to look back. Defaults to 7.'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe('Max number of foods to return. Defaults to 10.')
 			},
 			annotations: READ_ONLY
 		},
@@ -1004,8 +1017,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Analyze dietary variety over a date range. Shows unique foods consumed, diversity score, and most/least eaten foods.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1018,8 +1030,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Analyze meal timing patterns over a date range. Shows when meals are typically eaten and calorie distribution by time of day.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1032,8 +1043,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Analyze correlations between sleep quality/duration and daily nutrition. Shows how calorie and macro intake relates to sleep patterns.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1046,8 +1056,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get weight and daily calorie data over a date range for trend analysis. Shows how calorie intake correlates with weight changes.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1060,8 +1069,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get detailed extended nutrient data (vitamins, minerals, etc.) for food entries over a date range.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1074,8 +1082,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get daily totals for all nutrients (core macros and extended) over a date range, with one row per day.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -1101,8 +1108,8 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get supplement intake history over a date range. Shows which supplements were taken on which days.',
 			inputSchema: {
-				from: z.string().describe('Start date in YYYY-MM-DD format'),
-				to: z.string().describe('End date in YYYY-MM-DD format')
+				from: dateStr.describe('Start date in YYYY-MM-DD format'),
+				to: dateStr.describe('End date in YYYY-MM-DD format')
 			},
 			annotations: READ_ONLY
 		},
@@ -1116,7 +1123,7 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Get properties for a specific day (e.g., whether it is marked as a fasting day).',
 			inputSchema: {
-				date: z.string().describe('Date in YYYY-MM-DD format')
+				date: dateStr.describe('Date in YYYY-MM-DD format')
 			},
 			annotations: READ_ONLY
 		},
@@ -1128,7 +1135,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Set properties for a specific day, such as marking it as a fasting day.',
 			inputSchema: {
-				date: z.string().describe('Date in YYYY-MM-DD format'),
+				date: dateStr.describe('Date in YYYY-MM-DD format'),
 				isFastingDay: z.boolean().describe('Whether the day is a fasting day')
 			},
 			annotations: UPDATE
@@ -1141,7 +1148,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Remove all properties for a specific day (resets fasting status, etc.).',
 			inputSchema: {
-				date: z.string().describe('Date in YYYY-MM-DD format')
+				date: dateStr.describe('Date in YYYY-MM-DD format')
 			},
 			annotations: DESTRUCTIVE
 		},
@@ -1158,6 +1165,13 @@ export function createMcpServer(userId: string): McpServer {
 				month: z
 					.string()
 					.regex(/^\d{4}-\d{2}$/)
+					.refine(
+						(v) => {
+							const m = parseInt(v.split('-')[1], 10);
+							return m >= 1 && m <= 12;
+						},
+						{ message: 'Month must be between 01 and 12' }
+					)
 					.describe('Month in YYYY-MM format (e.g., "2026-03")')
 			},
 			annotations: READ_ONLY

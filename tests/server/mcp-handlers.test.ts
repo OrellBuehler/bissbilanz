@@ -640,7 +640,7 @@ describe('MCP handlers', () => {
 	describe('handleGetWeeklyStats', () => {
 		test('returns weekly stats', async () => {
 			mockWeeklyStats = { calories: 2000, protein: 150 };
-			const result = await handleGetWeeklyStats(TEST_USER.id);
+			const result = (await handleGetWeeklyStats(TEST_USER.id)) as any;
 			expect(result.calories).toBe(2000);
 		});
 	});
@@ -648,7 +648,7 @@ describe('MCP handlers', () => {
 	describe('handleGetMonthlyStats', () => {
 		test('returns monthly stats', async () => {
 			mockMonthlyStats = { calories: 1800, protein: 140 };
-			const result = await handleGetMonthlyStats(TEST_USER.id);
+			const result = (await handleGetMonthlyStats(TEST_USER.id)) as any;
 			expect(result.calories).toBe(1800);
 		});
 	});
@@ -991,10 +991,10 @@ describe('MCP handlers', () => {
 			mockDailyBreakdown = [
 				{ date: '2026-02-10', calories: 2000, protein: 150, carbs: 200, fat: 67, fiber: 30 }
 			];
-			const result = await handleGetDailyBreakdown(TEST_USER.id, {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
 				startDate: '2026-02-10',
 				endDate: '2026-02-10'
-			});
+			})) as any;
 			expect(result).toHaveLength(1);
 			expect(result[0].calories).toBe(2000);
 		});
@@ -1007,6 +1007,22 @@ describe('MCP handlers', () => {
 			});
 			expect(result).toEqual([]);
 		});
+
+		test('rejects date range exceeding 366 days', async () => {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2020-01-01',
+				endDate: '2026-02-07'
+			})) as any;
+			expect(result.error).toContain('exceeds maximum');
+		});
+
+		test('rejects inverted date range', async () => {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-07',
+				endDate: '2026-02-01'
+			})) as any;
+			expect(result.error).toContain('before');
+		});
 	});
 
 	describe('handleGetMealBreakdown', () => {
@@ -1014,10 +1030,10 @@ describe('MCP handlers', () => {
 			mockMealBreakdown = [
 				{ mealType: 'breakfast', calories: 500, protein: 30, carbs: 60, fat: 15, fiber: 8 }
 			];
-			const result = await handleGetMealBreakdown(TEST_USER.id, {
+			const result = (await handleGetMealBreakdown(TEST_USER.id, {
 				startDate: '2026-02-01',
 				endDate: '2026-02-07'
-			});
+			})) as any;
 			expect(result).toHaveLength(1);
 			expect(result[0].mealType).toBe('breakfast');
 		});
@@ -1319,19 +1335,19 @@ describe('MCP handlers', () => {
 			mockSupplementHistory = [
 				{ supplementId: TEST_SUPPLEMENT.id, date: '2026-02-10', takenAt: new Date() }
 			];
-			const result = await handleGetSupplementHistory(TEST_USER.id, {
+			const result = (await handleGetSupplementHistory(TEST_USER.id, {
 				from: '2026-02-01',
 				to: '2026-02-28'
-			});
+			})) as any;
 			expect(result.history).toHaveLength(1);
 		});
 
 		test('returns empty history when no logs in range', async () => {
 			mockSupplementHistory = [];
-			const result = await handleGetSupplementHistory(TEST_USER.id, {
+			const result = (await handleGetSupplementHistory(TEST_USER.id, {
 				from: '2026-01-01',
 				to: '2026-01-31'
-			});
+			})) as any;
 			expect(result.history).toEqual([]);
 		});
 	});

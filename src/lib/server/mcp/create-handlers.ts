@@ -179,6 +179,16 @@ export function createHandlers(d: HandlerDeps) {
 		throw new Error(`Failed to ${op}: ${e instanceof Error ? e.message : String(e)}`);
 	}
 
+	const MAX_RANGE_DAYS = 366;
+
+	function guardDateRange(startDate: string, endDate: string) {
+		const diffMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+		if (diffMs < 0) return { error: 'startDate must be before endDate' };
+		if (diffMs > MAX_RANGE_DAYS * 86_400_000)
+			return { error: `Date range exceeds maximum of ${MAX_RANGE_DAYS} days` };
+		return null;
+	}
+
 	const getDailyStatusForDate = async (userId: string, date: string) => {
 		const { items: entries } = await d.listEntriesByDate(userId, date);
 		const goals = await d.getGoals(userId);
@@ -502,6 +512,8 @@ export function createHandlers(d: HandlerDeps) {
 	const handleGetWeeklyStats = async (userId: string, startDate?: string, endDate?: string) => {
 		try {
 			if (startDate && endDate) {
+				const err = guardDateRange(startDate, endDate);
+				if (err) return err;
 				const [entries, fastingDaySet] = await Promise.all([
 					d.listEntriesByDateRange(userId, startDate, endDate),
 					d.getFastingDays(userId, startDate, endDate)
@@ -517,6 +529,8 @@ export function createHandlers(d: HandlerDeps) {
 	const handleGetMonthlyStats = async (userId: string, startDate?: string, endDate?: string) => {
 		try {
 			if (startDate && endDate) {
+				const err = guardDateRange(startDate, endDate);
+				if (err) return err;
 				const [entries, fastingDaySet] = await Promise.all([
 					d.listEntriesByDateRange(userId, startDate, endDate),
 					d.getFastingDays(userId, startDate, endDate)
@@ -710,6 +724,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getDailyBreakdown(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get daily breakdown', e);
@@ -721,6 +737,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getMealBreakdown(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get meal breakdown', e);
@@ -793,8 +811,7 @@ export function createHandlers(d: HandlerDeps) {
 					};
 				}
 				const entries = await d.getSleepEntriesByDateRange(userId, args.from, args.to);
-				const limited = args.limit ? entries.slice(0, args.limit) : entries;
-				return { entries: limited };
+				return { entries: entries.slice(0, args.limit ?? 100) };
 			}
 			const latest = await d.getLatestSleep(userId);
 			return latest ?? { error: 'No sleep entries found' };
@@ -842,6 +859,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getFoodDiversityData(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get food diversity', e);
@@ -853,6 +872,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getMealTimingData(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get meal timing', e);
@@ -864,6 +885,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getSleepFoodCorrelationData(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get sleep-food correlation', e);
@@ -875,6 +898,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getWeightFoodSeries(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get weight-food series', e);
@@ -886,6 +911,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getExtendedNutrientEntries(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get extended nutrients', e);
@@ -897,6 +924,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getDailyNutrientTotals(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get daily nutrients', e);
@@ -916,6 +945,8 @@ export function createHandlers(d: HandlerDeps) {
 	// Supplement history handler
 	const handleGetSupplementHistory = async (userId: string, args: { from: string; to: string }) => {
 		try {
+			const err = guardDateRange(args.from, args.to);
+			if (err) return err;
 			const history = await d.getLogsForRange(userId, args.from, args.to);
 			return { history };
 		} catch (e) {
