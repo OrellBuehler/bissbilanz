@@ -6,7 +6,7 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 254   |
+| MIT                       | 259   |
 | Apache-2.0                | 52    |
 | ISC                       | 15    |
 | BlueOak-1.0.0             | 6     |
@@ -597,7 +597,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @esbuild/linux-x64@0.27.2
+### @esbuild/linux-x64@0.25.12
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -1745,6 +1745,40 @@ SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
 
+### @oxc-project/types@0.124.0
+
+- **License:** MIT
+- **Repository:** https://github.com/oxc-project/oxc
+
+<details><summary>License Text</summary>
+
+```
+MIT License
+
+Copyright (c) 2024-present VoidZero Inc. & Contributors
+Copyright (c) 2023 Boshen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+</details>
+
 ### @polka/url@1.0.0-next.29
 
 - **License:** MIT
@@ -1862,6 +1896,79 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+```
+
+</details>
+
+### @rolldown/binding-linux-x64-gnu@1.0.0-rc.15
+
+- **License:** MIT
+- **Repository:** https://github.com/rolldown/rolldown
+
+<details><summary>License Text</summary>
+
+```
+
+# `@rolldown/binding-linux-x64-gnu`
+
+This is the **x86_64-unknown-linux-gnu** binary for `@rolldown/binding`
+
+```
+
+</details>
+
+### @rolldown/binding-linux-x64-musl@1.0.0-rc.15
+
+- **License:** MIT
+- **Repository:** https://github.com/rolldown/rolldown
+
+<details><summary>License Text</summary>
+
+```
+
+# `@rolldown/binding-linux-x64-musl`
+
+This is the **x86_64-unknown-linux-musl** binary for `@rolldown/binding`
+
+```
+
+</details>
+
+### @rolldown/pluginutils@1.0.0-rc.15
+
+- **License:** MIT
+- **Repository:** https://github.com/rolldown/rolldown
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2024-present VoidZero Inc. & Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+end of terms and conditions
+
+The licenses of externally maintained libraries from which parts of the Software is derived are listed [here](https://github.com/rolldown/rolldown/blob/main/THIRD-PARTY-LICENSE).
 
 ```
 
@@ -4830,7 +4937,7 @@ SOFTWARE.
 
 </details>
 
-### esbuild@0.27.2
+### esbuild@0.25.12
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -6768,17 +6875,17 @@ SOFTWARE.
 
 </details>
 
-### lightningcss-linux-x64-gnu@1.30.2
+### lightningcss-linux-x64-gnu@1.32.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
 
-### lightningcss-linux-x64-musl@1.30.2
+### lightningcss-linux-x64-musl@1.32.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
 
-### lightningcss@1.30.2
+### lightningcss@1.32.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
@@ -8572,7 +8679,7 @@ SOFTWARE.
 
 </details>
 
-### postcss@8.5.6
+### postcss@8.5.9
 
 - **License:** MIT
 - **Repository:** https://github.com/postcss/postcss
@@ -8583,7 +8690,7 @@ SOFTWARE.
 
 The MIT License (MIT)
 
-Copyright 2013 Andrey Sitnik <andrey@sitnik.ru>
+Copyright 2013 Andrey Sitnik <andrey@sitnik.es>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -9074,6 +9181,45 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+```
+
+</details>
+
+### rolldown@1.0.0-rc.15
+
+- **License:** MIT
+- **Repository:** https://github.com/rolldown/rolldown
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2024-present VoidZero Inc. & Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+end of terms and conditions
+
+The licenses of externally maintained libraries from which parts of the Software is derived are listed [here](https://github.com/rolldown/rolldown/blob/main/THIRD-PARTY-LICENSE).
 
 ```
 
@@ -10552,7 +10698,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### vite@7.3.1
+### vite@8.0.8
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
