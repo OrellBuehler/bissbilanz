@@ -6,7 +6,7 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 259   |
+| MIT                       | 258   |
 | Apache-2.0                | 52    |
 | ISC                       | 15    |
 | BlueOak-1.0.0             | 6     |
@@ -857,7 +857,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @hono/node-server@1.19.11
+### @hono/node-server@1.19.13
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
@@ -2862,7 +2862,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/kit@2.50.2
+### @sveltejs/kit@2.57.1
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/kit
@@ -3233,6 +3233,41 @@ MIT License
 
 </details>
 
+### @types/trusted-types@2.0.7
+
+- **License:** MIT
+- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+    Copyright (c) Microsoft Corporation.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
+
+```
+
+</details>
+
 ### @zxing/browser@0.1.5
 
 - **License:** MIT
@@ -3460,7 +3495,7 @@ SOFTWARE.
 
 </details>
 
-### aria-query@5.3.2
+### aria-query@5.3.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/A11yance/aria-query
@@ -4597,7 +4632,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/detect-libc
 
-### devalue@5.6.2
+### devalue@5.7.1
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/devalue
@@ -4660,7 +4695,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### drizzle-orm@0.45.1
+### drizzle-orm@0.45.2
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/drizzle-team/drizzle-orm
@@ -5079,7 +5114,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### esrap@2.2.2
+### esrap@2.2.5
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/esrap
@@ -5231,7 +5266,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### express-rate-limit@8.3.1
+### express-rate-limit@8.3.2
 
 - **License:** MIT
 - **Repository:** https://github.com/express-rate-limit/express-rate-limit
@@ -5939,7 +5974,7 @@ SOFTWARE.
 
 </details>
 
-### hono@4.12.9
+### hono@4.12.12
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
@@ -7572,41 +7607,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-```
-
-</details>
-
-### mri@1.2.0
-
-- **License:** MIT
-- **Repository:** https://github.com/lukeed/mri
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
 
 ```
 
@@ -9267,41 +9267,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### sade@1.8.1
-
-- **License:** MIT
-- **Repository:** https://github.com/lukeed/sade
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
 ### safer-buffer@2.1.2
 
 - **License:** MIT
@@ -10063,7 +10028,7 @@ THE SOFTWARE.
 
 </details>
 
-### svelte@5.49.1
+### svelte@5.55.3
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/svelte
