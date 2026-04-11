@@ -27,6 +27,9 @@ KNOWN_ACCEPTED=(
   "GHSA-38f7-945m-qr2g"   # effect AsyncLocalStorage — transitive, not used directly
   "GHSA-46wh-pxpv-q5gq"   # express-rate-limit IPv6 bypass — transitive via MCP SDK
   "GHSA-j3q9-mxjg-w52f"   # path-to-regexp DoS — transitive via express
+  "GHSA-r5fr-rjxr-66jc"   # lodash code injection — transitive via workbox-build, no fix available
+  "GHSA-v2wj-q39q-566r"   # vite server.fs.deny bypass — false positive, we're on 8.x not 7.x
+  "GHSA-p9ff-h696-f583"   # vite WebSocket file read — false positive, we're on 8.x not 7.x
 )
 
 echo "=== bun audit ==="
