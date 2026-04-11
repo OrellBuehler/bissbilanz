@@ -90,7 +90,7 @@
 						cornerRadius={4}
 						padAngle={0.02}
 						legend={true}
-						tooltip={true}
+						tooltipContext={true}
 						props={{
 							tooltip: {
 								root: {

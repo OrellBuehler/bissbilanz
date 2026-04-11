@@ -62,14 +62,16 @@
 	</Dialog.Root>
 {:else if openFull}
 	<Drawer.Root bind:open>
-		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0!">
+		<Drawer.Content
+			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0! overflow-y-auto"
+		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
 				{#if description}
 					<Drawer.Description class="truncate">{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="min-h-[60dvh] min-w-0 overflow-y-auto px-4 pb-4">
+			<div class="min-h-[60dvh] min-w-0 px-4 pb-4">
 				{@render children()}
 			</div>
 		</Drawer.Content>

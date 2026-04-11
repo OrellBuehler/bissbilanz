@@ -287,7 +287,7 @@
 							{series}
 							{yDomain}
 							padding={{ left: 36, bottom: 24 }}
-							tooltip={true}
+							tooltipContext={true}
 							axis={true}
 							grid={true}
 							points={true}

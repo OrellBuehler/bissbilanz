@@ -134,6 +134,9 @@ class AuthManager(
                 true
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                secureStorage.delete(KEY_ACCESS_TOKEN)
+                secureStorage.delete(KEY_REFRESH_TOKEN)
+                _authState.value = AuthState.SessionExpired
                 false
             }
         }

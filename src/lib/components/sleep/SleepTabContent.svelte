@@ -79,7 +79,7 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
-	<Card.Root class="overflow-hidden">
+	<Card.Root>
 		<Card.Header class="pb-3">
 			<div class="flex items-center gap-2">
 				<div

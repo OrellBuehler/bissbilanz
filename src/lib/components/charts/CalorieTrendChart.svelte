@@ -72,7 +72,7 @@
 			{series}
 			{annotations}
 			{yDomain}
-			tooltip={true}
+			tooltipContext={true}
 			axis={true}
 			grid={true}
 			rule={false}
