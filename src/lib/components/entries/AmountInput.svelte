@@ -87,7 +87,7 @@
 				oninput={handleServingsInput}
 				min="0.1"
 				step="0.1"
-				class="flex-1"
+				class="min-w-0 flex-1"
 			/>
 			{#if previewAmount || previewKcal}
 				<span class="shrink-0 text-xs text-muted-foreground">
@@ -105,7 +105,7 @@
 				oninput={handleUnitInput}
 				min="0.1"
 				step="0.1"
-				class="flex-1"
+				class="min-w-0 flex-1"
 			/>
 			<span class="shrink-0 text-sm text-muted-foreground">{servingUnit}</span>
 		</div>

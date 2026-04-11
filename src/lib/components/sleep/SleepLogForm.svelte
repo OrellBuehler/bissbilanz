@@ -68,14 +68,14 @@
 		<div>
 			<label class="mb-1.5 block text-sm font-medium">{m.sleep_duration()}</label>
 			<div class="flex items-center gap-2">
-				<div class="relative flex-1">
+				<div class="relative min-w-0 flex-1">
 					<Input type="number" min="0" max="23" bind:value={hours} class="pr-7" />
 					<span
 						class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs font-medium text-muted-foreground"
 						>h</span
 					>
 				</div>
-				<div class="relative flex-1">
+				<div class="relative min-w-0 flex-1">
 					<Input type="number" min="0" max="59" bind:value={minutes} class="pr-8" />
 					<span
 						class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs font-medium text-muted-foreground"
@@ -85,7 +85,7 @@
 			</div>
 		</div>
 
-		<div>
+		<div class="min-w-0">
 			<label class="mb-1.5 block text-sm font-medium">{m.sleep_date_label()}</label>
 			<Input type="date" bind:value={entryDate} max={today()} required />
 		</div>
