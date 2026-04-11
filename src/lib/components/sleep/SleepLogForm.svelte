@@ -123,15 +123,15 @@
 
 		{#if showDetails}
 			<div class="mt-3 grid gap-3 sm:grid-cols-2">
-				<div>
+				<div class="min-w-0">
 					<label class="mb-1 block text-sm font-medium">{m.sleep_bedtime()}</label>
 					<Input type="time" bind:value={bedtime} />
 				</div>
-				<div>
+				<div class="min-w-0">
 					<label class="mb-1 block text-sm font-medium">{m.sleep_wake_time()}</label>
 					<Input type="time" bind:value={wakeTime} />
 				</div>
-				<div>
+				<div class="min-w-0">
 					<label class="mb-1 block text-sm font-medium">{m.sleep_wake_ups()}</label>
 					<Input type="number" min="0" bind:value={wakeUps} />
 				</div>

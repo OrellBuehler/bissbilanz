@@ -58,7 +58,7 @@
 				min="0"
 				placeholder={m.dashboard_weight_placeholder()}
 				bind:value={inputValue}
-				class="h-9"
+				class="min-w-0 h-9"
 			/>
 			<Button type="submit" size="sm" disabled={saving || !inputValue}>
 				{m.dashboard_weight_log()}

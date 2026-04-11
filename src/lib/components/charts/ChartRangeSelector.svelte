@@ -74,7 +74,7 @@
 		<div class="flex items-center gap-2">
 			<input
 				type="date"
-				class="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+				class="border-input bg-background min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-sm"
 				max={customEnd || maxDate}
 				bind:value={customStart}
 				onchange={applyCustomRange}
@@ -82,7 +82,7 @@
 			<span class="text-muted-foreground text-sm">–</span>
 			<input
 				type="date"
-				class="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+				class="border-input bg-background min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-sm"
 				min={customStart}
 				max={maxDate}
 				bind:value={customEnd}
