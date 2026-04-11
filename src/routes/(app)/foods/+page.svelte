@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { untrack } from 'svelte';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
@@ -231,7 +232,7 @@
 	$effect(() => {
 		if (browser) {
 			const urlBarcode = $page.url.searchParams.get('barcode');
-			if (urlBarcode && !showForm) {
+			if (urlBarcode && !untrack(() => showForm)) {
 				activeBarcode = urlBarcode;
 				fetchFromOFF(urlBarcode);
 				showForm = true;
