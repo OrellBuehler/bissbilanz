@@ -232,7 +232,7 @@
 		</CollapsibleCard>
 
 		<CollapsibleCard title={m.insights_logging_streak()} sectionId="streak">
-			<StreakInsight initialStreaks={pageData.streaks} />
+			<StreakInsight initialStreaks={pageData.streaks} initialDays={pageData.calendarDays} />
 		</CollapsibleCard>
 
 		<CollapsibleCard title={m.insights_dow_title()} sectionId="dow">

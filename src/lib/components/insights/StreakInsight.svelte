@@ -4,13 +4,12 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import type { CalendarDay } from '$lib/utils/insights';
 
 	type Streaks = {
 		currentStreak: number;
 		longestStreak: number;
 	};
-
-	type CalendarDay = { calories: number; hasEntries: boolean };
 
 	let {
 		initialStreaks,

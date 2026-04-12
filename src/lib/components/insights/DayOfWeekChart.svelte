@@ -5,24 +5,16 @@
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
-	import type { MacroKey, DayRow } from '$lib/utils/insights';
+	import type { MacroKey, DayRow, Goals } from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
 
-	type Goals = {
-		calorieGoal: number;
-		proteinGoal: number;
-		carbGoal: number;
-		fatGoal: number;
-		fiberGoal: number;
-	} | null;
-
-	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals } } = $props();
+	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals | null } } = $props();
 
 	type RangeKey = '4w' | '12w';
 	let range: RangeKey = $state('4w');
 	let metric: MacroKey = $state('calories');
 	let data: DayRow[] = $state(initialData?.data ?? []);
-	let goals = $state<Goals>(initialData?.goals ?? null);
+	let goals = $state<Goals | null>(initialData?.goals ?? null);
 	let loading = $state(!initialData);
 
 	const rangeDays: Record<RangeKey, number> = { '4w': 27, '12w': 83 };
