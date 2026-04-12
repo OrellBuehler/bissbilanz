@@ -55,10 +55,8 @@ export async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
 export async function runMigrations(): Promise<void> {
 	const database = getDB();
 	const migrationsPath = join(process.cwd(), 'drizzle');
-	console.log(`Running database migrations from ${migrationsPath}...`);
 	try {
 		await migrate(database, { migrationsFolder: migrationsPath });
-		console.log('Migrations completed successfully');
 	} catch (error) {
 		console.error('Migration failed:', error);
 		throw error;
