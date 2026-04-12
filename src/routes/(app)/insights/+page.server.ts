@@ -3,7 +3,8 @@ import {
 	getDailyBreakdown,
 	getCalendarStats,
 	getMealBreakdown,
-	getTopFoods
+	getTopFoods,
+	getStreaks
 } from '$lib/server/stats';
 import { getGoals } from '$lib/server/goals';
 import { getWeightWithTrend } from '$lib/server/weight';
@@ -15,14 +16,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const start7 = shiftDate(endDate, -6);
 	const now = new Date();
 
-	const [dailyData, goals, calendarStats, mealBreakdown, topFoods, initialChartData] =
+	const [dailyData, goals, calendarStats, mealBreakdown, topFoods, initialChartData, streaks] =
 		await Promise.all([
 			getDailyBreakdown(userId, start7, endDate),
 			getGoals(userId),
 			getCalendarStats(userId, now.getFullYear(), now.getMonth()),
 			getMealBreakdown(userId, endDate, endDate),
 			getTopFoods(userId, 7, 10),
-			getWeightWithTrend(userId, daysAgo(30), endDate)
+			getWeightWithTrend(userId, daysAgo(30), endDate),
+			getStreaks(userId)
 		]);
 
 	const goalsData = goals
@@ -40,6 +42,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		calendarDays: calendarStats.days,
 		mealBreakdown,
 		topFoods,
-		initialChartData
+		initialChartData,
+		streaks
 	};
 };

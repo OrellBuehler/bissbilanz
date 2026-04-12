@@ -8,6 +8,8 @@
 	import GoalAdherence from '$lib/components/insights/GoalAdherence.svelte';
 	import CalendarHeatmap from '$lib/components/insights/CalendarHeatmap.svelte';
 	import MacroRadar from '$lib/components/insights/MacroRadar.svelte';
+	import StreakInsight from '$lib/components/insights/StreakInsight.svelte';
+	import DayOfWeekChart from '$lib/components/insights/DayOfWeekChart.svelte';
 	import WeightLogForm from '$lib/components/weight/WeightLogForm.svelte';
 	import WeightChart from '$lib/components/weight/WeightChart.svelte';
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
@@ -227,6 +229,14 @@
 	{#if activeTab === 'nutrition'}
 		<CollapsibleCard title={m.insights_trends()} sectionId="trends">
 			<TrendsChart initialData={pageData.dailyStatus} />
+		</CollapsibleCard>
+
+		<CollapsibleCard title={m.insights_logging_streak()} sectionId="streak">
+			<StreakInsight initialStreaks={pageData.streaks} />
+		</CollapsibleCard>
+
+		<CollapsibleCard title={m.insights_dow_title()} sectionId="dow">
+			<DayOfWeekChart initialData={pageData.dailyStatus} />
 		</CollapsibleCard>
 
 		<CollapsibleCard title={m.insights_goal_adherence()} sectionId="adherence">
