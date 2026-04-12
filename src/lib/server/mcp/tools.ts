@@ -41,5 +41,22 @@ export const toolNames = [
 	'log_sleep',
 	'get_sleep',
 	'update_sleep',
-	'delete_sleep'
+	'delete_sleep',
+	// Analytics
+	'get_food_diversity',
+	'get_meal_timing',
+	'get_sleep_food_correlation',
+	'get_weight_food_series',
+	'get_extended_nutrients',
+	'get_daily_nutrients',
+	// Meal types
+	'list_meal_types',
+	// Supplement history
+	'get_supplement_history',
+	// Day properties
+	'get_day_properties',
+	'set_day_properties',
+	'delete_day_properties',
+	// Calendar stats
+	'get_calendar_stats'
 ] as const;

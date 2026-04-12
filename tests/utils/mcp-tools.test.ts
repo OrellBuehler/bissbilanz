@@ -23,7 +23,17 @@ const READ_ONLY_TOOLS = [
 	'get_supplement_status',
 	'list_supplements',
 	'search_openfoodfacts',
-	'get_sleep'
+	'get_sleep',
+	'get_food_diversity',
+	'get_meal_timing',
+	'get_sleep_food_correlation',
+	'get_weight_food_series',
+	'get_extended_nutrients',
+	'get_daily_nutrients',
+	'list_meal_types',
+	'get_supplement_history',
+	'get_day_properties',
+	'get_calendar_stats'
 ] as const;
 
 const WRITE_TOOLS = [
@@ -34,9 +44,7 @@ const WRITE_TOOLS = [
 	'log_weight',
 	'create_supplement',
 	'copy_entries',
-	'log_sleep',
-	'update_sleep',
-	'delete_sleep'
+	'log_sleep'
 ] as const;
 
 const UPDATE_TOOLS = [
@@ -45,7 +53,9 @@ const UPDATE_TOOLS = [
 	'update_entry',
 	'update_goals',
 	'update_supplement',
-	'update_weight'
+	'update_weight',
+	'update_sleep',
+	'set_day_properties'
 ] as const;
 
 const DESTRUCTIVE_TOOLS = [
@@ -54,7 +64,9 @@ const DESTRUCTIVE_TOOLS = [
 	'delete_entry',
 	'delete_supplement',
 	'delete_weight',
-	'unlog_supplement'
+	'unlog_supplement',
+	'delete_sleep',
+	'delete_day_properties'
 ] as const;
 
 describe('tool annotations', () => {
@@ -105,9 +117,9 @@ describe('tool annotations', () => {
 		}
 	});
 
-	test('all 43 tools are classified', () => {
+	test('all 55 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(43);
+		expect(all).toHaveLength(55);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -159,11 +171,23 @@ describe('toolNames', () => {
 			'log_sleep',
 			'get_sleep',
 			'update_sleep',
-			'delete_sleep'
+			'delete_sleep',
+			'get_food_diversity',
+			'get_meal_timing',
+			'get_sleep_food_correlation',
+			'get_weight_food_series',
+			'get_extended_nutrients',
+			'get_daily_nutrients',
+			'list_meal_types',
+			'get_supplement_history',
+			'get_day_properties',
+			'set_day_properties',
+			'delete_day_properties',
+			'get_calendar_stats'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(43);
+		expect(toolNames).toHaveLength(55);
 	});
 });

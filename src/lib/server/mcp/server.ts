@@ -44,7 +44,19 @@ import {
 	handleLogSleep,
 	handleGetSleep,
 	handleUpdateSleep,
-	handleDeleteSleep
+	handleDeleteSleep,
+	handleGetFoodDiversity,
+	handleGetMealTiming,
+	handleGetSleepFoodCorrelation,
+	handleGetWeightFoodSeries,
+	handleGetExtendedNutrients,
+	handleGetDailyNutrients,
+	handleListMealTypes,
+	handleGetSupplementHistory,
+	handleGetDayProperties,
+	handleSetDayProperties,
+	handleDeleteDayProperties,
+	handleGetCalendarStats
 } from './handlers';
 import { today } from '$lib/utils/dates';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
@@ -53,6 +65,13 @@ const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
+
+const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD format');
+
+const dateRangeSchema = {
+	startDate: dateStr.describe('Start date in YYYY-MM-DD format'),
+	endDate: dateStr.describe('End date in YYYY-MM-DD format')
+};
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
@@ -106,11 +125,24 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				"Search the user's food database by name. Returns matching foods with nutritional information, sorted by recent usage.",
 			inputSchema: {
-				query: z.string().describe('Search query to match against food names')
+				query: z.string().describe('Search query to match against food names'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe('Max results to return. Defaults to 50.'),
+				offset: z
+					.number()
+					.int()
+					.min(0)
+					.optional()
+					.describe('Number of results to skip for pagination.')
 			},
 			annotations: READ_ONLY
 		},
-		safe(({ query }) => handleSearchFoods(userId, query))
+		safe(({ query, limit, offset }) => handleSearchFoods(userId, query, limit, offset))
 	);
 
 	// Build nutrient schema fields for MCP tools
@@ -255,11 +287,13 @@ export function createMcpServer(userId: string): McpServer {
 		'get_supplement_status',
 		{
 			description:
-				"Get today's supplement checklist showing which supplements are due and whether they've been taken.",
-			inputSchema: {},
+				"Get a supplement checklist showing which supplements are due and whether they've been taken.",
+			inputSchema: {
+				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.')
+			},
 			annotations: READ_ONLY
 		},
-		safe(() => handleGetSupplementStatus(userId))
+		safe(({ date }) => handleGetSupplementStatus(userId, date))
 	);
 
 	server.registerTool(
@@ -471,21 +505,37 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_weekly_stats',
 		{
-			description: 'Get average daily nutrition over the past 7 days.',
-			inputSchema: {},
+			description:
+				'Get average daily nutrition over 7 days. Defaults to the past 7 days. Use startDate and endDate for a custom range.',
+			inputSchema: {
+				startDate: dateStr
+					.optional()
+					.describe('Custom start date in YYYY-MM-DD format. Omit for past 7 days.'),
+				endDate: dateStr
+					.optional()
+					.describe('Custom end date in YYYY-MM-DD format. Omit for today.')
+			},
 			annotations: READ_ONLY
 		},
-		safe(() => handleGetWeeklyStats(userId))
+		safe((args) => handleGetWeeklyStats(userId, args.startDate, args.endDate))
 	);
 
 	server.registerTool(
 		'get_monthly_stats',
 		{
-			description: 'Get average daily nutrition over the past 30 days.',
-			inputSchema: {},
+			description:
+				'Get average daily nutrition over 30 days. Defaults to the past 30 days. Use startDate and endDate for a custom range.',
+			inputSchema: {
+				startDate: dateStr
+					.optional()
+					.describe('Custom start date in YYYY-MM-DD format. Omit for past 30 days.'),
+				endDate: dateStr
+					.optional()
+					.describe('Custom end date in YYYY-MM-DD format. Omit for today.')
+			},
 			annotations: READ_ONLY
 		},
-		safe(() => handleGetMonthlyStats(userId))
+		safe((args) => handleGetMonthlyStats(userId, args.startDate, args.endDate))
 	);
 
 	server.registerTool(
@@ -852,7 +902,14 @@ export function createMcpServer(userId: string): McpServer {
 					.string()
 					.regex(/^\d{4}-\d{2}-\d{2}$/)
 					.optional()
-					.describe('End date in YYYY-MM-DD format')
+					.describe('End date in YYYY-MM-DD format'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(365)
+					.optional()
+					.describe('Max entries to return when using date range. Defaults to 100.')
 			},
 			annotations: READ_ONLY
 		},
@@ -867,6 +924,11 @@ export function createMcpServer(userId: string): McpServer {
 				id: z.string().uuid().describe('Sleep entry ID to update'),
 				durationMinutes: z.number().int().min(1).max(1440).optional(),
 				quality: z.number().int().min(1).max(10).optional(),
+				entryDate: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/)
+					.optional()
+					.describe('New date in YYYY-MM-DD format'),
 				bedtime: z.string().optional().nullable(),
 				wakeTime: z.string().optional().nullable(),
 				wakeUps: z.number().int().min(0).optional().nullable(),
@@ -884,7 +946,7 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				id: z.string().uuid().describe('Sleep entry ID to delete')
 			},
-			annotations: WRITE
+			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteSleep(userId, args))
 	);
@@ -894,8 +956,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get daily nutrition totals for a date range, with one row per day.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -907,8 +968,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get nutrition totals broken down by meal type for a date range.',
 			inputSchema: {
-				startDate: z.string().describe('Start date in YYYY-MM-DD format'),
-				endDate: z.string().describe('End date in YYYY-MM-DD format')
+				...dateRangeSchema
 			},
 			annotations: READ_ONLY
 		},
@@ -920,8 +980,20 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Get the most frequently logged foods over a period.',
 			inputSchema: {
-				days: z.number().optional().describe('Number of days to look back. Defaults to 7.'),
-				limit: z.number().optional().describe('Max number of foods to return. Defaults to 10.')
+				days: z
+					.number()
+					.int()
+					.min(1)
+					.max(365)
+					.optional()
+					.describe('Number of days to look back. Defaults to 7.'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe('Max number of foods to return. Defaults to 10.')
 			},
 			annotations: READ_ONLY
 		},
@@ -936,6 +1008,175 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: READ_ONLY
 		},
 		safe(() => handleGetStreaks(userId))
+	);
+
+	// Analytics tools
+	server.registerTool(
+		'get_food_diversity',
+		{
+			description:
+				'Analyze dietary variety over a date range. Shows unique foods consumed, diversity score, and most/least eaten foods.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetFoodDiversity(userId, args))
+	);
+
+	server.registerTool(
+		'get_meal_timing',
+		{
+			description:
+				'Analyze meal timing patterns over a date range. Shows when meals are typically eaten and calorie distribution by time of day.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetMealTiming(userId, args))
+	);
+
+	server.registerTool(
+		'get_sleep_food_correlation',
+		{
+			description:
+				'Analyze correlations between sleep quality/duration and daily nutrition. Shows how calorie and macro intake relates to sleep patterns.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetSleepFoodCorrelation(userId, args))
+	);
+
+	server.registerTool(
+		'get_weight_food_series',
+		{
+			description:
+				'Get weight and daily calorie data over a date range for trend analysis. Shows how calorie intake correlates with weight changes.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetWeightFoodSeries(userId, args))
+	);
+
+	server.registerTool(
+		'get_extended_nutrients',
+		{
+			description:
+				'Get detailed extended nutrient data (vitamins, minerals, etc.) for food entries over a date range.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetExtendedNutrients(userId, args))
+	);
+
+	server.registerTool(
+		'get_daily_nutrients',
+		{
+			description:
+				'Get daily totals for all nutrients (core macros and extended) over a date range, with one row per day.',
+			inputSchema: {
+				...dateRangeSchema
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetDailyNutrients(userId, args))
+	);
+
+	// Meal types
+	server.registerTool(
+		'list_meal_types',
+		{
+			description:
+				"List all meal types available to the user, including default types (Breakfast, Lunch, Dinner, Snacks) and any custom meal types they've created.",
+			inputSchema: {},
+			annotations: READ_ONLY
+		},
+		safe(() => handleListMealTypes(userId))
+	);
+
+	// Supplement history
+	server.registerTool(
+		'get_supplement_history',
+		{
+			description:
+				'Get supplement intake history over a date range. Shows which supplements were taken on which days.',
+			inputSchema: {
+				from: dateStr.describe('Start date in YYYY-MM-DD format'),
+				to: dateStr.describe('End date in YYYY-MM-DD format')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetSupplementHistory(userId, args))
+	);
+
+	// Day properties
+	server.registerTool(
+		'get_day_properties',
+		{
+			description:
+				'Get properties for a specific day (e.g., whether it is marked as a fasting day).',
+			inputSchema: {
+				date: dateStr.describe('Date in YYYY-MM-DD format')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetDayProperties(userId, args))
+	);
+
+	server.registerTool(
+		'set_day_properties',
+		{
+			description: 'Set properties for a specific day, such as marking it as a fasting day.',
+			inputSchema: {
+				date: dateStr.describe('Date in YYYY-MM-DD format'),
+				isFastingDay: z.boolean().describe('Whether the day is a fasting day')
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleSetDayProperties(userId, args))
+	);
+
+	server.registerTool(
+		'delete_day_properties',
+		{
+			description: 'Remove all properties for a specific day (resets fasting status, etc.).',
+			inputSchema: {
+				date: dateStr.describe('Date in YYYY-MM-DD format')
+			},
+			annotations: DESTRUCTIVE
+		},
+		safe((args) => handleDeleteDayProperties(userId, args))
+	);
+
+	// Calendar stats
+	server.registerTool(
+		'get_calendar_stats',
+		{
+			description:
+				'Get per-day entry presence for a month. Shows which days have food entries logged, useful for adherence tracking.',
+			inputSchema: {
+				month: z
+					.string()
+					.regex(/^\d{4}-\d{2}$/)
+					.refine(
+						(v) => {
+							const m = parseInt(v.split('-')[1], 10);
+							return m >= 1 && m <= 12;
+						},
+						{ message: 'Month must be between 01 and 12' }
+					)
+					.describe('Month in YYYY-MM format (e.g., "2026-03")')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetCalendarStats(userId, args))
 	);
 
 	// Static resources

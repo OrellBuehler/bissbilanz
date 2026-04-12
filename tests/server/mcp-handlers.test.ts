@@ -5,7 +5,8 @@ import {
 	TEST_RECIPE,
 	TEST_ENTRY,
 	TEST_GOALS,
-	TEST_SUPPLEMENT
+	TEST_SUPPLEMENT,
+	TEST_MEAL_TYPE
 } from '../helpers/fixtures';
 import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
 
@@ -49,6 +50,24 @@ let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
 let mockOFFProduct: any = null;
 let mockOFFSearchResults: any[] = [];
+let mockCreateSleepResult: any = null;
+let mockSleepEntries: any[] = [];
+let mockLatestSleep: any = null;
+let mockUpdateSleepResult: any = null;
+let mockDeleteSleepResult: any = true;
+let mockSupplementHistory: any[] = [];
+let mockFoodDiversity: any = null;
+let mockMealTiming: any = null;
+let mockSleepFoodCorrelation: any = null;
+let mockWeightFoodSeries: any = null;
+let mockExtendedNutrients: any = null;
+let mockDailyNutrients: any = null;
+let mockMealTypes: any[] = [];
+let mockDayProperties: any = null;
+let mockCalendarStats: any = null;
+let mockComputedAverages: any = null;
+let mockDateRangeEntries: any[] = [];
+let mockFastingDays: Set<string> = new Set();
 
 const mockDeps = {
 	listFoods: async () => ({ items: mockFoods, total: mockFoods.length }),
@@ -150,7 +169,33 @@ const mockDeps = {
 		}));
 	},
 	fetchProduct: async () => mockOFFProduct,
-	searchProducts: async () => mockOFFSearchResults
+	searchProducts: async () => mockOFFSearchResults,
+	createSleepEntry: async () =>
+		mockCreateSleepResult
+			? { success: true, data: mockCreateSleepResult }
+			: { success: false, error: new Error('Validation failed') },
+	getSleepEntriesByDateRange: async () => mockSleepEntries,
+	getLatestSleep: async () => mockLatestSleep,
+	updateSleepEntry: async () =>
+		mockUpdateSleepResult
+			? { success: true, data: mockUpdateSleepResult }
+			: { success: false, error: new Error('Validation failed') },
+	deleteSleepEntry: async () => mockDeleteSleepResult,
+	getLogsForRange: async () => mockSupplementHistory,
+	getFoodDiversityData: async () => mockFoodDiversity,
+	getMealTimingData: async () => mockMealTiming,
+	getSleepFoodCorrelationData: async () => mockSleepFoodCorrelation,
+	getWeightFoodSeries: async () => mockWeightFoodSeries,
+	getExtendedNutrientEntries: async () => mockExtendedNutrients,
+	getDailyNutrientTotals: async () => mockDailyNutrients,
+	listMealTypes: async () => mockMealTypes,
+	getDayProperties: async () => mockDayProperties,
+	setDayProperties: async () => mockDayProperties,
+	deleteDayProperties: async () => {},
+	getCalendarStats: async () => mockCalendarStats,
+	computeAverages: () => mockComputedAverages,
+	listEntriesByDateRange: async () => mockDateRangeEntries,
+	getFastingDays: async () => mockFastingDays
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
@@ -192,7 +237,23 @@ const {
 	handleUpdateSupplement,
 	handleDeleteSupplement,
 	handleUnlogSupplement,
-	handleSearchOpenFoodFacts
+	handleSearchOpenFoodFacts,
+	handleLogSleep,
+	handleGetSleep,
+	handleUpdateSleep,
+	handleDeleteSleep,
+	handleGetFoodDiversity,
+	handleGetMealTiming,
+	handleGetSleepFoodCorrelation,
+	handleGetWeightFoodSeries,
+	handleGetExtendedNutrients,
+	handleGetDailyNutrients,
+	handleListMealTypes,
+	handleGetSupplementHistory,
+	handleGetDayProperties,
+	handleSetDayProperties,
+	handleDeleteDayProperties,
+	handleGetCalendarStats
 } = createHandlers(mockDeps);
 
 describe('MCP handlers', () => {
@@ -236,6 +297,24 @@ describe('MCP handlers', () => {
 		mockUpdateSupplementResult = null;
 		mockOFFProduct = null;
 		mockOFFSearchResults = [];
+		mockCreateSleepResult = null;
+		mockSleepEntries = [];
+		mockLatestSleep = null;
+		mockUpdateSleepResult = null;
+		mockDeleteSleepResult = true;
+		mockSupplementHistory = [];
+		mockFoodDiversity = null;
+		mockMealTiming = null;
+		mockSleepFoodCorrelation = null;
+		mockWeightFoodSeries = null;
+		mockExtendedNutrients = null;
+		mockDailyNutrients = null;
+		mockMealTypes = [];
+		mockDayProperties = null;
+		mockCalendarStats = null;
+		mockComputedAverages = null;
+		mockDateRangeEntries = [];
+		mockFastingDays = new Set();
 	});
 
 	describe('handleSearchFoods', () => {
@@ -561,7 +640,7 @@ describe('MCP handlers', () => {
 	describe('handleGetWeeklyStats', () => {
 		test('returns weekly stats', async () => {
 			mockWeeklyStats = { calories: 2000, protein: 150 };
-			const result = await handleGetWeeklyStats(TEST_USER.id);
+			const result = (await handleGetWeeklyStats(TEST_USER.id)) as any;
 			expect(result.calories).toBe(2000);
 		});
 	});
@@ -569,7 +648,7 @@ describe('MCP handlers', () => {
 	describe('handleGetMonthlyStats', () => {
 		test('returns monthly stats', async () => {
 			mockMonthlyStats = { calories: 1800, protein: 140 };
-			const result = await handleGetMonthlyStats(TEST_USER.id);
+			const result = (await handleGetMonthlyStats(TEST_USER.id)) as any;
 			expect(result.calories).toBe(1800);
 		});
 	});
@@ -912,10 +991,10 @@ describe('MCP handlers', () => {
 			mockDailyBreakdown = [
 				{ date: '2026-02-10', calories: 2000, protein: 150, carbs: 200, fat: 67, fiber: 30 }
 			];
-			const result = await handleGetDailyBreakdown(TEST_USER.id, {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
 				startDate: '2026-02-10',
 				endDate: '2026-02-10'
-			});
+			})) as any;
 			expect(result).toHaveLength(1);
 			expect(result[0].calories).toBe(2000);
 		});
@@ -928,6 +1007,22 @@ describe('MCP handlers', () => {
 			});
 			expect(result).toEqual([]);
 		});
+
+		test('rejects date range exceeding 366 days', async () => {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2020-01-01',
+				endDate: '2026-02-07'
+			})) as any;
+			expect(result.error).toContain('exceeds maximum');
+		});
+
+		test('rejects inverted date range', async () => {
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-07',
+				endDate: '2026-02-01'
+			})) as any;
+			expect(result.error).toContain('before');
+		});
 	});
 
 	describe('handleGetMealBreakdown', () => {
@@ -935,10 +1030,10 @@ describe('MCP handlers', () => {
 			mockMealBreakdown = [
 				{ mealType: 'breakfast', calories: 500, protein: 30, carbs: 60, fat: 15, fiber: 8 }
 			];
-			const result = await handleGetMealBreakdown(TEST_USER.id, {
+			const result = (await handleGetMealBreakdown(TEST_USER.id, {
 				startDate: '2026-02-01',
 				endDate: '2026-02-07'
-			});
+			})) as any;
 			expect(result).toHaveLength(1);
 			expect(result[0].mealType).toBe('breakfast');
 		});
@@ -1032,6 +1127,319 @@ describe('MCP handlers', () => {
 			const result = await handleSearchOpenFoodFacts('test', 3);
 			expect(result.products).toHaveLength(3);
 			expect(result.count).toBe(3);
+		});
+	});
+
+	describe('handleGetSupplementStatus (with date param)', () => {
+		test('returns checklist for explicit date', async () => {
+			mockSupplements = [TEST_SUPPLEMENT];
+			mockSupplementLogs = [];
+			const result = await handleGetSupplementStatus(TEST_USER.id, '2026-02-09');
+			expect(result.date).toBe('2026-02-09');
+			expect(result.total).toBe(1);
+			expect(result.pending).toBe(1);
+		});
+	});
+
+	describe('handleLogSleep', () => {
+		test('returns success with entryId and entry', async () => {
+			mockCreateSleepResult = { id: 'sleep-1', durationMinutes: 480, quality: 4 };
+			const result = await handleLogSleep(TEST_USER.id, {
+				durationMinutes: 480,
+				quality: 4
+			});
+			expect(result.success).toBe(true);
+			expect(result.entryId).toBe('sleep-1');
+			expect(result.entry).toBeDefined();
+		});
+
+		test('returns error on validation failure', async () => {
+			mockCreateSleepResult = null;
+			const result = await handleLogSleep(TEST_USER.id, {
+				durationMinutes: 480,
+				quality: 4
+			});
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleGetSleep', () => {
+		test('returns latest sleep when no range', async () => {
+			mockLatestSleep = { id: 'sleep-1', durationMinutes: 480, quality: 4 };
+			const result = (await handleGetSleep(TEST_USER.id, {})) as any;
+			expect(result.id).toBe('sleep-1');
+		});
+
+		test('returns error when no entries and no range', async () => {
+			mockLatestSleep = null;
+			const result = (await handleGetSleep(TEST_USER.id, {})) as any;
+			expect(result.error).toBe('No sleep entries found');
+		});
+
+		test('returns entries for date range', async () => {
+			mockSleepEntries = [
+				{ id: 'sleep-1', durationMinutes: 480, quality: 4, entryDate: '2026-02-10' }
+			];
+			const result = (await handleGetSleep(TEST_USER.id, {
+				from: '2026-02-01',
+				to: '2026-02-10'
+			})) as any;
+			expect(result.entries).toHaveLength(1);
+		});
+
+		test('respects limit when fetching range', async () => {
+			mockSleepEntries = [
+				{ id: 'sleep-1', durationMinutes: 480, quality: 4 },
+				{ id: 'sleep-2', durationMinutes: 420, quality: 3 },
+				{ id: 'sleep-3', durationMinutes: 360, quality: 2 }
+			];
+			const result = (await handleGetSleep(TEST_USER.id, {
+				from: '2026-02-01',
+				to: '2026-02-10',
+				limit: 2
+			})) as any;
+			expect(result.entries).toHaveLength(2);
+		});
+
+		test('returns error when only from provided', async () => {
+			const result = (await handleGetSleep(TEST_USER.id, { from: '2026-02-01' })) as any;
+			expect(result.error).toContain('Provide both');
+		});
+	});
+
+	describe('handleUpdateSleep', () => {
+		test('returns success on valid update', async () => {
+			mockUpdateSleepResult = { id: 'sleep-1', durationMinutes: 500, quality: 5 };
+			const result = await handleUpdateSleep(TEST_USER.id, {
+				id: 'sleep-1',
+				durationMinutes: 500,
+				quality: 5
+			});
+			expect(result.success).toBe(true);
+			expect(result.entryId).toBe('sleep-1');
+		});
+
+		test('accepts entryDate param', async () => {
+			mockUpdateSleepResult = { id: 'sleep-1', durationMinutes: 480, quality: 4 };
+			const result = await handleUpdateSleep(TEST_USER.id, {
+				id: 'sleep-1',
+				entryDate: '2026-02-09'
+			});
+			expect(result.success).toBe(true);
+		});
+
+		test('returns error on failure', async () => {
+			mockUpdateSleepResult = null;
+			const result = await handleUpdateSleep(TEST_USER.id, { id: 'nonexistent' });
+			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('handleDeleteSleep', () => {
+		test('returns success when entry found', async () => {
+			mockDeleteSleepResult = true;
+			const result = await handleDeleteSleep(TEST_USER.id, { id: 'sleep-1' });
+			expect(result.success).toBe(true);
+		});
+
+		test('returns error when not found', async () => {
+			mockDeleteSleepResult = null;
+			const result = await handleDeleteSleep(TEST_USER.id, { id: 'nonexistent' });
+			expect(result.error).toBe('Sleep entry not found');
+		});
+	});
+
+	describe('handleGetFoodDiversity', () => {
+		test('returns food diversity analytics data', async () => {
+			mockFoodDiversity = { uniqueFoods: 10, categories: [] };
+			const result = await handleGetFoodDiversity(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-28'
+			});
+			expect(result).toEqual(mockFoodDiversity);
+		});
+	});
+
+	describe('handleGetMealTiming', () => {
+		test('returns meal timing analytics data', async () => {
+			mockMealTiming = { averageMealTimes: [], mealFrequency: [] };
+			const result = await handleGetMealTiming(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-28'
+			});
+			expect(result).toEqual(mockMealTiming);
+		});
+	});
+
+	describe('handleGetSleepFoodCorrelation', () => {
+		test('returns sleep-food correlation data', async () => {
+			mockSleepFoodCorrelation = { correlation: 0.42, dataPoints: [] };
+			const result = await handleGetSleepFoodCorrelation(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-28'
+			});
+			expect(result).toEqual(mockSleepFoodCorrelation);
+		});
+	});
+
+	describe('handleGetWeightFoodSeries', () => {
+		test('returns weight-food series data', async () => {
+			mockWeightFoodSeries = { series: [] };
+			const result = await handleGetWeightFoodSeries(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-28'
+			});
+			expect(result).toEqual(mockWeightFoodSeries);
+		});
+	});
+
+	describe('handleGetExtendedNutrients', () => {
+		test('returns extended nutrient entries', async () => {
+			mockExtendedNutrients = { days: [], averages: {} };
+			const result = await handleGetExtendedNutrients(TEST_USER.id, {
+				startDate: '2026-02-01',
+				endDate: '2026-02-28'
+			});
+			expect(result).toEqual(mockExtendedNutrients);
+		});
+	});
+
+	describe('handleGetDailyNutrients', () => {
+		test('returns daily nutrient totals', async () => {
+			mockDailyNutrients = [{ date: '2026-02-10', vitaminD: 20, calcium: 800 }];
+			const result = await handleGetDailyNutrients(TEST_USER.id, {
+				startDate: '2026-02-10',
+				endDate: '2026-02-10'
+			});
+			expect(result).toEqual(mockDailyNutrients);
+		});
+	});
+
+	describe('handleListMealTypes', () => {
+		test('returns meal types', async () => {
+			mockMealTypes = [TEST_MEAL_TYPE];
+			const result = await handleListMealTypes(TEST_USER.id);
+			expect(result.mealTypes).toHaveLength(1);
+			expect(result.mealTypes[0].name).toBe('Pre-Workout');
+		});
+
+		test('returns empty array when no custom meal types', async () => {
+			mockMealTypes = [];
+			const result = await handleListMealTypes(TEST_USER.id);
+			expect(result.mealTypes).toEqual([]);
+		});
+	});
+
+	describe('handleGetSupplementHistory', () => {
+		test('returns supplement history for date range', async () => {
+			mockSupplementHistory = [
+				{ supplementId: TEST_SUPPLEMENT.id, date: '2026-02-10', takenAt: new Date() }
+			];
+			const result = (await handleGetSupplementHistory(TEST_USER.id, {
+				from: '2026-02-01',
+				to: '2026-02-28'
+			})) as any;
+			expect(result.history).toHaveLength(1);
+		});
+
+		test('returns empty history when no logs in range', async () => {
+			mockSupplementHistory = [];
+			const result = (await handleGetSupplementHistory(TEST_USER.id, {
+				from: '2026-01-01',
+				to: '2026-01-31'
+			})) as any;
+			expect(result.history).toEqual([]);
+		});
+	});
+
+	describe('handleGetDayProperties', () => {
+		test('returns day properties for date', async () => {
+			mockDayProperties = { isFastingDay: true };
+			const result = await handleGetDayProperties(TEST_USER.id, { date: '2026-02-10' });
+			expect(result.date).toBe('2026-02-10');
+			expect(result.properties).toEqual(mockDayProperties);
+		});
+
+		test('returns null properties when none set', async () => {
+			mockDayProperties = null;
+			const result = await handleGetDayProperties(TEST_USER.id, { date: '2026-02-10' });
+			expect(result.date).toBe('2026-02-10');
+			expect(result.properties).toBeNull();
+		});
+	});
+
+	describe('handleSetDayProperties', () => {
+		test('returns success and properties', async () => {
+			mockDayProperties = { isFastingDay: true };
+			const result = await handleSetDayProperties(TEST_USER.id, {
+				date: '2026-02-10',
+				isFastingDay: true
+			});
+			expect(result.success).toBe(true);
+			expect(result.properties).toEqual(mockDayProperties);
+		});
+	});
+
+	describe('handleDeleteDayProperties', () => {
+		test('returns success', async () => {
+			const result = await handleDeleteDayProperties(TEST_USER.id, { date: '2026-02-10' });
+			expect(result.success).toBe(true);
+		});
+	});
+
+	describe('handleGetCalendarStats', () => {
+		test('returns calendar stats for month', async () => {
+			mockCalendarStats = { days: [], totalDays: 28 };
+			const result = await handleGetCalendarStats(TEST_USER.id, { month: '2026-02' });
+			expect(result).toEqual(mockCalendarStats);
+		});
+	});
+
+	describe('handleGetWeeklyStats (with date range)', () => {
+		test('uses computeAverages when startDate and endDate provided', async () => {
+			mockComputedAverages = { calories: 1900, protein: 145 };
+			mockDateRangeEntries = [TEST_ENTRY];
+			mockFastingDays = new Set(['2026-02-05']);
+			const result = await handleGetWeeklyStats(TEST_USER.id, '2026-02-01', '2026-02-07');
+			expect(result).toEqual(mockComputedAverages);
+		});
+
+		test('uses getWeeklyStats when no date range provided', async () => {
+			mockWeeklyStats = { calories: 2000, protein: 150 };
+			const result = await handleGetWeeklyStats(TEST_USER.id);
+			expect(result).toEqual(mockWeeklyStats);
+		});
+	});
+
+	describe('handleGetMonthlyStats (with date range)', () => {
+		test('uses computeAverages when startDate and endDate provided', async () => {
+			mockComputedAverages = { calories: 1850, protein: 140 };
+			mockDateRangeEntries = [TEST_ENTRY];
+			mockFastingDays = new Set();
+			const result = await handleGetMonthlyStats(TEST_USER.id, '2026-01-01', '2026-01-31');
+			expect(result).toEqual(mockComputedAverages);
+		});
+
+		test('uses getMonthlyStats when no date range provided', async () => {
+			mockMonthlyStats = { calories: 1800, protein: 140 };
+			const result = await handleGetMonthlyStats(TEST_USER.id);
+			expect(result).toEqual(mockMonthlyStats);
+		});
+	});
+
+	describe('handleSearchFoods (with limit and offset)', () => {
+		test('passes limit param through', async () => {
+			mockFoods = [TEST_FOOD];
+			mockRecentFoods = [];
+			const result = await handleSearchFoods(TEST_USER.id, 'Oats', 10);
+			expect(result.foods).toHaveLength(1);
+		});
+
+		test('passes offset param through', async () => {
+			mockFoods = [];
+			mockRecentFoods = [];
+			const result = await handleSearchFoods(TEST_USER.id, 'Oats', 10, 5);
+			expect(result.foods).toHaveLength(0);
 		});
 	});
 });

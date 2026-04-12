@@ -27,6 +27,7 @@ import type {
 import type {
 	createEntry,
 	listEntriesByDate,
+	listEntriesByDateRange,
 	updateEntry,
 	deleteEntry,
 	copyEntries
@@ -46,7 +47,8 @@ import type {
 	getDailyBreakdown,
 	getMealBreakdown,
 	getTopFoods,
-	getStreaks
+	getStreaks,
+	computeAverages
 } from '$lib/server/stats';
 import type {
 	createSupplement,
@@ -55,6 +57,7 @@ import type {
 	deleteSupplement,
 	unlogSupplement,
 	getLogsForDate,
+	getLogsForRange,
 	logSupplement,
 	getSupplementById,
 	getSupplementChecklist
@@ -69,6 +72,22 @@ import type {
 	updateSleepEntry,
 	deleteSleepEntry
 } from '$lib/server/sleep';
+import type {
+	getFoodDiversityData,
+	getMealTimingData,
+	getSleepFoodCorrelationData,
+	getWeightFoodSeries,
+	getExtendedNutrientEntries,
+	getDailyNutrientTotals
+} from '$lib/server/analytics';
+import type { listMealTypes } from '$lib/server/meal-types';
+import type {
+	getDayProperties,
+	setDayProperties,
+	deleteDayProperties,
+	getFastingDays
+} from '$lib/server/day-properties';
+import type { getCalendarStats } from '$lib/server/stats';
 
 export type HandlerDeps = {
 	// Foods
@@ -126,6 +145,27 @@ export type HandlerDeps = {
 	getLatestSleep: typeof getLatestSleep;
 	updateSleepEntry: typeof updateSleepEntry;
 	deleteSleepEntry: typeof deleteSleepEntry;
+	// Supplement history
+	getLogsForRange: typeof getLogsForRange;
+	// Custom range stats
+	computeAverages: typeof computeAverages;
+	listEntriesByDateRange: typeof listEntriesByDateRange;
+	getFastingDays: typeof getFastingDays;
+	// Analytics
+	getFoodDiversityData: typeof getFoodDiversityData;
+	getMealTimingData: typeof getMealTimingData;
+	getSleepFoodCorrelationData: typeof getSleepFoodCorrelationData;
+	getWeightFoodSeries: typeof getWeightFoodSeries;
+	getExtendedNutrientEntries: typeof getExtendedNutrientEntries;
+	getDailyNutrientTotals: typeof getDailyNutrientTotals;
+	// Meal types
+	listMealTypes: typeof listMealTypes;
+	// Day properties
+	getDayProperties: typeof getDayProperties;
+	setDayProperties: typeof setDayProperties;
+	deleteDayProperties: typeof deleteDayProperties;
+	// Calendar stats
+	getCalendarStats: typeof getCalendarStats;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	today: typeof today;
@@ -137,6 +177,16 @@ export type HandlerDeps = {
 export function createHandlers(d: HandlerDeps) {
 	function wrapError(op: string, e: unknown): never {
 		throw new Error(`Failed to ${op}: ${e instanceof Error ? e.message : String(e)}`);
+	}
+
+	const MAX_RANGE_DAYS = 366;
+
+	function guardDateRange(startDate: string, endDate: string) {
+		const diffMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+		if (diffMs < 0) return { error: 'startDate must be before endDate' };
+		if (diffMs > MAX_RANGE_DAYS * 86_400_000)
+			return { error: `Date range exceeds maximum of ${MAX_RANGE_DAYS} days` };
+		return null;
 	}
 
 	const getDailyStatusForDate = async (userId: string, date: string) => {
@@ -160,10 +210,15 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleSearchFoods = async (userId: string, query: string) => {
+	const handleSearchFoods = async (
+		userId: string,
+		query: string,
+		limit?: number,
+		offset?: number
+	) => {
 		try {
 			const [{ items: foods }, recentFoods] = await Promise.all([
-				d.listFoods(userId, { query }),
+				d.listFoods(userId, { query, limit: limit ?? 50, offset }),
 				d.listRecentFoods(userId, 100)
 			]);
 			const recentIds = new Set(recentFoods.map((f: { id: string }) => f.id));
@@ -213,9 +268,9 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleGetSupplementStatus = async (userId: string) => {
+	const handleGetSupplementStatus = async (userId: string, date?: string) => {
 		try {
-			const targetDate = d.today();
+			const targetDate = date ?? d.today();
 			const items = await d.getSupplementChecklist(userId, targetDate);
 
 			const checklist = items.map((item) => ({
@@ -454,16 +509,34 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleGetWeeklyStats = async (userId: string) => {
+	const handleGetWeeklyStats = async (userId: string, startDate?: string, endDate?: string) => {
 		try {
+			if (startDate && endDate) {
+				const err = guardDateRange(startDate, endDate);
+				if (err) return err;
+				const [entries, fastingDaySet] = await Promise.all([
+					d.listEntriesByDateRange(userId, startDate, endDate),
+					d.getFastingDays(userId, startDate, endDate)
+				]);
+				return d.computeAverages(entries, fastingDaySet);
+			}
 			return await d.getWeeklyStats(userId);
 		} catch (e) {
 			wrapError('get weekly stats', e);
 		}
 	};
 
-	const handleGetMonthlyStats = async (userId: string) => {
+	const handleGetMonthlyStats = async (userId: string, startDate?: string, endDate?: string) => {
 		try {
+			if (startDate && endDate) {
+				const err = guardDateRange(startDate, endDate);
+				if (err) return err;
+				const [entries, fastingDaySet] = await Promise.all([
+					d.listEntriesByDateRange(userId, startDate, endDate),
+					d.getFastingDays(userId, startDate, endDate)
+				]);
+				return d.computeAverages(entries, fastingDaySet);
+			}
 			return await d.getMonthlyStats(userId);
 		} catch (e) {
 			wrapError('get monthly stats', e);
@@ -651,6 +724,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getDailyBreakdown(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get daily breakdown', e);
@@ -662,6 +737,8 @@ export function createHandlers(d: HandlerDeps) {
 		args: { startDate: string; endDate: string }
 	) => {
 		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
 			return d.getMealBreakdown(userId, args.startDate, args.endDate);
 		} catch (e) {
 			wrapError('get meal breakdown', e);
@@ -722,7 +799,10 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleGetSleep = async (userId: string, args: { from?: string; to?: string }) => {
+	const handleGetSleep = async (
+		userId: string,
+		args: { from?: string; to?: string; limit?: number }
+	) => {
 		try {
 			if (args.from || args.to) {
 				if (!args.from || !args.to) {
@@ -731,7 +811,7 @@ export function createHandlers(d: HandlerDeps) {
 					};
 				}
 				const entries = await d.getSleepEntriesByDateRange(userId, args.from, args.to);
-				return { entries };
+				return { entries: entries.slice(0, args.limit ?? 100) };
 			}
 			const latest = await d.getLatestSleep(userId);
 			return latest ?? { error: 'No sleep entries found' };
@@ -746,6 +826,7 @@ export function createHandlers(d: HandlerDeps) {
 			id: string;
 			durationMinutes?: number;
 			quality?: number;
+			entryDate?: string;
 			bedtime?: string | null;
 			wakeTime?: string | null;
 			wakeUps?: number | null;
@@ -769,6 +850,150 @@ export function createHandlers(d: HandlerDeps) {
 			return { success: true };
 		} catch (e) {
 			wrapError('delete sleep', e);
+		}
+	};
+
+	// Analytics handlers
+	const handleGetFoodDiversity = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getFoodDiversityData(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get food diversity', e);
+		}
+	};
+
+	const handleGetMealTiming = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getMealTimingData(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get meal timing', e);
+		}
+	};
+
+	const handleGetSleepFoodCorrelation = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getSleepFoodCorrelationData(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get sleep-food correlation', e);
+		}
+	};
+
+	const handleGetWeightFoodSeries = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getWeightFoodSeries(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get weight-food series', e);
+		}
+	};
+
+	const handleGetExtendedNutrients = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getExtendedNutrientEntries(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get extended nutrients', e);
+		}
+	};
+
+	const handleGetDailyNutrients = async (
+		userId: string,
+		args: { startDate: string; endDate: string }
+	) => {
+		try {
+			const err = guardDateRange(args.startDate, args.endDate);
+			if (err) return err;
+			return d.getDailyNutrientTotals(userId, args.startDate, args.endDate);
+		} catch (e) {
+			wrapError('get daily nutrients', e);
+		}
+	};
+
+	// Meal types handler
+	const handleListMealTypes = async (userId: string) => {
+		try {
+			const mealTypes = await d.listMealTypes(userId);
+			return { mealTypes };
+		} catch (e) {
+			wrapError('list meal types', e);
+		}
+	};
+
+	// Supplement history handler
+	const handleGetSupplementHistory = async (userId: string, args: { from: string; to: string }) => {
+		try {
+			const err = guardDateRange(args.from, args.to);
+			if (err) return err;
+			const history = await d.getLogsForRange(userId, args.from, args.to);
+			return { history };
+		} catch (e) {
+			wrapError('get supplement history', e);
+		}
+	};
+
+	// Day properties handlers
+	const handleGetDayProperties = async (userId: string, args: { date: string }) => {
+		try {
+			const properties = await d.getDayProperties(userId, args.date);
+			return { date: args.date, properties };
+		} catch (e) {
+			wrapError('get day properties', e);
+		}
+	};
+
+	const handleSetDayProperties = async (
+		userId: string,
+		args: { date: string; isFastingDay: boolean }
+	) => {
+		try {
+			const properties = await d.setDayProperties(userId, args.date, args.isFastingDay);
+			return { success: true, properties };
+		} catch (e) {
+			wrapError('set day properties', e);
+		}
+	};
+
+	const handleDeleteDayProperties = async (userId: string, args: { date: string }) => {
+		try {
+			await d.deleteDayProperties(userId, args.date);
+			return { success: true };
+		} catch (e) {
+			wrapError('delete day properties', e);
+		}
+	};
+
+	// Calendar stats handler
+	const handleGetCalendarStats = async (userId: string, args: { month: string }) => {
+		try {
+			const [yearStr, monthStr] = args.month.split('-');
+			const year = parseInt(yearStr, 10);
+			const month = parseInt(monthStr, 10) - 1;
+			return d.getCalendarStats(userId, year, month);
+		} catch (e) {
+			wrapError('get calendar stats', e);
 		}
 	};
 
@@ -815,6 +1040,18 @@ export function createHandlers(d: HandlerDeps) {
 		handleLogSleep,
 		handleGetSleep,
 		handleUpdateSleep,
-		handleDeleteSleep
+		handleDeleteSleep,
+		handleGetFoodDiversity,
+		handleGetMealTiming,
+		handleGetSleepFoodCorrelation,
+		handleGetWeightFoodSeries,
+		handleGetExtendedNutrients,
+		handleGetDailyNutrients,
+		handleListMealTypes,
+		handleGetSupplementHistory,
+		handleGetDayProperties,
+		handleSetDayProperties,
+		handleDeleteDayProperties,
+		handleGetCalendarStats
 	};
 }
