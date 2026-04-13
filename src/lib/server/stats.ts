@@ -12,8 +12,9 @@ import { today, shiftDate } from '$lib/utils/dates';
 import { getDB, foodEntries } from '$lib/server/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays } from '$lib/server/day-properties';
+import type { CalendarDay } from '$lib/utils/insights';
 
-export type CalendarDay = { calories: number; hasEntries: boolean };
+export type { CalendarDay };
 export type CalendarStats = { days: Record<string, CalendarDay> };
 
 const groupEntriesByDate = (

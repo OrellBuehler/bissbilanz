@@ -3,8 +3,11 @@ import {
 	getDailyBreakdown,
 	getCalendarStats,
 	getMealBreakdown,
-	getTopFoods
+	getTopFoods,
+	getStreaks,
+	computeCalendarDays
 } from '$lib/server/stats';
+import { listEntriesByDateRange } from '$lib/server/entries';
 import { getGoals } from '$lib/server/goals';
 import { getWeightWithTrend } from '$lib/server/weight';
 import { today, shiftDate, daysAgo } from '$lib/utils/dates';
@@ -13,17 +16,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const endDate = today();
 	const start7 = shiftDate(endDate, -6);
+	const start28 = shiftDate(endDate, -27);
 	const now = new Date();
 
-	const [dailyData, goals, calendarStats, mealBreakdown, topFoods, initialChartData] =
-		await Promise.all([
-			getDailyBreakdown(userId, start7, endDate),
-			getGoals(userId),
-			getCalendarStats(userId, now.getFullYear(), now.getMonth()),
-			getMealBreakdown(userId, endDate, endDate),
-			getTopFoods(userId, 7, 10),
-			getWeightWithTrend(userId, daysAgo(30), endDate)
-		]);
+	const [
+		dailyData,
+		goals,
+		calendarStats,
+		mealBreakdown,
+		topFoods,
+		initialChartData,
+		streaks,
+		streak28Entries
+	] = await Promise.all([
+		getDailyBreakdown(userId, start7, endDate),
+		getGoals(userId),
+		getCalendarStats(userId, now.getFullYear(), now.getMonth()),
+		getMealBreakdown(userId, endDate, endDate),
+		getTopFoods(userId, 7, 10),
+		getWeightWithTrend(userId, daysAgo(30), endDate),
+		getStreaks(userId),
+		listEntriesByDateRange(userId, start28, endDate)
+	]);
 
 	const goalsData = goals
 		? {
@@ -38,8 +52,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		dailyStatus: { data: dailyData, goals: goalsData },
 		calendarDays: calendarStats.days,
+		streakDays: computeCalendarDays(streak28Entries),
 		mealBreakdown,
 		topFoods,
-		initialChartData
+		initialChartData,
+		streaks
 	};
 };

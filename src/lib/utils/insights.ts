@@ -1,5 +1,7 @@
 export type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
 
+export type CalendarDay = { calories: number; hasEntries: boolean };
+
 export type DayRow = {
 	date: string;
 	calories: number;
