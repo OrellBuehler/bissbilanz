@@ -71,7 +71,7 @@
 					<Drawer.Description class="truncate">{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="min-h-[60dvh] min-w-0 overflow-x-hidden px-4 pb-4">
+			<div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-4">
 				{@render children()}
 			</div>
 		</Drawer.Content>
@@ -90,7 +90,7 @@
 				{/if}
 			</Drawer.Header>
 			<div
-				class="min-h-[60dvh] min-w-0 overflow-x-hidden px-4 pb-4"
+				class="min-h-0 min-w-0 flex-1 overflow-x-hidden px-4 pb-4"
 				class:overflow-y-auto={isExpanded}
 				class:overflow-hidden={!isExpanded}
 			>

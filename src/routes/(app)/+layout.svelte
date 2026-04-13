@@ -53,15 +53,15 @@
 		const vv = window.visualViewport;
 		if (!vv) return;
 		const update = () => {
-			document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+			if (vv.height < window.innerHeight) {
+				document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+			} else {
+				document.documentElement.style.removeProperty('--visual-vh');
+			}
 		};
 		update();
 		vv.addEventListener('resize', update);
-		vv.addEventListener('scroll', update);
-		return () => {
-			vv.removeEventListener('resize', update);
-			vv.removeEventListener('scroll', update);
-		};
+		return () => vv.removeEventListener('resize', update);
 	});
 
 	onMount(async () => {
