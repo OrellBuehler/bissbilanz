@@ -63,7 +63,7 @@
 {:else if openFull}
 	<Drawer.Root bind:open>
 		<Drawer.Content
-			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0! overflow-y-auto"
+			class="data-[vaul-drawer-direction=bottom]:max-h-[var(--visual-vh,100dvh)] mt-0! overflow-y-auto"
 		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
@@ -79,7 +79,9 @@
 {:else}
 	<Drawer.Root bind:open {snapPoints} bind:activeSnapPoint fadeFromIndex={1}>
 		<Drawer.Content
-			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] {isExpanded ? 'mt-0!' : ''}"
+			class="data-[vaul-drawer-direction=bottom]:max-h-[var(--visual-vh,100dvh)] {isExpanded
+				? 'mt-0!'
+				: ''}"
 		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>

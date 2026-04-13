@@ -49,6 +49,21 @@
 		setUser(data.user);
 	});
 
+	$effect(() => {
+		const vv = window.visualViewport;
+		if (!vv) return;
+		const update = () => {
+			document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+		};
+		update();
+		vv.addEventListener('resize', update);
+		vv.addEventListener('scroll', update);
+		return () => {
+			vv.removeEventListener('resize', update);
+			vv.removeEventListener('scroll', update);
+		};
+	});
+
 	onMount(async () => {
 		// Ensure Dexie data belongs to the current user (clears on user switch).
 		// Awaited so no component reads stale data from a previous user.
