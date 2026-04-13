@@ -1,8 +1,7 @@
 import { liveQuery } from 'dexie';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
-// TODO: switch to typed api client once sleep endpoints are added to the OpenAPI schema
-import { apiFetch } from '$lib/utils/api';
+import { api } from '$lib/api/client';
 import { enqueue } from '$lib/stores/offline-queue';
 import { urlToMeta } from '$lib/utils/api';
 import type { DexieSleepEntry } from '$lib/db/types';
@@ -20,9 +19,7 @@ function entryForDate(date: string) {
 async function refresh(): Promise<void> {
 	if (!browser) return;
 	try {
-		const response = await apiFetch('/api/sleep');
-		if (!response.ok) return;
-		const data = await response.json();
+		const { data } = await api.GET('/api/sleep');
 		if (data && 'entries' in data) {
 			const serverEntries = data.entries as DexieSleepEntry[];
 			const serverIds = new Set(serverEntries.map((e) => e.id));
@@ -74,18 +71,11 @@ async function create(entry: CreateSleepEntry): Promise<void> {
 	await db.sleepEntries.put(tempEntry);
 
 	try {
-		const response = await apiFetch('/api/sleep', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(entry)
-		});
+		const { data, response } = await api.POST('/api/sleep', { body: entry });
 		if (response.headers.get('x-queued') === 'true') return;
-		if (response.ok) {
-			const data = await response.json();
-			if (data && 'entry' in data) {
-				await db.sleepEntries.delete(tempId);
-				await db.sleepEntries.put(data.entry as DexieSleepEntry);
-			}
+		if (data && 'entry' in data) {
+			await db.sleepEntries.delete(tempId);
+			await db.sleepEntries.put(data.entry as DexieSleepEntry);
 		}
 	} catch {
 		await enqueue('POST', '/api/sleep', entry, urlToMeta('/api/sleep'));
@@ -99,17 +89,13 @@ async function update(id: string, entry: UpdateSleepEntry): Promise<void> {
 	await db.sleepEntries.update(id, { ...entry, updatedAt: now });
 
 	try {
-		const response = await apiFetch(`/api/sleep/${id}`, {
-			method: 'PATCH',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(entry)
+		const { data, response } = await api.PATCH('/api/sleep/{id}', {
+			params: { path: { id } },
+			body: entry
 		});
 		if (response.headers.get('x-queued') === 'true') return;
-		if (response.ok) {
-			const data = await response.json();
-			if (data && 'entry' in data) {
-				await db.sleepEntries.put(data.entry as DexieSleepEntry);
-			}
+		if (data && 'entry' in data) {
+			await db.sleepEntries.put(data.entry as DexieSleepEntry);
 		}
 	} catch {
 		await enqueue('PATCH', `/api/sleep/${id}`, entry, urlToMeta(`/api/sleep/${id}`));
@@ -120,7 +106,9 @@ async function deleteEntry(id: string): Promise<void> {
 	await db.sleepEntries.delete(id);
 
 	try {
-		const response = await apiFetch(`/api/sleep/${id}`, { method: 'DELETE' });
+		const { response } = await api.DELETE('/api/sleep/{id}', {
+			params: { path: { id } }
+		});
 		if (response.headers.get('x-queued') === 'true') return;
 	} catch {
 		await enqueue('DELETE', `/api/sleep/${id}`, {}, urlToMeta(`/api/sleep/${id}`));
