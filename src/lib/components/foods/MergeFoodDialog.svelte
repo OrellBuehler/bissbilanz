@@ -46,6 +46,7 @@
 		'isFavorite',
 		'nutriScore',
 		'novaGroup',
+		'additives',
 		'ingredientsText',
 		'imageUrl'
 	] as const;
@@ -64,6 +65,7 @@
 		isFavorite: () => m.food_field_is_favorite(),
 		nutriScore: () => m.food_field_nutri_score(),
 		novaGroup: () => m.food_field_nova_group(),
+		additives: () => m.food_field_additives(),
 		ingredientsText: () => m.food_field_ingredients_text(),
 		imageUrl: () => m.food_field_image_url()
 	} as const;
@@ -233,9 +235,15 @@
 			['servingSize', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'novaGroup'].includes(
 				row.field
 			);
+		const isArray = row.field === 'additives';
 		let parsed: unknown;
 		if (raw === '') {
-			parsed = null;
+			parsed = isArray ? [] : null;
+		} else if (isArray) {
+			parsed = raw
+				.split(',')
+				.map((s) => s.trim())
+				.filter((s) => s.length > 0);
 		} else if (isNumeric) {
 			const n = Number(raw);
 			parsed = Number.isNaN(n) ? raw : n;
@@ -256,17 +264,12 @@
 		if (!keeper || sources.length === 0) return;
 		merging = true;
 
-		const submittableOverrides: Record<string, unknown> = {};
-		for (const [k, v] of Object.entries(overrides)) {
-			submittableOverrides[k] = Array.isArray(v) ? v : v;
-		}
-
 		try {
 			const { error } = await api.POST('/api/foods/merge', {
 				body: {
 					keeperId: keeper.id,
 					sourceIds: sources.map((s) => s.id),
-					overrides: Object.keys(submittableOverrides).length > 0 ? submittableOverrides : undefined
+					overrides: Object.keys(overrides).length > 0 ? overrides : undefined
 				}
 			});
 			if (error) {
