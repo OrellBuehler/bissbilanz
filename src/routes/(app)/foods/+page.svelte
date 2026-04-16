@@ -5,6 +5,8 @@
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
+	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
+	import DuplicatesBanner from '$lib/components/foods/DuplicatesBanner.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
@@ -39,6 +41,36 @@
 	let forceDeleteCount = $state(0);
 	let qualityOpen = $state(false);
 
+	let mergeOpen = $state(false);
+	let mergeCandidates = $state<components['schemas']['Food'][]>([]);
+	let duplicateGroups = $state<components['schemas']['FoodDuplicateGroup'][]>([]);
+
+	const refreshDuplicates = async () => {
+		try {
+			const { data } = await api.GET('/api/foods/duplicates');
+			if (data) duplicateGroups = data.groups;
+		} catch {
+			duplicateGroups = [];
+		}
+	};
+
+	const openMergeFromMenu = async (id: string) => {
+		const { data } = await api.GET('/api/foods/{id}', { params: { path: { id } } });
+		if (!data) return;
+		mergeCandidates = [data.food];
+		mergeOpen = true;
+	};
+
+	const openMergeFromGroup = (group: components['schemas']['FoodDuplicateGroup']) => {
+		mergeCandidates = group.foods;
+		mergeOpen = true;
+	};
+
+	const onMergeCompleted = () => {
+		foodService.refresh();
+		refreshDuplicates();
+	};
+
 	let debouncedQuery = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
@@ -61,6 +93,7 @@
 	$effect(() => {
 		if (browser) {
 			foodService.refresh();
+			refreshDuplicates();
 		}
 	});
 
@@ -278,6 +311,10 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
+	{#if !query && duplicateGroups.length > 0}
+		<DuplicatesBanner groups={duplicateGroups} onResolve={openMergeFromGroup} />
+	{/if}
+
 	<div class="relative">
 		<Search
 			class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
@@ -292,7 +329,13 @@
 	{#if query && foods.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
-		<FoodList {foods} onEdit={openEdit} onDelete={deleteFood} onEnrich={enrichFood} />
+		<FoodList
+			{foods}
+			onEdit={openEdit}
+			onDelete={deleteFood}
+			onEnrich={enrichFood}
+			onMerge={openMergeFromMenu}
+		/>
 	{/if}
 </div>
 
@@ -375,4 +418,12 @@
 	description={m.foods_delete_has_entries({ count: forceDeleteCount })}
 	onConfirm={confirmForceDelete}
 	onCancel={() => (forceDeleteId = null)}
+/>
+
+<MergeFoodDialog
+	bind:open={mergeOpen}
+	candidates={mergeCandidates}
+	allFoods={foods as components['schemas']['Food'][]}
+	onClose={() => (mergeOpen = false)}
+	onCompleted={onMergeCompleted}
 />

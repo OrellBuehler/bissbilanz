@@ -476,6 +476,9 @@ export function pickNonNullNutrients(src: Record<string, unknown>): Record<strin
 /**
  * Resolve a nutrient's i18n label using the Paraglide messages module.
  * Pass `import * as m from '$lib/paraglide/messages'` as the first arg.
+ *
+ * @deprecated Prefer `nutrientLabel(nutrient)` from `$lib/nutrients-i18n` —
+ * it removes the per-call-site cast on the messages bag.
  */
 export function getNutrientLabel(
 	messages: Record<string, (() => string) | undefined>,
@@ -487,6 +490,8 @@ export function getNutrientLabel(
 
 /**
  * Resolve a category's i18n label using the Paraglide messages module.
+ *
+ * @deprecated Prefer `categoryLabel(category)` from `$lib/nutrients-i18n`.
  */
 export function getCategoryLabel(
 	messages: Record<string, (() => string) | undefined>,

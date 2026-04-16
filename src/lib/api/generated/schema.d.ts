@@ -57,6 +57,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/duplicates': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Detect duplicate foods (shared barcode or matching name+brand). */
+		get: operations['listFoodDuplicates'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/merge': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both. */
+		post: operations['mergeFoods'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/{id}': {
 		parameters: {
 			query?: never;
@@ -832,6 +866,72 @@ export interface components {
 		};
 		/** @enum {string} */
 		ServingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+		FoodMerge: {
+			/** Format: uuid */
+			keeperId: string;
+			sourceIds: string[];
+			overrides?: {
+				name?: string;
+				brand?: string | null;
+				servingSize?: number;
+				servingUnit?: components['schemas']['ServingUnit'];
+				calories?: number;
+				protein?: number;
+				carbs?: number;
+				fat?: number;
+				fiber?: number;
+				saturatedFat?: number | null;
+				monounsaturatedFat?: number | null;
+				polyunsaturatedFat?: number | null;
+				transFat?: number | null;
+				cholesterol?: number | null;
+				omega3?: number | null;
+				omega6?: number | null;
+				sugar?: number | null;
+				addedSugars?: number | null;
+				sugarAlcohols?: number | null;
+				starch?: number | null;
+				sodium?: number | null;
+				potassium?: number | null;
+				calcium?: number | null;
+				iron?: number | null;
+				magnesium?: number | null;
+				phosphorus?: number | null;
+				zinc?: number | null;
+				copper?: number | null;
+				manganese?: number | null;
+				selenium?: number | null;
+				iodine?: number | null;
+				fluoride?: number | null;
+				chromium?: number | null;
+				molybdenum?: number | null;
+				chloride?: number | null;
+				vitaminA?: number | null;
+				vitaminC?: number | null;
+				vitaminD?: number | null;
+				vitaminE?: number | null;
+				vitaminK?: number | null;
+				vitaminB1?: number | null;
+				vitaminB2?: number | null;
+				vitaminB3?: number | null;
+				vitaminB5?: number | null;
+				vitaminB6?: number | null;
+				vitaminB7?: number | null;
+				vitaminB9?: number | null;
+				vitaminB12?: number | null;
+				caffeine?: number | null;
+				alcohol?: number | null;
+				water?: number | null;
+				salt?: number | null;
+				barcode?: string | null;
+				isFavorite?: boolean;
+				nutriScore?: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+				novaGroup?: number | null;
+				additives?: string[] | null;
+				ingredientsText?: string | null;
+				imageUrl?: string | null;
+			};
+		};
 		FoodUpdate: {
 			name?: string;
 			brand?: string | null;
@@ -1192,6 +1292,15 @@ export interface components {
 			imageUrl: string | null;
 			createdAt?: string;
 			updatedAt?: string;
+		};
+		FoodDuplicatesResponse: {
+			groups: components['schemas']['FoodDuplicateGroup'][];
+		};
+		FoodDuplicateGroup: {
+			/** @enum {string} */
+			reason: 'barcode' | 'name_brand';
+			key: string;
+			foods: components['schemas']['Food'][];
 		};
 		ConflictErrorResponse: {
 			error: string;
@@ -2000,6 +2109,53 @@ export interface operations {
 					'application/json': components['schemas']['FoodsRecentResponse'];
 				};
 			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFoodDuplicates: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodDuplicatesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	mergeFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodMerge'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
