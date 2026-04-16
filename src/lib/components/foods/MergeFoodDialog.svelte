@@ -95,15 +95,49 @@
 		const sourceIds = new Set(candidates.map((c) => c.id));
 		const q = keeperSearch.trim().toLowerCase();
 		const pool = allFoods.filter((f) => !sourceIds.has(f.id));
-		if (!q) return pool.slice(0, 50);
-		return pool
-			.filter(
-				(f) =>
-					f.name.toLowerCase().includes(q) ||
-					(f.brand ?? '').toLowerCase().includes(q) ||
-					(f.barcode ?? '').includes(q)
-			)
-			.slice(0, 50);
+		if (!q) return pool;
+		return pool.filter(
+			(f) =>
+				f.name.toLowerCase().includes(q) ||
+				(f.brand ?? '').toLowerCase().includes(q) ||
+				(f.barcode ?? '').includes(q)
+		);
+	});
+
+	// Virtualization for the keeper picker — handles arbitrary food counts
+	// without rendering thousands of DOM nodes.
+	const ROW_HEIGHT = 48;
+	const VIEWPORT_HEIGHT = 256; // matches max-h-64 below
+	const OVERSCAN = 4;
+
+	let pickerScrollEl = $state<HTMLDivElement | null>(null);
+	let scrollTop = $state(0);
+
+	function onPickerScroll(e: Event) {
+		scrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+	}
+
+	$effect(() => {
+		// Reset scroll when the result set changes (e.g. user types in search).
+		void keeperSearch;
+		if (pickerScrollEl) {
+			pickerScrollEl.scrollTop = 0;
+			scrollTop = 0;
+		}
+	});
+
+	const pickerWindow = $derived.by(() => {
+		const total = keeperPickerResults.length;
+		const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+		const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + OVERSCAN * 2;
+		const endIndex = Math.min(total, startIndex + visibleCount);
+		return {
+			startIndex,
+			endIndex,
+			items: keeperPickerResults.slice(startIndex, endIndex),
+			totalHeight: total * ROW_HEIGHT,
+			offsetY: startIndex * ROW_HEIGHT
+		};
 	});
 
 	const keeper = $derived<Food | null>(
@@ -318,27 +352,39 @@
 					{m.foods_merge_no_keeper_results()}
 				</p>
 			{:else}
-				<div class="max-h-64 space-y-1 overflow-y-auto rounded-md border p-1">
-					{#each keeperPickerResults as food (food.id)}
-						<button
-							type="button"
-							class="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors {keeperId ===
-							food.id
-								? 'bg-accent'
-								: 'hover:bg-accent/50'}"
-							onclick={() => (keeperId = food.id)}
+				<div
+					bind:this={pickerScrollEl}
+					onscroll={onPickerScroll}
+					class="max-h-64 overflow-y-auto rounded-md border"
+				>
+					<div style="height: {pickerWindow.totalHeight}px; position: relative;">
+						<div
+							style="position: absolute; top: 0; left: 0; right: 0; transform: translateY({pickerWindow.offsetY}px);"
 						>
-							<span class="min-w-0 flex-1 truncate">
-								<span class="font-medium">{food.name}</span>
-								{#if food.brand}
-									<span class="ml-2 text-xs text-muted-foreground">{food.brand}</span>
-								{/if}
-							</span>
-							<span class="shrink-0 text-xs tabular-nums text-muted-foreground">
-								{Math.round(food.calories)} kcal
-							</span>
-						</button>
-					{/each}
+							{#each pickerWindow.items as food, i (food.id)}
+								<button
+									type="button"
+									style="height: {ROW_HEIGHT}px;"
+									class="flex w-full items-center justify-between gap-3 px-3 text-left transition-colors {keeperId ===
+									food.id
+										? 'bg-accent'
+										: 'hover:bg-accent/50'}"
+									onclick={() => (keeperId = food.id)}
+									data-index={pickerWindow.startIndex + i}
+								>
+									<span class="min-w-0 flex-1 truncate">
+										<span class="font-medium">{food.name}</span>
+										{#if food.brand}
+											<span class="ml-2 text-xs text-muted-foreground">{food.brand}</span>
+										{/if}
+									</span>
+									<span class="shrink-0 text-xs tabular-nums text-muted-foreground">
+										{Math.round(food.calories)} kcal
+									</span>
+								</button>
+							{/each}
+						</div>
+					</div>
 				</div>
 			{/if}
 		</div>
