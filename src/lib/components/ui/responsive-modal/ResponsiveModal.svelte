@@ -61,8 +61,9 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {:else if openFull}
-	<Drawer.Root bind:open>
+	<Drawer.Root bind:open repositionInputs={false}>
 		<Drawer.Content
+			data-responsive-modal-openfull
 			class="data-[vaul-drawer-direction=bottom]:max-h-[var(--visual-vh,100dvh)] mt-0! overflow-y-auto"
 		>
 			<Drawer.Header class="min-w-0 text-left">

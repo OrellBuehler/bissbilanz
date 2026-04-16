@@ -53,10 +53,12 @@
 		const vv = window.visualViewport;
 		if (!vv) return;
 		const update = () => {
-			if (vv.height < window.innerHeight) {
+			if (vv.height < window.innerHeight && vv.scale <= 1) {
 				document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+				document.documentElement.classList.add('kb-open');
 			} else {
 				document.documentElement.style.removeProperty('--visual-vh');
+				document.documentElement.classList.remove('kb-open');
 			}
 		};
 		update();

@@ -1,7 +1,7 @@
 import { createDocument, type ZodOpenApiResponseObject } from 'zod-openapi';
 import { z } from 'zod';
 import { goalsSchema } from './validation/goals';
-import { foodCreateSchema, foodUpdateSchema } from './validation/foods';
+import { foodCreateSchema, foodUpdateSchema, foodMergeSchema } from './validation/foods';
 import { entryCreateSchema, entryUpdateSchema } from './validation/entries';
 import { recipeCreateSchema, recipeUpdateSchema } from './validation/recipes';
 import {
@@ -20,7 +20,8 @@ import {
 import {
 	foodsListResponseSchema,
 	foodResponseSchema,
-	foodsRecentResponseSchema
+	foodsRecentResponseSchema,
+	foodDuplicatesResponseSchema
 } from './validation/responses/foods';
 import {
 	entriesListResponseSchema,
@@ -206,6 +207,40 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: foodsRecentResponseSchema } }
 						},
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/duplicates': {
+				get: {
+					operationId: 'listFoodDuplicates',
+					tags: ['Foods'],
+					description: 'Detect duplicate foods (shared barcode or matching name+brand).',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodDuplicatesResponseSchema } }
+						},
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/merge': {
+				post: {
+					operationId: 'mergeFoods',
+					tags: ['Foods'],
+					description:
+						'Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodMergeSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodResponseSchema } }
+						},
+						'400': res400,
 						'401': res401
 					}
 				}

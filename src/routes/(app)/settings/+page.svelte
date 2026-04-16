@@ -24,10 +24,9 @@
 		CATEGORY_ORDER,
 		NUTRIENTS_BY_CATEGORY,
 		DEFAULT_VISIBLE_NUTRIENTS,
-		getNutrientLabel,
-		getCategoryLabel,
 		type NutrientCategory
 	} from '$lib/nutrients';
+	import { nutrientLabel, categoryLabel } from '$lib/nutrients-i18n';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
@@ -105,8 +104,6 @@
 			prefsLoaded = true;
 		}
 	});
-
-	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	function toggleNutrient(key: string) {
 		const next = new Set(visibleNutrients);
@@ -700,7 +697,7 @@
 			{#each CATEGORY_ORDER as category}
 				{@const nutrients = NUTRIENTS_BY_CATEGORY[category]}
 				<div>
-					<p class="mb-2 text-sm font-medium">{getCategoryLabel(msgs, category)}</p>
+					<p class="mb-2 text-sm font-medium">{categoryLabel(category)}</p>
 					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
 						{#each nutrients as nutrient}
 							<div class="flex items-center gap-2">
@@ -710,7 +707,7 @@
 									onCheckedChange={() => toggleNutrient(nutrient.key)}
 								/>
 								<Label for={`nutrient-${nutrient.key}`} class="text-sm">
-									{getNutrientLabel(msgs, nutrient)}
+									{nutrientLabel(nutrient)}
 								</Label>
 							</div>
 						{/each}

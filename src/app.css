@@ -202,6 +202,41 @@ html {
 			user-select: text;
 		}
 	}
+	/* When iOS Safari's keyboard is open, full-screen (openFull) drawers need
+	   to fill the visual viewport from the top down. Default `bottom: 0` would
+	   anchor the drawer behind the keyboard. The `kb-open` class is toggled in
+	   `(app)/+layout.svelte` based on `visualViewport.height < innerHeight`.
+	   Requires `repositionInputs={false}` on the vaul drawer so inline styles
+	   from vaul's own keyboard handling don't override these rules. */
+	html.kb-open [data-responsive-modal-openfull][data-vaul-drawer-direction='bottom'] {
+		top: env(safe-area-inset-top, 0);
+		bottom: auto;
+		height: calc(var(--visual-vh, 100dvh) - env(safe-area-inset-top, 0));
+		max-height: none;
+	}
+
+	/* iOS Safari renders <input type="date|time"> with an internal
+	   ::-webkit-date-and-time-value element that defaults to a fixed intrinsic
+	   width and right-aligned text, which causes the value to appear clipped
+	   inside narrow containers. Normalize it so the value fits the input box. */
+	input[type='date'],
+	input[type='time'],
+	input[type='datetime-local'],
+	input[type='month'],
+	input[type='week'] {
+		-webkit-appearance: none;
+		appearance: none;
+		min-width: 0;
+	}
+	input[type='date']::-webkit-date-and-time-value,
+	input[type='time']::-webkit-date-and-time-value,
+	input[type='datetime-local']::-webkit-date-and-time-value,
+	input[type='month']::-webkit-date-and-time-value,
+	input[type='week']::-webkit-date-and-time-value {
+		text-align: left;
+		min-width: 0;
+		margin: 0;
+	}
 	@media (display-mode: standalone) {
 		html {
 			overscroll-behavior: none;
