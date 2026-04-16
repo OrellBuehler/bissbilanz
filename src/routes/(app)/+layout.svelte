@@ -55,8 +55,10 @@
 		const update = () => {
 			if (vv.height < window.innerHeight) {
 				document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+				document.documentElement.classList.add('kb-open');
 			} else {
 				document.documentElement.style.removeProperty('--visual-vh');
+				document.documentElement.classList.remove('kb-open');
 			}
 		};
 		update();
