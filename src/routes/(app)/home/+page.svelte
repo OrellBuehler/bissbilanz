@@ -150,7 +150,7 @@
 		<SupplementChecklist checklist={supplementChecklist} onToggle={toggleSupplement} />
 	{:else if sectionKey === 'favorites' && isToday && userPrefs?.showFavoritesWidget}
 		<FavoritesWidget
-			onEntryLogged={() => entryService.refresh(activeDate)}
+			onEntryLogged={() => entryService.refresh(activeDate).catch(() => {})}
 			favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
 			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
 				| 'time_based'
