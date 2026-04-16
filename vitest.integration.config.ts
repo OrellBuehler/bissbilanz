@@ -10,6 +10,11 @@ export default defineConfig({
 		exclude: ['**/node_modules/**'],
 		globalSetup: ['tests/integration-db/setup.ts'],
 		testTimeout: 60000,
-		hookTimeout: 120000
+		hookTimeout: 120000,
+		server: {
+			deps: {
+				inline: ['zod']
+			}
+		}
 	}
 });

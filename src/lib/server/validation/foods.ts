@@ -39,3 +39,11 @@ export const foodCreateSchema = z
 	.meta({ id: 'FoodCreate' });
 
 export const foodUpdateSchema = foodCreateSchema.partial().meta({ id: 'FoodUpdate' });
+
+export const foodMergeSchema = z
+	.object({
+		keeperId: z.string().uuid(),
+		sourceIds: z.array(z.string().uuid()).min(1).max(20),
+		overrides: foodCreateSchema.partial().optional()
+	})
+	.meta({ id: 'FoodMerge' });

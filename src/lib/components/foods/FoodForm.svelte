@@ -20,10 +20,9 @@
 		CATEGORY_ORDER,
 		NUTRIENTS_BY_CATEGORY,
 		DEFAULT_VISIBLE_NUTRIENTS,
-		getNutrientLabel,
-		getCategoryLabel,
 		type NutrientCategory
 	} from '$lib/nutrients';
+	import { nutrientLabel, categoryLabel } from '$lib/nutrients-i18n';
 	import { untrack } from 'svelte';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
@@ -92,9 +91,6 @@
 		form.barcode = barcode;
 		onBarcodeScan?.(barcode);
 	}
-
-	// i18n message lookup via shared helpers
-	const msgs = m as unknown as Record<string, (() => string) | undefined>;
 
 	// Build initial form values (intentionally captures initial prop once — form state is independent)
 	// svelte-ignore state_referenced_locally
@@ -290,13 +286,13 @@
 								{:else}
 									<ChevronRight class="size-3.5" />
 								{/if}
-								{getCategoryLabel(msgs, category)}
+								{categoryLabel(category)}
 							</Collapsible.Trigger>
 							<Collapsible.Content>
 								<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
 									{#each nutrients as nutrient}
 										<div class="grid gap-1.5">
-											<Label for={nutrient.key}>{getNutrientLabel(msgs, nutrient)}</Label>
+											<Label for={nutrient.key}>{nutrientLabel(nutrient)}</Label>
 											<Input
 												id={nutrient.key}
 												type="number"
