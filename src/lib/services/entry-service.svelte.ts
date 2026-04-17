@@ -10,20 +10,24 @@ function entriesByDate(date: string) {
 }
 
 async function refresh(date: string) {
-	const { data } = await api.GET('/api/entries', {
-		params: { query: { date } }
-	});
-	if (!data?.entries) return;
-	const entries = data.entries.map((e) => ({ ...e, date }));
-	await db.transaction('rw', db.foodEntries, async () => {
-		const serverIds = new Set(entries.map((e) => e.id));
-		const existing = await db.foodEntries.where('date').equals(date).toArray();
-		const toDelete = existing.filter((e) => !serverIds.has(e.id) && !e.id.startsWith('temp_'));
-		if (toDelete.length > 0) {
-			await db.foodEntries.bulkDelete(toDelete.map((e) => e.id));
-		}
-		await db.foodEntries.bulkPut(entries as DexieFoodEntry[]);
-	});
+	try {
+		const { data } = await api.GET('/api/entries', {
+			params: { query: { date } }
+		});
+		if (!data?.entries) return;
+		const entries = data.entries.map((e) => ({ ...e, date }));
+		await db.transaction('rw', db.foodEntries, async () => {
+			const serverIds = new Set(entries.map((e) => e.id));
+			const existing = await db.foodEntries.where('date').equals(date).toArray();
+			const toDelete = existing.filter((e) => !serverIds.has(e.id) && !e.id.startsWith('temp_'));
+			if (toDelete.length > 0) {
+				await db.foodEntries.bulkDelete(toDelete.map((e) => e.id));
+			}
+			await db.foodEntries.bulkPut(entries as DexieFoodEntry[]);
+		});
+	} catch {
+		// background cache refresh — leave stale cache on failure
+	}
 }
 
 async function create(entry: {

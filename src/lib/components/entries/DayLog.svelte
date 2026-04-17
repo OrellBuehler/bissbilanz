@@ -66,7 +66,7 @@
 
 	// Fire background refreshes
 	$effect(() => {
-		entryService.refresh(date).catch(() => {});
+		entryService.refresh(date);
 		loadFastingDay(date);
 	});
 	$effect(() => {
