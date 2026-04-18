@@ -103,6 +103,25 @@ class SleepRepository(
         syncQueue.enqueue(SyncOperation.DeleteSleep(id))
     }
 
+    /**
+     * Returns a single sleep entry by [id]. Checks the local cache first; if not
+     * present, performs a range refresh and looks again. Returns null when the
+     * entry cannot be found on the server either.
+     */
+    suspend fun getEntry(id: String): SleepEntry? {
+        findInCache(id)?.let { return it }
+        refresh()
+        return findInCache(id)
+    }
+
+    private fun findInCache(id: String): SleepEntry? =
+        db.bissbilanzDatabaseQueries
+            .selectAllSleepEntries()
+            .executeAsList()
+            .asSequence()
+            .mapNotNull { json.decodeOrNull<SleepEntry>(it.jsonData) }
+            .firstOrNull { it.id == id }
+
     suspend fun getSleepFoodCorrelation(
         startDate: String,
         endDate: String,
