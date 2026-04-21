@@ -31,6 +31,7 @@ val computedVersionCode =
 android {
     namespace = "com.bissbilanz.android"
     compileSdk = 36
+    compileSdkExtension = 19
 
     defaultConfig {
         applicationId = "com.bissbilanz.android"
