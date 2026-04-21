@@ -32,19 +32,11 @@
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let newName = $state('');
 
-	let showChartWidget = $state(true);
-	let showFavoritesWidget = $state(true);
-	let showSupplementsWidget = $state(true);
-	let showWeightWidget = $state(true);
-	let showMealBreakdownWidget = $state(true);
-	let showTopFoodsWidget = $state(true);
-	let showSleepWidget = $state(true);
 	let widgetOrder = $state<
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
 	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
 	let startPage = $state('dashboard');
-	let prefsLoaded = $state(false);
 	let favoriteMealAssignmentMode = $state<'time_based' | 'ask_meal'>('time_based');
 	type TimeframeDraft = {
 		id: string;
@@ -60,6 +52,21 @@
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
 
+	const prefsLoaded = $derived(cachedPrefs.value != null);
+
+	const widgetVisibility = $derived.by(() => {
+		const p = cachedPrefs.value;
+		return {
+			chart: p?.showChartWidget ?? true,
+			favorites: p?.showFavoritesWidget ?? true,
+			supplements: p?.showSupplementsWidget ?? true,
+			weight: p?.showWeightWidget ?? true,
+			mealBreakdown: p?.showMealBreakdownWidget ?? true,
+			topFoods: p?.showTopFoodsWidget ?? true,
+			sleep: p?.showSleepWidget ?? true
+		};
+	});
+
 	$effect(() => {
 		preferencesService.refresh();
 	});
@@ -67,13 +74,6 @@
 	$effect(() => {
 		const p = cachedPrefs.value;
 		if (p) {
-			showChartWidget = p.showChartWidget ?? true;
-			showFavoritesWidget = p.showFavoritesWidget ?? true;
-			showSupplementsWidget = p.showSupplementsWidget ?? true;
-			showWeightWidget = p.showWeightWidget ?? true;
-			showMealBreakdownWidget = p.showMealBreakdownWidget ?? true;
-			showTopFoodsWidget = p.showTopFoodsWidget ?? true;
-			showSleepWidget = p.showSleepWidget ?? true;
 			widgetOrder = buildWidgetOrder(p.widgetOrder ?? [...WIDGET_KEYS]);
 			startPage = p.startPage ?? 'dashboard';
 			favoriteMealAssignmentMode = (p.favoriteMealAssignmentMode ??
@@ -99,7 +99,6 @@
 				visibleNutrients = new Set(p.visibleNutrients);
 			}
 			buildMealOrder(p.mealOrder ?? ['Breakfast', 'Lunch', 'Dinner', 'Snacks']);
-			prefsLoaded = true;
 		}
 	});
 
@@ -465,37 +464,37 @@
 								</div>
 								{#if widget.key === 'chart'}
 									<Switch
-										bind:checked={showChartWidget}
+										checked={widgetVisibility.chart}
 										onCheckedChange={(v) => savePreference('showChartWidget', v)}
 									/>
 								{:else if widget.key === 'favorites'}
 									<Switch
-										bind:checked={showFavoritesWidget}
+										checked={widgetVisibility.favorites}
 										onCheckedChange={(v) => savePreference('showFavoritesWidget', v)}
 									/>
 								{:else if widget.key === 'supplements'}
 									<Switch
-										bind:checked={showSupplementsWidget}
+										checked={widgetVisibility.supplements}
 										onCheckedChange={(v) => savePreference('showSupplementsWidget', v)}
 									/>
 								{:else if widget.key === 'weight'}
 									<Switch
-										bind:checked={showWeightWidget}
+										checked={widgetVisibility.weight}
 										onCheckedChange={(v) => savePreference('showWeightWidget', v)}
 									/>
 								{:else if widget.key === 'meal-breakdown'}
 									<Switch
-										bind:checked={showMealBreakdownWidget}
+										checked={widgetVisibility.mealBreakdown}
 										onCheckedChange={(v) => savePreference('showMealBreakdownWidget', v)}
 									/>
 								{:else if widget.key === 'top-foods'}
 									<Switch
-										bind:checked={showTopFoodsWidget}
+										checked={widgetVisibility.topFoods}
 										onCheckedChange={(v) => savePreference('showTopFoodsWidget', v)}
 									/>
 								{:else if widget.key === 'sleep'}
 									<Switch
-										bind:checked={showSleepWidget}
+										checked={widgetVisibility.sleep}
 										onCheckedChange={(v) => savePreference('showSleepWidget', v)}
 									/>
 								{/if}
