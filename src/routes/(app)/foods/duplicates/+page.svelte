@@ -25,6 +25,7 @@
 
 	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
 	const allFoods = $derived(allFoodsQuery.value as unknown as Food[]);
+	const foodById = $derived(new Map(allFoods.map((f) => [f.id, f])));
 
 	async function refresh() {
 		loading = true;
@@ -41,7 +42,9 @@
 	});
 
 	function resolve(group: DuplicateGroup) {
-		mergeCandidates = group.foods;
+		mergeCandidates = group.foods
+			.map((f) => foodById.get(f.id))
+			.filter((f): f is Food => f !== undefined);
 		mergeOpen = true;
 	}
 </script>
@@ -85,6 +88,7 @@
 					</Card.Header>
 					<Card.Content class="space-y-2 pb-4">
 						{#each group.foods as food (food.id)}
+							{@const full = foodById.get(food.id)}
 							<div
 								class="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5"
 							>
@@ -101,9 +105,11 @@
 										<p class="truncate text-xs text-muted-foreground">{food.brand}</p>
 									{/if}
 								</div>
-								<div class="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-									{Math.round(food.calories)} kcal
-								</div>
+								{#if full}
+									<div class="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+										{Math.round(full.calories)} kcal
+									</div>
+								{/if}
 							</div>
 						{/each}
 					</Card.Content>

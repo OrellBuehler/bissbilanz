@@ -1,9 +1,18 @@
 import { getDB } from '$lib/server/db';
 import { foods } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
-import { roundNutrition } from '$lib/utils/round-nutrition';
 
-type Food = typeof foods.$inferSelect;
+/**
+ * Narrow projection returned for duplicate detection. We only need the fields
+ * used to compute group membership (name, brand, barcode) plus the id so the
+ * client can resolve the full food locally from its cached list.
+ */
+export type DuplicateFood = {
+	id: string;
+	name: string;
+	brand: string | null;
+	barcode: string | null;
+};
 
 export type DuplicateReason = 'barcode' | 'name_brand';
 
@@ -11,7 +20,7 @@ export type DuplicateGroup = {
 	reason: DuplicateReason;
 	/** Stable key per group: barcode value or normalized "name|brand" */
 	key: string;
-	foods: Food[];
+	foods: DuplicateFood[];
 };
 
 /**
@@ -65,7 +74,7 @@ const NAME_SIMILARITY_THRESHOLD = 0.4;
  *
  * For pairs (n=2) this collapses to a single similarity check.
  */
-function barcodeGroupNamesAreSimilar(groupFoods: Food[]): boolean {
+function barcodeGroupNamesAreSimilar(groupFoods: DuplicateFood[]): boolean {
 	if (groupFoods.length < 2) return false;
 	for (const a of groupFoods) {
 		const hasSimilarPeer = groupFoods.some(
@@ -92,12 +101,17 @@ function barcodeGroupNamesAreSimilar(groupFoods: Food[]): boolean {
 export async function findDuplicateGroups(userId: string): Promise<DuplicateGroup[]> {
 	const db = getDB();
 	const all = await db
-		.select()
+		.select({
+			id: foods.id,
+			name: foods.name,
+			brand: foods.brand,
+			barcode: foods.barcode
+		})
 		.from(foods)
 		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')));
 
-	const byBarcode = new Map<string, Food[]>();
-	const byNameBrand = new Map<string, Food[]>();
+	const byBarcode = new Map<string, DuplicateFood[]>();
+	const byNameBrand = new Map<string, DuplicateFood[]>();
 
 	for (const food of all) {
 		if (food.barcode) {
@@ -122,7 +136,7 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 		groups.push({
 			reason: 'barcode',
 			key,
-			foods: items.map((f) => roundNutrition(f))
+			foods: items
 		});
 	}
 
@@ -131,7 +145,7 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 		groups.push({
 			reason: 'name_brand',
 			key,
-			foods: items.map((f) => roundNutrition(f))
+			foods: items
 		});
 	}
 
