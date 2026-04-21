@@ -1297,7 +1297,14 @@ export interface components {
 			/** @enum {string} */
 			reason: 'barcode' | 'name_brand';
 			key: string;
-			foods: components['schemas']['Food'][];
+			foods: components['schemas']['FoodDuplicateFood'][];
+		};
+		FoodDuplicateFood: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			brand: string | null;
+			barcode: string | null;
 		};
 		ConflictErrorResponse: {
 			error: string;

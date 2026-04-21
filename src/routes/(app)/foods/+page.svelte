@@ -62,7 +62,11 @@
 	};
 
 	const openMergeFromGroup = (group: components['schemas']['FoodDuplicateGroup']) => {
-		mergeCandidates = group.foods;
+		const pool = (allFoodsQuery.value as unknown as components['schemas']['Food'][]) ?? [];
+		const byId = new Map(pool.map((f) => [f.id, f]));
+		mergeCandidates = group.foods
+			.map((f) => byId.get(f.id))
+			.filter((f): f is components['schemas']['Food'] => f !== undefined);
 		mergeOpen = true;
 	};
 

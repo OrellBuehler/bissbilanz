@@ -5937,11 +5937,46 @@
 					"foods": {
 						"type": "array",
 						"items": {
-							"$ref": "#/components/schemas/Food"
+							"$ref": "#/components/schemas/FoodDuplicateFood"
 						}
 					}
 				},
 				"required": ["reason", "key", "foods"],
+				"additionalProperties": false
+			},
+			"FoodDuplicateFood": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["id", "name", "brand", "barcode"],
 				"additionalProperties": false
 			},
 			"ConflictErrorResponse": {
