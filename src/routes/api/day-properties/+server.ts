@@ -1,6 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { handleApiError, requireAuth, ApiError, parseJsonBody } from '$lib/server/errors';
+import {
+	handleApiError,
+	requireAuth,
+	requireDate,
+	ApiError,
+	parseJsonBody
+} from '$lib/server/errors';
 import {
 	getDayProperties,
 	getDayPropertiesRange,
@@ -8,8 +14,6 @@ import {
 	deleteDayProperties
 } from '$lib/server/day-properties';
 import { dayPropertiesSetSchema } from '$lib/server/validation';
-
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -19,10 +23,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const endDate = url.searchParams.get('endDate');
 
 		if (startDate && endDate) {
-			if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-				throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
-			}
-			const data = await getDayPropertiesRange(userId, startDate, endDate);
+			const start = requireDate(startDate, 'startDate');
+			const end = requireDate(endDate, 'endDate');
+			const data = await getDayPropertiesRange(userId, start, end);
 			return json({ data });
 		}
 
@@ -30,11 +33,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'date parameter is required');
 		}
 
-		if (!dateRegex.test(date)) {
-			throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
-		}
-
-		const properties = await getDayProperties(userId, date);
+		const validDate = requireDate(date, 'date');
+		const properties = await getDayProperties(userId, validDate);
 		return json({ properties });
 	} catch (error) {
 		return handleApiError(error);
@@ -64,10 +64,8 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 		if (!date) {
 			throw new ApiError(400, 'date parameter is required');
 		}
-		if (!dateRegex.test(date)) {
-			throw new ApiError(400, 'Invalid date format, expected YYYY-MM-DD');
-		}
-		await deleteDayProperties(userId, date);
+		const validDate = requireDate(date, 'date');
+		await deleteDayProperties(userId, validDate);
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

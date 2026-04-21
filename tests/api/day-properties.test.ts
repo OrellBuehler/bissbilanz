@@ -98,7 +98,7 @@ describe('api/day-properties', () => {
 			const response = await GET(event);
 			const data = await response.json();
 			expect(response.status).toBe(400);
-			expect(data.error).toBe('Invalid date format, expected YYYY-MM-DD');
+			expect(data.error).toBe('Invalid startDate format, expected YYYY-MM-DD');
 		});
 	});
 
