@@ -276,9 +276,11 @@ export function createHandlers(d: HandlerDeps) {
 			const checklist = items.map((item) => ({
 				id: item.supplement.id,
 				name: item.supplement.name,
-				dosage: item.supplement.dosage,
-				dosageUnit: item.supplement.dosageUnit,
-				ingredients: item.supplement.ingredients ?? [],
+				ingredients: (item.supplement.ingredients ?? []).map((ing) => ({
+					foodId: ing.foodId,
+					name: ing.food.name,
+					servings: ing.servings
+				})),
 				taken: item.taken,
 				takenAt: item.takenAt
 			}));
@@ -337,9 +339,11 @@ export function createHandlers(d: HandlerDeps) {
 				success: true,
 				logged: {
 					name: supplement?.name ?? 'Unknown',
-					dosage: supplement?.dosage,
-					dosageUnit: supplement?.dosageUnit,
-					ingredients: supplement?.ingredients ?? [],
+					ingredients: (supplement?.ingredients ?? []).map((ing) => ({
+						foodId: ing.foodId,
+						name: ing.food.name,
+						servings: ing.servings
+					})),
 					date: targetDate
 				},
 				status: {

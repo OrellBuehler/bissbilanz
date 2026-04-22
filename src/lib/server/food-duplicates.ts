@@ -1,6 +1,6 @@
 import { getDB } from '$lib/server/db';
 import { foods } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 
 type Food = typeof foods.$inferSelect;
@@ -91,7 +91,10 @@ function barcodeGroupNamesAreSimilar(groupFoods: Food[]): boolean {
  */
 export async function findDuplicateGroups(userId: string): Promise<DuplicateGroup[]> {
 	const db = getDB();
-	const all = await db.select().from(foods).where(eq(foods.userId, userId));
+	const all = await db
+		.select()
+		.from(foods)
+		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')));
 
 	const byBarcode = new Map<string, Food[]>();
 	const byNameBrand = new Map<string, Food[]>();

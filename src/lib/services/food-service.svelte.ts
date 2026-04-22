@@ -67,6 +67,7 @@ async function create(food: FoodCreate) {
 		userId: '',
 		name: food.name,
 		brand: food.brand ?? null,
+		kind: 'food',
 		servingSize: food.servingSize,
 		servingUnit: food.servingUnit,
 		calories: food.calories,

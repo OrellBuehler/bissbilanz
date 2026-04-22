@@ -14,32 +14,57 @@
 	import type { ScheduleType } from '$lib/supplement-units';
 
 	type IngredientInput = {
+		/** Existing backing food id (if reusing a previously created supplement food) */
+		foodId?: string;
+		/** Display name (used to build the backing food on submit) */
 		name: string;
+		/** Dosage amount; stored on the backing food's ingredients_text for reference */
 		dosage: number;
+		/** Dosage unit (mg, mcg, IU, etc.) */
 		dosageUnit: string;
+	};
+
+	/** Inline food payload sent per ingredient — backend creates a backing food with kind='supplement'. */
+	type InlineFoodPayload = {
+		name: string;
+		servingSize: number;
+		servingUnit: 'g';
+		calories: number;
+		protein: number;
+		carbs: number;
+		fat: number;
+		fiber: number;
+		ingredientsText: string;
 	};
 
 	export type SupplementPayload = {
 		name: string;
-		dosage: number;
-		dosageUnit: string;
 		scheduleType: ScheduleType;
 		scheduleDays?: number[];
 		scheduleStartDate?: string;
 		timeOfDay?: 'morning' | 'noon' | 'evening' | null;
-		ingredients?: { name: string; dosage: number; dosageUnit: string; sortOrder: number }[] | null;
+		ingredients: {
+			foodId?: string;
+			food?: InlineFoodPayload;
+			servings?: number;
+			sortOrder: number;
+		}[];
+	};
+
+	type ExistingIngredient = {
+		foodId: string;
+		servings: number;
+		food: { name: string; ingredientsText?: string | null };
 	};
 
 	type SupplementWithIngredients = {
 		id: string;
 		name: string;
-		dosage: number;
-		dosageUnit: string;
 		scheduleType: string;
 		scheduleDays: number[] | null;
 		scheduleStartDate: string | null;
 		timeOfDay: string | null;
-		ingredients?: { name: string; dosage: number; dosageUnit: string }[];
+		ingredients?: ExistingIngredient[];
 	};
 
 	let {
@@ -52,12 +77,17 @@
 		onCancel: () => void;
 	} = $props();
 
+	// Parse "42 mg" out of existing ingredients_text so edits round-trip.
+	const parseDosage = (text: string | null | undefined): { dosage: number; unit: string } => {
+		if (!text) return { dosage: 0, unit: 'mg' };
+		const match = text.match(/^\s*([\d.]+)\s*(\S+)/);
+		if (!match) return { dosage: 0, unit: 'mg' };
+		const n = parseFloat(match[1]);
+		return { dosage: isNaN(n) ? 0 : round2(n), unit: match[2] };
+	};
+
 	// svelte-ignore state_referenced_locally
 	let name = $state(supplement?.name ?? '');
-	// svelte-ignore state_referenced_locally
-	let dosage = $state(supplement?.dosage ? round2(supplement.dosage) : 0);
-	// svelte-ignore state_referenced_locally
-	let dosageUnit = $state(supplement?.dosageUnit ?? 'mg');
 	// svelte-ignore state_referenced_locally
 	let scheduleType: ScheduleType = $state((supplement?.scheduleType as ScheduleType) ?? 'daily');
 	// svelte-ignore state_referenced_locally
@@ -68,16 +98,26 @@
 	let timeOfDay = $state<'morning' | 'noon' | 'evening' | null>(
 		(supplement?.timeOfDay as 'morning' | 'noon' | 'evening' | null) ?? null
 	);
+
 	// svelte-ignore state_referenced_locally
 	let ingredients = $state<IngredientInput[]>(
-		supplement?.ingredients?.map((i) => ({
-			name: i.name,
-			dosage: round2(i.dosage),
-			dosageUnit: i.dosageUnit
-		})) ?? []
+		(supplement?.ingredients ?? []).map((i) => {
+			const parsed = parseDosage(i.food.ingredientsText);
+			return {
+				foodId: i.foodId,
+				name: i.food.name,
+				dosage: parsed.dosage,
+				dosageUnit: parsed.unit
+			};
+		})
 	);
 
-	const hasIngredients = $derived(ingredients.length > 0);
+	// Always start with at least one ingredient row; supplements must have one.
+	$effect(() => {
+		if (ingredients.length === 0) {
+			ingredients = [{ name: '', dosage: 0, dosageUnit: 'mg' }];
+		}
+	});
 
 	const dosageUnits = dosageUnitValues;
 	const scheduleTypes = [
@@ -116,33 +156,47 @@
 	};
 
 	const removeIngredient = (index: number) => {
+		if (ingredients.length <= 1) return;
 		ingredients = ingredients.filter((_, i) => i !== index);
 	};
+
+	const isValid = $derived(
+		name.trim().length > 0 &&
+			ingredients.length > 0 &&
+			ingredients.every((i) => i.name.trim().length > 0 && i.dosage > 0)
+	);
 
 	const handleSubmit = () => {
 		const payload: SupplementPayload = {
 			name,
-			dosage,
-			dosageUnit,
 			scheduleType,
-			timeOfDay: timeOfDay || null
+			timeOfDay: timeOfDay || null,
+			ingredients: ingredients.map((ing, i) => {
+				if (ing.foodId) {
+					return { foodId: ing.foodId, servings: 1, sortOrder: i };
+				}
+				return {
+					food: {
+						name: ing.name,
+						servingSize: 1,
+						servingUnit: 'g',
+						calories: 0,
+						protein: 0,
+						carbs: 0,
+						fat: 0,
+						fiber: 0,
+						ingredientsText: `${ing.dosage} ${ing.dosageUnit}`
+					},
+					servings: 1,
+					sortOrder: i
+				};
+			})
 		};
 		if (scheduleType === 'weekly' || scheduleType === 'specific_days') {
 			payload.scheduleDays = scheduleDays;
 		}
 		if (scheduleType === 'every_other_day') {
 			payload.scheduleStartDate = scheduleStartDate;
-		}
-
-		if (ingredients.length > 0) {
-			payload.ingredients = ingredients.map((ing, i) => ({
-				name: ing.name,
-				dosage: ing.dosage,
-				dosageUnit: ing.dosageUnit,
-				sortOrder: i
-			}));
-		} else if (supplement?.ingredients?.length) {
-			payload.ingredients = null;
 		}
 
 		onSave(payload);
@@ -153,28 +207,6 @@
 	<div class="space-y-2">
 		<Label for="name">{m.supplements_name()}</Label>
 		<Input id="name" bind:value={name} required />
-	</div>
-
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-		<div class="space-y-2">
-			<Label for="dosage"
-				>{hasIngredients ? m.supplements_serving_form() : m.supplements_dosage()}</Label
-			>
-			<Input id="dosage" type="number" step="any" min="0" bind:value={dosage} required />
-		</div>
-		<div class="space-y-2">
-			<Label>{m.supplements_unit()}</Label>
-			<Select.Root type="single" value={dosageUnit} onValueChange={(v) => (dosageUnit = v)}>
-				<Select.Trigger class="w-full">
-					<span>{dosageUnit}</span>
-				</Select.Trigger>
-				<Select.Content>
-					{#each dosageUnits as unit}
-						<Select.Item value={unit}>{unit}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
 	</div>
 
 	<div class="space-y-2">
@@ -191,54 +223,51 @@
 				<span class="hidden sm:inline">{m.supplements_add_ingredient()}</span>
 			</Button>
 		</div>
-		{#if ingredients.length > 0}
-			<div class="space-y-2">
-				{#each ingredients as ing, i}
-					<div
-						class="flex min-w-0 flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center"
+		<div class="space-y-2">
+			{#each ingredients as ing, i}
+				<div class="flex min-w-0 flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center">
+					<Input
+						placeholder={m.supplements_ingredient_name()}
+						bind:value={ing.name}
+						required
+						class="min-w-0 flex-1"
+					/>
+					<Input
+						type="number"
+						step="any"
+						min="0"
+						bind:value={ing.dosage}
+						required
+						class="w-full sm:w-20"
+					/>
+					<Select.Root
+						type="single"
+						value={ing.dosageUnit}
+						onValueChange={(v) => (ing.dosageUnit = v)}
 					>
-						<Input
-							placeholder={m.supplements_ingredient_name()}
-							bind:value={ing.name}
-							required
-							class="min-w-0 flex-1"
-						/>
-						<Input
-							type="number"
-							step="any"
-							min="0"
-							bind:value={ing.dosage}
-							required
-							class="w-full sm:w-20"
-						/>
-						<Select.Root
-							type="single"
-							value={ing.dosageUnit}
-							onValueChange={(v) => (ing.dosageUnit = v)}
-						>
-							<Select.Trigger class="w-full sm:w-20">
-								<span>{ing.dosageUnit}</span>
-							</Select.Trigger>
-							<Select.Content>
-								{#each dosageUnits as unit}
-									<Select.Item value={unit}>{unit}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							class="self-end sm:self-auto"
-							aria-label={m.supplements_remove_ingredient()}
-							onclick={() => removeIngredient(i)}
-						>
-							<X class="size-4" />
-						</Button>
-					</div>
-				{/each}
-			</div>
-		{/if}
+						<Select.Trigger class="w-full sm:w-20">
+							<span>{ing.dosageUnit}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each dosageUnits as unit}
+								<Select.Item value={unit}>{unit}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						class="self-end sm:self-auto"
+						aria-label={m.supplements_remove_ingredient()}
+						disabled={ingredients.length <= 1}
+						onclick={() => removeIngredient(i)}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+			{/each}
+		</div>
 	</div>
 
 	<div class="space-y-2">
@@ -321,7 +350,7 @@
 			type="submit"
 			class="w-full sm:w-auto"
 			aria-label={m.supplements_save()}
-			disabled={!name || dosage <= 0}
+			disabled={!isValid}
 		>
 			<Check class="size-4" />
 			<span>{m.supplements_save()}</span>

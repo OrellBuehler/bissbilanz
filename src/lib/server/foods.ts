@@ -67,7 +67,7 @@ export const getFood = async (userId: string, id: string) => {
 
 export const listFoods = async (
 	userId: string,
-	options?: { query?: string; limit?: number; offset?: number }
+	options?: { query?: string; limit?: number; offset?: number; includeSupplements?: boolean }
 ) => {
 	const db = getDB();
 	const offset = options?.offset ?? 0;
@@ -75,9 +75,10 @@ export const listFoods = async (
 		?.replace(/\\/g, '\\\\')
 		.replace(/%/g, '\\%')
 		.replace(/_/g, '\\_');
+	const kindFilter = options?.includeSupplements ? undefined : eq(foods.kind, 'food');
 	const whereClause = escapedQuery
-		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`))
-		: eq(foods.userId, userId);
+		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`), kindFilter)
+		: and(eq(foods.userId, userId), kindFilter);
 
 	const q = db.select().from(foods).where(whereClause).orderBy(foods.name);
 	if (options?.limit !== undefined) q.limit(options.limit);
@@ -210,7 +211,7 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 		.select({ ...getTableColumns(foods) })
 		.from(foods)
 		.innerJoin(recentSq, eq(foods.id, recentSq.foodId))
-		.where(eq(foods.userId, userId))
+		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')))
 		.orderBy(desc(recentSq.lastUsed))
 		.limit(limit);
 	return roundNutrition(rows);

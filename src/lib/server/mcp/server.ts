@@ -709,11 +709,10 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'create_supplement',
 		{
-			description: 'Create a new supplement with schedule and optional ingredients.',
+			description:
+				'Create a new supplement with schedule and ingredients. Each ingredient must reference an existing food (foodId) that carries its nutrient data, which will back the supplement for logging and insights.',
 			inputSchema: {
 				name: z.string().describe('Supplement name'),
-				dosage: z.number().describe('Dosage amount'),
-				dosageUnit: z.string().describe('Dosage unit (e.g., "mg", "mcg", "IU", "capsules")'),
 				scheduleType: z
 					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
 					.describe('Schedule type'),
@@ -729,13 +728,17 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(
 						z.object({
-							name: z.string().describe('Ingredient name'),
-							dosage: z.number().describe('Ingredient dosage'),
-							dosageUnit: z.string().describe('Ingredient dosage unit')
+							foodId: z
+								.string()
+								.describe('ID of an existing food (kind=supplement) to use as the backing food'),
+							servings: z
+								.number()
+								.optional()
+								.describe('How many servings of the backing food per dose. Defaults to 1.')
 						})
 					)
-					.optional()
-					.describe('List of ingredients in the supplement'),
+					.min(1)
+					.describe('At least one ingredient, each referencing a backing food'),
 				isActive: z
 					.boolean()
 					.optional()
@@ -768,8 +771,6 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to update'),
 				name: z.string().optional().describe('New name'),
-				dosage: z.number().optional().describe('New dosage amount'),
-				dosageUnit: z.string().optional().describe('New dosage unit'),
 				scheduleType: z
 					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
 					.optional()
@@ -785,14 +786,13 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(
 						z.object({
-							name: z.string().describe('Ingredient name'),
-							dosage: z.number().describe('Ingredient dosage'),
-							dosageUnit: z.string().describe('Ingredient dosage unit')
+							foodId: z.string().describe('ID of an existing food to back this ingredient'),
+							servings: z.number().optional().describe('Servings per dose. Defaults to 1.')
 						})
 					)
+					.min(1)
 					.optional()
-					.nullable()
-					.describe('New ingredients (replaces all; null to clear)')
+					.describe('New ingredients (replaces all; must have at least one)')
 			},
 			annotations: UPDATE
 		},

@@ -11,7 +11,8 @@ const R1 = '00000000-0000-0000-0005-000000000001';
 const RI1 = '00000000-0000-0000-0006-000000000001';
 const G1 = U1;
 const SUP1 = '00000000-0000-0000-0007-000000000001';
-const SL1 = '00000000-0000-0000-0008-000000000001';
+const SUP_FOOD = '00000000-0000-0000-0002-000000000003';
+const SUP_ING = '00000000-0000-0000-0008-000000000002';
 const W1 = '00000000-0000-0000-0009-000000000001';
 const OC1 = '00000000-0000-0000-000a-000000000001';
 const CMT1 = '00000000-0000-0000-000b-000000000001';
@@ -57,13 +58,24 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	await db`
-		INSERT INTO supplements (id, user_id, name, dosage, dosage_unit, schedule_type, sort_order)
-		VALUES (${SUP1}, ${U1}, 'Vitamin D', 1000, 'IU', 'daily', 0)
+		INSERT INTO foods (id, user_id, name, kind, serving_size, serving_unit, calories, protein, carbs, fat, fiber, ingredients_text)
+		VALUES (${SUP_FOOD}, ${U1}, 'Cholecalciferol', 'supplement', 1, 'g', 0, 0, 0, 0, 0, '1000 IU')
 	`;
 
 	await db`
-		INSERT INTO supplement_logs (id, supplement_id, user_id, date, taken_at)
-		VALUES (${SL1}, ${SUP1}, ${U1}, CURRENT_DATE, NOW())
+		INSERT INTO supplements (id, user_id, name, schedule_type, sort_order)
+		VALUES (${SUP1}, ${U1}, 'Vitamin D', 'daily', 0)
+	`;
+
+	await db`
+		INSERT INTO supplement_ingredients (id, supplement_id, food_id, servings, sort_order)
+		VALUES (${SUP_ING}, ${SUP1}, ${SUP_FOOD}, 1, 0)
+	`;
+
+	// Log the supplement via a food_entry with supplement_id set
+	await db`
+		INSERT INTO food_entries (id, user_id, food_id, supplement_id, date, meal_type, servings, eaten_at)
+		VALUES ('00000000-0000-0000-0004-000000000002', ${U1}, ${SUP_FOOD}, ${SUP1}, CURRENT_DATE, 'Snacks', 1, NOW())
 	`;
 
 	await db`
@@ -82,6 +94,6 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	console.log(
-		'Seeded: 2 users, 1 session, 2 foods, 1 food_entry, 1 recipe, 1 recipe_ingredient, 1 user_goals, 1 supplement, 1 supplement_log, 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
+		'Seeded: 2 users, 1 session, 3 foods (incl. 1 supplement), 2 food_entries, 1 recipe, 1 recipe_ingredient, 1 user_goals, 1 supplement, 1 supplement_ingredient, 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
 	);
 }
