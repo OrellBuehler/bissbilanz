@@ -26,8 +26,6 @@ import kotlinx.serialization.encoding.*
  * @param id
  * @param userId
  * @param name
- * @param dosage
- * @param dosageUnit
  * @param scheduleType
  * @param scheduleDays
  * @param scheduleStartDate
@@ -43,8 +41,6 @@ data class Supplement(
     @SerialName(value = "id") @Required val id: kotlin.String,
     @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "name") @Required val name: kotlin.String,
-    @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
-    @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
     @SerialName(value = "scheduleType") @Required val scheduleType: Supplement.ScheduleType,
     @SerialName(value = "scheduleDays") @Required val scheduleDays: kotlin.collections.List<kotlin.Int>?,
     @SerialName(value = "scheduleStartDate") @Required val scheduleStartDate: kotlin.String?,

@@ -3,26 +3,22 @@ import SwiftUI
 struct SupplementHistoryView: View {
     @Environment(BissbilanzAPI.self) private var api
 
-    @State private var history: [SupplementHistoryEntry] = []
+    @State private var history: [SupplementHistoryItem] = []
     @State private var isLoading = true
     @State private var startDate = Date().adding(days: -30)
     @State private var endDate = Date()
     @State private var showDatePicker = false
 
-    private var totalExpected: Int {
-        history.reduce(0) { $0 + $1.supplements.count }
+    // history is a flat list of (supplementId, date) taken events. Group by date
+    // for display without losing the day-indexed layout of the old UI.
+    private var historyByDate: [(date: String, items: [SupplementHistoryItem])] {
+        let grouped = Dictionary(grouping: history, by: { $0.date })
+        return grouped
+            .map { (date: $0.key, items: $0.value) }
+            .sorted { $0.date > $1.date }
     }
 
-    private var totalTaken: Int {
-        history.reduce(0) { total, entry in
-            total + entry.supplements.filter(\.taken).count
-        }
-    }
-
-    private var adherencePercent: Double {
-        guard totalExpected > 0 else { return 0 }
-        return Double(totalTaken) / Double(totalExpected) * 100
-    }
+    private var totalTaken: Int { history.count }
 
     var body: some View {
         Group {
@@ -35,19 +31,10 @@ struct SupplementHistoryView: View {
                     Section {
                         HStack(spacing: 24) {
                             VStack {
-                                Text("\(totalTaken)/\(totalExpected)")
+                                Text("\(totalTaken)")
                                     .font(.title2)
                                     .fontWeight(.bold)
                                 Text(L10n.taken)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            VStack {
-                                Text("\(Int(adherencePercent))%")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(adherencePercent >= 80 ? MacroColors.fiber : .orange)
-                                Text(L10n.adherence)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -55,15 +42,15 @@ struct SupplementHistoryView: View {
                         .frame(maxWidth: .infinity)
                     }
 
-                    ForEach(history) { entry in
-                        Section(entry.date) {
-                            ForEach(entry.supplements) { item in
+                    ForEach(historyByDate, id: \.date) { day in
+                        Section(day.date) {
+                            ForEach(day.items) { item in
                                 HStack {
-                                    Image(systemName: item.taken ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundStyle(item.taken ? .green : .red)
-                                    Text(item.supplement.name)
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text(item.supplementName)
                                     Spacer()
-                                    Text("\(item.supplement.dosage, specifier: "%.0f") \(item.supplement.dosageUnit)")
+                                    Text(item.takenAt)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -101,7 +88,6 @@ struct SupplementHistoryView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
         }
         .task { await loadData() }
     }
@@ -109,11 +95,13 @@ struct SupplementHistoryView: View {
     private func loadData() async {
         isLoading = true
         do {
+            let iso = ISO8601DateFormatter.dateOnly
             history = try await api.getSupplementHistory(
-                startDate: startDate.isoDateString,
-                endDate: endDate.isoDateString
+                startDate: iso.string(from: startDate),
+                endDate: iso.string(from: endDate)
             )
         } catch {
+            // Surface in a real implementation; skeleton silently resets.
             history = []
         }
         isLoading = false

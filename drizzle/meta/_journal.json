@@ -253,6 +253,13 @@
       "when": 1776865281054,
       "tag": "0035_majestic_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1776891225760,
+      "tag": "0036_living_silhouette",
+      "breakpoints": true
     }
   ]
 }

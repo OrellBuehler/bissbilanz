@@ -2,7 +2,7 @@ import { getDB, withDbRetry } from '$lib/server/db';
 import { supplements, supplementIngredients, foods, foodEntries } from '$lib/server/schema';
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { toFoodInsert } from '$lib/server/foods';
-import { and, eq, desc, inArray, gte, lte, notInArray, sql } from 'drizzle-orm';
+import { and, eq, desc, inArray, gte, lte, sql } from 'drizzle-orm';
 import { today } from '$lib/utils/dates';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
@@ -53,9 +53,15 @@ const resolveIngredientFoodId = async (
 	if (!ingredient.food) {
 		throw new Error('Ingredient must provide foodId or food');
 	}
+	// Supplement backing foods never carry barcodes — they're internal rows keyed
+	// only by name + ingredientsText. Strip to avoid unique-barcode collisions
+	// that would otherwise surface as raw PG errors.
+	const { barcode: _b, ...foodInput } = ingredient.food as typeof ingredient.food & {
+		barcode?: unknown;
+	};
 	const [created] = await tx
 		.insert(foods)
-		.values({ ...toFoodInsert(userId, ingredient.food), kind: 'supplement' })
+		.values({ ...toFoodInsert(userId, foodInput), kind: 'supplement', barcode: null })
 		.returning({ id: foods.id });
 	if (!created) throw new Error('Failed to create backing food');
 	return created.id;
@@ -88,35 +94,31 @@ const deleteIngredients = async (tx: TxOrDb, supplementId: string) => {
 /**
  * Delete backing foods (`kind='supplement'`) from the given candidate set that
  * are no longer referenced by any supplement_ingredient row or any food_entry.
- * Called after updateSupplement to avoid leaving orphaned ingredient foods
- * behind when a user removes or replaces an ingredient.
+ * Called after updateSupplement and deleteSupplement to avoid leaving orphaned
+ * ingredient foods behind when a user removes or replaces an ingredient.
+ *
+ * The NOT EXISTS subqueries re-check referential state at DELETE time so a
+ * concurrent transaction that just inserted a new referencing row won't trip
+ * the ON DELETE RESTRICT and abort the outer transaction.
  */
 const reapOrphanedBackingFoods = async (tx: TxOrDb, userId: string, candidateFoodIds: string[]) => {
 	if (candidateFoodIds.length === 0) return;
 
-	const stillReferenced = await tx
-		.select({ foodId: supplementIngredients.foodId })
-		.from(supplementIngredients)
-		.where(inArray(supplementIngredients.foodId, candidateFoodIds));
-	const referenced = new Set(stillReferenced.map((r) => r.foodId));
-
-	const unreferencedIds = candidateFoodIds.filter((id) => !referenced.has(id));
-	if (unreferencedIds.length === 0) return;
-
-	const withEntries = await tx
-		.selectDistinct({ foodId: foodEntries.foodId })
-		.from(foodEntries)
-		.where(and(eq(foodEntries.userId, userId), inArray(foodEntries.foodId, unreferencedIds)));
-	const hasEntries = new Set(withEntries.map((r) => r.foodId).filter((id): id is string => !!id));
-
-	const deletableIds = unreferencedIds.filter((id) => !hasEntries.has(id));
-	if (deletableIds.length === 0) return;
-
-	await tx
-		.delete(foods)
-		.where(
-			and(eq(foods.userId, userId), eq(foods.kind, 'supplement'), inArray(foods.id, deletableIds))
-		);
+	await tx.delete(foods).where(
+		and(
+			eq(foods.userId, userId),
+			eq(foods.kind, 'supplement'),
+			inArray(foods.id, candidateFoodIds),
+			sql`NOT EXISTS (
+				SELECT 1 FROM ${supplementIngredients}
+				WHERE ${supplementIngredients.foodId} = ${foods.id}
+			)`,
+			sql`NOT EXISTS (
+				SELECT 1 FROM ${foodEntries}
+				WHERE ${foodEntries.foodId} = ${foods.id}
+			)`
+		)
+	);
 };
 
 const loadIngredientsForSupplement = async (
@@ -300,13 +302,25 @@ export const updateSupplement = async (
 export const deleteSupplement = async (userId: string, id: string) => {
 	const db = getDB();
 	// Null out any food_entries referencing this supplement so the restrict FK on foodId
-	// doesn't need to cascade; entries remain as regular food log entries.
+	// doesn't need to cascade; entries remain as regular food log entries. Capture
+	// the ingredient backing food ids before the ingredient cascade wipes them so
+	// we can reap any backing foods that now have no references at all.
 	await db.transaction(async (tx) => {
+		const backingFoodRows = await tx
+			.select({ foodId: supplementIngredients.foodId })
+			.from(supplementIngredients)
+			.where(eq(supplementIngredients.supplementId, id));
+		const backingFoodIds = backingFoodRows.map((r) => r.foodId);
+
 		await tx
 			.update(foodEntries)
 			.set({ supplementId: null })
 			.where(and(eq(foodEntries.supplementId, id), eq(foodEntries.userId, userId)));
 		await tx.delete(supplements).where(and(eq(supplements.id, id), eq(supplements.userId, userId)));
+
+		if (backingFoodIds.length > 0) {
+			await reapOrphanedBackingFoods(tx, userId, backingFoodIds);
+		}
 	});
 };
 
@@ -335,32 +349,11 @@ export const logSupplement = async (
 			return { success: false, error: new Error('Supplement not found') };
 		}
 
-		// Already logged for this date? Don't duplicate.
-		const existing = await db
-			.select({ id: foodEntries.id, eatenAt: foodEntries.eatenAt })
-			.from(foodEntries)
-			.where(
-				and(
-					eq(foodEntries.userId, userId),
-					eq(foodEntries.supplementId, supplementId),
-					eq(foodEntries.date, date)
-				)
-			);
-
-		if (existing.length > 0) {
-			return {
-				success: true,
-				data: {
-					supplementId,
-					date,
-					takenAt: existing[0].eatenAt,
-					entryIds: existing.map((e) => e.id)
-				}
-			};
-		}
-
+		// INSERT ... ON CONFLICT DO NOTHING relies on the partial unique index
+		// on (user_id, supplement_id, date, food_id) WHERE supplement_id IS NOT NULL.
+		// Concurrent double-taps will all succeed but only one ingredient set wins.
 		const takenAt = new Date();
-		const inserted = await db
+		await db
 			.insert(foodEntries)
 			.values(
 				ingredients.map((ing) => ({
@@ -373,11 +366,33 @@ export const logSupplement = async (
 					eatenAt: takenAt
 				}))
 			)
-			.returning({ id: foodEntries.id });
+			.onConflictDoNothing();
+
+		// Re-read the authoritative set (whether we inserted or another
+		// request did) so the response reflects the actual persisted entries.
+		const persisted = await db
+			.select({ id: foodEntries.id, eatenAt: foodEntries.eatenAt })
+			.from(foodEntries)
+			.where(
+				and(
+					eq(foodEntries.userId, userId),
+					eq(foodEntries.supplementId, supplementId),
+					eq(foodEntries.date, date)
+				)
+			);
+
+		if (persisted.length === 0) {
+			return { success: false, error: new Error('Failed to log supplement') };
+		}
 
 		return {
 			success: true,
-			data: { supplementId, date, takenAt, entryIds: inserted.map((e) => e.id) }
+			data: {
+				supplementId,
+				date,
+				takenAt: persisted[0].eatenAt,
+				entryIds: persisted.map((e) => e.id)
+			}
 		};
 	} catch (error) {
 		return { success: false, error: error as Error };

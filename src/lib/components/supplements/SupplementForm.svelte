@@ -9,6 +9,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Check from '@lucide/svelte/icons/check';
 	import { round2 } from '$lib/utils/number';
+	import { parseDosage as parseDosageRaw } from '$lib/utils/supplements';
 	import * as m from '$lib/paraglide/messages';
 
 	import type { ScheduleType } from '$lib/supplement-units';
@@ -82,21 +83,9 @@
 		onCancel: () => void;
 	} = $props();
 
-	// Parse "42 mg" out of existing ingredients_text so edits round-trip.
-	// Returns parsed=false for richer text we can't safely rebuild; the caller
-	// preserves the raw string in `originalText` to avoid corrupting it.
-	const parseDosage = (
-		text: string | null | undefined
-	): { dosage: number; unit: string; parsed: boolean } => {
-		if (!text) return { dosage: 0, unit: 'mg', parsed: false };
-		// Only treat as parsed if the text is ENTIRELY "<number> <unit>" with no
-		// extra content — otherwise (e.g. "5000 IU, sunflower oil") we keep the
-		// original to avoid lossy rebuilds.
-		const match = text.match(/^\s*([\d.]+)\s*(\S+)\s*$/);
-		if (!match) return { dosage: 0, unit: 'mg', parsed: false };
-		const n = parseFloat(match[1]);
-		if (isNaN(n)) return { dosage: 0, unit: 'mg', parsed: false };
-		return { dosage: round2(n), unit: match[2], parsed: true };
+	const parseDosage = (text: string | null | undefined) => {
+		const parsed = parseDosageRaw(text);
+		return { ...parsed, dosage: round2(parsed.dosage) };
 	};
 
 	// svelte-ignore state_referenced_locally

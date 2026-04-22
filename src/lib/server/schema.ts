@@ -211,6 +211,12 @@ export const foodEntries = pgTable(
 		index('idx_food_entries_recipe_id').on(table.recipeId),
 		index('idx_food_entries_supplement_id').on(table.supplementId),
 		index('idx_food_entries_user_supplement_date').on(table.userId, table.supplementId, table.date),
+		// One log per (supplement, day, ingredient) — prevents concurrent double-taps
+		// from producing duplicate ingredient sets. Partial: only applies to
+		// supplement-tagged entries so regular food logs aren't constrained.
+		uniqueIndex('idx_food_entries_supplement_day_food_unique')
+			.on(table.userId, table.supplementId, table.date, table.foodId)
+			.where(sql`supplement_id IS NOT NULL`),
 		index('idx_food_entries_created_at').on(table.createdAt),
 		check('food_entries_servings_positive', sql`${table.servings} > 0`),
 		check(

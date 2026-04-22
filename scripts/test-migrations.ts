@@ -6,7 +6,7 @@ import postgres from 'postgres';
 import { mkdtemp, writeFile, copyFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { seedData, U1, U2, F1, F2, SUP1 } from './seed-migration-test';
+import { seedData, U1, U2, F1, F2, SUP1, SUP2 } from './seed-migration-test';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -137,9 +137,9 @@ try {
 		}
 		console.log(`foods: ${foodCount} rows`);
 
-		// Original food entry; migration 0035 adds a second entry for the seeded
-		// supplement_log, so filter by supplement_id to scope the check to the
-		// originally-seeded row.
+		// Original food entry; migration 0035 adds entries per ingredient for each
+		// seeded supplement_log, so filter by supplement_id to scope the check to
+		// the originally-seeded row.
 		const [{ count: entryCount }] =
 			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1} AND supplement_id IS NULL`;
 		if (entryCount !== 1) {
@@ -148,26 +148,36 @@ try {
 		}
 		console.log(`food_entries: ${entryCount} rows`);
 
-		// After migration, the seeded supplement_log should be a food_entry
-		// tagged with the supplement id. Verify the data-migration path worked.
-		const [{ count: migratedLogCount }] =
+		// SUP1: no ingredients pre-migration → migration synthesizes 1 ingredient,
+		// so its supplement_log converts to exactly 1 food_entry.
+		const [{ count: sup1EntryCount }] =
 			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1} AND supplement_id = ${SUP1}`;
-		if (migratedLogCount !== 1) {
+		if (sup1EntryCount !== 1) {
+			console.error(`FAIL: expected 1 food_entry migrated from SUP1 log, found ${sup1EntryCount}`);
+			process.exit(1);
+		}
+		console.log(`SUP1 (synthetic-ingredient path) → food_entries: ${sup1EntryCount} rows`);
+
+		// SUP2: already has 2 ingredients pre-migration → each supplement_log
+		// becomes one food_entry per ingredient, so the single SUP2 log → 2 rows.
+		const [{ count: sup2EntryCount }] =
+			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1} AND supplement_id = ${SUP2}`;
+		if (sup2EntryCount !== 2) {
 			console.error(
-				`FAIL: expected 1 food_entry migrated from supplement_log, found ${migratedLogCount}`
+				`FAIL: expected 2 food_entries migrated from SUP2 log (one per ingredient), found ${sup2EntryCount}`
 			);
 			process.exit(1);
 		}
-		console.log(`migrated supplement_log → food_entry: ${migratedLogCount} rows`);
+		console.log(`SUP2 (existing-ingredient path) → food_entries: ${sup2EntryCount} rows`);
 
 		// Each supplement_ingredient should now reference a backing food with
-		// kind='supplement'. Our seed creates 1 supplement (no ingredients), so
-		// migration synthesizes 1 ingredient + 1 backing food for it.
+		// kind='supplement'. Our seed creates SUP1 (no ingredients → 1 synthetic
+		// backing food) and SUP2 (2 ingredients → 2 backing foods) = 3 total.
 		const [{ count: backingFoodCount }] =
 			await client`SELECT count(*)::int AS count FROM foods WHERE user_id = ${U1} AND kind = 'supplement'`;
-		if (backingFoodCount !== 1) {
+		if (backingFoodCount !== 3) {
 			console.error(
-				`FAIL: expected 1 supplement backing food after migration, found ${backingFoodCount}`
+				`FAIL: expected 3 supplement backing foods after migration, found ${backingFoodCount}`
 			);
 			process.exit(1);
 		}
@@ -183,8 +193,10 @@ try {
 
 		const [{ count: supplementCount }] =
 			await client`SELECT count(*)::int AS count FROM supplements WHERE user_id = ${U1}`;
-		if (supplementCount !== 1) {
-			console.error(`FAIL: expected 1 seeded supplement after migration, found ${supplementCount}`);
+		if (supplementCount !== 2) {
+			console.error(
+				`FAIL: expected 2 seeded supplements after migration, found ${supplementCount}`
+			);
 			process.exit(1);
 		}
 		console.log(`supplements: ${supplementCount} rows`);

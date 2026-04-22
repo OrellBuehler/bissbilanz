@@ -56,7 +56,7 @@ BEGIN
             1,
             'g'::"serving_unit",
             0, 0, 0, 0, 0,
-            ing.ing_dosage::text || ' ' || ing.ing_unit,
+            trim_scale(ing.ing_dosage::numeric)::text || ' ' || ing.ing_unit,
             now(), now()
         )
         RETURNING "id" INTO new_food_id;

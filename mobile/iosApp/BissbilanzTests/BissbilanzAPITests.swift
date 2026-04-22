@@ -130,30 +130,55 @@ struct APIRequestBuildingTests {
     func supplementCreateEncoding() throws {
         let supplement = SupplementCreate(
             name: "Vitamin D",
-            dosage: 4000,
-            dosageUnit: "IU",
             scheduleType: .daily,
-            timeOfDay: "morning"
+            timeOfDay: "morning",
+            ingredients: [
+                SupplementIngredientInput(
+                    foodId: nil,
+                    food: SupplementBackingFoodInput(
+                        name: "Vitamin D3",
+                        servingSize: 1,
+                        servingUnit: "g",
+                        calories: 0,
+                        protein: 0,
+                        carbs: 0,
+                        fat: 0,
+                        fiber: 0,
+                        ingredientsText: "4000 IU"
+                    ),
+                    servings: 1,
+                    sortOrder: 0
+                )
+            ]
         )
 
         let data = try JSONEncoder().encode(supplement)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
         #expect(json["name"] as? String == "Vitamin D")
-        #expect(json["dosage"] as? Double == 4000)
-        #expect(json["dosageUnit"] as? String == "IU")
         #expect(json["scheduleType"] as? String == "daily")
         #expect(json["timeOfDay"] as? String == "morning")
+        let ingredients = json["ingredients"] as! [[String: Any]]
+        #expect(ingredients.count == 1)
+        let food = ingredients[0]["food"] as! [String: Any]
+        #expect(food["name"] as? String == "Vitamin D3")
+        #expect(food["ingredientsText"] as? String == "4000 IU")
     }
 
     @Test("Supplement create with specific days schedule")
     func supplementSpecificDaysEncoding() throws {
         let supplement = SupplementCreate(
             name: "Iron",
-            dosage: 25,
-            dosageUnit: "mg",
             scheduleType: .specificDays,
-            scheduleDays: [1, 3, 5]
+            scheduleDays: [1, 3, 5],
+            ingredients: [
+                SupplementIngredientInput(
+                    foodId: "00000000-0000-4000-8000-000000000001",
+                    food: nil,
+                    servings: 1,
+                    sortOrder: 0
+                )
+            ]
         )
 
         let data = try JSONEncoder().encode(supplement)

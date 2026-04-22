@@ -259,7 +259,9 @@ describe('supplements-db', () => {
 
 	describe('deleteSupplement', () => {
 		test('deletes supplement without throwing', async () => {
-			setResult(undefined);
+			// setResult([]) — the in-transaction SELECT of backing food ids returns an
+			// empty array, skipping the reap step; delete runs and the call returns.
+			setResult([]);
 			await deleteSupplement(TEST_USER.id, TEST_SUPPLEMENT.id);
 		});
 	});
