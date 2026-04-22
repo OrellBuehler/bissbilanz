@@ -646,9 +646,47 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	/**
+	 * Normalize a supplement ingredient payload for the validation layer. MCP
+	 * agents pass abbreviated inline foods ({ name, ingredientsText, nutrients })
+	 * — we fill in the macro defaults (zero calories/macros, servingSize=1,
+	 * servingUnit='g') that `foodCreateSchema` requires.
+	 */
+	const normalizeSupplementIngredients = (ingredients: unknown): unknown => {
+		if (!Array.isArray(ingredients)) return ingredients;
+		return ingredients.map((raw) => {
+			const ing = raw as { foodId?: unknown; food?: Record<string, unknown>; servings?: unknown };
+			if (ing.food && typeof ing.food === 'object') {
+				return {
+					...ing,
+					food: {
+						servingSize: 1,
+						servingUnit: 'g',
+						calories: 0,
+						protein: 0,
+						carbs: 0,
+						fat: 0,
+						fiber: 0,
+						...ing.food
+					}
+				};
+			}
+			return ing;
+		});
+	};
+
 	const handleCreateSupplement = async (userId: string, args: unknown) => {
 		try {
-			const result = await d.createSupplement(userId, args);
+			const normalized =
+				args && typeof args === 'object'
+					? {
+							...(args as Record<string, unknown>),
+							ingredients: normalizeSupplementIngredients(
+								(args as { ingredients?: unknown }).ingredients
+							)
+						}
+					: args;
+			const result = await d.createSupplement(userId, normalized);
 			if (!result.success) return { error: result.error.message };
 			return { success: true, supplementId: result.data.id };
 		} catch (e) {
@@ -670,7 +708,13 @@ export function createHandlers(d: HandlerDeps) {
 	) => {
 		try {
 			const { supplementId, ...rest } = args;
-			const result = await d.updateSupplement(userId, supplementId, rest);
+			const normalized = {
+				...rest,
+				...(rest.ingredients !== undefined
+					? { ingredients: normalizeSupplementIngredients(rest.ingredients) }
+					: {})
+			};
+			const result = await d.updateSupplement(userId, supplementId, normalized);
 			if (!result.success) return { error: result.error.message };
 			return { success: true, supplementId };
 		} catch (e) {

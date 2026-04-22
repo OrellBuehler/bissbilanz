@@ -60,8 +60,9 @@ db.version(3).stores({
 });
 
 // v4: supplements are now nutrient-backed (kind on foods). supplementLogs keyed by
-// (supplementId, date) since per-day-per-supplement uniqueness. Old logs are
-// cleared — the server will resync on next fetch.
+// (supplementId, date) since per-day-per-supplement uniqueness. Existing foods
+// rows from v3 lack `kind` — backfill with 'food' so kind-filtered queries
+// don't hide them. Old logs are cleared — the server will resync on next fetch.
 db.version(4)
 	.stores({
 		foods: 'id, name, barcode, isFavorite, kind, updatedAt',
@@ -69,6 +70,12 @@ db.version(4)
 	})
 	.upgrade(async (tx) => {
 		await tx.table('supplementLogs').clear();
+		await tx
+			.table('foods')
+			.toCollection()
+			.modify((food: { kind?: string }) => {
+				if (!food.kind) food.kind = 'food';
+			});
 	});
 
 export { db };

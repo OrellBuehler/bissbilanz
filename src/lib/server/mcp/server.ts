@@ -706,11 +706,43 @@ export function createMcpServer(userId: string): McpServer {
 		safe((args) => handleDeleteRecipe(userId, args))
 	);
 
+	// Inline food payload for supplement ingredients. Matches the web form:
+	// servingUnit is fixed to 'g' since supplement nutrients are per-dose, and
+	// the dosage (e.g. "5000 IU") is preserved in ingredientsText for display.
+	const inlineIngredientFoodSchema = z.object({
+		name: z.string().describe('Ingredient name (e.g. "Vitamin D3")'),
+		ingredientsText: z
+			.string()
+			.optional()
+			.describe('Human-readable dosage label, e.g. "5000 IU" or "200 mg"'),
+		...nutrientInputSchema
+	});
+
+	const supplementIngredientInputSchema = z
+		.object({
+			foodId: z
+				.string()
+				.optional()
+				.describe('ID of an existing food (usually kind=supplement) to back this ingredient'),
+			food: inlineIngredientFoodSchema
+				.optional()
+				.describe(
+					'Inline backing food to create on the fly. Provide either foodId OR food, not both.'
+				),
+			servings: z
+				.number()
+				.optional()
+				.describe('Servings of the backing food per dose. Defaults to 1.')
+		})
+		.refine((v) => Boolean(v.foodId) !== Boolean(v.food), {
+			message: 'Each ingredient must provide either foodId or food, not both'
+		});
+
 	server.registerTool(
 		'create_supplement',
 		{
 			description:
-				'Create a new supplement with schedule and ingredients. Each ingredient must reference an existing food (foodId) that carries its nutrient data, which will back the supplement for logging and insights.',
+				"Create a new supplement with schedule and ingredients. Each ingredient needs a backing food (kind='supplement') that carries its nutrient data. Pass `foodId` to reuse an existing backing food, or `food: { name, nutrients... }` to create one inline.",
 			inputSchema: {
 				name: z.string().describe('Supplement name'),
 				scheduleType: z
@@ -726,19 +758,9 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.describe('Preferred time of day'),
 				ingredients: z
-					.array(
-						z.object({
-							foodId: z
-								.string()
-								.describe('ID of an existing food (kind=supplement) to use as the backing food'),
-							servings: z
-								.number()
-								.optional()
-								.describe('How many servings of the backing food per dose. Defaults to 1.')
-						})
-					)
+					.array(supplementIngredientInputSchema)
 					.min(1)
-					.describe('At least one ingredient, each referencing a backing food'),
+					.describe('At least one ingredient'),
 				isActive: z
 					.boolean()
 					.optional()
@@ -784,12 +806,7 @@ export function createMcpServer(userId: string): McpServer {
 					.describe('New time of day'),
 				isActive: z.boolean().optional().describe('Active status'),
 				ingredients: z
-					.array(
-						z.object({
-							foodId: z.string().describe('ID of an existing food to back this ingredient'),
-							servings: z.number().optional().describe('Servings per dose. Defaults to 1.')
-						})
-					)
+					.array(supplementIngredientInputSchema)
 					.min(1)
 					.optional()
 					.describe('New ingredients (replaces all; must have at least one)')

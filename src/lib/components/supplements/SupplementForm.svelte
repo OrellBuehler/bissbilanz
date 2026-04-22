@@ -22,6 +22,11 @@
 		dosage: number;
 		/** Dosage unit (mg, mcg, IU, etc.) */
 		dosageUnit: string;
+		/**
+		 * Original ingredients_text when it couldn't be parsed as "<number> <unit>".
+		 * Preserved verbatim on round-trip so richer free-form labels aren't lost.
+		 */
+		originalText?: string;
 	};
 
 	/** Inline food payload sent per ingredient — backend creates a backing food with kind='supplement'. */
@@ -78,12 +83,20 @@
 	} = $props();
 
 	// Parse "42 mg" out of existing ingredients_text so edits round-trip.
-	const parseDosage = (text: string | null | undefined): { dosage: number; unit: string } => {
-		if (!text) return { dosage: 0, unit: 'mg' };
-		const match = text.match(/^\s*([\d.]+)\s*(\S+)/);
-		if (!match) return { dosage: 0, unit: 'mg' };
+	// Returns parsed=false for richer text we can't safely rebuild; the caller
+	// preserves the raw string in `originalText` to avoid corrupting it.
+	const parseDosage = (
+		text: string | null | undefined
+	): { dosage: number; unit: string; parsed: boolean } => {
+		if (!text) return { dosage: 0, unit: 'mg', parsed: false };
+		// Only treat as parsed if the text is ENTIRELY "<number> <unit>" with no
+		// extra content — otherwise (e.g. "5000 IU, sunflower oil") we keep the
+		// original to avoid lossy rebuilds.
+		const match = text.match(/^\s*([\d.]+)\s*(\S+)\s*$/);
+		if (!match) return { dosage: 0, unit: 'mg', parsed: false };
 		const n = parseFloat(match[1]);
-		return { dosage: isNaN(n) ? 0 : round2(n), unit: match[2] };
+		if (isNaN(n)) return { dosage: 0, unit: 'mg', parsed: false };
+		return { dosage: round2(n), unit: match[2], parsed: true };
 	};
 
 	// svelte-ignore state_referenced_locally
@@ -107,7 +120,8 @@
 				foodId: i.foodId,
 				name: i.food.name,
 				dosage: parsed.dosage,
-				dosageUnit: parsed.unit
+				dosageUnit: parsed.unit,
+				originalText: parsed.parsed ? undefined : (i.food.ingredientsText ?? undefined)
 			};
 		})
 	);
@@ -163,7 +177,9 @@
 	const isValid = $derived(
 		name.trim().length > 0 &&
 			ingredients.length > 0 &&
-			ingredients.every((i) => i.name.trim().length > 0 && i.dosage > 0)
+			ingredients.every(
+				(i) => i.name.trim().length > 0 && (i.dosage > 0 || (i.originalText ?? '').length > 0)
+			)
 	);
 
 	const handleSubmit = () => {
@@ -175,6 +191,11 @@
 				if (ing.foodId) {
 					return { foodId: ing.foodId, servings: 1, sortOrder: i };
 				}
+				// Prefer a rebuilt "<dosage> <unit>" label, but fall back to the
+				// preserved originalText if the user never entered a dosage (so a
+				// round-tripped free-form label survives).
+				const ingredientsText =
+					ing.dosage > 0 ? `${ing.dosage} ${ing.dosageUnit}` : (ing.originalText ?? '');
 				return {
 					food: {
 						name: ing.name,
@@ -185,7 +206,7 @@
 						carbs: 0,
 						fat: 0,
 						fiber: 0,
-						ingredientsText: `${ing.dosage} ${ing.dosageUnit}`
+						ingredientsText
 					},
 					servings: 1,
 					sortOrder: i

@@ -6,7 +6,7 @@ import postgres from 'postgres';
 import { mkdtemp, writeFile, copyFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { seedData, U1, U2, F1, F2 } from './seed-migration-test';
+import { seedData, U1, U2, F1, F2, SUP1 } from './seed-migration-test';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -137,13 +137,41 @@ try {
 		}
 		console.log(`foods: ${foodCount} rows`);
 
+		// Original food entry; migration 0035 adds a second entry for the seeded
+		// supplement_log, so filter by supplement_id to scope the check to the
+		// originally-seeded row.
 		const [{ count: entryCount }] =
-			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1}`;
+			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1} AND supplement_id IS NULL`;
 		if (entryCount !== 1) {
 			console.error(`FAIL: expected 1 seeded food_entry after migration, found ${entryCount}`);
 			process.exit(1);
 		}
 		console.log(`food_entries: ${entryCount} rows`);
+
+		// After migration, the seeded supplement_log should be a food_entry
+		// tagged with the supplement id. Verify the data-migration path worked.
+		const [{ count: migratedLogCount }] =
+			await client`SELECT count(*)::int AS count FROM food_entries WHERE user_id = ${U1} AND supplement_id = ${SUP1}`;
+		if (migratedLogCount !== 1) {
+			console.error(
+				`FAIL: expected 1 food_entry migrated from supplement_log, found ${migratedLogCount}`
+			);
+			process.exit(1);
+		}
+		console.log(`migrated supplement_log → food_entry: ${migratedLogCount} rows`);
+
+		// Each supplement_ingredient should now reference a backing food with
+		// kind='supplement'. Our seed creates 1 supplement (no ingredients), so
+		// migration synthesizes 1 ingredient + 1 backing food for it.
+		const [{ count: backingFoodCount }] =
+			await client`SELECT count(*)::int AS count FROM foods WHERE user_id = ${U1} AND kind = 'supplement'`;
+		if (backingFoodCount !== 1) {
+			console.error(
+				`FAIL: expected 1 supplement backing food after migration, found ${backingFoodCount}`
+			);
+			process.exit(1);
+		}
+		console.log(`supplement backing foods: ${backingFoodCount} rows`);
 
 		const [{ count: recipeCount }] =
 			await client`SELECT count(*)::int AS count FROM recipes WHERE user_id = ${U1}`;

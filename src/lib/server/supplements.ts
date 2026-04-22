@@ -2,7 +2,7 @@ import { getDB, withDbRetry } from '$lib/server/db';
 import { supplements, supplementIngredients, foods, foodEntries } from '$lib/server/schema';
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { toFoodInsert } from '$lib/server/foods';
-import { and, eq, desc, inArray, gte, lte, sql } from 'drizzle-orm';
+import { and, eq, desc, inArray, gte, lte, notInArray, sql } from 'drizzle-orm';
 import { today } from '$lib/utils/dates';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
@@ -83,6 +83,40 @@ const deleteIngredients = async (tx: TxOrDb, supplementId: string) => {
 	await tx
 		.delete(supplementIngredients)
 		.where(eq(supplementIngredients.supplementId, supplementId));
+};
+
+/**
+ * Delete backing foods (`kind='supplement'`) from the given candidate set that
+ * are no longer referenced by any supplement_ingredient row or any food_entry.
+ * Called after updateSupplement to avoid leaving orphaned ingredient foods
+ * behind when a user removes or replaces an ingredient.
+ */
+const reapOrphanedBackingFoods = async (tx: TxOrDb, userId: string, candidateFoodIds: string[]) => {
+	if (candidateFoodIds.length === 0) return;
+
+	const stillReferenced = await tx
+		.select({ foodId: supplementIngredients.foodId })
+		.from(supplementIngredients)
+		.where(inArray(supplementIngredients.foodId, candidateFoodIds));
+	const referenced = new Set(stillReferenced.map((r) => r.foodId));
+
+	const unreferencedIds = candidateFoodIds.filter((id) => !referenced.has(id));
+	if (unreferencedIds.length === 0) return;
+
+	const withEntries = await tx
+		.selectDistinct({ foodId: foodEntries.foodId })
+		.from(foodEntries)
+		.where(and(eq(foodEntries.userId, userId), inArray(foodEntries.foodId, unreferencedIds)));
+	const hasEntries = new Set(withEntries.map((r) => r.foodId).filter((id): id is string => !!id));
+
+	const deletableIds = unreferencedIds.filter((id) => !hasEntries.has(id));
+	if (deletableIds.length === 0) return;
+
+	await tx
+		.delete(foods)
+		.where(
+			and(eq(foods.userId, userId), eq(foods.kind, 'supplement'), inArray(foods.id, deletableIds))
+		);
 };
 
 const loadIngredientsForSupplement = async (
@@ -239,8 +273,20 @@ export const updateSupplement = async (
 			}
 
 			if (ingredientsData !== undefined) {
+				// Capture the backing foods referenced before the update so we can
+				// reap any that end up orphaned (no ingredient row, no food_entry).
+				const oldIngredients = await tx
+					.select({ foodId: supplementIngredients.foodId })
+					.from(supplementIngredients)
+					.where(eq(supplementIngredients.supplementId, id));
+				const oldFoodIds = oldIngredients.map((r) => r.foodId);
+
 				await deleteIngredients(tx, id);
 				await insertIngredients(tx, userId, id, ingredientsData);
+
+				if (oldFoodIds.length > 0) {
+					await reapOrphanedBackingFoods(tx, userId, oldFoodIds);
+				}
 			}
 
 			const ingredients = await loadIngredientsForSupplement(tx, id);
