@@ -95,10 +95,9 @@ struct SupplementHistoryView: View {
     private func loadData() async {
         isLoading = true
         do {
-            let iso = ISO8601DateFormatter.dateOnly
             history = try await api.getSupplementHistory(
-                startDate: iso.string(from: startDate),
-                endDate: iso.string(from: endDate)
+                startDate: startDate.isoDateString,
+                endDate: endDate.isoDateString
             )
         } catch {
             // Surface in a real implementation; skeleton silently resets.
