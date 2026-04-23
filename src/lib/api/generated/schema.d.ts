@@ -1050,15 +1050,14 @@ export interface components {
 			imageUrl?: string | null;
 		};
 		SupplementIngredientInput: {
-			name: string;
-			dosage: number;
-			dosageUnit: string;
+			/** Format: uuid */
+			foodId?: string;
+			food?: components['schemas']['FoodCreate'];
+			servings?: number;
 			sortOrder?: number;
 		};
 		SupplementCreate: {
 			name: string;
-			dosage: number;
-			dosageUnit: string;
 			/** @enum {string} */
 			scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
 			scheduleDays?: number[] | null;
@@ -1066,12 +1065,10 @@ export interface components {
 			isActive?: boolean;
 			sortOrder?: number;
 			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
-			ingredients?: components['schemas']['SupplementIngredientInput'][];
+			ingredients: components['schemas']['SupplementIngredientInput'][];
 		};
 		SupplementUpdate: {
 			name?: string;
-			dosage?: number;
-			dosageUnit?: string;
 			/** @enum {string} */
 			scheduleType?: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
 			scheduleDays?: number[] | null;
@@ -1079,7 +1076,7 @@ export interface components {
 			isActive?: boolean;
 			sortOrder?: number;
 			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
-			ingredients?: components['schemas']['SupplementIngredientInput'][] | null;
+			ingredients?: components['schemas']['SupplementIngredientInput'][];
 		};
 		SupplementLogCreate: {
 			date?: string;
@@ -1441,8 +1438,6 @@ export interface components {
 			/** Format: uuid */
 			userId: string;
 			name: string;
-			dosage: number;
-			dosageUnit: string;
 			/** @enum {string} */
 			scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
 			scheduleDays: number[] | null;
@@ -1460,10 +1455,29 @@ export interface components {
 			id: string;
 			/** Format: uuid */
 			supplementId: string;
-			name: string;
-			dosage: number;
-			dosageUnit: string;
+			/** Format: uuid */
+			foodId: string;
+			servings: number;
 			sortOrder: number;
+			food: components['schemas']['SupplementBackingFood'];
+		};
+		SupplementBackingFood: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			brand: string | null;
+			/** @enum {string} */
+			kind: 'food' | 'supplement';
+			servingSize: number;
+			servingUnit: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			ingredientsText?: string | null;
+		} & {
+			[key: string]: unknown;
 		};
 		SupplementResponse: {
 			supplement: components['schemas']['Supplement'];
@@ -1481,24 +1495,21 @@ export interface components {
 			history: components['schemas']['SupplementHistoryItem'][];
 		};
 		SupplementHistoryItem: {
-			log: components['schemas']['SupplementLog'];
-			supplementName: string;
-			dosage: number;
-			dosageUnit: string;
-		};
-		SupplementLog: {
-			/** Format: uuid */
-			id: string;
 			/** Format: uuid */
 			supplementId: string;
-			/** Format: uuid */
-			userId: string;
+			supplementName: string;
 			date: string;
 			takenAt: string;
-			createdAt?: string;
 		};
 		SupplementLogResponse: {
 			log: components['schemas']['SupplementLog'];
+		};
+		SupplementLog: {
+			/** Format: uuid */
+			supplementId: string;
+			date: string;
+			takenAt: string;
+			entryIds: string[];
 		};
 		WeightEntriesResponse: {
 			entries: components['schemas']['WeightEntry'][];

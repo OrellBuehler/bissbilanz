@@ -143,7 +143,7 @@ struct SupplementsView: View {
     private func supplementRow(_ supplement: Supplement) -> some View {
         let isTaken = loggedIds.contains(supplement.id)
         let isExpanded = expandedIds.contains(supplement.id)
-        let hasIngredients = supplement.ingredients != nil && !(supplement.ingredients?.isEmpty ?? true)
+        let hasIngredients = supplement.ingredients.count > 1
 
         return VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -161,7 +161,7 @@ struct SupplementsView: View {
                             .font(.body)
                             .foregroundStyle(.primary)
                             .strikethrough(isTaken)
-                        Text("\(supplement.dosage, specifier: "%.0f") \(supplement.dosageUnit)")
+                        Text(dosageSummary(supplement))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if let time = supplement.timeOfDay {
@@ -197,7 +197,7 @@ struct SupplementsView: View {
             }
             .buttonStyle(.plain)
 
-            if isExpanded, let ingredients = supplement.ingredients, !ingredients.isEmpty {
+            if isExpanded, !supplement.ingredients.isEmpty {
                 Divider()
                     .padding(.vertical, 6)
 
@@ -207,13 +207,13 @@ struct SupplementsView: View {
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
 
-                    ForEach(ingredients) { ingredient in
+                    ForEach(supplement.ingredients) { ingredient in
                         HStack {
-                            Text(ingredient.name)
+                            Text(ingredient.food.name)
                                 .font(.caption)
                                 .foregroundStyle(.primary)
                             Spacer()
-                            Text("\(ingredient.dosage, specifier: "%.0f") \(ingredient.dosageUnit)")
+                            Text(ingredient.food.ingredientsText ?? "")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -221,6 +221,15 @@ struct SupplementsView: View {
                 }
                 .padding(.leading, 44)
             }
+        }
+    }
+
+    private func dosageSummary(_ supplement: Supplement) -> String {
+        let ings = supplement.ingredients
+        switch ings.count {
+        case 0: return ""
+        case 1: return ings[0].food.ingredientsText ?? ""
+        default: return "\(ings.count) ingredients"
         }
     }
 

@@ -30,6 +30,7 @@ const makeFood = (overrides: Partial<DexieFood> = {}): DexieFood => ({
 	userId: 'user-1',
 	name: 'Test Food',
 	brand: null,
+	kind: 'food',
 	servingSize: 100,
 	servingUnit: 'g',
 	calories: 200,

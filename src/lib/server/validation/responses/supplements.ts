@@ -1,14 +1,32 @@
 import 'zod-openapi';
 import { z } from 'zod';
 
+const backingFoodSchema = z
+	.object({
+		id: z.string().uuid(),
+		name: z.string(),
+		brand: z.string().nullable(),
+		kind: z.enum(['food', 'supplement']),
+		servingSize: z.number(),
+		servingUnit: z.string(),
+		calories: z.number(),
+		protein: z.number(),
+		carbs: z.number(),
+		fat: z.number(),
+		fiber: z.number(),
+		ingredientsText: z.string().nullable().optional()
+	})
+	.passthrough()
+	.meta({ id: 'SupplementBackingFood' });
+
 const supplementIngredientSchema = z
 	.object({
 		id: z.string().uuid(),
 		supplementId: z.string().uuid(),
-		name: z.string(),
-		dosage: z.number(),
-		dosageUnit: z.string(),
-		sortOrder: z.number().int()
+		foodId: z.string().uuid(),
+		servings: z.number(),
+		sortOrder: z.number().int(),
+		food: backingFoodSchema
 	})
 	.meta({ id: 'SupplementIngredient' });
 
@@ -17,8 +35,6 @@ const supplementSchema = z
 		id: z.string().uuid(),
 		userId: z.string().uuid(),
 		name: z.string(),
-		dosage: z.number(),
-		dosageUnit: z.string(),
 		scheduleType: z.enum(['daily', 'every_other_day', 'weekly', 'specific_days']),
 		scheduleDays: z.array(z.number().int()).nullable(),
 		scheduleStartDate: z.string().nullable(),
@@ -41,21 +57,19 @@ const checklistItemSchema = z
 
 const supplementLogSchema = z
 	.object({
-		id: z.string().uuid(),
 		supplementId: z.string().uuid(),
-		userId: z.string().uuid(),
 		date: z.string(),
 		takenAt: z.string(),
-		createdAt: z.string().optional()
+		entryIds: z.array(z.string().uuid())
 	})
 	.meta({ id: 'SupplementLog' });
 
 const historyItemSchema = z
 	.object({
-		log: supplementLogSchema,
+		supplementId: z.string().uuid(),
 		supplementName: z.string(),
-		dosage: z.number(),
-		dosageUnit: z.string()
+		date: z.string(),
+		takenAt: z.string()
 	})
 	.meta({ id: 'SupplementHistoryItem' });
 

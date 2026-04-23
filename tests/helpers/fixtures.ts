@@ -226,8 +226,6 @@ export const TEST_SUPPLEMENT = {
 	id: '10000000-0000-4000-8000-000000000060',
 	userId: TEST_USER.id,
 	name: 'Vitamin D3',
-	dosage: 1000,
-	dosageUnit: 'IU',
 	scheduleType: 'daily' as const,
 	scheduleDays: null,
 	scheduleStartDate: '2026-02-01',
@@ -238,22 +236,14 @@ export const TEST_SUPPLEMENT = {
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
 
-export const TEST_SUPPLEMENT_LOG = {
-	id: '10000000-0000-4000-8000-000000000061',
-	supplementId: TEST_SUPPLEMENT.id,
-	userId: TEST_USER.id,
-	date: '2026-02-17',
-	takenAt: new Date('2026-02-17T08:00:00Z'),
-	createdAt: new Date('2026-02-17T08:00:00Z')
-};
+// Backing food for TEST_SUPPLEMENT (kind='supplement')
+export const TEST_SUPPLEMENT_BACKING_FOOD_ID = '10000000-0000-4000-8000-000000000065';
 
 // Test multi-ingredient supplement
 export const TEST_MULTI_SUPPLEMENT = {
 	id: '10000000-0000-4000-8000-000000000062',
 	userId: TEST_USER.id,
 	name: 'Daily Multivitamin',
-	dosage: 1,
-	dosageUnit: 'capsule',
 	scheduleType: 'daily' as const,
 	scheduleDays: null,
 	scheduleStartDate: '2026-02-01',
@@ -264,32 +254,19 @@ export const TEST_MULTI_SUPPLEMENT = {
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
 
-export const TEST_SUPPLEMENT_INGREDIENTS = [
-	{
-		id: '10000000-0000-4000-8000-000000000070',
-		supplementId: TEST_MULTI_SUPPLEMENT.id,
-		name: 'Vitamin A',
-		dosage: 800,
-		dosageUnit: 'mcg',
-		sortOrder: 0
-	},
-	{
-		id: '10000000-0000-4000-8000-000000000071',
-		supplementId: TEST_MULTI_SUPPLEMENT.id,
-		name: 'Vitamin C',
-		dosage: 80,
-		dosageUnit: 'mg',
-		sortOrder: 1
-	},
-	{
-		id: '10000000-0000-4000-8000-000000000072',
-		supplementId: TEST_MULTI_SUPPLEMENT.id,
-		name: 'Zinc',
-		dosage: 10,
-		dosageUnit: 'mg',
-		sortOrder: 2
-	}
+export const TEST_SUPPLEMENT_INGREDIENT_FOODS = [
+	{ id: '10000000-0000-4000-8000-000000000080', name: 'Vitamin A', detail: '800 mcg' },
+	{ id: '10000000-0000-4000-8000-000000000081', name: 'Vitamin C', detail: '80 mg' },
+	{ id: '10000000-0000-4000-8000-000000000082', name: 'Zinc', detail: '10 mg' }
 ];
+
+export const TEST_SUPPLEMENT_INGREDIENTS = TEST_SUPPLEMENT_INGREDIENT_FOODS.map((food, i) => ({
+	id: `10000000-0000-4000-8000-0000000000${70 + i}`,
+	supplementId: TEST_MULTI_SUPPLEMENT.id,
+	foodId: food.id,
+	servings: 1,
+	sortOrder: i
+}));
 
 // Null expanded nutrients — spread into Dexie food fixtures
 export const NULL_NUTRIENTS = {
@@ -376,22 +353,31 @@ export const VALID_MEAL_TYPE_PAYLOAD = {
 	sortOrder: 10
 };
 
+const supplementBackingFood = (name: string, detail: string) => ({
+	name,
+	servingSize: 1,
+	servingUnit: 'g' as const,
+	calories: 0,
+	protein: 0,
+	carbs: 0,
+	fat: 0,
+	fiber: 0,
+	ingredientsText: detail
+});
+
 export const VALID_SUPPLEMENT_PAYLOAD = {
 	name: 'Vitamin D3',
-	dosage: 1000,
-	dosageUnit: 'IU',
-	scheduleType: 'daily'
+	scheduleType: 'daily',
+	ingredients: [{ food: supplementBackingFood('Vitamin D3', '1000 IU'), servings: 1 }]
 };
 
 export const VALID_MULTI_SUPPLEMENT_PAYLOAD = {
 	name: 'Daily Multivitamin',
-	dosage: 1,
-	dosageUnit: 'capsule',
 	scheduleType: 'daily',
 	ingredients: [
-		{ name: 'Vitamin A', dosage: 800, dosageUnit: 'mcg' },
-		{ name: 'Vitamin C', dosage: 80, dosageUnit: 'mg' },
-		{ name: 'Zinc', dosage: 10, dosageUnit: 'mg' }
+		{ food: supplementBackingFood('Vitamin A', '800 mcg'), servings: 1 },
+		{ food: supplementBackingFood('Vitamin C', '80 mg'), servings: 1 },
+		{ food: supplementBackingFood('Zinc', '10 mg'), servings: 1 }
 	]
 };
 
