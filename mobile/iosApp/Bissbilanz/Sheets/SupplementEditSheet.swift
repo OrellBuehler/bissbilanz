@@ -8,21 +8,22 @@ struct SupplementEditSheet: View {
     let onSaved: (Supplement) -> Void
 
     @State private var name = ""
-    @State private var dosage = ""
-    @State private var dosageUnit = "mg"
     @State private var scheduleType: ScheduleType = .daily
     @State private var scheduleDays: Set<Int> = []
     @State private var timeOfDay = "anytime"
     @State private var isActive = true
-    @State private var ingredientRows: [IngredientInputRow] = []
+    @State private var ingredientRows: [IngredientInputRow] = [IngredientInputRow()]
     @State private var isSaving = false
     @State private var errorMessage: String?
 
     struct IngredientInputRow: Identifiable {
         let id = UUID()
-        var name: String
-        var dosage: String
-        var dosageUnit: String
+        var name: String = ""
+        var dosage: String = ""
+        var dosageUnit: String = "mg"
+        // Original ingredientsText preserved verbatim when it can't be parsed as
+        // "<number> <unit>" — round-trips free-form labels without loss.
+        var originalText: String? = nil
     }
 
     private let dosageUnits = ["mg", "g", "\u{00B5}g", "IU", "ml", "drops"]
@@ -39,14 +40,6 @@ struct SupplementEditSheet: View {
             Form {
                 Section {
                     TextField("Name", text: $name)
-                    HStack {
-                        TextField("Dosage", text: $dosage)
-                            .keyboardType(.decimalPad)
-                            .frame(width: 80)
-                        Picker("Unit", selection: $dosageUnit) {
-                            ForEach(dosageUnits, id: \.self) { Text($0) }
-                        }
-                    }
                 }
 
                 Section("Schedule") {
@@ -105,10 +98,13 @@ struct SupplementEditSheet: View {
                     }
                     .onDelete { indices in
                         ingredientRows.remove(atOffsets: indices)
+                        if ingredientRows.isEmpty {
+                            ingredientRows = [IngredientInputRow()]
+                        }
                     }
 
                     Button {
-                        ingredientRows.append(IngredientInputRow(name: "", dosage: "", dosageUnit: "mg"))
+                        ingredientRows.append(IngredientInputRow())
                     } label: {
                         Label(L10n.add, systemImage: "plus")
                     }
@@ -132,7 +128,7 @@ struct SupplementEditSheet: View {
                     Button(L10n.save) {
                         Task { await save() }
                     }
-                    .disabled(name.isEmpty || dosage.isEmpty || isSaving)
+                    .disabled(!isValid || isSaving)
                     .fontWeight(.semibold)
                 }
             }
@@ -140,52 +136,103 @@ struct SupplementEditSheet: View {
         }
     }
 
+    private var isValid: Bool {
+        guard !name.isEmpty, !ingredientRows.isEmpty else { return false }
+        return ingredientRows.allSatisfy { row in
+            !row.name.isEmpty &&
+                ((Double(row.dosage) ?? 0) > 0 || (row.originalText ?? "").isEmpty == false)
+        }
+    }
+
+    // Parses "42 mg" out of an existing ingredientsText. Returns (dosage, unit,
+    // original) where `original` is non-nil when we couldn't fully parse the
+    // text so the caller keeps the raw string around for round-trip safety.
+    private func parseDosage(_ text: String?) -> (Double?, String, String?) {
+        guard let text = text?.trimmingCharacters(in: .whitespaces), !text.isEmpty else {
+            return (nil, "mg", nil)
+        }
+        let pattern = #"^\s*([\d.]+)\s*(\S+)\s*$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              match.numberOfRanges == 3,
+              let doseRange = Range(match.range(at: 1), in: text),
+              let unitRange = Range(match.range(at: 2), in: text),
+              let dose = Double(text[doseRange])
+        else {
+            return (nil, "mg", text)
+        }
+        return (dose, String(text[unitRange]), nil)
+    }
+
     private func prefill() {
         guard let s = existingSupplement else { return }
         name = s.name
-        dosage = "\(s.dosage)"
-        dosageUnit = s.dosageUnit
         scheduleType = s.scheduleType
         scheduleDays = Set(s.scheduleDays ?? [])
         timeOfDay = s.timeOfDay ?? "anytime"
         isActive = s.isActive
-        if let ings = s.ingredients {
-            ingredientRows = ings.map { IngredientInputRow(name: $0.name, dosage: "\($0.dosage)", dosageUnit: $0.dosageUnit) }
+        let rows = s.ingredients.map { ing -> IngredientInputRow in
+            let parsed = parseDosage(ing.food.ingredientsText)
+            return IngredientInputRow(
+                name: ing.food.name,
+                dosage: parsed.0.map { "\($0)" } ?? "",
+                dosageUnit: parsed.1,
+                originalText: parsed.2
+            )
         }
+        ingredientRows = rows.isEmpty ? [IngredientInputRow()] : rows
     }
 
     private func save() async {
         isSaving = true
         errorMessage = nil
 
-        let ingredientInputs = ingredientRows
-            .filter { !$0.name.isEmpty }
-            .map { SupplementIngredientInput(name: $0.name, dosage: Double($0.dosage) ?? 0, dosageUnit: $0.dosageUnit) }
+        let ingredientInputs = ingredientRows.enumerated().map { idx, row -> SupplementIngredientInput in
+            let dose = Double(row.dosage) ?? 0
+            let label: String
+            if dose > 0 {
+                label = "\(row.dosage) \(row.dosageUnit)"
+            } else {
+                label = row.originalText ?? ""
+            }
+            return SupplementIngredientInput(
+                foodId: nil,
+                food: SupplementBackingFoodInput(
+                    name: row.name,
+                    servingSize: 1,
+                    servingUnit: "g",
+                    calories: 0,
+                    protein: 0,
+                    carbs: 0,
+                    fat: 0,
+                    fiber: 0,
+                    ingredientsText: label
+                ),
+                servings: 1,
+                sortOrder: idx
+            )
+        }
 
         do {
             let saved: Supplement
             if let existing = existingSupplement {
                 let update = SupplementUpdate(
                     name: name,
-                    dosage: Double(dosage),
-                    dosageUnit: dosageUnit,
                     scheduleType: scheduleType,
                     scheduleDays: scheduleDays.isEmpty ? nil : Array(scheduleDays).sorted(),
                     isActive: isActive,
                     timeOfDay: timeOfDay,
-                    ingredients: ingredientInputs.isEmpty ? nil : ingredientInputs
+                    ingredients: ingredientInputs
                 )
                 saved = try await api.updateSupplement(id: existing.id, update)
             } else {
                 let create = SupplementCreate(
                     name: name,
-                    dosage: Double(dosage) ?? 0,
-                    dosageUnit: dosageUnit,
                     scheduleType: scheduleType,
                     scheduleDays: scheduleDays.isEmpty ? nil : Array(scheduleDays).sorted(),
                     isActive: isActive,
                     timeOfDay: timeOfDay,
-                    ingredients: ingredientInputs.isEmpty ? nil : ingredientInputs
+                    ingredients: ingredientInputs
                 )
                 saved = try await api.createSupplement(create)
             }

@@ -1,27 +1,48 @@
 import { describe, test, expect } from 'vitest';
 import { supplementCreateSchema, supplementUpdateSchema } from '../../src/lib/server/validation';
 
+const inlineFood = (name: string, detail: string) => ({
+	name,
+	servingSize: 1,
+	servingUnit: 'g' as const,
+	calories: 0,
+	protein: 0,
+	carbs: 0,
+	fat: 0,
+	fiber: 0,
+	ingredientsText: detail
+});
+
+const FOOD_UUID = '10000000-0000-4000-8000-000000000099';
+const FOOD_UUID_2 = '10000000-0000-4000-8000-0000000000a0';
+
 describe('supplementCreateSchema', () => {
-	test('validates minimal daily supplement', () => {
+	test('validates daily supplement with inline backing food', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin D3',
-			dosage: 1000,
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
+			scheduleType: 'daily',
+			ingredients: [{ food: inlineFood('Vitamin D3', '1000 IU'), servings: 1 }]
 		});
 		expect(result.success).toBe(true);
 	});
 
-	test('validates supplement with ingredients', () => {
+	test('validates supplement with multiple inline ingredients', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Multivitamin',
-			dosage: 1,
-			dosageUnit: 'capsule',
 			scheduleType: 'daily',
 			ingredients: [
-				{ name: 'Vitamin A', dosage: 800, dosageUnit: 'mcg' },
-				{ name: 'Vitamin C', dosage: 80, dosageUnit: 'mg' }
+				{ food: inlineFood('Vitamin A', '800 mcg') },
+				{ food: inlineFood('Vitamin C', '80 mg') }
 			]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('validates supplement with existing foodId ingredient', () => {
+		const result = supplementCreateSchema.safeParse({
+			name: 'Vitamin D',
+			scheduleType: 'daily',
+			ingredients: [{ foodId: FOOD_UUID, servings: 1 }]
 		});
 		expect(result.success).toBe(true);
 	});
@@ -29,10 +50,9 @@ describe('supplementCreateSchema', () => {
 	test('validates weekly schedule with days', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin K',
-			dosage: 100,
-			dosageUnit: 'mcg',
 			scheduleType: 'weekly',
-			scheduleDays: [0, 3, 6]
+			scheduleDays: [0, 3, 6],
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(true);
 	});
@@ -40,10 +60,9 @@ describe('supplementCreateSchema', () => {
 	test('validates specific_days schedule with days', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Iron',
-			dosage: 25,
-			dosageUnit: 'mg',
 			scheduleType: 'specific_days',
-			scheduleDays: [1, 3, 5]
+			scheduleDays: [1, 3, 5],
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(true);
 	});
@@ -51,9 +70,8 @@ describe('supplementCreateSchema', () => {
 	test('rejects weekly schedule without scheduleDays', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin K',
-			dosage: 100,
-			dosageUnit: 'mcg',
-			scheduleType: 'weekly'
+			scheduleType: 'weekly',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -61,9 +79,8 @@ describe('supplementCreateSchema', () => {
 	test('rejects specific_days schedule without scheduleDays', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Iron',
-			dosage: 25,
-			dosageUnit: 'mg',
-			scheduleType: 'specific_days'
+			scheduleType: 'specific_days',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -71,29 +88,17 @@ describe('supplementCreateSchema', () => {
 	test('rejects weekly schedule with empty scheduleDays', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin K',
-			dosage: 100,
-			dosageUnit: 'mcg',
 			scheduleType: 'weekly',
-			scheduleDays: []
+			scheduleDays: [],
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
 
-	test('accepts daily schedule without scheduleDays', () => {
-		const result = supplementCreateSchema.safeParse({
-			name: 'Vitamin D',
-			dosage: 1000,
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
-		});
-		expect(result.success).toBe(true);
-	});
-
 	test('rejects missing name', () => {
 		const result = supplementCreateSchema.safeParse({
-			dosage: 1000,
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
+			scheduleType: 'daily',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -101,37 +106,24 @@ describe('supplementCreateSchema', () => {
 	test('rejects empty name', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: '',
-			dosage: 1000,
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
+			scheduleType: 'daily',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
 
-	test('rejects missing dosage', () => {
+	test('rejects supplement with no ingredients', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin D',
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
+			scheduleType: 'daily',
+			ingredients: []
 		});
 		expect(result.success).toBe(false);
 	});
 
-	test('rejects negative dosage', () => {
+	test('rejects missing ingredients', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin D',
-			dosage: -10,
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
-		});
-		expect(result.success).toBe(false);
-	});
-
-	test('rejects zero dosage', () => {
-		const result = supplementCreateSchema.safeParse({
-			name: 'Vitamin D',
-			dosage: 0,
-			dosageUnit: 'IU',
 			scheduleType: 'daily'
 		});
 		expect(result.success).toBe(false);
@@ -140,9 +132,8 @@ describe('supplementCreateSchema', () => {
 	test('rejects invalid scheduleType', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin D',
-			dosage: 1000,
-			dosageUnit: 'IU',
-			scheduleType: 'biweekly'
+			scheduleType: 'biweekly',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -150,21 +141,9 @@ describe('supplementCreateSchema', () => {
 	test('rejects scheduleDays values outside 0-6', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Vitamin K',
-			dosage: 100,
-			dosageUnit: 'mcg',
 			scheduleType: 'weekly',
-			scheduleDays: [7]
-		});
-		expect(result.success).toBe(false);
-	});
-
-	test('rejects negative scheduleDays', () => {
-		const result = supplementCreateSchema.safeParse({
-			name: 'Vitamin K',
-			dosage: 100,
-			dosageUnit: 'mcg',
-			scheduleType: 'weekly',
-			scheduleDays: [-1]
+			scheduleDays: [7],
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -172,34 +151,19 @@ describe('supplementCreateSchema', () => {
 	test('accepts optional timeOfDay', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Melatonin',
-			dosage: 3,
-			dosageUnit: 'mg',
 			scheduleType: 'daily',
-			timeOfDay: 'evening'
+			timeOfDay: 'evening',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(true);
-	});
-
-	test('accepts all timeOfDay values', () => {
-		for (const time of ['morning', 'noon', 'evening']) {
-			const result = supplementCreateSchema.safeParse({
-				name: 'Test',
-				dosage: 1,
-				dosageUnit: 'mg',
-				scheduleType: 'daily',
-				timeOfDay: time
-			});
-			expect(result.success).toBe(true);
-		}
 	});
 
 	test('rejects invalid timeOfDay', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Test',
-			dosage: 1,
-			dosageUnit: 'mg',
 			scheduleType: 'daily',
-			timeOfDay: 'midnight'
+			timeOfDay: 'midnight',
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -207,47 +171,47 @@ describe('supplementCreateSchema', () => {
 	test('accepts null timeOfDay', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Test',
-			dosage: 1,
-			dosageUnit: 'mg',
 			scheduleType: 'daily',
-			timeOfDay: null
+			timeOfDay: null,
+			ingredients: [{ foodId: FOOD_UUID }]
 		});
 		expect(result.success).toBe(true);
 	});
 
-	test('rejects ingredients with empty name', () => {
+	test('rejects ingredient with neither foodId nor food', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Multi',
-			dosage: 1,
-			dosageUnit: 'capsule',
 			scheduleType: 'daily',
-			ingredients: [{ name: '', dosage: 100, dosageUnit: 'mg' }]
+			ingredients: [{ servings: 1 }]
 		});
 		expect(result.success).toBe(false);
 	});
 
-	test('rejects ingredients with negative dosage', () => {
+	test('rejects ingredient with both foodId and food', () => {
 		const result = supplementCreateSchema.safeParse({
 			name: 'Multi',
-			dosage: 1,
-			dosageUnit: 'capsule',
 			scheduleType: 'daily',
-			ingredients: [{ name: 'Zinc', dosage: -10, dosageUnit: 'mg' }]
+			ingredients: [{ foodId: FOOD_UUID, food: inlineFood('X', '10 mg') }]
 		});
 		expect(result.success).toBe(false);
 	});
 
-	test('coerces string dosage to number', () => {
+	test('rejects invalid foodId (non-UUID)', () => {
 		const result = supplementCreateSchema.safeParse({
-			name: 'Vitamin D',
-			dosage: '1000',
-			dosageUnit: 'IU',
-			scheduleType: 'daily'
+			name: 'Multi',
+			scheduleType: 'daily',
+			ingredients: [{ foodId: 'not-a-uuid' }]
 		});
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.dosage).toBe(1000);
-		}
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects negative servings on ingredient', () => {
+		const result = supplementCreateSchema.safeParse({
+			name: 'Multi',
+			scheduleType: 'daily',
+			ingredients: [{ foodId: FOOD_UUID, servings: -1 }]
+		});
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -262,18 +226,15 @@ describe('supplementUpdateSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	test('allows updating dosage', () => {
-		const result = supplementUpdateSchema.safeParse({ dosage: 2000 });
+	test('allows updating ingredients', () => {
+		const result = supplementUpdateSchema.safeParse({
+			ingredients: [{ foodId: FOOD_UUID_2 }]
+		});
 		expect(result.success).toBe(true);
 	});
 
-	test('allows setting ingredients to null (remove all)', () => {
-		const result = supplementUpdateSchema.safeParse({ ingredients: null });
-		expect(result.success).toBe(true);
-	});
-
-	test('rejects negative dosage in update', () => {
-		const result = supplementUpdateSchema.safeParse({ dosage: -5 });
+	test('rejects empty ingredients array', () => {
+		const result = supplementUpdateSchema.safeParse({ ingredients: [] });
 		expect(result.success).toBe(false);
 	});
 
