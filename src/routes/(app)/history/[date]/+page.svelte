@@ -16,7 +16,7 @@
 
 	$effect(() => {
 		if (date) {
-			entryService.refresh(date).catch(() => {});
+			entryService.refresh(date);
 			mealTypeService.refresh();
 		}
 	});

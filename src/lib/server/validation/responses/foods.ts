@@ -71,3 +71,17 @@ export const foodsRecentResponseSchema = z
 		foods: z.array(recentFoodSchema)
 	})
 	.meta({ id: 'FoodsRecentResponse' });
+
+export const foodDuplicateGroupSchema = z
+	.object({
+		reason: z.enum(['barcode', 'name_brand']),
+		key: z.string(),
+		foods: z.array(foodSchema)
+	})
+	.meta({ id: 'FoodDuplicateGroup' });
+
+export const foodDuplicatesResponseSchema = z
+	.object({
+		groups: z.array(foodDuplicateGroupSchema)
+	})
+	.meta({ id: 'FoodDuplicatesResponse' });

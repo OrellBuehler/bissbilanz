@@ -61,9 +61,10 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {:else if openFull}
-	<Drawer.Root bind:open>
+	<Drawer.Root bind:open repositionInputs={false}>
 		<Drawer.Content
-			class="data-[vaul-drawer-direction=bottom]:max-h-[100dvh] mt-0! overflow-y-auto"
+			data-responsive-modal-openfull
+			class="data-[vaul-drawer-direction=bottom]:max-h-[var(--visual-vh,100dvh)] mt-0! overflow-y-auto"
 		>
 			<Drawer.Header class="min-w-0 text-left">
 				<Drawer.Title class="truncate">{title}</Drawer.Title>
@@ -71,7 +72,7 @@
 					<Drawer.Description class="truncate">{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="min-h-[60dvh] min-w-0 overflow-x-hidden px-4 pb-4">
+			<div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-4">
 				{@render children()}
 			</div>
 		</Drawer.Content>

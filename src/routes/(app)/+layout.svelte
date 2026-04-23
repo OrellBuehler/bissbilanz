@@ -49,6 +49,23 @@
 		setUser(data.user);
 	});
 
+	$effect(() => {
+		const vv = window.visualViewport;
+		if (!vv) return;
+		const update = () => {
+			if (vv.height < window.innerHeight && vv.scale <= 1) {
+				document.documentElement.style.setProperty('--visual-vh', `${vv.height}px`);
+				document.documentElement.classList.add('kb-open');
+			} else {
+				document.documentElement.style.removeProperty('--visual-vh');
+				document.documentElement.classList.remove('kb-open');
+			}
+		};
+		update();
+		vv.addEventListener('resize', update);
+		return () => vv.removeEventListener('resize', update);
+	});
+
 	onMount(async () => {
 		// Ensure Dexie data belongs to the current user (clears on user switch).
 		// Awaited so no component reads stale data from a previous user.

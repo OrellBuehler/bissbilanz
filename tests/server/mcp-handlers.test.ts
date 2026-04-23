@@ -877,9 +877,8 @@ describe('MCP handlers', () => {
 			mockCreateSupplementResult = { ...TEST_SUPPLEMENT, id: 'new-supp' };
 			const result = await handleCreateSupplement(TEST_USER.id, {
 				name: 'Vitamin D3',
-				dosage: 1000,
-				dosageUnit: 'IU',
-				scheduleType: 'daily'
+				scheduleType: 'daily',
+				ingredients: [{ foodId: '10000000-0000-4000-8000-000000000099' }]
 			});
 			expect(result.success).toBe(true);
 			expect(result.supplementId).toBe('new-supp');

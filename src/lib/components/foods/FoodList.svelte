@@ -6,6 +6,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import * as m from '$lib/paraglide/messages';
 
 	type FoodItem = {
@@ -28,9 +29,10 @@
 		onEdit: (id: string) => void;
 		onDelete: (id: string) => void;
 		onEnrich?: (id: string, barcode: string) => void;
+		onMerge?: (id: string) => void;
 	};
 
-	let { foods = [], onEdit, onDelete, onEnrich }: Props = $props();
+	let { foods = [], onEdit, onDelete, onEnrich, onMerge }: Props = $props();
 
 	let enrichingId = $state<string | null>(null);
 
@@ -137,6 +139,12 @@
 								>
 									<Sparkles class="mr-2 size-4" />
 									{enrichingId === food.id ? m.quality_enriching() : m.quality_enrich()}
+								</DropdownMenu.Item>
+							{/if}
+							{#if onMerge}
+								<DropdownMenu.Item onclick={() => onMerge(food.id)}>
+									<GitMerge class="mr-2 size-4" />
+									{m.foods_merge()}
 								</DropdownMenu.Item>
 							{/if}
 							<DropdownMenu.Separator />
