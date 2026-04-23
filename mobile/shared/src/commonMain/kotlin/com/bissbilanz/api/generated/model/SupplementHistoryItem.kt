@@ -15,7 +15,6 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.SupplementLog
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,15 +22,15 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param log
+ * @param supplementId
  * @param supplementName
- * @param dosage
- * @param dosageUnit
+ * @param date
+ * @param takenAt
  */
 @Serializable
 data class SupplementHistoryItem(
-    @SerialName(value = "log") @Required val log: SupplementLog,
+    @SerialName(value = "supplementId") @Required val supplementId: kotlin.String,
     @SerialName(value = "supplementName") @Required val supplementName: kotlin.String,
-    @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
-    @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
+    @SerialName(value = "date") @Required val date: kotlin.String,
+    @SerialName(value = "takenAt") @Required val takenAt: kotlin.String,
 )
