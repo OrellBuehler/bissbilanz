@@ -64,6 +64,7 @@ kotlin {
 android {
     namespace = "com.bissbilanz.shared"
     compileSdk = 36
+    compileSdkExtension = 19
     defaultConfig {
         minSdk = 26
     }
