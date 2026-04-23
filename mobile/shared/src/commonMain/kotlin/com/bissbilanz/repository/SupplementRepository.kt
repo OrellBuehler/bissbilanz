@@ -22,6 +22,14 @@ import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+// The server-side SupplementLog no longer carries a row id — it's derived from
+// food_entries keyed by (supplementId, date). The local SQLDelight cache still
+// wants a primary key, so we synthesize one from the natural key.
+private fun cacheKeyFor(
+    supplementId: String,
+    date: String,
+): String = "$supplementId-$date"
+
 class SupplementRepository(
     private val api: BissbilanzApi,
     private val db: BissbilanzDatabase,
@@ -69,16 +77,15 @@ class SupplementRepository(
             val logs =
                 checklist.filter { it.taken }.map { item ->
                     SupplementLog(
-                        id = "log_${item.supplement.id}",
                         supplementId = item.supplement.id,
-                        userId = "",
                         date = date,
                         takenAt = item.takenAt ?: "",
+                        entryIds = emptyList(),
                     )
                 }
             logs.forEach { log ->
                 db.bissbilanzDatabaseQueries.insertSupplementLog(
-                    id = log.id,
+                    id = cacheKeyFor(log.supplementId, log.date),
                     supplementId = log.supplementId,
                     date = log.date,
                     takenAt = log.takenAt,
@@ -92,11 +99,10 @@ class SupplementRepository(
                 db.bissbilanzDatabaseQueries.selectSupplementLogsByDate(date).executeAsList()
             cachedLogs.map { log ->
                 SupplementLog(
-                    id = log.id,
                     supplementId = log.supplementId,
-                    userId = "",
                     date = log.date,
                     takenAt = log.takenAt,
+                    entryIds = emptyList(),
                 )
             }
         }
@@ -110,14 +116,13 @@ class SupplementRepository(
         val logDate = date ?: now.substring(0, 10)
         val temp =
             SupplementLog(
-                id = "temp_${Uuid.random()}",
                 supplementId = supplementId,
-                userId = "",
                 date = logDate,
                 takenAt = now,
+                entryIds = emptyList(),
             )
         db.bissbilanzDatabaseQueries.insertSupplementLog(
-            id = temp.id,
+            id = cacheKeyFor(temp.supplementId, temp.date),
             supplementId = temp.supplementId,
             date = temp.date,
             takenAt = temp.takenAt,
@@ -156,17 +161,10 @@ class SupplementRepository(
             logs.map { log ->
                 val supplement = supplements[log.supplementId]
                 SupplementHistoryEntry(
-                    log =
-                        SupplementLog(
-                            id = log.id,
-                            supplementId = log.supplementId,
-                            userId = "",
-                            date = log.date,
-                            takenAt = log.takenAt ?: "",
-                        ),
+                    supplementId = log.supplementId,
                     supplementName = supplement?.name ?: "",
-                    dosage = supplement?.dosage ?: 0.0,
-                    dosageUnit = supplement?.dosageUnit ?: "",
+                    date = log.date,
+                    takenAt = log.takenAt,
                 )
             }
         }
@@ -222,8 +220,6 @@ class SupplementRepository(
             id = id,
             userId = "",
             name = supplement.name,
-            dosage = supplement.dosage,
-            dosageUnit = supplement.dosageUnit,
             scheduleType = Supplement.ScheduleType.valueOf(supplement.scheduleType.name),
             scheduleDays = supplement.scheduleDays,
             scheduleStartDate = supplement.scheduleStartDate,

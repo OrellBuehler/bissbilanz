@@ -34,6 +34,25 @@ export function isSupplementDue(
 }
 
 /**
+ * Parse "<number> <unit>" (e.g. "42 mg") out of an ingredient's `ingredientsText`.
+ * Returns `parsed: true` only when the entire text matches that pattern so the
+ * caller can preserve richer free-form labels (e.g. "5000 IU, sunflower oil")
+ * verbatim for round-trip safety.
+ */
+export function parseDosage(text: string | null | undefined): {
+	dosage: number;
+	unit: string;
+	parsed: boolean;
+} {
+	if (!text) return { dosage: 0, unit: 'mg', parsed: false };
+	const match = text.match(/^\s*([\d.]+)\s*(\S+)\s*$/);
+	if (!match) return { dosage: 0, unit: 'mg', parsed: false };
+	const n = parseFloat(match[1]);
+	if (isNaN(n)) return { dosage: 0, unit: 'mg', parsed: false };
+	return { dosage: n, unit: match[2], parsed: true };
+}
+
+/**
  * Format a schedule into a human-readable summary.
  */
 export function formatSchedule(scheduleType: ScheduleType, scheduleDays: number[] | null): string {
