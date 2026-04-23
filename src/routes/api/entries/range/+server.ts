@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listEntriesByDateRange } from '$lib/server/entries';
-import { handleApiError, requireAuth } from '$lib/server/errors';
+import { handleApiError, requireAuth, requireDate, ApiError } from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -10,14 +10,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const endDate = url.searchParams.get('endDate');
 
 		if (!startDate || !endDate) {
-			return json({ error: 'startDate and endDate parameters are required' }, { status: 400 });
+			throw new ApiError(400, 'startDate and endDate parameters are required');
 		}
-		const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-		if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-			return json({ error: 'Invalid date format, expected YYYY-MM-DD' }, { status: 400 });
-		}
+		const start = requireDate(startDate, 'startDate');
+		const end = requireDate(endDate, 'endDate');
 
-		const entries = await listEntriesByDateRange(userId, startDate, endDate);
+		const entries = await listEntriesByDateRange(userId, start, end);
 		return json({ entries });
 	} catch (error) {
 		return handleApiError(error);
