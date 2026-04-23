@@ -12,5 +12,10 @@ export type ErrorResult = { success: false; error: ZodError | Error };
 export type Result<T> = SuccessResult<T> | ErrorResult;
 
 export type DeleteResult =
-	| { blocked: true; entryCount: number; ingredientCount?: number }
+	| {
+			blocked: true;
+			entryCount: number;
+			ingredientCount?: number;
+			supplementIngredientCount?: number;
+	  }
 	| { blocked: false };

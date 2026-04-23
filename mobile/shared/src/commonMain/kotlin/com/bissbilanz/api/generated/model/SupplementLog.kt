@@ -22,19 +22,15 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param id
  * @param supplementId
- * @param userId
  * @param date
  * @param takenAt
- * @param createdAt
+ * @param entryIds
  */
 @Serializable
 data class SupplementLog(
-    @SerialName(value = "id") @Required val id: kotlin.String,
     @SerialName(value = "supplementId") @Required val supplementId: kotlin.String,
-    @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "takenAt") @Required val takenAt: kotlin.String,
-    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
+    @SerialName(value = "entryIds") @Required val entryIds: kotlin.collections.List<kotlin.String>,
 )

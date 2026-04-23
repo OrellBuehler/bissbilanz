@@ -27,11 +27,7 @@
 	let editingSupplement: DexieSupplement | null = $state(null);
 
 	const createSupplement = async (payload: SupplementPayload) => {
-		const { ingredients, ...rest } = payload;
-		await supplementService.create({
-			...rest,
-			...(ingredients ? { ingredients } : {})
-		});
+		await supplementService.create(payload);
 		showForm = false;
 	};
 
@@ -89,14 +85,11 @@
 						<div class="flex-1 min-w-0">
 							<div class="font-medium">{supplement.name}</div>
 							<div class="text-sm text-muted-foreground">
-								{supplement.dosage}
-								{supplement.dosageUnit} &middot; {formatSchedule(
-									supplement.scheduleType as ScheduleType,
-									supplement.scheduleDays
-								)}
+								{formatSchedule(supplement.scheduleType as ScheduleType, supplement.scheduleDays)}
 								{#if supplement.ingredients?.length > 0}
 									&middot; {supplement.ingredients.length === 1
-										? m.supplements_ingredient_count_one()
+										? (supplement.ingredients[0].food?.ingredientsText ??
+											m.supplements_ingredient_count_one())
 										: m.supplements_ingredient_count({
 												count: String(supplement.ingredients.length)
 											})}
