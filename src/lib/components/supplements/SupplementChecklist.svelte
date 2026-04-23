@@ -9,13 +9,19 @@
 		supplement: {
 			id: string;
 			name: string;
-			dosage: number;
-			dosageUnit: string;
 			timeOfDay: string | null;
-			ingredients?: { name: string; dosage: number; dosageUnit: string }[];
+			ingredients?: { foodId: string; food: { name: string; ingredientsText?: string | null } }[];
 		};
 		taken: boolean;
 		takenAt: string | null;
+	};
+
+	const dosageSummary = (
+		ings: { food: { ingredientsText?: string | null } }[] | undefined
+	): string => {
+		if (!ings || ings.length === 0) return '';
+		if (ings.length === 1) return ings[0].food.ingredientsText ?? '';
+		return '';
 	};
 
 	let {
@@ -92,29 +98,23 @@
 								{item.supplement.name}
 							</div>
 							<span class="text-muted-foreground mt-0.5 block text-xs sm:hidden">
-								{item.supplement.dosage}
-								{item.supplement.dosageUnit}
-								{#if item.supplement.ingredients && item.supplement.ingredients.length > 0}
+								{dosageSummary(item.supplement.ingredients)}
+								{#if item.supplement.ingredients && item.supplement.ingredients.length > 1}
 									<span class="text-xs"
-										>({item.supplement.ingredients.length === 1
-											? m.supplements_ingredient_count_one()
-											: m.supplements_ingredient_count({
-													count: String(item.supplement.ingredients.length)
-												})})</span
+										>{m.supplements_ingredient_count({
+											count: String(item.supplement.ingredients.length)
+										})}</span
 									>
 								{/if}
 							</span>
 						</div>
 						<span class="text-muted-foreground ml-auto hidden text-sm sm:block">
-							{item.supplement.dosage}
-							{item.supplement.dosageUnit}
-							{#if item.supplement.ingredients && item.supplement.ingredients.length > 0}
+							{dosageSummary(item.supplement.ingredients)}
+							{#if item.supplement.ingredients && item.supplement.ingredients.length > 1}
 								<span class="text-xs"
-									>({item.supplement.ingredients.length === 1
-										? m.supplements_ingredient_count_one()
-										: m.supplements_ingredient_count({
-												count: String(item.supplement.ingredients.length)
-											})})</span
+									>{m.supplements_ingredient_count({
+										count: String(item.supplement.ingredients.length)
+									})}</span
 								>
 							{/if}
 						</span>

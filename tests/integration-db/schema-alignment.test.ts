@@ -20,7 +20,6 @@ import {
 	favoriteMealTimeframes,
 	supplements,
 	supplementIngredients,
-	supplementLogs,
 	weightEntries,
 	oauthClients,
 	oauthAuthorizations,
@@ -200,15 +199,32 @@ describe('schema-code alignment', () => {
 		await db.delete(favoriteMealTimeframes).where(eq(favoriteMealTimeframes.id, created.id));
 	});
 
-	it('CRUD on supplements + supplement_ingredients + supplement_logs', async () => {
+	it('CRUD on supplements + supplement_ingredients', async () => {
 		const db = getTestDB(dbUrl);
+
+		// Create a backing food (kind='supplement') for the ingredient to reference
+		const [backingFood] = await db
+			.insert(foods)
+			.values({
+				userId: testUserId,
+				name: 'Cholecalciferol (D3) 1000 IU',
+				kind: 'supplement',
+				servingSize: 1,
+				servingUnit: 'g',
+				calories: 0,
+				protein: 0,
+				carbs: 0,
+				fat: 0,
+				fiber: 0,
+				vitaminD: 25
+			})
+			.returning();
+
 		const [supplement] = await db
 			.insert(supplements)
 			.values({
 				userId: testUserId,
 				name: 'Vitamin D',
-				dosage: 1000,
-				dosageUnit: 'IU',
 				scheduleType: 'daily'
 			})
 			.returning();
@@ -218,28 +234,33 @@ describe('schema-code alignment', () => {
 			.insert(supplementIngredients)
 			.values({
 				supplementId: testSupplementId,
-				name: 'Cholecalciferol',
-				dosage: 1000,
-				dosageUnit: 'IU',
+				foodId: backingFood.id,
+				servings: 1,
 				sortOrder: 0
 			})
 			.returning();
 		expect(ingredient.id).toBeDefined();
 
-		const [log] = await db
-			.insert(supplementLogs)
+		// Logging a supplement now produces a food_entries row with supplementId set
+		const [entry] = await db
+			.insert(foodEntries)
 			.values({
-				supplementId: testSupplementId,
 				userId: testUserId,
+				foodId: backingFood.id,
+				supplementId: testSupplementId,
 				date: '2025-01-01',
-				takenAt: new Date()
+				mealType: 'Snacks',
+				servings: 1,
+				eatenAt: new Date()
 			})
 			.returning();
-		expect(log.id).toBeDefined();
+		expect(entry.id).toBeDefined();
+		expect(entry.supplementId).toBe(testSupplementId);
 
-		await db.delete(supplementLogs).where(eq(supplementLogs.id, log.id));
+		await db.delete(foodEntries).where(eq(foodEntries.id, entry.id));
 		await db.delete(supplementIngredients).where(eq(supplementIngredients.id, ingredient.id));
 		await db.delete(supplements).where(eq(supplements.id, testSupplementId));
+		await db.delete(foods).where(eq(foods.id, backingFood.id));
 	});
 
 	it('CRUD on weight_entries', async () => {

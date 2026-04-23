@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "idx_food_entries_supplement_day_food_unique" ON "food_entries" USING btree ("user_id","supplement_id","date","food_id") WHERE supplement_id IS NOT NULL;

@@ -40,6 +40,17 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
 
+// Single-ingredient supplements show the backing food's dosage label
+// (e.g. "1000 IU"); multi-ingredient show an ingredient count summary.
+private fun dosageSummary(supplement: Supplement): String {
+    val ings = supplement.ingredients
+    return when {
+        ings.isEmpty() -> ""
+        ings.size == 1 -> ings[0].food.ingredientsText ?: ""
+        else -> "${ings.size} ingredients"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupplementsScreen(navController: NavController) {
@@ -225,7 +236,7 @@ fun SupplementsScreen(navController: NavController) {
                                         },
                                         supportingContent = {
                                             Text(
-                                                "${supplement.dosage.toInt()} ${supplement.dosageUnit}",
+                                                dosageSummary(supplement),
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                             )
                                         },
@@ -269,18 +280,20 @@ fun SupplementChecklistItem(
             },
             supportingContent = {
                 Column {
-                    Text("${supplement.dosage.toInt()} ${supplement.dosageUnit}")
+                    Text(dosageSummary(supplement))
                     supplement.timeOfDay?.let { tod ->
                         Text(tod.value, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    supplement.ingredients?.let { ings ->
-                        if (ings.isNotEmpty()) {
-                            Text(
-                                ings.joinToString(", ") { "${it.name} ${it.dosage.toInt()}${it.dosageUnit}" },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                    val ings = supplement.ingredients
+                    if (ings.size > 1) {
+                        Text(
+                            ings.joinToString(", ") { ing ->
+                                val label = ing.food.ingredientsText
+                                if (label.isNullOrBlank()) ing.food.name else "${ing.food.name} $label"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             },
