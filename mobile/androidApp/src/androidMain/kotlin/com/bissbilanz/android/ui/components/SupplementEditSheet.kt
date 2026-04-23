@@ -16,9 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
-import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -28,7 +29,24 @@ private data class SupplementIngredientRow(
     val name: String = "",
     val dosage: String = "",
     val dosageUnit: String = "mg",
+    // Original ingredientsText preserved when it's not a simple "<number> <unit>" label,
+    // so edits round-trip without losing richer free-form text.
+    val originalText: String? = null,
 )
+
+// Parses "42 mg" out of an existing ingredientsText so it round-trips. Returns
+// a non-null unit when the text is ENTIRELY "<number> <unit>" — otherwise we
+// preserve the original verbatim to avoid lossy rebuilds.
+private fun parseDosage(text: String?): Triple<Double?, String, String?> {
+    if (text.isNullOrBlank()) return Triple(null, "mg", null)
+    val match =
+        Regex("""^\s*([\d.]+)\s*(\S+)\s*$""").matchEntire(text)
+            ?: return Triple(null, "mg", text)
+    val n =
+        match.groupValues[1].toDoubleOrNull()
+            ?: return Triple(null, "mg", text)
+    return Triple(n, match.groupValues[2], null)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,13 +65,14 @@ fun SupplementEditSheet(
     val isEditing = supplementId != null
 
     var name by remember { mutableStateOf("") }
-    var dosage by remember { mutableStateOf("") }
-    var dosageUnit by remember { mutableStateOf("mg") }
     var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var isActive by remember { mutableStateOf(true) }
 
-    var ingredients by remember { mutableStateOf(listOf<SupplementIngredientRow>()) }
+    // Always at least one ingredient — matches server's minItems: 1 rule.
+    var ingredients by remember {
+        mutableStateOf(listOf(SupplementIngredientRow()))
+    }
 
     LaunchedEffect(supplementId) {
         if (supplementId != null) {
@@ -62,19 +81,20 @@ fun SupplementEditSheet(
                 val found = supplements.find { it.id == supplementId }
                 if (found != null) {
                     name = found.name
-                    dosage = found.dosage.toDisplayString()
-                    dosageUnit = found.dosageUnit
                     scheduleType = found.scheduleType
                     timeOfDay = found.timeOfDay?.value ?: "morning"
                     isActive = found.isActive
-                    ingredients =
+                    val rows =
                         found.ingredients.map { ing ->
+                            val (dose, unit, original) = parseDosage(ing.food.ingredientsText)
                             SupplementIngredientRow(
-                                name = ing.name,
-                                dosage = ing.dosage.toDisplayString(),
-                                dosageUnit = ing.dosageUnit,
+                                name = ing.food.name,
+                                dosage = dose?.toString().orEmpty(),
+                                dosageUnit = unit,
+                                originalText = original,
                             )
                         }
+                    ingredients = rows.ifEmpty { listOf(SupplementIngredientRow()) }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -88,6 +108,13 @@ fun SupplementEditSheet(
 
     val timeOptions = listOf("morning", "noon", "evening", "anytime")
     val unitOptions = listOf("mg", "mcg", "g", "IU", "ml", "drops", "capsules", "tablets")
+    val isValid =
+        name.isNotBlank() &&
+            ingredients.isNotEmpty() &&
+            ingredients.all { row ->
+                row.name.isNotBlank() &&
+                    ((row.dosage.toDoubleOrNull() ?: 0.0) > 0.0 || !row.originalText.isNullOrBlank())
+            }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -116,7 +143,6 @@ fun SupplementEditSheet(
                     fontWeight = FontWeight.Bold,
                 )
 
-                // Basic info
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -124,48 +150,6 @@ fun SupplementEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = dosage,
-                        onValueChange = { dosage = it },
-                        label = { Text("Dosage *") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                    )
-                    var showUnitMenu by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = showUnitMenu,
-                        onExpandedChange = { showUnitMenu = it },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        OutlinedTextField(
-                            value = dosageUnit,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Unit") },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUnitMenu)
-                            },
-                            modifier = Modifier.menuAnchor(),
-                            singleLine = true,
-                        )
-                        ExposedDropdownMenu(
-                            expanded = showUnitMenu,
-                            onDismissRequest = { showUnitMenu = false },
-                        ) {
-                            unitOptions.forEach { unit ->
-                                DropdownMenuItem(
-                                    text = { Text(unit) },
-                                    onClick = {
-                                        dosageUnit = unit
-                                        showUnitMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -223,7 +207,7 @@ fun SupplementEditSheet(
 
                 HorizontalDivider()
 
-                // Ingredients
+                // Ingredients — every supplement must have at least one.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -263,11 +247,13 @@ fun SupplementEditSheet(
                                 )
                                 IconButton(
                                     onClick = {
+                                        if (ingredients.size <= 1) return@IconButton
                                         ingredients =
                                             ingredients.toMutableList().apply {
                                                 removeAt(index)
                                             }
                                     },
+                                    enabled = ingredients.size > 1,
                                     modifier = Modifier.size(32.dp),
                                 ) {
                                     Icon(
@@ -306,18 +292,43 @@ fun SupplementEditSheet(
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                 )
-                                OutlinedTextField(
-                                    value = ingredient.dosageUnit,
-                                    onValueChange = { newUnit ->
-                                        ingredients =
-                                            ingredients.toMutableList().apply {
-                                                set(index, ingredient.copy(dosageUnit = newUnit))
-                                            }
-                                    },
-                                    label = { Text("Unit") },
+                                var showUnitMenu by remember { mutableStateOf(false) }
+                                ExposedDropdownMenuBox(
+                                    expanded = showUnitMenu,
+                                    onExpandedChange = { showUnitMenu = it },
                                     modifier = Modifier.weight(0.6f),
-                                    singleLine = true,
-                                )
+                                ) {
+                                    OutlinedTextField(
+                                        value = ingredient.dosageUnit,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Unit") },
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                                expanded = showUnitMenu,
+                                            )
+                                        },
+                                        modifier = Modifier.menuAnchor(),
+                                        singleLine = true,
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = showUnitMenu,
+                                        onDismissRequest = { showUnitMenu = false },
+                                    ) {
+                                        unitOptions.forEach { unit ->
+                                            DropdownMenuItem(
+                                                text = { Text(unit) },
+                                                onClick = {
+                                                    ingredients =
+                                                        ingredients.toMutableList().apply {
+                                                            set(index, ingredient.copy(dosageUnit = unit))
+                                                        }
+                                                    showUnitMenu = false
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -345,35 +356,51 @@ fun SupplementEditSheet(
                     }
                     Button(
                         onClick = {
-                            if (name.isBlank() || dosage.toDoubleOrNull() == null) return@Button
+                            if (!isValid) return@Button
                             isSaving = true
                             scope.launch {
                                 try {
+                                    val ingredientInputs =
+                                        ingredients.mapIndexed { idx, row ->
+                                            val dose = row.dosage.toDoubleOrNull() ?: 0.0
+                                            // Prefer a rebuilt "<dosage> <unit>" label; fall back to
+                                            // the preserved originalText for free-form labels.
+                                            val label =
+                                                when {
+                                                    dose > 0.0 -> "${row.dosage.trim()} ${row.dosageUnit}"
+                                                    !row.originalText.isNullOrBlank() -> row.originalText
+                                                    else -> ""
+                                                }
+                                            SupplementIngredientInput(
+                                                food =
+                                                    FoodCreate(
+                                                        name = row.name.trim(),
+                                                        servingSize = 1.0,
+                                                        servingUnit = ServingUnit.g,
+                                                        calories = 0.0,
+                                                        protein = 0.0,
+                                                        carbs = 0.0,
+                                                        fat = 0.0,
+                                                        fiber = 0.0,
+                                                        ingredientsText = label,
+                                                    ),
+                                                servings = 1.0,
+                                                sortOrder = idx,
+                                            )
+                                        }
                                     val create =
                                         SupplementCreate(
                                             name = name.trim(),
-                                            dosage = dosage.toDoubleOrNull() ?: 0.0,
-                                            dosageUnit = dosageUnit,
                                             scheduleType =
                                                 GenSupplementCreate.ScheduleType.entries.first {
                                                     it.value == scheduleType.value
                                                 },
+                                            ingredients = ingredientInputs,
                                             timeOfDay =
                                                 GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
                                                     tod.value == timeOfDay
                                                 },
                                             isActive = isActive,
-                                            ingredients =
-                                                ingredients
-                                                    .filter { it.name.isNotBlank() }
-                                                    .mapIndexed { idx, ing ->
-                                                        SupplementIngredientInput(
-                                                            name = ing.name.trim(),
-                                                            dosage = ing.dosage.toDoubleOrNull() ?: 0.0,
-                                                            dosageUnit = ing.dosageUnit,
-                                                            sortOrder = idx,
-                                                        )
-                                                    },
                                         )
                                     if (isEditing) {
                                         val id = supplementId ?: return@launch
@@ -393,7 +420,7 @@ fun SupplementEditSheet(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSaving && name.isNotBlank(),
+                        enabled = !isSaving && isValid,
                     ) {
                         Text("Save")
                     }

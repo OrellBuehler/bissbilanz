@@ -8,8 +8,13 @@ import type { paths } from '$lib/api/generated/schema';
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
 type FoodUpdate = paths['/api/foods/{id}']['patch']['requestBody']['content']['application/json'];
 
+// Supplement backing foods share the Dexie `foods` table but must not appear
+// in user-facing food lists. Treat a missing `kind` field as regular food so
+// pre-v4 cached rows still show up.
+const isRegularFood = (f: DexieFood) => (f.kind ?? 'food') === 'food';
+
 function allFoods() {
-	return liveQuery(() => db.foods.orderBy('name').toArray());
+	return liveQuery(() => db.foods.orderBy('name').filter(isRegularFood).toArray());
 }
 
 function foodById(id: string) {
@@ -18,12 +23,14 @@ function foodById(id: string) {
 
 function search(query: string) {
 	return liveQuery(() =>
-		db.foods.filter((f) => f.name.toLowerCase().includes(query.toLowerCase())).toArray()
+		db.foods
+			.filter((f) => isRegularFood(f) && f.name.toLowerCase().includes(query.toLowerCase()))
+			.toArray()
 	);
 }
 
 function favorites() {
-	return liveQuery(() => db.foods.filter((f) => f.isFavorite).toArray());
+	return liveQuery(() => db.foods.filter((f) => isRegularFood(f) && f.isFavorite).toArray());
 }
 
 async function refresh() {
@@ -32,10 +39,14 @@ async function refresh() {
 		if (data) {
 			const serverFoods = data.foods as unknown as DexieFood[];
 			const serverIds = new Set(serverFoods.map((f) => f.id));
-			const localIds = await db.foods.toCollection().primaryKeys();
-			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
+			// Only reconcile regular-food rows; supplement backing foods are
+			// managed by the supplement service and must not be wiped here.
+			const localFoods = await db.foods.toArray();
+			const staleIds = localFoods
+				.filter((f) => isRegularFood(f) && !serverIds.has(f.id))
+				.map((f) => f.id);
 			await db.transaction('rw', db.foods, db.syncMeta, async () => {
-				if (staleIds.length > 0) await db.foods.bulkDelete(staleIds as string[]);
+				if (staleIds.length > 0) await db.foods.bulkDelete(staleIds);
 				await db.foods.bulkPut(serverFoods);
 				await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: Date.now() });
 			});
@@ -67,6 +78,7 @@ async function create(food: FoodCreate) {
 		userId: '',
 		name: food.name,
 		brand: food.brand ?? null,
+		kind: 'food',
 		servingSize: food.servingSize,
 		servingUnit: food.servingUnit,
 		calories: food.calories,

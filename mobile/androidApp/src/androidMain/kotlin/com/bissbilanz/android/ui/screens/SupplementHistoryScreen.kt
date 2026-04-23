@@ -27,18 +27,20 @@ import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.model.ScheduleType
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
-import com.bissbilanz.model.SupplementIngredient
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
-import kotlin.math.roundToInt
+
+private data class IngredientRow(
+    val name: String,
+    val detail: String,
+)
 
 private data class DayItem(
     val name: String,
-    val dosage: Double,
-    val dosageUnit: String,
-    val ingredients: List<SupplementIngredient>,
+    val summary: String,
+    val ingredients: List<IngredientRow>,
 )
 
 private data class DayAdherence(
@@ -85,7 +87,7 @@ private fun computeAdherence(
 
     val logsByDate = mutableMapOf<String, MutableSet<String>>()
     for (entry in history) {
-        logsByDate.getOrPut(entry.log.date) { mutableSetOf() }.add(entry.log.supplementId)
+        logsByDate.getOrPut(entry.date) { mutableSetOf() }.add(entry.supplementId)
     }
 
     val days = mutableListOf<DayAdherence>()
@@ -99,7 +101,26 @@ private fun computeAdherence(
         if (due.isNotEmpty()) {
             val takenIds = logsByDate[dateStr] ?: emptySet()
 
-            fun Supplement.toItem() = DayItem(name, dosage, dosageUnit, ingredients ?: emptyList())
+            fun Supplement.toItem(): DayItem {
+                val ings = ingredients
+                val summary =
+                    when {
+                        ings.isEmpty() -> ""
+                        ings.size == 1 -> ings[0].food.ingredientsText.orEmpty()
+                        else -> "${ings.size} ingredients"
+                    }
+                return DayItem(
+                    name = name,
+                    summary = summary,
+                    ingredients =
+                        ings.map { ing ->
+                            IngredientRow(
+                                name = ing.food.name,
+                                detail = ing.food.ingredientsText.orEmpty(),
+                            )
+                        },
+                )
+            }
             days.add(
                 DayAdherence(
                     date = dateStr,
@@ -367,14 +388,9 @@ private fun HistorySupplementRow(
     expandedItems: Set<String>,
     onToggleExpand: (String) -> Unit,
 ) {
-    val hasIngredients = item.ingredients.isNotEmpty()
+    val hasIngredients = item.ingredients.size > 1
     val isExpanded = expandedItems.contains(itemKey)
-    val dosageText =
-        if (item.dosage == item.dosage.roundToInt().toDouble()) {
-            "${item.dosage.roundToInt()} ${item.dosageUnit}"
-        } else {
-            "${item.dosage} ${item.dosageUnit}"
-        }
+    val dosageText = item.summary
 
     Column {
         Row(
@@ -433,14 +449,10 @@ private fun HistorySupplementRow(
         AnimatedVisibility(visible = hasIngredients && isExpanded) {
             Column(modifier = Modifier.padding(start = 46.dp)) {
                 item.ingredients.forEach { ing ->
-                    val ingDosage =
-                        if (ing.dosage == ing.dosage.roundToInt().toDouble()) {
-                            "${ing.dosage.roundToInt()} ${ing.dosageUnit}"
-                        } else {
-                            "${ing.dosage} ${ing.dosageUnit}"
-                        }
+                    val label =
+                        if (ing.detail.isBlank()) ing.name else "${ing.name} — ${ing.detail}"
                     Text(
-                        "${ing.name} — $ingDosage",
+                        label,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

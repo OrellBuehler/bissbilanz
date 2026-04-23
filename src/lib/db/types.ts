@@ -10,6 +10,7 @@ export type DexieFood = {
 	userId: string;
 	name: string;
 	brand: string | null;
+	kind: 'food' | 'supplement';
 	servingSize: number;
 	servingUnit: string;
 	calories: number;
@@ -181,18 +182,16 @@ export type DexieCustomMealType = {
 export type DexieSupplementIngredient = {
 	id: string;
 	supplementId: string;
-	name: string;
-	dosage: number;
-	dosageUnit: string;
+	foodId: string;
+	servings: number;
 	sortOrder: number;
+	food: DexieFood;
 };
 
 export type DexieSupplement = {
 	id: string;
 	userId: string;
 	name: string;
-	dosage: number;
-	dosageUnit: string;
 	scheduleType: string;
 	scheduleDays: number[] | null;
 	scheduleStartDate: string | null;
@@ -204,13 +203,12 @@ export type DexieSupplement = {
 	ingredients: DexieSupplementIngredient[];
 };
 
+/** Client-side representation of a supplement being taken (derived from food_entries). */
 export type DexieSupplementLog = {
-	id: string;
 	supplementId: string;
-	userId: string;
 	date: string;
 	takenAt: string;
-	createdAt: string | null;
+	entryIds: string[];
 };
 
 // ── Weight ─────────────────────────────────────────────────────────
