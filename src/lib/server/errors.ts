@@ -3,6 +3,38 @@ import * as Sentry from '@sentry/sveltekit';
 import { ZodError } from 'zod';
 
 /**
+ * Narrow type for postgres.js server errors exposed as `Error.cause`.
+ * The underlying driver tags these with `code: 'ERR_POSTGRES_SERVER_ERROR'`
+ * and carries SQLSTATE in `errno` plus optional `constraint`/`detail` fields.
+ */
+type PgErrorCause = {
+	code: 'ERR_POSTGRES_SERVER_ERROR';
+	errno?: string;
+	constraint?: string;
+	detail?: string;
+};
+
+function isPgErrorCause(value: unknown): value is PgErrorCause {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'code' in value &&
+		(value as { code: unknown }).code === 'ERR_POSTGRES_SERVER_ERROR'
+	);
+}
+
+/**
+ * Extracts a postgres.js server error from a thrown value, whether it was
+ * wrapped as `Error.cause` (Drizzle's usual path) or thrown directly.
+ */
+function extractPgError(error: unknown): PgErrorCause | null {
+	const cause = error instanceof Error ? error.cause : error;
+	if (isPgErrorCause(cause)) return cause;
+	if (isPgErrorCause(error)) return error;
+	return null;
+}
+
+/**
  * Custom API error class for throwing errors with status codes
  */
 export class ApiError extends Error {
@@ -66,21 +98,13 @@ export function handleApiError(error: unknown): Response {
 		);
 	}
 
-	const cause = error instanceof Error && 'cause' in error ? (error as any).cause : error;
-	if (
-		cause &&
-		typeof cause === 'object' &&
-		'code' in cause &&
-		cause.code === 'ERR_POSTGRES_SERVER_ERROR'
-	) {
-		const pg = cause as any;
-		if (pg.errno === '23505') {
-			const constraint = pg.constraint ?? '';
-			if (constraint.includes('barcode')) {
-				return json({ error: 'duplicate_barcode' }, { status: 409 });
-			}
-			return json({ error: 'duplicate_entry' }, { status: 409 });
+	const pg = extractPgError(error);
+	if (pg && pg.errno === '23505') {
+		const constraint = pg.constraint ?? '';
+		if (constraint.includes('barcode')) {
+			return json({ error: 'duplicate_barcode' }, { status: 409 });
 		}
+		return json({ error: 'duplicate_entry' }, { status: 409 });
 	}
 
 	Sentry.captureException(error);
