@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.FoodCreate
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -22,15 +23,15 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param name
- * @param dosage
- * @param dosageUnit
+ * @param foodId
+ * @param food
+ * @param servings
  * @param sortOrder
  */
 @Serializable
 data class SupplementIngredientInput(
-    @SerialName(value = "name") @Required val name: kotlin.String,
-    @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
-    @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
+    @SerialName(value = "foodId") val foodId: kotlin.String? = null,
+    @SerialName(value = "food") val food: FoodCreate? = null,
+    @SerialName(value = "servings") val servings: kotlin.Double? = null,
     @SerialName(value = "sortOrder") val sortOrder: kotlin.Int? = null,
 )

@@ -11,7 +11,6 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { isSupplementDue } from '$lib/utils/supplements';
 	import type { ScheduleType } from '$lib/supplement-units';
-	import { round2 } from '$lib/utils/number';
 	import { api } from '$lib/api/client';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -20,27 +19,18 @@
 
 	type IngredientInfo = {
 		name: string;
-		dosage: number;
-		dosageUnit: string;
+		detail: string;
 	};
 
 	type HistoryEntry = {
-		log: {
-			id: string;
-			supplementId: string;
-			userId: string;
-			date: string;
-			takenAt: string;
-		};
+		supplementId: string;
 		supplementName: string;
-		dosage: number;
-		dosageUnit: string;
+		date: string;
+		takenAt: string;
 	};
 
 	type DayItem = {
 		name: string;
-		dosage: number;
-		dosageUnit: string;
 		ingredients: IngredientInfo[];
 	};
 
@@ -87,9 +77,9 @@
 
 		const logsByDate = new Map<string, Set<string>>();
 		for (const entry of history) {
-			const date = entry.log.date;
+			const date = entry.date;
 			if (!logsByDate.has(date)) logsByDate.set(date, new Set());
-			logsByDate.get(date)!.add(entry.log.supplementId);
+			logsByDate.get(date)!.add(entry.supplementId);
 		}
 
 		const days: DayAdherence[] = [];
@@ -111,9 +101,10 @@
 			const takenIds = logsByDate.get(dateStr) ?? new Set();
 			const toItem = (s: DexieSupplement): DayItem => ({
 				name: s.name,
-				dosage: s.dosage,
-				dosageUnit: s.dosageUnit,
-				ingredients: s.ingredients ?? []
+				ingredients: (s.ingredients ?? []).map((ing) => ({
+					name: ing.food?.name ?? '',
+					detail: ing.food?.ingredientsText ?? ''
+				}))
 			});
 			days.push({
 				date: dateStr,
@@ -193,17 +184,16 @@
 										{/if}
 										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
 											<span class="min-w-0 wrap-break-word">{item.name}</span>
-											<span class="text-muted-foreground"
-												>{round2(item.dosage)} {item.dosageUnit}</span
-											>
+											{#if item.ingredients.length === 1}
+												<span class="text-muted-foreground">{item.ingredients[0].detail}</span>
+											{/if}
 										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
 												<div class="wrap-break-word text-xs text-muted-foreground">
-													{ing.name} — {round2(ing.dosage)}
-													{ing.dosageUnit}
+													{ing.name}{ing.detail ? ` — ${ing.detail}` : ''}
 												</div>
 											{/each}
 										</div>
@@ -232,17 +222,16 @@
 										{/if}
 										<span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
 											<span class="min-w-0 wrap-break-word text-muted-foreground">{item.name}</span>
-											<span class="text-muted-foreground"
-												>{round2(item.dosage)} {item.dosageUnit}</span
-											>
+											{#if item.ingredients.length === 1}
+												<span class="text-muted-foreground">{item.ingredients[0].detail}</span>
+											{/if}
 										</span>
 									</button>
 									{#if item.ingredients.length > 0 && expandedItems.has(itemKey)}
 										<div class="ml-10 mt-1 mb-1 space-y-0.5">
 											{#each item.ingredients as ing}
 												<div class="wrap-break-word text-xs text-muted-foreground">
-													{ing.name} — {round2(ing.dosage)}
-													{ing.dosageUnit}
+													{ing.name}{ing.detail ? ` — ${ing.detail}` : ''}
 												</div>
 											{/each}
 										</div>
