@@ -24,8 +24,6 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param name
- * @param dosage
- * @param dosageUnit
  * @param scheduleType
  * @param scheduleDays
  * @param scheduleStartDate
@@ -37,8 +35,6 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class SupplementUpdate(
     @SerialName(value = "name") val name: kotlin.String? = null,
-    @SerialName(value = "dosage") val dosage: kotlin.Double? = null,
-    @SerialName(value = "dosageUnit") val dosageUnit: kotlin.String? = null,
     @SerialName(value = "scheduleType") val scheduleType: SupplementUpdate.ScheduleType? = null,
     @SerialName(value = "scheduleDays") val scheduleDays: kotlin.collections.List<kotlin.Int>? = null,
     @SerialName(value = "scheduleStartDate") val scheduleStartDate: kotlin.String? = null,

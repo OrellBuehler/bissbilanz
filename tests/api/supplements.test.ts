@@ -1,12 +1,16 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
-import {
-	TEST_USER,
-	TEST_SUPPLEMENT,
-	TEST_SUPPLEMENT_LOG,
-	VALID_SUPPLEMENT_PAYLOAD
-} from '../helpers/fixtures';
+import { TEST_USER, TEST_SUPPLEMENT, VALID_SUPPLEMENT_PAYLOAD } from '../helpers/fixtures';
+
+// Replacement for the old TEST_SUPPLEMENT_LOG — supplement logs are now derived
+// from food_entries, so the API returns a { supplementId, date, takenAt, entryIds } shape.
+const TEST_SUPPLEMENT_LOG = {
+	supplementId: TEST_SUPPLEMENT.id,
+	date: '2026-02-17',
+	takenAt: new Date('2026-02-17T08:00:00Z'),
+	entryIds: ['10000000-0000-4000-8000-0000000000e1']
+};
 
 let mockListResult: any[] = [];
 let mockCreateResult: any = null;
