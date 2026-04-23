@@ -7,12 +7,30 @@ enum ScheduleType: String, Codable {
     case specificDays = "specific_days"
 }
 
+enum FoodKind: String, Codable {
+    case food
+    case supplement
+}
+
+struct SupplementBackingFood: Codable, Identifiable {
+    let id: String
+    let name: String
+    let brand: String?
+    let kind: FoodKind
+    let servingSize: Double
+    let servingUnit: String
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let fiber: Double
+    let ingredientsText: String?
+}
+
 struct Supplement: Codable, Identifiable {
     let id: String
     let userId: String
     let name: String
-    let dosage: Double
-    let dosageUnit: String
     let scheduleType: ScheduleType
     let scheduleDays: [Int]?
     let scheduleStartDate: String?
@@ -21,31 +39,29 @@ struct Supplement: Codable, Identifiable {
     let timeOfDay: String?
     let createdAt: String?
     let updatedAt: String?
-    let ingredients: [SupplementIngredient]?
+    let ingredients: [SupplementIngredient]
 }
 
 struct SupplementIngredient: Codable, Identifiable {
-    let id: String?
-    let supplementId: String?
-    let name: String
-    let dosage: Double
-    let dosageUnit: String
-    let sortOrder: Int
-}
-
-struct SupplementLog: Codable, Identifiable {
     let id: String
     let supplementId: String
-    let userId: String
+    let foodId: String
+    let servings: Double
+    let sortOrder: Int
+    let food: SupplementBackingFood
+}
+
+struct SupplementLog: Codable {
+    let supplementId: String
     let date: String
     let takenAt: String
-    let createdAt: String?
+    let entryIds: [String]
 }
 
 struct SupplementChecklist: Codable, Identifiable {
     let supplement: Supplement
     let taken: Bool
-    let log: SupplementLog?
+    let takenAt: String?
 
     var id: String { supplement.id }
 }
@@ -68,21 +84,17 @@ struct SupplementChecklistResponse: Codable {
 
 struct SupplementCreate: Codable {
     let name: String
-    let dosage: Double
-    let dosageUnit: String
     let scheduleType: ScheduleType
     var scheduleDays: [Int]?
     var scheduleStartDate: String?
     var isActive: Bool?
     var sortOrder: Int?
     var timeOfDay: String?
-    var ingredients: [SupplementIngredientInput]?
+    let ingredients: [SupplementIngredientInput]
 }
 
 struct SupplementUpdate: Codable {
     var name: String?
-    var dosage: Double?
-    var dosageUnit: String?
     var scheduleType: ScheduleType?
     var scheduleDays: [Int]?
     var scheduleStartDate: String?
@@ -93,10 +105,22 @@ struct SupplementUpdate: Codable {
 }
 
 struct SupplementIngredientInput: Codable {
-    let name: String
-    let dosage: Double
-    let dosageUnit: String
+    var foodId: String?
+    var food: SupplementBackingFoodInput?
+    var servings: Double?
     var sortOrder: Int?
 }
 
-
+// Inline backing food payload — kept minimal to match the web form; the server
+// normalises any missing macro fields to zero.
+struct SupplementBackingFoodInput: Codable {
+    let name: String
+    let servingSize: Double
+    let servingUnit: String
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let fiber: Double
+    var ingredientsText: String?
+}

@@ -26,6 +26,10 @@ export type { ScheduleType } from '../supplement-units';
 export { scheduleTypeValues } from '../supplement-units';
 export const scheduleTypeEnum = pgEnum('schedule_type', scheduleTypeValues);
 
+export const foodKindValues = ['food', 'supplement'] as const;
+export type FoodKind = (typeof foodKindValues)[number];
+export const foodKindEnum = pgEnum('food_kind', foodKindValues);
+
 // Users (from Infomaniak OIDC)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -66,6 +70,7 @@ export const foods = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		brand: text('brand'),
+		kind: foodKindEnum('kind').notNull().default('food'),
 		servingSize: real('serving_size').notNull(),
 		servingUnit: servingUnitEnum('serving_unit').notNull(),
 		calories: real('calories').notNull(),
@@ -138,6 +143,7 @@ export const foods = pgTable(
 			.on(table.userId, table.barcode)
 			.where(sql`barcode IS NOT NULL`),
 		index('idx_foods_user_name').on(table.userId, table.name),
+		index('idx_foods_user_kind').on(table.userId, table.kind),
 		check('foods_serving_positive', sql`${table.servingSize} > 0`),
 		check(
 			'foods_nutrition_nonnegative',
@@ -184,6 +190,7 @@ export const foodEntries = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		foodId: uuid('food_id').references(() => foods.id, { onDelete: 'restrict' }),
 		recipeId: uuid('recipe_id').references(() => recipes.id, { onDelete: 'restrict' }),
+		supplementId: uuid('supplement_id').references(() => supplements.id, { onDelete: 'set null' }),
 		date: date('date').notNull(),
 		mealType: text('meal_type').notNull(),
 		servings: real('servings').notNull(),
@@ -202,6 +209,14 @@ export const foodEntries = pgTable(
 		index('idx_food_entries_user_date').on(table.userId, table.date),
 		index('idx_food_entries_food_id').on(table.foodId),
 		index('idx_food_entries_recipe_id').on(table.recipeId),
+		index('idx_food_entries_supplement_id').on(table.supplementId),
+		index('idx_food_entries_user_supplement_date').on(table.userId, table.supplementId, table.date),
+		// One log per (supplement, day, ingredient) — prevents concurrent double-taps
+		// from producing duplicate ingredient sets. Partial: only applies to
+		// supplement-tagged entries so regular food logs aren't constrained.
+		uniqueIndex('idx_food_entries_supplement_day_food_unique')
+			.on(table.userId, table.supplementId, table.date, table.foodId)
+			.where(sql`supplement_id IS NOT NULL`),
 		index('idx_food_entries_created_at').on(table.createdAt),
 		check('food_entries_servings_positive', sql`${table.servings} > 0`),
 		check(
@@ -364,7 +379,7 @@ export const favoriteMealTimeframes = pgTable(
 	]
 );
 
-// Supplements
+// Supplements — scheduling/reminder container; nutrients live on backing foods per ingredient
 export const supplements = pgTable(
 	'supplements',
 	{
@@ -373,8 +388,6 @@ export const supplements = pgTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
-		dosage: real('dosage').notNull(),
-		dosageUnit: text('dosage_unit').notNull(),
 		scheduleType: scheduleTypeEnum('schedule_type').notNull(),
 		scheduleDays: integer('schedule_days').array(),
 		scheduleStartDate: date('schedule_start_date'),
@@ -387,7 +400,6 @@ export const supplements = pgTable(
 	(table) => [
 		index('idx_supplements_user_id').on(table.userId),
 		index('idx_supplements_user_active').on(table.userId, table.isActive),
-		check('supplements_dosage_positive', sql`${table.dosage} > 0`),
 		check(
 			'supplements_schedule_days_required',
 			sql`${table.scheduleType} NOT IN ('weekly', 'specific_days') OR (${table.scheduleDays} IS NOT NULL AND array_length(${table.scheduleDays}, 1) > 0)`
@@ -395,7 +407,7 @@ export const supplements = pgTable(
 	]
 );
 
-// Supplement Ingredients
+// Supplement Ingredients — each ingredient is backed by a food (kind='supplement') carrying its nutrients
 export const supplementIngredients = pgTable(
 	'supplement_ingredients',
 	{
@@ -403,36 +415,16 @@ export const supplementIngredients = pgTable(
 		supplementId: uuid('supplement_id')
 			.notNull()
 			.references(() => supplements.id, { onDelete: 'cascade' }),
-		name: text('name').notNull(),
-		dosage: real('dosage').notNull(),
-		dosageUnit: text('dosage_unit').notNull(),
+		foodId: uuid('food_id')
+			.notNull()
+			.references(() => foods.id, { onDelete: 'restrict' }),
+		servings: real('servings').notNull().default(1),
 		sortOrder: integer('sort_order').notNull().default(0)
 	},
 	(table) => [
 		index('idx_supplement_ingredients_supplement_id').on(table.supplementId),
-		check('supplement_ingredients_dosage_positive', sql`${table.dosage} > 0`)
-	]
-);
-
-// Supplement Logs
-export const supplementLogs = pgTable(
-	'supplement_logs',
-	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		supplementId: uuid('supplement_id')
-			.notNull()
-			.references(() => supplements.id, { onDelete: 'cascade' }),
-		userId: uuid('user_id')
-			.notNull()
-			.references(() => users.id, { onDelete: 'cascade' }),
-		date: date('date').notNull(),
-		takenAt: timestamp('taken_at', { withTimezone: true }).notNull(),
-		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
-	},
-	(table) => [
-		uniqueIndex('idx_supplement_logs_unique').on(table.supplementId, table.date),
-		index('idx_supplement_logs_user_date').on(table.userId, table.date),
-		index('idx_supplement_logs_supplement_id').on(table.supplementId)
+		index('idx_supplement_ingredients_food_id').on(table.foodId),
+		check('supplement_ingredients_servings_positive', sql`${table.servings} > 0`)
 	]
 );
 
@@ -633,8 +625,6 @@ export type Supplement = typeof supplements.$inferSelect;
 export type NewSupplement = typeof supplements.$inferInsert;
 export type SupplementIngredient = typeof supplementIngredients.$inferSelect;
 export type NewSupplementIngredient = typeof supplementIngredients.$inferInsert;
-export type SupplementLog = typeof supplementLogs.$inferSelect;
-export type NewSupplementLog = typeof supplementLogs.$inferInsert;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type NewOAuthClient = typeof oauthClients.$inferInsert;
 export type OAuthAuthorization = typeof oauthAuthorizations.$inferSelect;

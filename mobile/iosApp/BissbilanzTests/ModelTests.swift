@@ -368,34 +368,22 @@ struct SupplementModelTests {
     func supplementChecklistId() {
         let supplement = Supplement(
             id: "s1", userId: "u1", name: "Vitamin D",
-            dosage: 4000, dosageUnit: "IU",
             scheduleType: .daily, scheduleDays: nil,
             scheduleStartDate: nil, isActive: true, sortOrder: 0,
             timeOfDay: "morning", createdAt: nil, updatedAt: nil,
-            ingredients: nil
+            ingredients: []
         )
-        let checklist = SupplementChecklist(supplement: supplement, taken: false, log: nil)
+        let checklist = SupplementChecklist(supplement: supplement, taken: false, takenAt: nil)
         #expect(checklist.id == "s1")
     }
 
-    @Test("SupplementHistoryItem id uses supplement id")
+    @Test("SupplementHistoryItem id combines supplement + date")
     func supplementHistoryItemId() {
-        let supplement = Supplement(
-            id: "s2", userId: "u1", name: "Omega-3",
-            dosage: 1000, dosageUnit: "mg",
-            scheduleType: .daily, scheduleDays: nil,
-            scheduleStartDate: nil, isActive: true, sortOrder: 1,
-            timeOfDay: nil, createdAt: nil, updatedAt: nil,
-            ingredients: nil
+        let item = SupplementHistoryItem(
+            supplementId: "s2", supplementName: "Omega-3",
+            date: "2026-03-12", takenAt: "2026-03-12T08:00:00Z"
         )
-        let item = SupplementHistoryItem(supplement: supplement, taken: true, log: nil)
-        #expect(item.id == "s2")
-    }
-
-    @Test("SupplementHistoryEntry id uses date")
-    func supplementHistoryEntryId() {
-        let entry = SupplementHistoryEntry(date: "2026-03-12", supplements: [])
-        #expect(entry.id == "2026-03-12")
+        #expect(item.id == "s2-2026-03-12")
     }
 }
 

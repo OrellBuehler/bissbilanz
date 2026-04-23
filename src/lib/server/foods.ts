@@ -1,5 +1,5 @@
 import { getDB } from '$lib/server/db';
-import { foods, foodEntries, recipeIngredients } from '$lib/server/schema';
+import { foods, foodEntries, recipeIngredients, supplementIngredients } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, getTableColumns, ilike, isNotNull, sql } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
@@ -67,7 +67,7 @@ export const getFood = async (userId: string, id: string) => {
 
 export const listFoods = async (
 	userId: string,
-	options?: { query?: string; limit?: number; offset?: number }
+	options?: { query?: string; limit?: number; offset?: number; includeSupplements?: boolean }
 ) => {
 	const db = getDB();
 	const offset = options?.offset ?? 0;
@@ -75,9 +75,10 @@ export const listFoods = async (
 		?.replace(/\\/g, '\\\\')
 		.replace(/%/g, '\\%')
 		.replace(/_/g, '\\_');
+	const kindFilter = options?.includeSupplements ? undefined : eq(foods.kind, 'food');
 	const whereClause = escapedQuery
-		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`))
-		: eq(foods.userId, userId);
+		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`), kindFilter)
+		: and(eq(foods.userId, userId), kindFilter);
 
 	const q = db.select().from(foods).where(whereClause).orderBy(foods.name);
 	if (options?.limit !== undefined) q.limit(options.limit);
@@ -160,15 +161,33 @@ export const deleteFood = async (
 	const db = getDB();
 
 	return db.transaction(async (tx) => {
-		const [entries, ingredients] = await Promise.all([
+		const [entries, ingredients, supplementIngs] = await Promise.all([
 			tx
 				.select({ count: count() })
 				.from(foodEntries)
 				.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId))),
-			tx.select({ count: count() }).from(recipeIngredients).where(eq(recipeIngredients.foodId, id))
+			tx.select({ count: count() }).from(recipeIngredients).where(eq(recipeIngredients.foodId, id)),
+			tx
+				.select({ count: count() })
+				.from(supplementIngredients)
+				.where(eq(supplementIngredients.foodId, id))
 		]);
 		const entryCount = entries[0].count;
 		const ingredientCount = ingredients[0].count;
+		const supplementIngredientCount = supplementIngs[0].count;
+
+		// Supplement ingredients use ON DELETE RESTRICT on foodId, so they would
+		// block a hard delete at the DB level. Surface that as a blocked result
+		// and require the user to unlink via the supplement UI — `force` does
+		// not override this (we'd leave dangling supplements otherwise).
+		if (supplementIngredientCount > 0) {
+			return {
+				blocked: true,
+				entryCount,
+				ingredientCount,
+				supplementIngredientCount
+			} as DeleteResult;
+		}
 
 		if ((entryCount > 0 || ingredientCount > 0) && !force) {
 			return { blocked: true, entryCount, ingredientCount } as DeleteResult;
@@ -210,7 +229,7 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 		.select({ ...getTableColumns(foods) })
 		.from(foods)
 		.innerJoin(recentSq, eq(foods.id, recentSq.foodId))
-		.where(eq(foods.userId, userId))
+		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')))
 		.orderBy(desc(recentSq.lastUsed))
 		.limit(limit);
 	return roundNutrition(rows);
