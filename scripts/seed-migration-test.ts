@@ -5,17 +5,27 @@ export const U2 = '00000000-0000-0000-0001-000000000002';
 export const F1 = '00000000-0000-0000-0002-000000000001';
 export const F2 = '00000000-0000-0000-0002-000000000002';
 
+export const SUP1 = '00000000-0000-0000-0007-000000000001';
+export const SUP2 = '00000000-0000-0000-0007-000000000002';
+export const SI2A = '00000000-0000-0000-0007-00000000002a';
+export const SI2B = '00000000-0000-0000-0007-00000000002b';
+
 const S1 = '00000000-0000-0000-0003-000000000001';
 const E1 = '00000000-0000-0000-0004-000000000001';
 const R1 = '00000000-0000-0000-0005-000000000001';
 const RI1 = '00000000-0000-0000-0006-000000000001';
 const G1 = U1;
-const SUP1 = '00000000-0000-0000-0007-000000000001';
 const SL1 = '00000000-0000-0000-0008-000000000001';
+const SL2 = '00000000-0000-0000-0008-000000000002';
 const W1 = '00000000-0000-0000-0009-000000000001';
 const OC1 = '00000000-0000-0000-000a-000000000001';
 const CMT1 = '00000000-0000-0000-000b-000000000001';
 
+// NOTE: this seeds the PRE-migration-0035 schema.
+// test-migrations.ts applies base migrations (everything up to but not
+// including the PR's new migrations), seeds, then applies the new
+// migrations — so we're exercising whatever data-migration logic is in the
+// new SQL. Keep dosage/dosage_unit/supplement_logs here; 0035 rewrites them.
 export async function seedData(db: ReturnType<typeof postgres>) {
 	await db`
 		INSERT INTO users (id, infomaniak_sub, email, name, locale)
@@ -58,12 +68,25 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 
 	await db`
 		INSERT INTO supplements (id, user_id, name, dosage, dosage_unit, schedule_type, sort_order)
-		VALUES (${SUP1}, ${U1}, 'Vitamin D', 1000, 'IU', 'daily', 0)
+		VALUES
+			(${SUP1}, ${U1}, 'Vitamin D', 1000, 'IU', 'daily', 0),
+			(${SUP2}, ${U1}, 'Multivitamin', 1, 'capsule', 'daily', 1)
+	`;
+
+	// SUP2 already has explicit ingredients, exercising the ingredient-backing
+	// path in 0035 (vs. SUP1's synthetic-ingredient fallback).
+	await db`
+		INSERT INTO supplement_ingredients (id, supplement_id, name, dosage, dosage_unit, sort_order)
+		VALUES
+			(${SI2A}, ${SUP2}, 'Vitamin A', 800, 'mcg', 0),
+			(${SI2B}, ${SUP2}, 'Vitamin C', 80, 'mg', 1)
 	`;
 
 	await db`
 		INSERT INTO supplement_logs (id, supplement_id, user_id, date, taken_at)
-		VALUES (${SL1}, ${SUP1}, ${U1}, CURRENT_DATE, NOW())
+		VALUES
+			(${SL1}, ${SUP1}, ${U1}, CURRENT_DATE, NOW()),
+			(${SL2}, ${SUP2}, ${U1}, CURRENT_DATE, NOW())
 	`;
 
 	await db`
@@ -82,6 +105,6 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	console.log(
-		'Seeded: 2 users, 1 session, 2 foods, 1 food_entry, 1 recipe, 1 recipe_ingredient, 1 user_goals, 1 supplement, 1 supplement_log, 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
+		'Seeded: 2 users, 1 session, 2 foods, 1 food_entry, 1 recipe, 1 recipe_ingredient, 1 user_goals, 2 supplements (1 with 2 ingredients), 2 supplement_logs, 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
 	);
 }

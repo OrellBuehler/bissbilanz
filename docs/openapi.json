@@ -4572,25 +4572,24 @@
 			"SupplementIngredientInput": {
 				"type": "object",
 				"properties": {
-					"name": {
+					"foodId": {
 						"type": "string",
-						"minLength": 1
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
 					},
-					"dosage": {
+					"food": {
+						"$ref": "#/components/schemas/FoodCreate"
+					},
+					"servings": {
 						"type": "number",
 						"exclusiveMinimum": 0
-					},
-					"dosageUnit": {
-						"type": "string",
-						"minLength": 1
 					},
 					"sortOrder": {
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
 					}
-				},
-				"required": ["name", "dosage", "dosageUnit"]
+				}
 			},
 			"SupplementCreate": {
 				"type": "object",
@@ -4599,14 +4598,6 @@
 						"type": "string",
 						"minLength": 1
 					},
-					"dosage": {
-						"type": "number",
-						"exclusiveMinimum": 0
-					},
-					"dosageUnit": {
-						"type": "string",
-						"minLength": 1
-					},
 					"scheduleType": {
 						"type": "string",
 						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
@@ -4656,6 +4647,7 @@
 						]
 					},
 					"ingredients": {
+						"minItems": 1,
 						"maxItems": 50,
 						"type": "array",
 						"items": {
@@ -4663,7 +4655,7 @@
 						}
 					}
 				},
-				"required": ["name", "dosage", "dosageUnit", "scheduleType"]
+				"required": ["name", "scheduleType", "ingredients"]
 			},
 			"SupplementUpdate": {
 				"type": "object",
@@ -4672,14 +4664,6 @@
 						"type": "string",
 						"minLength": 1
 					},
-					"dosage": {
-						"type": "number",
-						"exclusiveMinimum": 0
-					},
-					"dosageUnit": {
-						"type": "string",
-						"minLength": 1
-					},
 					"scheduleType": {
 						"type": "string",
 						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
@@ -4729,18 +4713,12 @@
 						]
 					},
 					"ingredients": {
-						"anyOf": [
-							{
-								"maxItems": 50,
-								"type": "array",
-								"items": {
-									"$ref": "#/components/schemas/SupplementIngredientInput"
-								}
-							},
-							{
-								"type": "null"
-							}
-						]
+						"minItems": 1,
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SupplementIngredientInput"
+						}
 					}
 				}
 			},
@@ -6686,12 +6664,6 @@
 					"name": {
 						"type": "string"
 					},
-					"dosage": {
-						"type": "number"
-					},
-					"dosageUnit": {
-						"type": "string"
-					},
 					"scheduleType": {
 						"type": "string",
 						"enum": ["daily", "every_other_day", "weekly", "specific_days"]
@@ -6758,8 +6730,6 @@
 					"id",
 					"userId",
 					"name",
-					"dosage",
-					"dosageUnit",
 					"scheduleType",
 					"scheduleDays",
 					"scheduleStartDate",
@@ -6783,23 +6753,97 @@
 						"format": "uuid",
 						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
 					},
-					"name": {
-						"type": "string"
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
 					},
-					"dosage": {
+					"servings": {
 						"type": "number"
-					},
-					"dosageUnit": {
-						"type": "string"
 					},
 					"sortOrder": {
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
+					},
+					"food": {
+						"$ref": "#/components/schemas/SupplementBackingFood"
 					}
 				},
-				"required": ["id", "supplementId", "name", "dosage", "dosageUnit", "sortOrder"],
+				"required": ["id", "supplementId", "foodId", "servings", "sortOrder", "food"],
 				"additionalProperties": false
+			},
+			"SupplementBackingFood": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["food", "supplement"]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"brand",
+					"kind",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
+				],
+				"additionalProperties": {}
 			},
 			"SupplementResponse": {
 				"type": "object",
@@ -6866,51 +6910,22 @@
 			"SupplementHistoryItem": {
 				"type": "object",
 				"properties": {
-					"log": {
-						"$ref": "#/components/schemas/SupplementLog"
-					},
-					"supplementName": {
-						"type": "string"
-					},
-					"dosage": {
-						"type": "number"
-					},
-					"dosageUnit": {
-						"type": "string"
-					}
-				},
-				"required": ["log", "supplementName", "dosage", "dosageUnit"],
-				"additionalProperties": false
-			},
-			"SupplementLog": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string",
-						"format": "uuid",
-						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-					},
 					"supplementId": {
 						"type": "string",
 						"format": "uuid",
 						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
 					},
-					"userId": {
-						"type": "string",
-						"format": "uuid",
-						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					"supplementName": {
+						"type": "string"
 					},
 					"date": {
 						"type": "string"
 					},
 					"takenAt": {
 						"type": "string"
-					},
-					"createdAt": {
-						"type": "string"
 					}
 				},
-				"required": ["id", "supplementId", "userId", "date", "takenAt"],
+				"required": ["supplementId", "supplementName", "date", "takenAt"],
 				"additionalProperties": false
 			},
 			"SupplementLogResponse": {
@@ -6921,6 +6936,32 @@
 					}
 				},
 				"required": ["log"],
+				"additionalProperties": false
+			},
+			"SupplementLog": {
+				"type": "object",
+				"properties": {
+					"supplementId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"date": {
+						"type": "string"
+					},
+					"takenAt": {
+						"type": "string"
+					},
+					"entryIds": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					}
+				},
+				"required": ["supplementId", "date", "takenAt", "entryIds"],
 				"additionalProperties": false
 			},
 			"WeightEntriesResponse": {
