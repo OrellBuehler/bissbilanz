@@ -73,6 +73,17 @@ echo "Installing Playwright browsers..."
 bunx playwright install --with-deps chromium
 ok "Playwright chromium installed"
 
+# --- ktlint ---
+echo "Installing ktlint..."
+if command -v ktlint &>/dev/null; then
+    ok "ktlint $(ktlint --version) already installed"
+else
+    curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.8.0/ktlint
+    chmod a+x ktlint
+    sudo mv ktlint /usr/local/bin/
+    ok "ktlint installed"
+fi
+
 # --- Database migrations ---
 echo "Running database migrations..."
 bun run db:migrate
