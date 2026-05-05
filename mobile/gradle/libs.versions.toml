@@ -2,7 +2,7 @@
 agp = "8.9.3"
 kotlin = "2.3.21"
 compose-bom = "2026.04.01"
-compose-navigation = "2.9.7"
+compose-navigation = "2.9.8"
 ktor = "3.4.3"
 sqldelight = "2.3.2"
 koin = "4.2.1"
