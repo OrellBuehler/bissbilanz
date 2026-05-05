@@ -1,26 +1,36 @@
 package com.bissbilanz.android.ui.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
+import android.util.Size
+import android.view.MotionEvent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,10 +48,16 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.repository.FoodRepository
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import androidx.compose.ui.geometry.Size as ComposeSize
 
 enum class ScanState { SCANNING, SEARCHING, NOT_FOUND }
 
@@ -60,7 +76,13 @@ fun BarcodeScannerScreen(navController: NavController) {
     }
     var scanState by remember { mutableStateOf(ScanState.SCANNING) }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    var torchOn by remember { mutableStateOf(false) }
     val haptic = rememberHaptic()
+
+    LaunchedEffect(camera, torchOn) {
+        camera?.cameraControl?.enableTorch(torchOn)
+    }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -82,11 +104,22 @@ fun BarcodeScannerScreen(navController: NavController) {
                         Icon(Icons.Default.Close, "Close")
                     }
                 },
+                actions = {
+                    if (hasPermission) {
+                        IconButton(onClick = { torchOn = !torchOn }) {
+                            Icon(
+                                if (torchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = if (torchOn) "Turn flash off" else "Turn flash on",
+                            )
+                        }
+                    }
+                },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         titleContentColor = Color.White,
                         navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White,
                     ),
             )
         },
@@ -95,6 +128,8 @@ fun BarcodeScannerScreen(navController: NavController) {
             if (hasPermission) {
                 CameraPreview(
                     lifecycleOwner = lifecycleOwner,
+                    isScanning = { scanState == ScanState.SCANNING },
+                    onCameraReady = { camera = it },
                     onBarcodeScanned = { barcode ->
                         if (scanState == ScanState.SCANNING) {
                             haptic(HapticFeedbackType.LongPress)
@@ -126,7 +161,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                     drawRoundRect(
                         color = Color.Transparent,
                         topLeft = Offset(left, top),
-                        size = Size(rectWidth, rectHeight),
+                        size = ComposeSize(rectWidth, rectHeight),
                         cornerRadius = CornerRadius(16f, 16f),
                         blendMode = BlendMode.Clear,
                     )
@@ -141,7 +176,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                     drawRoundRect(
                         color = borderColor,
                         topLeft = Offset(left, top),
-                        size = Size(rectWidth, rectHeight),
+                        size = ComposeSize(rectWidth, rectHeight),
                         cornerRadius = CornerRadius(16f, 16f),
                         style = Stroke(width = 3f),
                     )
@@ -164,7 +199,13 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                             )
+                            Text(
+                                "Tap to focus",
+                                color = Color.White.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
+
                         ScanState.SEARCHING -> {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
@@ -174,6 +215,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
+
                         ScanState.NOT_FOUND -> {
                             Text(
                                 "Food not found",
@@ -230,12 +272,38 @@ fun BarcodeScannerScreen(navController: NavController) {
     }
 }
 
+@SuppressLint("ClickableViewAccessibility")
 @ExperimentalGetImage
 @Composable
 private fun CameraPreview(
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+    isScanning: () -> Boolean,
+    onCameraReady: (Camera) -> Unit,
     onBarcodeScanned: (String) -> Unit,
 ) {
+    val analyzerExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    val scanner =
+        remember {
+            BarcodeScanning.getClient(
+                BarcodeScannerOptions
+                    .Builder()
+                    .setBarcodeFormats(
+                        Barcode.FORMAT_EAN_13,
+                        Barcode.FORMAT_EAN_8,
+                        Barcode.FORMAT_UPC_A,
+                        Barcode.FORMAT_UPC_E,
+                    ).build(),
+            )
+        }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            analyzerExecutor.shutdown()
+            scanner.close()
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx)
@@ -248,39 +316,72 @@ private fun CameraPreview(
                         it.surfaceProvider = previewView.surfaceProvider
                     }
 
+                val resolutionSelector =
+                    ResolutionSelector
+                        .Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                Size(1280, 720),
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                            ),
+                        ).build()
+
                 val imageAnalysis =
                     ImageAnalysis
                         .Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setResolutionSelector(resolutionSelector)
                         .build()
 
-                val scanner = BarcodeScanning.getClient()
-
-                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
-                    val mediaImage = imageProxy.image
-                    if (mediaImage != null) {
-                        val image =
-                            InputImage.fromMediaImage(
-                                mediaImage,
-                                imageProxy.imageInfo.rotationDegrees,
-                            )
-                        scanner
-                            .process(image)
-                            .addOnSuccessListener { barcodes ->
-                                barcodes.firstOrNull()?.rawValue?.let { onBarcodeScanned(it) }
-                            }.addOnCompleteListener { imageProxy.close() }
-                    } else {
+                imageAnalysis.setAnalyzer(analyzerExecutor) { imageProxy ->
+                    if (!isScanning()) {
                         imageProxy.close()
+                        return@setAnalyzer
                     }
+                    val mediaImage = imageProxy.image
+                    if (mediaImage == null) {
+                        imageProxy.close()
+                        return@setAnalyzer
+                    }
+                    val image =
+                        InputImage.fromMediaImage(
+                            mediaImage,
+                            imageProxy.imageInfo.rotationDegrees,
+                        )
+                    scanner
+                        .process(image)
+                        .addOnSuccessListener(analyzerExecutor) { barcodes ->
+                            barcodes.firstOrNull()?.rawValue?.let { value ->
+                                mainHandler.post { onBarcodeScanned(value) }
+                            }
+                        }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
                 }
 
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageAnalysis,
-                )
+                val cam =
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        imageAnalysis,
+                    )
+                onCameraReady(cam)
+
+                previewView.setOnTouchListener { view, event ->
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        val point = previewView.meteringPointFactory.createPoint(event.x, event.y)
+                        val action =
+                            FocusMeteringAction
+                                .Builder(point)
+                                .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                                .build()
+                        cam.cameraControl.startFocusAndMetering(action)
+                        view.performClick()
+                        true
+                    } else {
+                        false
+                    }
+                }
             }, ContextCompat.getMainExecutor(ctx))
 
             previewView
