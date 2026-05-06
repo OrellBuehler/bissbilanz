@@ -1,7 +1,6 @@
 import type { PageServerLoad } from './$types';
 import {
 	getDailyBreakdown,
-	getCalendarStats,
 	getMealBreakdown,
 	getTopFoods,
 	getStreaks,
@@ -18,26 +17,39 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const start7 = shiftDate(endDate, -6);
 	const start28 = shiftDate(endDate, -27);
 	const now = new Date();
+	const year = now.getFullYear();
+	const month = now.getMonth();
+	const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+	const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+	const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+	const calendarRangeStart = start28 < monthStart ? start28 : monthStart;
+	const calendarRangeEnd = endDate > monthEnd ? endDate : monthEnd;
 
 	const [
 		dailyData,
 		goals,
-		calendarStats,
 		mealBreakdown,
 		topFoods,
 		initialChartData,
 		streaks,
-		streak28Entries
+		calendarRangeEntries
 	] = await Promise.all([
 		getDailyBreakdown(userId, start7, endDate),
 		getGoals(userId),
-		getCalendarStats(userId, now.getFullYear(), now.getMonth()),
 		getMealBreakdown(userId, endDate, endDate),
 		getTopFoods(userId, 7, 10),
 		getWeightWithTrend(userId, daysAgo(30), endDate),
 		getStreaks(userId),
-		listEntriesByDateRange(userId, start28, endDate)
+		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd)
 	]);
+
+	const allCalendarDays = computeCalendarDays(calendarRangeEntries);
+	const calendarDays: typeof allCalendarDays = {};
+	const streakDays: typeof allCalendarDays = {};
+	for (const [date, day] of Object.entries(allCalendarDays)) {
+		if (date >= monthStart && date <= monthEnd) calendarDays[date] = day;
+		if (date >= start28 && date <= endDate) streakDays[date] = day;
+	}
 
 	const goalsData = goals
 		? {
@@ -51,8 +63,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		dailyStatus: { data: dailyData, goals: goalsData },
-		calendarDays: calendarStats.days,
-		streakDays: computeCalendarDays(streak28Entries),
+		calendarDays,
+		streakDays,
 		mealBreakdown,
 		topFoods,
 		initialChartData,

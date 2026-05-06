@@ -74,9 +74,7 @@
 			showMealBreakdownWidget = p.showMealBreakdownWidget ?? true;
 			showTopFoodsWidget = p.showTopFoodsWidget ?? true;
 			showSleepWidget = p.showSleepWidget ?? true;
-			widgetOrder = buildWidgetOrder(
-				p.widgetOrder ?? ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog']
-			);
+			widgetOrder = buildWidgetOrder(p.widgetOrder ?? [...WIDGET_KEYS]);
 			startPage = p.startPage ?? 'dashboard';
 			favoriteMealAssignmentMode = (p.favoriteMealAssignmentMode ??
 				'time_based') as typeof favoriteMealAssignmentMode;
@@ -139,7 +137,11 @@
 		}
 	}
 
-	const WIDGET_DEFS: Record<string, { name: () => string; desc: () => string }> = {
+	const WIDGET_KEYS = ['chart', 'favorites', 'supplements', 'weight', 'summary', 'daylog'] as const;
+	type WidgetKey = (typeof WIDGET_KEYS)[number];
+
+	const WIDGET_DEFS: Record<WidgetKey, { name: () => string; desc: () => string }> &
+		Record<string, { name: () => string; desc: () => string }> = {
 		chart: {
 			name: () => m.settings_section_chart(),
 			desc: () => m.settings_section_chart_desc()

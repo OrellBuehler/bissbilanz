@@ -25,7 +25,7 @@ type BissbilanzDB = Dexie & {
 	userPreferences: EntityTable<DexieUserPreferences, 'userId'>;
 	customMealTypes: EntityTable<DexieCustomMealType, 'id'>;
 	supplements: EntityTable<DexieSupplement, 'id'>;
-	supplementLogs: EntityTable<DexieSupplementLog, 'id'>;
+	supplementLogs: EntityTable<DexieSupplementLog, 'supplementId'>;
 	weightEntries: EntityTable<DexieWeightEntry, 'id'>;
 	sleepEntries: EntityTable<DexieSleepEntry, 'id'>;
 	dayProperties: EntityTable<DexieDayProperties, 'date'>;
@@ -58,6 +58,25 @@ db.version(2).stores({
 db.version(3).stores({
 	sleepEntries: 'id, entryDate, loggedAt'
 });
+
+// v4: supplements are now nutrient-backed (kind on foods). supplementLogs keyed by
+// (supplementId, date) since per-day-per-supplement uniqueness. Existing foods
+// rows from v3 lack `kind` — backfill with 'food' so kind-filtered queries
+// don't hide them. Old logs are cleared — the server will resync on next fetch.
+db.version(4)
+	.stores({
+		foods: 'id, name, barcode, isFavorite, kind, updatedAt',
+		supplementLogs: '[supplementId+date], supplementId, date'
+	})
+	.upgrade(async (tx) => {
+		await tx.table('supplementLogs').clear();
+		await tx
+			.table('foods')
+			.toCollection()
+			.modify((food: { kind?: string }) => {
+				if (!food.kind) food.kind = 'food';
+			});
+	});
 
 export { db };
 

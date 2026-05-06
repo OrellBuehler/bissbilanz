@@ -23,7 +23,7 @@ const validateMealType = async (userId: string, mealType: string): Promise<boole
 	return !!found;
 };
 
-const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
+const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>, userId: string) =>
 	db.$with('recipe_macros').as(
 		db
 			.select({
@@ -52,6 +52,7 @@ const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
 			.from(recipeIngredients)
 			.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
 			.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+			.where(eq(recipes.userId, userId))
 			.groupBy(recipeIngredients.recipeId, recipes.totalServings)
 	);
 
@@ -86,7 +87,7 @@ export const listEntriesByDate = async (
 	const offset = options?.offset ?? 0;
 
 	const whereClause = and(eq(foodEntries.userId, userId), eq(foodEntries.date, date));
-	const recipeMacrosCte = buildRecipeMacrosCte(db);
+	const recipeMacrosCte = buildRecipeMacrosCte(db, userId);
 
 	const [items, countResult] = await Promise.all([
 		db
@@ -215,7 +216,7 @@ export const listEntriesByDateRange = async (
 	endDate: string
 ) => {
 	const db = getDB();
-	const recipeMacrosCte = buildRecipeMacrosCte(db);
+	const recipeMacrosCte = buildRecipeMacrosCte(db, userId);
 	const rows = await db
 		.with(recipeMacrosCte)
 		.select({

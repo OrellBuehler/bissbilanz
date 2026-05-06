@@ -20,12 +20,20 @@ if (env.PUBLIC_SENTRY_DSN) {
 	});
 }
 
+// Process-lifetime guard — runMigrations() only needs to run once per process.
+// In dev, HMR can re-invoke init() without a full restart; in prod this still
+// runs on every cold start (new process = flag resets to false).
+let migrationsRan = false;
+
 export async function init() {
-	try {
-		await runMigrations();
-	} catch (err) {
-		console.error('[startup] Migration failed:', err);
-		throw err;
+	if (!migrationsRan) {
+		try {
+			await runMigrations();
+			migrationsRan = true;
+		} catch (err) {
+			console.error('[startup] Migration failed:', err);
+			throw err;
+		}
 	}
 	await ensureMobileClient();
 	cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
@@ -130,24 +138,25 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		const authHeader = event.request.headers.get('authorization');
 		if (authHeader?.startsWith('Bearer ')) {
 			const token = authHeader.slice(7);
+			let bearerUser: Awaited<ReturnType<typeof getUserById>> | undefined;
 
 			// Test auth bypass — only active when TEST_MODE is set
 			if (config.testMode && token === 'test-integration-token') {
-				const user = await withDbRetry(() => getUserById(config.testUserId));
-				if (user) {
-					event.locals.user = user;
+				bearerUser = await withDbRetry(() => getUserById(config.testUserId));
+			}
+
+			if (!bearerUser) {
+				const tokenResult = await withDbRetry(() => validateAccessToken(token));
+				if (tokenResult) {
+					bearerUser = await withDbRetry(() => getUserById(tokenResult.userId));
+					if (!bearerUser) {
+						return json({ error: 'Unauthorized' }, { status: 401 });
+					}
 				}
 			}
 
-			if (!event.locals.user) {
-				const tokenResult = await withDbRetry(() => validateAccessToken(token));
-				if (tokenResult) {
-					const user = await withDbRetry(() => getUserById(tokenResult.userId));
-					if (!user) {
-						return json({ error: 'Unauthorized' }, { status: 401 });
-					}
-					event.locals.user = user;
-				}
+			if (bearerUser) {
+				event.locals.user = bearerUser;
 			}
 		}
 	}

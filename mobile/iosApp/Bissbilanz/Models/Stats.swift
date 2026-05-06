@@ -97,23 +97,21 @@ struct MaintenanceResponse: Codable {
 }
 
 struct SupplementHistoryResponse: Codable {
-    let history: [SupplementHistoryEntry]
-}
-
-struct SupplementHistoryEntry: Codable, Identifiable {
-    let date: String
-    let supplements: [SupplementHistoryItem]
-
-    var id: String { date }
+    let history: [SupplementHistoryItem]
 }
 
 struct SupplementHistoryItem: Codable, Identifiable {
-    let supplement: Supplement
-    let taken: Bool
-    let log: SupplementLog?
+    let supplementId: String
+    let supplementName: String
+    let date: String
+    let takenAt: String
 
-    var id: String { supplement.id }
+    // Synthetic id so SwiftUI can diff: one entry per (supplement, day).
+    var id: String { "\(supplementId)-\(date)" }
 }
+
+// Alias retained for existing call sites that read `.history` as a list of "entries".
+typealias SupplementHistoryEntry = SupplementHistoryItem
 
 struct MealTypeCreate: Codable {
     let name: String

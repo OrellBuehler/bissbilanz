@@ -16,6 +16,7 @@
 	import { api } from '$lib/api/client';
 	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import { dev } from '$app/environment';
 
 	type FoodItem = {
 		id: string;
@@ -228,8 +229,8 @@
 			const { data } = await api.GET('/api/foods/recent');
 			if (!data) return;
 			recentFoods = data.foods ?? [];
-		} catch {
-			// Silently ignore — recent foods unavailable offline
+		} catch (e) {
+			if (dev) console.warn('Failed to load recent foods:', e);
 		} finally {
 			loadingRecent = false;
 		}
@@ -256,8 +257,8 @@
 					})
 				);
 			}
-		} catch {
-			// silently ignore
+		} catch (e) {
+			if (dev) console.warn('Failed to load favorite recipes:', e);
 		} finally {
 			loadingFavorites = false;
 		}

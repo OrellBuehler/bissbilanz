@@ -1,11 +1,13 @@
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
-import type { DexieSupplement, DexieSupplementLog } from '$lib/db/types';
+import type { DexieFood, DexieSupplement, DexieSupplementLog } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { enqueue } from '$lib/stores/offline-queue';
 import { browser } from '$app/environment';
 import type { paths } from '$lib/api/generated/schema';
 
+type SupplementCreate =
+	paths['/api/supplements']['post']['requestBody']['content']['application/json'];
 type SupplementUpdate =
 	paths['/api/supplements/{id}']['patch']['requestBody']['content']['application/json'];
 
@@ -55,6 +57,14 @@ function refresh() {
 		.then(({ data }) => {
 			if (data) {
 				db.supplements.bulkPut(data.supplements as unknown as DexieSupplement[]).catch(() => {});
+				// Cache backing foods so the form/checklist can look them up offline
+				const backingFoods: DexieFood[] = [];
+				for (const s of data.supplements) {
+					for (const ing of s.ingredients ?? []) {
+						if (ing.food) backingFoods.push(ing.food as unknown as DexieFood);
+					}
+				}
+				if (backingFoods.length > 0) db.foods.bulkPut(backingFoods).catch(() => {});
 			}
 		})
 		.catch(() => {});
@@ -67,47 +77,40 @@ function refreshChecklist(date: string) {
 			if (!data) return;
 			const supsToPut: DexieSupplement[] = [];
 			const logsToPut: DexieSupplementLog[] = [];
+			const foodsToPut: DexieFood[] = [];
 			for (const item of data.checklist) {
 				if (item.supplement) {
 					supsToPut.push(item.supplement as unknown as DexieSupplement);
+					for (const ing of item.supplement.ingredients ?? []) {
+						if (ing.food) foodsToPut.push(ing.food as unknown as DexieFood);
+					}
 				}
 				if (item.taken && item.takenAt && item.supplement) {
 					logsToPut.push({
-						id: `${item.supplement.id}-${date}`,
 						supplementId: item.supplement.id,
-						userId: item.supplement.userId,
 						date,
 						takenAt: item.takenAt,
-						createdAt: item.takenAt
+						entryIds: []
 					});
 				}
 			}
 			if (supsToPut.length > 0) db.supplements.bulkPut(supsToPut).catch(() => {});
+			if (foodsToPut.length > 0) db.foods.bulkPut(foodsToPut).catch(() => {});
 			if (logsToPut.length > 0) db.supplementLogs.bulkPut(logsToPut).catch(() => {});
 		})
 		.catch(() => {});
 }
 
-async function create(supplement: {
-	name: string;
-	dosage: number;
-	dosageUnit: string;
-	scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
-	scheduleDays?: number[] | null;
-	scheduleStartDate?: string | null;
-	isActive?: boolean;
-	sortOrder?: number;
-	timeOfDay?: ('morning' | 'noon' | 'evening') | null;
-	ingredients?: { name: string; dosage: number; dosageUnit: string; sortOrder?: number }[];
-}) {
+async function create(supplement: SupplementCreate) {
 	const now = new Date().toISOString();
 	const id = crypto.randomUUID();
+	// Optimistic local insert — backing food data is already in Dexie (foods
+	// were created first via the food service); ingredients will be fleshed
+	// out on the server response.
 	const dexieRecord: DexieSupplement = {
 		id,
 		userId: '',
 		name: supplement.name,
-		dosage: supplement.dosage,
-		dosageUnit: supplement.dosageUnit,
 		scheduleType: supplement.scheduleType,
 		scheduleDays: supplement.scheduleDays ?? null,
 		scheduleStartDate: supplement.scheduleStartDate ?? null,
@@ -116,27 +119,18 @@ async function create(supplement: {
 		timeOfDay: supplement.timeOfDay ?? null,
 		createdAt: now,
 		updatedAt: now,
-		ingredients: (supplement.ingredients ?? []).map((ing, i) => ({
-			id: crypto.randomUUID(),
-			supplementId: id,
-			name: ing.name,
-			dosage: ing.dosage,
-			dosageUnit: ing.dosageUnit,
-			sortOrder: ing.sortOrder ?? i
-		}))
+		ingredients: []
 	};
 	await db.supplements.put(dexieRecord);
 
-	const { ingredients, ...rest } = supplement;
-	const body = { ...rest, ...(ingredients ? { ingredients } : {}) };
 	if (browser && !navigator.onLine) {
-		await enqueue('POST', '/api/supplements', body, {
+		await enqueue('POST', '/api/supplements', supplement, {
 			affectedTable: 'supplements',
 			affectedId: id
 		});
 	} else {
 		api
-			.POST('/api/supplements', { body })
+			.POST('/api/supplements', { body: supplement })
 			.then(({ data }) => {
 				if (data) {
 					db.supplements
@@ -196,12 +190,10 @@ async function deleteSupplement(id: string) {
 async function log(supplementId: string, date: string) {
 	const now = new Date().toISOString();
 	await db.supplementLogs.put({
-		id: `${supplementId}-${date}`,
 		supplementId,
-		userId: '',
 		date,
 		takenAt: now,
-		createdAt: now
+		entryIds: []
 	});
 
 	if (browser && !navigator.onLine) {

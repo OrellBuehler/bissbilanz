@@ -124,7 +124,7 @@ describe('api/sleep', () => {
 			const response = await sleepModule.GET(event);
 			const data = await response.json();
 			expect(response.status).toBe(400);
-			expect(data.error).toContain('date');
+			expect(data.error).toBe('Invalid from format, expected YYYY-MM-DD');
 		});
 
 		test('returns 400 for invalid to date format', async () => {

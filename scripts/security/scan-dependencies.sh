@@ -30,6 +30,7 @@ KNOWN_ACCEPTED=(
   "GHSA-r5fr-rjxr-66jc"   # lodash code injection — transitive via workbox-build, no fix available
   "GHSA-v2wj-q39q-566r"   # vite server.fs.deny bypass — false positive, we're on 8.x not 7.x
   "GHSA-p9ff-h696-f583"   # vite WebSocket file read — false positive, we're on 8.x not 7.x
+  "GHSA-xq3m-2v4x-88gg"   # protobufjs code execution — transitive via testcontainers (test-only)
 )
 
 echo "=== bun audit ==="

@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { ApiError } from '$lib/server/errors';
 
 export const analyticsDateRangeSchema = z
 	.object({
@@ -17,3 +18,14 @@ export const analyticsDateRangeSchema = z
 		{ message: 'Date range must not exceed 366 days' }
 	)
 	.meta({ id: 'AnalyticsDateRange' });
+
+export function parseAnalyticsParams(url: URL): { startDate: string; endDate: string } {
+	const result = analyticsDateRangeSchema.safeParse({
+		startDate: url.searchParams.get('startDate'),
+		endDate: url.searchParams.get('endDate')
+	});
+	if (!result.success) {
+		throw new ApiError(400, 'Invalid date range parameters');
+	}
+	return result.data;
+}

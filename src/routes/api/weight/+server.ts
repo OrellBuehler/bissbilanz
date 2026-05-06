@@ -1,7 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getWeightEntries, getWeightWithTrend, createWeightEntry } from '$lib/server/weight';
-import { handleApiError, requireAuth, unwrapResult, parseJsonBody } from '$lib/server/errors';
+import {
+	handleApiError,
+	requireAuth,
+	requireDate,
+	unwrapResult,
+	parseJsonBody
+} from '$lib/server/errors';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -10,11 +16,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const to = url.searchParams.get('to');
 
 		if (from && to) {
-			const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-			if (!dateRegex.test(from) || !dateRegex.test(to)) {
-				return json({ error: 'Invalid date format, expected YYYY-MM-DD' }, { status: 400 });
-			}
-			const data = await getWeightWithTrend(userId, from, to);
+			const fromDate = requireDate(from, 'from');
+			const toDate = requireDate(to, 'to');
+			const data = await getWeightWithTrend(userId, fromDate, toDate);
 			return json({ data });
 		}
 

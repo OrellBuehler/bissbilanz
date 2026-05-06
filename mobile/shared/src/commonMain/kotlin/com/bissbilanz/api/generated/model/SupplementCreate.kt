@@ -24,28 +24,24 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param name
- * @param dosage
- * @param dosageUnit
  * @param scheduleType
+ * @param ingredients
  * @param scheduleDays
  * @param scheduleStartDate
  * @param isActive
  * @param sortOrder
  * @param timeOfDay
- * @param ingredients
  */
 @Serializable
 data class SupplementCreate(
     @SerialName(value = "name") @Required val name: kotlin.String,
-    @SerialName(value = "dosage") @Required val dosage: kotlin.Double,
-    @SerialName(value = "dosageUnit") @Required val dosageUnit: kotlin.String,
     @SerialName(value = "scheduleType") @Required val scheduleType: SupplementCreate.ScheduleType,
+    @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<SupplementIngredientInput>,
     @SerialName(value = "scheduleDays") val scheduleDays: kotlin.collections.List<kotlin.Int>? = null,
     @SerialName(value = "scheduleStartDate") val scheduleStartDate: kotlin.String? = null,
     @SerialName(value = "isActive") val isActive: kotlin.Boolean? = null,
     @SerialName(value = "sortOrder") val sortOrder: kotlin.Int? = null,
     @SerialName(value = "timeOfDay") val timeOfDay: SupplementCreate.TimeOfDay? = null,
-    @SerialName(value = "ingredients") val ingredients: kotlin.collections.List<SupplementIngredientInput>? = null,
 ) {
     /**
      *

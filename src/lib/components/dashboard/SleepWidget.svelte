@@ -3,9 +3,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Moon from '@lucide/svelte/icons/moon';
 	import { goto } from '$app/navigation';
-	import { getLocale } from '$lib/paraglide/runtime';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
+	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	let { date }: { date: string } = $props();
@@ -21,9 +21,6 @@
 		if (minutes === 0) return m.sleep_hours_exact({ hours: String(hours) });
 		return m.sleep_hours({ hours: String(hours), minutes: String(minutes) });
 	});
-
-	const formatTime = (iso: string) =>
-		new Date(iso).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
 </script>
 
 <DashboardCard title={m.sleep_widget_title()} Icon={Moon} tone="tertiary">

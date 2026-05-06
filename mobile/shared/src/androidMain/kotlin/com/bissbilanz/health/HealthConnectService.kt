@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Mass
 import com.bissbilanz.HealthSyncService
@@ -50,6 +51,7 @@ class HealthConnectService(
                     weight = Mass.kilograms(entry.weightKg),
                     time = instant,
                     zoneOffset = ZoneId.systemDefault().rules.getOffset(instant),
+                    metadata = Metadata.manualEntry(),
                 )
             }
         if (records.isNotEmpty()) {
@@ -78,6 +80,7 @@ class HealthConnectService(
                 totalCarbohydrate = Mass.grams(totals.carbs),
                 totalFat = Mass.grams(totals.fat),
                 dietaryFiber = Mass.grams(totals.fiber),
+                metadata = Metadata.manualEntry(),
             )
         client.insertRecords(listOf(record))
     }

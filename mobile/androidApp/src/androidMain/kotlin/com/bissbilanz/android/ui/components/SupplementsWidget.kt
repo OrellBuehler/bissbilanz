@@ -87,8 +87,18 @@ fun SupplementsWidget(
                             }
                         },
                     )
+                    val ings = supplement.ingredients
+                    val summary =
+                        when {
+                            ings.isEmpty() -> supplement.name
+                            ings.size == 1 ->
+                                ings[0].food.ingredientsText.orEmpty().let { label ->
+                                    if (label.isBlank()) supplement.name else "${supplement.name} - $label"
+                                }
+                            else -> "${supplement.name} (${ings.size} ingredients)"
+                        }
                     Text(
-                        "${supplement.name} - ${supplement.dosage.toInt()}${supplement.dosageUnit}",
+                        summary,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
