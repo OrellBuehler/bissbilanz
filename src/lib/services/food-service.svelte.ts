@@ -2,7 +2,7 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
+import { refreshTable, withOfflineFallback } from './base';
 import type { paths } from '$lib/api/generated/schema';
 
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
@@ -34,26 +34,17 @@ function favorites() {
 }
 
 async function refresh() {
-	try {
-		const { data } = await api.GET('/api/foods');
-		if (data) {
-			const serverFoods = data.foods as unknown as DexieFood[];
-			const serverIds = new Set(serverFoods.map((f) => f.id));
-			// Only reconcile regular-food rows; supplement backing foods are
-			// managed by the supplement service and must not be wiped here.
-			const localFoods = await db.foods.toArray();
-			const staleIds = localFoods
-				.filter((f) => isRegularFood(f) && !serverIds.has(f.id))
-				.map((f) => f.id);
-			await db.transaction('rw', db.foods, db.syncMeta, async () => {
-				if (staleIds.length > 0) await db.foods.bulkDelete(staleIds);
-				await db.foods.bulkPut(serverFoods);
-				await db.syncMeta.put({ tableName: 'foods', lastSyncedAt: Date.now() });
-			});
-		}
-	} catch {
-		// fire-and-forget
-	}
+	// Only reconcile regular-food rows; supplement backing foods are
+	// managed by the supplement service and must not be wiped here.
+	await refreshTable<DexieFood>({
+		table: db.foods,
+		syncTableName: 'foods',
+		fetchServer: async () => {
+			const { data } = await api.GET('/api/foods');
+			return (data?.foods as unknown as DexieFood[]) ?? null;
+		},
+		keepLocalRow: isRegularFood
+	});
 }
 
 async function refreshById(id: string) {
@@ -142,57 +133,52 @@ async function create(food: FoodCreate) {
 
 	await db.foods.put(dexieFood);
 
-	try {
-		const { data } = await api.POST('/api/foods', { body: food });
-		if (data) {
-			await db.foods.put(data.food as unknown as DexieFood);
-		}
-	} catch {
-		await enqueue('POST', '/api/foods', food, {
-			affectedTable: 'foods',
-			affectedId: id
-		});
-	}
+	await withOfflineFallback(
+		async () => {
+			const { data } = await api.POST('/api/foods', { body: food });
+			if (data) {
+				await db.foods.put(data.food as unknown as DexieFood);
+			}
+		},
+		{ method: 'POST', url: '/api/foods', body: food, affectedTable: 'foods', affectedId: id }
+	);
 }
 
 async function update(id: string, food: FoodUpdate) {
 	const now = new Date().toISOString();
 	await db.foods.update(id, { ...food, updatedAt: now });
 
-	try {
-		const { data } = await api.PATCH('/api/foods/{id}', {
-			params: { path: { id } },
-			body: food
-		});
-		if (data) {
-			await db.foods.put(data.food as unknown as DexieFood);
-		}
-	} catch {
-		await enqueue('PATCH', `/api/foods/${id}`, food, {
+	await withOfflineFallback(
+		async () => {
+			const { data } = await api.PATCH('/api/foods/{id}', {
+				params: { path: { id } },
+				body: food
+			});
+			if (data) {
+				await db.foods.put(data.food as unknown as DexieFood);
+			}
+		},
+		{
+			method: 'PATCH',
+			url: `/api/foods/${id}`,
+			body: food,
 			affectedTable: 'foods',
 			affectedId: id
-		});
-	}
+		}
+	);
 }
 
 async function deleteFood(id: string) {
 	await db.foods.delete(id);
 
-	try {
-		await api.DELETE('/api/foods/{id}', {
-			params: { path: { id } }
-		});
-	} catch {
-		await enqueue(
-			'DELETE',
-			`/api/foods/${id}`,
-			{},
-			{
-				affectedTable: 'foods',
-				affectedId: id
-			}
-		);
-	}
+	await withOfflineFallback(
+		async () => {
+			await api.DELETE('/api/foods/{id}', {
+				params: { path: { id } }
+			});
+		},
+		{ method: 'DELETE', url: `/api/foods/${id}`, body: {}, affectedTable: 'foods', affectedId: id }
+	);
 }
 
 async function findByBarcode(barcode: string): Promise<DexieFood | null> {

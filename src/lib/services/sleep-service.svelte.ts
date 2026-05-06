@@ -2,8 +2,8 @@ import { liveQuery } from 'dexie';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
-import { urlToMeta } from '$lib/utils/api';
+import { isQueued } from '$lib/utils/api';
+import { refreshTable, withOfflineFallback } from './base';
 import type { DexieSleepEntry } from '$lib/db/types';
 
 function entries() {
@@ -18,22 +18,14 @@ function entryForDate(date: string) {
 
 async function refresh(): Promise<void> {
 	if (!browser) return;
-	try {
-		const { data } = await api.GET('/api/sleep');
-		if (data && 'entries' in data) {
-			const serverEntries = data.entries as DexieSleepEntry[];
-			const serverIds = new Set(serverEntries.map((e) => e.id));
-			const localIds = await db.sleepEntries.toCollection().primaryKeys();
-			const staleIds = localIds.filter((id) => !serverIds.has(id as string));
-			await db.transaction('rw', db.sleepEntries, db.syncMeta, async () => {
-				if (staleIds.length > 0) await db.sleepEntries.bulkDelete(staleIds as string[]);
-				await db.sleepEntries.bulkPut(serverEntries);
-				await db.syncMeta.put({ tableName: 'sleepEntries', lastSyncedAt: Date.now() });
-			});
+	await refreshTable<DexieSleepEntry>({
+		table: db.sleepEntries,
+		syncTableName: 'sleepEntries',
+		fetchServer: async () => {
+			const { data } = await api.GET('/api/sleep');
+			return data && 'entries' in data ? (data.entries as DexieSleepEntry[]) : null;
 		}
-	} catch {
-		// fire-and-forget — offline or network error is fine
-	}
+	});
 }
 
 type CreateSleepEntry = {
@@ -70,16 +62,17 @@ async function create(entry: CreateSleepEntry): Promise<void> {
 	};
 	await db.sleepEntries.put(tempEntry);
 
-	try {
-		const { data, response } = await api.POST('/api/sleep', { body: entry });
-		if (response.headers.get('x-queued') === 'true') return;
-		if (data && 'entry' in data) {
-			await db.sleepEntries.delete(tempId);
-			await db.sleepEntries.put(data.entry as DexieSleepEntry);
-		}
-	} catch {
-		await enqueue('POST', '/api/sleep', entry, urlToMeta('/api/sleep'));
-	}
+	await withOfflineFallback(
+		async () => {
+			const { data, response } = await api.POST('/api/sleep', { body: entry });
+			if (isQueued(response)) return;
+			if (data && 'entry' in data) {
+				await db.sleepEntries.delete(tempId);
+				await db.sleepEntries.put(data.entry as DexieSleepEntry);
+			}
+		},
+		{ method: 'POST', url: '/api/sleep', body: entry, affectedTable: 'sleepEntries' }
+	);
 }
 
 type UpdateSleepEntry = Partial<CreateSleepEntry>;
@@ -88,31 +81,44 @@ async function update(id: string, entry: UpdateSleepEntry): Promise<void> {
 	const now = new Date().toISOString();
 	await db.sleepEntries.update(id, { ...entry, updatedAt: now });
 
-	try {
-		const { data, response } = await api.PATCH('/api/sleep/{id}', {
-			params: { path: { id } },
-			body: entry
-		});
-		if (response.headers.get('x-queued') === 'true') return;
-		if (data && 'entry' in data) {
-			await db.sleepEntries.put(data.entry as DexieSleepEntry);
+	await withOfflineFallback(
+		async () => {
+			const { data, response } = await api.PATCH('/api/sleep/{id}', {
+				params: { path: { id } },
+				body: entry
+			});
+			if (isQueued(response)) return;
+			if (data && 'entry' in data) {
+				await db.sleepEntries.put(data.entry as DexieSleepEntry);
+			}
+		},
+		{
+			method: 'PATCH',
+			url: `/api/sleep/${id}`,
+			body: entry,
+			affectedTable: 'sleepEntries',
+			affectedId: id
 		}
-	} catch {
-		await enqueue('PATCH', `/api/sleep/${id}`, entry, urlToMeta(`/api/sleep/${id}`));
-	}
+	);
 }
 
 async function deleteEntry(id: string): Promise<void> {
 	await db.sleepEntries.delete(id);
 
-	try {
-		const { response } = await api.DELETE('/api/sleep/{id}', {
-			params: { path: { id } }
-		});
-		if (response.headers.get('x-queued') === 'true') return;
-	} catch {
-		await enqueue('DELETE', `/api/sleep/${id}`, {}, urlToMeta(`/api/sleep/${id}`));
-	}
+	await withOfflineFallback(
+		async () => {
+			await api.DELETE('/api/sleep/{id}', {
+				params: { path: { id } }
+			});
+		},
+		{
+			method: 'DELETE',
+			url: `/api/sleep/${id}`,
+			body: {},
+			affectedTable: 'sleepEntries',
+			affectedId: id
+		}
+	);
 }
 
 export const sleepService = { entries, entryForDate, refresh, create, update, delete: deleteEntry };
