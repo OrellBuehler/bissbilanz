@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { ZodError } from 'zod';
 
@@ -188,4 +188,27 @@ export class ResultValidationError extends Error {
 		super('Validation failed');
 		this.name = 'ResultValidationError';
 	}
+}
+
+type AuthedResourceEvent<E extends RequestEvent<{ id: string }>> = E & {
+	userId: string;
+	id: string;
+};
+
+/**
+ * Wraps a route handler with auth + UUID validation + central error handling.
+ * The handler receives the same event extended with `userId` and validated `id`.
+ */
+export function withAuthedResource<E extends RequestEvent<{ id: string }>>(
+	handler: (event: AuthedResourceEvent<E>) => Response | Promise<Response>
+): (event: E) => Promise<Response> {
+	return async (event) => {
+		try {
+			const userId = requireAuth(event.locals);
+			const id = requireUuid(event.params.id);
+			return await handler({ ...event, userId, id } as AuthedResourceEvent<E>);
+		} catch (error) {
+			return handleApiError(error);
+		}
+	};
 }
