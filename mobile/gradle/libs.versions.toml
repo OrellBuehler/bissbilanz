@@ -101,7 +101,7 @@ compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 compose-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android" }
-test-runner = { group = "androidx.test", name = "runner", version = "1.6.2" }
+test-runner = { group = "androidx.test", name = "runner", version = "1.7.0" }
 test-rules = { group = "androidx.test", name = "rules", version = "1.6.1" }
 
 [plugins]
