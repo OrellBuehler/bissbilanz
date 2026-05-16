@@ -709,7 +709,7 @@ struct InsightsView: View {
                                 y: .value(L10n.sleepHours, item.1),
                                 series: .value("Series", "sleep")
                             )
-                            .foregroundStyle(MacroColors.carbs)
+                            .foregroundStyle(Color.indigo)
                             .interpolationMethod(.catmullRom)
                         }
                         ForEach(Array(calPoints.enumerated()), id: \.offset) { _, item in
@@ -728,7 +728,7 @@ struct InsightsView: View {
                     }
 
                     HStack(spacing: 16) {
-                        legendItem(color: MacroColors.carbs, label: L10n.sleepHours)
+                        legendItem(color: Color.indigo, label: L10n.sleepHours)
                         legendItem(color: MacroColors.calories, label: L10n.eveningCalories)
                     }
                     .font(.caption2)
@@ -843,13 +843,11 @@ struct InsightsView: View {
         async let w = try? api.getWeeklyStats()
         async let m = try? api.getMonthlyStats()
         async let s = try? api.getStreaks()
-        async let t = try? api.getTopFoods(days: selectedRange)
         async let g = try? api.getGoals()
 
         weeklyStats = await w
         monthlyStats = await m
         streaks = await s
-        topFoods = await t ?? []
         goals = await g
 
         await loadChartData()
