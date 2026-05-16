@@ -69,6 +69,9 @@ struct SettingsView: View {
 
                 // Navigation section
                 Section {
+                    NavigationLink { SleepView() } label: {
+                        Label(L10n.sleep, systemImage: "moon.zzz")
+                    }
                     NavigationLink { WeightView() } label: {
                         Label(L10n.weight, systemImage: "scalemass")
                     }

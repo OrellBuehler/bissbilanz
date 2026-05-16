@@ -322,6 +322,30 @@ final class BissbilanzAPI {
         try await get("/api/weight/stats")
     }
 
+    // MARK: - Sleep
+
+    func getSleepEntries(from: String? = nil, to: String? = nil) async throws -> [SleepEntry] {
+        var params: [String: String] = [:]
+        if let from { params["from"] = from }
+        if let to { params["to"] = to }
+        let response: SleepEntriesResponse = try await get("/api/sleep", params: params)
+        return response.entries
+    }
+
+    func createSleepEntry(_ entry: SleepCreate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await post("/api/sleep", body: entry)
+        return response.entry
+    }
+
+    func updateSleepEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await patch("/api/sleep/\(id)", body: update)
+        return response.entry
+    }
+
+    func deleteSleepEntry(id: String) async throws {
+        try await deleteRequest("/api/sleep/\(id)")
+    }
+
     // MARK: - Open Food Facts proxy
 
     func lookupBarcode(_ barcode: String) async throws -> Food? {

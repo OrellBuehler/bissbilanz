@@ -284,6 +284,22 @@ enum L10n {
     static var fatLabel: String { localized("fat_label", en: "Fat", de: "Fett") }
     static var muscleLabel: String { localized("muscle_label", en: "Muscle", de: "Muskel") }
 
+    // MARK: - Sleep
+
+    static var sleep: String { localized("sleep", en: "Sleep", de: "Schlaf") }
+    static var sleepDuration: String { localized("sleep_duration", en: "Duration", de: "Dauer") }
+    static var sleepQuality: String { localized("sleep_quality", en: "Quality", de: "Qualität") }
+    static var bedtime: String { localized("bedtime", en: "Bedtime", de: "Schlafenszeit") }
+    static var wakeTime: String { localized("wake_time", en: "Wake Time", de: "Aufwachzeit") }
+    static var wakeUps: String { localized("wake_ups", en: "Wake Ups", de: "Aufwachen") }
+    static var addSleep: String { localized("add_sleep", en: "Log Sleep", de: "Schlaf eintragen") }
+    static var editSleep: String { localized("edit_sleep", en: "Edit Sleep", de: "Schlaf bearbeiten") }
+    static var noSleepEntries: String { localized("no_sleep_entries", en: "No sleep entries yet.", de: "Noch keine Schlafeinträge.") }
+    static var nightsLogged: String { localized("nights_logged", en: "Nights", de: "Nächte") }
+    static var avgDuration: String { localized("avg_duration", en: "Avg Duration", de: "Ø Dauer") }
+    static var avgQuality: String { localized("avg_quality", en: "Avg Quality", de: "Ø Qualität") }
+    static var minutes: String { localized("minutes", en: "Minutes", de: "Minuten") }
+
     // MARK: - Supplement History (additional)
 
     static var taken: String { localized("taken", en: "Taken", de: "Eingenommen") }

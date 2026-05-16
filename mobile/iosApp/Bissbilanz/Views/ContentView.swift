@@ -4,6 +4,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     case foods
     case favorites
     case insights
+    case sleep
     case weight
     case supplements
 
@@ -14,6 +15,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .foods: return L10n.foods
         case .favorites: return L10n.favorites
         case .insights: return L10n.insights
+        case .sleep: return L10n.sleep
         case .weight: return L10n.weight
         case .supplements: return L10n.supplements
         }
@@ -24,6 +26,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .foods: return "fork.knife"
         case .favorites: return "star"
         case .insights: return "chart.bar"
+        case .sleep: return "moon.zzz"
         case .weight: return "scalemass"
         case .supplements: return "pills"
         }
@@ -35,6 +38,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .foods: FoodSearchView()
         case .favorites: FavoritesView()
         case .insights: InsightsView()
+        case .sleep: SleepView()
         case .weight: WeightView()
         case .supplements: SupplementsView()
         }
