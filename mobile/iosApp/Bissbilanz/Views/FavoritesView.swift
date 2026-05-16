@@ -10,6 +10,10 @@ struct FavoritesView: View {
     @State private var selectedFood: Food?
     @State private var selectedRecipe: Recipe?
     @State private var toastMessage: String?
+    @State private var preferences: Preferences = .defaults
+    @State private var pendingFood: Food?
+    @State private var pendingRecipe: Recipe?
+    @State private var showMealPicker = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -41,17 +45,29 @@ struct FavoritesView: View {
                 }
             }
             .navigationTitle(L10n.favorites)
-            .refreshable { await loadFavorites() }
+            .refreshable { await loadAll() }
             .toast(message: $toastMessage)
             .sheet(item: $selectedFood) { food in
                 LogFoodSheet(food: food, date: DateFormatting.today)
             }
             .sheet(item: $selectedRecipe) { recipe in
                 LogRecipeSheet(recipe: recipe) {
-                    Task { await loadFavorites() }
+                    Task { await loadAll() }
                 }
             }
-            .task { await loadFavorites() }
+            .task { await loadAll() }
+            .sheet(isPresented: $showMealPicker, onDismiss: {
+                pendingFood = nil
+                pendingRecipe = nil
+            }) {
+                MealPickerSheet { mealName in
+                    if let food = pendingFood {
+                        Task { await quickLogFood(food, meal: mealName) }
+                    } else if let recipe = pendingRecipe {
+                        Task { await quickLogRecipe(recipe, meal: mealName) }
+                    }
+                }
+            }
         }
     }
 
@@ -76,7 +92,7 @@ struct FavoritesView: View {
                                     selectedFood = food
                                 },
                                 onQuickLog: {
-                                    Task { await quickLogFood(food) }
+                                    quickLog(food: food)
                                 }
                             )
                         }
@@ -108,7 +124,7 @@ struct FavoritesView: View {
                                     selectedRecipe = recipe
                                 },
                                 onQuickLog: {
-                                    Task { await quickLogRecipe(recipe) }
+                                    quickLog(recipe: recipe)
                                 }
                             )
                         }
@@ -129,8 +145,25 @@ struct FavoritesView: View {
         }
     }
 
-    private func quickLogFood(_ food: Food) async {
-        let meal = mealForCurrentTime()
+    private func quickLog(food: Food) {
+        if preferences.favoriteMealAssignmentMode == "ask_meal" {
+            pendingFood = food
+            showMealPicker = true
+        } else {
+            Task { await quickLogFood(food, meal: mealForCurrentTime()) }
+        }
+    }
+
+    private func quickLog(recipe: Recipe) {
+        if preferences.favoriteMealAssignmentMode == "ask_meal" {
+            pendingRecipe = recipe
+            showMealPicker = true
+        } else {
+            Task { await quickLogRecipe(recipe, meal: mealForCurrentTime()) }
+        }
+    }
+
+    private func quickLogFood(_ food: Food, meal: String) async {
         let entry = EntryCreate(
             foodId: food.id,
             mealType: meal,
@@ -147,8 +180,7 @@ struct FavoritesView: View {
         }
     }
 
-    private func quickLogRecipe(_ recipe: Recipe) async {
-        let meal = mealForCurrentTime()
+    private func quickLogRecipe(_ recipe: Recipe, meal: String) async {
         let entry = EntryCreate(
             recipeId: recipe.id,
             mealType: meal,
@@ -165,16 +197,19 @@ struct FavoritesView: View {
         }
     }
 
-    private func loadFavorites() async {
+    private func loadAll() async {
         isLoading = true
+        async let favs = api.getFavorites()
+        async let prefs = api.getPreferences()
         do {
-            let response = try await api.getFavorites()
+            let response = try await favs
             favoriteFoods = response.foods
             favoriteRecipes = response.recipes ?? []
         } catch {
             favoriteFoods = []
             favoriteRecipes = []
         }
+        if let p = try? await prefs { preferences = p }
         isLoading = false
     }
 }

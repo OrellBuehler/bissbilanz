@@ -12,6 +12,7 @@ struct RecipeDetailView: View {
     @State private var showEditSheet = false
     @State private var showDeleteConfirmation = false
     @State private var showLogSheet = false
+    @State private var isTogglingFavorite = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -39,8 +40,16 @@ struct RecipeDetailView: View {
         .navigationTitle(recipe?.name ?? L10n.recipes)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if recipe != nil {
-                ToolbarItem(placement: .primaryAction) {
+            if let recipe {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        Task { await toggleFavorite() }
+                    } label: {
+                        Image(systemName: recipe.isFavorite ? "star.fill" : "star")
+                            .foregroundStyle(recipe.isFavorite ? .yellow : .secondary)
+                    }
+                    .disabled(isTogglingFavorite)
+
                     Menu {
                         Button {
                             showEditSheet = true
@@ -161,6 +170,17 @@ struct RecipeDetailView: View {
     }
 
     // MARK: - Actions
+
+    private func toggleFavorite() async {
+        guard let recipe else { return }
+        isTogglingFavorite = true
+        do {
+            self.recipe = try await api.updateRecipe(id: recipe.id, RecipeUpdate(isFavorite: !recipe.isFavorite))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isTogglingFavorite = false
+    }
 
     private func loadRecipe() async {
         isLoading = true

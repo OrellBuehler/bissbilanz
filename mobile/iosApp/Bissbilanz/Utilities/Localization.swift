@@ -107,6 +107,7 @@ enum L10n {
     static var logFood: String { localized("log_food", en: "Log Food", de: "Essen eintragen") }
     static var servings: String { localized("servings", en: "Servings", de: "Portionen") }
     static var meal: String { localized("meal", en: "Meal", de: "Mahlzeit") }
+    static var chooseMeal: String { localized("choose_meal", en: "Choose Meal", de: "Mahlzeit wählen") }
     static var quickEntry: String { localized("quick_entry", en: "Quick Entry", de: "Schnelleintrag") }
     static var editEntry: String { localized("edit_entry", en: "Edit Entry", de: "Eintrag bearbeiten") }
     static var logRecipe: String { localized("log_recipe", en: "Log Recipe", de: "Rezept eintragen") }

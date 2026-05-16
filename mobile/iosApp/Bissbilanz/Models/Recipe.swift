@@ -50,11 +50,11 @@ struct RecipeIngredientInput: Codable {
 }
 
 struct RecipeUpdate: Codable {
-    var name: String?
-    var totalServings: Double?
-    var ingredients: [RecipeIngredientInput]?
-    var isFavorite: Bool?
-    var imageUrl: String?
+    var name: String? = nil
+    var totalServings: Double? = nil
+    var ingredients: [RecipeIngredientInput]? = nil
+    var isFavorite: Bool? = nil
+    var imageUrl: String? = nil
 }
 
 struct RecipesResponse: Codable {
