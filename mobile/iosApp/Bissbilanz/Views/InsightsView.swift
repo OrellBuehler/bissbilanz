@@ -12,6 +12,11 @@ struct InsightsView: View {
     @State private var mealBreakdown: [MealBreakdownEntry] = []
     @State private var calendarDays: [CalendarDay] = []
     @State private var goals: Goals?
+    @State private var mealTimingEntries: [MealTimingEntry] = []
+    @State private var foodDiversityEntries: [FoodDiversityEntry] = []
+    @State private var weightFoodEntries: [DailyWeightFood] = []
+    @State private var sleepFoodEntries: [SleepFoodCorrelationEntry] = []
+    @State private var extendedNutrientEntries: [ExtendedNutrientEntry] = []
     @State private var selectedRange = 7
     @State private var isLoading = true
     @State private var calendarMonth = Date()
@@ -33,6 +38,11 @@ struct InsightsView: View {
                         calendarHeatmapCard
                         comparisonCard
                         topFoodsCard
+                        mealTimingCard
+                        foodDiversityCard
+                        weightVsCaloriesCard
+                        sleepVsCaloriesCard
+                        extendedNutrientsCard
                     }
                 }
                 .padding()
@@ -476,6 +486,343 @@ struct InsightsView: View {
         }
     }
 
+    // MARK: - Meal Timing
+
+    @ViewBuilder
+    private var mealTimingCard: some View {
+        if !mealTimingEntries.isEmpty {
+            CardView {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(L10n.mealTiming, systemImage: "clock")
+                        .font(.headline)
+
+                    let hourlyCalories = mealTimingHourlyCalories()
+                    if hourlyCalories.isEmpty {
+                        Text(L10n.noAnalyticsData)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Chart(hourlyCalories, id: \.0) { item in
+                            BarMark(
+                                x: .value("Hour", "\(item.0)\(L10n.hourLabel)"),
+                                y: .value(L10n.calories, item.1)
+                            )
+                            .foregroundStyle(MacroColors.calories)
+                        }
+                        .frame(height: 150)
+                        .chartXAxis {
+                            AxisMarks(values: .stride(by: 4)) { value in
+                                AxisValueLabel()
+                            }
+                        }
+
+                        if let busiest = hourlyCalories.max(by: { $0.1 < $1.1 }) {
+                            Text("\(L10n.busiestHour): \(busiest.0):00 (\(Int(busiest.1)) kcal)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func mealTimingHourlyCalories() -> [(Int, Double)] {
+        var buckets = [Int: Double]()
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fmt2 = ISO8601DateFormatter()
+        fmt2.formatOptions = [.withInternetDateTime]
+        for entry in mealTimingEntries {
+            let date = fmt.date(from: entry.eatenAt) ?? fmt2.date(from: entry.eatenAt)
+            guard let date else { continue }
+            let hour = Calendar.current.component(.hour, from: date)
+            buckets[hour, default: 0] += entry.calories
+        }
+        return buckets.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
+    }
+
+    // MARK: - Food Diversity
+
+    @ViewBuilder
+    private var foodDiversityCard: some View {
+        if !foodDiversityEntries.isEmpty {
+            CardView {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(L10n.foodDiversity, systemImage: "square.grid.2x2")
+                        .font(.headline)
+
+                    let uniqueCount = Set(foodDiversityEntries.map { $0.foodId ?? $0.recipeId ?? $0.foodName }).count
+                    let totalCount = foodDiversityEntries.count
+
+                    HStack(spacing: 24) {
+                        VStack {
+                            Text("\(uniqueCount)")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(MacroColors.fiber)
+                            Text(L10n.uniqueFoods)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        VStack {
+                            Text("\(totalCount)")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(MacroColors.calories)
+                            Text(L10n.totalLogged)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text(L10n.novaDistribution)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .padding(.top, 4)
+
+                    let novaCounts = novaDiversityDistribution()
+                    HStack(spacing: 12) {
+                        ForEach([1, 2, 3, 4], id: \.self) { group in
+                            VStack(spacing: 2) {
+                                Text("\(novaCounts[group] ?? 0)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(novaColor(group))
+                                Text("G\(group)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        let unknownCount = novaCounts[0] ?? 0
+                        if unknownCount > 0 {
+                            VStack(spacing: 2) {
+                                Text("\(unknownCount)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.secondary)
+                                Text(L10n.unknown)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func novaDiversityDistribution() -> [Int: Int] {
+        var counts = [Int: Int]()
+        for entry in foodDiversityEntries {
+            let group = entry.novaGroup ?? 0
+            counts[group, default: 0] += 1
+        }
+        return counts
+    }
+
+    private func novaColor(_ group: Int) -> Color {
+        switch group {
+        case 1: return .green
+        case 2: return .yellow
+        case 3: return .orange
+        case 4: return .red
+        default: return .gray
+        }
+    }
+
+    // MARK: - Weight vs Calories
+
+    @ViewBuilder
+    private var weightVsCaloriesCard: some View {
+        if !weightFoodEntries.isEmpty {
+            let weightPoints = weightFoodEntries.compactMap { entry -> (String, Double)? in
+                let w = entry.weightKg ?? entry.movingAvg
+                guard let w else { return nil }
+                return (entry.date, w)
+            }
+            let calPoints = weightFoodEntries.compactMap { entry -> (String, Double)? in
+                guard let c = entry.calories else { return nil }
+                return (entry.date, c)
+            }
+
+            if !weightPoints.isEmpty || !calPoints.isEmpty {
+                CardView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(L10n.weightVsCalories, systemImage: "scalemass")
+                            .font(.headline)
+
+                        Chart {
+                            ForEach(calPoints, id: \.0) { item in
+                                LineMark(
+                                    x: .value("Date", DateFormatting.date(from: item.0) ?? Date()),
+                                    y: .value(L10n.calories, item.1),
+                                    series: .value("Series", "cal")
+                                )
+                                .foregroundStyle(MacroColors.calories)
+                                .interpolationMethod(.catmullRom)
+                            }
+                            ForEach(weightPoints, id: \.0) { item in
+                                LineMark(
+                                    x: .value("Date", DateFormatting.date(from: item.0) ?? Date()),
+                                    y: .value(L10n.weight, item.1),
+                                    series: .value("Series", "weight")
+                                )
+                                .foregroundStyle(MacroColors.protein)
+                                .interpolationMethod(.catmullRom)
+                            }
+                        }
+                        .frame(height: 180)
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+
+                        HStack(spacing: 16) {
+                            legendItem(color: MacroColors.calories, label: L10n.calories)
+                            legendItem(color: MacroColors.protein, label: L10n.weight)
+                        }
+                        .font(.caption2)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Sleep vs Evening Calories
+
+    @ViewBuilder
+    private var sleepVsCaloriesCard: some View {
+        if !sleepFoodEntries.isEmpty {
+            CardView {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(L10n.sleepVsCalories, systemImage: "moon.zzz")
+                        .font(.headline)
+
+                    let sleepPoints = sleepFoodEntries.map { (DateFormatting.date(from: $0.date) ?? Date(), Double($0.sleepDurationMinutes) / 60.0) }
+                    let calPoints = sleepFoodEntries.compactMap { entry -> (Date, Double)? in
+                        guard let c = entry.eveningCalories else { return nil }
+                        return (DateFormatting.date(from: entry.date) ?? Date(), c)
+                    }
+
+                    Chart {
+                        ForEach(Array(sleepPoints.enumerated()), id: \.offset) { _, item in
+                            LineMark(
+                                x: .value("Date", item.0),
+                                y: .value(L10n.sleepHours, item.1),
+                                series: .value("Series", "sleep")
+                            )
+                            .foregroundStyle(MacroColors.carbs)
+                            .interpolationMethod(.catmullRom)
+                        }
+                        ForEach(Array(calPoints.enumerated()), id: \.offset) { _, item in
+                            LineMark(
+                                x: .value("Date", item.0),
+                                y: .value(L10n.eveningCalories, item.1),
+                                series: .value("Series", "cal")
+                            )
+                            .foregroundStyle(MacroColors.calories)
+                            .interpolationMethod(.catmullRom)
+                        }
+                    }
+                    .frame(height: 160)
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+
+                    HStack(spacing: 16) {
+                        legendItem(color: MacroColors.carbs, label: L10n.sleepHours)
+                        legendItem(color: MacroColors.calories, label: L10n.eveningCalories)
+                    }
+                    .font(.caption2)
+
+                    let avgSleep = sleepFoodEntries.isEmpty ? 0.0 : sleepFoodEntries.map { Double($0.sleepDurationMinutes) / 60.0 }.reduce(0, +) / Double(sleepFoodEntries.count)
+                    let calEntries = sleepFoodEntries.compactMap(\.eveningCalories)
+                    let avgCal = calEntries.isEmpty ? 0.0 : calEntries.reduce(0, +) / Double(calEntries.count)
+
+                    HStack(spacing: 24) {
+                        VStack {
+                            Text(String(format: "%.1f \(L10n.hoursLabel)", avgSleep))
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(MacroColors.carbs)
+                            Text(L10n.avgDuration)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        if !calEntries.isEmpty {
+                            VStack {
+                                Text("\(Int(avgCal)) kcal")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(MacroColors.calories)
+                                Text(L10n.eveningCalories)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Extended Nutrients
+
+    @ViewBuilder
+    private var extendedNutrientsCard: some View {
+        if !extendedNutrientEntries.isEmpty {
+            let rows = extendedNutrientAverages()
+            if !rows.isEmpty {
+                CardView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(L10n.extendedNutrients, systemImage: "list.bullet")
+                            .font(.headline)
+
+                        Text(L10n.avgPerDay)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        ForEach(rows, id: \.0) { name, value, unit in
+                            HStack {
+                                Text(name)
+                                    .font(.caption)
+                                Spacer()
+                                Text(String(format: "%.1f \(unit)", value))
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func extendedNutrientAverages() -> [(String, Double, String)] {
+        guard !extendedNutrientEntries.isEmpty else { return [] }
+        let distinctDates = Set(extendedNutrientEntries.map(\.date))
+        let n = Double(distinctDates.count)
+        guard n > 0 else { return [] }
+
+        func avg(_ values: [Double?]) -> Double {
+            values.reduce(0.0) { $0 + ($1 ?? 0) } / n
+        }
+
+        let e = extendedNutrientEntries
+        let candidates: [(String, Double, String)] = [
+            (L10n.omega3Label, avg(e.map(\.omega3)), "g"),
+            (L10n.omega6Label, avg(e.map(\.omega6)), "g"),
+            (L10n.sodiumLabel, avg(e.map(\.sodium)), "mg"),
+            (L10n.caffeineLabel, avg(e.map(\.caffeine)), "mg"),
+            (L10n.saturatedFatLabel, avg(e.map(\.saturatedFat)), "g"),
+            (L10n.transFatLabel, avg(e.map(\.transFat)), "g"),
+            (L10n.vitaminCLabel, avg(e.map(\.vitaminC)), "mg"),
+            (L10n.vitaminDLabel, avg(e.map(\.vitaminD)), "μg"),
+            (L10n.vitaminELabel, avg(e.map(\.vitaminE)), "mg"),
+            (L10n.addedSugarsLabel, avg(e.map(\.addedSugars)), "g"),
+        ]
+        return candidates.filter { $0.1 > 0 }
+    }
+
     // MARK: - Helpers
 
     private func mealColor(_ mealType: String) -> Color {
@@ -513,19 +860,28 @@ struct InsightsView: View {
     private func loadChartData() async {
         let endDate = Date()
         let startDate = endDate.adding(days: -selectedRange)
+        let startStr = DateFormatting.isoString(from: startDate)
+        let endStr = DateFormatting.isoString(from: endDate)
 
-        async let daily = try? api.getDailyStats(
-            startDate: DateFormatting.isoString(from: startDate),
-            endDate: DateFormatting.isoString(from: endDate)
-        )
+        async let daily = try? api.getDailyStats(startDate: startStr, endDate: endStr)
         async let meals = try? api.getMealBreakdown(days: selectedRange)
         async let foods = try? api.getTopFoods(days: selectedRange)
+        async let timing = try? api.getMealTiming(startDate: startStr, endDate: endStr)
+        async let diversity = try? api.getFoodDiversity(startDate: startStr, endDate: endStr)
+        async let weightFood = try? api.getWeightFood(startDate: startStr, endDate: endStr)
+        async let sleepFood = try? api.getSleepFood(startDate: startStr, endDate: endStr)
+        async let nutrients = try? api.getNutrientsExtended(startDate: startStr, endDate: endStr)
 
         if let response = await daily {
             dailyStats = response.data
         }
         mealBreakdown = await meals ?? []
         topFoods = await foods ?? []
+        mealTimingEntries = await timing ?? []
+        foodDiversityEntries = await diversity ?? []
+        weightFoodEntries = await weightFood ?? []
+        sleepFoodEntries = await sleepFood ?? []
+        extendedNutrientEntries = await nutrients ?? []
     }
 
     private func loadCalendar() async {

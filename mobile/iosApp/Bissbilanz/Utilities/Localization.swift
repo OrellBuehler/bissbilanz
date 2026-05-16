@@ -341,6 +341,35 @@ enum L10n {
         }
     }
 
+    // MARK: - Analytics
+
+    static var mealTiming: String { localized("meal_timing", en: "Meal Timing", de: "Mahlzeitenzeiten") }
+    static var foodDiversity: String { localized("food_diversity", en: "Food Diversity", de: "Lebensmittelvielfalt") }
+    static var uniqueFoods: String { localized("unique_foods", en: "Unique Foods", de: "Verschiedene Lebensmittel") }
+    static var totalLogged: String { localized("total_logged", en: "Total Logged", de: "Gesamt eingetragen") }
+    static var weightVsCalories: String { localized("weight_vs_calories", en: "Weight vs. Calories", de: "Gewicht vs. Kalorien") }
+    static var sleepVsCalories: String { localized("sleep_vs_calories", en: "Sleep vs. Evening Calories", de: "Schlaf vs. Abendkalorien") }
+    static var extendedNutrients: String { localized("extended_nutrients", en: "Extended Nutrients", de: "Erweiterte Nährstoffe") }
+    static var avgPerDay: String { localized("avg_per_day", en: "Avg per day", de: "Ø pro Tag") }
+    static var busiestHour: String { localized("busiest_hour", en: "Busiest hour", de: "Aktivste Stunde") }
+    static var novaDistribution: String { localized("nova_distribution", en: "NOVA Distribution", de: "NOVA-Verteilung") }
+    static var noAnalyticsData: String { localized("no_analytics_data", en: "No data for this period", de: "Keine Daten für diesen Zeitraum") }
+    static var hourLabel: String { localized("hour_label", en: "h", de: "Uhr") }
+    static var hoursLabel: String { localized("hours_label", en: "hrs", de: "Std") }
+    static var eveningCalories: String { localized("evening_calories", en: "Evening Calories", de: "Abendkalorien") }
+    static var sleepHours: String { localized("sleep_hours", en: "Sleep (hrs)", de: "Schlaf (Std)") }
+    static var unknown: String { localized("unknown", en: "Unknown", de: "Unbekannt") }
+    static var omega3Label: String { localized("omega3_label", en: "Omega-3", de: "Omega-3") }
+    static var omega6Label: String { localized("omega6_label", en: "Omega-6", de: "Omega-6") }
+    static var sodiumLabel: String { localized("sodium_label", en: "Sodium", de: "Natrium") }
+    static var caffeineLabel: String { localized("caffeine_label", en: "Caffeine", de: "Koffein") }
+    static var saturatedFatLabel: String { localized("saturated_fat_label", en: "Saturated Fat", de: "Gesättigte Fettsäuren") }
+    static var transFatLabel: String { localized("trans_fat_label", en: "Trans Fat", de: "Transfett") }
+    static var vitaminCLabel: String { localized("vitamin_c_label", en: "Vitamin C", de: "Vitamin C") }
+    static var vitaminDLabel: String { localized("vitamin_d_label", en: "Vitamin D", de: "Vitamin D") }
+    static var vitaminELabel: String { localized("vitamin_e_label", en: "Vitamin E", de: "Vitamin E") }
+    static var addedSugarsLabel: String { localized("added_sugars_label", en: "Added Sugars", de: "Zugesetzter Zucker") }
+
     // MARK: - Weekday Abbreviations
 
     static var weekdayHeaders: [String] {

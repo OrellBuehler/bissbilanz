@@ -346,6 +346,48 @@ final class BissbilanzAPI {
         try await deleteRequest("/api/sleep/\(id)")
     }
 
+    // MARK: - Analytics
+
+    func getFoodDiversity(startDate: String, endDate: String) async throws -> [FoodDiversityEntry] {
+        let r: FoodDiversityResponse = try await get("/api/analytics/food-diversity", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return r.data
+    }
+
+    func getMealTiming(startDate: String, endDate: String) async throws -> [MealTimingEntry] {
+        let r: MealTimingResponse = try await get("/api/analytics/meal-timing", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return r.data
+    }
+
+    func getWeightFood(startDate: String, endDate: String) async throws -> [DailyWeightFood] {
+        let r: DailyWeightFoodResponse = try await get("/api/analytics/weight-food", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return r.data
+    }
+
+    func getSleepFood(startDate: String, endDate: String) async throws -> [SleepFoodCorrelationEntry] {
+        let r: SleepFoodCorrelationResponse = try await get("/api/analytics/sleep-food", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return r.data
+    }
+
+    func getNutrientsExtended(startDate: String, endDate: String) async throws -> [ExtendedNutrientEntry] {
+        let r: ExtendedNutrientResponse = try await get("/api/analytics/nutrients-extended", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return r.data
+    }
+
     // MARK: - Open Food Facts proxy
 
     func lookupBarcode(_ barcode: String) async throws -> Food? {
