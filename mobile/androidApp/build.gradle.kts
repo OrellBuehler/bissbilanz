@@ -119,7 +119,7 @@ android {
         implementation(libs.coil.compose)
         implementation(libs.glance.appwidget)
         implementation(libs.work.runtime)
-        implementation("com.google.guava:guava:33.5.0-android")
+        implementation("com.google.guava:guava:33.6.0-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)
         testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.3.20")
