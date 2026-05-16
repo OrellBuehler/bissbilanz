@@ -6,8 +6,8 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 258   |
-| Apache-2.0                | 52    |
+| MIT                       | 256   |
+| Apache-2.0                | 53    |
 | ISC                       | 15    |
 | BlueOak-1.0.0             | 6     |
 | BSD-2-Clause              | 5     |
@@ -857,7 +857,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @hono/node-server@1.19.13
+### @hono/node-server@2.0.1
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
@@ -2883,42 +2883,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### @sveltejs/vite-plugin-svelte-inspector@5.0.2
-
-- **License:** MIT
-- **Repository:** https://github.com/sveltejs/vite-plugin-svelte
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2021 [these people](https://github.com/sveltejs/vite-plugin-svelte/graphs/contributors)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### @sveltejs/vite-plugin-svelte@6.2.4
+### @sveltejs/vite-plugin-svelte@7.1.2
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/vite-plugin-svelte
@@ -3268,7 +3233,7 @@ MIT License
 
 </details>
 
-### @zxing/browser@0.1.5
+### @zxing/browser@0.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/zxing-js/browser
@@ -3303,9 +3268,9 @@ SOFTWARE.
 
 </details>
 
-### @zxing/library@0.21.3
+### @zxing/library@0.23.0
 
-- **License:** MIT
+- **License:** Apache-2.0
 - **Repository:** https://github.com/zxing-js/library
 
 ### @zxing/text-encoding@0.9.0
@@ -10668,7 +10633,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
 
-### vitefu@1.1.1
+### vitefu@1.1.3
 
 - **License:** MIT
 - **Repository:** https://github.com/svitejs/vitefu
@@ -10679,7 +10644,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 MIT License
 
-Copyright (c) 2025 Bjorn and Dominik
+Copyright (c) 2026 Bjorn and Dominik
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
