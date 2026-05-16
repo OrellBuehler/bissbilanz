@@ -406,6 +406,7 @@ struct AddWeightSheet: View {
     @State private var notes = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var healthKitService = HealthKitService()
 
     init(existingEntry: WeightEntry? = nil, onSaved: @escaping () -> Void) {
         self.existingEntry = existingEntry
@@ -484,6 +485,14 @@ struct AddWeightSheet: View {
                     notes: notes.isEmpty ? nil : notes
                 )
                 _ = try await api.createWeightEntry(entry)
+            }
+            if UserDefaults.standard.bool(forKey: "healthkit_sync_enabled"),
+               healthKitService.isAvailable,
+               healthKitService.isAuthorized
+            {
+                let capturedKg = kg
+                let capturedDate = date
+                Task { try? await healthKitService.saveWeight(capturedKg, date: capturedDate) }
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()
