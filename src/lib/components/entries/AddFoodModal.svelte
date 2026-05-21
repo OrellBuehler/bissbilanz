@@ -17,6 +17,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import { foodService } from '$lib/services/food-service.svelte';
 
 	type Props = {
 		open?: boolean;
@@ -80,7 +81,7 @@
 		wasOpen = open;
 	});
 
-	const handleSelect = (selection: PickerSelection) => {
+	const handleSelect = async (selection: PickerSelection) => {
 		if (selection.type === 'food') {
 			selectedFood = {
 				id: selection.food.id,
@@ -92,6 +93,20 @@
 			};
 		} else if (selection.type === 'recipe') {
 			selectedFood = { id: selection.recipe.id, name: selection.recipe.name, type: 'recipe' };
+		} else if (selection.type === 'catalog') {
+			const food = await foodService.saveFromCatalog(selection.catalog.id);
+			if (!food) {
+				alert(m.add_food_catalog_add_failed());
+				return;
+			}
+			selectedFood = {
+				id: food.id,
+				name: food.name,
+				type: 'food',
+				servingSize: food.servingSize,
+				servingUnit: food.servingUnit,
+				calories: food.calories
+			};
 		} else if (selection.type === 'favorite') {
 			selectedFood = {
 				id: selection.favorite.id,

@@ -198,6 +198,16 @@ async function findByBarcode(barcode: string): Promise<DexieFood | null> {
 	}
 }
 
+async function saveFromCatalog(catalogId: string): Promise<DexieFood | null> {
+	const { data } = await api.POST('/api/catalog/{id}/save', {
+		params: { path: { id: catalogId } }
+	});
+	if (!data?.food) return null;
+	const food = data.food as unknown as DexieFood;
+	await db.foods.put(food);
+	return food;
+}
+
 export const foodService = {
 	allFoods,
 	foodById,
@@ -208,5 +218,6 @@ export const foodService = {
 	create,
 	update,
 	delete: deleteFood,
-	findByBarcode
+	findByBarcode,
+	saveFromCatalog
 };
