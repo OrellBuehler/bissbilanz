@@ -121,3 +121,20 @@ describe('catalog queries', () => {
 		await expect(instantiateCatalogFood(db as never, u2.id, cf.id)).resolves.toBeNull();
 	});
 });
+
+describe('catalog isolation from personal foods', () => {
+	it('personal foods table never absorbs catalog rows after granting catalog access', async () => {
+		const db = getTestDB(dbUrl);
+		const [u] = await db
+			.insert(users)
+			.values({ infomaniakSub: 'sub-iso-1', email: 'iso@example.com' })
+			.returning();
+		const ds = (await db.query.catalogDatasets.findFirst({
+			where: eq(catalogDatasets.key, 'testset')
+		}))!;
+		await db.insert(catalogAccess).values({ userId: u.id, datasetId: ds.id });
+		// Granting catalog access must not silently copy rows into personal foods table
+		const personalFoods = await db.select().from(foods).where(eq(foods.userId, u.id));
+		expect(personalFoods.length).toBe(0);
+	});
+});

@@ -773,6 +773,57 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/catalog/search': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Online catalog search across the requesting user's granted datasets. */
+		get: operations['catalogSearch'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/catalog/barcode/{code}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Barcode lookup across granted catalog datasets (priority tie-break). */
+		get: operations['catalogByBarcode'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/catalog/{id}/save': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Instantiate a personal food from a catalog row (copy-on-use). */
+		post: operations['saveCatalogFood'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/openfoodfacts/{barcode}': {
 		parameters: {
 			query?: never;
@@ -2000,6 +2051,15 @@ export interface components {
 			};
 			content: {
 				'application/json': components['schemas']['ConflictErrorResponse'];
+			};
+		};
+		/** @description Not found */
+		NotFoundResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
 			};
 		};
 	};
@@ -3531,6 +3591,99 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	catalogSearch: {
+		parameters: {
+			query: {
+				q: string;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						results: {
+							[key: string]: unknown;
+						}[];
+					};
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	catalogByBarcode: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				code: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						found: boolean;
+						result?: {
+							[key: string]: unknown;
+						};
+					};
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						found: boolean;
+					};
+				};
+			};
+		};
+	};
+	saveCatalogFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	lookupOpenFoodFacts: {

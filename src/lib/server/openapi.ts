@@ -104,6 +104,12 @@ const res204: ZodOpenApiResponseObject = {
 	description: 'Deleted'
 };
 
+const res404: ZodOpenApiResponseObject = {
+	id: 'NotFoundResponse',
+	description: 'Not found',
+	content: { 'application/json': { schema: errorResponseSchema } }
+};
+
 export function generateSpec() {
 	return createDocument({
 		openapi: '3.1.0',
@@ -1283,6 +1289,77 @@ export function generateSpec() {
 						},
 						'400': res400,
 						'401': res401
+					}
+				}
+			},
+
+			// ── Catalog ───────────────────────────────────────────
+			'/api/catalog/search': {
+				get: {
+					operationId: 'catalogSearch',
+					tags: ['Catalog'],
+					description: "Online catalog search across the requesting user's granted datasets.",
+					requestParams: {
+						query: z.object({ q: z.string(), limit: z.number().int().optional() })
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: {
+								'application/json': {
+									schema: z.object({
+										results: z.array(z.record(z.string(), z.unknown()))
+									})
+								}
+							}
+						},
+						'401': res401
+					}
+				}
+			},
+			'/api/catalog/barcode/{code}': {
+				get: {
+					operationId: 'catalogByBarcode',
+					tags: ['Catalog'],
+					description: 'Barcode lookup across granted catalog datasets (priority tie-break).',
+					requestParams: { path: z.object({ code: z.string() }) },
+					responses: {
+						'200': {
+							description: 'Found',
+							content: {
+								'application/json': {
+									schema: z.object({
+										found: z.boolean(),
+										result: z.record(z.string(), z.unknown()).optional()
+									})
+								}
+							}
+						},
+						'400': res400,
+						'401': res401,
+						'404': {
+							description: 'Not found',
+							content: {
+								'application/json': { schema: z.object({ found: z.boolean() }) }
+							}
+						}
+					}
+				}
+			},
+			'/api/catalog/{id}/save': {
+				post: {
+					operationId: 'saveCatalogFood',
+					tags: ['Catalog'],
+					description: 'Instantiate a personal food from a catalog row (copy-on-use).',
+					requestParams: { path: z.object({ id: z.string() }) },
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: foodResponseSchema } }
+						},
+						'401': res401,
+						'404': res404,
+						'409': res409
 					}
 				}
 			},
