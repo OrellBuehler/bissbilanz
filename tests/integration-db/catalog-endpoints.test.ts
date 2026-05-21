@@ -103,10 +103,10 @@ describe('catalog queries', () => {
 			.where(eq(catalogFoods.datasetId, ds.id))
 			.limit(1);
 
-		const food = await instantiateCatalogFood(db as never, u.id, cf.id);
-		expect(food).toBeTruthy();
-		expect(food!.userId).toBe(u.id);
-		expect(food!.name).toBe(cf.name);
+		const result = await instantiateCatalogFood(db as never, u.id, cf.id);
+		expect(result?.success).toBe(true);
+		expect(result?.success && result.data.userId).toBe(u.id);
+		expect(result?.success && result.data.name).toBe(cf.name);
 
 		const personal = await db.select().from(foods).where(eq(foods.userId, u.id));
 		expect(personal.length).toBe(1);

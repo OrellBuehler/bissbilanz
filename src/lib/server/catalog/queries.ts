@@ -1,10 +1,9 @@
 import { and, eq, ilike, asc } from 'drizzle-orm';
 import type { getDB } from '$lib/server/db';
 import { catalogFoods, catalogDatasets, catalogAccess, foods } from '$lib/server/schema';
-import { toFoodInsert } from '$lib/server/foods';
-import { foodCreateSchema } from '$lib/server/validation';
+import { createFood } from '$lib/server/foods';
 import { pickNutrients } from '$lib/nutrients';
-import { roundNutrition } from '$lib/utils/round-nutrition';
+import type { Result } from '$lib/server/types';
 
 type DB = ReturnType<typeof getDB>;
 
@@ -72,7 +71,7 @@ export async function instantiateCatalogFood(
 	db: DB,
 	userId: string,
 	catalogFoodId: string
-): Promise<typeof foods.$inferSelect | null> {
+): Promise<Result<typeof foods.$inferSelect> | null> {
 	const rows = await db
 		.select({ cf: catalogFoods })
 		.from(catalogFoods)
@@ -104,15 +103,5 @@ export async function instantiateCatalogFood(
 		imageUrl: cf.imageUrl,
 		...pickNutrients(cf as Record<string, unknown>)
 	};
-
-	const parsed = foodCreateSchema.safeParse(payload);
-	if (!parsed.success) return null;
-
-	try {
-		const [created] = await db.insert(foods).values(toFoodInsert(userId, parsed.data)).returning();
-		if (!created) return null;
-		return roundNutrition(created);
-	} catch {
-		return null;
-	}
+	return await createFood(userId, payload, db);
 }
