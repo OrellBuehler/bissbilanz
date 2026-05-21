@@ -40,7 +40,8 @@
 					servingSize?: number | null;
 					servingUnit?: string | null;
 				};
-		  };
+		  }
+		| { type: 'catalog'; catalog: { id: string; name: string; source: string } };
 
 	type FavoriteItem = Extract<PickerSelection, { type: 'favorite' }>['favorite'];
 
@@ -54,6 +55,40 @@
 	let { foods = [], recipes = [], tab, onSelect }: Props = $props();
 
 	let query = $state('');
+	type CatalogHit = {
+		id: string;
+		name: string;
+		brand: string | null;
+		source: string;
+		datasetKey: string;
+	};
+	let catalogResults: CatalogHit[] = $state([]);
+	let catalogLoading = $state(false);
+	let catalogTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const runCatalogSearch = (term: string) => {
+		clearTimeout(catalogTimer);
+		if (term.trim().length < 2) {
+			catalogResults = [];
+			catalogLoading = false;
+			return;
+		}
+		catalogLoading = true;
+		catalogTimer = setTimeout(async () => {
+			try {
+				const { data } = await api.GET('/api/catalog/search', {
+					params: { query: { q: term } }
+				});
+				catalogResults = (data?.results ?? []) as CatalogHit[];
+			} catch (e) {
+				if (dev) console.warn('catalog search failed:', e);
+				catalogResults = [];
+			} finally {
+				catalogLoading = false;
+			}
+		}, 300);
+	};
+
 	let recentFoods: Array<{ id: string; name: string }> = $state([]);
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
@@ -129,6 +164,7 @@
 	$effect(() => {
 		if (tab === 'recent') loadRecentFoods();
 		if (tab === 'favorites') loadFavoriteRecipes();
+		if (tab === 'search') runCatalogSearch(query);
 	});
 </script>
 
@@ -151,6 +187,38 @@
 			</li>
 		{/each}
 	</ul>
+	{#if catalogLoading}
+		<p class="text-muted-foreground text-sm">{m.add_food_catalog_searching()}</p>
+	{:else if catalogResults.length > 0}
+		<p class="text-muted-foreground mt-2 text-xs font-medium">{m.add_food_catalog_section()}</p>
+		<ul class="max-h-60 space-y-2 overflow-auto">
+			{#each catalogResults as hit (hit.id)}
+				<li class="flex min-w-0 items-start justify-between gap-2">
+					<span class="min-w-0 flex-1 truncate text-sm">
+						{hit.name}
+						<span
+							class="bg-muted text-muted-foreground ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase"
+							>{m.catalog_source_badge({ source: hit.source })}</span
+						>
+					</span>
+					<Button
+						variant="outline"
+						size="sm"
+						class="shrink-0"
+						aria-label={m.add_food_add()}
+						onclick={() =>
+							onSelect({
+								type: 'catalog',
+								catalog: { id: hit.id, name: hit.name, source: hit.source }
+							})}
+					>
+						<Plus class="size-4 sm:mr-1" />
+						<span class="hidden sm:inline">{m.add_food_add()}</span>
+					</Button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 </Tabs.Content>
 
 <Tabs.Content value="favorites" class="space-y-4">

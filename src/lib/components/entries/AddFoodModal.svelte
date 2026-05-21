@@ -92,7 +92,7 @@
 			};
 		} else if (selection.type === 'recipe') {
 			selectedFood = { id: selection.recipe.id, name: selection.recipe.name, type: 'recipe' };
-		} else {
+		} else if (selection.type === 'favorite') {
 			selectedFood = {
 				id: selection.favorite.id,
 				name: selection.favorite.name,
