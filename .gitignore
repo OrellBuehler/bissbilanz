@@ -61,3 +61,7 @@ mobile/iosApp/*.xcodeproj
 
 # OpenAPI generator temp output
 .openapi-gen-tmp/
+
+# Crawled catalog datasets — never commit (public repo; private data)
+data/catalog/
+tests/fixtures/catalog/bad.jsonl
