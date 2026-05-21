@@ -1351,7 +1351,7 @@ export function generateSpec() {
 					operationId: 'saveCatalogFood',
 					tags: ['Catalog'],
 					description: 'Instantiate a personal food from a catalog row (copy-on-use).',
-					requestParams: { path: z.object({ id: z.string() }) },
+					requestParams: { path: z.object({ id: z.string().uuid() }) },
 					responses: {
 						'201': {
 							description: 'Created',

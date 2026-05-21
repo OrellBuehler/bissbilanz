@@ -17,6 +17,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import { toast } from 'svelte-sonner';
 	import { foodService } from '$lib/services/food-service.svelte';
 
 	type Props = {
@@ -96,7 +97,7 @@
 		} else if (selection.type === 'catalog') {
 			const food = await foodService.saveFromCatalog(selection.catalog.id);
 			if (!food) {
-				alert(m.add_food_catalog_add_failed());
+				toast.error(m.add_food_catalog_add_failed());
 				return;
 			}
 			selectedFood = {
