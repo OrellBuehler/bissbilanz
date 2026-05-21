@@ -34,6 +34,17 @@ describe('catalog schema', () => {
 		const db = getTestDB(dbUrl);
 		const catalogCols = await columns(db, 'catalog_foods');
 		const foodCols = await columns(db, 'foods');
+		const nutrientDbCols = new Set(ALL_NUTRIENTS.map((n) => n.dbColumn));
+		const foodsNutrientCols = new Set([...foodCols].filter((c) => nutrientDbCols.has(c)));
+		const catalogNutrientCols = new Set([...catalogCols].filter((c) => nutrientDbCols.has(c)));
+		expect(
+			foodsNutrientCols.size,
+			`foods has ${foodsNutrientCols.size} nutrient cols, expected ${nutrientDbCols.size}`
+		).toBe(nutrientDbCols.size);
+		expect(
+			catalogNutrientCols.size,
+			`catalog_foods has ${catalogNutrientCols.size} nutrient cols, expected ${nutrientDbCols.size}`
+		).toBe(nutrientDbCols.size);
 		for (const n of ALL_NUTRIENTS) {
 			expect(catalogCols.has(n.dbColumn), `catalog_foods missing ${n.dbColumn}`).toBe(true);
 			expect(foodCols.has(n.dbColumn), `foods missing ${n.dbColumn}`).toBe(true);
