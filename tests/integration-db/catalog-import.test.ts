@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { $ } from 'bun';
 import { join } from 'node:path';
 import {
@@ -9,7 +9,7 @@ import {
 	getTestDB,
 	closeTestDB
 } from './helpers';
-import { catalogDatasets, catalogFoods } from '$lib/server/schema';
+import { catalogDatasets, catalogFoods, catalogAccess, users } from '$lib/server/schema';
 
 const DB_NAME = 'test_catalog_import';
 let dbUrl: string;
@@ -74,5 +74,49 @@ describe('catalog:import', () => {
 			where: eq(catalogDatasets.key, 'badset')
 		});
 		expect(ds).toBeUndefined();
+	});
+});
+
+describe('catalog:grant / revoke / list', () => {
+	it('grants and revokes dataset access by user email', async () => {
+		const db = getTestDB(dbUrl);
+		await $`bun run scripts/catalog.ts import ${FIXTURE}`.env({
+			...process.env,
+			DATABASE_URL: dbUrl
+		});
+		const [u] = await db
+			.insert(users)
+			.values({ infomaniakSub: 'sub-grant-1', email: 'fam@example.com' })
+			.returning();
+		const ds = (await db.query.catalogDatasets.findFirst({
+			where: eq(catalogDatasets.key, 'testset')
+		}))!;
+
+		await $`bun run scripts/catalog.ts grant fam@example.com testset`.env({
+			...process.env,
+			DATABASE_URL: dbUrl
+		});
+		let grants = await db
+			.select()
+			.from(catalogAccess)
+			.where(and(eq(catalogAccess.userId, u.id), eq(catalogAccess.datasetId, ds.id)));
+		expect(grants.length).toBe(1);
+
+		await $`bun run scripts/catalog.ts revoke fam@example.com testset`.env({
+			...process.env,
+			DATABASE_URL: dbUrl
+		});
+		grants = await db
+			.select()
+			.from(catalogAccess)
+			.where(and(eq(catalogAccess.userId, u.id), eq(catalogAccess.datasetId, ds.id)));
+		expect(grants.length).toBe(0);
+	});
+
+	it('list exits 0', async () => {
+		const r = await $`bun run scripts/catalog.ts list`
+			.env({ ...process.env, DATABASE_URL: dbUrl })
+			.quiet();
+		expect(r.exitCode).toBe(0);
 	});
 });

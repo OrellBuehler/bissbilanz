@@ -106,12 +106,64 @@ async function importDataset(file: string) {
 	console.log(`Imported ${products.length} products into dataset "${header.key}"`);
 }
 
+async function resolveUserId(email: string): Promise<string> {
+	const u = await db.query.users.findFirst({ where: eq(users.email, email) });
+	if (!u) throw new Error(`No user with email ${email}`);
+	return u.id;
+}
+
+async function resolveDatasetId(key: string): Promise<string> {
+	const d = await db.query.catalogDatasets.findFirst({ where: eq(catalogDatasets.key, key) });
+	if (!d) throw new Error(`No dataset with key ${key}`);
+	return d.id;
+}
+
+async function grant(email: string, key: string) {
+	const userId = await resolveUserId(email);
+	const datasetId = await resolveDatasetId(key);
+	await db.insert(catalogAccess).values({ userId, datasetId }).onConflictDoNothing();
+	console.log(`Granted "${key}" to ${email}`);
+}
+
+async function revoke(email: string, key: string) {
+	const userId = await resolveUserId(email);
+	const datasetId = await resolveDatasetId(key);
+	await db
+		.delete(catalogAccess)
+		.where(sql`${catalogAccess.userId} = ${userId} AND ${catalogAccess.datasetId} = ${datasetId}`);
+	console.log(`Revoked "${key}" from ${email}`);
+}
+
+async function list() {
+	const datasets = await db.select().from(catalogDatasets);
+	for (const d of datasets) {
+		const grants = await db
+			.select({ email: users.email })
+			.from(catalogAccess)
+			.innerJoin(users, eq(users.id, catalogAccess.userId))
+			.where(eq(catalogAccess.datasetId, d.id));
+		console.log(
+			`${d.key}  (${d.source}, prio ${d.priority}, ${d.productCount ?? 0} products)  -> ${
+				grants.map((g) => g.email).join(', ') || '(no grants)'
+			}`
+		);
+	}
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 
 try {
 	if (cmd === 'import') {
 		if (!args[0]) throw new Error('Usage: catalog import <file.jsonl>');
 		await importDataset(args[0]);
+	} else if (cmd === 'grant') {
+		if (!args[0] || !args[1]) throw new Error('Usage: catalog grant <userEmail> <datasetKey>');
+		await grant(args[0], args[1]);
+	} else if (cmd === 'revoke') {
+		if (!args[0] || !args[1]) throw new Error('Usage: catalog revoke <userEmail> <datasetKey>');
+		await revoke(args[0], args[1]);
+	} else if (cmd === 'list') {
+		await list();
 	} else {
 		throw new Error(`Unknown command: ${cmd ?? '(none)'}. Expected: import|grant|revoke|list`);
 	}
