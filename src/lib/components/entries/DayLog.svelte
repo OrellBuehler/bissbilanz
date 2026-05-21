@@ -7,6 +7,7 @@
 	import { DEFAULT_MEAL_TYPES, getCurrentMealByTime } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { api } from '$lib/api/client';
 	import { entryService } from '$lib/services/entry-service.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
@@ -147,9 +148,24 @@
 			if (food) {
 				barcodeFoodId = food.id;
 				addModalOpen = true;
-			} else {
-				goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
+				return;
 			}
+			try {
+				const { data } = await api.GET('/api/catalog/barcode/{code}', {
+					params: { path: { code: barcode } }
+				});
+				if (data?.found && data.result) {
+					const saved = await foodService.saveFromCatalog((data.result as { id: string }).id);
+					if (saved) {
+						barcodeFoodId = saved.id;
+						addModalOpen = true;
+						return;
+					}
+				}
+			} catch {
+				// fall through to OFF prefill
+			}
+			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
 		};
 	};
 
