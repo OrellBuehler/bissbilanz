@@ -31,7 +31,7 @@
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.0",
-		"@j178/prek": "^0.3.13",
+		"@j178/prek": "^0.4.1",
 		"@lucide/svelte": "^1.8.0",
 		"@playwright/test": "^1.58.2",
 		"@sveltejs/kit": "^2.57.1",
