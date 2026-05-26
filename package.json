@@ -65,7 +65,7 @@
 		"tailwind-merge": "^3.4.0",
 		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.1.18",
-		"testcontainers": "^11.14.0",
+		"testcontainers": "^12.0.0",
 		"typescript": "^6.0.2",
 		"vaul-svelte": "^1.0.0-next.7",
 		"vite": "^8.0.5",
