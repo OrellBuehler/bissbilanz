@@ -1,0 +1,21 @@
+{
+	"productId": "100001",
+	"name": "M-Classic Vollmilch UHT",
+	"brand": "M-Classic",
+	"gtins": ["7610200000001"],
+	"productUrls": { "de": "https://www.migros.ch/de/product/100001" },
+	"image": { "original": "https://image.migros.ch/100001.jpg" },
+	"nutrients": {
+		"referenceValue": "100g",
+		"values": [
+			{ "code": "energy_kcal", "value": 64 },
+			{ "code": "protein", "value": 3.3 },
+			{ "code": "carbohydrate", "value": 4.8 },
+			{ "code": "of_which_sugars", "value": 4.8 },
+			{ "code": "fat", "value": 3.5 },
+			{ "code": "of_which_saturated", "value": 2.1 },
+			{ "code": "dietary_fiber", "value": 0 },
+			{ "code": "salt", "value": 0.1 }
+		]
+	}
+}
