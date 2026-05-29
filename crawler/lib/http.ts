@@ -31,8 +31,9 @@ export function createPoliteClient(opts: PoliteClientOpts = {}) {
 	}
 
 	async function getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T | null> {
+		const cacheKey = Object.keys(headers).length > 0 ? `${url}|${JSON.stringify(headers)}` : url;
 		if (opts.cache) {
-			const hit = await opts.cache.get(url);
+			const hit = await opts.cache.get(cacheKey);
 			if (hit != null) return JSON.parse(hit) as T;
 		}
 		let attempt = 0;
@@ -43,7 +44,7 @@ export function createPoliteClient(opts: PoliteClientOpts = {}) {
 				if (res.status === 404 || res.status === 410) return null;
 				if (!res.ok) throw new Error(`HTTP ${res.status}`);
 				const text = await res.text();
-				if (opts.cache) await opts.cache.set(url, text);
+				if (opts.cache) await opts.cache.set(cacheKey, text);
 				return JSON.parse(text) as T;
 			} catch (err) {
 				attempt++;

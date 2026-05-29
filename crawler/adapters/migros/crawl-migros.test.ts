@@ -59,3 +59,20 @@ test('respects the limit option', async () => {
 	for await (const p of crawlMigros(client, { limit: 1, sleep: async () => {} })) out.push(p);
 	expect(out.length).toBe(1);
 });
+
+test('checkpoints only emitted products (after yield), not dropped ones', async () => {
+	const client = makeClient(
+		{ '1': base, '2': { ...base, id: '2', name: 'B', gtins: ['7610200000002'] }, '9': null },
+		['1', '9', '2']
+	);
+	const cursors: Array<{ category: string; page: number }> = [];
+	const out = [];
+	for await (const p of crawlMigros(client, {
+		sleep: async () => {},
+		onCheckpoint: (c) => void cursors.push(c)
+	}))
+		out.push(p);
+	// '9' has no detail (dropped) → not checkpointed; only the two emitted products are.
+	expect(out.length).toBe(2);
+	expect(cursors.length).toBe(2);
+});

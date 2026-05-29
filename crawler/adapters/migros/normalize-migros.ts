@@ -20,6 +20,9 @@ export function migrosToDataset(d: MigrosProductDetail, crawledAt?: string): Bui
 
 	const basisG = gramsBasis(d.nutrition.basis);
 	if (basisG == null || basisG <= 0) return { ok: false, reason: 'bad-basis' };
+	const servingUnit: 'g' | 'ml' = d.nutrition.basis?.trim().toLowerCase().endsWith('ml')
+		? 'ml'
+		: 'g';
 	const f = 100 / basisG;
 	const scale = (v: number | null | undefined): number | null =>
 		v == null || Number.isNaN(v) ? null : Math.round(v * f * 100) / 100;
@@ -29,7 +32,7 @@ export function migrosToDataset(d: MigrosProductDetail, crawledAt?: string): Bui
 		brand: d.brand ?? null,
 		language: 'de',
 		servingSize: 100,
-		servingUnit: 'g',
+		servingUnit,
 		calories: scale(d.nutrition.energyKcal),
 		protein: scale(d.nutrition.protein),
 		carbs: scale(d.nutrition.carbohydrate),

@@ -32,7 +32,6 @@ export async function* crawlMigros(
 			continue;
 		}
 		seenIds.add(id);
-		if (opts.onCheckpoint) await opts.onCheckpoint(cursor);
 
 		const detail = await client.getProduct(id);
 		if (throttleMs > 0) await sleep(throttleMs);
@@ -53,6 +52,7 @@ export async function* crawlMigros(
 		stats.emitted++;
 		if (opts.onProgress && stats.emitted % 500 === 0) opts.onProgress(stats);
 		yield r.product;
+		if (opts.onCheckpoint) await opts.onCheckpoint(cursor);
 		if (opts.limit && stats.emitted >= opts.limit) return;
 	}
 }

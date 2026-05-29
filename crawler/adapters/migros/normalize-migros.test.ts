@@ -68,3 +68,15 @@ test('drops a product missing core macros', () => {
 	});
 	expect(r.ok).toBe(false);
 });
+
+test('uses ml serving unit and rescales for an ml-based product', () => {
+	const r = migrosToDataset({
+		...detail,
+		nutrition: { ...detail.nutrition, basis: '200ml', energyKcal: 128 }
+	});
+	expect(r.ok).toBe(true);
+	if (r.ok) {
+		expect(r.product.servingUnit).toBe('ml');
+		expect(r.product.calories).toBe(64);
+	}
+});

@@ -1,12 +1,15 @@
+import { rmSync } from 'node:fs';
 import { readDumpLines } from './lib/jsonl-stream';
 import { crawlOffDump } from './adapters/off/crawl-off';
 import { crawlMigros } from './adapters/migros/crawl-migros';
 import { createMigrosClient } from './adapters/migros/client';
 import { DatasetWriter } from './lib/jsonl-writer';
+import { readCheckpoint, writeCheckpoint } from './lib/checkpoint';
 import { newStats, type CrawlStats } from './types';
 
 // Root "food" category id(s) in the Migros taxonomy; refine on the host during a real crawl.
 const MIGROS_FOOD_CATEGORIES = ['7494731'];
+const MIGROS_CHECKPOINT = 'data/catalog/.migros-checkpoint.json';
 
 export async function runOff(opts: { dumpPath: string; outPath: string }): Promise<CrawlStats> {
 	const stats = newStats();
@@ -17,21 +20,32 @@ export async function runOff(opts: { dumpPath: string; outPath: string }): Promi
 		priority: 20
 	});
 	await writer.open();
-	for await (const product of crawlOffDump(readDumpLines(opts.dumpPath), {
-		stats,
-		onProgress: (s) =>
-			console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
-	})) {
-		await writer.write(product);
+	try {
+		for await (const product of crawlOffDump(readDumpLines(opts.dumpPath), {
+			stats,
+			onProgress: (s) =>
+				console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
+		})) {
+			await writer.write(product);
+		}
+	} finally {
+		await writer.close();
 	}
-	const count = await writer.close();
-	console.error(`[off] done: ${count} products → ${opts.outPath}`);
+	console.error(`[off] done: ${stats.emitted} products → ${opts.outPath}`);
 	console.error(`[off] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
 	return stats;
 }
 
-export async function runMigros(opts: { outPath: string }): Promise<CrawlStats> {
+export async function runMigros(opts: {
+	outPath: string;
+	checkpointPath?: string;
+}): Promise<CrawlStats> {
 	const stats = newStats();
+	const checkpointPath = opts.checkpointPath ?? MIGROS_CHECKPOINT;
+	const resume = await readCheckpoint<{ category: string; page: number }>(checkpointPath);
+	if (resume)
+		console.error(`[migros] resuming from category ${resume.category} page ${resume.page}`);
+
 	const client = await createMigrosClient({ categories: MIGROS_FOOD_CATEGORIES });
 	const writer = new DatasetWriter(opts.outPath, {
 		key: 'migros',
@@ -40,16 +54,23 @@ export async function runMigros(opts: { outPath: string }): Promise<CrawlStats> 
 		priority: 10
 	});
 	await writer.open();
-	for await (const product of crawlMigros(client, {
-		stats,
-		throttleMs: 600,
-		onProgress: (s) =>
-			console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
-	})) {
-		await writer.write(product);
+	try {
+		for await (const product of crawlMigros(client, {
+			stats,
+			throttleMs: 600,
+			resume,
+			onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, cursor),
+			onProgress: (s) =>
+				console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
+		})) {
+			await writer.write(product);
+		}
+	} finally {
+		await writer.close();
 	}
-	const count = await writer.close();
-	console.error(`[migros] done: ${count} products → ${opts.outPath}`);
+	// Completed cleanly → drop the checkpoint so the next run starts fresh.
+	rmSync(checkpointPath, { force: true });
+	console.error(`[migros] done: ${stats.emitted} products → ${opts.outPath}`);
 	console.error(`[migros] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
 	return stats;
 }

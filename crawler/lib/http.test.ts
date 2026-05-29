@@ -56,3 +56,21 @@ test('caches responses by url when a cache is provided', async () => {
 	expect(a).toEqual(b);
 	expect(calls).toBe(1);
 });
+
+test('cache key varies by request headers', async () => {
+	let calls = 0;
+	const store = new Map<string, string>();
+	const client = createPoliteClient({
+		minDelayMs: 0,
+		maxRetries: 1,
+		sleep: async () => {},
+		cache: { get: async (k) => store.get(k) ?? null, set: async (k, v) => void store.set(k, v) },
+		fetchImpl: async () => {
+			calls++;
+			return new Response(JSON.stringify({ n: calls }), { status: 200 });
+		}
+	});
+	await client.getJson('https://x.test/c', { Authorization: 'Bearer a' });
+	await client.getJson('https://x.test/c', { Authorization: 'Bearer b' });
+	expect(calls).toBe(2); // different headers → different cache entries
+});

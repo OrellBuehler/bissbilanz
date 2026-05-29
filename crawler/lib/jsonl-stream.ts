@@ -10,6 +10,7 @@ export async function* splitJsonlLines(source: AsyncIterable<Uint8Array>): Async
 			if (line.length > 0) yield line;
 		}
 	}
+	buf += decoder.decode(); // flush any buffered bytes from an incomplete trailing sequence
 	const last = buf.trim();
 	if (last.length > 0) yield last;
 }
