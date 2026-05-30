@@ -1,6 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
+import { rateLimit } from '$lib/server/rate-limit';
+import { ApiError } from '$lib/server/errors';
 
 let mockSearchResults: any[] = [];
 
@@ -9,10 +11,12 @@ vi.mock('$lib/server/openfoodfacts', () => ({
 }));
 
 vi.mock('$lib/server/rate-limit', () => ({
-	rateLimit: () => {}
+	rateLimit: vi.fn()
 }));
 
 const { GET } = await import('../../src/routes/api/openfoodfacts/search/+server');
+
+const mockRateLimit = vi.mocked(rateLimit);
 
 const eventFor = (q: string, user = TEST_USER) =>
 	createMockEvent({ user, url: `http://localhost/api/openfoodfacts/search?q=${q}` });
@@ -20,6 +24,7 @@ const eventFor = (q: string, user = TEST_USER) =>
 describe('api/openfoodfacts/search', () => {
 	beforeEach(() => {
 		mockSearchResults = [];
+		mockRateLimit.mockReset();
 	});
 
 	test('returns 401 when not authenticated', async () => {
@@ -56,5 +61,15 @@ describe('api/openfoodfacts/search', () => {
 		const response = await GET(eventFor('test'));
 		const data = await response.json();
 		expect(data.results.map((r: any) => r.name)).toEqual(['Valid']);
+	});
+
+	test('returns 429 when the rate limit is exceeded', async () => {
+		mockRateLimit.mockImplementation(() => {
+			throw new ApiError(429, 'Rate limit exceeded');
+		});
+		const response = await GET(eventFor('milk'));
+		const data = await response.json();
+		expect(response.status).toBe(429);
+		expect(data.error).toBe('Rate limit exceeded');
 	});
 });
