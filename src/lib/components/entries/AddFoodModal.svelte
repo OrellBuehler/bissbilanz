@@ -108,6 +108,20 @@
 				servingUnit: food.servingUnit,
 				calories: food.calories
 			};
+		} else if (selection.type === 'off') {
+			const food = await foodService.saveFromOFF(selection.off.barcode);
+			if (!food) {
+				toast.error(m.add_food_off_add_failed());
+				return;
+			}
+			selectedFood = {
+				id: food.id,
+				name: food.name,
+				type: 'food',
+				servingSize: food.servingSize,
+				servingUnit: food.servingUnit,
+				calories: food.calories
+			};
 		} else if (selection.type === 'favorite') {
 			selectedFood = {
 				id: selection.favorite.id,

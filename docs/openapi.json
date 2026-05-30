@@ -2546,6 +2546,47 @@
 				}
 			}
 		},
+		"/api/openfoodfacts/search": {
+			"get": {
+				"operationId": "searchOpenFoodFacts",
+				"tags": ["OpenFoodFacts"],
+				"description": "Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "q",
+						"schema": {
+							"type": "string"
+						},
+						"required": true
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/OpenFoodFactsSearchResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/openfoodfacts/{barcode}": {
 			"get": {
 				"operationId": "lookupOpenFoodFacts",
@@ -2574,6 +2615,54 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/openfoodfacts/{barcode}/save": {
+			"post": {
+				"operationId": "saveOpenFoodFactsProduct",
+				"tags": ["OpenFoodFacts"],
+				"description": "Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "barcode",
+						"schema": {
+							"type": "string"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Existing food returned",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -9243,14 +9332,17 @@
 				"required": ["date", "eveningCalories", "sleepDurationMinutes", "sleepQuality"],
 				"additionalProperties": false
 			},
-			"OpenFoodFactsResponse": {
+			"OpenFoodFactsSearchResponse": {
 				"type": "object",
 				"properties": {
-					"product": {
-						"$ref": "#/components/schemas/OpenFoodFactsProduct"
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/OpenFoodFactsProduct"
+						}
 					}
 				},
-				"required": ["product"],
+				"required": ["results"],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsProduct": {
@@ -9813,6 +9905,16 @@
 					"additives",
 					"ingredientsText"
 				],
+				"additionalProperties": false
+			},
+			"OpenFoodFactsResponse": {
+				"type": "object",
+				"properties": {
+					"product": {
+						"$ref": "#/components/schemas/OpenFoodFactsProduct"
+					}
+				},
+				"required": ["product"],
 				"additionalProperties": false
 			}
 		},

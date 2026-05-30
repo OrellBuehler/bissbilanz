@@ -208,6 +208,16 @@ async function saveFromCatalog(catalogId: string): Promise<DexieFood | null> {
 	return food;
 }
 
+async function saveFromOFF(barcode: string): Promise<DexieFood | null> {
+	const { data } = await api.POST('/api/openfoodfacts/{barcode}/save', {
+		params: { path: { barcode } }
+	});
+	if (!data?.food) return null;
+	const food = data.food as unknown as DexieFood;
+	await db.foods.put(food);
+	return food;
+}
+
 export const foodService = {
 	allFoods,
 	foodById,
@@ -219,5 +229,6 @@ export const foodService = {
 	update,
 	delete: deleteFood,
 	findByBarcode,
-	saveFromCatalog
+	saveFromCatalog,
+	saveFromOFF
 };

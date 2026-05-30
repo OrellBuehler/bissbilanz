@@ -60,7 +60,10 @@ import {
 import { favoritesResponseSchema } from './validation/responses/favorites';
 import { maintenanceResponseSchema } from './validation/responses/maintenance';
 import { imageUploadResponseSchema } from './validation/responses/images';
-import { openfoodfactsResponseSchema } from './validation/responses/openfoodfacts';
+import {
+	openfoodfactsResponseSchema,
+	openfoodfactsSearchResponseSchema
+} from './validation/responses/openfoodfacts';
 import { goalsResponseSchema, goalsSetResponseSchema } from './validation/responses/goals';
 import {
 	dayPropertiesResponseSchema,
@@ -1365,6 +1368,24 @@ export function generateSpec() {
 			},
 
 			// ── Open Food Facts ───────────────────────────────────
+			'/api/openfoodfacts/search': {
+				get: {
+					operationId: 'searchOpenFoodFacts',
+					tags: ['OpenFoodFacts'],
+					description:
+						'Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse.',
+					requestParams: {
+						query: z.object({ q: z.string(), limit: z.number().int().optional() })
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: openfoodfactsSearchResponseSchema } }
+						},
+						'401': res401
+					}
+				}
+			},
 			'/api/openfoodfacts/{barcode}': {
 				get: {
 					operationId: 'lookupOpenFoodFacts',
@@ -1379,6 +1400,28 @@ export function generateSpec() {
 							content: { 'application/json': { schema: openfoodfactsResponseSchema } }
 						},
 						'401': res401
+					}
+				}
+			},
+			'/api/openfoodfacts/{barcode}/save': {
+				post: {
+					operationId: 'saveOpenFoodFactsProduct',
+					tags: ['OpenFoodFacts'],
+					description:
+						'Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved.',
+					requestParams: { path: z.object({ barcode: z.string() }) },
+					responses: {
+						'200': {
+							description: 'Existing food returned',
+							content: { 'application/json': { schema: foodResponseSchema } }
+						},
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: foodResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'404': res404
 					}
 				}
 			}

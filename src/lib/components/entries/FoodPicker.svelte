@@ -41,7 +41,8 @@
 					servingUnit?: string | null;
 				};
 		  }
-		| { type: 'catalog'; catalog: { id: string; name: string; source: string } };
+		| { type: 'catalog'; catalog: { id: string; name: string; source: string } }
+		| { type: 'off'; off: { barcode: string; name: string; brand: string | null } };
 
 	type FavoriteItem = Extract<PickerSelection, { type: 'favorite' }>['favorite'];
 
@@ -62,29 +63,64 @@
 		source: string;
 		datasetKey: string;
 	};
+	type OffHit = {
+		barcode: string;
+		name: string;
+		brand: string | null;
+	};
 	let catalogResults: CatalogHit[] = $state([]);
 	let catalogLoading = $state(false);
-	let catalogTimer: ReturnType<typeof setTimeout> | undefined;
+	let offResults: OffHit[] = $state([]);
+	let offLoading = $state(false);
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
-	const runCatalogSearch = (term: string) => {
-		clearTimeout(catalogTimer);
-		if (term.trim().length < 2) {
+	// Below this many local + catalog matches, fall back to an Open Food Facts search.
+	const OFF_FALLBACK_THRESHOLD = 5;
+
+	const runOnlineSearch = (term: string) => {
+		clearTimeout(searchTimer);
+		const trimmed = term.trim();
+		if (trimmed.length < 2) {
 			catalogResults = [];
+			offResults = [];
 			catalogLoading = false;
+			offLoading = false;
 			return;
 		}
 		catalogLoading = true;
-		catalogTimer = setTimeout(async () => {
+		offResults = [];
+		searchTimer = setTimeout(async () => {
+			// Snapshot the local match count before awaiting, so the fallback
+			// decision isn't skewed by the `foods` prop changing mid-request.
+			const localCount = filtered().length;
 			try {
 				const { data } = await api.GET('/api/catalog/search', {
-					params: { query: { q: term } }
+					params: { query: { q: trimmed } }
 				});
-				catalogResults = (data?.results ?? []) as CatalogHit[];
+				if (trimmed === query.trim()) catalogResults = (data?.results ?? []) as CatalogHit[];
 			} catch (e) {
 				if (dev) console.warn('catalog search failed:', e);
 				catalogResults = [];
 			} finally {
 				catalogLoading = false;
+			}
+			// Online fallback: only when the combined local + catalog result set is sparse.
+			if (trimmed !== query.trim()) return;
+			if (localCount + catalogResults.length >= OFF_FALLBACK_THRESHOLD) {
+				offResults = [];
+				return;
+			}
+			offLoading = true;
+			try {
+				const { data } = await api.GET('/api/openfoodfacts/search', {
+					params: { query: { q: trimmed } }
+				});
+				if (trimmed === query.trim()) offResults = (data?.results ?? []) as OffHit[];
+			} catch (e) {
+				if (dev) console.warn('Open Food Facts search failed:', e);
+				offResults = [];
+			} finally {
+				offLoading = false;
 			}
 		}, 300);
 	};
@@ -164,7 +200,7 @@
 	$effect(() => {
 		if (tab === 'recent') loadRecentFoods();
 		if (tab === 'favorites') loadFavoriteRecipes();
-		if (tab === 'search') runCatalogSearch(query);
+		if (tab === 'search') runOnlineSearch(query);
 	});
 </script>
 
@@ -210,6 +246,39 @@
 							onSelect({
 								type: 'catalog',
 								catalog: { id: hit.id, name: hit.name, source: hit.source }
+							})}
+					>
+						<Plus class="size-4 sm:mr-1" />
+						<span class="hidden sm:inline">{m.add_food_add()}</span>
+					</Button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+	{#if offLoading}
+		<p class="text-muted-foreground text-sm">{m.add_food_off_searching()}</p>
+	{:else if offResults.length > 0}
+		<p class="text-muted-foreground mt-2 text-xs font-medium">{m.add_food_off_section()}</p>
+		<ul class="max-h-60 space-y-2 overflow-auto">
+			{#each offResults as hit (hit.barcode)}
+				<li class="flex min-w-0 items-start justify-between gap-2">
+					<span class="min-w-0 flex-1 truncate text-sm">
+						{hit.name}
+						{#if hit.brand}<span class="text-muted-foreground"> · {hit.brand}</span>{/if}
+						<span
+							class="bg-muted text-muted-foreground ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase"
+							>{m.add_food_off_badge()}</span
+						>
+					</span>
+					<Button
+						variant="outline"
+						size="sm"
+						class="shrink-0"
+						aria-label={m.add_food_add()}
+						onclick={() =>
+							onSelect({
+								type: 'off',
+								off: { barcode: hit.barcode, name: hit.name, brand: hit.brand }
 							})}
 					>
 						<Plus class="size-4 sm:mr-1" />

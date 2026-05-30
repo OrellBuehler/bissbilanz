@@ -824,6 +824,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/openfoodfacts/search': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse. */
+		get: operations['searchOpenFoodFacts'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/openfoodfacts/{barcode}': {
 		parameters: {
 			query?: never;
@@ -835,6 +852,23 @@ export interface paths {
 		get: operations['lookupOpenFoodFacts'];
 		put?: never;
 		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/openfoodfacts/{barcode}/save': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved. */
+		post: operations['saveOpenFoodFactsProduct'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -1953,8 +1987,8 @@ export interface components {
 			sleepDurationMinutes: number;
 			sleepQuality: number;
 		};
-		OpenFoodFactsResponse: {
-			product: components['schemas']['OpenFoodFactsProduct'];
+		OpenFoodFactsSearchResponse: {
+			results: components['schemas']['OpenFoodFactsProduct'][];
 		};
 		OpenFoodFactsProduct: {
 			id: string;
@@ -2016,6 +2050,9 @@ export interface components {
 			salt?: number | null;
 			additives: string[] | null;
 			ingredientsText: string | null;
+		};
+		OpenFoodFactsResponse: {
+			product: components['schemas']['OpenFoodFactsProduct'];
 		};
 	};
 	responses: {
@@ -3686,6 +3723,30 @@ export interface operations {
 			409: components['responses']['ConflictResponse'];
 		};
 	};
+	searchOpenFoodFacts: {
+		parameters: {
+			query: {
+				q: string;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['OpenFoodFactsSearchResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
 	lookupOpenFoodFacts: {
 		parameters: {
 			query?: never;
@@ -3707,6 +3768,40 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	saveOpenFoodFactsProduct: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				barcode: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Existing food returned */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 }
