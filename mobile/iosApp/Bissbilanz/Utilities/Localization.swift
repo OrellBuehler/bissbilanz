@@ -209,6 +209,8 @@ enum L10n {
     static var dashboardWidgets: String { localized("dashboard_widgets", en: "Dashboard Widgets", de: "Dashboard-Widgets") }
     static var favoriteBehavior: String { localized("favorite_behavior", en: "Favorite Behavior", de: "Favoriten-Verhalten") }
     static var healthKit: String { localized("health_kit", en: "Health Integration", de: "Health-Integration") }
+    static var healthWriteWeight: String { localized("health_write_weight", en: "Write weight to Apple Health", de: "Gewicht in Apple Health schreiben") }
+    static var healthSyncFooter: String { localized("health_sync_footer", en: "Weights from Apple Health are imported automatically. Enable writing only if you log weight here and want it in Apple Health — leave it off if your scale already syncs to Health.", de: "Gewichte aus Apple Health werden automatisch importiert. Aktiviere das Schreiben nur, wenn du dein Gewicht hier erfasst und es in Apple Health haben möchtest — lass es aus, wenn deine Waage bereits mit Health synchronisiert.") }
 
     // MARK: - Scanner
 

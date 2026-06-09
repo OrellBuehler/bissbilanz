@@ -13,8 +13,9 @@ struct SettingsView: View {
     @State private var showCreateRecipe = false
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
-    @State private var healthKitService = HealthKitService()
-    @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "healthkit_sync_enabled")
+    private let healthKitService = HealthKitService.shared
+    @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey)
+    @State private var healthWriteWeightEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.writeWeightEnabledKey)
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabNames: String {
@@ -88,16 +89,27 @@ struct SettingsView: View {
 
                 // HealthKit section
                 if healthKitService.isAvailable {
-                    Section(L10n.healthKit) {
+                    Section {
                         Toggle(L10n.healthKit, isOn: $healthSyncEnabled)
                             .onChange(of: healthSyncEnabled) { _, enabled in
-                                UserDefaults.standard.set(enabled, forKey: "healthkit_sync_enabled")
+                                UserDefaults.standard.set(enabled, forKey: HealthKitService.syncEnabledKey)
                                 if enabled {
                                     Task {
-                                        _ = await healthKitService.requestAuthorization()
+                                        _ = await healthKitService.requestReadAuthorization()
                                     }
                                 }
                             }
+                        if healthSyncEnabled {
+                            Toggle(L10n.healthWriteWeight, isOn: $healthWriteWeightEnabled)
+                                .onChange(of: healthWriteWeightEnabled) { _, enabled in
+                                    UserDefaults.standard.set(enabled, forKey: HealthKitService.writeWeightEnabledKey)
+                                    if enabled {
+                                        Task {
+                                            _ = await healthKitService.requestWriteAuthorization()
+                                        }
+                                    }
+                                }
+                        }
                         if healthKitService.isAuthorized {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
@@ -108,10 +120,16 @@ struct SettingsView: View {
                             }
                         } else if healthSyncEnabled {
                             Button {
-                                Task { _ = await healthKitService.requestAuthorization() }
+                                Task { _ = await healthKitService.requestReadAuthorization() }
                             } label: {
                                 Label(L10n.grantPermissions, systemImage: "heart.circle")
                             }
+                        }
+                    } header: {
+                        Text(L10n.healthKit)
+                    } footer: {
+                        if healthSyncEnabled {
+                            Text(L10n.healthSyncFooter)
                         }
                     }
                 }

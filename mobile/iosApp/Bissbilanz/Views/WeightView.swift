@@ -144,7 +144,7 @@ struct WeightView: View {
                 }
             }
             .refreshable { await loadEntries() }
-            .task { await loadEntries() }
+            .task { await loadEntries(showSpinner: true) }
             .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
@@ -369,8 +369,11 @@ struct WeightView: View {
 
     // MARK: - Data Loading
 
-    private func loadEntries() async {
-        isLoading = true
+    // showSpinner only on first load: flipping isLoading during pull-to-refresh
+    // swaps the List out for LoadingView, which kills the refresh gesture and
+    // leaves the spinner stuck.
+    private func loadEntries(showSpinner: Bool = false) async {
+        if showSpinner { isLoading = true }
 
         async let entriesTask = try? api.getWeightEntries()
         async let statsTask = try? api.getWeightStats()
@@ -379,6 +382,42 @@ struct WeightView: View {
         weightStats = await statsTask
 
         isLoading = false
+
+        if UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey) {
+            await importFromHealthKit()
+        }
+    }
+
+    /// Import weights from Apple Health that the app doesn't have yet
+    /// (read-only — never writes back to Health from here).
+    private func importFromHealthKit() async {
+        let healthKit = HealthKitService.shared
+        guard healthKit.isAvailable else { return }
+        let since = Date().adding(days: -90)
+        guard let samples = try? await healthKit.fetchWeights(since: since), !samples.isEmpty else { return }
+
+        let existingDates = Set(entries.map(\.entryDate))
+        // Latest sample per day wins
+        var latestPerDay: [String: HealthKitService.WeightSample] = [:]
+        for sample in samples {
+            let day = DateFormatting.isoString(from: sample.date)
+            if let current = latestPerDay[day], current.date > sample.date { continue }
+            latestPerDay[day] = sample
+        }
+
+        var imported = false
+        for (day, sample) in latestPerDay where !existingDates.contains(day) {
+            let kg = (sample.weightKg * 100).rounded() / 100
+            let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
+            if (try? await api.createWeightEntry(create)) != nil {
+                imported = true
+            }
+        }
+
+        if imported {
+            entries = (try? await api.getWeightEntries()) ?? entries
+            weightStats = (try? await api.getWeightStats()) ?? weightStats
+        }
     }
 
     private func deleteEntry(_ entry: WeightEntry) async {
@@ -455,6 +494,15 @@ struct AddWeightSheet: View {
         }
     }
 
+    private func writeToHealthIfEnabled(kg: Double) async {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: HealthKitService.syncEnabledKey),
+              defaults.bool(forKey: HealthKitService.writeWeightEnabledKey),
+              HealthKitService.shared.isAvailable else { return }
+        // Best effort — the user may have denied write permission in Health
+        try? await HealthKitService.shared.saveWeight(kg, date: date)
+    }
+
     private func prefill() {
         guard let entry = existingEntry else { return }
         weight = "\(entry.weightKg)"
@@ -484,6 +532,7 @@ struct AddWeightSheet: View {
                     notes: notes.isEmpty ? nil : notes
                 )
                 _ = try await api.createWeightEntry(entry)
+                await writeToHealthIfEnabled(kg: kg)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()

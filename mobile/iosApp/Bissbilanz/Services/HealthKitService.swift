@@ -4,6 +4,14 @@ import HealthKit
 @MainActor
 @Observable
 final class HealthKitService {
+    static let shared = HealthKitService()
+
+    /// Health integration on/off (read + import).
+    static let syncEnabledKey = "healthkit_sync_enabled"
+    /// Opt-in write-back of app-logged weights to Health. Off by default —
+    /// users whose scale already syncs to Health would get duplicates.
+    static let writeWeightEnabledKey = "healthkit_write_weight_enabled"
+
     private let healthStore = HKHealthStore()
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     var isAuthorized = false
@@ -39,7 +47,21 @@ final class HealthKitService {
         return types
     }()
 
-    func requestAuthorization() async -> Bool {
+    /// Read-only authorization — enough to import weights from Health.
+    /// Write access is requested separately so users whose scale already
+    /// syncs to Health never grant (or get asked to keep) write permission.
+    func requestReadAuthorization() async -> Bool {
+        guard isAvailable else { return false }
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: readTypes)
+            isAuthorized = true
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func requestWriteAuthorization() async -> Bool {
         guard isAvailable else { return false }
         do {
             try await healthStore.requestAuthorization(toShare: writeTypes, read: readTypes)
@@ -77,6 +99,36 @@ final class HealthKitService {
 
         guard !samples.isEmpty else { return }
         try await healthStore.save(samples)
+    }
+
+    struct WeightSample {
+        let date: Date
+        let weightKg: Double
+    }
+
+    /// All body-mass samples since the given date, newest first.
+    /// Samples written by this app are excluded so write-back can never
+    /// echo our own entries back into the app as imports.
+    func fetchWeights(since startDate: Date) async throws -> [WeightSample] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return [] }
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        let ownBundleId = Bundle.main.bundleIdentifier
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                let weights = (samples ?? [])
+                    .compactMap { $0 as? HKQuantitySample }
+                    .filter { $0.sourceRevision.source.bundleIdentifier != ownBundleId }
+                    .map { WeightSample(date: $0.startDate, weightKg: $0.quantity.doubleValue(for: .gramUnit(with: .kilo))) }
+                continuation.resume(returning: weights)
+            }
+            self.healthStore.execute(query)
+        }
     }
 
     func fetchLatestWeight() async throws -> Double? {
