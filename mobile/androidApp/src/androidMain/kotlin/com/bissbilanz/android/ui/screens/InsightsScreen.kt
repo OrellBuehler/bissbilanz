@@ -98,8 +98,18 @@ fun InsightsScreen() {
     val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
 
+    val isLocalMode = viewModel.isLocalMode
+
     val ranges = listOf("7 Days", "30 Days", "90 Days")
-    val tabs = listOf("Overview", "Nutrition", "Weight", "Sleep")
+
+    // Nutrition and Weight analytics are entirely server-backed (AnalyticsRepository),
+    // so those tabs are hidden in Local mode. Pairs of (ViewModel tab index, title).
+    val tabs =
+        if (isLocalMode) {
+            listOf(0 to "Overview", 3 to "Sleep")
+        } else {
+            listOf(0 to "Overview", 1 to "Nutrition", 2 to "Weight", 3 to "Sleep")
+        }
 
     PullToRefreshWrapper(
         onRefresh = {
@@ -135,11 +145,11 @@ fun InsightsScreen() {
             Spacer(modifier = Modifier.height(8.dp))
 
             ScrollableTabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0),
                 modifier = Modifier.fillMaxWidth(),
                 edgePadding = 0.dp,
             ) {
-                tabs.forEachIndexed { index, title ->
+                tabs.forEach { (index, title) ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { viewModel.selectTab(index) },
@@ -648,23 +658,27 @@ fun InsightsScreen() {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (sleepLoading) {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
-                        val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
-                        val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
-                        val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+                    // Sleep analytics cards are computed from server-only analytics data,
+                    // so they are hidden in Local mode (the sleep log above still works).
+                    if (!isLocalMode) {
+                        if (sleepLoading) {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
+                            val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
+                            val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
+                            val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
 
-                        FoodSleepCard(foodSleepResult)
-                        Spacer(Modifier.height(12.dp))
-                        NutrientSleepCard(nutrientSleepCorrelations)
-                        Spacer(Modifier.height(12.dp))
-                        PreSleepWindowCard(preSleepTimingSummary)
-                        Spacer(Modifier.height(12.dp))
-                        CaffeineSleepCard(caffeineSleepResult)
+                            FoodSleepCard(foodSleepResult)
+                            Spacer(Modifier.height(12.dp))
+                            NutrientSleepCard(nutrientSleepCorrelations)
+                            Spacer(Modifier.height(12.dp))
+                            PreSleepWindowCard(preSleepTimingSummary)
+                            Spacer(Modifier.height(12.dp))
+                            CaffeineSleepCard(caffeineSleepResult)
+                        }
                     }
 
                     if (showSleepDialog) {
@@ -684,6 +698,17 @@ fun InsightsScreen() {
                         )
                     }
                 }
+            }
+
+            if (isLocalMode) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "More insights available with an account",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

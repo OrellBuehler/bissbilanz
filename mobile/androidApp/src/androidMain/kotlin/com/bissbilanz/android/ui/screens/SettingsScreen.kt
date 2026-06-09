@@ -29,6 +29,8 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
+import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
 import kotlinx.coroutines.launch
@@ -41,6 +43,9 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpd
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
     val healthSync: HealthSyncService = koinInject()
+    val authManager: AuthManager = koinInject()
+    val mode by viewModel.mode.collectAsStateWithLifecycle()
+    val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
@@ -161,9 +166,11 @@ fun SettingsScreen(navController: NavController) {
                         SettingsNavItem("Calendar", Icons.Default.CalendarMonth) {
                             navController.navigate("calendar")
                         }
-                        HorizontalDivider()
-                        SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
-                            navController.navigate("maintenance")
+                        if (!isLocalMode) {
+                            HorizontalDivider()
+                            SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
+                                navController.navigate("maintenance")
+                            }
                         }
                         HorizontalDivider()
                         SettingsNavItem("Insights", Icons.Default.BarChart) {
@@ -433,42 +440,44 @@ fun SettingsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Custom meal types
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                "Custom Meal Types",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(onClick = { showMealTypeDialog = true }) {
-                                Icon(Icons.Default.Add, "Add meal type")
+                // Custom meal types (server-only, hidden in Local mode)
+                if (!isLocalMode) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "Custom Meal Types",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                IconButton(onClick = { showMealTypeDialog = true }) {
+                                    Icon(Icons.Default.Add, "Add meal type")
+                                }
                             }
-                        }
-                        if (customMealTypes.isEmpty()) {
-                            Text(
-                                "Default meals only (Breakfast, Lunch, Dinner, Snack)",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        } else {
-                            customMealTypes.forEach { mealType ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Text(mealType.name)
+                            if (customMealTypes.isEmpty()) {
+                                Text(
+                                    "Default meals only (Breakfast, Lunch, Dinner, Snack)",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            } else {
+                                customMealTypes.forEach { mealType ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(mealType.name)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 // Dashboard Widgets
                 prefs?.let { p ->
@@ -628,13 +637,29 @@ fun SettingsScreen(navController: NavController) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.logout() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        ) {
-                            Text("Sign out")
+                        if (isLocalMode) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Local mode — data only on this device",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { launchLoginFlow(context, authManager) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Sign in to sync")
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            OutlinedButton(
+                                onClick = { viewModel.logout() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            ) {
+                                Text("Sign out")
+                            }
                         }
                     }
                 }
