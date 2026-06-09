@@ -19,6 +19,8 @@ type QueueItem = {
 	createdAt: number;
 	affectedTable?: string;
 	affectedId?: string;
+	failedAt?: number;
+	failureReason?: string;
 };
 
 /**
@@ -51,17 +53,22 @@ async function processSyncQueue(
 				stopped = true;
 				break;
 			} else if (response.status >= 400 && response.status < 500) {
-				await db.syncQueue.delete(req.id!);
+				const data = await response.json().catch(() => ({}));
+				const reason = (data as Record<string, string>).error ?? `HTTP ${response.status}`;
+				await db.syncQueue.update(req.id!, { failedAt: Date.now(), failureReason: reason });
 				retryCounts.delete(req.id!);
 				synced++;
-				errors.push(`Client error: HTTP ${response.status}`);
+				errors.push(`Client error: ${reason}`);
 			} else {
 				// 5xx — track retries
 				const count = (retryCounts.get(req.id!) ?? 0) + 1;
 				retryCounts.set(req.id!, count);
 
 				if (count >= MAX_RETRIES) {
-					await db.syncQueue.delete(req.id!);
+					await db.syncQueue.update(req.id!, {
+						failedAt: Date.now(),
+						failureReason: `HTTP ${response.status} after ${MAX_RETRIES} retries`
+					});
 					retryCounts.delete(req.id!);
 					synced++;
 					errors.push(`Gave up after ${MAX_RETRIES} retries.`);
@@ -145,7 +152,7 @@ describe('sync queue HTTP status handling', () => {
 		expect(await db.syncQueue.count()).toBe(1);
 	});
 
-	test('4xx client error removes item from queue (unrecoverable)', async () => {
+	test('4xx client error parks item in queue (unrecoverable as-is)', async () => {
 		await db.syncQueue.add({
 			method: 'POST',
 			url: '/api/foods',
@@ -159,10 +166,14 @@ describe('sync queue HTTP status handling', () => {
 
 		expect(result.synced).toBe(1);
 		expect(result.errors[0]).toContain('Client error');
-		expect(await db.syncQueue.count()).toBe(0);
+		// Item is parked (failedAt set), not deleted
+		expect(await db.syncQueue.count()).toBe(1);
+		const items = await db.syncQueue.toArray();
+		expect(items[0].failedAt).toBeTypeOf('number');
+		expect(items[0].failureReason).toBe('HTTP 422');
 	});
 
-	test('404 removes item from queue', async () => {
+	test('404 parks item in queue', async () => {
 		await db.syncQueue.add({
 			method: 'DELETE',
 			url: '/api/foods/f1',
@@ -175,7 +186,10 @@ describe('sync queue HTTP status handling', () => {
 		const result = await processSyncQueue(fetchFn, new Map());
 
 		expect(result.synced).toBe(1);
-		expect(await db.syncQueue.count()).toBe(0);
+		// Item is parked (failedAt set), not deleted
+		expect(await db.syncQueue.count()).toBe(1);
+		const items = await db.syncQueue.toArray();
+		expect(items[0].failedAt).toBeTypeOf('number');
 	});
 
 	test('5xx stops syncing on first occurrence', async () => {
@@ -206,7 +220,7 @@ describe('sync queue HTTP status handling', () => {
 		expect([...retryCounts.values()][0]).toBe(1);
 	});
 
-	test('5xx discards item after MAX_RETRIES attempts', async () => {
+	test('5xx parks item after MAX_RETRIES attempts', async () => {
 		const id = await db.syncQueue.add({
 			method: 'POST',
 			url: '/api/foods',
@@ -224,7 +238,11 @@ describe('sync queue HTTP status handling', () => {
 
 		expect(result.synced).toBe(1);
 		expect(result.errors[0]).toContain(`${MAX_RETRIES} retries`);
-		expect(await db.syncQueue.count()).toBe(0);
+		// Item is parked (failedAt set), not deleted
+		expect(await db.syncQueue.count()).toBe(1);
+		const items = await db.syncQueue.toArray();
+		expect(items[0].failedAt).toBeTypeOf('number');
+		expect(items[0].failureReason).toContain('after 3 retries');
 		// Retry count cleaned up
 		expect(retryCounts.size).toBe(0);
 	});
@@ -313,7 +331,10 @@ describe('sync queue HTTP status handling', () => {
 
 		expect(result.synced).toBe(3);
 		expect(result.errors).toHaveLength(1);
-		expect(await db.syncQueue.count()).toBe(0);
+		// Two successful items removed, one 422 parked (failedAt set)
+		expect(await db.syncQueue.count()).toBe(1);
+		const items = await db.syncQueue.toArray();
+		expect(items[0].failedAt).toBeTypeOf('number');
 	});
 
 	test('DELETE request does not send body', async () => {
