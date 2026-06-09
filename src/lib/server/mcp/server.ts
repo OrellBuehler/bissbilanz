@@ -1,5 +1,7 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { safe } from './safe';
+import { describeShape } from './schema-utils';
 import { servingUnitValues } from '$lib/units';
 import {
 	handleCreateFood,
@@ -81,26 +83,6 @@ export function createMcpServer(userId: string): McpServer {
 		name: MCP_SERVER_NAME,
 		version: MCP_SERVER_VERSION
 	});
-
-	const asText = (payload: unknown) => ({
-		content: [
-			{
-				type: 'text' as const,
-				text: JSON.stringify(payload, null, 2)
-			}
-		]
-	});
-
-	const safe = <T extends unknown[], R>(fn: (...args: T) => Promise<R>) => {
-		return async (...args: T) => {
-			try {
-				return asText(await fn(...args));
-			} catch (e) {
-				const message = e instanceof Error ? e.message : String(e);
-				return asText({ error: message });
-			}
-		};
-	};
 
 	server.registerTool(
 		'get_daily_status',
