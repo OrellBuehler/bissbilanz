@@ -2,9 +2,11 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { z } from 'zod';
 import { safe } from './safe';
 import { describeShape } from './schema-utils';
-import { servingUnitValues } from '$lib/units';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation/foods';
 import { entryBaseSchema, entryUpdateSchema } from '$lib/server/validation/entries';
+import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation/recipes';
+import { goalsSchema } from '$lib/server/validation/goals';
+import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -175,30 +177,21 @@ export function createMcpServer(userId: string): McpServer {
 		safe((args) => handleCreateFood(userId, args))
 	);
 
+	const RECIPE_FIELD_DOCS = {
+		name: 'Recipe name',
+		totalServings: 'Number of servings the recipe makes',
+		ingredients:
+			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit.',
+		isFavorite: 'Mark as favorite',
+		imageUrl: 'Image URL or relative path (null to clear)'
+	};
+
 	server.registerTool(
 		'create_recipe',
 		{
 			description:
 				'Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.',
-			inputSchema: {
-				name: z.string().describe('Recipe name'),
-				totalServings: z.number().describe('Number of servings the recipe makes'),
-				ingredients: z
-					.array(
-						z.object({
-							foodId: z.string().describe('Food ID from the database'),
-							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
-						})
-					)
-					.describe('List of ingredients'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)')
-			},
+			inputSchema: describeShape(recipeCreateSchema.shape, RECIPE_FIELD_DOCS),
 			annotations: WRITE
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -325,20 +318,15 @@ export function createMcpServer(userId: string): McpServer {
 		'update_goals',
 		{
 			description: 'Set or update daily nutrition goals.',
-			inputSchema: {
-				calorieGoal: z.number().positive().describe('Daily calorie goal'),
-				proteinGoal: z.number().nonnegative().describe('Daily protein goal in grams'),
-				carbGoal: z.number().nonnegative().describe('Daily carbohydrate goal in grams'),
-				fatGoal: z.number().nonnegative().describe('Daily fat goal in grams'),
-				fiberGoal: z.number().nonnegative().describe('Daily fiber goal in grams'),
-				sodiumGoal: z
-					.number()
-					.nonnegative()
-					.nullable()
-					.optional()
-					.describe('Daily sodium goal in mg'),
-				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
-			},
+			inputSchema: describeShape(goalsSchema.shape, {
+				calorieGoal: 'Daily calorie goal',
+				proteinGoal: 'Daily protein goal in grams',
+				carbGoal: 'Daily carbohydrate goal in grams',
+				fatGoal: 'Daily fat goal in grams',
+				fiberGoal: 'Daily fiber goal in grams',
+				sodiumGoal: 'Daily sodium goal in mg (null to clear)',
+				sugarGoal: 'Daily sugar goal in grams (null to clear)'
+			}),
 			annotations: UPDATE
 		},
 		safe((args) => handleUpdateGoals(userId, args))
@@ -541,25 +529,8 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Update an existing recipe. Can change name, servings, or replace all ingredients.',
 			inputSchema: {
-				recipeId: z.string().describe('The recipe ID to update'),
-				name: z.string().optional().describe('New recipe name'),
-				totalServings: z.number().optional().describe('New number of servings'),
-				ingredients: z
-					.array(
-						z.object({
-							foodId: z.string().describe('Food ID from the database'),
-							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
-						})
-					)
-					.optional()
-					.describe('New list of ingredients (replaces all existing)'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)')
+				recipeId: z.string().uuid().describe('The recipe ID to update'),
+				...describeShape(recipeUpdateSchema.shape, RECIPE_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},
@@ -1025,10 +996,10 @@ export function createMcpServer(userId: string): McpServer {
 		'set_day_properties',
 		{
 			description: 'Set properties for a specific day, such as marking it as a fasting day.',
-			inputSchema: {
-				date: dateStr.describe('Date in YYYY-MM-DD format'),
-				isFastingDay: z.boolean().describe('Whether the day is a fasting day')
-			},
+			inputSchema: describeShape(dayPropertiesSetSchema.shape, {
+				date: 'Date in YYYY-MM-DD format',
+				isFastingDay: 'Whether the day is a fasting day'
+			}),
 			annotations: UPDATE
 		},
 		safe((args) => handleSetDayProperties(userId, args))
