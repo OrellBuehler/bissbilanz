@@ -7,6 +7,8 @@ import { entryBaseSchema, entryUpdateSchema } from '$lib/server/validation/entri
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation/recipes';
 import { goalsSchema } from '$lib/server/validation/goals';
 import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
+import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
+import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -381,9 +383,11 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Log a body weight measurement.',
 			inputSchema: {
-				weightKg: z.number().describe('Weight in kilograms'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				notes: z.string().optional().describe('Optional notes')
+				weightKg: weightCreateSchema.shape.weightKg.describe('Weight in kilograms'),
+				date: weightCreateSchema.shape.entryDate
+					.optional()
+					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				notes: weightCreateSchema.shape.notes.describe('Optional notes')
 			},
 			annotations: WRITE
 		},
@@ -691,10 +695,12 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Update an existing weight entry.',
 			inputSchema: {
-				weightId: z.string().describe('The weight entry ID to update'),
-				weightKg: z.number().optional().describe('New weight in kilograms'),
-				entryDate: z.string().optional().describe('New date in YYYY-MM-DD format'),
-				notes: z.string().optional().nullable().describe('New notes')
+				weightId: z.string().uuid().describe('The weight entry ID to update'),
+				...describeShape(weightUpdateSchema.shape, {
+					weightKg: 'New weight in kilograms',
+					entryDate: 'New date in YYYY-MM-DD format',
+					notes: 'New notes'
+				})
 			},
 			annotations: UPDATE
 		},
@@ -718,32 +724,21 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Log a sleep entry. Records duration and quality for a given date.',
 			inputSchema: {
-				durationMinutes: z
-					.number()
-					.int()
-					.min(1)
-					.max(1440)
-					.describe('Total sleep duration in minutes'),
-				quality: z
-					.number()
-					.int()
-					.min(1)
-					.max(10)
-					.describe('Sleep quality rating from 1 (poor) to 10 (great)'),
-				date: z
-					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}$/)
+				durationMinutes: sleepCreateSchema.shape.durationMinutes.describe(
+					'Total sleep duration in minutes'
+				),
+				quality: sleepCreateSchema.shape.quality.describe(
+					'Sleep quality rating from 1 (poor) to 10 (great)'
+				),
+				date: sleepCreateSchema.shape.entryDate
 					.optional()
 					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				bedtime: z.string().optional().describe('Bedtime as ISO datetime string'),
-				wakeTime: z.string().optional().describe('Wake time as ISO datetime string'),
-				wakeUps: z
-					.number()
-					.int()
-					.min(0)
-					.optional()
-					.describe('Number of times woken up during the night'),
-				notes: z.string().optional().describe('Optional notes')
+				bedtime: sleepCreateSchema.shape.bedtime.describe('Bedtime as ISO datetime string'),
+				wakeTime: sleepCreateSchema.shape.wakeTime.describe('Wake time as ISO datetime string'),
+				wakeUps: sleepCreateSchema.shape.wakeUps.describe(
+					'Number of times woken up during the night'
+				),
+				notes: sleepCreateSchema.shape.notes.describe('Optional notes')
 			},
 			annotations: WRITE
 		},
@@ -784,17 +779,15 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Update an existing sleep entry.',
 			inputSchema: {
 				id: z.string().uuid().describe('Sleep entry ID to update'),
-				durationMinutes: z.number().int().min(1).max(1440).optional(),
-				quality: z.number().int().min(1).max(10).optional(),
-				entryDate: z
-					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}$/)
-					.optional()
-					.describe('New date in YYYY-MM-DD format'),
-				bedtime: z.string().optional().nullable(),
-				wakeTime: z.string().optional().nullable(),
-				wakeUps: z.number().int().min(0).optional().nullable(),
-				notes: z.string().optional().nullable()
+				...describeShape(sleepUpdateSchema.shape, {
+					durationMinutes: 'New total sleep duration in minutes',
+					quality: 'New sleep quality rating from 1 (poor) to 10 (great)',
+					entryDate: 'New date in YYYY-MM-DD format',
+					bedtime: 'New bedtime as ISO datetime string (null to clear)',
+					wakeTime: 'New wake time as ISO datetime string (null to clear)',
+					wakeUps: 'New number of wake-ups (null to clear)',
+					notes: 'New notes (null to clear)'
+				})
 			},
 			annotations: UPDATE
 		},

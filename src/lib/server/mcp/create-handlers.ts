@@ -471,7 +471,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleLogWeight = async (
 		userId: string,
-		args: { weightKg: number; date?: string; notes?: string }
+		args: { weightKg: number; date?: string; notes?: string | null }
 	) => {
 		try {
 			const previous = await d.getLatestWeight(userId);
@@ -827,10 +827,10 @@ export function createHandlers(d: HandlerDeps) {
 			durationMinutes: number;
 			quality: number;
 			date?: string;
-			bedtime?: string;
-			wakeTime?: string;
-			wakeUps?: number;
-			notes?: string;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
 		}
 	) => {
 		try {
