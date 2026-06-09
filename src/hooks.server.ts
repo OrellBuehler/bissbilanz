@@ -144,8 +144,9 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			const token = authHeader.slice(7);
 			let bearerUser: Awaited<ReturnType<typeof getUserById>> | undefined;
 
-			// Test auth bypass — only active when TEST_MODE is set
-			if (config.testMode && token === 'test-integration-token') {
+			// Test auth bypass — only active when TEST_MODE is set; token comes
+			// from TEST_AUTH_TOKEN so no usable credential lives in the repo
+			if (config.testMode && config.testAuthToken && token === config.testAuthToken) {
 				bearerUser = await withDbRetry(() => getUserById(config.testUserId));
 			}
 
