@@ -52,7 +52,7 @@ class SleepRepository(
     suspend fun createEntry(entry: SleepCreate): SleepEntry {
         val temp = sleepCreateToEntry(entry)
         cacheSleepEntry(temp)
-        syncQueue.enqueue(SyncOperation.CreateSleep(json.encodeToString(entry)))
+        syncQueue.enqueue(SyncOperation.CreateSleep(json.encodeToString(entry), localId = temp.id))
         return temp
     }
 
@@ -94,13 +94,47 @@ class SleepRepository(
                     notes = entry.notes,
                 )
             }
-        syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, entry)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry)))
+        }
         return result
     }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteSleepEntry(id)
-        syncQueue.enqueue(SyncOperation.DeleteSleep(id))
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("sleep", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteSleep(id))
+        }
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id sleep entry so the
+     * eventual upload carries the edited values. If the create has already been drained
+     * (no queued op found), the update is skipped — the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: SleepUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("sleep", tempId)) {
+            val create = req.operation as? SyncOperation.CreateSleep ?: continue
+            val body = json.decodeOrNull<SleepCreate>(create.body) ?: continue
+            val merged =
+                body.copy(
+                    durationMinutes = update.durationMinutes ?: body.durationMinutes,
+                    quality = update.quality ?: body.quality,
+                    entryDate = update.entryDate ?: body.entryDate,
+                    bedtime = update.bedtime ?: body.bedtime,
+                    wakeTime = update.wakeTime ?: body.wakeTime,
+                    wakeUps = update.wakeUps ?: body.wakeUps,
+                    notes = update.notes ?: body.notes,
+                )
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
     }
 
     /**

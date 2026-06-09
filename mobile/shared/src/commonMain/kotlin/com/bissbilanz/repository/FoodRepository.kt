@@ -121,7 +121,7 @@ class FoodRepository(
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)
-        syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food)))
+        syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food), localId = tempFood.id))
         onFoodChanged?.invoke()
         return tempFood
     }
@@ -132,15 +132,39 @@ class FoodRepository(
     ): Food {
         val tempFood = foodCreateToFood(food, id)
         cacheFood(tempFood)
-        syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, food)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
+        }
         onFoodChanged?.invoke()
         return tempFood
     }
 
     suspend fun deleteFood(id: String) {
         db.bissbilanzDatabaseQueries.deleteFood(id)
-        syncQueue.enqueue(SyncOperation.DeleteFood(id))
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("foods", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteFood(id))
+        }
         onFoodChanged?.invoke()
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id food so the eventual
+     * upload carries the edited values. Updates use the full [FoodCreate] body, so the
+     * new body simply replaces the queued one. If the create has already been drained
+     * (no queued op found), the update is skipped — the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        food: FoodCreate,
+    ) {
+        for (req in syncQueue.findByAffected("foods", tempId)) {
+            val create = req.operation as? SyncOperation.CreateFood ?: continue
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(food)))
+        }
     }
 
     suspend fun searchFoods(query: String): List<Food> =

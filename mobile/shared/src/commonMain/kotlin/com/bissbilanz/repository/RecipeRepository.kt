@@ -90,7 +90,7 @@ class RecipeRepository(
     suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
         val temp = recipeCreateToRecipe(recipe)
         cacheRecipe(temp)
-        syncQueue.enqueue(SyncOperation.CreateRecipe(json.encodeToString(recipe)))
+        syncQueue.enqueue(SyncOperation.CreateRecipe(json.encodeToString(recipe), localId = temp.id))
         return temp
     }
 
@@ -127,13 +127,45 @@ class RecipeRepository(
                     ingredients = emptyList(),
                 )
             }
-        syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, recipe)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe)))
+        }
         return result
     }
 
     suspend fun deleteRecipe(id: String) {
         db.bissbilanzDatabaseQueries.deleteRecipe(id)
-        syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("recipes", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
+        }
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id recipe so the eventual
+     * upload carries the edited values. If the create has already been drained (no
+     * queued op found), the update is skipped — the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: RecipeUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("recipes", tempId)) {
+            val create = req.operation as? SyncOperation.CreateRecipe ?: continue
+            val body = json.decodeOrNull<RecipeCreate>(create.body) ?: continue
+            val merged =
+                body.copy(
+                    name = update.name ?: body.name,
+                    totalServings = update.totalServings ?: body.totalServings,
+                    ingredients = update.ingredients ?: body.ingredients,
+                    isFavorite = update.isFavorite ?: body.isFavorite,
+                    imageUrl = update.imageUrl ?: body.imageUrl,
+                )
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
     }
 
     private fun cacheRecipe(recipe: RecipeDetail) {

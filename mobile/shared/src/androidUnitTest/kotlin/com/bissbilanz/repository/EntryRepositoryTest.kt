@@ -76,6 +76,27 @@ class EntryRepositoryTest {
             val result = repository.createEntry(create)
 
             assertTrue(result.id.startsWith("temp_"))
-            coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.CreateEntry }) }
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> { it is SyncOperation.CreateEntry && it.localId == result.id },
+                )
+            }
+        }
+
+    @Test
+    fun deleteTempEntryRemovesQueuedCreateInsteadOfEnqueuingDelete() =
+        runTest {
+            repository.deleteEntry("temp_abc")
+
+            coVerify { syncQueue.removeByAffected("entries", "temp_abc") }
+            coVerify(exactly = 0) { syncQueue.enqueue(any()) }
+        }
+
+    @Test
+    fun deleteServerEntryEnqueuesDeleteOperation() =
+        runTest {
+            repository.deleteEntry("server-1")
+
+            coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.DeleteEntry && it.id == "server-1" }) }
         }
 }

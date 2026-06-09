@@ -101,7 +101,20 @@ class FoodRepositoryTest {
 
             assertEquals("Rice", result.name)
             assertTrue(result.id.startsWith("temp_"))
-            coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.CreateFood }) }
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> { it is SyncOperation.CreateFood && it.localId == result.id },
+                )
+            }
+        }
+
+    @Test
+    fun deleteTempFoodRemovesQueuedCreateInsteadOfEnqueuingDelete() =
+        runTest {
+            repository.deleteFood("temp_abc")
+
+            coVerify { syncQueue.removeByAffected("foods", "temp_abc") }
+            coVerify(exactly = 0) { syncQueue.enqueue(any()) }
         }
 
     @Test

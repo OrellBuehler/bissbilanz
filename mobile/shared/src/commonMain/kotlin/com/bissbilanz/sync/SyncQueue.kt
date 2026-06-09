@@ -60,6 +60,49 @@ class SyncQueue(
             db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
         }
 
+    suspend fun findByAffected(
+        table: String,
+        id: String,
+    ): List<QueuedRequest> =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectSyncQueueByAffected(table, id)
+                .executeAsList()
+                .map {
+                    QueuedRequest(
+                        id = it.id,
+                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
+                        createdAt = it.createdAt,
+                        retryCount = it.retryCount,
+                    )
+                }
+        }
+
+    // Note: an item that has already been drained (in progress) can still be rewritten or
+    // removed here while its original payload is in flight. That small race is accepted —
+    // the in-flight upload wins and the local change for that item is lost.
+    suspend fun replaceOperation(
+        queueId: Long,
+        operation: SyncOperation,
+    ) {
+        mutex.withLock {
+            // affectedTable/affectedId stay the same: coalescing never changes them.
+            db.bissbilanzDatabaseQueries.updateSyncQueueOperation(
+                operation = json.encodeToString(SyncOperation.serializer(), operation),
+                id = queueId,
+            )
+        }
+    }
+
+    suspend fun removeByAffected(
+        table: String,
+        id: String,
+    ) {
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.deleteSyncQueueByAffected(table, id)
+        }
+    }
+
     suspend fun releaseForRetry(id: Long) =
         mutex.withLock {
             inProgress.remove(id)

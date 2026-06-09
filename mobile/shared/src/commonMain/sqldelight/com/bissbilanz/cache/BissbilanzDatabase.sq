@@ -292,6 +292,15 @@ SELECT retryCount FROM SyncQueue WHERE id = ?;
 deleteSyncQueueItem:
 DELETE FROM SyncQueue WHERE id = ?;
 
+selectSyncQueueByAffected:
+SELECT * FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;
+
+updateSyncQueueOperation:
+UPDATE SyncQueue SET operation = ? WHERE id = ?;
+
+deleteSyncQueueByAffected:
+DELETE FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;
+
 countSyncQueue:
 SELECT COUNT(*) FROM SyncQueue;
 

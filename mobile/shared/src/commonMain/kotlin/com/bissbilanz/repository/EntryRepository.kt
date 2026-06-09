@@ -59,7 +59,7 @@ class EntryRepository(
         val tempEntry = entryCreateToEntry(entry, food, recipe)
         cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry)))
+        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
         onEntryChanged?.invoke()
         return tempEntry
     }
@@ -88,7 +88,9 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        if (!id.startsWith("temp_")) {
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, entry)
+        } else {
             syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
         }
         onEntryChanged?.invoke()
@@ -98,10 +100,29 @@ class EntryRepository(
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        if (!id.startsWith("temp_")) {
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("entries", id)
+        } else {
             syncQueue.enqueue(SyncOperation.DeleteEntry(id))
         }
         onEntryChanged?.invoke()
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id entry so the eventual
+     * upload carries the edited values. If the create has already been drained (no
+     * queued op found), the update is skipped, matching the previous behavior.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: EntryUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("entries", tempId)) {
+            val create = req.operation as? SyncOperation.CreateEntry ?: continue
+            val body = json.decodeOrNull<EntryCreate>(create.body) ?: continue
+            val merged = applyUpdate(body, update)
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
     }
 
     suspend fun getDayProperties(date: String) = api.getDayProperties(date)
@@ -218,6 +239,26 @@ class EntryRepository(
             createdAt = Clock.System.now().toString(),
             food = food,
             recipe = recipe,
+        )
+
+    private fun applyUpdate(
+        existing: EntryCreate,
+        update: EntryUpdate,
+    ): EntryCreate =
+        existing.copy(
+            foodId = update.foodId ?: existing.foodId,
+            recipeId = update.recipeId ?: existing.recipeId,
+            mealType = update.mealType ?: existing.mealType,
+            servings = update.servings ?: existing.servings,
+            date = update.date ?: existing.date,
+            notes = update.notes ?: existing.notes,
+            quickName = update.quickName ?: existing.quickName,
+            quickCalories = update.quickCalories ?: existing.quickCalories,
+            quickProtein = update.quickProtein ?: existing.quickProtein,
+            quickCarbs = update.quickCarbs ?: existing.quickCarbs,
+            quickFat = update.quickFat ?: existing.quickFat,
+            quickFiber = update.quickFiber ?: existing.quickFiber,
+            eatenAt = update.eatenAt ?: existing.eatenAt,
         )
 
     private fun applyUpdate(

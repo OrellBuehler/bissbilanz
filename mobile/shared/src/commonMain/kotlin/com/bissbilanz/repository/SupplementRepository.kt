@@ -52,7 +52,7 @@ class SupplementRepository(
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
         val temp = supplementCreateToSupplement(supplement)
         cacheSupplement(temp)
-        syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement)))
+        syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement), localId = temp.id))
         return temp
     }
 
@@ -62,13 +62,38 @@ class SupplementRepository(
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
         cacheSupplement(temp)
-        syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, supplement)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
+        }
         return temp
     }
 
     suspend fun deleteSupplement(id: String) {
         db.bissbilanzDatabaseQueries.deleteSupplement(id)
-        syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("supplements", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
+        }
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id supplement so the
+     * eventual upload carries the edited values. Updates use the full
+     * [SupplementCreate] body, so the new body simply replaces the queued one. If the
+     * create has already been drained (no queued op found), the update is skipped —
+     * the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        supplement: SupplementCreate,
+    ) {
+        for (req in syncQueue.findByAffected("supplements", tempId)) {
+            val create = req.operation as? SyncOperation.CreateSupplement ?: continue
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(supplement)))
+        }
     }
 
     suspend fun getChecklist(date: String): List<SupplementLog> =

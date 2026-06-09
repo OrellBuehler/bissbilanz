@@ -54,7 +54,7 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
-        syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
+        syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
         onWeightChanged?.invoke()
         return temp
     }
@@ -90,9 +90,35 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
-        syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, entry)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        }
         onWeightChanged?.invoke()
         return result
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id weight entry so the
+     * eventual upload carries the edited values. If the create has already been drained
+     * (no queued op found), the update is skipped — the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: WeightUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("weight", tempId)) {
+            val create = req.operation as? SyncOperation.CreateWeight ?: continue
+            val body = json.decodeOrNull<WeightCreate>(create.body) ?: continue
+            val merged =
+                body.copy(
+                    weightKg = update.weightKg ?: body.weightKg,
+                    entryDate = update.entryDate ?: body.entryDate,
+                    notes = update.notes ?: body.notes,
+                )
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
     }
 
     suspend fun getTrend(
@@ -115,7 +141,11 @@ class WeightRepository(
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
-        syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("weight", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        }
         onWeightChanged?.invoke()
     }
 
