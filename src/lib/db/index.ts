@@ -78,6 +78,12 @@ db.version(4)
 			});
 	});
 
+// v5: syncQueue gains a failedAt index — failed writes are parked (dead-letter)
+// instead of deleted, so the user can retry or discard them explicitly.
+db.version(5).stores({
+	syncQueue: '++id, createdAt, failedAt'
+});
+
 export { db };
 
 /** Clear all user data from Dexie (e.g. on logout). Uses a transaction for atomicity. */
