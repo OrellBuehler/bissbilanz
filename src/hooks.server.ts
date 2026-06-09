@@ -10,6 +10,7 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
+import { isCrossOriginEndpoint, isOriginMismatch } from '$lib/server/csrf';
 import { env } from '$env/dynamic/public';
 
 if (env.PUBLIC_SENTRY_DSN) {
@@ -56,42 +57,6 @@ const paraglideHandle: Handle = ({ event, resolve }) =>
 			}
 		});
 	});
-
-/** Paths that need CORS and are exempt from CSRF origin checks */
-function isCrossOriginEndpoint(pathname: string): boolean {
-	return (
-		pathname.startsWith('/api/mcp') ||
-		pathname.startsWith('/api/oauth/') ||
-		pathname.startsWith('/.well-known/') ||
-		pathname === '/token'
-	);
-}
-
-const FORM_CONTENT_TYPES = [
-	'application/x-www-form-urlencoded',
-	'multipart/form-data',
-	'text/plain'
-];
-
-/**
- * Manual CSRF origin check for non-exempt routes.
- */
-function isOriginMismatch(request: Request, url: URL): boolean {
-	const method = request.method;
-	if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
-		return false;
-	}
-
-	const contentType = request.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
-	if (!FORM_CONTENT_TYPES.includes(contentType)) {
-		return false;
-	}
-
-	const origin = request.headers.get('origin');
-	if (!origin) return true;
-
-	return origin !== url.origin;
-}
 
 const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': '*',
