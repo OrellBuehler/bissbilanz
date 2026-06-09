@@ -88,6 +88,7 @@ import type {
 	getFastingDays
 } from '$lib/server/day-properties';
 import type { getCalendarStats } from '$lib/server/stats';
+import { isZodError } from '$lib/server/errors';
 
 export type HandlerDeps = {
 	// Foods
@@ -174,6 +175,19 @@ export type HandlerDeps = {
 	searchProducts: typeof searchProducts;
 };
 
+function errorPayload(e: unknown): {
+	error: string;
+	issues?: Array<{ path: string; message: string }>;
+} {
+	if (isZodError(e)) {
+		return {
+			error: 'validation_failed',
+			issues: e.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+		};
+	}
+	return { error: e instanceof Error ? e.message : 'Unexpected error' };
+}
+
 export function createHandlers(d: HandlerDeps) {
 	function wrapError(op: string, e: unknown): never {
 		throw new Error(`Failed to ${op}: ${e instanceof Error ? e.message : String(e)}`);
@@ -239,7 +253,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleCreateFood = async (userId: string, payload: unknown) => {
 		try {
 			const result = await d.createFood(userId, payload);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { foodId: result.data.id, success: true, food: result.data };
 		} catch (e) {
 			wrapError('create food', e);
@@ -249,7 +263,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleCreateRecipe = async (userId: string, payload: unknown) => {
 		try {
 			const result = await d.createRecipe(userId, payload);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { recipeId: result.data.id, success: true, recipe: result.data };
 		} catch (e) {
 			wrapError('create recipe', e);
@@ -259,7 +273,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleLogFood = async (userId: string, payload: unknown) => {
 		try {
 			const result = await d.createEntry(userId, payload);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			const date = result.data.date ?? d.today();
 			const dailyStatus = await getDailyStatusForDate(userId, date);
 			return { entryId: result.data.id, success: true, dailyStatus };
@@ -323,7 +337,7 @@ export function createHandlers(d: HandlerDeps) {
 
 			const result = await d.logSupplement(userId, id, targetDate);
 			if (!result.success) {
-				return { success: false, error: result.error.message };
+				return { success: false, ...errorPayload(result.error) };
 			}
 
 			const supplement = await d.getSupplementById(userId, id);
@@ -389,7 +403,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const { entryId, ...rest } = args;
 			const result = await d.updateEntry(userId, entryId, rest);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			const date = result.data?.date ?? d.today();
 			const dailyStatus = await getDailyStatusForDate(userId, date);
 			return { success: true, entryId, dailyStatus };
@@ -421,7 +435,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleUpdateGoals = async (userId: string, payload: unknown) => {
 		try {
 			const result = await d.upsertGoals(userId, payload);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, goals: result.data };
 		} catch (e) {
 			wrapError('update goals', e);
@@ -480,7 +494,7 @@ export function createHandlers(d: HandlerDeps) {
 				entryDate: args.date,
 				notes: args.notes
 			});
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return {
 				success: true,
 				entryId: result.data.id,
@@ -587,7 +601,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const { foodId, ...rest } = args;
 			const result = await d.updateFood(userId, foodId, rest);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, foodId };
 		} catch (e) {
 			wrapError('update food', e);
@@ -624,7 +638,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const { recipeId, ...rest } = args;
 			const result = await d.updateRecipe(userId, recipeId, rest);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, recipeId };
 		} catch (e) {
 			wrapError('update recipe', e);
@@ -690,7 +704,7 @@ export function createHandlers(d: HandlerDeps) {
 						}
 					: args;
 			const result = await d.createSupplement(userId, normalized);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, supplementId: result.data.id };
 		} catch (e) {
 			wrapError('create supplement', e);
@@ -718,7 +732,7 @@ export function createHandlers(d: HandlerDeps) {
 					: {})
 			};
 			const result = await d.updateSupplement(userId, supplementId, normalized);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, supplementId };
 		} catch (e) {
 			wrapError('update supplement', e);
@@ -753,7 +767,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const { weightId, ...rest } = args;
 			const result = await d.updateWeightEntry(userId, weightId, rest);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, weightId };
 		} catch (e) {
 			wrapError('update weight', e);
@@ -843,7 +857,7 @@ export function createHandlers(d: HandlerDeps) {
 				wakeUps: args.wakeUps ?? null,
 				notes: args.notes ?? null
 			});
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, entryId: result.data.id, entry: result.data };
 		} catch (e) {
 			wrapError('log sleep', e);
@@ -887,7 +901,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const { id, ...rest } = args;
 			const result = await d.updateSleepEntry(userId, id, rest);
-			if (!result.success) return { error: result.error.message };
+			if (!result.success) return errorPayload(result.error);
 			return { success: true, entryId: id };
 		} catch (e) {
 			wrapError('update sleep', e);
