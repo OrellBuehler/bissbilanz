@@ -9,7 +9,7 @@ import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
-import { config } from '$lib/server/env';
+import { config, validateEnv } from '$lib/server/env';
 import { env } from '$env/dynamic/public';
 
 if (env.PUBLIC_SENTRY_DSN) {
@@ -26,6 +26,10 @@ if (env.PUBLIC_SENTRY_DSN) {
 let migrationsRan = false;
 
 export async function init() {
+	const problems = validateEnv();
+	if (problems.length > 0) {
+		throw new Error(`Invalid environment configuration:\n- ${problems.join('\n- ')}`);
+	}
 	if (!migrationsRan) {
 		try {
 			await runMigrations();
