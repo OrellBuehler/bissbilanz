@@ -182,29 +182,30 @@ async function generateIos() {
 			const px = Math.round(size * scale);
 			const filename = `icon-${size}x${size}@${scale}x.png`;
 			await generatePng(px, join(assetDir, filename));
-			images.push({
+			// "universal" entries need platform; the 1024 marketing icon has no scale
+			const image = {
 				filename,
 				idiom: 'universal',
-				platform: size <= 60 ? 'ios' : size === 1024 ? 'ios' : 'ios',
-				scale: `${scale}x`,
+				platform: 'ios',
 				size: `${size}x${size}`
-			});
+			};
+			if (size !== 1024) {
+				image.scale = `${scale}x`;
+			}
+			images.push(image);
 		}
 	}
 
 	const contents = {
-		images: images.map((img) => ({
-			filename: img.filename,
-			idiom: 'universal',
-			scale: img.scale,
-			size: img.size
-		})),
+		images,
 		info: {
 			author: 'xcode',
 			version: 1
 		}
 	};
 
+	const catalogInfo = { info: { author: 'xcode', version: 1 } };
+	writeFileSync(join(assetDir, '..', 'Contents.json'), JSON.stringify(catalogInfo, null, 2) + '\n');
 	writeFileSync(join(assetDir, 'Contents.json'), JSON.stringify(contents, null, 2) + '\n');
 	console.log(`  mobile/iosApp/Bissbilanz/Assets.xcassets/AppIcon.appiconset/Contents.json`);
 }
