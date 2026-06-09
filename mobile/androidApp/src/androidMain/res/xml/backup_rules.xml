@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup rules for Android 11 and lower (fullBackupContent).
+     The encrypted token prefs are useless on another device (the Keystore master
+     key never leaves this device) and restoring them crashes EncryptedSharedPreferences.
+     The SQLite database is a server cache plus sync queue today; restoring a stale
+     sync queue onto a new device would replay old operations. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="bissbilanz_secure_prefs.xml" />
+    <exclude domain="database" path="bissbilanz.db" />
+    <exclude domain="database" path="bissbilanz.db-journal" />
+    <exclude domain="database" path="bissbilanz.db-shm" />
+    <exclude domain="database" path="bissbilanz.db-wal" />
+</full-backup-content>
