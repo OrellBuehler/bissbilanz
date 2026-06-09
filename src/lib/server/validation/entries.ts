@@ -2,7 +2,7 @@ import 'zod-openapi';
 import { z } from 'zod';
 import { normalizeMealType } from '$lib/utils/meals';
 
-const entryBaseSchema = z.object({
+export const entryBaseSchema = z.object({
 	foodId: z.string().uuid().optional(),
 	recipeId: z.string().uuid().optional(),
 	mealType: z.string().min(1).max(50).transform(normalizeMealType),

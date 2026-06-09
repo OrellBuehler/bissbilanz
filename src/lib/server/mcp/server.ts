@@ -4,6 +4,7 @@ import { safe } from './safe';
 import { describeShape } from './schema-utils';
 import { servingUnitValues } from '$lib/units';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation/foods';
+import { entryBaseSchema, entryUpdateSchema } from '$lib/server/validation/entries';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -203,47 +204,33 @@ export function createMcpServer(userId: string): McpServer {
 		safe((args) => handleCreateRecipe(userId, args))
 	);
 
+	const ENTRY_FIELD_DOCS = {
+		foodId: 'Food ID to log',
+		recipeId: 'Recipe ID to log',
+		mealType:
+			'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.',
+		servings: 'Number of servings',
+		notes: 'Optional notes for the entry',
+		date: 'Date in YYYY-MM-DD format. Defaults to today.',
+		quickName: 'Label for quick log entry (e.g., "Restaurant lunch")',
+		quickCalories: 'Calories for quick log (use instead of foodId/recipeId)',
+		quickProtein: 'Protein in grams for quick log',
+		quickCarbs: 'Carbs in grams for quick log',
+		quickFat: 'Fat in grams for quick log',
+		quickFiber: 'Fiber in grams for quick log',
+		eatenAt:
+			'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
+	};
+
 	server.registerTool(
 		'log_food',
 		{
 			description:
 				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
-			inputSchema: {
-				foodId: z.string().optional().describe('Food ID to log'),
-				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z
-					.string()
-					.describe(
-						'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
-					),
-				servings: z.number().describe('Number of servings'),
-				notes: z.string().optional().describe('Optional notes for the entry'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				quickName: z
-					.string()
-					.optional()
-					.describe('Label for quick log entry (e.g., "Restaurant lunch")'),
-				quickCalories: z
-					.number()
-					.nonnegative()
-					.optional()
-					.describe('Calories for quick log (use instead of foodId/recipeId)'),
-				quickProtein: z
-					.number()
-					.nonnegative()
-					.optional()
-					.describe('Protein in grams for quick log'),
-				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
-				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
-				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log'),
-				eatenAt: z
-					.string()
-					.datetime({ offset: true })
-					.optional()
-					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
-					)
-			},
+			inputSchema: describeShape(
+				{ ...entryBaseSchema.shape, date: entryBaseSchema.shape.date.optional() },
+				ENTRY_FIELD_DOCS
+			),
 			annotations: WRITE
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -294,50 +281,10 @@ export function createMcpServer(userId: string): McpServer {
 		'update_entry',
 		{
 			description:
-				'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
+				'Update an existing food entry. Can change servings, meal type, notes, date, food/recipe reference, or quick log fields.',
 			inputSchema: {
-				entryId: z.string().describe('ID of the entry to update'),
-				servings: z.number().optional().describe('New number of servings'),
-				mealType: z
-					.string()
-					.optional()
-					.describe(
-						'New meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
-					),
-				notes: z.string().optional().describe('New notes'),
-				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
-				quickCalories: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New calories for quick log'),
-				quickProtein: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New protein for quick log'),
-				quickCarbs: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New carbs for quick log'),
-				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
-				quickFiber: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New fiber for quick log'),
-				eatenAt: z
-					.string()
-					.datetime({ offset: true })
-					.optional()
-					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone. Omit to leave unchanged.'
-					)
+				entryId: z.string().uuid().describe('ID of the entry to update'),
+				...describeShape(entryUpdateSchema.shape, ENTRY_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},

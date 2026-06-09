@@ -371,9 +371,12 @@ export function createHandlers(d: HandlerDeps) {
 		userId: string,
 		args: {
 			entryId: string;
+			foodId?: string;
+			recipeId?: string;
+			date?: string;
 			servings?: number;
 			mealType?: string;
-			notes?: string;
+			notes?: string | null;
 			eatenAt?: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
