@@ -328,61 +328,66 @@ struct APIResponseDecodingTests {
         #expect(response.foods[1].isFavorite == true)
     }
 
-    @Test("Entry response with nested food decodes")
+    @Test("Entries list response decodes flat food item")
     func entryWithFoodDecoding() throws {
         let json = """
         {
-            "entry": {
+            "entries": [{
                 "id": "e1",
-                "userId": "u1",
-                "foodId": "f1",
-                "date": "2026-03-12",
                 "mealType": "breakfast",
                 "servings": 1.5,
-                "food": {
-                    "id": "f1", "userId": "u1", "name": "Oats", "servingSize": 40, "servingUnit": "g",
-                    "calories": 150, "protein": 5, "carbs": 27, "fat": 2.5, "fiber": 4,
-                    "isFavorite": false
-                }
-            }
+                "notes": null,
+                "foodId": "f1",
+                "recipeId": null,
+                "quickName": null, "quickCalories": null, "quickProtein": null,
+                "quickCarbs": null, "quickFat": null, "quickFiber": null,
+                "foodName": "Oats",
+                "calories": 150, "protein": 5, "carbs": 27, "fat": 2.5, "fiber": 4,
+                "eatenAt": "2026-03-12T08:00:00.000Z",
+                "servingSize": 40, "servingUnit": "g"
+            }],
+            "total": 1
         }
         """.data(using: .utf8)!
 
-        let response = try JSONDecoder().decode(EntryResponse.self, from: json)
-        #expect(response.entry.id == "e1")
-        #expect(response.entry.servings == 1.5)
-        #expect(response.entry.food?.name == "Oats")
-        #expect(response.entry.totalCalories == 225) // 150 * 1.5
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.id == "e1")
+        #expect(entry.servings == 1.5)
+        #expect(entry.displayName == "Oats")
+        #expect(entry.totalCalories == 225) // 150 * 1.5
     }
 
-    @Test("Entry response with recipe decodes")
+    @Test("Entries list response decodes recipe item with resolved macros")
     func entryWithRecipeDecoding() throws {
         let json = """
         {
-            "entry": {
+            "entries": [{
                 "id": "e2",
-                "userId": "u1",
-                "recipeId": "r1",
-                "date": "2026-03-12",
                 "mealType": "lunch",
                 "servings": 1,
-                "recipe": {
-                    "id": "r1", "userId": "u1", "name": "Pasta", "totalServings": 4,
-                    "isFavorite": true, "calories": 450, "protein": 15, "carbs": 60,
-                    "fat": 12, "fiber": 3
-                }
-            }
+                "notes": null,
+                "foodId": null,
+                "recipeId": "r1",
+                "quickName": null, "quickCalories": null, "quickProtein": null,
+                "quickCarbs": null, "quickFat": null, "quickFiber": null,
+                "foodName": "Pasta",
+                "calories": 450, "protein": 15, "carbs": 60, "fat": 12, "fiber": 3,
+                "eatenAt": "2026-03-12T12:00:00.000Z",
+                "servingSize": null, "servingUnit": null
+            }],
+            "total": 1
         }
         """.data(using: .utf8)!
 
-        let response = try JSONDecoder().decode(EntryResponse.self, from: json)
-        #expect(response.entry.recipeId == "r1")
-        #expect(response.entry.recipe?.name == "Pasta")
-        #expect(response.entry.displayName == "Pasta")
-        #expect(response.entry.totalCalories == 450)
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.recipeId == "r1")
+        #expect(entry.displayName == "Pasta")
+        #expect(entry.totalCalories == 450)
     }
 
-    @Test("Quick entry response decodes")
+    @Test("Quick entry POST response decodes without resolved macros")
     func quickEntryDecoding() throws {
         let json = """
         {
@@ -406,8 +411,8 @@ struct APIResponseDecodingTests {
         #expect(response.entry.quickName == "Energy Bar")
         #expect(response.entry.displayName == "Energy Bar")
         #expect(response.entry.totalCalories == 250)
-        #expect(response.entry.food == nil)
-        #expect(response.entry.recipe == nil)
+        #expect(response.entry.date == "2026-03-12")
+        #expect(response.entry.calories == nil)
     }
 
     @Test("Goals response with null goals decodes")
@@ -478,22 +483,20 @@ struct APIResponseDecodingTests {
                 {
                     "supplement": {
                         "id": "s1", "userId": "u1", "name": "Vitamin D",
-                        "dosage": 4000, "dosageUnit": "IU",
-                        "scheduleType": "daily", "isActive": true, "sortOrder": 0
+                        "scheduleType": "daily", "isActive": true, "sortOrder": 0,
+                        "ingredients": []
                     },
                     "taken": true,
-                    "log": {
-                        "id": "l1", "supplementId": "s1", "userId": "u1",
-                        "date": "2026-03-12", "takenAt": "2026-03-12T08:00:00Z"
-                    }
+                    "takenAt": "2026-03-12T08:00:00Z"
                 },
                 {
                     "supplement": {
                         "id": "s2", "userId": "u1", "name": "Omega-3",
-                        "dosage": 1000, "dosageUnit": "mg",
-                        "scheduleType": "daily", "isActive": true, "sortOrder": 1
+                        "scheduleType": "daily", "isActive": true, "sortOrder": 1,
+                        "ingredients": []
                     },
-                    "taken": false
+                    "taken": false,
+                    "takenAt": null
                 }
             ]
         }
@@ -503,9 +506,9 @@ struct APIResponseDecodingTests {
         #expect(response.checklist.count == 2)
         #expect(response.checklist[0].supplement.name == "Vitamin D")
         #expect(response.checklist[0].taken == true)
-        #expect(response.checklist[0].log?.id == "l1")
+        #expect(response.checklist[0].takenAt == "2026-03-12T08:00:00Z")
         #expect(response.checklist[1].taken == false)
-        #expect(response.checklist[1].log == nil)
+        #expect(response.checklist[1].takenAt == nil)
     }
 
     @Test("DayProperties response decodes snake_case keys")
@@ -659,12 +662,29 @@ struct APIResponseDecodingTests {
         {
             "supplement": {
                 "id": "s1", "userId": "u1", "name": "Multivitamin",
-                "dosage": 1, "dosageUnit": "tablet",
                 "scheduleType": "daily", "isActive": true, "sortOrder": 0,
                 "timeOfDay": "morning",
                 "ingredients": [
-                    {"id": "i1", "supplementId": "s1", "name": "Vitamin A", "dosage": 900, "dosageUnit": "µg", "sortOrder": 0},
-                    {"id": "i2", "supplementId": "s1", "name": "Vitamin C", "dosage": 90, "dosageUnit": "mg", "sortOrder": 1}
+                    {
+                        "id": "i1", "supplementId": "s1", "foodId": "f1",
+                        "servings": 1, "sortOrder": 0,
+                        "food": {
+                            "id": "f1", "name": "Vitamin A", "brand": null, "kind": "supplement",
+                            "servingSize": 1, "servingUnit": "piece",
+                            "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0,
+                            "ingredientsText": null
+                        }
+                    },
+                    {
+                        "id": "i2", "supplementId": "s1", "foodId": "f2",
+                        "servings": 2, "sortOrder": 1,
+                        "food": {
+                            "id": "f2", "name": "Vitamin C", "brand": null, "kind": "supplement",
+                            "servingSize": 1, "servingUnit": "piece",
+                            "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0,
+                            "ingredientsText": null
+                        }
+                    }
                 ]
             }
         }
@@ -673,9 +693,9 @@ struct APIResponseDecodingTests {
         let response = try JSONDecoder().decode(SupplementResponse.self, from: json)
         #expect(response.supplement.name == "Multivitamin")
         #expect(response.supplement.timeOfDay == "morning")
-        #expect(response.supplement.ingredients?.count == 2)
-        #expect(response.supplement.ingredients?[0].name == "Vitamin A")
-        #expect(response.supplement.ingredients?[1].dosage == 90)
+        #expect(response.supplement.ingredients.count == 2)
+        #expect(response.supplement.ingredients[0].food.name == "Vitamin A")
+        #expect(response.supplement.ingredients[1].servings == 2)
     }
 
     @Test("Supplement history response decodes")
@@ -684,21 +704,10 @@ struct APIResponseDecodingTests {
         {
             "history": [
                 {
+                    "supplementId": "s1",
+                    "supplementName": "Vitamin D",
                     "date": "2026-03-12",
-                    "supplements": [
-                        {
-                            "supplement": {
-                                "id": "s1", "userId": "u1", "name": "Vitamin D",
-                                "dosage": 4000, "dosageUnit": "IU",
-                                "scheduleType": "daily", "isActive": true, "sortOrder": 0
-                            },
-                            "taken": true,
-                            "log": {
-                                "id": "l1", "supplementId": "s1", "userId": "u1",
-                                "date": "2026-03-12", "takenAt": "2026-03-12T08:00:00Z"
-                            }
-                        }
-                    ]
+                    "takenAt": "2026-03-12T08:00:00Z"
                 }
             ]
         }
@@ -707,7 +716,8 @@ struct APIResponseDecodingTests {
         let response = try JSONDecoder().decode(SupplementHistoryResponse.self, from: json)
         #expect(response.history.count == 1)
         #expect(response.history[0].date == "2026-03-12")
-        #expect(response.history[0].supplements[0].taken == true)
+        #expect(response.history[0].supplementName == "Vitamin D")
+        #expect(response.history[0].id == "s1-2026-03-12")
     }
 
     @Test("Recipe with ingredients decodes")

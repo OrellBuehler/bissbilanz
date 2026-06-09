@@ -153,31 +153,30 @@ struct EntryMacroTotalsTests {
     @Test("Mixed food, recipe, and quick entries sum correctly")
     func mixedEntryTypes() {
         let food = makeFoodHelper(calories: 150, protein: 10, carbs: 20, fat: 5, fiber: 3)
-        let recipe = Recipe(
-            id: "r1", userId: "u1", name: "Smoothie",
-            totalServings: 1, isFavorite: false, imageUrl: nil,
-            calories: 280, protein: 15, carbs: 45, fat: 5, fiber: 6,
-            createdAt: nil, updatedAt: nil, ingredients: nil
-        )
 
         let entries = [
             makeEntry(id: "e1", food: food, servings: 1),
+            // Recipe entry: the server resolves recipe macros into the flat fields
             Entry(
-                id: "e2", userId: "u1", foodId: nil, recipeId: "r1",
-                date: "2026-03-12", mealType: "lunch", servings: 1,
-                notes: nil, quickName: nil, quickCalories: nil,
+                id: "e2", mealType: "lunch", servings: 1, notes: nil,
+                foodId: nil, recipeId: "r1",
+                quickName: nil, quickCalories: nil,
                 quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-                eatenAt: nil, createdAt: nil, updatedAt: nil,
-                food: nil, recipe: recipe
+                foodName: "Smoothie", calories: 280, protein: 15,
+                carbs: 45, fat: 5, fiber: 6,
+                servingSize: nil, servingUnit: nil,
+                date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
             ),
+            // Quick entry fresh from POST: only quick* fields populated
             Entry(
-                id: "e3", userId: "u1", foodId: nil, recipeId: nil,
-                date: "2026-03-12", mealType: "snacks", servings: 1,
-                notes: nil, quickName: "Bar",
-                quickCalories: 200, quickProtein: 20,
+                id: "e3", mealType: "snacks", servings: 1, notes: nil,
+                foodId: nil, recipeId: nil,
+                quickName: "Bar", quickCalories: 200, quickProtein: 20,
                 quickCarbs: 25, quickFat: 8, quickFiber: 3,
-                eatenAt: nil, createdAt: nil, updatedAt: nil,
-                food: nil, recipe: nil
+                foodName: nil, calories: nil, protein: nil,
+                carbs: nil, fat: nil, fiber: nil,
+                servingSize: nil, servingUnit: nil,
+                date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
             ),
         ]
         let totals = computeTotals(entries)
@@ -366,11 +365,13 @@ private func makeEntry(
 ) -> Entry {
     let f = food ?? makeFoodHelper()
     return Entry(
-        id: id, userId: "u1", foodId: f.id, recipeId: nil,
-        date: "2026-03-12", mealType: mealType, servings: servings,
-        notes: nil, quickName: nil, quickCalories: nil,
+        id: id, mealType: mealType, servings: servings, notes: nil,
+        foodId: f.id, recipeId: nil,
+        quickName: nil, quickCalories: nil,
         quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-        eatenAt: nil, createdAt: nil, updatedAt: nil,
-        food: f, recipe: nil
+        foodName: f.name, calories: f.calories, protein: f.protein,
+        carbs: f.carbs, fat: f.fat, fiber: f.fiber,
+        servingSize: f.servingSize, servingUnit: f.servingUnit,
+        date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
     )
 }

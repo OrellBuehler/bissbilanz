@@ -106,8 +106,11 @@ final class BissbilanzAPI {
     }
 
     func copyEntries(fromDate: String, toDate: String) async throws -> [Entry] {
-        let body = ["fromDate": fromDate, "toDate": toDate]
-        let response: EntriesResponse = try await post("/api/entries/copy", body: body)
+        // The server reads fromDate/toDate from query params, not the body
+        let response: EntriesResponse = try await post(
+            "/api/entries/copy?fromDate=\(fromDate)&toDate=\(toDate)",
+            body: [String: String]()
+        )
         return response.entries
     }
 

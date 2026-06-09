@@ -1,78 +1,57 @@
 import Foundation
 
+/// Matches the flat shape of GET /api/entries items: per-serving macros are
+/// pre-resolved server-side (quick values, food, or recipe macros). The fields
+/// `foodName`/`calories`/... are absent in POST/PATCH responses (raw DB rows),
+/// and `date` is absent in list responses — both must stay optional.
 struct Entry: Codable, Identifiable {
     let id: String
-    let userId: String?
-    let foodId: String?
-    let recipeId: String?
-    let date: String
     let mealType: String
     let servings: Double
     let notes: String?
+    let foodId: String?
+    let recipeId: String?
     let quickName: String?
     let quickCalories: Double?
     let quickProtein: Double?
     let quickCarbs: Double?
     let quickFat: Double?
     let quickFiber: Double?
+    let foodName: String?
+    let calories: Double?
+    let protein: Double?
+    let carbs: Double?
+    let fat: Double?
+    let fiber: Double?
+    let servingSize: Double?
+    let servingUnit: ServingUnit?
+    let date: String?
     let eatenAt: String?
     let createdAt: String?
     let updatedAt: String?
-    let food: Food?
-    let recipe: Recipe?
 
     var displayName: String {
-        food?.name ?? recipe?.name ?? quickName ?? "Unknown"
+        foodName ?? quickName ?? "Unknown"
     }
 
     var totalCalories: Double {
-        if let food {
-            return food.calories * servings
-        }
-        if let recipe, let cal = recipe.calories {
-            return cal * servings
-        }
-        return (quickCalories ?? 0) * servings
+        (calories ?? quickCalories ?? 0) * servings
     }
 
     var totalProtein: Double {
-        if let food {
-            return food.protein * servings
-        }
-        if let recipe, let val_ = recipe.protein {
-            return val_ * servings
-        }
-        return (quickProtein ?? 0) * servings
+        (protein ?? quickProtein ?? 0) * servings
     }
 
     var totalCarbs: Double {
-        if let food {
-            return food.carbs * servings
-        }
-        if let recipe, let val_ = recipe.carbs {
-            return val_ * servings
-        }
-        return (quickCarbs ?? 0) * servings
+        (carbs ?? quickCarbs ?? 0) * servings
     }
 
     var totalFat: Double {
-        if let food {
-            return food.fat * servings
-        }
-        if let recipe, let val_ = recipe.fat {
-            return val_ * servings
-        }
-        return (quickFat ?? 0) * servings
+        (fat ?? quickFat ?? 0) * servings
     }
 
     var totalFiber: Double {
-        if let food {
-            return food.fiber * servings
-        }
-        if let recipe, let val_ = recipe.fiber {
-            return val_ * servings
-        }
-        return (quickFiber ?? 0) * servings
+        (fiber ?? quickFiber ?? 0) * servings
     }
 }
 

@@ -73,10 +73,9 @@ struct DayLogView: View {
             }
         }
         .sheet(item: $editingEntry) { entry in
-            EntryEditSheet(entry: entry) { updated in
-                if let index = entries.firstIndex(where: { $0.id == updated.id }) {
-                    entries[index] = updated
-                }
+            // PATCH responses are raw DB rows without resolved macros — reload instead
+            EntryEditSheet(entry: entry) { _ in
+                Task { await loadEntries() }
             }
         }
         .task { await loadEntries(showSpinner: true) }
@@ -227,8 +226,9 @@ struct DayLogView: View {
         let viewedDate = DateFormatting.date(from: date) ?? Date()
         let yesterday = viewedDate.adding(days: -1).isoDateString
         do {
-            let copied = try await api.copyEntries(fromDate: yesterday, toDate: date)
-            entries.append(contentsOf: copied)
+            // Copy responses are raw DB rows without resolved macros — reload instead
+            _ = try await api.copyEntries(fromDate: yesterday, toDate: date)
+            await loadEntries()
         } catch {
             errorMessage = error.localizedDescription
         }
