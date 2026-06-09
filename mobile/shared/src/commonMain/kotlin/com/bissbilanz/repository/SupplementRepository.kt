@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.SupplementLog
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -36,6 +37,7 @@ class SupplementRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     fun supplements(): Flow<List<Supplement>> =
         db.bissbilanzDatabaseQueries
@@ -45,6 +47,7 @@ class SupplementRepository(
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) } }
 
     suspend fun refresh() {
+        if (appModeManager.isLocal) return
         val supplements = api.getSupplements()
         cacheSupplements(supplements)
     }
@@ -96,8 +99,9 @@ class SupplementRepository(
         }
     }
 
-    suspend fun getChecklist(date: String): List<SupplementLog> =
-        try {
+    suspend fun getChecklist(date: String): List<SupplementLog> {
+        if (appModeManager.isLocal) return checklistFromCache(date)
+        return try {
             val checklist = api.getSupplementChecklist(date)
             val logs =
                 checklist.filter { it.taken }.map { item ->
@@ -120,9 +124,15 @@ class SupplementRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cachedLogs =
-                db.bissbilanzDatabaseQueries.selectSupplementLogsByDate(date).executeAsList()
-            cachedLogs.map { log ->
+            checklistFromCache(date)
+        }
+    }
+
+    private fun checklistFromCache(date: String): List<SupplementLog> =
+        db.bissbilanzDatabaseQueries
+            .selectSupplementLogsByDate(date)
+            .executeAsList()
+            .map { log ->
                 SupplementLog(
                     supplementId = log.supplementId,
                     date = log.date,
@@ -130,7 +140,6 @@ class SupplementRepository(
                     entryIds = emptyList(),
                 )
             }
-        }
 
     @OptIn(ExperimentalUuidApi::class)
     suspend fun logSupplement(
@@ -167,35 +176,51 @@ class SupplementRepository(
     suspend fun getHistory(
         from: String,
         to: String,
-    ): List<SupplementHistoryEntry> =
-        try {
+    ): List<SupplementHistoryEntry> {
+        if (appModeManager.isLocal) return historyFromCache(from, to)
+        return try {
             api.getSupplementHistory(from, to).history
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val logs =
-                db.bissbilanzDatabaseQueries
-                    .selectSupplementLogsByDateRange(from, to)
-                    .executeAsList()
-            val supplements =
-                db.bissbilanzDatabaseQueries
-                    .selectAllSupplements()
-                    .executeAsList()
-                    .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
-                    .toMap()
-            logs.map { log ->
-                val supplement = supplements[log.supplementId]
-                SupplementHistoryEntry(
-                    supplementId = log.supplementId,
-                    supplementName = supplement?.name ?: "",
-                    date = log.date,
-                    takenAt = log.takenAt,
-                )
-            }
+            historyFromCache(from, to)
         }
+    }
 
-    suspend fun getAllSupplements(): List<Supplement> =
-        try {
+    private fun historyFromCache(
+        from: String,
+        to: String,
+    ): List<SupplementHistoryEntry> {
+        val logs =
+            db.bissbilanzDatabaseQueries
+                .selectSupplementLogsByDateRange(from, to)
+                .executeAsList()
+        val supplements =
+            db.bissbilanzDatabaseQueries
+                .selectAllSupplements()
+                .executeAsList()
+                .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
+                .toMap()
+        return logs.map { log ->
+            val supplement = supplements[log.supplementId]
+            SupplementHistoryEntry(
+                supplementId = log.supplementId,
+                supplementName = supplement?.name ?: "",
+                date = log.date,
+                takenAt = log.takenAt,
+            )
+        }
+    }
+
+    suspend fun getAllSupplements(): List<Supplement> {
+        if (appModeManager.isLocal) {
+            // The local DB is the primary store in Local mode; an empty list is the truth.
+            return db.bissbilanzDatabaseQueries
+                .selectAllSupplements()
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
+        }
+        return try {
             val all = api.getAllSupplements().supplements
             cacheSupplements(all, includeInactive = true)
             all
@@ -209,6 +234,7 @@ class SupplementRepository(
                 throw e
             }
         }
+    }
 
     private fun cacheSupplement(supplement: Supplement) {
         db.bissbilanzDatabaseQueries.insertSupplement(

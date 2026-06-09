@@ -5,6 +5,7 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Goals
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,7 @@ class GoalsRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val appModeManager: AppModeManager,
 ) {
     fun goals(): Flow<Goals?> =
         db.bissbilanzDatabaseQueries
@@ -53,6 +55,7 @@ class GoalsRepository(
             }
 
     suspend fun refresh() {
+        if (appModeManager.isLocal) return
         val goals = api.getGoals()
         if (goals != null) {
             cacheGoals(goals)

@@ -9,6 +9,7 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
+import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -35,7 +36,7 @@ class EntryRepositoryTest {
         db = BissbilanzDatabase(driver)
         healthSync = mockk(relaxed = true)
         syncQueue = mockk(relaxed = true)
-        repository = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter())
+        repository = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
     }
 
     @Test

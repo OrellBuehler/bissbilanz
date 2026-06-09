@@ -2,6 +2,8 @@ package com.bissbilanz.sync
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.test.appModeManager
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
@@ -19,7 +21,7 @@ class SyncQueueTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
-        queue = SyncQueue(db, json)
+        queue = SyncQueue(db, json, appModeManager())
     }
 
     @Test
@@ -134,6 +136,29 @@ class SyncQueueTest {
             assertEquals(1, queue.pendingCount())
             val remaining = queue.drain().single().operation as SyncOperation.CreateFood
             assertEquals("temp_2", remaining.localId)
+        }
+
+    @Test
+    fun enqueueIsNoOpInLocalMode() =
+        runTest {
+            // In Local mode the DB is the primary store; the login migrator uploads
+            // cache state, so queued ops would double-apply.
+            val localQueue = SyncQueue(db, json, appModeManager(AppMode.LOCAL))
+
+            localQueue.enqueue(SyncOperation.CreateFood("{}", localId = "temp_1"))
+
+            assertEquals(0, localQueue.pendingCount())
+            assertTrue(localQueue.drain().isEmpty())
+        }
+
+    @Test
+    fun enqueueWorksWhenModeIsSynced() =
+        runTest {
+            val syncedQueue = SyncQueue(db, json, appModeManager(AppMode.SYNCED))
+
+            syncedQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+
+            assertEquals(1, syncedQueue.pendingCount())
         }
 
     @Test

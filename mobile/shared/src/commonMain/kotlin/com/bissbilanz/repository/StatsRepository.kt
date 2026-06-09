@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
@@ -16,18 +17,21 @@ class StatsRepository(
     private val db: BissbilanzDatabase,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     suspend fun getDailyStats(
         startDate: String,
         endDate: String,
-    ): DailyStatsResponse =
-        try {
+    ): DailyStatsResponse {
+        if (appModeManager.isLocal) return computeDailyStatsFromCache(startDate, endDate)
+        return try {
             api.getDailyStats(startDate, endDate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
             computeDailyStatsFromCache(startDate, endDate)
         }
+    }
 
     suspend fun getWeeklyStats(): WeeklyStatsResponse = api.getWeeklyStats()
 
@@ -48,6 +52,8 @@ class StatsRepository(
     ): TopFoodsResponse = api.getTopFoods(days, limit)
 
     suspend fun getCalendarStats(month: String): List<CalendarDay> {
+        // In Local mode the local DB is complete, so the calendar is computed from cache.
+        if (appModeManager.isLocal) return computeCalendarStatsFromCache(month)
         val response = api.getCalendarStats(month)
         val days =
             response.days.map { (date, raw) ->
@@ -59,6 +65,21 @@ class StatsRepository(
             }
         return days.sortedBy { it.date }
     }
+
+    /** [month] is "YYYY-MM"; dates are zero-padded so string range comparison works. */
+    private fun computeCalendarStatsFromCache(month: String): List<CalendarDay> =
+        db.bissbilanzDatabaseQueries
+            .selectEntriesByDateRange("$month-01", "$month-31")
+            .executeAsList()
+            .groupBy { it.date }
+            .map { (date, rows) ->
+                val entries = rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+                CalendarDay(
+                    date = date,
+                    calories = entries.totalMacros().calories,
+                    hasEntries = entries.isNotEmpty(),
+                )
+            }.sortedBy { it.date }
 
     private fun computeDailyStatsFromCache(
         startDate: String,

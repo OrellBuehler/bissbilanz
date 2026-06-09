@@ -3,6 +3,7 @@ package com.bissbilanz.sync
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.FoodCreate
@@ -22,6 +23,7 @@ import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.test.NoopErrorReporter
+import com.bissbilanz.test.appModeManager
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -49,21 +51,31 @@ class TempIdCoalescingTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
-        syncQueue = SyncQueue(db, json)
+        syncQueue = SyncQueue(db, json, appModeManager())
         healthSync = mockk(relaxed = true)
     }
 
-    private fun entryRepository() = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter())
+    private fun entryRepository() = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
 
-    private fun foodRepository() = FoodRepository(api, db, syncQueue, json, NoopErrorReporter(), Dispatchers.Unconfined)
+    private fun foodRepository() =
+        FoodRepository(
+            api,
+            db,
+            syncQueue,
+            json,
+            NoopErrorReporter(),
+            appModeManager(),
+            mockk<OpenFoodFactsClient>(relaxed = true),
+            Dispatchers.Unconfined,
+        )
 
-    private fun recipeRepository() = RecipeRepository(api, db, syncQueue, json, NoopErrorReporter())
+    private fun recipeRepository() = RecipeRepository(api, db, syncQueue, json, NoopErrorReporter(), appModeManager())
 
-    private fun weightRepository() = WeightRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter())
+    private fun weightRepository() = WeightRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
 
-    private fun sleepRepository() = SleepRepository(api, db, syncQueue, json, NoopErrorReporter())
+    private fun sleepRepository() = SleepRepository(api, db, syncQueue, json, NoopErrorReporter(), appModeManager())
 
-    private fun supplementRepository() = SupplementRepository(api, db, syncQueue, json, NoopErrorReporter())
+    private fun supplementRepository() = SupplementRepository(api, db, syncQueue, json, NoopErrorReporter(), appModeManager())
 
     // Entries
 

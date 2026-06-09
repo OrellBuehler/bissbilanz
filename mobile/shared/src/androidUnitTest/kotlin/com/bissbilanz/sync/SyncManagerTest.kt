@@ -4,11 +4,14 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppMode
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
+import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -37,10 +40,10 @@ class SyncManagerTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
-        syncQueue = SyncQueue(db, json)
+        syncQueue = SyncQueue(db, json, appModeManager())
         connectivityProvider = mockk()
         every { connectivityProvider.isOnline } returns isOnline
-        manager = SyncManager(syncQueue, connectivityProvider, api, json, NoopErrorReporter())
+        manager = SyncManager(syncQueue, connectivityProvider, api, json, NoopErrorReporter(), appModeManager())
     }
 
     @Test
@@ -131,6 +134,55 @@ class SyncManagerTest {
 
             assertEquals(0, synced)
             assertEquals(1, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun localModeReturnsZeroWithoutTouchingApiOrQueue() =
+        runTest {
+            // Pre-existing queued op (e.g. enqueued before switching to Local mode).
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            val localManager =
+                SyncManager(
+                    syncQueue,
+                    connectivityProvider,
+                    api,
+                    json,
+                    NoopErrorReporter(),
+                    appModeManager(AppMode.LOCAL),
+                )
+
+            val synced = localManager.syncPendingQueue()
+
+            assertEquals(0, synced)
+            assertEquals(1, syncQueue.pendingCount())
+            coVerify(exactly = 0) { api.deleteEntry(any()) }
+        }
+
+    @Test
+    fun executesSetDayPropertiesViaApi() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.SetDayProperties("2024-01-15", isFastingDay = true))
+            coEvery { api.setDayProperties("2024-01-15", true) } returns
+                DayProperties(date = "2024-01-15", isFastingDay = true)
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(1, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            coVerify { api.setDayProperties("2024-01-15", true) }
+        }
+
+    @Test
+    fun executesDeleteDayPropertiesViaApi() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteDayProperties("2024-01-15"))
+            coEvery { api.deleteDayProperties("2024-01-15") } returns Unit
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(1, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            coVerify { api.deleteDayProperties("2024-01-15") }
         }
 
     private fun foodCreate(name: String = "Rice") =

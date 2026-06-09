@@ -202,6 +202,27 @@ sealed class SyncOperation {
     }
 
     @Serializable
+    @SerialName("set_day_properties")
+    data class SetDayProperties(
+        val date: String,
+        val isFastingDay: Boolean,
+    ) : SyncOperation() {
+        override val affectedTable = "day_properties"
+        override val affectedId get() = date
+        override val description get() = "set day properties $date"
+    }
+
+    @Serializable
+    @SerialName("delete_day_properties")
+    data class DeleteDayProperties(
+        val date: String,
+    ) : SyncOperation() {
+        override val affectedTable = "day_properties"
+        override val affectedId get() = date
+        override val description get() = "delete day properties $date"
+    }
+
+    @Serializable
     @SerialName("update_preferences")
     data class UpdatePreferences(
         val body: String,

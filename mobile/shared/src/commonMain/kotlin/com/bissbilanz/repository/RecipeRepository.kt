@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.util.decodeOrNull
@@ -27,6 +28,7 @@ class RecipeRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     fun allRecipes(): Flow<List<RecipeDetail>> =
         db.bissbilanzDatabaseQueries
@@ -36,6 +38,7 @@ class RecipeRepository(
             .map { rows -> rows.mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) } }
 
     suspend fun refresh() {
+        if (appModeManager.isLocal) return
         val summaries = api.getRecipes()
         db.bissbilanzDatabaseQueries.transaction {
             db.bissbilanzDatabaseQueries.deleteAllRecipes()
@@ -75,8 +78,13 @@ class RecipeRepository(
         }
     }
 
-    suspend fun getRecipe(id: String): RecipeDetail =
-        try {
+    suspend fun getRecipe(id: String): RecipeDetail {
+        if (appModeManager.isLocal) {
+            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            return cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                ?: throw IllegalStateException("Recipe $id not found in local database")
+        }
+        return try {
             val recipe = api.getRecipe(id)
             cacheRecipe(recipe)
             recipe
@@ -86,6 +94,7 @@ class RecipeRepository(
             val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
             cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) } ?: throw e
         }
+    }
 
     suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
         val temp = recipeCreateToRecipe(recipe)

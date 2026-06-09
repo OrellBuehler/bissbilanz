@@ -5,6 +5,7 @@ import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.*
+import com.bissbilanz.mode.AppModeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -29,6 +30,7 @@ class SyncManager(
     private val api: BissbilanzApi,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -61,6 +63,9 @@ class SyncManager(
     }
 
     suspend fun syncPendingQueue(): Int {
+        // In Local mode nothing is enqueued and nothing may be uploaded. The network
+        // listener can keep running; it simply becomes a no-op.
+        if (appModeManager.isLocal) return 0
         if (!syncMutex.tryLock()) return 0
         var synced = 0
         try {
@@ -86,6 +91,7 @@ class SyncManager(
                             synced++
                             addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
                         }
+
                         else -> {
                             syncQueue.releaseForRetry(req.id)
                             val count = syncQueue.incrementAndGetRetryCount(req.id)
@@ -133,50 +139,101 @@ class SyncManager(
     @Suppress("CyclomaticComplexMethod")
     private suspend fun execute(op: SyncOperation) {
         when (op) {
-            is SyncOperation.CreateFood ->
+            is SyncOperation.CreateFood -> {
                 api.createFood(json.decodeFromString<FoodCreate>(op.body))
-            is SyncOperation.UpdateFood ->
+            }
+
+            is SyncOperation.UpdateFood -> {
                 api.updateFood(op.id, json.decodeFromString<FoodCreate>(op.body))
-            is SyncOperation.DeleteFood ->
+            }
+
+            is SyncOperation.DeleteFood -> {
                 api.deleteFood(op.id)
-            is SyncOperation.CreateEntry ->
+            }
+
+            is SyncOperation.CreateEntry -> {
                 api.createEntry(json.decodeFromString<EntryCreate>(op.body))
-            is SyncOperation.UpdateEntry ->
+            }
+
+            is SyncOperation.UpdateEntry -> {
                 api.updateEntry(op.id, json.decodeFromString<EntryUpdate>(op.body))
-            is SyncOperation.DeleteEntry ->
+            }
+
+            is SyncOperation.DeleteEntry -> {
                 api.deleteEntry(op.id)
-            is SyncOperation.CreateRecipe ->
+            }
+
+            is SyncOperation.CreateRecipe -> {
                 api.createRecipe(json.decodeFromString<RecipeCreate>(op.body))
-            is SyncOperation.UpdateRecipe ->
+            }
+
+            is SyncOperation.UpdateRecipe -> {
                 api.updateRecipe(op.id, json.decodeFromString<RecipeUpdate>(op.body))
-            is SyncOperation.DeleteRecipe ->
+            }
+
+            is SyncOperation.DeleteRecipe -> {
                 api.deleteRecipe(op.id)
-            is SyncOperation.SetGoals ->
+            }
+
+            is SyncOperation.SetGoals -> {
                 api.setGoals(json.decodeFromString<Goals>(op.body))
-            is SyncOperation.CreateWeight ->
+            }
+
+            is SyncOperation.CreateWeight -> {
                 api.createWeightEntry(json.decodeFromString<WeightCreate>(op.body))
-            is SyncOperation.UpdateWeight ->
+            }
+
+            is SyncOperation.UpdateWeight -> {
                 api.updateWeightEntry(op.id, json.decodeFromString<WeightUpdate>(op.body))
-            is SyncOperation.DeleteWeight ->
+            }
+
+            is SyncOperation.DeleteWeight -> {
                 api.deleteWeightEntry(op.id)
-            is SyncOperation.CreateSupplement ->
+            }
+
+            is SyncOperation.CreateSupplement -> {
                 api.createSupplement(json.decodeFromString<SupplementCreate>(op.body))
-            is SyncOperation.UpdateSupplement ->
+            }
+
+            is SyncOperation.UpdateSupplement -> {
                 api.updateSupplement(op.id, json.decodeFromString<SupplementCreate>(op.body))
-            is SyncOperation.DeleteSupplement ->
+            }
+
+            is SyncOperation.DeleteSupplement -> {
                 api.deleteSupplement(op.id)
-            is SyncOperation.LogSupplement ->
+            }
+
+            is SyncOperation.LogSupplement -> {
                 api.logSupplement(op.supplementId, op.date)
-            is SyncOperation.UnlogSupplement ->
+            }
+
+            is SyncOperation.UnlogSupplement -> {
                 api.unlogSupplement(op.supplementId, op.date)
-            is SyncOperation.UpdatePreferences ->
+            }
+
+            is SyncOperation.SetDayProperties -> {
+                api.setDayProperties(op.date, op.isFastingDay)
+            }
+
+            is SyncOperation.DeleteDayProperties -> {
+                api.deleteDayProperties(op.date)
+            }
+
+            is SyncOperation.UpdatePreferences -> {
                 api.updatePreferences(json.decodeFromString<PreferencesUpdate>(op.body))
-            is SyncOperation.CreateSleep ->
+            }
+
+            is SyncOperation.CreateSleep -> {
                 api.createSleepEntry(json.decodeFromString<SleepCreate>(op.body))
-            is SyncOperation.UpdateSleep ->
+            }
+
+            is SyncOperation.UpdateSleep -> {
                 api.updateSleepEntry(op.id, json.decodeFromString<SleepUpdate>(op.body))
-            is SyncOperation.DeleteSleep ->
+            }
+
+            is SyncOperation.DeleteSleep -> {
                 api.deleteSleepEntry(op.id)
+            }
         }
     }
 

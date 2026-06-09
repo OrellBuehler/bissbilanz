@@ -6,6 +6,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -28,6 +29,7 @@ class EntryRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     private var currentDate: String? = null
     var onEntryChanged: (suspend () -> Unit)? = null
@@ -47,6 +49,8 @@ class EntryRepository(
 
     suspend fun refresh(date: String) {
         currentDate = date
+        // In Local mode the cache is the primary store; there is nothing to refresh.
+        if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
         cacheEntries(date, entries)
     }
@@ -125,14 +129,58 @@ class EntryRepository(
         }
     }
 
-    suspend fun getDayProperties(date: String) = api.getDayProperties(date)
+    /**
+     * Cache-first day properties. In Local mode the cache is authoritative; in Synced
+     * mode the API result is cached and the cache serves as offline fallback.
+     */
+    suspend fun getDayProperties(date: String): DayProperties? {
+        if (appModeManager.isLocal) return cachedDayProperties(date)
+        return try {
+            val props = api.getDayProperties(date)
+            if (props != null) {
+                cacheDayProperties(props)
+            } else {
+                db.bissbilanzDatabaseQueries.deleteDayProperties(date)
+            }
+            props
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            cachedDayProperties(date)
+        }
+    }
 
     suspend fun setDayProperties(
         date: String,
         isFastingDay: Boolean,
-    ) = api.setDayProperties(date, isFastingDay)
+    ): DayProperties {
+        val props = DayProperties(date = date, isFastingDay = isFastingDay)
+        cacheDayProperties(props)
+        if (!appModeManager.isLocal) {
+            syncQueue.enqueue(SyncOperation.SetDayProperties(date, isFastingDay))
+        }
+        return props
+    }
 
-    suspend fun deleteDayProperties(date: String) = api.deleteDayProperties(date)
+    suspend fun deleteDayProperties(date: String) {
+        db.bissbilanzDatabaseQueries.deleteDayProperties(date)
+        if (!appModeManager.isLocal) {
+            syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
+        }
+    }
+
+    private fun cachedDayProperties(date: String): DayProperties? =
+        db.bissbilanzDatabaseQueries
+            .selectDayProperties(date)
+            .executeAsOneOrNull()
+            ?.let { DayProperties(date = it.date, isFastingDay = it.isFastingDay != 0L) }
+
+    private fun cacheDayProperties(props: DayProperties) {
+        db.bissbilanzDatabaseQueries.upsertDayProperties(
+            date = props.date,
+            isFastingDay = if (props.isFastingDay) 1L else 0L,
+        )
+    }
 
     suspend fun copyEntries(
         fromDate: String,

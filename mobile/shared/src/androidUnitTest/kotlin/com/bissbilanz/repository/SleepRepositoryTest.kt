@@ -9,6 +9,7 @@ import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
+import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -34,7 +35,7 @@ class SleepRepositoryTest {
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
-        repository = SleepRepository(api, db, syncQueue, json, NoopErrorReporter())
+        repository = SleepRepository(api, db, syncQueue, json, NoopErrorReporter(), appModeManager())
     }
 
     @Test

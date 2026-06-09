@@ -9,6 +9,7 @@ import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.util.decodeOrNull
@@ -28,6 +29,7 @@ class SleepRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     fun entries(): Flow<List<SleepEntry>> =
         db.bissbilanzDatabaseQueries
@@ -40,6 +42,7 @@ class SleepRepository(
         from: String? = null,
         to: String? = null,
     ) {
+        if (appModeManager.isLocal) return
         try {
             val entries = api.getSleepEntries(from, to)
             cacheSleepEntries(entries)
@@ -159,14 +162,17 @@ class SleepRepository(
     suspend fun getSleepFoodCorrelation(
         startDate: String,
         endDate: String,
-    ): List<SleepFoodCorrelationEntry> =
-        try {
+    ): List<SleepFoodCorrelationEntry> {
+        // Server-side analytics; the UI hides this in Local mode.
+        if (appModeManager.isLocal) return emptyList()
+        return try {
             api.getSleepFoodCorrelation(startDate, endDate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
             emptyList()
         }
+    }
 
     private fun cacheSleepEntry(entry: SleepEntry) {
         db.bissbilanzDatabaseQueries.insertSleepEntry(

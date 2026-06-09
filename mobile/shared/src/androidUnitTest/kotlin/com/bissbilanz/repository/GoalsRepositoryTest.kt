@@ -7,6 +7,7 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
+import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -30,7 +31,7 @@ class GoalsRepositoryTest {
         BissbilanzDatabase.Schema.create(driver)
         db = BissbilanzDatabase(driver)
         syncQueue = mockk(relaxed = true)
-        repository = GoalsRepository(api, db, syncQueue, json)
+        repository = GoalsRepository(api, db, syncQueue, json, appModeManager())
     }
 
     @Test

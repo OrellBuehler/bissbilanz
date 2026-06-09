@@ -1,6 +1,7 @@
 package com.bissbilanz.sync
 
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -19,6 +20,7 @@ data class QueuedRequest(
 class SyncQueue(
     private val db: BissbilanzDatabase,
     private val json: Json,
+    private val appModeManager: AppModeManager,
 ) {
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
@@ -26,7 +28,11 @@ class SyncQueue(
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
-    suspend fun enqueue(operation: SyncOperation) =
+    suspend fun enqueue(operation: SyncOperation) {
+        // In Local mode the local DB is the primary store, so nothing is queued for
+        // upload. The login migrator uploads the cache state when switching to Synced;
+        // queued ops would double-apply.
+        if (appModeManager.isLocal) return
         mutex.withLock {
             db.bissbilanzDatabaseQueries.insertSyncQueueItem(
                 operation = json.encodeToString(SyncOperation.serializer(), operation),
@@ -36,6 +42,7 @@ class SyncQueue(
             )
             _enqueueSignal.tryEmit(Unit)
         }
+    }
 
     suspend fun drain(): List<QueuedRequest> =
         mutex.withLock {

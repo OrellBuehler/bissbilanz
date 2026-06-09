@@ -6,6 +6,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.util.decodeOrNull
@@ -22,6 +23,7 @@ class PreferencesRepository(
     private val db: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val appModeManager: AppModeManager,
 ) {
     fun preferences(): Flow<Preferences?> =
         db.bissbilanzDatabaseQueries
@@ -38,6 +40,7 @@ class PreferencesRepository(
             }
 
     suspend fun refresh() {
+        if (appModeManager.isLocal) return
         val prefs = api.getPreferences()
         cachePreferences(prefs)
     }

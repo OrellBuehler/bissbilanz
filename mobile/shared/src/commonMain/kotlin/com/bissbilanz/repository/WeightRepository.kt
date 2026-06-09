@@ -10,6 +10,7 @@ import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.util.decodeOrNull
@@ -30,6 +31,7 @@ class WeightRepository(
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     var onWeightChanged: (suspend () -> Unit)? = null
 
@@ -41,6 +43,7 @@ class WeightRepository(
             .map { rows -> rows.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) } }
 
     suspend fun refresh(limit: Int = 30) {
+        if (appModeManager.isLocal) return
         val entries = api.getWeightEntries(limit)
         cacheWeightEntries(entries)
     }
@@ -124,20 +127,28 @@ class WeightRepository(
     suspend fun getTrend(
         from: String,
         to: String,
-    ): List<WeightTrendEntry> =
-        try {
+    ): List<WeightTrendEntry> {
+        if (appModeManager.isLocal) return trendFromCache(from, to)
+        return try {
             api.getWeightTrend(from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            db.bissbilanzDatabaseQueries
-                .selectAllWeightEntries()
-                .executeAsList()
-                .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
-                .filter { it.entryDate in from..to }
-                .sortedBy { it.entryDate }
-                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
+            trendFromCache(from, to)
         }
+    }
+
+    private fun trendFromCache(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> =
+        db.bissbilanzDatabaseQueries
+            .selectAllWeightEntries()
+            .executeAsList()
+            .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
+            .filter { it.entryDate in from..to }
+            .sortedBy { it.entryDate }
+            .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
 
     suspend fun deleteEntry(id: String) {
         db.bissbilanzDatabaseQueries.deleteWeightEntry(id)

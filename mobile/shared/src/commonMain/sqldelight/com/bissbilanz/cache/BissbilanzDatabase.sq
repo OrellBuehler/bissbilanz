@@ -93,6 +93,11 @@ CREATE TABLE IF NOT EXISTS CachedMealType (
     sortOrder INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS CachedDayProperties (
+    date TEXT NOT NULL PRIMARY KEY,
+    isFastingDay INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS SyncQueue (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     operation TEXT NOT NULL,
@@ -110,6 +115,9 @@ CREATE TABLE IF NOT EXISTS SyncMeta (
 -- Entries
 selectEntriesByDate:
 SELECT * FROM CachedEntry WHERE date = ?;
+
+selectEntriesByDateRange:
+SELECT * FROM CachedEntry WHERE date >= ? AND date <= ? ORDER BY date;
 
 insertEntry:
 INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, jsonData)
@@ -136,6 +144,18 @@ SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
 searchFoods:
 SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY name LIMIT ?;
+
+-- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
+selectRecentFoods:
+SELECT CachedFood.* FROM CachedFood
+JOIN (
+    SELECT foodId, MAX(date) AS lastDate
+    FROM CachedEntry
+    WHERE foodId IS NOT NULL
+    GROUP BY foodId
+) recent ON recent.foodId = CachedFood.id
+ORDER BY recent.lastDate DESC
+LIMIT ?;
 
 insertFood:
 INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, barcode, jsonData)
@@ -275,6 +295,16 @@ INSERT OR REPLACE INTO CachedMealType(id, name, sortOrder) VALUES (?, ?, ?);
 deleteAllMealTypes:
 DELETE FROM CachedMealType;
 
+-- Day Properties
+selectDayProperties:
+SELECT * FROM CachedDayProperties WHERE date = ?;
+
+upsertDayProperties:
+INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay) VALUES (?, ?);
+
+deleteDayProperties:
+DELETE FROM CachedDayProperties WHERE date = ?;
+
 -- Sync Queue
 selectSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
@@ -344,6 +374,9 @@ DELETE FROM CachedPreferences;
 
 clearAllMealTypes:
 DELETE FROM CachedMealType;
+
+clearAllDayProperties:
+DELETE FROM CachedDayProperties;
 
 clearAllSyncQueue:
 DELETE FROM SyncQueue;
