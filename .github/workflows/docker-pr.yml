@@ -56,7 +56,7 @@ jobs:
         run: |
           docker run -d --name bissbilanz-smoke --network host \
             -e DATABASE_URL=postgres://test:test@127.0.0.1:5432/bissbilanz \
-            -e SESSION_SECRET=test-session-secret-for-ci \
+            -e SESSION_SECRET=test-session-secret-for-ci-not-a-real-secret \
             -e PUBLIC_APP_URL=http://127.0.0.1:3000 \
             -e INFOMANIAK_CLIENT_ID=fake \
             -e INFOMANIAK_CLIENT_SECRET=fake \
