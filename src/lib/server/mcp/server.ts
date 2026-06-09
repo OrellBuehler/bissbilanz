@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { safe } from './safe';
 import { describeShape } from './schema-utils';
 import { servingUnitValues } from '$lib/units';
+import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation/foods';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -138,53 +139,36 @@ export function createMcpServer(userId: string): McpServer {
 			.describe(`${n.key} in ${n.unit} per serving`);
 	}
 
+	const NUTRIENT_DOCS = Object.fromEntries(
+		ALL_NUTRIENTS.map((n) => [n.key, `${n.key} in ${n.unit} per serving`])
+	);
+
+	const FOOD_FIELD_DOCS = {
+		name: 'Food name',
+		brand: 'Brand name',
+		servingSize: 'Serving size amount',
+		servingUnit: 'Serving unit (e.g., "g", "ml", "oz")',
+		calories: 'Calories per serving',
+		protein: 'Protein in grams per serving',
+		carbs: 'Carbohydrates in grams per serving',
+		fat: 'Fat in grams per serving',
+		fiber: 'Fiber in grams per serving',
+		barcode: 'Barcode number',
+		isFavorite: 'Mark as favorite',
+		nutriScore: 'Nutri-Score grade (null to clear)',
+		novaGroup: 'NOVA food processing group 1-4 (null to clear)',
+		additives: 'List of additives (null to clear)',
+		ingredientsText: 'Full ingredients text (null to clear)',
+		imageUrl: 'Image URL or relative path (null to clear)',
+		...NUTRIENT_DOCS
+	};
+
 	server.registerTool(
 		'create_food',
 		{
 			description:
 				"Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
-			inputSchema: {
-				name: z.string().describe('Food name'),
-				brand: z.string().optional().describe('Brand name'),
-				servingSize: z.number().describe('Serving size amount'),
-				servingUnit: z.enum(servingUnitValues).describe('Serving unit (e.g., "g", "ml", "oz")'),
-				calories: z.number().nonnegative().describe('Calories per serving'),
-				protein: z.number().nonnegative().describe('Protein in grams per serving'),
-				carbs: z.number().nonnegative().describe('Carbohydrates in grams per serving'),
-				fat: z.number().nonnegative().describe('Fat in grams per serving'),
-				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
-				barcode: z.string().optional().describe('Barcode number'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z
-					.enum(['a', 'b', 'c', 'd', 'e'])
-					.nullable()
-					.optional()
-					.describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z
-					.number()
-					.int()
-					.min(1)
-					.max(4)
-					.nullable()
-					.optional()
-					.describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z
-					.array(z.string())
-					.nullable()
-					.optional()
-					.describe('List of additives (null to clear)'),
-				ingredientsText: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Full ingredients text (null to clear)'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)'),
-				...nutrientInputSchema
-			},
+			inputSchema: describeShape(foodCreateSchema.shape, FOOD_FIELD_DOCS),
 			annotations: WRITE
 		},
 		safe((args) => handleCreateFood(userId, args))
@@ -570,47 +554,8 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).',
 			inputSchema: {
-				foodId: z.string().describe('The food ID to update'),
-				name: z.string().optional().describe('New name'),
-				servingSize: z.number().optional().describe('New serving size'),
-				servingUnit: z.enum(servingUnitValues).optional().describe('New serving unit'),
-				calories: z.number().nonnegative().optional().describe('New calories per serving'),
-				protein: z.number().nonnegative().optional().describe('New protein in grams per serving'),
-				carbs: z.number().nonnegative().optional().describe('New carbs in grams per serving'),
-				fat: z.number().nonnegative().optional().describe('New fat in grams per serving'),
-				fiber: z.number().nonnegative().optional().describe('New fiber in grams per serving'),
-				brand: z.string().optional().describe('New brand name'),
-				barcode: z.string().optional().describe('New barcode number'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z
-					.enum(['a', 'b', 'c', 'd', 'e'])
-					.nullable()
-					.optional()
-					.describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z
-					.number()
-					.int()
-					.min(1)
-					.max(4)
-					.nullable()
-					.optional()
-					.describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z
-					.array(z.string())
-					.nullable()
-					.optional()
-					.describe('List of additives (null to clear)'),
-				ingredientsText: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Full ingredients text (null to clear)'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)'),
-				...nutrientInputSchema
+				foodId: z.string().uuid().describe('The food ID to update'),
+				...describeShape(foodUpdateSchema.shape, FOOD_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},
