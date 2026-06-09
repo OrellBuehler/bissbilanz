@@ -232,3 +232,5 @@ Premium, polished, reliable. Three words: **refined, purposeful, trustworthy**. 
 3. **Consistent visual language** — macro colors, card patterns, and spacing should be predictable across all pages
 4. **Quiet hierarchy** — important information stands out through contrast and position, not size or color intensity
 5. **Touch-first confidence** — interactive elements should feel substantial and responsive on mobile
+
+- If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
