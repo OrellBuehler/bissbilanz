@@ -9,6 +9,7 @@ import { goalsSchema } from '$lib/server/validation/goals';
 import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
+import { scheduleTypeValues } from '$lib/supplement-units';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -594,11 +595,9 @@ export function createMcpServer(userId: string): McpServer {
 				"Create a new supplement with schedule and ingredients. Each ingredient needs a backing food (kind='supplement') that carries its nutrient data. Pass `foodId` to reuse an existing backing food, or `food: { name, nutrients... }` to create one inline.",
 			inputSchema: {
 				name: z.string().describe('Supplement name'),
-				scheduleType: z
-					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
-					.describe('Schedule type'),
+				scheduleType: z.enum(scheduleTypeValues).describe('Schedule type'),
 				scheduleDays: z
-					.array(z.number())
+					.array(z.number().int().min(0).max(6))
 					.optional()
 					.describe('Days of week (0=Sun..6=Sat) for weekly/specific_days'),
 				scheduleStartDate: z.string().optional().describe('Start date in YYYY-MM-DD format'),
@@ -609,6 +608,7 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(supplementIngredientInputSchema)
 					.min(1)
+					.max(50)
 					.describe('At least one ingredient'),
 				isActive: z
 					.boolean()
@@ -642,11 +642,11 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to update'),
 				name: z.string().optional().describe('New name'),
-				scheduleType: z
-					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
+				scheduleType: z.enum(scheduleTypeValues).optional().describe('New schedule type'),
+				scheduleDays: z
+					.array(z.number().int().min(0).max(6))
 					.optional()
-					.describe('New schedule type'),
-				scheduleDays: z.array(z.number()).optional().describe('New days of week'),
+					.describe('New days of week'),
 				scheduleStartDate: z.string().optional().describe('New start date'),
 				timeOfDay: z
 					.enum(['morning', 'noon', 'evening'])
@@ -657,6 +657,7 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(supplementIngredientInputSchema)
 					.min(1)
+					.max(50)
 					.optional()
 					.describe('New ingredients (replaces all; must have at least one)')
 			},
