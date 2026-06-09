@@ -1,0 +1,49 @@
+name: Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compile i18n and sync SvelteKit
+        run: bun run paraglide:compile && bunx svelte-kit sync
+
+      - name: Typecheck (svelte-check)
+        run: bunx svelte-check --tsconfig ./tsconfig.json
+
+      - name: Format check (prettier)
+        run: bunx prettier --check .
+
+      - name: Unit tests
+        run: bun run test
+
+      - name: Crawler tests
+        if: ${{ hashFiles('crawler/package.json') != '' }}
+        working-directory: crawler
+        run: bun install && bun test
