@@ -30,7 +30,7 @@ final class BissbilanzAPI {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: String = "https://bissbilanz.orell.ch", authManager: AuthManager) {
+    init(baseURL: String = "https://bissbilanz.orellbuehler.ch", authManager: AuthManager) {
         self.baseURL = baseURL
         self.authManager = authManager
         self.session = URLSession.shared
