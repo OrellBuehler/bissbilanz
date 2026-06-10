@@ -9,6 +9,7 @@ import {
 	TEST_MEAL_TYPE
 } from '../helpers/fixtures';
 import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
+import { foodCreateSchema } from '../../src/lib/server/validation/foods';
 
 // Mock state
 let mockFoods: any[] = [];
@@ -48,6 +49,7 @@ let mockLogSupplementResult: any = null;
 let mockSupplementById: any = null;
 let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
+let mockCreateFoodError: any = null;
 let mockOFFProduct: any = null;
 let mockOFFSearchResults: any[] = [];
 let mockCreateSleepResult: any = null;
@@ -74,7 +76,7 @@ const mockDeps = {
 	createFood: async () =>
 		mockCreateFoodResult
 			? { success: true, data: mockCreateFoodResult }
-			: { success: false, error: new Error('Validation failed') },
+			: { success: false, error: mockCreateFoodError ?? new Error('Validation failed') },
 	getFood: async () => mockFood,
 	findFoodByBarcode: async () => mockBarcodeFood,
 	updateFood: async () =>
@@ -260,6 +262,7 @@ describe('MCP handlers', () => {
 	beforeEach(() => {
 		mockFoods = [];
 		mockCreateFoodResult = null;
+		mockCreateFoodError = null;
 		mockUpdateFoodResult = null;
 		mockDeleteFoodResult = { blocked: false };
 		mockRecipes = [];
@@ -345,7 +348,7 @@ describe('MCP handlers', () => {
 	describe('handleCreateFood', () => {
 		test('returns foodId and food on success', async () => {
 			mockCreateFoodResult = { ...TEST_FOOD, id: 'new-food-id' };
-			const result = await handleCreateFood(TEST_USER.id, {
+			const result: any = await handleCreateFood(TEST_USER.id, {
 				name: 'Oats',
 				servingSize: 100,
 				servingUnit: 'g',
@@ -362,15 +365,26 @@ describe('MCP handlers', () => {
 
 		test('returns error on validation failure', async () => {
 			mockCreateFoodResult = null;
-			const result = await handleCreateFood(TEST_USER.id, {});
+			const result: any = await handleCreateFood(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
+		});
+
+		test('create_food validation failure returns structured issues', async () => {
+			mockCreateFoodError = foodCreateSchema.safeParse({ name: '' }).error;
+			const result = await handleCreateFood(TEST_USER.id, { name: '' });
+			expect(result).toMatchObject({ error: 'validation_failed' });
+			expect(
+				(result as unknown as { issues: Array<{ path: string }> }).issues.some(
+					(i) => i.path === 'name'
+				)
+			).toBe(true);
 		});
 	});
 
 	describe('handleCreateRecipe', () => {
 		test('returns recipeId and recipe on success', async () => {
 			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'new-recipe-id' };
-			const result = await handleCreateRecipe(TEST_USER.id, {
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
 				name: 'Shake',
 				totalServings: 2,
 				ingredients: [{ foodId: TEST_FOOD.id, quantity: 1, servingUnit: 'cup' }]
@@ -382,7 +396,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockCreateRecipeResult = null;
-			const result = await handleCreateRecipe(TEST_USER.id, {});
+			const result: any = await handleCreateRecipe(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
 		});
 	});
@@ -391,7 +405,7 @@ describe('MCP handlers', () => {
 		test('returns entryId and dailyStatus on success', async () => {
 			mockCreateEntryResult = { ...TEST_ENTRY, id: 'new-entry-id' };
 			mockGoals = TEST_GOALS;
-			const result = await handleLogFood(TEST_USER.id, {
+			const result: any = await handleLogFood(TEST_USER.id, {
 				foodId: TEST_FOOD.id,
 				mealType: 'breakfast',
 				servings: 1,
@@ -404,7 +418,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockCreateEntryResult = null;
-			const result = await handleLogFood(TEST_USER.id, {});
+			const result: any = await handleLogFood(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
 		});
 	});
@@ -459,7 +473,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateEntry', () => {
 		test('returns success and dailyStatus on valid update', async () => {
 			mockUpdateEntryResult = { ...TEST_ENTRY, servings: 2 };
-			const result = await handleUpdateEntry(TEST_USER.id, {
+			const result: any = await handleUpdateEntry(TEST_USER.id, {
 				entryId: TEST_ENTRY.id,
 				servings: 2
 			});
@@ -470,7 +484,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateEntryResult = null;
-			const result = await handleUpdateEntry(TEST_USER.id, {
+			const result: any = await handleUpdateEntry(TEST_USER.id, {
 				entryId: 'nonexistent',
 				servings: 2
 			});
@@ -503,7 +517,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateGoals', () => {
 		test('returns success and goals on valid update', async () => {
 			mockUpsertGoalsResult = TEST_GOALS;
-			const result = await handleUpdateGoals(TEST_USER.id, {
+			const result: any = await handleUpdateGoals(TEST_USER.id, {
 				calorieGoal: 2000,
 				proteinGoal: 150,
 				carbGoal: 200,
@@ -516,7 +530,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpsertGoalsResult = null;
-			const result = await handleUpdateGoals(TEST_USER.id, {});
+			const result: any = await handleUpdateGoals(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
 		});
 	});
@@ -577,7 +591,7 @@ describe('MCP handlers', () => {
 		test('returns success with weight details and structured change', async () => {
 			mockLatestWeight = { id: 'weight-0', weightKg: 76.0, entryDate: '2026-02-09' };
 			mockCreateWeightResult = { id: 'weight-1', weightKg: 75.5, entryDate: '2026-02-10' };
-			const result = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
+			const result: any = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
 			expect(result.success).toBe(true);
 			expect(result.entryId).toBe('weight-1');
 			expect(result.weightKg).toBe(75.5);
@@ -592,14 +606,14 @@ describe('MCP handlers', () => {
 		test('returns null change when no previous weight', async () => {
 			mockLatestWeight = null;
 			mockCreateWeightResult = { id: 'weight-1', weightKg: 75.5, entryDate: '2026-02-10' };
-			const result = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
+			const result: any = await handleLogWeight(TEST_USER.id, { weightKg: 75.5 });
 			expect(result.success).toBe(true);
 			expect(result.change).toBeNull();
 		});
 
 		test('returns error on failure', async () => {
 			mockCreateWeightResult = null;
-			const result = await handleLogWeight(TEST_USER.id, { weightKg: -5 });
+			const result: any = await handleLogWeight(TEST_USER.id, { weightKg: -5 });
 			expect(result.error).toBeDefined();
 		});
 	});
@@ -772,7 +786,7 @@ describe('MCP handlers', () => {
 
 		test('returns error when name not found', async () => {
 			mockSupplements = [];
-			const result = await handleLogSupplement(TEST_USER.id, {
+			const result: any = await handleLogSupplement(TEST_USER.id, {
 				name: 'nonexistent'
 			});
 			expect(result.success).toBe(false);
@@ -780,7 +794,7 @@ describe('MCP handlers', () => {
 		});
 
 		test('returns error when neither name nor id provided', async () => {
-			const result = await handleLogSupplement(TEST_USER.id, {});
+			const result: any = await handleLogSupplement(TEST_USER.id, {});
 			expect(result.success).toBe(false);
 			expect(result.error).toContain('Provide either');
 		});
@@ -789,7 +803,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateFood', () => {
 		test('returns success on valid update', async () => {
 			mockUpdateFoodResult = { ...TEST_FOOD, name: 'Updated Oats' };
-			const result = await handleUpdateFood(TEST_USER.id, {
+			const result: any = await handleUpdateFood(TEST_USER.id, {
 				foodId: TEST_FOOD.id,
 				name: 'Updated Oats'
 			});
@@ -799,7 +813,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateFoodResult = null;
-			const result = await handleUpdateFood(TEST_USER.id, {
+			const result: any = await handleUpdateFood(TEST_USER.id, {
 				foodId: 'nonexistent'
 			});
 			expect(result.error).toBeDefined();
@@ -839,7 +853,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateRecipe', () => {
 		test('returns success on valid update', async () => {
 			mockUpdateRecipeResult = { ...TEST_RECIPE, name: 'Updated Bowl' };
-			const result = await handleUpdateRecipe(TEST_USER.id, {
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
 				recipeId: TEST_RECIPE.id,
 				name: 'Updated Bowl'
 			});
@@ -849,7 +863,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateRecipeResult = null;
-			const result = await handleUpdateRecipe(TEST_USER.id, {
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
 				recipeId: 'nonexistent'
 			});
 			expect(result.error).toBeDefined();
@@ -875,7 +889,7 @@ describe('MCP handlers', () => {
 	describe('handleCreateSupplement', () => {
 		test('returns supplementId on success', async () => {
 			mockCreateSupplementResult = { ...TEST_SUPPLEMENT, id: 'new-supp' };
-			const result = await handleCreateSupplement(TEST_USER.id, {
+			const result: any = await handleCreateSupplement(TEST_USER.id, {
 				name: 'Vitamin D3',
 				scheduleType: 'daily',
 				ingredients: [{ foodId: '10000000-0000-4000-8000-000000000099' }]
@@ -886,7 +900,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockCreateSupplementResult = null;
-			const result = await handleCreateSupplement(TEST_USER.id, {});
+			const result: any = await handleCreateSupplement(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
 		});
 	});
@@ -908,7 +922,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateSupplement', () => {
 		test('returns success on valid update', async () => {
 			mockUpdateSupplementResult = { ...TEST_SUPPLEMENT, name: 'Updated D3' };
-			const result = await handleUpdateSupplement(TEST_USER.id, {
+			const result: any = await handleUpdateSupplement(TEST_USER.id, {
 				supplementId: TEST_SUPPLEMENT.id,
 				name: 'Updated D3'
 			});
@@ -918,7 +932,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateSupplementResult = null;
-			const result = await handleUpdateSupplement(TEST_USER.id, {
+			const result: any = await handleUpdateSupplement(TEST_USER.id, {
 				supplementId: 'nonexistent'
 			});
 			expect(result.error).toBeDefined();
@@ -954,7 +968,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateWeight', () => {
 		test('returns success on valid update', async () => {
 			mockUpdateWeightResult = { id: 'weight-1', weightKg: 76.0 };
-			const result = await handleUpdateWeight(TEST_USER.id, {
+			const result: any = await handleUpdateWeight(TEST_USER.id, {
 				weightId: 'weight-1',
 				weightKg: 76.0
 			});
@@ -964,7 +978,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateWeightResult = null;
-			const result = await handleUpdateWeight(TEST_USER.id, {
+			const result: any = await handleUpdateWeight(TEST_USER.id, {
 				weightId: 'nonexistent'
 			});
 			expect(result.error).toBeDefined();
@@ -1143,7 +1157,7 @@ describe('MCP handlers', () => {
 	describe('handleLogSleep', () => {
 		test('returns success with entryId and entry', async () => {
 			mockCreateSleepResult = { id: 'sleep-1', durationMinutes: 480, quality: 4 };
-			const result = await handleLogSleep(TEST_USER.id, {
+			const result: any = await handleLogSleep(TEST_USER.id, {
 				durationMinutes: 480,
 				quality: 4
 			});
@@ -1154,7 +1168,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on validation failure', async () => {
 			mockCreateSleepResult = null;
-			const result = await handleLogSleep(TEST_USER.id, {
+			const result: any = await handleLogSleep(TEST_USER.id, {
 				durationMinutes: 480,
 				quality: 4
 			});
@@ -1209,7 +1223,7 @@ describe('MCP handlers', () => {
 	describe('handleUpdateSleep', () => {
 		test('returns success on valid update', async () => {
 			mockUpdateSleepResult = { id: 'sleep-1', durationMinutes: 500, quality: 5 };
-			const result = await handleUpdateSleep(TEST_USER.id, {
+			const result: any = await handleUpdateSleep(TEST_USER.id, {
 				id: 'sleep-1',
 				durationMinutes: 500,
 				quality: 5
@@ -1220,7 +1234,7 @@ describe('MCP handlers', () => {
 
 		test('accepts entryDate param', async () => {
 			mockUpdateSleepResult = { id: 'sleep-1', durationMinutes: 480, quality: 4 };
-			const result = await handleUpdateSleep(TEST_USER.id, {
+			const result: any = await handleUpdateSleep(TEST_USER.id, {
 				id: 'sleep-1',
 				entryDate: '2026-02-09'
 			});
@@ -1229,7 +1243,7 @@ describe('MCP handlers', () => {
 
 		test('returns error on failure', async () => {
 			mockUpdateSleepResult = null;
-			const result = await handleUpdateSleep(TEST_USER.id, { id: 'nonexistent' });
+			const result: any = await handleUpdateSleep(TEST_USER.id, { id: 'nonexistent' });
 			expect(result.error).toBeDefined();
 		});
 	});
