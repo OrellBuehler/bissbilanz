@@ -5,6 +5,13 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      # testcontainers core and its modules share types — bumping one
+      # without the other breaks svelte-check (duplicate nested copies)
+      testcontainers:
+        patterns:
+          - 'testcontainers'
+          - '@testcontainers/*'
 
   # Gradle (Kotlin Multiplatform / Android)
   - package-ecosystem: 'gradle'
