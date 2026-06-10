@@ -9,10 +9,13 @@ struct AuthStateTests {
         let unauthenticated = AuthState.unauthenticated
         let authenticated = AuthState.authenticated
         let refreshing = AuthState.refreshing
+        let expired = AuthState.expired
 
         #expect(unauthenticated != authenticated)
         #expect(authenticated != refreshing)
         #expect(unauthenticated != refreshing)
+        #expect(expired != unauthenticated)
+        #expect(expired != authenticated)
     }
 }
 

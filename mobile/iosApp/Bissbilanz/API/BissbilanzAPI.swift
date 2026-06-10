@@ -408,7 +408,14 @@ final class BissbilanzAPI {
                 }
                 return try decoder.decode(T.self, from: retryData)
             }
-            throw APIError.unauthorized
+            // `unauthorized` means "session is dead, prompt to sign in" — a
+            // transient refresh failure (offline, 5xx) is just retryable.
+            switch authManager.authState {
+            case .expired, .unauthenticated:
+                throw APIError.unauthorized
+            case .authenticated, .refreshing:
+                throw APIError.networkError(URLError(.cannotConnectToHost))
+            }
         }
 
         if httpResponse.statusCode == 404 {

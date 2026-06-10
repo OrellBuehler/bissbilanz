@@ -66,10 +66,13 @@ struct RootDestinationTests {
             (AuthState.unauthenticated, AppMode.local, RootDestination.app),
             (AuthState.authenticated, AppMode.local, RootDestination.migration),
             (AuthState.refreshing, AppMode.local, RootDestination.migration),
-            // Synced (and "not chosen" nil) requires an account.
-            (AuthState.unauthenticated, AppMode.synced, RootDestination.login),
+            // A Synced user stays in the app even when the session dies —
+            // re-sign-in happens via an in-app prompt, never the login screen.
+            (AuthState.unauthenticated, AppMode.synced, RootDestination.app),
             (AuthState.authenticated, AppMode.synced, RootDestination.app),
             (AuthState.refreshing, AppMode.synced, RootDestination.app),
+            (AuthState.expired, AppMode.synced, RootDestination.app),
+            (AuthState.expired, AppMode.local, RootDestination.app),
         ]
     )
     func routes(authState: AuthState, mode: AppMode, expected: RootDestination) {
@@ -77,11 +80,12 @@ struct RootDestinationTests {
     }
 
     @Test(
-        "nil mode (not chosen) is treated as sync-allowed",
+        "nil mode (not chosen) shows login only when unauthenticated",
         arguments: [
             (AuthState.unauthenticated, RootDestination.login),
             (AuthState.authenticated, RootDestination.app),
             (AuthState.refreshing, RootDestination.app),
+            (AuthState.expired, RootDestination.app),
         ]
     )
     func nilModeRoutes(authState: AuthState, expected: RootDestination) {

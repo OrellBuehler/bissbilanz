@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 enum NavigableTab: String, CaseIterable, Identifiable {
@@ -45,7 +46,10 @@ enum NavigableTab: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(AppModeManager.self) private var appModeManager
+    @Environment(AuthManager.self) private var authManager
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+    @State private var showSessionExpiredPrompt = false
+    @State private var reauthSession: ASWebAuthenticationSession?
 
     private var selectedTabs: [NavigableTab] {
         let tabs = selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
@@ -71,6 +75,21 @@ struct ContentView: View {
                 .tabItem {
                     Label(L10n.settings, systemImage: "gear")
                 }
+        }
+        // Only users who signed in initially are prompted — Local mode is
+        // anonymous by choice and never sees this.
+        .onChange(of: authManager.authState, initial: true) { _, state in
+            if state == .expired, !appModeManager.isLocal {
+                showSessionExpiredPrompt = true
+            }
+        }
+        .alert(L10n.sessionExpiredTitle, isPresented: $showSessionExpiredPrompt) {
+            Button(L10n.signIn) {
+                reauthSession = SignInFlow.start(authManager: authManager)
+            }
+            Button(L10n.notNow, role: .cancel) {}
+        } message: {
+            Text(L10n.sessionExpiredMessage)
         }
     }
 }

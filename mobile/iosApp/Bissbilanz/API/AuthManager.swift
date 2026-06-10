@@ -7,6 +7,10 @@ enum AuthState {
     case unauthenticated
     case authenticated
     case refreshing
+    /// Was signed in, but the server definitively rejected the refresh token.
+    /// The user keeps the app (all data is local) and is prompted to sign in
+    /// again — never kicked back to the login screen.
+    case expired
 }
 
 @MainActor
@@ -16,6 +20,10 @@ final class AuthManager {
 
     private let baseURL: String
     private var pendingState: String?
+    /// In-flight refresh, shared by concurrent callers. Refresh tokens rotate
+    /// on use, so two parallel refreshes would invalidate each other and kill
+    /// the session.
+    private var refreshTask: Task<Bool, Never>?
 
     private static let accessTokenKey = "bissbilanz_access_token"
     private static let refreshTokenKey = "bissbilanz_refresh_token"
@@ -77,15 +85,29 @@ final class AuthManager {
 
     @discardableResult
     func refreshAccessToken() async -> Bool {
+        if let task = refreshTask {
+            return await task.value
+        }
+        let task = Task { await performRefresh() }
+        refreshTask = task
+        let result = await task.value
+        refreshTask = nil
+        return result
+    }
+
+    /// Only an explicit rejection of the refresh token ends the session
+    /// (`.expired`). Transient failures — offline, 5xx, malformed response —
+    /// keep the user signed in; the next API call retries the refresh.
+    private func performRefresh() async -> Bool {
         guard let refreshToken = KeychainHelper.load(key: Self.refreshTokenKey) else {
-            authState = .unauthenticated
+            authState = accessToken != nil ? .expired : .unauthenticated
             return false
         }
 
         authState = .refreshing
 
         guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else {
-            authState = .unauthenticated
+            authState = .expired
             return false
         }
 
@@ -97,16 +119,32 @@ final class AuthManager {
         request.httpBody = try? JSONEncoder().encode(body)
 
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
-            if let refresh = tokenResponse.refreshToken {
-                KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                authState = .authenticated
+                return false
             }
-            authState = .authenticated
-            return true
+            switch http.statusCode {
+            case 200 ..< 300:
+                guard let tokenResponse = try? JSONDecoder().decode(TokenResponse.self, from: data) else {
+                    authState = .authenticated
+                    return false
+                }
+                KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
+                if let refresh = tokenResponse.refreshToken {
+                    KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
+                }
+                authState = .authenticated
+                return true
+            case 400, 401, 403:
+                authState = .expired
+                return false
+            default:
+                authState = .authenticated
+                return false
+            }
         } catch {
-            authState = .unauthenticated
+            authState = .authenticated
             return false
         }
     }

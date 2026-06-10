@@ -14,14 +14,18 @@ enum RootDestination {
 /// - Local mode is fully anonymous, so an unauthenticated user still sees the app.
 /// - A successful login while in Local mode means the local data must be
 ///   migrated to the account first, so the migration screen is shown.
-/// - A `nil` mode means "not chosen yet" and is treated as sync-allowed
-///   (existing installs and fresh logins).
+/// - The login screen only shows when no mode was chosen yet — a fresh install
+///   or after an explicit sign-out (which clears the mode). A Synced user whose
+///   session dies stays in the app (all data is local) and is prompted to sign
+///   in again from there.
 func resolveRootDestination(authState: AuthState, mode: AppMode?) -> RootDestination {
     switch authState {
     case .authenticated, .refreshing:
         mode == .local ? .migration : .app
+    case .expired:
+        .app
     case .unauthenticated:
-        mode == .local ? .app : .login
+        mode == nil ? .login : .app
     }
 }
 
@@ -135,8 +139,12 @@ struct BissbilanzApp: App {
             }
             // Existing installs and fresh logins that never chose a mode
             // default to Synced (mirrors the Android root).
-            .onChange(of: authManager.authState, initial: true) { _, _ in
+            .onChange(of: authManager.authState, initial: true) { _, state in
                 defaultModeToSyncedIfNeeded()
+                // Upload anything queued while the session was expired.
+                if state == .authenticated {
+                    syncManager.scheduleDrain()
+                }
             }
             .onChange(of: appModeManager.mode) { _, _ in
                 defaultModeToSyncedIfNeeded()

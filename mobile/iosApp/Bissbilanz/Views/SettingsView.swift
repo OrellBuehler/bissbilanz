@@ -146,7 +146,7 @@ struct SettingsView: View {
                     }
                 }
 
-                // Quick actions
+                // Quick actions — standalone buttons, no card behind them
                 Section(L10n.quickActions) {
                     HStack(spacing: 12) {
                         Button {
@@ -165,7 +165,8 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.bordered)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 // Language section
@@ -266,6 +267,20 @@ struct SettingsView: View {
                             Label(L10n.signInToSync, systemImage: "person.crop.circle")
                         }
                     } else {
+                        if authManager.authState == .expired {
+                            HStack(alignment: .firstTextBaseline) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                Text(L10n.sessionExpiredMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Button {
+                                signInSession = SignInFlow.start(authManager: authManager)
+                            } label: {
+                                Label(L10n.signIn, systemImage: "person.crop.circle")
+                            }
+                        }
                         if syncManager.pendingCount > 0 {
                             HStack {
                                 Image(systemName: "arrow.triangle.2.circlepath")
@@ -537,6 +552,8 @@ struct VisibleNutrientsView: View {
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
                 }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
             ForEach(Self.nutrientCategories, id: \.0) { category, nutrients in

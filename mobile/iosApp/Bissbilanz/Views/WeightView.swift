@@ -165,6 +165,8 @@ struct WeightView: View {
 
     // MARK: - Stats Chips
 
+    /// The chips are little cards themselves — the list row stays invisible
+    /// so they don't sit inside another container.
     private var statsChipsSection: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -198,7 +200,8 @@ struct WeightView: View {
                 }
                 .padding(.horizontal, 4)
             }
-            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
         }
     }
 

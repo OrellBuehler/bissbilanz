@@ -777,6 +777,22 @@ enum L10n {
         )
     }
 
+    static var sessionExpiredTitle: String {
+        localized("session_expired_title", en: "Session expired", de: "Sitzung abgelaufen")
+    }
+
+    static var sessionExpiredMessage: String {
+        localized(
+            "session_expired_message",
+            en: "Your data is safe on this device. Sign in again to keep syncing.",
+            de: "Deine Daten sind auf diesem Gerät gespeichert. Melde dich erneut an, um weiter zu synchronisieren."
+        )
+    }
+
+    static var notNow: String {
+        localized("not_now", en: "Not now", de: "Nicht jetzt")
+    }
+
     // MARK: - Local mode / Account
 
     static var localModeStatus: String {
