@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, configDefaults } from 'vitest/config';
 import path from 'path';
 
 const lucideStub = path.resolve(__dirname, 'tests/helpers/__mocks__/lucide-stub.ts');
@@ -15,7 +15,13 @@ export default defineConfig({
 		]
 	},
 	test: {
-		exclude: ['**/node_modules/**', '.claude/**', 'tests/integration-db/**'],
+		exclude: [
+			...configDefaults.exclude,
+			'.claude/**',
+			'crawler/**',
+			'tests/integration-db/**',
+			'tests/e2e/**'
+		],
 		setupFiles: ['./tests/utils/dexie-preload.ts'],
 		server: {
 			deps: {

@@ -17,7 +17,8 @@ export default async function globalSetup() {
 		res = await page.request.post(`${baseURL}/api/auth/test-session`);
 	} catch {
 		throw new Error(
-			`Could not reach dev server at ${baseURL}.\n` + 'Start it with: TEST_MODE=true bun run dev'
+			`Could not reach dev server at ${baseURL}.\n` +
+				'Start it with: TEST_MODE=true TEST_AUTH_TOKEN=test-integration-token bun run dev'
 		);
 	}
 
@@ -25,7 +26,7 @@ export default async function globalSetup() {
 		const body = await res.text();
 		throw new Error(
 			`Test session creation failed (${res.status()}): ${body}\n` +
-				'Make sure the server is running with TEST_MODE=true'
+				'Make sure the server is running with TEST_MODE=true and TEST_AUTH_TOKEN set'
 		);
 	}
 

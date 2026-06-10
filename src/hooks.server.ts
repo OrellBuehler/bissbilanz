@@ -9,7 +9,8 @@ import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
-import { config } from '$lib/server/env';
+import { config, validateEnv } from '$lib/server/env';
+import { isCrossOriginEndpoint, isOriginMismatch } from '$lib/server/csrf';
 import { env } from '$env/dynamic/public';
 
 if (env.PUBLIC_SENTRY_DSN) {
@@ -26,6 +27,10 @@ if (env.PUBLIC_SENTRY_DSN) {
 let migrationsRan = false;
 
 export async function init() {
+	const problems = validateEnv();
+	if (problems.length > 0) {
+		throw new Error(`Invalid environment configuration:\n- ${problems.join('\n- ')}`);
+	}
 	if (!migrationsRan) {
 		try {
 			await runMigrations();
@@ -52,42 +57,6 @@ const paraglideHandle: Handle = ({ event, resolve }) =>
 			}
 		});
 	});
-
-/** Paths that need CORS and are exempt from CSRF origin checks */
-function isCrossOriginEndpoint(pathname: string): boolean {
-	return (
-		pathname.startsWith('/api/mcp') ||
-		pathname.startsWith('/api/oauth/') ||
-		pathname.startsWith('/.well-known/') ||
-		pathname === '/token'
-	);
-}
-
-const FORM_CONTENT_TYPES = [
-	'application/x-www-form-urlencoded',
-	'multipart/form-data',
-	'text/plain'
-];
-
-/**
- * Manual CSRF origin check for non-exempt routes.
- */
-function isOriginMismatch(request: Request, url: URL): boolean {
-	const method = request.method;
-	if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
-		return false;
-	}
-
-	const contentType = request.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
-	if (!FORM_CONTENT_TYPES.includes(contentType)) {
-		return false;
-	}
-
-	const origin = request.headers.get('origin');
-	if (!origin) return true;
-
-	return origin !== url.origin;
-}
 
 const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': '*',
@@ -140,8 +109,9 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			const token = authHeader.slice(7);
 			let bearerUser: Awaited<ReturnType<typeof getUserById>> | undefined;
 
-			// Test auth bypass — only active when TEST_MODE is set
-			if (config.testMode && token === 'test-integration-token') {
+			// Test auth bypass — only active when TEST_MODE is set; token comes
+			// from TEST_AUTH_TOKEN so no usable credential lives in the repo
+			if (config.testMode && config.testAuthToken && token === config.testAuthToken) {
 				bearerUser = await withDbRetry(() => getUserById(config.testUserId));
 			}
 

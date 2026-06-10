@@ -26,6 +26,7 @@ export default defineConfig({
 					INFOMANIAK_REDIRECT_URI:
 						process.env.INFOMANIAK_REDIRECT_URI ?? 'http://localhost:4000/oauth/callback',
 					TEST_MODE: 'true',
+					TEST_AUTH_TOKEN: 'test-integration-token',
 					PORT: '4000'
 				}
 			}
