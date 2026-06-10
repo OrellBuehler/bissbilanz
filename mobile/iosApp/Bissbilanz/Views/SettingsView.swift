@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AuthManager.self) private var authManager
     @Environment(AppModeManager.self) private var appModeManager
+    @Environment(SyncManager.self) private var syncManager
+    @Environment(LocalDataMigrator.self) private var migrator
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -264,6 +266,24 @@ struct SettingsView: View {
                             Label(L10n.signInToSync, systemImage: "person.crop.circle")
                         }
                     } else {
+                        if syncManager.pendingCount > 0 {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(.secondary)
+                                Text(L10n.pendingSyncCount(syncManager.pendingCount))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if let syncError = syncManager.errors.last {
+                            HStack(alignment: .firstTextBaseline) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.red)
+                                Text(syncError)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
                         Button(role: .destructive) {
                             showLogoutConfirmation = true
                         } label: {
@@ -285,6 +305,10 @@ struct SettingsView: View {
             .navigationTitle(L10n.settings)
             .confirmationDialog(L10n.signOut + "?", isPresented: $showLogoutConfirmation) {
                 Button(L10n.signOut, role: .destructive) {
+                    // The local store and pending queue belong to the
+                    // signed-out account — wipe them so nothing leaks into
+                    // the next session (Local mode or another account).
+                    migrator.wipeLocalData()
                     authManager.logout()
                     // Reset the mode so the next start shows the login screen
                     // with the mode choice again.

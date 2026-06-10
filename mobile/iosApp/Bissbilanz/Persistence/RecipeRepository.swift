@@ -4,9 +4,11 @@ import SwiftData
 
 /// Local-first repository for recipes. List/detail reads come from SwiftData;
 /// `refresh()` upserts the server list by id (Android parity). Writes are
-/// SwiftData-first with the upload queued via the sync manager; macros stay
-/// nil on optimistic rows because they are computed server-side. In Local
-/// mode nothing is queued and refreshes are no-ops.
+/// SwiftData-first with the upload queued via the sync manager; optimistic
+/// rows carry macros computed from the ingredient foods in the local store
+/// (replicating the server's aggregation, which replaces them on refresh in
+/// Synced mode). In Local mode nothing is queued and refreshes are no-ops —
+/// the locally computed macros are authoritative.
 @MainActor
 @Observable
 final class RecipeRepository {
@@ -82,11 +84,17 @@ final class RecipeRepository {
     func updateRecipe(id: String, _ update: RecipeUpdate) async throws -> Recipe {
         var optimistic: Recipe?
         if let row = fetchRow(id: id), let existing = row.toRecipe() {
-            // Scalar fields only — update ingredients are inputs, not the
-            // full resolved shape; a refresh replaces them server-side.
             var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
             patch.removeValue(forKey: "ingredients")
-            let updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
+            var updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
+            // Ingredient edits apply to the local row in BOTH modes (in Local
+            // mode there is no server to reconcile from; in Synced mode the
+            // refresh replaces this with the resolved server shape). Macros
+            // are recomputed from the local food store.
+            if let inputs = update.ingredients {
+                let ingredients = resolvedIngredients(inputs, recipeId: id)
+                updated = Self.applying(ingredients: ingredients, to: updated)
+            }
             row.update(from: updated)
             save()
             optimistic = updated
@@ -128,17 +136,8 @@ final class RecipeRepository {
     // MARK: - Conversion helpers
 
     private func makeRecipe(from create: RecipeCreate, id: String) -> Recipe {
-        let ingredients = create.ingredients.enumerated().map { index, input in
-            RecipeIngredient(
-                id: nil,
-                recipeId: id,
-                foodId: input.foodId,
-                quantity: input.quantity,
-                servingUnit: input.servingUnit,
-                sortOrder: index,
-                food: localFood(id: input.foodId)
-            )
-        }
+        let ingredients = resolvedIngredients(create.ingredients, recipeId: id)
+        let macros = Self.recipeMacros(of: ingredients)
         return Recipe(
             id: id,
             userId: "",
@@ -146,13 +145,70 @@ final class RecipeRepository {
             totalServings: create.totalServings,
             isFavorite: create.isFavorite ?? false,
             imageUrl: create.imageUrl,
-            calories: nil,
-            protein: nil,
-            carbs: nil,
-            fat: nil,
-            fiber: nil,
+            calories: macros.calories,
+            protein: macros.protein,
+            carbs: macros.carbs,
+            fat: macros.fat,
+            fiber: macros.fiber,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil,
+            ingredients: ingredients
+        )
+    }
+
+    /// Ingredient inputs resolved against the local food store.
+    private func resolvedIngredients(_ inputs: [RecipeIngredientInput], recipeId: String) -> [RecipeIngredient] {
+        inputs.enumerated().map { index, input in
+            RecipeIngredient(
+                id: nil,
+                recipeId: recipeId,
+                foodId: input.foodId,
+                quantity: input.quantity,
+                servingUnit: input.servingUnit,
+                sortOrder: index,
+                food: localFood(id: input.foodId)
+            )
+        }
+    }
+
+    /// Whole-recipe macro totals, replicating the server aggregation in
+    /// `src/lib/server/recipes.ts`: each ingredient contributes
+    /// `food.macro * quantity / food.servingSize`; unresolved foods contribute
+    /// nothing. Per-serving division happens at entry creation
+    /// (`EntryRepository.makeEntry`), matching the server's entry shape.
+    static func recipeMacros(
+        of ingredients: [RecipeIngredient]
+    ) -> (calories: Double, protein: Double, carbs: Double, fat: Double, fiber: Double) {
+        var totals = (calories: 0.0, protein: 0.0, carbs: 0.0, fat: 0.0, fiber: 0.0)
+        for ingredient in ingredients {
+            guard let food = ingredient.food, food.servingSize > 0 else { continue }
+            let factor = ingredient.quantity / food.servingSize
+            totals.calories += food.calories * factor
+            totals.protein += food.protein * factor
+            totals.carbs += food.carbs * factor
+            totals.fat += food.fat * factor
+            totals.fiber += food.fiber * factor
+        }
+        return totals
+    }
+
+    /// Copy of `recipe` with `ingredients` swapped in and macros recomputed.
+    private static func applying(ingredients: [RecipeIngredient], to recipe: Recipe) -> Recipe {
+        let macros = recipeMacros(of: ingredients)
+        return Recipe(
+            id: recipe.id,
+            userId: recipe.userId,
+            name: recipe.name,
+            totalServings: recipe.totalServings,
+            isFavorite: recipe.isFavorite,
+            imageUrl: recipe.imageUrl,
+            calories: macros.calories,
+            protein: macros.protein,
+            carbs: macros.carbs,
+            fat: macros.fat,
+            fiber: macros.fiber,
+            createdAt: recipe.createdAt,
+            updatedAt: recipe.updatedAt,
             ingredients: ingredients
         )
     }

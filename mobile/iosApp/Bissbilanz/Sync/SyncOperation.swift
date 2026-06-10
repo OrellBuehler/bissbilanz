@@ -91,6 +91,132 @@ enum SyncOperation: Codable {
         }
     }
 
+    /// Returns a copy with every reference to `oldId` rewritten to `newId`,
+    /// or nil when the operation does not reference it. Used by the sync
+    /// manager after a queued create drains: later queued operations may
+    /// reference the resolved `temp_` id (an entry logging a temp food, a
+    /// recipe ingredient, a queued supplement log, or an update/delete keyed
+    /// by the temp id) and must upload with the server id instead.
+    func remappingReferences(from oldId: String, to newId: String) -> SyncOperation? {
+        guard oldId != newId else { return nil }
+        switch self {
+        case let .updateFood(id, body) where id == oldId:
+            return .updateFood(id: newId, body: body)
+
+        case let .deleteFood(id) where id == oldId:
+            return .deleteFood(id: newId)
+
+        case let .toggleFavorite(id, isFavorite) where id == oldId:
+            return .toggleFavorite(id: newId, isFavorite: isFavorite)
+
+        case let .createEntry(body, localId) where body.foodId == oldId || body.recipeId == oldId:
+            var patched = body
+            if patched.foodId == oldId { patched.foodId = newId }
+            if patched.recipeId == oldId { patched.recipeId = newId }
+            return .createEntry(body: patched, localId: localId)
+
+        case let .updateEntry(id, body) where id == oldId:
+            return .updateEntry(id: newId, body: body)
+
+        case let .deleteEntry(id) where id == oldId:
+            return .deleteEntry(id: newId)
+
+        case let .createRecipe(body, localId):
+            guard let ingredients = Self.remapRecipeIngredients(body.ingredients, from: oldId, to: newId) else {
+                return nil
+            }
+            let patched = RecipeCreate(
+                name: body.name,
+                totalServings: body.totalServings,
+                ingredients: ingredients,
+                isFavorite: body.isFavorite,
+                imageUrl: body.imageUrl
+            )
+            return .createRecipe(body: patched, localId: localId)
+
+        case let .updateRecipe(id, body):
+            let ingredients = body.ingredients.flatMap {
+                Self.remapRecipeIngredients($0, from: oldId, to: newId)
+            }
+            guard id == oldId || ingredients != nil else { return nil }
+            var patched = body
+            if let ingredients { patched.ingredients = ingredients }
+            return .updateRecipe(id: id == oldId ? newId : id, body: patched)
+
+        case let .deleteRecipe(id) where id == oldId:
+            return .deleteRecipe(id: newId)
+
+        case let .updateWeight(id, body) where id == oldId:
+            return .updateWeight(id: newId, body: body)
+
+        case let .deleteWeight(id) where id == oldId:
+            return .deleteWeight(id: newId)
+
+        case let .createSupplement(body, localId):
+            guard let ingredients = Self.remapSupplementIngredients(body.ingredients, from: oldId, to: newId)
+            else { return nil }
+            let patched = SupplementCreate(
+                name: body.name,
+                scheduleType: body.scheduleType,
+                scheduleDays: body.scheduleDays,
+                scheduleStartDate: body.scheduleStartDate,
+                isActive: body.isActive,
+                sortOrder: body.sortOrder,
+                timeOfDay: body.timeOfDay,
+                ingredients: ingredients
+            )
+            return .createSupplement(body: patched, localId: localId)
+
+        case let .updateSupplement(id, body):
+            let ingredients = body.ingredients.flatMap {
+                Self.remapSupplementIngredients($0, from: oldId, to: newId)
+            }
+            guard id == oldId || ingredients != nil else { return nil }
+            var patched = body
+            if let ingredients { patched.ingredients = ingredients }
+            return .updateSupplement(id: id == oldId ? newId : id, body: patched)
+
+        case let .deleteSupplement(id) where id == oldId:
+            return .deleteSupplement(id: newId)
+
+        case let .logSupplement(supplementId, date) where supplementId == oldId:
+            return .logSupplement(supplementId: newId, date: date)
+
+        case let .unlogSupplement(supplementId, date) where supplementId == oldId:
+            return .unlogSupplement(supplementId: newId, date: date)
+
+        default:
+            return nil
+        }
+    }
+
+    /// Rewritten ingredient list, or nil when nothing referenced the old id.
+    private static func remapRecipeIngredients(
+        _ ingredients: [RecipeIngredientInput],
+        from oldId: String,
+        to newId: String
+    ) -> [RecipeIngredientInput]? {
+        guard ingredients.contains(where: { $0.foodId == oldId }) else { return nil }
+        return ingredients.map { input in
+            guard input.foodId == oldId else { return input }
+            return RecipeIngredientInput(foodId: newId, quantity: input.quantity, servingUnit: input.servingUnit)
+        }
+    }
+
+    private static func remapSupplementIngredients(
+        _ ingredients: [SupplementIngredientInput],
+        from oldId: String,
+        to newId: String
+    ) -> [SupplementIngredientInput]? {
+        guard ingredients.contains(where: { $0.foodId == oldId }) else { return nil }
+        return ingredients.map { input in
+            guard input.foodId == oldId else { return input }
+            var patched = input
+            patched.foodId = newId
+            return patched
+        }
+    }
+
     /// Human-readable summary used in sync error messages (Android parity).
     var summary: String {
         switch self {

@@ -156,6 +156,16 @@ final class LocalDataMigrator {
     /// Wipes all local user data and the sync queue (the user chose "start
     /// fresh"), then flips the mode to `.synced`.
     func discardLocalData() {
+        wipeLocalData()
+        appMode.setMode(.synced)
+    }
+
+    /// Wipes every local user-data model, the pending sync queue and the
+    /// normalization marker — without touching tokens or the app mode. Used
+    /// by `discardLocalData` and by the Settings sign-out (the local store
+    /// belongs to the signed-out account and must not leak into the next
+    /// session).
+    func wipeLocalData() {
         syncManager.clearQueue()
         try? context.delete(model: LocalEntry.self)
         try? context.delete(model: LocalFood.self)
@@ -168,7 +178,16 @@ final class LocalDataMigrator {
         try? context.delete(model: LocalDayProperties.self)
         try? context.save()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
-        appMode.setMode(.synced)
+    }
+
+    /// The user abandoned a (possibly partially run) migration and stays in
+    /// Local mode with their data. Clears the normalization marker: rows that
+    /// already received server ids from the abandoned run must be re-keyed
+    /// (and re-uploaded) when a later sign-in — possibly into a different
+    /// account — migrates again, instead of being mistaken for uploaded.
+    func abandonMigration() {
+        defaults.removeObject(forKey: Self.normalizedMarkerKey)
+        state = .idle
     }
 
     // MARK: - Normalization
@@ -329,11 +348,35 @@ final class LocalDataMigrator {
                 isActive: supplement.isActive,
                 sortOrder: supplement.sortOrder,
                 timeOfDay: supplement.timeOfDay,
-                ingredients: supplement.ingredients
-                    // Dangling food references (food deleted locally) are dropped.
-                    .filter { !LocalStore.isTempId($0.foodId) }
-                    .map { SupplementIngredientInput(foodId: $0.foodId, servings: $0.servings, sortOrder: $0.sortOrder)
+                ingredients: supplement.ingredients.map { ingredient in
+                    if LocalStore.isTempId(ingredient.foodId) {
+                        // Local-only backing food (the Local-mode supplement
+                        // editor materializes inline inputs with synthetic
+                        // temp ids) — upload it inline, like the editor would.
+                        SupplementIngredientInput(
+                            foodId: nil,
+                            food: SupplementBackingFoodInput(
+                                name: ingredient.food.name,
+                                servingSize: ingredient.food.servingSize,
+                                servingUnit: ingredient.food.servingUnit,
+                                calories: ingredient.food.calories,
+                                protein: ingredient.food.protein,
+                                carbs: ingredient.food.carbs,
+                                fat: ingredient.food.fat,
+                                fiber: ingredient.food.fiber,
+                                ingredientsText: ingredient.food.ingredientsText
+                            ),
+                            servings: ingredient.servings,
+                            sortOrder: ingredient.sortOrder
+                        )
+                    } else {
+                        SupplementIngredientInput(
+                            foodId: ingredient.foodId,
+                            servings: ingredient.servings,
+                            sortOrder: ingredient.sortOrder
+                        )
                     }
+                }
             )
             let server = try await api.createSupplement(create)
             LocalRemap.replaceSupplement(id: row.id, with: server, rekeyLogIds: false, in: context)

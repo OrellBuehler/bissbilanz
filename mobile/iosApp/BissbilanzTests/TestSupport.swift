@@ -13,6 +13,8 @@ final class StubURLProtocol: URLProtocol {
     struct Stub {
         let status: Int
         let body: Data
+        var errorCode: URLError.Code?
+        var delayMs: Int = 0
     }
 
     private nonisolated(unsafe) static var stubs: [String: Stub] = [:]
@@ -20,10 +22,17 @@ final class StubURLProtocol: URLProtocol {
     private nonisolated(unsafe) static var bodies: [String: [Data]] = [:]
     private static let lock = NSLock()
 
-    static func stub(_ method: String, _ url: String, status: Int = 200, json: String = "{}") {
+    static func stub(_ method: String, _ url: String, status: Int = 200, json: String = "{}", delayMs: Int = 0) {
         lock.lock()
         defer { lock.unlock() }
-        stubs["\(method) \(url)"] = Stub(status: status, body: Data(json.utf8))
+        stubs["\(method) \(url)"] = Stub(status: status, body: Data(json.utf8), delayMs: delayMs)
+    }
+
+    /// Makes "METHOD url" fail with a transport-level URLError.
+    static func stubError(_ method: String, _ url: String, code: URLError.Code) {
+        lock.lock()
+        defer { lock.unlock() }
+        stubs["\(method) \(url)"] = Stub(status: 0, body: Data(), errorCode: code)
     }
 
     /// Request bodies sent to "METHOD url", in arrival order.
@@ -65,6 +74,22 @@ final class StubURLProtocol: URLProtocol {
         let stub = Self.stubs[key]
         Self.lock.unlock()
 
+        if let stub, stub.delayMs > 0 {
+            // Delayed delivery lets tests interleave work with an in-flight request.
+            let box = UncheckedSendableBox(value: self)
+            Self.deliveryQueue.asyncAfter(deadline: .now() + .milliseconds(stub.delayMs)) {
+                box.value.deliver(stub, url: url)
+            }
+        } else {
+            deliver(stub, url: url)
+        }
+    }
+
+    private func deliver(_ stub: Stub?, url: URL?) {
+        if let code = stub?.errorCode {
+            client?.urlProtocol(self, didFailWithError: URLError(code))
+            return
+        }
         let response = HTTPURLResponse(
             url: url ?? URL(string: "https://stub.local")!,
             statusCode: stub?.status ?? 404,
@@ -75,6 +100,8 @@ final class StubURLProtocol: URLProtocol {
         client?.urlProtocol(self, didLoad: stub?.body ?? Data("{}".utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
+
+    private static let deliveryQueue = DispatchQueue(label: "stub-delayed-delivery")
 
     override func stopLoading() {}
 
@@ -95,6 +122,11 @@ final class StubURLProtocol: URLProtocol {
         }
         return data
     }
+}
+
+/// Moves a non-Sendable value across a dispatch hop (delayed stub delivery).
+private struct UncheckedSendableBox<T>: @unchecked Sendable {
+    let value: T
 }
 
 // MARK: - Test harness
@@ -136,8 +168,12 @@ struct RepositoryHarness {
 
     // MARK: Stubbing
 
-    func stub(_ method: String, _ path: String, status: Int = 200, json: String = "{}") {
-        StubURLProtocol.stub(method, "\(baseURL)\(path)", status: status, json: json)
+    func stub(_ method: String, _ path: String, status: Int = 200, json: String = "{}", delayMs: Int = 0) {
+        StubURLProtocol.stub(method, "\(baseURL)\(path)", status: status, json: json, delayMs: delayMs)
+    }
+
+    func stubError(_ method: String, _ path: String, code: URLError.Code) {
+        StubURLProtocol.stubError(method, "\(baseURL)\(path)", code: code)
     }
 
     var recordedRequests: [String] {

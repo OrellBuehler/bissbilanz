@@ -271,6 +271,91 @@ struct MigratorTests {
         #expect(entryCreate.quickCalories == 100)
     }
 
+    @Test("Local-mode supplement ingredients upload as inline backing foods")
+    func supplementInlineIngredientsUploadInline() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        // Created through the repository like the Local-mode editor would.
+        _ = try await harness.supplementRepository.createSupplement(SupplementCreate(
+            name: "Magnesium",
+            scheduleType: .daily,
+            ingredients: [SupplementIngredientInput(
+                foodId: nil,
+                food: SupplementBackingFoodInput(
+                    name: "Magnesium citrate", servingSize: 1, servingUnit: "g",
+                    calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+                    ingredientsText: "300 mg"
+                ),
+                servings: 1,
+                sortOrder: 0
+            )]
+        ))
+        stubAllCreates(harness)
+
+        let migrator = harness.migrator
+        await migrator.migrate()
+
+        #expect(migrator.state == .completed)
+        let body = try #require(harness.recordedBodies("POST", "/api/supplements").first)
+        let create = try JSONDecoder().decode(SupplementCreate.self, from: body)
+        #expect(create.ingredients.count == 1)
+        #expect(create.ingredients.first?.foodId == nil)
+        #expect(create.ingredients.first?.food?.name == "Magnesium citrate")
+        #expect(create.ingredients.first?.food?.ingredientsText == "300 mg")
+    }
+
+    @Test("wipeLocalData clears the store, the queue and the normalization marker")
+    func wipeLocalDataClearsEverythingButKeepsMode() throws {
+        let harness = try RepositoryHarness(mode: .synced)
+        try seedLocalData(harness)
+        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x")))
+        try harness.context.save()
+        harness.defaults.set(true, forKey: "migration_normalized")
+
+        harness.migrator.wipeLocalData()
+
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.pendingCount == 0)
+        #expect(harness.foodRepository.searchLocal("Local").isEmpty)
+        #expect(harness.entryRepository.entries(date: "2026-06-01").isEmpty)
+        #expect(harness.recipeRepository.recipes().isEmpty)
+        #expect(harness.weightRepository.entries().isEmpty)
+        #expect(harness.supplementRepository.supplements().isEmpty)
+        #expect(harness.supplementRepository.loggedSupplementIds(date: "2026-06-01").isEmpty)
+        #expect(harness.goalsRepository.goals() == nil)
+        #expect(harness.preferencesRepository.preferences() == nil)
+        #expect(harness.entryRepository.isFastingDay(date: "2026-06-01") == false)
+        #expect(harness.defaults.bool(forKey: "migration_normalized") == false)
+        // Unlike discardLocalData, the mode is untouched (the caller decides).
+        #expect(harness.appMode.mode == .synced)
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
+    @Test("Abandoning a failed migration clears the normalization marker")
+    func abandonMigrationClearsNormalizationMarker() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        try seedLocalData(harness)
+        stubAllCreates(harness)
+        harness.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
+
+        let migrator = harness.migrator
+        await migrator.migrate()
+        guard case .failed = migrator.state else {
+            Issue.record("expected the migration to fail on the food upload")
+            return
+        }
+        // The partial run normalized the store and left the marker behind.
+        #expect(harness.defaults.bool(forKey: "migration_normalized") == true)
+
+        // "Continue without account": data stays, marker must not survive —
+        // a later sign-in (possibly another account) needs re-normalization.
+        migrator.abandonMigration()
+
+        #expect(harness.defaults.bool(forKey: "migration_normalized") == false)
+        #expect(migrator.state == .idle)
+        #expect(harness.appMode.mode == .local)
+        #expect(harness.foodRepository.searchLocal("Local Rice").count == 1)
+    }
+
     @Test("discardLocalData wipes the store and queue, then flips to synced")
     func discardWipesEverything() throws {
         let harness = try RepositoryHarness(mode: .local)

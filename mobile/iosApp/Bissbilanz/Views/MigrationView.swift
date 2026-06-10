@@ -140,8 +140,12 @@ struct MigrationView: View {
                 .controlSize(.large)
 
                 Button {
-                    // Abandons the sign-in: the mode stays Local and routing
-                    // returns to the anonymous app.
+                    // Abandons the sign-in: the mode stays Local, the local
+                    // data is kept and routing returns to the anonymous app.
+                    // The normalization marker must not survive the abandoned
+                    // run — a later sign-in (possibly a different account)
+                    // needs a fresh normalization pass.
+                    migrator.abandonMigration()
                     authManager.logout()
                 } label: {
                     Text(L10n.continueWithoutAccount)

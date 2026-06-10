@@ -127,8 +127,20 @@ final class EntryRepository {
     /// copy works offline and in Local mode. Returns the number copied.
     @discardableResult
     func copyEntries(fromDate: String, toDate: String) async throws -> Int {
+        let source = entries(date: fromDate)
+        // Right after an upgrade the local store may not hold the source day
+        // yet — in Synced mode fall back to the server-side copy (main
+        // parity) and cache the results.
+        if source.isEmpty, !appMode.isLocal {
+            let serverCopies = try await api.copyEntries(fromDate: fromDate, toDate: toDate)
+            for entry in serverCopies {
+                upsert(entry, date: entry.date ?? toDate)
+            }
+            save()
+            return serverCopies.count
+        }
         var copied = 0
-        for entry in entries(date: fromDate) {
+        for entry in source {
             let create = EntryCreate(
                 foodId: entry.foodId,
                 recipeId: entry.recipeId,

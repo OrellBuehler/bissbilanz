@@ -616,8 +616,16 @@ enum L10n {
     static var signOutConfirmation: String {
         localized(
             "sign_out_confirmation",
-            en: "You will need to sign in again to use the app.",
-            de: "Du musst dich erneut anmelden, um die App zu nutzen."
+            en: "Data stored on this device will be removed, including changes that have not been synced yet. You will need to sign in again to use the app.",
+            de: "Auf diesem Gerät gespeicherte Daten werden entfernt, einschliesslich noch nicht synchronisierter Änderungen. Du musst dich erneut anmelden, um die App zu nutzen."
+        )
+    }
+
+    static func pendingSyncCount(_ count: Int) -> String {
+        localized(
+            "pending_sync_count",
+            en: count == 1 ? "1 change waiting to sync" : "\(count) changes waiting to sync",
+            de: count == 1 ? "1 Änderung wartet auf Synchronisierung" : "\(count) Änderungen warten auf Synchronisierung"
         )
     }
 

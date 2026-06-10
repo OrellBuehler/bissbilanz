@@ -154,12 +154,27 @@ final class FoodRepository {
 
     @discardableResult
     func updateFood(id: String, _ create: FoodCreate) async throws -> Food {
-        let optimistic = try Self.makeFood(from: create, id: id)
+        // Merge-patch the form fields onto the existing row: the edit form
+        // only carries the basic fields, so rebuilding the row wholesale
+        // would wipe extended nutrients and OFF metadata (nutriScore,
+        // additives, imageUrl, …) of e.g. a scanned food.
+        let patch = (try? JSONPatch.dictionary(of: create)) ?? [:]
+        let optimistic: Food = if let existing = food(id: id),
+                                  let merged = try? JSONPatch.merged(Food.self, base: existing, patch: patch)
+        {
+            merged
+        } else {
+            try Self.makeFood(from: create, id: id)
+        }
         upsert(optimistic)
         save()
         if LocalStore.isTempId(id) {
-            // Not uploaded yet — the queued create simply carries the new body.
-            coalesceQueuedCreate(tempId: id) { _ in create }
+            // Not uploaded yet — merge the edit into the queued create body
+            // (replacing it wholesale would strip fields the form doesn't
+            // carry from the eventual upload too).
+            coalesceQueuedCreate(tempId: id) { body in
+                (try? JSONPatch.merged(FoodCreate.self, base: body, patch: patch)) ?? body
+            }
         } else {
             syncManager.enqueue(.updateFood(id: id, body: create))
         }

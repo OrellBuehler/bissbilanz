@@ -31,10 +31,14 @@ final class PendingSyncOperation {
         LocalStoreCoding.decode(SyncOperation.self, from: payload)
     }
 
-    /// Rewrites the payload in place (temp-id coalescing). The affected
-    /// table/id never change when coalescing — mirroring the Android queue.
+    /// Rewrites the payload in place (temp-id coalescing and reference
+    /// remapping after a create drained). The affected table/id are refreshed
+    /// so coalescing lookups keep working after an op is re-keyed from a
+    /// `temp_` id to its server id.
     func replaceOperation(_ operation: SyncOperation) {
         type = operation.typeName
         payload = LocalStoreCoding.encode(operation)
+        affectedTable = operation.affectedTable
+        affectedId = operation.affectedId
     }
 }

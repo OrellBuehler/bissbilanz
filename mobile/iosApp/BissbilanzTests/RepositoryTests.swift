@@ -177,6 +177,40 @@ struct RepositoryTests {
         #expect(harness.recordedRequests.isEmpty)
     }
 
+    @Test("Copy entries falls back to the server copy when the local source day is empty")
+    func copyEntriesFallsBackToServerCopy() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        // Fresh install/upgrade: the local store has nothing for the source day.
+        harness.stub("POST", "/api/entries/copy", json: """
+        {"entries": [
+            {"id": "c1", "mealType": "lunch", "servings": 1, "foodId": "f1",
+             "foodName": "Rice", "calories": 130, "date": "2026-06-02"},
+            {"id": "c2", "mealType": "dinner", "servings": 2, "quickName": "Soup",
+             "quickCalories": 90, "date": "2026-06-02"}
+        ]}
+        """)
+
+        let copied = try await repo.copyEntries(fromDate: "2026-06-01", toDate: "2026-06-02")
+
+        #expect(copied == 2)
+        #expect(harness.recordedRequests == ["POST /api/entries/copy"])
+        let day = repo.entries(date: "2026-06-02")
+        #expect(Set(day.map(\.id)) == ["c1", "c2"])
+        // Server-side copies are already persisted — nothing queues.
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("Copy entries stays local-only in Local mode even when the source day is empty")
+    func copyEntriesLocalModeNeverCallsServer() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+
+        let copied = try await harness.entryRepository.copyEntries(fromDate: "2026-06-01", toDate: "2026-06-02")
+
+        #expect(copied == 0)
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
     // MARK: Foods
 
     @Test("Drained food create replaces the temp id and remaps entry references")
@@ -210,6 +244,16 @@ struct RepositoryTests {
         // The entry row now points at the server food id.
         #expect(entryRepo.entries(date: "2026-06-01").first?.foodId == "f-server")
         #expect(harness.syncManager.queuedRows().isEmpty)
+
+        // The POSTed bodies must carry the create payload and — for the
+        // chained entry — the remapped server food id, not the temp id.
+        let foodBody = try #require(harness.recordedBodies("POST", "/api/foods").first)
+        let foodCreate = try JSONDecoder().decode(FoodCreate.self, from: foodBody)
+        #expect(foodCreate.name == "Skyr")
+        #expect(foodCreate.calories == 98)
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let entryCreate = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(entryCreate.foodId == "f-server")
     }
 
     @Test("Food create keeps the temp row when the upload fails")
@@ -257,6 +301,75 @@ struct RepositoryTests {
         #expect(body.name == "Skyr Vanilla")
         #expect(body.calories == 105)
         #expect(repo.food(id: temp.id)?.name == "Skyr Vanilla")
+    }
+
+    @Test("Editing a food merge-patches the local row, preserving extended nutrients")
+    func foodUpdateMergePreservesExtendedNutrients() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        // A scanned food carrying extended nutrients and OFF metadata.
+        let scanned = try JSONPatch.decode(Food.self, from: [
+            "id": "f1", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
+            "calories": 98, "protein": 16, "carbs": 6, "fat": 0.2, "fiber": 0, "isFavorite": false,
+            "saturatedFat": 0.1, "sodium": 55, "vitaminB12": 0.7,
+            "nutriScore": "a", "novaGroup": 1, "additives": ["en:e330"],
+            "ingredientsText": "Milk, cultures", "imageUrl": "https://img.example/skyr.jpg",
+        ])
+        try harness.context.insert(LocalFood(food: scanned))
+        try harness.context.save()
+
+        // The edit form only carries the basic fields.
+        _ = try await repo.updateFood(id: "f1", FoodCreate(
+            name: "Skyr Natural", servingSize: 150, servingUnit: .g,
+            calories: 99, protein: 16, carbs: 6, fat: 0.2, fiber: 0
+        ))
+
+        let updated = try #require(repo.food(id: "f1"))
+        #expect(updated.name == "Skyr Natural")
+        #expect(updated.calories == 99)
+        #expect(updated.saturatedFat == 0.1)
+        #expect(updated.sodium == 55)
+        #expect(updated.vitaminB12 == 0.7)
+        #expect(updated.nutriScore == "a")
+        #expect(updated.novaGroup == 1)
+        #expect(updated.additives == ["en:e330"])
+        #expect(updated.ingredientsText == "Milk, cultures")
+        #expect(updated.imageUrl == "https://img.example/skyr.jpg")
+    }
+
+    @Test("Editing a temp food merges into the queued create instead of replacing it")
+    func foodUpdateMergesIntoQueuedCreate() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+
+        var create = FoodCreate(
+            name: "Skyr", servingSize: 150, servingUnit: .g,
+            calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
+        )
+        create.saturatedFat = 0.1
+        create.nutriScore = "a"
+        create.ingredientsText = "Milk, cultures"
+        let temp = try await repo.createFood(create)
+
+        // Editing the name must not strip the scanned fields from the upload.
+        _ = try await repo.updateFood(id: temp.id, FoodCreate(
+            name: "Skyr Natural", servingSize: 150, servingUnit: .g,
+            calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
+        ))
+
+        let queued = harness.syncManager.queuedRows()
+        #expect(queued.count == 1)
+        guard case let .createFood(body, _)? = queued.first?.operation() else {
+            Issue.record("expected a coalesced createFood operation")
+            return
+        }
+        #expect(body.name == "Skyr Natural")
+        #expect(body.saturatedFat == 0.1)
+        #expect(body.nutriScore == "a")
+        #expect(body.ingredientsText == "Milk, cultures")
+        // The local row keeps them too.
+        #expect(repo.food(id: temp.id)?.saturatedFat == 0.1)
+        #expect(repo.food(id: temp.id)?.nutriScore == "a")
     }
 
     @Test("Toggle favorite flips the local row and queues; temp ids patch the queued create")
@@ -369,6 +482,61 @@ struct RepositoryTests {
 
         #expect(repo.recipes().map(\.id) == ["r-server"])
         #expect(repo.recipe(id: "r-server")?.calories == 500)
+    }
+
+    @Test("Local mode recipes compute macros from the local ingredient foods")
+    func localModeRecipeMacrosComputedLocally() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let recipeRepo = harness.recipeRepository
+        let entryRepo = harness.entryRepository
+        // 100 kcal / 10 P / 20 C / 5 F / 3 Fib per 100 g serving.
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Rice")))
+        try harness.context.save()
+
+        // 150 g of f1 → factor 1.5 → 150 kcal total, 2 servings.
+        let recipe = try await recipeRepo.createRecipe(RecipeCreate(
+            name: "Bowl",
+            totalServings: 2,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 150, servingUnit: .g)]
+        ))
+
+        #expect(recipe.calories == 150)
+        #expect(recipe.protein == 15)
+        #expect(recipe.carbs == 30)
+        #expect(recipe.fat == 7.5)
+        #expect(recipe.fiber == 4.5)
+
+        // Logging the recipe contributes per-serving macros (total / servings).
+        let entry = try await entryRepo.createEntry(
+            EntryCreate(recipeId: recipe.id, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            recipe: recipe
+        )
+        #expect(entry.totalCalories == 75)
+        let day = entryRepo.calendarDays(year: 2026, month: 6, calorieGoal: nil)
+        #expect(day.first?.calories == 75)
+    }
+
+    @Test("Recipe ingredient edits apply to the local row and recompute macros")
+    func recipeIngredientEditAppliesLocally() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let repo = harness.recipeRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Rice")))
+        try harness.context.save()
+        let recipe = try await repo.createRecipe(RecipeCreate(
+            name: "Bowl",
+            totalServings: 2,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 150, servingUnit: .g)]
+        ))
+
+        _ = try await repo.updateRecipe(id: recipe.id, RecipeUpdate(
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 300, servingUnit: .g)]
+        ))
+
+        let updated = try #require(repo.recipe(id: recipe.id))
+        #expect(updated.ingredients?.count == 1)
+        #expect(updated.ingredients?.first?.quantity == 300)
+        #expect(updated.calories == 300)
+        #expect(updated.protein == 30)
     }
 
     // MARK: Weight
@@ -527,6 +695,41 @@ struct RepositoryTests {
         await harness.syncManager.drainPendingQueue()
 
         #expect(repo.supplements().map(\.id) == ["s-server"])
+    }
+
+    @Test("Supplement ingredient edits apply to the local row in both modes")
+    func supplementIngredientEditsApplyLocally() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let repo = harness.supplementRepository
+
+        // The supplement editor sends inline backing foods, not food ids.
+        let inline = SupplementIngredientInput(
+            foodId: nil,
+            food: SupplementBackingFoodInput(
+                name: "Magnesium citrate", servingSize: 1, servingUnit: "g",
+                calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+                ingredientsText: "300 mg"
+            ),
+            servings: 1,
+            sortOrder: 0
+        )
+        let created = try await repo.createSupplement(
+            SupplementCreate(name: "Magnesium", scheduleType: .daily, ingredients: [inline])
+        )
+        #expect(created.ingredients.map(\.food.name) == ["Magnesium citrate"])
+        #expect(repo.supplements().first?.ingredients.map(\.food.name) == ["Magnesium citrate"])
+
+        var replacement = inline
+        replacement.food = SupplementBackingFoodInput(
+            name: "Magnesium glycinate", servingSize: 1, servingUnit: "g",
+            calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+            ingredientsText: "200 mg"
+        )
+        _ = try await repo.updateSupplement(id: created.id, SupplementUpdate(ingredients: [replacement]))
+
+        let updated = try #require(repo.supplements().first)
+        #expect(updated.ingredients.map(\.food.name) == ["Magnesium glycinate"])
+        #expect(updated.ingredients.first?.food.ingredientsText == "200 mg")
     }
 
     // MARK: Goals

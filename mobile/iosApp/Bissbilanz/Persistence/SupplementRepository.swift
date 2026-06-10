@@ -156,11 +156,18 @@ final class SupplementRepository {
     func updateSupplement(id: String, _ update: SupplementUpdate) async throws -> Supplement {
         var optimistic: Supplement?
         if let row = fetchRow(id: id), let existing = row.toSupplement() {
-            // Scalar fields only — update ingredients are inputs, not the
-            // full resolved shape; a refresh replaces them server-side.
             var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
             patch.removeValue(forKey: "ingredients")
-            let updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
+            var updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
+            // Ingredient edits apply to the local row in BOTH modes (in Local
+            // mode there is no server to reconcile from; in Synced mode the
+            // refresh replaces this with the resolved server shape).
+            if let inputs = update.ingredients {
+                updated = Self.applying(
+                    ingredients: resolvedIngredients(inputs, supplementId: id),
+                    to: updated
+                )
+            }
             row.update(from: updated)
             save()
             optimistic = updated
@@ -216,7 +223,83 @@ final class SupplementRepository {
             timeOfDay: create.timeOfDay,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil,
-            ingredients: []
+            ingredients: resolvedIngredients(create.ingredients, supplementId: id)
+        )
+    }
+
+    /// Materializes ingredient inputs for the local row: referenced foods are
+    /// resolved from the local store, inline backing-food payloads (the
+    /// supplement editor's shape, normally materialized server-side) become
+    /// synthetic temp-id backing foods. Unresolvable inputs are dropped from
+    /// the local row (the queued upload still carries them).
+    private func resolvedIngredients(
+        _ inputs: [SupplementIngredientInput],
+        supplementId: String
+    ) -> [SupplementIngredient] {
+        inputs.enumerated().compactMap { index, input in
+            let foodId: String
+            let backing: SupplementBackingFood
+            if let id = input.foodId, let food = LocalRemap.foodRow(id: id, in: context)?.toFood() {
+                foodId = id
+                backing = SupplementBackingFood(
+                    id: food.id,
+                    name: food.name,
+                    brand: food.brand,
+                    kind: .food,
+                    servingSize: food.servingSize,
+                    servingUnit: food.servingUnit.rawValue,
+                    calories: food.calories,
+                    protein: food.protein,
+                    carbs: food.carbs,
+                    fat: food.fat,
+                    fiber: food.fiber,
+                    ingredientsText: food.ingredientsText
+                )
+            } else if let inline = input.food {
+                foodId = input.foodId ?? LocalStore.makeTempId()
+                backing = SupplementBackingFood(
+                    id: foodId,
+                    name: inline.name,
+                    brand: nil,
+                    kind: .supplement,
+                    servingSize: inline.servingSize,
+                    servingUnit: inline.servingUnit,
+                    calories: inline.calories,
+                    protein: inline.protein,
+                    carbs: inline.carbs,
+                    fat: inline.fat,
+                    fiber: inline.fiber,
+                    ingredientsText: inline.ingredientsText
+                )
+            } else {
+                return nil
+            }
+            return SupplementIngredient(
+                id: LocalStore.makeTempId(),
+                supplementId: supplementId,
+                foodId: foodId,
+                servings: input.servings ?? 1,
+                sortOrder: input.sortOrder ?? index,
+                food: backing
+            )
+        }
+    }
+
+    /// Copy of `supplement` with `ingredients` swapped in.
+    private static func applying(ingredients: [SupplementIngredient], to supplement: Supplement) -> Supplement {
+        Supplement(
+            id: supplement.id,
+            userId: supplement.userId,
+            name: supplement.name,
+            scheduleType: supplement.scheduleType,
+            scheduleDays: supplement.scheduleDays,
+            scheduleStartDate: supplement.scheduleStartDate,
+            isActive: supplement.isActive,
+            sortOrder: supplement.sortOrder,
+            timeOfDay: supplement.timeOfDay,
+            createdAt: supplement.createdAt,
+            updatedAt: supplement.updatedAt,
+            ingredients: ingredients
         )
     }
 

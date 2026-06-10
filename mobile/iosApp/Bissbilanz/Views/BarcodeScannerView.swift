@@ -3,8 +3,10 @@ import SwiftUI
 
 struct BarcodeScannerView: View {
     @Environment(FoodRepository.self) private var foodRepository
-    // Open Food Facts lookups are proxied by the server — they stay on the direct API.
+    // Open Food Facts lookups are proxied by the server in Synced mode; Local
+    // mode queries Open Food Facts directly (there is no backend session).
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appModeManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var scannedBarcode: String?
@@ -162,7 +164,7 @@ struct BarcodeScannerView: View {
             do {
                 if let food = try await foodRepository.findByBarcode(barcode) {
                     foundFood = food
-                } else if let food = try await api.lookupBarcode(barcode) {
+                } else if let food = try await lookupOpenFoodFacts(barcode) {
                     // Found in Open Food Facts - create locally
                     let created = try await foodRepository.createFood(FoodCreate(
                         name: food.name,
@@ -192,6 +194,16 @@ struct BarcodeScannerView: View {
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
             isSearching = false
+        }
+    }
+
+    /// Local mode has no backend session — query Open Food Facts directly;
+    /// Synced mode keeps using the authenticated server proxy.
+    private func lookupOpenFoodFacts(_ barcode: String) async throws -> Food? {
+        if appModeManager.isLocal {
+            try await OpenFoodFactsClient().lookupBarcode(barcode)
+        } else {
+            try await api.lookupBarcode(barcode)
         }
     }
 

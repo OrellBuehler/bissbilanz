@@ -136,9 +136,13 @@ final class SyncManager {
             }
         }
 
-        for row in queuedRows() {
-            // Coalescing may have removed the row while an earlier op was in flight.
-            guard !row.isDeleted else { continue }
+        // Re-fetch the head each iteration instead of iterating a start-of-
+        // drain snapshot: operations enqueued while an upload is in flight
+        // (their `scheduleDrain` is swallowed by the `isDraining` guard) are
+        // picked up by this drain instead of waiting for the next trigger.
+        // Every iteration either removes the head row or returns, so the
+        // loop terminates.
+        while let row = queuedRows().first {
             guard let operation = row.operation() else {
                 // Unreadable payload — nothing useful can ever be uploaded.
                 remove(row)
@@ -151,7 +155,7 @@ final class SyncManager {
                 }
                 processed += 1
             } catch {
-                switch Self.classify(error) {
+                switch Self.classify(error, isOnline: connectivity.isOnline) {
                 case .unauthorized:
                     errors.append("Session expired. Please log in again to sync pending changes.")
                     return processed
@@ -160,6 +164,13 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     errors.append("Failed to sync \(operation.summary): HTTP \(status)")
+
+                case .offline:
+                    // Plain connectivity failure (e.g. the optimistic
+                    // `isOnline` default before the path monitor reports an
+                    // offline launch) — never burn the retry budget on it,
+                    // just stop and wait for connectivity to come back.
+                    return processed
 
                 case .retryable:
                     row.retryCount += 1
@@ -178,13 +189,39 @@ final class SyncManager {
         return processed
     }
 
+    /// Rewrites still-queued operation payloads (and their affected table/id
+    /// columns) that reference a resolved `temp_` id, so chained offline
+    /// creates upload with the server id (the queue-side counterpart of
+    /// `LocalRemap`, which rewrites the local rows).
+    func remapQueuedReferences(from oldId: String, to newId: String) {
+        guard oldId != newId else { return }
+        var changed = false
+        for row in queuedRows() {
+            guard let operation = row.operation(),
+                  let remapped = operation.remappingReferences(from: oldId, to: newId)
+            else { continue }
+            row.replaceOperation(remapped)
+            changed = true
+        }
+        if changed {
+            save()
+        }
+    }
+
     // MARK: - Execution
 
     private func execute(_ operation: SyncOperation) async throws {
         switch operation {
         case let .createFood(body, localId):
             let server = try await api.createFood(body)
+            guard LocalRemap.foodRow(id: localId, in: context) != nil else {
+                // Deleted while the create was in flight — don't resurrect
+                // the row; remove the freshly created server record instead.
+                enqueue(.deleteFood(id: server.id))
+                return
+            }
             LocalRemap.replaceFood(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateFood(id, body):
             _ = try await api.updateFood(id: id, body)
@@ -197,11 +234,15 @@ final class SyncManager {
 
         case let .createEntry(body, localId):
             let server = try await api.createEntry(body)
+            guard let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry() else {
+                enqueue(.deleteEntry(id: server.id))
+                return
+            }
             // POST responses are raw DB rows without resolved macros — merge
             // the display fields from the optimistic local row.
-            let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry()
-            let merged = local.map { EntryRepository.merge(server: server, local: $0) } ?? server
+            let merged = EntryRepository.merge(server: server, local: local)
             LocalRemap.replaceEntry(id: localId, with: merged, date: merged.date ?? body.date, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateEntry(id, body):
             _ = try await api.updateEntry(id: id, body)
@@ -211,7 +252,12 @@ final class SyncManager {
 
         case let .createRecipe(body, localId):
             let server = try await api.createRecipe(body)
+            guard LocalRemap.recipeRow(id: localId, in: context) != nil else {
+                enqueue(.deleteRecipe(id: server.id))
+                return
+            }
             LocalRemap.replaceRecipe(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateRecipe(id, body):
             _ = try await api.updateRecipe(id: id, body)
@@ -224,7 +270,12 @@ final class SyncManager {
 
         case let .createWeight(body, localId):
             let server = try await api.createWeightEntry(body)
+            guard LocalRemap.weightRow(id: localId, in: context) != nil else {
+                enqueue(.deleteWeight(id: server.id))
+                return
+            }
             LocalRemap.replaceWeight(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateWeight(id, body):
             _ = try await api.updateWeightEntry(id: id, body)
@@ -234,7 +285,12 @@ final class SyncManager {
 
         case let .createSupplement(body, localId):
             let server = try await api.createSupplement(body)
+            guard LocalRemap.supplementRow(id: localId, in: context) != nil else {
+                enqueue(.deleteSupplement(id: server.id))
+                return
+            }
             LocalRemap.replaceSupplement(id: localId, with: server, rekeyLogIds: false, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateSupplement(id, body):
             _ = try await api.updateSupplement(id: id, body)
@@ -264,11 +320,14 @@ final class SyncManager {
     private enum FailureKind {
         case unauthorized
         case clientError(Int)
+        case offline
         case retryable
     }
 
-    private static func classify(_ error: Error) -> FailureKind {
-        guard let apiError = error as? APIError else { return .retryable }
+    private static func classify(_ error: Error, isOnline: Bool) -> FailureKind {
+        guard let apiError = error as? APIError else {
+            return isConnectivityError(error, isOnline: isOnline) ? .offline : .retryable
+        }
         switch apiError {
         case .unauthorized:
             return .unauthorized
@@ -278,8 +337,25 @@ final class SyncManager {
             return .clientError(404)
         case let .serverError(status, _):
             return status < 500 ? .clientError(status) : .retryable
-        case .networkError, .decodingError:
+        case let .networkError(underlying):
+            return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .retryable
+        case .decodingError:
             return .retryable
+        }
+    }
+
+    /// Obvious "the device has no connection" URLErrors. `.timedOut` only
+    /// counts while the connectivity monitor reports offline — online
+    /// timeouts may be a struggling server and should consume retries.
+    private static func isConnectivityError(_ error: Error, isOnline: Bool) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost:
+            return true
+        case .timedOut:
+            return !isOnline
+        default:
+            return false
         }
     }
 
