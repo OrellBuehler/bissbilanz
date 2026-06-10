@@ -1,5 +1,6 @@
 package com.bissbilanz.migration
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.EntryCreate
@@ -17,9 +18,11 @@ import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementBackingFood
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.SupplementIngredient
+import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.SupplementLog
 import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
 import com.bissbilanz.sync.SyncQueue
@@ -41,6 +44,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LocalDataMigratorTest {
@@ -62,8 +66,20 @@ class LocalDataMigratorTest {
         cacheDb = inMemoryCacheDatabase()
         appMode = appModeManager(AppMode.LOCAL)
         syncQueue = SyncQueue(cacheDb, json, appMode)
-        migrator = LocalDataMigrator(db, cacheDb, api, json, appMode, syncQueue, NoopErrorReporter())
+        migrator = migratorFor(db)
     }
+
+    private fun migratorFor(userDb: UserDataDatabase) =
+        LocalDataMigrator(
+            userDb,
+            cacheDb,
+            api,
+            json,
+            appMode,
+            syncQueue,
+            NoopErrorReporter(),
+            LocalDataWiper(userDb, cacheDb, syncQueue),
+        )
 
     // -------------------------------------------------------------------------------
     // plan()
@@ -413,6 +429,209 @@ class LocalDataMigratorTest {
             assertEquals(null, queries.selectGoals().executeAsOneOrNull())
             assertEquals(null, queries.selectPreferences().executeAsOneOrNull())
             assertEquals(0L, cacheQueries.countSyncQueue().executeAsOne())
+        }
+
+    // -------------------------------------------------------------------------------
+    // Locally created recipes/supplements (Local mode) carry their ingredients
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun migrateUploadsLocallyCreatedRecipeAndSupplementWithIngredients() =
+        runTest {
+            // Create everything through the repositories, exactly like the Local-mode UI.
+            val foodRepo =
+                com.bissbilanz.repository.FoodRepository(
+                    api,
+                    db,
+                    cacheDb,
+                    syncQueue,
+                    json,
+                    NoopErrorReporter(),
+                    appMode,
+                    mockk(relaxed = true),
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                )
+            val recipeRepo = com.bissbilanz.repository.RecipeRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appMode)
+            val supplementRepo =
+                com.bissbilanz.repository.SupplementRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appMode)
+
+            val food =
+                foodRepo.createFood(
+                    FoodCreate(
+                        name = "Rice",
+                        servingSize = 100.0,
+                        servingUnit = com.bissbilanz.api.generated.model.ServingUnit.g,
+                        calories = 130.0,
+                        protein = 2.7,
+                        carbs = 28.0,
+                        fat = 0.3,
+                        fiber = 0.4,
+                    ),
+                )
+            recipeRepo.createRecipe(
+                RecipeCreate(
+                    name = "Rice Bowl",
+                    totalServings = 2.0,
+                    ingredients =
+                        listOf(
+                            com.bissbilanz.api.generated.model
+                                .RecipeIngredientInput(food.id, 200.0, com.bissbilanz.api.generated.model.ServingUnit.g),
+                        ),
+                ),
+            )
+            supplementRepo.createSupplement(
+                SupplementCreate(
+                    name = "Iron",
+                    scheduleType = SupplementCreate.ScheduleType.daily,
+                    ingredients =
+                        listOf(
+                            SupplementIngredientInput(
+                                food =
+                                    FoodCreate(
+                                        name = "Iron",
+                                        servingSize = 1.0,
+                                        servingUnit = com.bissbilanz.api.generated.model.ServingUnit.g,
+                                        calories = 0.0,
+                                        protein = 0.0,
+                                        carbs = 0.0,
+                                        fat = 0.0,
+                                        fiber = 0.0,
+                                        ingredientsText = "14 mg",
+                                    ),
+                                servings = 1.0,
+                                sortOrder = 0,
+                            ),
+                        ),
+                ),
+            )
+            val captures = stubHappyApi()
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            // The recipe create carried its ingredient, remapped to the server food id.
+            val recipeCreate = captures.recipeCreates.single()
+            assertEquals(listOf("srv-food-1"), recipeCreate.ingredients.map { it.foodId })
+            assertEquals(listOf(200.0), recipeCreate.ingredients.map { it.quantity })
+            // The supplement create rebuilt the inline backing food.
+            val supplementIngredient =
+                captures.supplementCreates
+                    .single()
+                    .ingredients
+                    .single()
+            assertEquals(null, supplementIngredient.foodId)
+            assertEquals("Iron", supplementIngredient.food?.name)
+            assertEquals("14 mg", supplementIngredient.food?.ingredientsText)
+        }
+
+    @Test
+    fun locallyCreatedRecipeCarriesPerServingMacrosBeforeMigration() =
+        runTest {
+            val foodRepo =
+                com.bissbilanz.repository.FoodRepository(
+                    api,
+                    db,
+                    cacheDb,
+                    syncQueue,
+                    json,
+                    NoopErrorReporter(),
+                    appMode,
+                    mockk(relaxed = true),
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                )
+            val recipeRepo = com.bissbilanz.repository.RecipeRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appMode)
+
+            val food =
+                foodRepo.createFood(
+                    FoodCreate(
+                        name = "Rice",
+                        servingSize = 100.0,
+                        servingUnit = com.bissbilanz.api.generated.model.ServingUnit.g,
+                        calories = 130.0,
+                        protein = 2.7,
+                        carbs = 28.0,
+                        fat = 0.3,
+                        fiber = 0.4,
+                    ),
+                )
+            val recipe =
+                recipeRepo.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 2.0,
+                        ingredients =
+                            listOf(
+                                com.bissbilanz.api.generated.model
+                                    .RecipeIngredientInput(food.id, 200.0, com.bissbilanz.api.generated.model.ServingUnit.g),
+                            ),
+                    ),
+                )
+
+            // Server formula: SUM(macro * quantity / servingSize) / totalServings.
+            assertEquals(130.0, recipe.calories)
+            assertEquals(2.7, recipe.protein)
+        }
+
+    @Test
+    fun migrateSkipsAndDropsIngredientLessRecipeAndSupplementInsteadOfBricking() =
+        runTest {
+            insertRecipe(
+                RecipeDetail(
+                    id = "temp_recipe-empty",
+                    userId = "user-1",
+                    name = "Shell",
+                    totalServings = 1.0,
+                    isFavorite = false,
+                    imageUrl = null,
+                    calories = 0.0,
+                    protein = 0.0,
+                    carbs = 0.0,
+                    fat = 0.0,
+                    fiber = 0.0,
+                    ingredients = emptyList(),
+                ),
+            )
+            insertSupplement(supplement("temp_supp-empty", foodId = "x").copy(ingredients = emptyList()))
+            stubHappyApi()
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            coVerify(exactly = 0) { api.createRecipe(any()) }
+            coVerify(exactly = 0) { api.createSupplement(any()) }
+            assertTrue(queries.selectAllRecipes().executeAsList().isEmpty())
+            assertTrue(queries.selectAllSupplements().executeAsList().isEmpty())
+        }
+
+    // -------------------------------------------------------------------------------
+    // resetNormalization()
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun resetNormalizationClearsTheMarker() {
+        cacheQueries.upsertSyncMeta("migration_normalized", "2024-01-15T00:00:00Z")
+
+        migrator.resetNormalization()
+
+        assertNull(cacheQueries.selectSyncMeta("migration_normalized").executeAsOneOrNull())
+    }
+
+    // -------------------------------------------------------------------------------
+    // Failure containment
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun migrateFailsGracefullyWhenPlanThrows() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            UserDataDatabase.Schema.create(driver)
+            driver.execute(null, "DROP TABLE CachedFood", 0)
+            val brokenMigrator = migratorFor(UserDataDatabase(driver))
+
+            // Must not throw — a DB error surfaces as Failed state, not a crash.
+            brokenMigrator.migrate()
+
+            assertIs<MigrationState.Failed>(brokenMigrator.state.value)
         }
 
     // -------------------------------------------------------------------------------

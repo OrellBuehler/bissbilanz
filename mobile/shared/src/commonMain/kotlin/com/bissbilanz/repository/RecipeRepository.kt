@@ -4,14 +4,18 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeIngredient
+import com.bissbilanz.api.generated.model.RecipeIngredientInput
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -115,12 +119,14 @@ class RecipeRepository(
         val result =
             if (existing != null) {
                 val updated =
-                    existing.copy(
-                        name = recipe.name ?: existing.name,
-                        totalServings = recipe.totalServings ?: existing.totalServings,
-                        isFavorite = recipe.isFavorite ?: existing.isFavorite,
-                        imageUrl = recipe.imageUrl ?: existing.imageUrl,
-                    )
+                    existing
+                        .copy(
+                            name = recipe.name ?: existing.name,
+                            totalServings = recipe.totalServings ?: existing.totalServings,
+                            isFavorite = recipe.isFavorite ?: existing.isFavorite,
+                            imageUrl = recipe.imageUrl ?: existing.imageUrl,
+                            ingredients = recipe.ingredients?.toRecipeIngredients() ?: existing.ingredients,
+                        ).withRecomputedMacros()
                 cacheRecipe(updated)
                 updated
             } else {
@@ -136,8 +142,8 @@ class RecipeRepository(
                     carbs = 0.0,
                     fat = 0.0,
                     fiber = 0.0,
-                    ingredients = emptyList(),
-                )
+                    ingredients = recipe.ingredients?.toRecipeIngredients() ?: emptyList(),
+                ).withRecomputedMacros()
             }
         if (id.startsWith("temp_")) {
             coalesceQueuedCreate(id, recipe)
@@ -209,6 +215,39 @@ class RecipeRepository(
             carbs = 0.0,
             fat = 0.0,
             fiber = 0.0,
-            ingredients = emptyList(),
+            ingredients = recipe.ingredients.toRecipeIngredients(),
+        ).withRecomputedMacros()
+
+    private fun List<RecipeIngredientInput>.toRecipeIngredients(): List<RecipeIngredient> =
+        mapIndexed { index, input ->
+            RecipeIngredient(
+                foodId = input.foodId,
+                quantity = input.quantity,
+                servingUnit = RecipeIngredient.ServingUnit.valueOf(input.servingUnit.name),
+                sortOrder = index,
+            )
+        }
+
+    /**
+     * Recomputes the per-serving macros from the locally cached ingredient foods,
+     * matching the server's computation. When that is not possible (no ingredients, or
+     * a referenced food is not cached locally — possible in Synced mode), the current
+     * values are kept and the next server refresh corrects them.
+     */
+    private fun RecipeDetail.withRecomputedMacros(): RecipeDetail {
+        val macros =
+            computeRecipePerServingMacros(ingredients, totalServings) { foodId ->
+                db.userDataDatabaseQueries
+                    .selectFoodById(foodId)
+                    .executeAsOneOrNull()
+                    ?.let { json.decodeOrNull<Food>(it.jsonData) }
+            } ?: return this
+        return copy(
+            calories = macros.calories,
+            protein = macros.protein,
+            carbs = macros.carbs,
+            fat = macros.fat,
+            fiber = macros.fiber,
         )
+    }
 }

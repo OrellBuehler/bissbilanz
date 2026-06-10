@@ -67,6 +67,22 @@ class SyncQueue(
             db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
         }
 
+    /** Snapshot of every queued operation, including drained/in-flight ones. */
+    suspend fun all(): List<QueuedRequest> =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectAllSyncQueue()
+                .executeAsList()
+                .map {
+                    QueuedRequest(
+                        id = it.id,
+                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
+                        createdAt = it.createdAt,
+                        retryCount = it.retryCount,
+                    )
+                }
+        }
+
     suspend fun findByAffected(
         table: String,
         id: String,
@@ -96,6 +112,25 @@ class SyncQueue(
             // affectedTable/affectedId stay the same: coalescing never changes them.
             db.bissbilanzDatabaseQueries.updateSyncQueueOperation(
                 operation = json.encodeToString(SyncOperation.serializer(), operation),
+                id = queueId,
+            )
+        }
+    }
+
+    /**
+     * Replaces an operation INCLUDING its affected table/id columns. Used when a temp id
+     * is remapped to its server id after a create drains — unlike coalescing, remapping
+     * changes the id the operation is keyed on.
+     */
+    suspend fun replaceOperationAndAffected(
+        queueId: Long,
+        operation: SyncOperation,
+    ) {
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.updateSyncQueueOperationAndAffected(
+                operation = json.encodeToString(SyncOperation.serializer(), operation),
+                affectedTable = operation.affectedTable,
+                affectedId = operation.affectedId,
                 id = queueId,
             )
         }

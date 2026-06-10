@@ -155,6 +155,10 @@ class MigrationViewModel(
 
     /** Abandons the sign-in: the mode stays Local, routing returns to the anonymous app. */
     fun cancelToLocal() {
+        // Drop the one-shot normalization marker of this abandoned attempt cycle. Rows
+        // created later in Local mode would otherwise never be normalized (re-keyed)
+        // when the user eventually signs in again.
+        migrator.resetNormalization()
         authManager.logout()
     }
 }

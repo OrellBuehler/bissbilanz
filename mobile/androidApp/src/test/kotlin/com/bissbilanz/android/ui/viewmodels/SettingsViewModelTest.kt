@@ -5,12 +5,15 @@ import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.storage.KeyValueStore
+import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -55,6 +58,7 @@ class SettingsViewModelTest {
     private lateinit var refreshManager: RefreshManager
     private lateinit var errorReporter: ErrorReporter
     private lateinit var appModeManager: AppModeManager
+    private lateinit var localDataWiper: LocalDataWiper
 
     @BeforeTest
     fun setup() {
@@ -65,6 +69,7 @@ class SettingsViewModelTest {
         refreshManager = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
         appModeManager = AppModeManager(InMemoryKeyValueStore())
+        localDataWiper = mockk(relaxed = true)
         goalsRepo =
             mockk(relaxed = true) {
                 every { goals() } returns MutableStateFlow(null)
@@ -81,7 +86,17 @@ class SettingsViewModelTest {
     }
 
     private fun createViewModel() =
-        SettingsViewModel(authManager, goalsRepo, prefsRepo, api, healthSync, refreshManager, errorReporter, appModeManager)
+        SettingsViewModel(
+            authManager,
+            goalsRepo,
+            prefsRepo,
+            api,
+            healthSync,
+            refreshManager,
+            errorReporter,
+            appModeManager,
+            localDataWiper,
+        )
 
     @Test
     fun modeFlowExposesAppModeManagerMode() =
@@ -117,6 +132,35 @@ class SettingsViewModelTest {
     fun logoutClearsAuthAndMode() =
         runTest {
             appModeManager.setMode(AppMode.SYNCED)
+
+            val viewModel = createViewModel()
+            viewModel.logout()
+
+            verify(exactly = 1) { authManager.logout() }
+            assertNull(appModeManager.mode.value)
+        }
+
+    @Test
+    fun logoutWipesLocalDataBeforeClearingAuth() =
+        runTest {
+            appModeManager.setMode(AppMode.SYNCED)
+
+            val viewModel = createViewModel()
+            viewModel.logout()
+
+            // The wipe must complete before the auth state flips (and the UI leaves).
+            coVerifyOrder {
+                localDataWiper.wipeAll()
+                authManager.logout()
+            }
+            assertNull(appModeManager.mode.value)
+        }
+
+    @Test
+    fun logoutStillClearsAuthWhenTheWipeFails() =
+        runTest {
+            appModeManager.setMode(AppMode.SYNCED)
+            coEvery { localDataWiper.wipeAll() } throws RuntimeException("disk error")
 
             val viewModel = createViewModel()
             viewModel.logout()

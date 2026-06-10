@@ -15,11 +15,14 @@ import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.Supplement
+import com.bissbilanz.api.generated.model.SupplementBackingFood
 import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.SupplementIngredient
 import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
@@ -90,7 +93,8 @@ sealed class MigrationState {
  *    a failed run resumable. Normalization runs once per migration attempt cycle — a
  *    marker row in `SyncMeta` skips it on retries so rows that already received server
  *    ids from a partial run are not re-keyed (and re-uploaded) again. The marker is
- *    cleared on success and by [discardLocalData].
+ *    cleared on success, by [discardLocalData] and by [resetNormalization] (called when
+ *    an attempt cycle is abandoned).
  * 3. Upload in dependency order — foods, recipes, entries, weights, sleep, supplements,
  *    supplement logs, goals, preferences, day properties. After every successful create
  *    the local row is immediately replaced with the server record and all local
@@ -115,6 +119,7 @@ class LocalDataMigrator(
     private val appModeManager: AppModeManager,
     private val syncQueue: SyncQueue,
     private val errorReporter: ErrorReporter,
+    private val localDataWiper: LocalDataWiper,
 ) {
     private val _state = MutableStateFlow<MigrationState>(MigrationState.Idle)
     val state: StateFlow<MigrationState> = _state.asStateFlow()
@@ -160,29 +165,22 @@ class LocalDataMigrator(
      * then flips the mode to [AppMode.SYNCED].
      */
     suspend fun discardLocalData() {
-        syncQueue.clear()
-        queries.transaction {
-            queries.clearAllData()
-            queries.clearAllFoods()
-            queries.clearAllGoals()
-            queries.clearAllRecipes()
-            queries.clearAllSupplements()
-            queries.clearAllSupplementLogs()
-            queries.clearAllWeightEntries()
-            queries.clearAllSleepEntries()
-            queries.clearAllPreferences()
-            queries.clearAllDayProperties()
-        }
-        cacheQueries.transaction {
-            cacheQueries.clearAllMealTypes()
-            cacheQueries.clearAllSyncMeta()
-        }
+        localDataWiper.wipeAll()
         appModeManager.setMode(AppMode.SYNCED)
     }
 
+    /**
+     * Clears the one-shot normalization marker. Must be called when a migration attempt
+     * cycle is abandoned (e.g. the user cancels back to Local mode) — a stale marker
+     * would make a later migration skip re-keying rows it has never seen.
+     */
+    fun resetNormalization() {
+        cacheQueries.deleteSyncMeta(NORMALIZED_MARKER)
+    }
+
     private suspend fun runMigration() {
-        val total = plan().total
         try {
+            val total = plan().total
             _state.value = MigrationState.Running(0, total, STEP_PREPARE)
             syncQueue.clear()
             normalizeOnce()
@@ -515,21 +513,30 @@ class LocalDataMigrator(
             val cached =
                 json.decodeOrNull<RecipeDetail>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local recipe \"${row.name}\"")
+            val ingredients =
+                cached.ingredients
+                    // Dangling food references (food deleted locally) are dropped.
+                    .filterNot { it.foodId.startsWith(TEMP_PREFIX) }
+                    .map {
+                        RecipeIngredientInput(
+                            foodId = it.foodId,
+                            quantity = it.quantity,
+                            servingUnit = ServingUnit.valueOf(it.servingUnit.name),
+                        )
+                    }
+            if (ingredients.isEmpty()) {
+                // The server rejects ingredient-less recipes (min 1). Nothing usable is
+                // left of this recipe — drop it locally instead of failing the whole
+                // migration with a 400 forever. Its entries fall back to quick entries.
+                queries.deleteRecipe(row.id)
+                progress(++done, total, STEP_RECIPES)
+                continue
+            }
             val create =
                 RecipeCreate(
                     name = cached.name,
                     totalServings = cached.totalServings,
-                    ingredients =
-                        cached.ingredients
-                            // Dangling food references (food deleted locally) are dropped.
-                            .filterNot { it.foodId.startsWith(TEMP_PREFIX) }
-                            .map {
-                                RecipeIngredientInput(
-                                    foodId = it.foodId,
-                                    quantity = it.quantity,
-                                    servingUnit = ServingUnit.valueOf(it.servingUnit.name),
-                                )
-                            },
+                    ingredients = ingredients,
                     isFavorite = cached.isFavorite,
                     imageUrl = cached.imageUrl,
                 )
@@ -659,21 +666,20 @@ class LocalDataMigrator(
             val cached =
                 json.decodeOrNull<Supplement>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local supplement \"${row.name}\"")
+            val ingredients = cached.ingredients.mapNotNull { it.toIngredientInput() }
+            if (ingredients.isEmpty()) {
+                // The server rejects ingredient-less supplements (min 1). Drop the shell
+                // locally instead of failing the whole migration with a 400 forever; its
+                // logs are removed by the orphan handling in uploadSupplementLogs.
+                queries.deleteSupplement(row.id)
+                progress(++done, total, STEP_SUPPLEMENTS)
+                continue
+            }
             val create =
                 SupplementCreate(
                     name = cached.name,
                     scheduleType = SupplementCreate.ScheduleType.valueOf(cached.scheduleType.name),
-                    ingredients =
-                        cached.ingredients
-                            // Dangling food references (food deleted locally) are dropped.
-                            .filterNot { it.foodId.startsWith(TEMP_PREFIX) }
-                            .map {
-                                SupplementIngredientInput(
-                                    foodId = it.foodId,
-                                    servings = it.servings,
-                                    sortOrder = it.sortOrder,
-                                )
-                            },
+                    ingredients = ingredients,
                     scheduleDays = cached.scheduleDays,
                     scheduleStartDate = cached.scheduleStartDate,
                     isActive = cached.isActive,
@@ -774,6 +780,36 @@ class LocalDataMigrator(
     // ---------------------------------------------------------------------------------
     // Model mapping
     // ---------------------------------------------------------------------------------
+
+    /**
+     * An ingredient whose `foodId` already carries a server id references that food.
+     * A still-`temp_` foodId has no uploaded food row behind it — either the backing
+     * food was created inline with the supplement (it never exists as a local food row)
+     * or the food was deleted locally. In both cases the embedded backing food is
+     * recreated inline, mirroring what the original create request sent to the server.
+     * Returns null only when nothing usable is left (blank backing food name).
+     */
+    private fun SupplementIngredient.toIngredientInput(): SupplementIngredientInput? {
+        if (!foodId.startsWith(TEMP_PREFIX)) {
+            return SupplementIngredientInput(foodId = foodId, servings = servings, sortOrder = sortOrder)
+        }
+        if (food.name.isBlank()) return null
+        return SupplementIngredientInput(food = food.toFoodCreate(), servings = servings, sortOrder = sortOrder)
+    }
+
+    private fun SupplementBackingFood.toFoodCreate(): FoodCreate =
+        FoodCreate(
+            name = name,
+            servingSize = servingSize,
+            servingUnit = ServingUnit.entries.firstOrNull { it.value == servingUnit } ?: ServingUnit.g,
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = fiber,
+            brand = brand,
+            ingredientsText = ingredientsText,
+        )
 
     private fun Food.toFoodCreate(): FoodCreate =
         FoodCreate(

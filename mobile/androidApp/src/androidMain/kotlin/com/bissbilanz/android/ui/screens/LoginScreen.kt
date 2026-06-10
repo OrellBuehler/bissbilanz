@@ -6,11 +6,13 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
@@ -29,12 +31,23 @@ fun launchLoginFlow(
     customTabsIntent.launchUrl(context, Uri.parse(url))
 }
 
+/**
+ * Whether the login screen may offer the anonymous "Continue without account" option.
+ *
+ * It is only for users who have not chosen a mode yet (`null`). A SYNCED user reaching
+ * the login screen is the session-expired re-login case: offering Local mode there
+ * would turn the leftover account cache into "local data" and duplicate everything on
+ * the next sign-in.
+ */
+fun showContinueWithoutAccount(mode: AppMode?): Boolean = mode != AppMode.SYNCED
+
 @Composable
 fun LoginScreen(
     authManager: AuthManager,
     appModeManager: AppModeManager,
 ) {
     val context = LocalContext.current
+    val mode by appModeManager.mode.collectAsStateWithLifecycle()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -63,20 +76,22 @@ fun LoginScreen(
             ) {
                 Text("Sign in")
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = { appModeManager.setMode(AppMode.LOCAL) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Continue without account")
+            if (showContinueWithoutAccount(mode)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = { appModeManager.setMode(AppMode.LOCAL) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Continue without account")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Your data stays on this device. Sign in later anytime to sync.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Your data stays on this device. Sign in later anytime to sync.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }

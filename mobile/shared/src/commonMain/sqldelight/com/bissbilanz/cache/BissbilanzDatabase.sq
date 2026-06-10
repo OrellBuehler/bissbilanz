@@ -43,6 +43,9 @@ DELETE FROM CachedMealType;
 selectSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
 
+selectAllSyncQueue:
+SELECT * FROM SyncQueue ORDER BY createdAt;
+
 insertSyncQueueItem:
 INSERT INTO SyncQueue(operation, createdAt, affectedTable, affectedId, retryCount)
 VALUES (?, ?, ?, ?, 0);
@@ -61,6 +64,9 @@ SELECT * FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;
 
 updateSyncQueueOperation:
 UPDATE SyncQueue SET operation = ? WHERE id = ?;
+
+updateSyncQueueOperationAndAffected:
+UPDATE SyncQueue SET operation = ?, affectedTable = ?, affectedId = ? WHERE id = ?;
 
 deleteSyncQueueByAffected:
 DELETE FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;

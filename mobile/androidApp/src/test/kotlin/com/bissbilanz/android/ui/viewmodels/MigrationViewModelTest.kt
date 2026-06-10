@@ -222,4 +222,19 @@ class MigrationViewModelTest {
             verify(exactly = 1) { authManager.logout() }
             assertEquals(AppMode.LOCAL, appModeManager.mode.value)
         }
+
+    @Test
+    fun cancelToLocalClearsTheNormalizationMarker() =
+        runTest {
+            every { migrator.plan() } returns plan(total = 5)
+            coEvery { migrator.serverHasData() } returns false
+            coEvery { migrator.migrate() } answers { migratorState.value = MigrationState.Failed("network down") }
+
+            val viewModel = createViewModel()
+            viewModel.cancelToLocal()
+
+            // A stale marker would make a later migration skip normalizing rows it has
+            // never seen — the abandoned attempt cycle must reset it.
+            verify(exactly = 1) { migrator.resetNormalization() }
+        }
 }

@@ -6,6 +6,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.userdata.UserDataDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 data class SyncState(
@@ -28,10 +30,17 @@ class SyncManager(
     private val syncQueue: SyncQueue,
     private val connectivityProvider: ConnectivityProvider,
     private val api: BissbilanzApi,
+    private val db: UserDataDatabase,
     private val json: Json,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
+    /** A drained create succeeded: [tempId] now lives on the server as [serverId]. */
+    private data class TempIdRemap(
+        val tempId: String,
+        val serverId: String,
+    )
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _state = MutableStateFlow(SyncState())
@@ -75,9 +84,19 @@ class SyncManager(
             val queued = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
+            // Temp ids whose creates drained in THIS batch. The drained snapshot still
+            // carries the original payloads, so later operations in the batch are
+            // remapped in memory; operations still sitting in the queue (including ones
+            // beyond the drain limit) are rewritten in place after each create succeeds.
+            val remaps = mutableMapOf<String, String>()
+
             for (req in queued) {
                 try {
-                    execute(req.operation)
+                    val remap = execute(remapTempIds(req.operation, remaps, json))
+                    if (remap != null) {
+                        remaps[remap.tempId] = remap.serverId
+                        rewriteQueuedReferences(remap.tempId, remap.serverId)
+                    }
                     syncQueue.remove(req.id)
                     synced++
                 } catch (e: UnauthorizedException) {
@@ -136,11 +155,22 @@ class SyncManager(
         return synced
     }
 
+    /**
+     * Executes one operation. For creates of records that other records can reference
+     * (foods, recipes, supplements) the server response replaces the local temp row and
+     * the resulting temp→server id mapping is returned so still-queued references can be
+     * rewritten. Other create responses stay ignored — nothing references those records
+     * and their local rows self-heal on the next refresh.
+     */
     @Suppress("CyclomaticComplexMethod")
-    private suspend fun execute(op: SyncOperation) {
+    private suspend fun execute(op: SyncOperation): TempIdRemap? {
         when (op) {
             is SyncOperation.CreateFood -> {
-                api.createFood(json.decodeFromString<FoodCreate>(op.body))
+                val server = api.createFood(json.decodeFromString<FoodCreate>(op.body))
+                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                    replaceLocalFood(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateFood -> {
@@ -164,7 +194,11 @@ class SyncManager(
             }
 
             is SyncOperation.CreateRecipe -> {
-                api.createRecipe(json.decodeFromString<RecipeCreate>(op.body))
+                val server = api.createRecipe(json.decodeFromString<RecipeCreate>(op.body))
+                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                    replaceLocalRecipe(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateRecipe -> {
@@ -192,7 +226,11 @@ class SyncManager(
             }
 
             is SyncOperation.CreateSupplement -> {
-                api.createSupplement(json.decodeFromString<SupplementCreate>(op.body))
+                val server = api.createSupplement(json.decodeFromString<SupplementCreate>(op.body))
+                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                    replaceLocalSupplement(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateSupplement -> {
@@ -235,6 +273,94 @@ class SyncManager(
                 api.deleteSleepEntry(op.id)
             }
         }
+        return null
+    }
+
+    /** Rewrites every still-queued operation that references [tempId] to use [serverId]. */
+    private suspend fun rewriteQueuedReferences(
+        tempId: String,
+        serverId: String,
+    ) {
+        val remap = mapOf(tempId to serverId)
+        for (req in syncQueue.all()) {
+            val rewritten = remapTempIds(req.operation, remap, json)
+            if (rewritten != req.operation) {
+                syncQueue.replaceOperationAndAffected(req.id, rewritten)
+            }
+        }
+    }
+
+    private fun replaceLocalFood(
+        tempId: String,
+        server: Food,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteFood(tempId)
+            queries.insertFood(
+                id = server.id,
+                name = server.name,
+                brand = server.brand,
+                calories = server.calories,
+                protein = server.protein,
+                carbs = server.carbs,
+                fat = server.fat,
+                fiber = server.fiber,
+                isFavorite = if (server.isFavorite) 1L else 0L,
+                barcode = server.barcode,
+                jsonData = json.encodeToString(server),
+            )
+        }
+    }
+
+    private fun replaceLocalRecipe(
+        tempId: String,
+        server: RecipeDetail,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteRecipe(tempId)
+            queries.insertRecipe(
+                id = server.id,
+                name = server.name,
+                totalServings = server.totalServings,
+                isFavorite = if (server.isFavorite) 1L else 0L,
+                calories = server.calories,
+                protein = server.protein,
+                carbs = server.carbs,
+                fat = server.fat,
+                fiber = server.fiber,
+                jsonData = json.encodeToString(server),
+            )
+        }
+    }
+
+    private fun replaceLocalSupplement(
+        tempId: String,
+        server: Supplement,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteSupplement(tempId)
+            queries.insertSupplement(
+                id = server.id,
+                name = server.name,
+                isActive = if (server.isActive) 1L else 0L,
+                sortOrder = server.sortOrder.toLong(),
+                jsonData = json.encodeToString(server),
+            )
+            // The synthesized log cache key embeds the supplement id — re-key any local
+            // logs so unlogging and the offline checklist keep working after the remap.
+            for (log in queries.selectSupplementLogsBySupplementId(tempId).executeAsList()) {
+                queries.deleteSupplementLogById(log.id)
+                queries.insertSupplementLog(
+                    id = "${server.id}-${log.date}",
+                    supplementId = server.id,
+                    date = log.date,
+                    takenAt = log.takenAt,
+                )
+            }
+        }
     }
 
     private fun addError(message: String) {
@@ -243,5 +369,6 @@ class SyncManager(
 
     companion object {
         private const val MAX_RETRIES = 3
+        private const val TEMP_PREFIX = "temp_"
     }
 }

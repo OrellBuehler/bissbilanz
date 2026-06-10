@@ -4,8 +4,13 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.Supplement
+import com.bissbilanz.api.generated.model.SupplementBackingFood
 import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.SupplementIngredient
+import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.SupplementLog
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
@@ -280,6 +285,87 @@ class SupplementRepository(
             isActive = supplement.isActive ?: true,
             sortOrder = supplement.sortOrder ?: 0,
             timeOfDay = supplement.timeOfDay?.let { Supplement.TimeOfDay.valueOf(it.name) },
-            ingredients = emptyList(),
+            ingredients =
+                supplement.ingredients.mapIndexed { index, input ->
+                    input.toSupplementIngredient(supplementId = id, index = index)
+                },
+        )
+
+    /**
+     * Builds the cached ingredient from the create input. An inline `food` (no server
+     * food exists yet — the server would create one) keeps its data embedded under a
+     * synthesized temp food id; a `foodId` reference resolves the backing food from the
+     * local food rows. The embedded copy is what the migrator uses to recreate inline
+     * backing foods when uploading a locally created supplement.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private fun SupplementIngredientInput.toSupplementIngredient(
+        supplementId: String,
+        index: Int,
+    ): SupplementIngredient {
+        val resolvedFoodId = foodId ?: "temp_${Uuid.random()}"
+        val backingFood =
+            food?.toBackingFood(resolvedFoodId)
+                ?: localBackingFood(resolvedFoodId)
+                ?: placeholderBackingFood(resolvedFoodId)
+        return SupplementIngredient(
+            id = "temp_${Uuid.random()}",
+            supplementId = supplementId,
+            foodId = resolvedFoodId,
+            servings = servings ?: 1.0,
+            sortOrder = sortOrder ?: index,
+            food = backingFood,
+        )
+    }
+
+    private fun FoodCreate.toBackingFood(id: String): SupplementBackingFood =
+        SupplementBackingFood(
+            id = id,
+            name = name,
+            brand = brand,
+            kind = SupplementBackingFood.Kind.supplement,
+            servingSize = servingSize,
+            servingUnit = servingUnit.value,
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = fiber,
+            ingredientsText = ingredientsText,
+        )
+
+    private fun localBackingFood(foodId: String): SupplementBackingFood? {
+        val row = db.userDataDatabaseQueries.selectFoodById(foodId).executeAsOneOrNull() ?: return null
+        val food = json.decodeOrNull<Food>(row.jsonData) ?: return null
+        return SupplementBackingFood(
+            id = food.id,
+            name = food.name,
+            brand = food.brand,
+            kind = SupplementBackingFood.Kind.food,
+            servingSize = food.servingSize,
+            servingUnit = food.servingUnit.value,
+            calories = food.calories,
+            protein = food.protein,
+            carbs = food.carbs,
+            fat = food.fat,
+            fiber = food.fiber,
+            ingredientsText = food.ingredientsText,
+        )
+    }
+
+    private fun placeholderBackingFood(foodId: String): SupplementBackingFood =
+        SupplementBackingFood(
+            id = foodId,
+            name = "",
+            brand = null,
+            kind = SupplementBackingFood.Kind.food,
+            servingSize = 1.0,
+            servingUnit = "g",
+            calories = 0.0,
+            protein = 0.0,
+            carbs = 0.0,
+            fat = 0.0,
+            fiber = 0.0,
+            ingredientsText = null,
         )
 }

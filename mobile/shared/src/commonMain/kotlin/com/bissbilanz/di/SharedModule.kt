@@ -5,6 +5,7 @@ import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.DatabaseDriverFactory
+import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.migration.LocalDataMigrator
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
@@ -27,6 +28,7 @@ val sharedModule =
         single { BissbilanzDatabase(get<DatabaseDriverFactory>().createDriver()) }
         single { UserDataDatabase(get<DatabaseDriverFactory>().createUserDataDriver()) }
         single { SyncQueue(get(), get(), get()) }
+        single { LocalDataWiper(db = get(), cacheDb = get(), syncQueue = get()) }
         single {
             LocalDataMigrator(
                 db = get(),
@@ -36,6 +38,7 @@ val sharedModule =
                 appModeManager = get(),
                 syncQueue = get(),
                 errorReporter = get(),
+                localDataWiper = get(),
             )
         }
         single {
@@ -43,6 +46,7 @@ val sharedModule =
                 syncQueue = get(),
                 connectivityProvider = get(),
                 api = get(),
+                db = get(),
                 json = get(),
                 errorReporter = get(),
                 appModeManager = get(),
