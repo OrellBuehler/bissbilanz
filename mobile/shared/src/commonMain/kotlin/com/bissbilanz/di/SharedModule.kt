@@ -11,6 +11,7 @@ import com.bissbilanz.repository.*
 import com.bissbilanz.storage.PlainStorage
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -21,11 +22,15 @@ val sharedModule =
         single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
         single { OpenFoodFactsClient() }
         single { AppModeManager(get<PlainStorage>()) }
+        // Two database files: bissbilanz.db (sync queue + server cache, excluded from
+        // Android Auto Backup) and userdata.db (the user's data, included in backups).
         single { BissbilanzDatabase(get<DatabaseDriverFactory>().createDriver()) }
+        single { UserDataDatabase(get<DatabaseDriverFactory>().createUserDataDriver()) }
         single { SyncQueue(get(), get(), get()) }
         single {
             LocalDataMigrator(
                 db = get(),
+                cacheDb = get(),
                 api = get(),
                 json = get(),
                 appModeManager = get(),
@@ -50,14 +55,14 @@ val sharedModule =
                 isLenient = true
             }
         }
-        single { FoodRepository(get(), get(), get(), get(), get(), get(), get()) }
-        single { EntryRepository(get(), get(), get(), get(), get(), get(), get()) }
-        single { RecipeRepository(get(), get(), get(), get(), get(), get()) }
-        single { GoalsRepository(get(), get(), get(), get(), get()) }
-        single { WeightRepository(get(), get(), get(), get(), get(), get(), get()) }
-        single { SupplementRepository(get(), get(), get(), get(), get(), get()) }
+        single { FoodRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+        single { EntryRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+        single { RecipeRepository(get(), get(), get(), get(), get(), get(), get()) }
+        single { GoalsRepository(get(), get(), get(), get(), get(), get()) }
+        single { WeightRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+        single { SupplementRepository(get(), get(), get(), get(), get(), get(), get()) }
         single { StatsRepository(get(), get(), get(), get(), get()) }
-        single { SleepRepository(get(), get(), get(), get(), get(), get()) }
-        single { PreferencesRepository(get(), get(), get(), get(), get()) }
+        single { SleepRepository(get(), get(), get(), get(), get(), get(), get()) }
+        single { PreferencesRepository(get(), get(), get(), get(), get(), get()) }
         single { AnalyticsRepository(get(), get()) }
     }

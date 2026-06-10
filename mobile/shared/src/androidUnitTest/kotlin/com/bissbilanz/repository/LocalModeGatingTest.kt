@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
@@ -13,6 +12,9 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
+import com.bissbilanz.test.inMemoryCacheDatabase
+import com.bissbilanz.test.inMemoryUserDataDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,8 @@ import kotlin.test.assertTrue
  */
 class LocalModeGatingTest {
     private lateinit var api: BissbilanzApi
-    private lateinit var db: BissbilanzDatabase
+    private lateinit var db: UserDataDatabase
+    private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var syncQueue: SyncQueue
     private lateinit var entryRepository: EntryRepository
     private lateinit var foodRepository: FoodRepository
@@ -42,16 +45,16 @@ class LocalModeGatingTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        BissbilanzDatabase.Schema.create(driver)
-        db = BissbilanzDatabase(driver)
-        syncQueue = SyncQueue(db, json, localMode)
+        db = inMemoryUserDataDatabase()
+        cacheDb = inMemoryCacheDatabase()
+        syncQueue = SyncQueue(cacheDb, json, localMode)
         val healthSync = mockk<HealthSyncService>(relaxed = true)
-        entryRepository = EntryRepository(api, db, healthSync, syncQueue, json, NoopErrorReporter(), localMode)
+        entryRepository = EntryRepository(api, db, cacheDb, healthSync, syncQueue, json, NoopErrorReporter(), localMode)
         foodRepository =
             FoodRepository(
                 api,
                 db,
+                cacheDb,
                 syncQueue,
                 json,
                 NoopErrorReporter(),
@@ -133,7 +136,7 @@ class LocalModeGatingTest {
             val result = entryRepository.createEntry(create)
 
             assertTrue(result.id.startsWith("temp_"))
-            val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate("2024-01-15").executeAsList()
+            val cached = db.userDataDatabaseQueries.selectEntriesByDate("2024-01-15").executeAsList()
             assertEquals(1, cached.size)
             assertEquals(0, syncQueue.pendingCount())
         }
@@ -171,7 +174,7 @@ class LocalModeGatingTest {
         }
 
     private fun seedFood(food: Food) {
-        db.bissbilanzDatabaseQueries.insertFood(
+        db.userDataDatabaseQueries.insertFood(
             id = food.id,
             name = food.name,
             brand = food.brand,
@@ -187,7 +190,7 @@ class LocalModeGatingTest {
     }
 
     private fun seedEntry(entry: Entry) {
-        db.bissbilanzDatabaseQueries.insertEntry(
+        db.userDataDatabaseQueries.insertEntry(
             id = entry.id,
             date = entry.date,
             mealType = entry.mealType,

@@ -13,6 +13,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.mergeOpenFoodFactsOntoFood
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,8 @@ import kotlin.uuid.Uuid
 
 class FoodRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
@@ -45,14 +47,14 @@ class FoodRepository(
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
     fun allFoods(): Flow<List<Food>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectAllFoods()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) } }
 
     fun favorites(): Flow<List<Food>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectFavorites()
             .asFlow()
             .mapToList(Dispatchers.IO)
@@ -64,7 +66,7 @@ class FoodRepository(
     ): FoodsListResponse {
         if (appModeManager.isLocal) {
             val all =
-                db.bissbilanzDatabaseQueries
+                db.userDataDatabaseQueries
                     .selectAllFoods()
                     .executeAsList()
                     .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
@@ -94,7 +96,7 @@ class FoodRepository(
         if (appModeManager.isLocal) {
             // Derive recents from the local entry log so the add-food flow still works.
             _recentFoods.value =
-                db.bissbilanzDatabaseQueries
+                db.userDataDatabaseQueries
                     .selectRecentFoods(limit.toLong())
                     .executeAsList()
                     .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
@@ -136,13 +138,13 @@ class FoodRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
             cached?.let { json.decodeOrNull<Food>(it.jsonData) } ?: throw e
         }
     }
 
     fun getFoodCached(id: String): Food? {
-        val cached = db.bissbilanzDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
+        val cached = db.userDataDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
         return cached?.let { json.decodeOrNull<Food>(it.jsonData) }
     }
 
@@ -170,7 +172,7 @@ class FoodRepository(
     }
 
     suspend fun deleteFood(id: String) {
-        db.bissbilanzDatabaseQueries.deleteFood(id)
+        db.userDataDatabaseQueries.deleteFood(id)
         if (id.startsWith("temp_")) {
             syncQueue.removeByAffected("foods", id)
         } else {
@@ -208,7 +210,7 @@ class FoodRepository(
 
     private fun searchFoodsCached(query: String): List<Food> {
         val pattern = "%$query%"
-        return db.bissbilanzDatabaseQueries
+        return db.userDataDatabaseQueries
             .searchFoods(pattern, pattern, 50)
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
@@ -254,7 +256,7 @@ class FoodRepository(
 
     suspend fun findByBarcode(barcode: String): Food? {
         if (appModeManager.isLocal) {
-            return db.bissbilanzDatabaseQueries
+            return db.userDataDatabaseQueries
                 .selectFoodByBarcode(barcode)
                 .executeAsOneOrNull()
                 ?.let { json.decodeOrNull<Food>(it.jsonData) }
@@ -272,7 +274,7 @@ class FoodRepository(
                 }
             val cacheResult =
                 async(ioDispatcher) {
-                    db.bissbilanzDatabaseQueries
+                    db.userDataDatabaseQueries
                         .selectFoodByBarcode(barcode)
                         .executeAsOneOrNull()
                         ?.let { json.decodeOrNull<Food>(it.jsonData) }
@@ -291,7 +293,7 @@ class FoodRepository(
     }
 
     private fun cacheFood(food: Food) {
-        db.bissbilanzDatabaseQueries.insertFood(
+        db.userDataDatabaseQueries.insertFood(
             id = food.id,
             name = food.name,
             brand = food.brand,
@@ -307,13 +309,14 @@ class FoodRepository(
     }
 
     private fun cacheFoods(foods: List<Food>) {
-        db.bissbilanzDatabaseQueries.transaction {
+        db.userDataDatabaseQueries.transaction {
             foods.forEach { food -> cacheFood(food) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "foods",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "foods",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

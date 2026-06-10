@@ -12,6 +12,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,14 +26,15 @@ import kotlin.uuid.Uuid
 
 class SleepRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
     fun entries(): Flow<List<SleepEntry>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectAllSleepEntries()
             .asFlow()
             .mapToList(Dispatchers.IO)
@@ -63,7 +65,7 @@ class SleepRepository(
         id: String,
         entry: SleepUpdate,
     ): SleepEntry {
-        val cached = db.bissbilanzDatabaseQueries.selectAllSleepEntries().executeAsList()
+        val cached = db.userDataDatabaseQueries.selectAllSleepEntries().executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<SleepEntry>(it.jsonData) }.find { it.id == id }
         val result =
             if (existing != null) {
@@ -106,7 +108,7 @@ class SleepRepository(
     }
 
     suspend fun deleteEntry(id: String) {
-        db.bissbilanzDatabaseQueries.deleteSleepEntry(id)
+        db.userDataDatabaseQueries.deleteSleepEntry(id)
         if (id.startsWith("temp_")) {
             syncQueue.removeByAffected("sleep", id)
         } else {
@@ -152,7 +154,7 @@ class SleepRepository(
     }
 
     private fun findInCache(id: String): SleepEntry? =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectAllSleepEntries()
             .executeAsList()
             .asSequence()
@@ -175,7 +177,7 @@ class SleepRepository(
     }
 
     private fun cacheSleepEntry(entry: SleepEntry) {
-        db.bissbilanzDatabaseQueries.insertSleepEntry(
+        db.userDataDatabaseQueries.insertSleepEntry(
             id = entry.id,
             entryDate = entry.entryDate,
             durationMinutes = entry.durationMinutes.toLong(),
@@ -186,14 +188,15 @@ class SleepRepository(
     }
 
     private fun cacheSleepEntries(entries: List<SleepEntry>) {
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.deleteAllSleepEntries()
+        db.userDataDatabaseQueries.transaction {
+            db.userDataDatabaseQueries.deleteAllSleepEntries()
             entries.forEach { entry -> cacheSleepEntry(entry) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "sleep",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "sleep",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

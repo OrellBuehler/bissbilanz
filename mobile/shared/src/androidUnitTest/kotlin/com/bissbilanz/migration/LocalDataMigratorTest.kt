@@ -1,6 +1,5 @@
 package com.bissbilanz.migration
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.EntryCreate
@@ -27,6 +26,9 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
+import com.bissbilanz.test.inMemoryCacheDatabase
+import com.bissbilanz.test.inMemoryUserDataDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -43,23 +45,24 @@ import kotlin.test.assertTrue
 
 class LocalDataMigratorTest {
     private lateinit var api: BissbilanzApi
-    private lateinit var db: BissbilanzDatabase
+    private lateinit var db: UserDataDatabase
+    private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var appMode: com.bissbilanz.mode.AppModeManager
     private lateinit var syncQueue: SyncQueue
     private lateinit var migrator: LocalDataMigrator
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val queries get() = db.bissbilanzDatabaseQueries
+    private val queries get() = db.userDataDatabaseQueries
+    private val cacheQueries get() = cacheDb.bissbilanzDatabaseQueries
 
     @BeforeTest
     fun setup() {
         api = mockk()
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        BissbilanzDatabase.Schema.create(driver)
-        db = BissbilanzDatabase(driver)
+        db = inMemoryUserDataDatabase()
+        cacheDb = inMemoryCacheDatabase()
         appMode = appModeManager(AppMode.LOCAL)
-        syncQueue = SyncQueue(db, json, appMode)
-        migrator = LocalDataMigrator(db, api, json, appMode, syncQueue, NoopErrorReporter())
+        syncQueue = SyncQueue(cacheDb, json, appMode)
+        migrator = LocalDataMigrator(db, cacheDb, api, json, appMode, syncQueue, NoopErrorReporter())
     }
 
     // -------------------------------------------------------------------------------
@@ -162,7 +165,7 @@ class LocalDataMigratorTest {
             insertPreferences()
             insertDayProperties()
             // Stale queue item that must be cleared before uploading the cache state.
-            queries.insertSyncQueueItem("{}", 0L, null, null)
+            cacheQueries.insertSyncQueueItem("{}", 0L, null, null)
 
             val captures = stubHappyApi()
 
@@ -170,7 +173,7 @@ class LocalDataMigratorTest {
 
             assertEquals(MigrationState.Completed, migrator.state.value)
             assertEquals(AppMode.SYNCED, appMode.mode.value)
-            assertEquals(0L, queries.countSyncQueue().executeAsOne())
+            assertEquals(0L, cacheQueries.countSyncQueue().executeAsOne())
 
             coVerifyOrder {
                 api.createFood(any()) // Apple
@@ -393,7 +396,7 @@ class LocalDataMigratorTest {
             insertGoals()
             insertPreferences()
             insertDayProperties()
-            queries.insertSyncQueueItem("{}", 0L, null, null)
+            cacheQueries.insertSyncQueueItem("{}", 0L, null, null)
 
             migrator.discardLocalData()
 
@@ -409,7 +412,7 @@ class LocalDataMigratorTest {
             assertTrue(queries.selectAllDayProperties().executeAsList().isEmpty())
             assertEquals(null, queries.selectGoals().executeAsOneOrNull())
             assertEquals(null, queries.selectPreferences().executeAsOneOrNull())
-            assertEquals(0L, queries.countSyncQueue().executeAsOne())
+            assertEquals(0L, cacheQueries.countSyncQueue().executeAsOne())
         }
 
     // -------------------------------------------------------------------------------

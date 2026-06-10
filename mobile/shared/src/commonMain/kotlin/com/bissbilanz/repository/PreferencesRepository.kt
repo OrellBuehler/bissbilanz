@@ -9,6 +9,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -20,20 +21,21 @@ import kotlinx.serialization.json.Json
 
 class PreferencesRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val appModeManager: AppModeManager,
 ) {
     fun preferences(): Flow<Preferences?> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectPreferences()
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
             .map { cached ->
                 cached?.let {
                     json.decodeOrNull<Preferences>(it.jsonData) ?: run {
-                        db.bissbilanzDatabaseQueries.deletePreferences()
+                        db.userDataDatabaseQueries.deletePreferences()
                         null
                     }
                 }
@@ -46,11 +48,11 @@ class PreferencesRepository(
     }
 
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
-        val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
+        val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
             cached?.let {
                 json.decodeOrNull<Preferences>(it.jsonData) ?: run {
-                    db.bissbilanzDatabaseQueries.deletePreferences()
+                    db.userDataDatabaseQueries.deletePreferences()
                     null
                 }
             } ?: Preferences(
@@ -77,15 +79,14 @@ class PreferencesRepository(
     }
 
     private fun cachePreferences(prefs: Preferences) {
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.insertPreferences(
-                jsonData = json.encodeToString(prefs),
-            )
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "preferences",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
-        }
+        db.userDataDatabaseQueries.insertPreferences(
+            jsonData = json.encodeToString(prefs),
+        )
+        // SyncMeta lives in the cache database; written after the user-data write.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "preferences",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     private fun applyUpdate(

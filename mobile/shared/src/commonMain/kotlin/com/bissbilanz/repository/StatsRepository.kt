@@ -2,9 +2,9 @@ package com.bissbilanz.repository
 
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.DateTimeUnit
@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
 
 class StatsRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
     private val json: Json,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
@@ -68,7 +68,7 @@ class StatsRepository(
 
     /** [month] is "YYYY-MM"; dates are zero-padded so string range comparison works. */
     private fun computeCalendarStatsFromCache(month: String): List<CalendarDay> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectEntriesByDateRange("$month-01", "$month-31")
             .executeAsList()
             .groupBy { it.date }
@@ -88,7 +88,7 @@ class StatsRepository(
         val data = mutableListOf<DailyStatsEntry>()
         var current = startDate
         while (current <= endDate) {
-            val rows = db.bissbilanzDatabaseQueries.selectEntriesByDate(current).executeAsList()
+            val rows = db.userDataDatabaseQueries.selectEntriesByDate(current).executeAsList()
             if (rows.isNotEmpty()) {
                 val entries = rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
                 val totals = entries.totalMacros()
@@ -107,7 +107,7 @@ class StatsRepository(
         }
 
         val goals =
-            db.bissbilanzDatabaseQueries.selectGoals().executeAsOneOrNull()?.let {
+            db.userDataDatabaseQueries.selectGoals().executeAsOneOrNull()?.let {
                 GoalsSummary(
                     calorieGoal = it.calorieGoal,
                     proteinGoal = it.proteinGoal,

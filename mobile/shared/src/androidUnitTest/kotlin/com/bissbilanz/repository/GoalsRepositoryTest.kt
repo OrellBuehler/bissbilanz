@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Goals
@@ -8,6 +7,9 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
+import com.bissbilanz.test.inMemoryCacheDatabase
+import com.bissbilanz.test.inMemoryUserDataDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -19,7 +21,8 @@ import kotlin.test.assertEquals
 
 class GoalsRepositoryTest {
     private lateinit var api: BissbilanzApi
-    private lateinit var db: BissbilanzDatabase
+    private lateinit var db: UserDataDatabase
+    private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: GoalsRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -27,11 +30,10 @@ class GoalsRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        BissbilanzDatabase.Schema.create(driver)
-        db = BissbilanzDatabase(driver)
+        db = inMemoryUserDataDatabase()
+        cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
-        repository = GoalsRepository(api, db, syncQueue, json, appModeManager())
+        repository = GoalsRepository(api, db, cacheDb, syncQueue, json, appModeManager())
     }
 
     @Test

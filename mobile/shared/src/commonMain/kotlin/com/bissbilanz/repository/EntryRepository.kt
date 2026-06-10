@@ -10,6 +10,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,8 @@ import kotlin.uuid.Uuid
 
 class EntryRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
@@ -35,14 +37,14 @@ class EntryRepository(
     var onEntryChanged: (suspend () -> Unit)? = null
 
     fun entriesByDate(date: String): Flow<List<Entry>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectEntriesByDate(date)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) } }
 
     suspend fun entriesByDateOnce(date: String): List<Entry> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectEntriesByDate(date)
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
@@ -73,7 +75,7 @@ class EntryRepository(
         entry: EntryUpdate,
     ): Entry {
         val cached =
-            db.bissbilanzDatabaseQueries
+            db.userDataDatabaseQueries
                 .selectEntriesByDate(currentDate ?: entry.date ?: "")
                 .executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }.find { it.id == id }
@@ -102,7 +104,7 @@ class EntryRepository(
     }
 
     suspend fun deleteEntry(id: String) {
-        db.bissbilanzDatabaseQueries.deleteEntry(id)
+        db.userDataDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
         if (id.startsWith("temp_")) {
             syncQueue.removeByAffected("entries", id)
@@ -140,7 +142,7 @@ class EntryRepository(
             if (props != null) {
                 cacheDayProperties(props)
             } else {
-                db.bissbilanzDatabaseQueries.deleteDayProperties(date)
+                db.userDataDatabaseQueries.deleteDayProperties(date)
             }
             props
         } catch (e: Exception) {
@@ -163,20 +165,20 @@ class EntryRepository(
     }
 
     suspend fun deleteDayProperties(date: String) {
-        db.bissbilanzDatabaseQueries.deleteDayProperties(date)
+        db.userDataDatabaseQueries.deleteDayProperties(date)
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
         }
     }
 
     private fun cachedDayProperties(date: String): DayProperties? =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectDayProperties(date)
             .executeAsOneOrNull()
             ?.let { DayProperties(date = it.date, isFastingDay = it.isFastingDay != 0L) }
 
     private fun cacheDayProperties(props: DayProperties) {
-        db.bissbilanzDatabaseQueries.upsertDayProperties(
+        db.userDataDatabaseQueries.upsertDayProperties(
             date = props.date,
             isFastingDay = if (props.isFastingDay) 1L else 0L,
         )
@@ -214,7 +216,7 @@ class EntryRepository(
     private suspend fun syncNutritionForCurrentDate() {
         val date = currentDate ?: return
         try {
-            val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
+            val cached = db.userDataDatabaseQueries.selectEntriesByDate(date).executeAsList()
             val entries = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
             val totals = entries.totalMacros()
             healthSync.syncNutrition(date, totals)
@@ -231,7 +233,7 @@ class EntryRepository(
         val carbs = entry.food?.carbs ?: entry.carbs ?: entry.quickCarbs ?: 0.0
         val fat = entry.food?.fat ?: entry.fat ?: entry.quickFat ?: 0.0
         val fiber = entry.food?.fiber ?: entry.fiber ?: entry.quickFiber ?: 0.0
-        db.bissbilanzDatabaseQueries.insertEntry(
+        db.userDataDatabaseQueries.insertEntry(
             id = entry.id,
             date = entry.date,
             mealType = entry.mealType,
@@ -252,14 +254,15 @@ class EntryRepository(
         date: String,
         entries: List<Entry>,
     ) {
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.deleteEntriesByDate(date)
+        db.userDataDatabaseQueries.transaction {
+            db.userDataDatabaseQueries.deleteEntriesByDate(date)
             entries.forEach { entry -> cacheEntry(entry.copy(date = date)) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "entries:$date",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "entries:$date",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

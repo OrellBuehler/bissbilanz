@@ -12,6 +12,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -33,14 +34,15 @@ private fun cacheKeyFor(
 
 class SupplementRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
     fun supplements(): Flow<List<Supplement>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectActiveSupplements()
             .asFlow()
             .mapToList(Dispatchers.IO)
@@ -74,7 +76,7 @@ class SupplementRepository(
     }
 
     suspend fun deleteSupplement(id: String) {
-        db.bissbilanzDatabaseQueries.deleteSupplement(id)
+        db.userDataDatabaseQueries.deleteSupplement(id)
         if (id.startsWith("temp_")) {
             syncQueue.removeByAffected("supplements", id)
         } else {
@@ -113,7 +115,7 @@ class SupplementRepository(
                     )
                 }
             logs.forEach { log ->
-                db.bissbilanzDatabaseQueries.insertSupplementLog(
+                db.userDataDatabaseQueries.insertSupplementLog(
                     id = cacheKeyFor(log.supplementId, log.date),
                     supplementId = log.supplementId,
                     date = log.date,
@@ -129,7 +131,7 @@ class SupplementRepository(
     }
 
     private fun checklistFromCache(date: String): List<SupplementLog> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectSupplementLogsByDate(date)
             .executeAsList()
             .map { log ->
@@ -155,7 +157,7 @@ class SupplementRepository(
                 takenAt = now,
                 entryIds = emptyList(),
             )
-        db.bissbilanzDatabaseQueries.insertSupplementLog(
+        db.userDataDatabaseQueries.insertSupplementLog(
             id = cacheKeyFor(temp.supplementId, temp.date),
             supplementId = temp.supplementId,
             date = temp.date,
@@ -169,7 +171,7 @@ class SupplementRepository(
         supplementId: String,
         date: String,
     ) {
-        db.bissbilanzDatabaseQueries.deleteSupplementLog(supplementId, date)
+        db.userDataDatabaseQueries.deleteSupplementLog(supplementId, date)
         syncQueue.enqueue(SyncOperation.UnlogSupplement(supplementId, date))
     }
 
@@ -192,11 +194,11 @@ class SupplementRepository(
         to: String,
     ): List<SupplementHistoryEntry> {
         val logs =
-            db.bissbilanzDatabaseQueries
+            db.userDataDatabaseQueries
                 .selectSupplementLogsByDateRange(from, to)
                 .executeAsList()
         val supplements =
-            db.bissbilanzDatabaseQueries
+            db.userDataDatabaseQueries
                 .selectAllSupplements()
                 .executeAsList()
                 .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
@@ -215,7 +217,7 @@ class SupplementRepository(
     suspend fun getAllSupplements(): List<Supplement> {
         if (appModeManager.isLocal) {
             // The local DB is the primary store in Local mode; an empty list is the truth.
-            return db.bissbilanzDatabaseQueries
+            return db.userDataDatabaseQueries
                 .selectAllSupplements()
                 .executeAsList()
                 .mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
@@ -227,7 +229,7 @@ class SupplementRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cached = db.bissbilanzDatabaseQueries.selectAllSupplements().executeAsList()
+            val cached = db.userDataDatabaseQueries.selectAllSupplements().executeAsList()
             if (cached.isNotEmpty()) {
                 cached.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
             } else {
@@ -237,7 +239,7 @@ class SupplementRepository(
     }
 
     private fun cacheSupplement(supplement: Supplement) {
-        db.bissbilanzDatabaseQueries.insertSupplement(
+        db.userDataDatabaseQueries.insertSupplement(
             id = supplement.id,
             name = supplement.name,
             isActive = if (supplement.isActive) 1L else 0L,
@@ -250,16 +252,17 @@ class SupplementRepository(
         supplements: List<Supplement>,
         includeInactive: Boolean = false,
     ) {
-        db.bissbilanzDatabaseQueries.transaction {
+        db.userDataDatabaseQueries.transaction {
             if (includeInactive) {
-                db.bissbilanzDatabaseQueries.deleteAllSupplements()
+                db.userDataDatabaseQueries.deleteAllSupplements()
             }
             supplements.forEach { supplement -> cacheSupplement(supplement) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "supplements",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "supplements",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

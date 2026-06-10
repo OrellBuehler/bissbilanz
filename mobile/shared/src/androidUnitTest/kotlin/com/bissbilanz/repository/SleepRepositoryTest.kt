@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
@@ -10,6 +9,9 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.appModeManager
+import com.bissbilanz.test.inMemoryCacheDatabase
+import com.bissbilanz.test.inMemoryUserDataDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -23,7 +25,8 @@ import kotlin.test.assertTrue
 
 class SleepRepositoryTest {
     private lateinit var api: BissbilanzApi
-    private lateinit var db: BissbilanzDatabase
+    private lateinit var db: UserDataDatabase
+    private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: SleepRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -31,11 +34,10 @@ class SleepRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        BissbilanzDatabase.Schema.create(driver)
-        db = BissbilanzDatabase(driver)
+        db = inMemoryUserDataDatabase()
+        cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
-        repository = SleepRepository(api, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+        repository = SleepRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
     }
 
     @Test

@@ -20,12 +20,13 @@ import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
-import com.bissbilanz.cache.CachedEntry
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.CachedEntry
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -107,7 +108,8 @@ sealed class MigrationState {
  *    day properties have no ids; they are idempotent set-calls and simply re-run.
  */
 class LocalDataMigrator(
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val api: BissbilanzApi,
     private val json: Json,
     private val appModeManager: AppModeManager,
@@ -119,7 +121,8 @@ class LocalDataMigrator(
 
     private val migrateMutex = Mutex()
 
-    private val queries get() = db.bissbilanzDatabaseQueries
+    private val queries get() = db.userDataDatabaseQueries
+    private val cacheQueries get() = cacheDb.bissbilanzDatabaseQueries
 
     /** Counts the local rows that [migrate] would upload. */
     fun plan(): MigrationPlan =
@@ -168,9 +171,11 @@ class LocalDataMigrator(
             queries.clearAllWeightEntries()
             queries.clearAllSleepEntries()
             queries.clearAllPreferences()
-            queries.clearAllMealTypes()
             queries.clearAllDayProperties()
-            queries.clearAllSyncMeta()
+        }
+        cacheQueries.transaction {
+            cacheQueries.clearAllMealTypes()
+            cacheQueries.clearAllSyncMeta()
         }
         appModeManager.setMode(AppMode.SYNCED)
     }
@@ -192,7 +197,7 @@ class LocalDataMigrator(
             done = uploadGoals(done, total)
             done = uploadPreferences(done, total)
             uploadDayProperties(done, total)
-            queries.deleteSyncMeta(NORMALIZED_MARKER)
+            cacheQueries.deleteSyncMeta(NORMALIZED_MARKER)
             appModeManager.setMode(AppMode.SYNCED)
             _state.value = MigrationState.Completed
         } catch (e: Exception) {
@@ -207,7 +212,7 @@ class LocalDataMigrator(
     // ---------------------------------------------------------------------------------
 
     private fun normalizeOnce() {
-        if (queries.selectSyncMeta(NORMALIZED_MARKER).executeAsOneOrNull() != null) return
+        if (cacheQueries.selectSyncMeta(NORMALIZED_MARKER).executeAsOneOrNull() != null) return
         queries.transaction {
             normalizeFoods()
             normalizeRecipes()
@@ -215,8 +220,11 @@ class LocalDataMigrator(
             normalizeEntries()
             normalizeWeights()
             normalizeSleep()
-            queries.upsertSyncMeta(NORMALIZED_MARKER, Clock.System.now().toString())
         }
+        // The marker lives in the cache DB, so it cannot be committed atomically with
+        // the normalization above. Written only after the commit: a crash in between
+        // re-runs normalization, which is a no-op for rows that already carry temp_ ids.
+        cacheQueries.upsertSyncMeta(NORMALIZED_MARKER, Clock.System.now().toString())
     }
 
     private fun normalizeFoods() {

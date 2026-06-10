@@ -11,6 +11,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -24,14 +25,15 @@ import kotlin.uuid.Uuid
 
 class RecipeRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
     fun allRecipes(): Flow<List<RecipeDetail>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectAllRecipes()
             .asFlow()
             .mapToList(Dispatchers.IO)
@@ -40,8 +42,8 @@ class RecipeRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val summaries = api.getRecipes()
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.deleteAllRecipes()
+        db.userDataDatabaseQueries.transaction {
+            db.userDataDatabaseQueries.deleteAllRecipes()
             summaries.forEach { s ->
                 val recipe =
                     RecipeDetail(
@@ -58,7 +60,7 @@ class RecipeRepository(
                         fiber = s.fiber,
                         ingredients = emptyList(),
                     )
-                db.bissbilanzDatabaseQueries.insertRecipe(
+                db.userDataDatabaseQueries.insertRecipe(
                     id = recipe.id,
                     name = recipe.name,
                     totalServings = recipe.totalServings,
@@ -71,16 +73,17 @@ class RecipeRepository(
                     jsonData = json.encodeToString(recipe),
                 )
             }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "recipes",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "recipes",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     suspend fun getRecipe(id: String): RecipeDetail {
         if (appModeManager.isLocal) {
-            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
             return cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
                 ?: throw IllegalStateException("Recipe $id not found in local database")
         }
@@ -91,7 +94,7 @@ class RecipeRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
             cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) } ?: throw e
         }
     }
@@ -107,7 +110,7 @@ class RecipeRepository(
         id: String,
         recipe: RecipeUpdate,
     ): RecipeDetail {
-        val cached = db.bissbilanzDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+        val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
         val existing = cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
         val result =
             if (existing != null) {
@@ -145,7 +148,7 @@ class RecipeRepository(
     }
 
     suspend fun deleteRecipe(id: String) {
-        db.bissbilanzDatabaseQueries.deleteRecipe(id)
+        db.userDataDatabaseQueries.deleteRecipe(id)
         if (id.startsWith("temp_")) {
             syncQueue.removeByAffected("recipes", id)
         } else {
@@ -178,7 +181,7 @@ class RecipeRepository(
     }
 
     private fun cacheRecipe(recipe: RecipeDetail) {
-        db.bissbilanzDatabaseQueries.insertRecipe(
+        db.userDataDatabaseQueries.insertRecipe(
             id = recipe.id,
             name = recipe.name,
             totalServings = recipe.totalServings,
