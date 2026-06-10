@@ -12,10 +12,12 @@ Bissbilanz is a food tracking application that allows users to:
 - Log daily food entries organized by meals
 - Set and track daily macro goals
 - Scan barcodes to quickly add foods
+- Track body weight, sleep, and supplements
+- Calculate maintenance calories from weight trend + food log
 - Use AI agents via MCP to assist with logging
 - Access the app offline via PWA
 
-**Authentication:** Required via Infomaniak OIDC (no guest access)
+**Authentication:** Infomaniak OIDC required on web (no guest access). The mobile apps additionally support an anonymous local-only mode; its data is migrated to the account on first sign-in.
 
 ## Tech Stack
 
@@ -43,12 +45,13 @@ Bissbilanz is a food tracking application that allows users to:
 - **Charts:** layerchart
 - **Date Handling:** @internationalized/date
 - **Food Data:** Open Food Facts API
+- **Offline Storage:** Dexie (IndexedDB)
 
 ### Development
 
-- **Type Checking:** TypeScript 5.x
+- **Type Checking:** TypeScript (strict) via svelte-check
 - **Package Manager:** Bun
-- **Code Quality:** svelte-check
+- **Formatting:** Prettier (runs in pre-commit hook and as part of `bun run check`)
 
 ## Development Commands
 
@@ -67,9 +70,15 @@ bun run db:generate    # Generate migrations from schema
 bun run db:migrate     # Run migrations (applied automatically on dev server start too)
 # NOTE: Do NOT use db:push — see "Migration Safety" in Database section
 
-# Testing (vitest)
-bun run test                    # Run all tests
+# Testing
+bun run test                    # Unit tests (vitest)
 bun run test:watch              # Watch mode
+bun run test:integration-db     # DB integration tests (Testcontainers, requires Docker)
+bun run test:mobile             # Playwright e2e tests
+
+# API codegen (OpenAPI spec + TS/Kotlin clients)
+bun run api:generate            # Regenerate after changing API routes or validation schemas
+bun run api:check               # Verify generated output is current (enforced in CI)
 ```
 
 ## Code Conventions
@@ -109,6 +118,7 @@ bun run test:watch              # Watch mode
 - Return consistent error format: `{ error: string }`
 - Always check user authentication/authorization
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
+- The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (CI fails otherwise via `api:check`)
 
 ### Styling
 
@@ -146,7 +156,7 @@ To also scan the Docker image:
 
 ## Mobile Development
 
-The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI skeleton).
+The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI).
 
 ### Build Commands
 
@@ -162,7 +172,7 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 
 - **Shared module** (`mobile/shared/`): KMP code shared between Android and iOS — models, API client, repositories, auth, DI
 - **Android app** (`mobile/androidApp/`): Jetpack Compose UI with Material 3
-- **iOS app** (`mobile/iosApp/`): SwiftUI (skeleton, requires macOS with Xcode to build)
+- **iOS app** (`mobile/iosApp/`): SwiftUI, project generated with XcodeGen (`project.yml`)
 - Use `expect`/`actual` for platform-specific implementations (HTTP engine, secure storage, SHA-256)
 - Use Koin for dependency injection
 - Use Ktor for HTTP client, kotlinx.serialization for JSON
@@ -173,6 +183,8 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 ### iOS Builds
 
 iOS builds require macOS with Xcode installed. The shared KMP framework is compiled to a static framework for iOS targets (x64, arm64, simulator arm64).
+
+If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 
 ## Git Workflow
 
@@ -232,5 +244,3 @@ Premium, polished, reliable. Three words: **refined, purposeful, trustworthy**. 
 3. **Consistent visual language** — macro colors, card patterns, and spacing should be predictable across all pages
 4. **Quiet hierarchy** — important information stands out through contrast and position, not size or color intensity
 5. **Touch-first confidence** — interactive elements should feel substantial and responsive on mobile
-
-- If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
