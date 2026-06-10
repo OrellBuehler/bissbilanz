@@ -7,14 +7,28 @@ struct CalendarView: View {
     @State private var calendarDays: [CalendarDay] = []
     @State private var isLoading = true
 
-    private var weekdayHeaders: [String] { L10n.weekdayHeaders }
+    private var weekdayHeaders: [String] {
+        L10n.weekdayHeaders
+    }
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
-    private var year: Int { Calendar.current.component(.year, from: currentMonth) }
-    private var month: Int { Calendar.current.component(.month, from: currentMonth) }
+    private var year: Int {
+        Calendar.current.component(.year, from: currentMonth)
+    }
 
-    private var daysLogged: Int { calendarDays.filter { $0.calories > 0 }.count }
-    private var daysOnTarget: Int { calendarDays.filter { $0.metGoal }.count }
+    private var month: Int {
+        Calendar.current.component(.month, from: currentMonth)
+    }
+
+    private var daysLogged: Int {
+        calendarDays.filter { $0.calories > 0 }.count
+    }
+
+    private var daysOnTarget: Int {
+        calendarDays.filter(\.metGoal).count
+    }
+
     private var avgCalories: Double {
         let logged = calendarDays.filter { $0.calories > 0 }
         guard !logged.isEmpty else { return 0 }
@@ -83,7 +97,7 @@ struct CalendarView: View {
                 let offset = currentMonth.weekdayOffset
                 let daysInMonth = currentMonth.daysInMonth
 
-                ForEach(0..<(offset + daysInMonth), id: \.self) { index in
+                ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
                     if index < offset {
                         Color.clear.frame(height: 52)
                     } else {

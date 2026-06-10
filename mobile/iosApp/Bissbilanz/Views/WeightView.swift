@@ -2,6 +2,8 @@ import Charts
 import SwiftUI
 
 struct WeightView: View {
+    @Environment(WeightRepository.self) private var weightRepository
+    /// Weight stats are server-computed — they stay on the direct API.
     @Environment(BissbilanzAPI.self) private var api
 
     @State private var entries: [WeightEntry] = []
@@ -20,14 +22,16 @@ struct WeightView: View {
         case quarter = 90
         case all = 0
 
-        var id: Int { rawValue }
+        var id: Int {
+            rawValue
+        }
 
         var label: String {
             switch self {
-            case .week: return "7d"
-            case .month: return "30d"
-            case .quarter: return "90d"
-            case .all: return L10n.history
+            case .week: "7d"
+            case .month: "30d"
+            case .quarter: "90d"
+            case .all: L10n.history
             }
         }
     }
@@ -35,7 +39,8 @@ struct WeightView: View {
     private var chartEntries: [WeightEntry] {
         let sorted = entries.sorted { entryA, entryB in
             guard let dateA = DateFormatting.date(from: entryA.entryDate),
-                  let dateB = DateFormatting.date(from: entryB.entryDate) else { return false }
+                  let dateB = DateFormatting.date(from: entryB.entryDate)
+            else { return false }
             return dateA < dateB
         }
         guard selectedRange > 0 else { return sorted }
@@ -54,7 +59,7 @@ struct WeightView: View {
         for (index, entry) in sorted.enumerated() {
             guard let date = DateFormatting.date(from: entry.entryDate) else { continue }
             let windowStart = max(0, index - 6)
-            let window = sorted[windowStart...index]
+            let window = sorted[windowStart ... index]
             let avg = window.map(\.weightKg).reduce(0, +) / Double(window.count)
             result.append((date: date, average: avg))
         }
@@ -85,7 +90,7 @@ struct WeightView: View {
         // Start from last actual data point
         let lastX = n - 1
         result.append((lastDate, slope * lastX + intercept))
-        for day in 1...projectionDays {
+        for day in 1 ... projectionDays {
             let futureDate = lastDate.adding(days: day)
             let futureWeight = slope * (lastX + Double(day)) + intercept
             result.append((futureDate, futureWeight))
@@ -97,10 +102,10 @@ struct WeightView: View {
         var weights = chartEntries.map(\.weightKg)
         weights.append(contentsOf: projectionData.map(\.weight))
         guard let minW = weights.min(), let maxW = weights.max() else {
-            return 0...100
+            return 0 ... 100
         }
         let padding = max((maxW - minW) * 0.15, 0.5)
-        return (minW - padding)...(maxW + padding)
+        return (minW - padding) ... (maxW + padding)
     }
 
     var body: some View {
@@ -145,7 +150,10 @@ struct WeightView: View {
             }
             .refreshable { await loadEntries() }
             .task { await loadEntries(showSpinner: true) }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -169,7 +177,11 @@ struct WeightView: View {
                         }
                         if let delta = stats.delta7d {
                             let prefix = delta >= 0 ? "+" : ""
-                            statChip(L10n.delta7d, value: "\(prefix)\(String(format: "%.1f", delta)) kg", color: delta >= 0 ? .red : .green)
+                            statChip(
+                                L10n.delta7d,
+                                value: "\(prefix)\(String(format: "%.1f", delta)) kg",
+                                color: delta >= 0 ? .red : .green
+                            )
                         }
                         if let p14 = stats.projected14d {
                             statChip(L10n.projection14d, value: String(format: "%.1f kg", p14), color: .purple)
@@ -369,17 +381,19 @@ struct WeightView: View {
 
     // MARK: - Data Loading
 
-    // showSpinner only on first load: flipping isLoading during pull-to-refresh
-    // swaps the List out for LoadingView, which kills the refresh gesture and
-    // leaves the spinner stuck.
+    /// showSpinner only on first load: flipping isLoading during pull-to-refresh
+    /// swaps the List out for LoadingView, which kills the refresh gesture and
+    /// leaves the spinner stuck.
     private func loadEntries(showSpinner: Bool = false) async {
-        if showSpinner { isLoading = true }
+        entries = weightRepository.entries()
+        if showSpinner { isLoading = entries.isEmpty }
 
-        async let entriesTask = try? api.getWeightEntries()
+        async let refreshTask: Void? = try? weightRepository.refresh()
         async let statsTask = try? api.getWeightStats()
 
-        entries = await entriesTask ?? []
+        _ = await refreshTask
         weightStats = await statsTask
+        entries = weightRepository.entries()
 
         isLoading = false
 
@@ -409,32 +423,32 @@ struct WeightView: View {
         for (day, sample) in latestPerDay where !existingDates.contains(day) {
             let kg = (sample.weightKg * 100).rounded() / 100
             let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
-            if (try? await api.createWeightEntry(create)) != nil {
+            if await (try? weightRepository.createEntry(create)) != nil {
                 imported = true
             }
         }
 
         if imported {
-            entries = (try? await api.getWeightEntries()) ?? entries
-            weightStats = (try? await api.getWeightStats()) ?? weightStats
+            entries = weightRepository.entries()
+            weightStats = await (try? api.getWeightStats()) ?? weightStats
         }
     }
 
     private func deleteEntry(_ entry: WeightEntry) async {
         do {
-            try await api.deleteWeightEntry(id: entry.id)
-            entries.removeAll { $0.id == entry.id }
+            try await weightRepository.deleteEntry(id: entry.id)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             errorMessage = error.localizedDescription
         }
+        entries = weightRepository.entries()
     }
 }
 
 // MARK: - Add / Edit Weight Sheet
 
 struct AddWeightSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(WeightRepository.self) private var weightRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingEntry: WeightEntry?
@@ -486,7 +500,10 @@ struct AddWeightSheet: View {
                 }
             }
             .onAppear { prefill() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -498,7 +515,8 @@ struct AddWeightSheet: View {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: HealthKitService.syncEnabledKey),
               defaults.bool(forKey: HealthKitService.writeWeightEnabledKey),
-              HealthKitService.shared.isAvailable else { return }
+              HealthKitService.shared.isAvailable
+        else { return }
         // Best effort — the user may have denied write permission in Health
         try? await HealthKitService.shared.saveWeight(kg, date: date)
     }
@@ -524,14 +542,14 @@ struct AddWeightSheet: View {
                     entryDate: dateStr,
                     notes: notes.isEmpty ? nil : notes
                 )
-                _ = try await api.updateWeightEntry(id: existing.id, update)
+                try await weightRepository.updateEntry(id: existing.id, update)
             } else {
                 let entry = WeightCreate(
                     weightKg: kg,
                     entryDate: dateStr,
                     notes: notes.isEmpty ? nil : notes
                 )
-                _ = try await api.createWeightEntry(entry)
+                try await weightRepository.createEntry(entry)
                 await writeToHealthIfEnabled(kg: kg)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)

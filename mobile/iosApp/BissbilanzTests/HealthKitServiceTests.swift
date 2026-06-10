@@ -1,8 +1,7 @@
+@testable import Bissbilanz
 import Foundation
 import HealthKit
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("HealthKit Type Configuration Tests")
 struct HealthKitTypeConfigTests {

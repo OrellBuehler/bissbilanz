@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FoodEditSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingFood: Food?
@@ -24,8 +24,8 @@ struct FoodEditSheet: View {
     let initialBarcode: String?
 
     init(food: Food? = nil, barcode: String? = nil, onSaved: @escaping (Food) -> Void = { _ in }) {
-        self.existingFood = food
-        self.initialBarcode = barcode
+        existingFood = food
+        initialBarcode = barcode
         self.onSaved = onSaved
     }
 
@@ -141,11 +141,10 @@ struct FoodEditSheet: View {
         )
 
         do {
-            let saved: Food
-            if let existing = existingFood {
-                saved = try await api.updateFood(id: existing.id, foodData)
+            let saved: Food = if let existing = existingFood {
+                try await foodRepository.updateFood(id: existing.id, foodData)
             } else {
-                saved = try await api.createFood(foodData)
+                try await foodRepository.createFood(foodData)
             }
             onSaved(saved)
             dismiss()

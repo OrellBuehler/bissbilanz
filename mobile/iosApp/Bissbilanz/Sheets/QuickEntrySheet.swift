@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct QuickEntrySheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     let date: String
@@ -57,7 +57,10 @@ struct QuickEntrySheet: View {
                     .fontWeight(.semibold)
                 }
             }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -93,7 +96,7 @@ struct QuickEntrySheet: View {
             quickFiber: Double(fiber)
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry)
             onSaved()
             dismiss()
         } catch {

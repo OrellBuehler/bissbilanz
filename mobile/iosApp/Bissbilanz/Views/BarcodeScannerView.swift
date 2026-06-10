@@ -2,6 +2,8 @@ import AVFoundation
 import SwiftUI
 
 struct BarcodeScannerView: View {
+    @Environment(FoodRepository.self) private var foodRepository
+    // Open Food Facts lookups are proxied by the server — they stay on the direct API.
     @Environment(BissbilanzAPI.self) private var api
     @Environment(\.dismiss) private var dismiss
 
@@ -158,11 +160,11 @@ struct BarcodeScannerView: View {
 
         Task {
             do {
-                if let food = try await api.findFoodByBarcode(barcode) {
+                if let food = try await foodRepository.findByBarcode(barcode) {
                     foundFood = food
                 } else if let food = try await api.lookupBarcode(barcode) {
                     // Found in Open Food Facts - create locally
-                    let created = try await api.createFood(FoodCreate(
+                    let created = try await foodRepository.createFood(FoodCreate(
                         name: food.name,
                         brand: food.brand,
                         servingSize: food.servingSize,

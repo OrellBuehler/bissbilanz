@@ -162,10 +162,30 @@ struct InsightsView: View {
                     Label(L10n.macroTrends, systemImage: "chart.xyaxis.line")
                         .font(.headline)
 
-                    macroTrendRow(L10n.protein, data: dailyStats.map { ($0.date, $0.protein) }, unit: "g", color: MacroColors.protein)
-                    macroTrendRow(L10n.carbs, data: dailyStats.map { ($0.date, $0.carbs) }, unit: "g", color: MacroColors.carbs)
-                    macroTrendRow(L10n.fat, data: dailyStats.map { ($0.date, $0.fat) }, unit: "g", color: MacroColors.fat)
-                    macroTrendRow(L10n.fiber, data: dailyStats.map { ($0.date, $0.fiber) }, unit: "g", color: MacroColors.fiber)
+                    macroTrendRow(
+                        L10n.protein,
+                        data: dailyStats.map { ($0.date, $0.protein) },
+                        unit: "g",
+                        color: MacroColors.protein
+                    )
+                    macroTrendRow(
+                        L10n.carbs,
+                        data: dailyStats.map { ($0.date, $0.carbs) },
+                        unit: "g",
+                        color: MacroColors.carbs
+                    )
+                    macroTrendRow(
+                        L10n.fat,
+                        data: dailyStats.map { ($0.date, $0.fat) },
+                        unit: "g",
+                        color: MacroColors.fat
+                    )
+                    macroTrendRow(
+                        L10n.fiber,
+                        data: dailyStats.map { ($0.date, $0.fiber) },
+                        unit: "g",
+                        color: MacroColors.fiber
+                    )
                 }
             }
         }
@@ -236,7 +256,8 @@ struct InsightsView: View {
     private var goalAchievementCard: some View {
         if let goals, !dailyStats.isEmpty {
             let totalDays = dailyStats.count
-            let calHit = dailyStats.filter { $0.calories <= goals.calorieGoal * 1.05 && $0.calories >= goals.calorieGoal * 0.9 }.count
+            let calHit = dailyStats
+                .filter { $0.calories <= goals.calorieGoal * 1.05 && $0.calories >= goals.calorieGoal * 0.9 }.count
             let proteinHit = dailyStats.filter { $0.protein >= goals.proteinGoal * 0.9 }.count
             let carbsHit = dailyStats.filter { $0.carbs <= goals.carbGoal * 1.1 }.count
             let fatHit = dailyStats.filter { $0.fat <= goals.fatGoal * 1.1 }.count
@@ -291,7 +312,6 @@ struct InsightsView: View {
 
     // MARK: - Calendar Heatmap
 
-    @ViewBuilder
     private var calendarHeatmapCard: some View {
         CardView {
             VStack(alignment: .leading, spacing: 8) {
@@ -334,10 +354,10 @@ struct InsightsView: View {
                 let dayMap = Dictionary(uniqueKeysWithValues: calendarDays.map { ($0.date, $0) })
 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 2) {
-                    ForEach(0..<offset, id: \.self) { _ in
+                    ForEach(0 ..< offset, id: \.self) { _ in
                         Color.clear.frame(height: 28)
                     }
-                    ForEach(1...daysInMonth, id: \.self) { day in
+                    ForEach(1 ... daysInMonth, id: \.self) { day in
                         let date = Calendar.current.date(byAdding: .day, value: day - 1, to: startOfMonth)
                         let dateStr = date.map { DateFormatting.isoString(from: $0) } ?? ""
                         let calDay = dayMap[dateStr]
@@ -408,17 +428,47 @@ struct InsightsView: View {
 
                     Divider()
 
-                    comparisonRow(L10n.calories, weekly: weekly.calories, monthly: monthly.calories, unit: "kcal", color: MacroColors.calories)
-                    comparisonRow(L10n.protein, weekly: weekly.protein, monthly: monthly.protein, unit: "g", color: MacroColors.protein)
-                    comparisonRow(L10n.carbs, weekly: weekly.carbs, monthly: monthly.carbs, unit: "g", color: MacroColors.carbs)
+                    comparisonRow(
+                        L10n.calories,
+                        weekly: weekly.calories,
+                        monthly: monthly.calories,
+                        unit: "kcal",
+                        color: MacroColors.calories
+                    )
+                    comparisonRow(
+                        L10n.protein,
+                        weekly: weekly.protein,
+                        monthly: monthly.protein,
+                        unit: "g",
+                        color: MacroColors.protein
+                    )
+                    comparisonRow(
+                        L10n.carbs,
+                        weekly: weekly.carbs,
+                        monthly: monthly.carbs,
+                        unit: "g",
+                        color: MacroColors.carbs
+                    )
                     comparisonRow(L10n.fat, weekly: weekly.fat, monthly: monthly.fat, unit: "g", color: MacroColors.fat)
-                    comparisonRow(L10n.fiber, weekly: weekly.fiber, monthly: monthly.fiber, unit: "g", color: MacroColors.fiber)
+                    comparisonRow(
+                        L10n.fiber,
+                        weekly: weekly.fiber,
+                        monthly: monthly.fiber,
+                        unit: "g",
+                        color: MacroColors.fiber
+                    )
                 }
             }
         }
     }
 
-    private func comparisonRow(_ label: String, weekly: Double, monthly: Double, unit: String, color: Color) -> some View {
+    private func comparisonRow(
+        _ label: String,
+        weekly: Double,
+        monthly: Double,
+        unit: String,
+        color: Color
+    ) -> some View {
         let diff = weekly - monthly
         let diffPct = monthly > 0 ? (diff / monthly * 100) : 0
         let arrow = diff > 0 ? "\u{2191}" : (diff < 0 ? "\u{2193}" : "\u{2192}")
@@ -480,11 +530,11 @@ struct InsightsView: View {
 
     private func mealColor(_ mealType: String) -> Color {
         switch mealType.lowercased() {
-        case "breakfast": return .orange
-        case "lunch": return .blue
-        case "dinner": return .purple
-        case "snacks", "snack": return .green
-        default: return .gray
+        case "breakfast": .orange
+        case "lunch": .blue
+        case "dinner": .purple
+        case "snacks", "snack": .green
+        default: .gray
         }
     }
 
@@ -530,7 +580,10 @@ struct InsightsView: View {
 
     private func loadCalendar() async {
         let components = Calendar.current.dateComponents([.month, .year], from: calendarMonth)
-        calendarDays = (try? await api.getCalendarStats(month: components.month ?? 1, year: components.year ?? Calendar.current.component(.year, from: Date()))) ?? []
+        calendarDays = await (try? api.getCalendarStats(
+            month: components.month ?? 1,
+            year: components.year ?? Calendar.current.component(.year, from: Date())
+        )) ?? []
     }
 }
 

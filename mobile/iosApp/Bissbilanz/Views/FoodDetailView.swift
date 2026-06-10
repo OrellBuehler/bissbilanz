@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FoodDetailView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
     let foodId: String
@@ -133,7 +133,9 @@ struct FoodDetailView: View {
             NutrientSection(title: L10n.vitamins, nutrients: food.vitaminNutrients)
             NutrientSection(title: L10n.other, nutrients: food.otherNutrients)
 
-            if food.nutriScore != nil || food.novaGroup != nil || !(food.additives?.isEmpty ?? true) || !(food.ingredientsText?.isEmpty ?? true) {
+            if food.nutriScore != nil || food
+                .novaGroup != nil || !(food.additives?.isEmpty ?? true) || !(food.ingredientsText?.isEmpty ?? true)
+            {
                 Section(L10n.quality) {
                     if let nutriScore = food.nutriScore {
                         VStack(alignment: .leading, spacing: 6) {
@@ -274,27 +276,31 @@ struct FoodDetailView: View {
         guard let food else { return }
         isTogglingFavorite = true
         do {
-            self.food = try await api.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
+            self.food = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
         } catch {
             errorMessage = error.localizedDescription
+            // The optimistic local flip persisted — keep the view in sync with it.
+            self.food = foodRepository.food(id: food.id) ?? food
         }
         isTogglingFavorite = false
     }
 
     private func loadFood() async {
-        isLoading = true
+        food = foodRepository.food(id: foodId)
+        isLoading = food == nil
         error = nil
         do {
-            food = try await api.getFood(id: foodId)
+            try await foodRepository.refreshFood(id: foodId)
+            food = foodRepository.food(id: foodId) ?? food
         } catch {
-            self.error = error
+            if food == nil { self.error = error }
         }
         isLoading = false
     }
 
     private func deleteFood() async {
         do {
-            try await api.deleteFood(id: foodId)
+            try await foodRepository.deleteFood(id: foodId)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

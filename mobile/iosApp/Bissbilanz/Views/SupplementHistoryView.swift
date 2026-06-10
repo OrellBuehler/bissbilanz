@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SupplementHistoryView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(SupplementRepository.self) private var supplementRepository
 
     @State private var history: [SupplementHistoryItem] = []
     @State private var isLoading = true
@@ -9,8 +9,8 @@ struct SupplementHistoryView: View {
     @State private var endDate = Date()
     @State private var showDatePicker = false
 
-    // history is a flat list of (supplementId, date) taken events. Group by date
-    // for display without losing the day-indexed layout of the old UI.
+    /// history is a flat list of (supplementId, date) taken events. Group by date
+    /// for display without losing the day-indexed layout of the old UI.
     private var historyByDate: [(date: String, items: [SupplementHistoryItem])] {
         let grouped = Dictionary(grouping: history, by: { $0.date })
         return grouped
@@ -18,14 +18,20 @@ struct SupplementHistoryView: View {
             .sorted { $0.date > $1.date }
     }
 
-    private var totalTaken: Int { history.count }
+    private var totalTaken: Int {
+        history.count
+    }
 
     var body: some View {
         Group {
             if isLoading {
                 LoadingView()
             } else if history.isEmpty {
-                ContentUnavailableView(L10n.supplementHistory, systemImage: "pills", description: Text(L10n.noHistoryForPeriod))
+                ContentUnavailableView(
+                    L10n.supplementHistory,
+                    systemImage: "pills",
+                    description: Text(L10n.noHistoryForPeriod)
+                )
             } else {
                 List {
                     Section {
@@ -93,16 +99,16 @@ struct SupplementHistoryView: View {
     }
 
     private func loadData() async {
-        isLoading = true
-        do {
-            history = try await api.getSupplementHistory(
-                startDate: startDate.isoDateString,
-                endDate: endDate.isoDateString
-            )
-        } catch {
-            // Surface in a real implementation; skeleton silently resets.
-            history = []
-        }
+        history = supplementRepository.localHistory(
+            startDate: startDate.isoDateString,
+            endDate: endDate.isoDateString
+        )
+        isLoading = history.isEmpty
+        // Server-computed history; the repository falls back to cached logs offline.
+        history = await supplementRepository.history(
+            startDate: startDate.isoDateString,
+            endDate: endDate.isoDateString
+        )
         isLoading = false
     }
 }

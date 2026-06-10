@@ -61,7 +61,7 @@ struct MaintenanceView: View {
                     Text(L10n.fatLabel)
                         .font(.caption)
                         .foregroundStyle(MacroColors.fat)
-                    Slider(value: $bodyFatRatio, in: 0...1, step: 0.05)
+                    Slider(value: $bodyFatRatio, in: 0 ... 1, step: 0.05)
                     Text(L10n.muscleLabel)
                         .font(.caption)
                         .foregroundStyle(MacroColors.protein)

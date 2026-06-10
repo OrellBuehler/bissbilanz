@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SupplementsView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(SupplementRepository.self) private var supplementRepository
 
     @State private var supplements: [Supplement] = []
     @State private var loggedIds: Set<String> = []
@@ -11,8 +11,14 @@ struct SupplementsView: View {
     @State private var expandedIds: Set<String> = []
     @State private var errorMessage: String?
 
-    private var takenCount: Int { loggedIds.count }
-    private var totalCount: Int { supplements.filter(\.isActive).count }
+    private var takenCount: Int {
+        loggedIds.count
+    }
+
+    private var totalCount: Int {
+        supplements.filter(\.isActive).count
+    }
+
     private var progress: Double {
         guard totalCount > 0 else { return 0 }
         return Double(takenCount) / Double(totalCount)
@@ -68,7 +74,10 @@ struct SupplementsView: View {
             }
             .refreshable { await loadData() }
             .task { await loadData() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -99,8 +108,13 @@ struct SupplementsView: View {
 
     // MARK: - Supplements Sections
 
-    private var activeSupplements: [Supplement] { supplements.filter(\.isActive) }
-    private var inactiveSupplements: [Supplement] { supplements.filter { !$0.isActive } }
+    private var activeSupplements: [Supplement] {
+        supplements.filter(\.isActive)
+    }
+
+    private var inactiveSupplements: [Supplement] {
+        supplements.filter { !$0.isActive }
+    }
 
     private var supplementsSection: some View {
         Group {
@@ -252,20 +266,20 @@ struct SupplementsView: View {
 
     private func timeOfDayLabel(_ time: String) -> String {
         switch time.lowercased() {
-        case "morning": return L10n.morning
-        case "evening", "night": return L10n.evening
-        case "noon", "afternoon": return L10n.noon
-        case "anytime": return L10n.anytime
-        default: return time.capitalized
+        case "morning": L10n.morning
+        case "evening", "night": L10n.evening
+        case "noon", "afternoon": L10n.noon
+        case "anytime": L10n.anytime
+        default: time.capitalized
         }
     }
 
     private func timeIcon(_ time: String) -> String {
         switch time.lowercased() {
-        case "morning": return "sunrise"
-        case "evening", "night": return "moon"
-        case "noon", "afternoon": return "sun.max"
-        default: return "clock"
+        case "morning": "sunrise"
+        case "evening", "night": "moon"
+        case "noon", "afternoon": "sun.max"
+        default: "clock"
         }
     }
 
@@ -273,46 +287,43 @@ struct SupplementsView: View {
 
     private func toggleSupplement(_ supplement: Supplement, isTaken: Bool) async {
         let dateString = DateFormatting.today
-        if isTaken {
-            do {
-                try await api.unlogSupplement(id: supplement.id, date: dateString)
-                loggedIds.remove(supplement.id)
-            } catch {
-                errorMessage = error.localizedDescription
+        do {
+            if isTaken {
+                try await supplementRepository.unlogSupplement(id: supplement.id, date: dateString)
+            } else {
+                try await supplementRepository.logSupplement(id: supplement.id, date: dateString)
             }
-        } else {
-            do {
-                _ = try await api.logSupplement(id: supplement.id, date: dateString)
-                loggedIds.insert(supplement.id)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+        } catch {
+            errorMessage = error.localizedDescription
         }
+        loggedIds = supplementRepository.loggedSupplementIds(date: dateString)
     }
 
     private func deleteSupplement(_ supplement: Supplement) async {
         do {
-            try await api.deleteSupplement(id: supplement.id)
-            supplements.removeAll { $0.id == supplement.id }
-            loggedIds.remove(supplement.id)
+            try await supplementRepository.deleteSupplement(id: supplement.id)
         } catch {
             errorMessage = error.localizedDescription
         }
+        supplements = supplementRepository.supplements()
+        loggedIds.remove(supplement.id)
     }
 
     private func loadData() async {
-        isLoading = true
         let dateString = DateFormatting.today
+        supplements = supplementRepository.supplements()
+        loggedIds = supplementRepository.loggedSupplementIds(date: dateString)
+        isLoading = supplements.isEmpty
         do {
-            supplements = try await api.getSupplements()
+            try await supplementRepository.refresh()
+            supplements = supplementRepository.supplements()
         } catch {
-            errorMessage = error.localizedDescription
+            if supplements.isEmpty {
+                errorMessage = error.localizedDescription
+            }
         }
-        do {
-            let checklist = try await api.getSupplementChecklist(date: dateString)
+        if let checklist = try? await supplementRepository.refreshChecklist(date: dateString) {
             loggedIds = Set(checklist.filter(\.taken).map(\.supplement.id))
-        } catch {
-            // Checklist fetch failed — keep loggedIds as-is rather than showing incorrect state
         }
         isLoading = false
     }

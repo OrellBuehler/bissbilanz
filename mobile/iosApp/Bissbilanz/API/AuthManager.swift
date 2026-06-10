@@ -1,9 +1,9 @@
-import Foundation
 import AuthenticationServices
+import Foundation
 import Observation
 import Security
 
-enum AuthState: Sendable {
+enum AuthState {
     case unauthenticated
     case authenticated
     case refreshing
@@ -20,7 +20,9 @@ final class AuthManager {
     private static let accessTokenKey = "bissbilanz_access_token"
     private static let refreshTokenKey = "bissbilanz_refresh_token"
 
-    var isAuthenticated: Bool { authState == .authenticated }
+    var isAuthenticated: Bool {
+        authState == .authenticated
+    }
 
     init(baseURL: String = "https://bissbilanz.orellbuehler.ch") {
         self.baseURL = baseURL
@@ -44,7 +46,8 @@ final class AuthManager {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
               let state = components.queryItems?.first(where: { $0.name == "state" })?.value,
-              state == pendingState else {
+              state == pendingState
+        else {
             return false
         }
         pendingState = nil

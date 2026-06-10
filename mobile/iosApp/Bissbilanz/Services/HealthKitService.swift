@@ -13,7 +13,10 @@ final class HealthKitService {
     static let writeWeightEnabledKey = "healthkit_write_weight_enabled"
 
     private let healthStore = HKHealthStore()
-    var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+    var isAvailable: Bool {
+        HKHealthStore.isHealthDataAvailable()
+    }
+
     var isAuthorized = false
 
     private let readTypes: Set<HKObjectType> = {
@@ -79,7 +82,14 @@ final class HealthKitService {
         try await healthStore.save(sample)
     }
 
-    func saveNutrition(calories: Double, protein: Double, carbs: Double, fat: Double, fiber: Double, date: Date) async throws {
+    func saveNutrition(
+        calories: Double,
+        protein: Double,
+        carbs: Double,
+        fat: Double,
+        fiber: Double,
+        date: Date
+    ) async throws {
         var samples: [HKQuantitySample] = []
 
         let pairs: [(HKQuantityTypeIdentifier, Double, HKUnit)] = [
@@ -116,7 +126,12 @@ final class HealthKitService {
         let ownBundleId = Bundle.main.bundleIdentifier
 
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { _, samples, error in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -124,7 +139,10 @@ final class HealthKitService {
                 let weights = (samples ?? [])
                     .compactMap { $0 as? HKQuantitySample }
                     .filter { $0.sourceRevision.source.bundleIdentifier != ownBundleId }
-                    .map { WeightSample(date: $0.startDate, weightKg: $0.quantity.doubleValue(for: .gramUnit(with: .kilo))) }
+                    .map { WeightSample(
+                        date: $0.startDate,
+                        weightKg: $0.quantity.doubleValue(for: .gramUnit(with: .kilo))
+                    ) }
                 continuation.resume(returning: weights)
             }
             self.healthStore.execute(query)
@@ -136,7 +154,12 @@ final class HealthKitService {
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { _, samples, error in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return

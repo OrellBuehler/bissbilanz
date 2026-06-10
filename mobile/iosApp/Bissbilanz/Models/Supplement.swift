@@ -63,7 +63,9 @@ struct SupplementChecklist: Codable, Identifiable {
     let taken: Bool
     let takenAt: String?
 
-    var id: String { supplement.id }
+    var id: String {
+        supplement.id
+    }
 }
 
 struct SupplementsResponse: Codable {
@@ -111,8 +113,8 @@ struct SupplementIngredientInput: Codable {
     var sortOrder: Int?
 }
 
-// Inline backing food payload — kept minimal to match the web form; the server
-// normalises any missing macro fields to zero.
+/// Inline backing food payload — kept minimal to match the web form; the server
+/// normalises any missing macro fields to zero.
 struct SupplementBackingFoodInput: Codable {
     let name: String
     let servingSize: Double

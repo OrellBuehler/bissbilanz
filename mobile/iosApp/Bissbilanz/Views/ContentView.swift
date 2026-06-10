@@ -7,25 +7,27 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     case weight
     case supplements
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var label: String {
         switch self {
-        case .foods: return L10n.foods
-        case .favorites: return L10n.favorites
-        case .insights: return L10n.insights
-        case .weight: return L10n.weight
-        case .supplements: return L10n.supplements
+        case .foods: L10n.foods
+        case .favorites: L10n.favorites
+        case .insights: L10n.insights
+        case .weight: L10n.weight
+        case .supplements: L10n.supplements
         }
     }
 
     var icon: String {
         switch self {
-        case .foods: return "fork.knife"
-        case .favorites: return "star"
-        case .insights: return "chart.bar"
-        case .weight: return "scalemass"
-        case .supplements: return "pills"
+        case .foods: "fork.knife"
+        case .favorites: "star"
+        case .insights: "chart.bar"
+        case .weight: "scalemass"
+        case .supplements: "pills"
         }
     }
 

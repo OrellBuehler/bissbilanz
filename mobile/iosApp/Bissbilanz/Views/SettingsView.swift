@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(GoalsRepository.self) private var goalsRepository
+    @Environment(PreferencesRepository.self) private var preferencesRepository
+    // Meal types are server-only — they stay on the direct API.
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AuthManager.self) private var authManager
 
@@ -15,7 +18,8 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
     @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey)
-    @State private var healthWriteWeightEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.writeWeightEnabledKey)
+    @State private var healthWriteWeightEnabled: Bool = UserDefaults.standard
+        .bool(forKey: HealthKitService.writeWeightEnabledKey)
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabNames: String {
@@ -195,7 +199,10 @@ struct SettingsView: View {
                     Toggle(L10n.favorites, isOn: widgetBinding(\.showFavoritesWidget, key: "showFavoritesWidget"))
                     Toggle(L10n.supplements, isOn: widgetBinding(\.showSupplementsWidget, key: "showSupplementsWidget"))
                     Toggle(L10n.weight, isOn: widgetBinding(\.showWeightWidget, key: "showWeightWidget"))
-                    Toggle(L10n.mealBreakdown, isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget"))
+                    Toggle(
+                        L10n.mealBreakdown,
+                        isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget")
+                    )
                     Toggle(L10n.topFoods, isOn: widgetBinding(\.showTopFoodsWidget, key: "showTopFoodsWidget"))
                 }
 
@@ -207,9 +214,8 @@ struct SettingsView: View {
                             Task {
                                 var update = PreferencesUpdate()
                                 update.favoriteMealAssignmentMode = newValue
-                                if let updated = try? await api.updatePreferences(update) {
-                                    preferences = updated
-                                }
+                                preferences = await (try? preferencesRepository.update(update))
+                                    ?? (preferencesRepository.preferences() ?? .defaults)
                             }
                         }
                     )) {
@@ -271,7 +277,10 @@ struct SettingsView: View {
                 RecipeEditSheet()
             }
             .task { await loadData() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -296,9 +305,8 @@ struct SettingsView: View {
                     case "showTopFoodsWidget": update.showTopFoodsWidget = newValue
                     default: break
                     }
-                    if let updated = try? await api.updatePreferences(update) {
-                        preferences = updated
-                    }
+                    preferences = await (try? preferencesRepository.update(update))
+                        ?? (preferencesRepository.preferences() ?? .defaults)
                 }
             }
         )
@@ -371,21 +379,27 @@ struct SettingsView: View {
             sugarGoal: goals.sugarGoal
         )
         do {
-            goals = try await api.setGoals(newGoals)
+            goals = try await goalsRepository.setGoals(newGoals)
         } catch {
             errorMessage = error.localizedDescription
+            // The optimistic local write persisted — keep the view in sync with it.
+            goals = goalsRepository.goals() ?? .defaults
         }
         isEditingGoals = false
     }
 
     private func loadData() async {
-        async let g = try? api.getGoals()
-        async let p = try? api.getPreferences()
+        goals = goalsRepository.goals() ?? .defaults
+        preferences = preferencesRepository.preferences() ?? .defaults
+
+        async let g: Void? = try? goalsRepository.refresh()
+        async let p: Void? = try? preferencesRepository.refresh()
         async let m = try? api.getMealTypes()
 
-        goals = await g ?? .defaults
-        preferences = await p ?? .defaults
+        _ = await (g, p)
         mealTypes = await m ?? []
+        goals = goalsRepository.goals() ?? .defaults
+        preferences = preferencesRepository.preferences() ?? .defaults
     }
 
     private func addMealType() async {
@@ -413,7 +427,7 @@ struct SettingsView: View {
 // MARK: - Visible Nutrients View
 
 struct VisibleNutrientsView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(PreferencesRepository.self) private var preferencesRepository
     @Binding var preferences: Preferences
 
     @State private var selectedNutrients: Set<String> = []
@@ -513,9 +527,8 @@ struct VisibleNutrientsView: View {
         isSaving = true
         var update = PreferencesUpdate()
         update.visibleNutrients = Array(selectedNutrients)
-        if let updated = try? await api.updatePreferences(update) {
-            preferences = updated
-        }
+        preferences = await (try? preferencesRepository.update(update))
+            ?? (preferencesRepository.preferences() ?? .defaults)
         isDirty = false
         isSaving = false
     }
