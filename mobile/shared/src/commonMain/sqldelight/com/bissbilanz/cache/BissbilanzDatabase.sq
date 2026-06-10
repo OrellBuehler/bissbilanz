@@ -113,6 +113,15 @@ CREATE TABLE IF NOT EXISTS SyncMeta (
 );
 
 -- Entries
+selectAllEntries:
+SELECT * FROM CachedEntry;
+
+selectEntriesByFoodId:
+SELECT * FROM CachedEntry WHERE foodId = ?;
+
+selectEntriesByRecipeId:
+SELECT * FROM CachedEntry WHERE recipeId = ?;
+
 selectEntriesByDate:
 SELECT * FROM CachedEntry WHERE date = ?;
 
@@ -216,6 +225,12 @@ deleteAllSupplements:
 DELETE FROM CachedSupplement;
 
 -- Supplement Logs
+selectAllSupplementLogs:
+SELECT * FROM CachedSupplementLog;
+
+selectSupplementLogsBySupplementId:
+SELECT * FROM CachedSupplementLog WHERE supplementId = ?;
+
 selectSupplementLogsByDate:
 SELECT * FROM CachedSupplementLog WHERE date = ?;
 
@@ -296,6 +311,9 @@ deleteAllMealTypes:
 DELETE FROM CachedMealType;
 
 -- Day Properties
+selectAllDayProperties:
+SELECT * FROM CachedDayProperties;
+
 selectDayProperties:
 SELECT * FROM CachedDayProperties WHERE date = ?;
 
@@ -343,6 +361,9 @@ SELECT lastSyncedAt FROM SyncMeta WHERE entityType = ?;
 
 upsertSyncMeta:
 INSERT OR REPLACE INTO SyncMeta(entityType, lastSyncedAt) VALUES (?, ?);
+
+deleteSyncMeta:
+DELETE FROM SyncMeta WHERE entityType = ?;
 
 -- Clear all data (for logout)
 clearAllData:
