@@ -25,7 +25,12 @@ enum DateFormatting {
     }
 
     static func date(from isoString: String) -> Date? {
-        isoFormatter.date(from: isoString)
+        // ICU parsing is lenient about punctuation (e.g. "2026/03/12" matches
+        // "yyyy-MM-dd"); round-trip to accept canonical ISO strings only.
+        guard let date = isoFormatter.date(from: isoString),
+              isoFormatter.string(from: date) == isoString
+        else { return nil }
+        return date
     }
 
     static func displayString(from date: Date) -> String {

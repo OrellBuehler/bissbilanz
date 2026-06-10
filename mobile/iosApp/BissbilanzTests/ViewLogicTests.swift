@@ -1,9 +1,9 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
 
-@testable import Bissbilanz
-
 // MARK: - Meal Grouping Logic
+
 // Tests the meal ordering and grouping logic used in DashboardView.mealGroups
 
 @Suite("Meal Grouping Tests")
@@ -108,7 +108,9 @@ struct MealGroupingTests {
 
 @Suite("Entry Macro Totals Tests")
 struct EntryMacroTotalsTests {
-    private func computeTotals(_ entries: [Entry]) -> (calories: Double, protein: Double, carbs: Double, fat: Double, fiber: Double) {
+    private func computeTotals(_ entries: [Entry])
+        -> (calories: Double, protein: Double, carbs: Double, fat: Double, fiber: Double)
+    {
         (
             entries.reduce(0) { $0 + $1.totalCalories },
             entries.reduce(0) { $0 + $1.totalProtein },
@@ -191,51 +193,51 @@ struct EntryMacroTotalsTests {
 @Suite("Date Navigation Tests")
 struct DateNavigationTests {
     @Test("Adding one day moves to next day")
-    func nextDay() {
-        let date = DateFormatting.date(from: "2026-03-12")!
+    func nextDay() throws {
+        let date = try #require(DateFormatting.date(from: "2026-03-12"))
         let next = date.adding(days: 1)
         #expect(next.isoDateString == "2026-03-13")
     }
 
     @Test("Subtracting one day moves to previous day")
-    func previousDay() {
-        let date = DateFormatting.date(from: "2026-03-12")!
+    func previousDay() throws {
+        let date = try #require(DateFormatting.date(from: "2026-03-12"))
         let prev = date.adding(days: -1)
         #expect(prev.isoDateString == "2026-03-11")
     }
 
     @Test("Navigation across month boundary")
-    func crossMonthBoundary() {
-        let date = DateFormatting.date(from: "2026-03-31")!
+    func crossMonthBoundary() throws {
+        let date = try #require(DateFormatting.date(from: "2026-03-31"))
         let next = date.adding(days: 1)
         #expect(next.isoDateString == "2026-04-01")
     }
 
     @Test("Navigation across year boundary")
-    func crossYearBoundary() {
-        let date = DateFormatting.date(from: "2025-12-31")!
+    func crossYearBoundary() throws {
+        let date = try #require(DateFormatting.date(from: "2025-12-31"))
         let next = date.adding(days: 1)
         #expect(next.isoDateString == "2026-01-01")
     }
 
     @Test("Navigation through February leap year")
-    func leapYearFebruary() {
-        let date = DateFormatting.date(from: "2028-02-28")!
+    func leapYearFebruary() throws {
+        let date = try #require(DateFormatting.date(from: "2028-02-28"))
         let next = date.adding(days: 1)
         #expect(next.isoDateString == "2028-02-29") // 2028 is a leap year
     }
 
     @Test("Navigation through February non-leap year")
-    func nonLeapYearFebruary() {
-        let date = DateFormatting.date(from: "2026-02-28")!
+    func nonLeapYearFebruary() throws {
+        let date = try #require(DateFormatting.date(from: "2026-02-28"))
         let next = date.adding(days: 1)
         #expect(next.isoDateString == "2026-03-01")
     }
 
     @Test("weekdayOffset returns Monday-based offset")
-    func weekdayOffset() {
+    func weekdayOffset() throws {
         // 2026-03-01 is a Sunday
-        let march2026 = DateFormatting.date(from: "2026-03-01")!
+        let march2026 = try #require(DateFormatting.date(from: "2026-03-01"))
         let offset = march2026.weekdayOffset
         #expect(offset == 6) // Sunday = 6 in Monday-based (Mon=0, Tue=1, ..., Sun=6)
     }
@@ -246,84 +248,22 @@ struct DateNavigationTests {
 @Suite("DateFormatting Display Tests")
 struct DateFormattingDisplayTests {
     @Test("Display string is non-empty")
-    func displayStringNotEmpty() {
-        let date = DateFormatting.date(from: "2026-03-12")!
+    func displayStringNotEmpty() throws {
+        let date = try #require(DateFormatting.date(from: "2026-03-12"))
         let display = DateFormatting.displayString(from: date)
         #expect(!display.isEmpty)
     }
 
     @Test("Month year format")
-    func monthYearFormat() {
-        let date = DateFormatting.date(from: "2026-03-12")!
+    func monthYearFormat() throws {
+        let date = try #require(DateFormatting.date(from: "2026-03-12"))
         let monthYear = DateFormatting.monthYear(from: date)
         #expect(monthYear.contains("2026"))
     }
 }
 
-// MARK: - Localization Logic Tests
-
-@Suite("Localization Meal Name Tests")
-struct LocalizationMealNameTests {
-    @Test("Meal name handles case-insensitive input")
-    func mealNameCaseInsensitive() {
-        L10n.currentLocale = .en
-        #expect(L10n.mealName("BREAKFAST") == "Breakfast")
-        #expect(L10n.mealName("Lunch") == "Lunch")
-        #expect(L10n.mealName("DINNER") == "Dinner")
-    }
-
-    @Test("Snack alias maps to Snacks")
-    func snackAlias() {
-        L10n.currentLocale = .en
-        #expect(L10n.mealName("snack") == "Snacks")
-        #expect(L10n.mealName("snacks") == "Snacks")
-    }
-
-    @Test("Unknown meal type returns capitalized")
-    func unknownMealCapitalized() {
-        #expect(L10n.mealName("pre-workout") == "Pre-workout")
-        #expect(L10n.mealName("brunch") == "Brunch")
-    }
-
-    @Test("NOVA group descriptions")
-    func novaGroupDescriptions() {
-        L10n.currentLocale = .en
-        #expect(L10n.novaGroupDescription(1) == "Unprocessed")
-        #expect(L10n.novaGroupDescription(2) == "Processed ingredients")
-        #expect(L10n.novaGroupDescription(3) == "Processed")
-        #expect(L10n.novaGroupDescription(4) == "Ultra-processed")
-        #expect(L10n.novaGroupDescription(0) == "Unknown")
-        #expect(L10n.novaGroupDescription(5) == "Unknown")
-    }
-
-    @Test("Weekday headers differ by locale")
-    func weekdayHeaders() {
-        let saved = L10n.currentLocale
-        defer { L10n.currentLocale = saved }
-
-        L10n.currentLocale = .en
-        let enHeaders = L10n.weekdayHeaders
-        #expect(enHeaders.count == 7)
-        #expect(enHeaders[0] == "M")
-        #expect(enHeaders[2] == "W") // Wednesday
-
-        L10n.currentLocale = .de
-        let deHeaders = L10n.weekdayHeaders
-        #expect(deHeaders[2] == "M") // Mittwoch
-    }
-
-    @Test("Entries copied interpolation")
-    func entriesCopiedMessage() {
-        let saved = L10n.currentLocale
-        defer { L10n.currentLocale = saved }
-
-        L10n.currentLocale = .en
-        #expect(L10n.entriesCopied(3) == "3 entries copied")
-
-        L10n.currentLocale = .de
-        #expect(L10n.entriesCopied(3) == "3 Einträge kopiert")
-    }
-}
+// NOTE: Tests that mutate the process-global `L10n.currentLocale` live in the
+// serialized "Localization Tests" suite in DateFormattingTests.swift.
 
 // MARK: - Test Helpers
 
@@ -374,4 +314,80 @@ private func makeEntry(
         servingSize: f.servingSize, servingUnit: f.servingUnit,
         date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
     )
+}
+
+// MARK: - Weight Trend
+
+// Tests the trend classification and local 7-day delta used by the
+// WeightView trend card.
+
+@Suite("Weight Trend Tests")
+struct WeightTrendTests {
+    private func makeWeight(date: String, kg: Double) -> WeightEntry {
+        WeightEntry(
+            id: "w-\(date)", userId: "u1", weightKg: kg, entryDate: date,
+            loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+        )
+    }
+
+    @Test("Delta classification", arguments: [
+        (nil, WeightTrend.steady(nil)),
+        (0.5, WeightTrend.rising(0.5)),
+        (-0.5, WeightTrend.falling(-0.5)),
+        (0.2, WeightTrend.steady(0.2)),
+        (-0.2, WeightTrend.steady(-0.2)),
+        // The band boundary itself still counts as steady
+        (WeightTrend.steadyBandKg, WeightTrend.steady(WeightTrend.steadyBandKg)),
+        (-WeightTrend.steadyBandKg, WeightTrend.steady(-WeightTrend.steadyBandKg)),
+    ] as [(Double?, WeightTrend)])
+    func deltaClassification(delta: Double?, expected: WeightTrend) {
+        #expect(WeightTrend.from(delta: delta) == expected)
+    }
+
+    @Test("Local delta averages last 7 days against the 7 days before")
+    func localDeltaAverages() throws {
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-08", kg: 102.0),
+            // 8 and 9 days before the newest entry
+            makeWeight(date: "2026-06-02", kg: 102.0),
+            makeWeight(date: "2026-06-01", kg: 103.0),
+        ]
+        let delta = try #require(WeightTrend.localDelta7d(entries: entries))
+        #expect(abs(delta - -1.0) < 0.0001)
+    }
+
+    @Test("Local delta ignores entries older than 14 days")
+    func localDeltaIgnoresOldEntries() throws {
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-02", kg: 102.0),
+            // Far outside both windows — must not skew the average
+            makeWeight(date: "2026-01-01", kg: 90.0),
+        ]
+        let delta = try #require(WeightTrend.localDelta7d(entries: entries))
+        #expect(abs(delta - -1.0) < 0.0001)
+    }
+
+    @Test("Local delta is order-independent")
+    func localDeltaOrderIndependent() {
+        let sorted = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-02", kg: 102.0),
+        ]
+        #expect(WeightTrend.localDelta7d(entries: sorted) == WeightTrend.localDelta7d(entries: sorted.reversed()))
+    }
+
+    @Test("Local delta requires entries in both windows")
+    func localDeltaInsufficientData() {
+        #expect(WeightTrend.localDelta7d(entries: []) == nil)
+        // Only recent entries, nothing 7-14 days back
+        let recentOnly = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-09", kg: 102.0),
+        ]
+        #expect(WeightTrend.localDelta7d(entries: recentOnly) == nil)
+        // Unparseable dates are skipped entirely
+        #expect(WeightTrend.localDelta7d(entries: [makeWeight(date: "garbage", kg: 100)]) == nil)
+    }
 }

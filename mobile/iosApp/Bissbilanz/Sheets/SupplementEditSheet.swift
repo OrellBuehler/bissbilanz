@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SupplementEditSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(SupplementRepository.self) private var supplementRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingSupplement: Supplement?
@@ -21,9 +21,9 @@ struct SupplementEditSheet: View {
         var name: String = ""
         var dosage: String = ""
         var dosageUnit: String = "mg"
-        // Original ingredientsText preserved verbatim when it can't be parsed as
-        // "<number> <unit>" — round-trips free-form labels without loss.
-        var originalText: String? = nil
+        /// Original ingredientsText preserved verbatim when it can't be parsed as
+        /// "<number> <unit>" — round-trips free-form labels without loss.
+        var originalText: String?
     }
 
     private let dosageUnits = ["mg", "g", "\u{00B5}g", "IU", "ml", "drops"]
@@ -31,7 +31,7 @@ struct SupplementEditSheet: View {
     private let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     init(supplement: Supplement? = nil, onSaved: @escaping (Supplement) -> Void = { _ in }) {
-        self.existingSupplement = supplement
+        existingSupplement = supplement
         self.onSaved = onSaved
     }
 
@@ -52,7 +52,7 @@ struct SupplementEditSheet: View {
 
                     if scheduleType == .weekly || scheduleType == .specificDays {
                         HStack {
-                            ForEach(0..<7, id: \.self) { day in
+                            ForEach(0 ..< 7, id: \.self) { day in
                                 Button {
                                     if scheduleDays.contains(day) {
                                         scheduleDays.remove(day)
@@ -144,9 +144,9 @@ struct SupplementEditSheet: View {
         }
     }
 
-    // Parses "42 mg" out of an existing ingredientsText. Returns (dosage, unit,
-    // original) where `original` is non-nil when we couldn't fully parse the
-    // text so the caller keeps the raw string around for round-trip safety.
+    /// Parses "42 mg" out of an existing ingredientsText. Returns (dosage, unit,
+    /// original) where `original` is non-nil when we couldn't fully parse the
+    /// text so the caller keeps the raw string around for round-trip safety.
     private func parseDosage(_ text: String?) -> (Double?, String, String?) {
         guard let text = text?.trimmingCharacters(in: .whitespaces), !text.isEmpty else {
             return (nil, "mg", nil)
@@ -189,11 +189,10 @@ struct SupplementEditSheet: View {
 
         let ingredientInputs = ingredientRows.enumerated().map { idx, row -> SupplementIngredientInput in
             let dose = Double(row.dosage) ?? 0
-            let label: String
-            if dose > 0 {
-                label = "\(row.dosage) \(row.dosageUnit)"
+            let label: String = if dose > 0 {
+                "\(row.dosage) \(row.dosageUnit)"
             } else {
-                label = row.originalText ?? ""
+                row.originalText ?? ""
             }
             return SupplementIngredientInput(
                 foodId: nil,
@@ -224,7 +223,7 @@ struct SupplementEditSheet: View {
                     timeOfDay: timeOfDay,
                     ingredients: ingredientInputs
                 )
-                saved = try await api.updateSupplement(id: existing.id, update)
+                saved = try await supplementRepository.updateSupplement(id: existing.id, update)
             } else {
                 let create = SupplementCreate(
                     name: name,
@@ -234,7 +233,7 @@ struct SupplementEditSheet: View {
                     timeOfDay: timeOfDay,
                     ingredients: ingredientInputs
                 )
-                saved = try await api.createSupplement(create)
+                saved = try await supplementRepository.createSupplement(create)
             }
             onSaved(saved)
             dismiss()

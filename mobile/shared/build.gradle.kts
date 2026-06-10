@@ -75,8 +75,17 @@ android {
 
 sqldelight {
     databases {
+        // Server-derived/transient state (sync queue, sync meta, meal-type cache).
+        // Lives in bissbilanz.db, which is excluded from Android Auto Backup.
         create("BissbilanzDatabase") {
             packageName.set("com.bissbilanz.cache")
+            srcDirs.setFrom("src/commonMain/sqldelight")
+        }
+        // The user's own data. Lives in userdata.db, which IS backed up by
+        // Android Auto Backup, so it must never share a file with the sync queue.
+        create("UserDataDatabase") {
+            packageName.set("com.bissbilanz.userdata")
+            srcDirs.setFrom("src/commonMain/sqldelight-userdata")
         }
     }
 }

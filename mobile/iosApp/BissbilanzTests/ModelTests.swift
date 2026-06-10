@@ -1,7 +1,6 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("Food Model Tests")
 struct FoodModelTests {
@@ -355,9 +354,54 @@ struct FoodNutrientGroupsTests {
 struct RecipeModelTests {
     @Test("Recipe equality based on id")
     func recipeEquality() {
-        let r1 = Recipe(id: "r1", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: 100, protein: 5, carbs: 10, fat: 3, fiber: 2, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r2 = Recipe(id: "r1", userId: "u1", name: "B", totalServings: 2, isFavorite: true, imageUrl: nil, calories: 200, protein: 10, carbs: 20, fat: 6, fiber: 4, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r3 = Recipe(id: "r2", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: 100, protein: 5, carbs: 10, fat: 3, fiber: 2, createdAt: nil, updatedAt: nil, ingredients: nil)
+        let r1 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: 100,
+            protein: 5,
+            carbs: 10,
+            fat: 3,
+            fiber: 2,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r2 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "B",
+            totalServings: 2,
+            isFavorite: true,
+            imageUrl: nil,
+            calories: 200,
+            protein: 10,
+            carbs: 20,
+            fat: 6,
+            fiber: 4,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r3 = Recipe(
+            id: "r2",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: 100,
+            protein: 5,
+            carbs: 10,
+            fat: 3,
+            fiber: 2,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
 
         #expect(r1 == r2)
         #expect(r1 != r3)
@@ -365,8 +409,38 @@ struct RecipeModelTests {
 
     @Test("Recipe hashable uses id")
     func recipeHashable() {
-        let r1 = Recipe(id: "r1", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r2 = Recipe(id: "r1", userId: "u1", name: "B", totalServings: 2, isFavorite: true, imageUrl: nil, calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil, createdAt: nil, updatedAt: nil, ingredients: nil)
+        let r1 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: nil,
+            protein: nil,
+            carbs: nil,
+            fat: nil,
+            fiber: nil,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r2 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "B",
+            totalServings: 2,
+            isFavorite: true,
+            imageUrl: nil,
+            calories: nil,
+            protein: nil,
+            carbs: nil,
+            fat: nil,
+            fiber: nil,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
 
         var set = Set<Recipe>()
         set.insert(r1)
@@ -475,7 +549,7 @@ struct WeightModelTests {
         let create = WeightCreate(weightKg: 74.0, entryDate: "2026-03-13")
 
         let data = try JSONEncoder().encode(create)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["weightKg"] as? Double == 74.0)
         #expect(json["notes"] == nil)

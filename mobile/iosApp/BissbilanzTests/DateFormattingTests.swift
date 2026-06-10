@@ -1,25 +1,24 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("DateFormatting Tests")
 struct DateFormattingTests {
     @Test("ISO string format is yyyy-MM-dd")
-    func isoStringFormat() {
+    func isoStringFormat() throws {
         let components = DateComponents(year: 2026, month: 3, day: 12)
-        let date = Calendar.current.date(from: components)!
+        let date = try #require(Calendar.current.date(from: components))
 
         let result = DateFormatting.isoString(from: date)
         #expect(result == "2026-03-12")
     }
 
     @Test("Parse ISO string back to date")
-    func parseISOString() {
+    func parseISOString() throws {
         let date = DateFormatting.date(from: "2026-03-12")
         #expect(date != nil)
 
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: date!)
+        let components = try Calendar.current.dateComponents([.year, .month, .day], from: #require(date))
         #expect(components.year == 2026)
         #expect(components.month == 3)
         #expect(components.day == 12)
@@ -33,20 +32,20 @@ struct DateFormattingTests {
     }
 
     @Test("Today returns current date in ISO format")
-    func todayFormat() {
+    func todayFormat() throws {
         let today = DateFormatting.today
         #expect(today.count == 10)
         #expect(today.contains("-"))
 
         let parsed = DateFormatting.date(from: today)
         #expect(parsed != nil)
-        #expect(Calendar.current.isDateInToday(parsed!))
+        #expect(try Calendar.current.isDateInToday(#require(parsed)))
     }
 
     @Test("Round-trip ISO formatting")
-    func roundTrip() {
+    func roundTrip() throws {
         let original = "2026-01-15"
-        let date = DateFormatting.date(from: original)!
+        let date = try #require(DateFormatting.date(from: original))
         let result = DateFormatting.isoString(from: date)
         #expect(result == original)
     }
@@ -55,16 +54,16 @@ struct DateFormattingTests {
 @Suite("Date Extension Tests")
 struct DateExtensionTests {
     @Test("isoDateString returns formatted string")
-    func isoDateString() {
+    func isoDateString() throws {
         let components = DateComponents(year: 2026, month: 6, day: 1)
-        let date = Calendar.current.date(from: components)!
+        let date = try #require(Calendar.current.date(from: components))
         #expect(date.isoDateString == "2026-06-01")
     }
 
     @Test("Adding days works correctly")
-    func addingDays() {
+    func addingDays() throws {
         let components = DateComponents(year: 2026, month: 3, day: 10)
-        let date = Calendar.current.date(from: components)!
+        let date = try #require(Calendar.current.date(from: components))
 
         let tomorrow = date.adding(days: 1)
         #expect(tomorrow.isoDateString == "2026-03-11")
@@ -77,9 +76,9 @@ struct DateExtensionTests {
     }
 
     @Test("Adding months works correctly")
-    func addingMonths() {
+    func addingMonths() throws {
         let components = DateComponents(year: 2026, month: 1, day: 15)
-        let date = Calendar.current.date(from: components)!
+        let date = try #require(Calendar.current.date(from: components))
 
         let nextMonth = date.adding(months: 1)
         let nextComponents = Calendar.current.dateComponents([.year, .month], from: nextMonth)
@@ -99,9 +98,9 @@ struct DateExtensionTests {
     }
 
     @Test("startOfMonth returns first day")
-    func startOfMonth() {
+    func startOfMonth() throws {
         let components = DateComponents(year: 2026, month: 3, day: 15)
-        let date = Calendar.current.date(from: components)!
+        let date = try #require(Calendar.current.date(from: components))
         let start = date.startOfMonth
 
         let startComponents = Calendar.current.dateComponents([.year, .month, .day], from: start)
@@ -111,23 +110,29 @@ struct DateExtensionTests {
     }
 
     @Test("daysInMonth returns correct count")
-    func daysInMonth() {
-        let feb2026 = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1))!
+    func daysInMonth() throws {
+        let feb2026 = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)))
         #expect(feb2026.daysInMonth == 28)
 
-        let mar2026 = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1))!
+        let mar2026 = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)))
         #expect(mar2026.daysInMonth == 31)
 
-        let apr2026 = Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 1))!
+        let apr2026 = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 1)))
         #expect(apr2026.daysInMonth == 30)
     }
 }
 
-@Suite("Localization Tests")
+/// `L10n.currentLocale` is process-global (UserDefaults-backed), so every
+/// test that touches it lives in this single `.serialized` suite — spread
+/// across parallel suites they race and read each other's locale.
+@Suite("Localization Tests", .serialized)
 struct LocalizationTests {
     @Test("Meal names map correctly")
     func mealNames() {
+        let savedLocale = L10n.currentLocale
         L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
         #expect(L10n.mealName("breakfast") == "Breakfast")
         #expect(L10n.mealName("lunch") == "Lunch")
         #expect(L10n.mealName("dinner") == "Dinner")
@@ -157,6 +162,76 @@ struct LocalizationTests {
         #expect(L10n.protein == "Protein")
         #expect(L10n.settings == "Settings")
     }
+
+    @Test("Meal name handles case-insensitive input")
+    func mealNameCaseInsensitive() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        #expect(L10n.mealName("BREAKFAST") == "Breakfast")
+        #expect(L10n.mealName("Lunch") == "Lunch")
+        #expect(L10n.mealName("DINNER") == "Dinner")
+    }
+
+    @Test("Snack alias maps to Snacks")
+    func snackAlias() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        #expect(L10n.mealName("snack") == "Snacks")
+        #expect(L10n.mealName("snacks") == "Snacks")
+    }
+
+    @Test("Unknown meal type returns capitalized")
+    func unknownMealCapitalized() {
+        // `.capitalized` uppercases after hyphens too ("Pre-Workout").
+        #expect(L10n.mealName("pre-workout") == "Pre-Workout")
+        #expect(L10n.mealName("brunch") == "Brunch")
+    }
+
+    @Test("NOVA group descriptions")
+    func novaGroupDescriptions() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        #expect(L10n.novaGroupDescription(1) == "Unprocessed")
+        #expect(L10n.novaGroupDescription(2) == "Processed ingredients")
+        #expect(L10n.novaGroupDescription(3) == "Processed")
+        #expect(L10n.novaGroupDescription(4) == "Ultra-processed")
+        #expect(L10n.novaGroupDescription(0) == "Unknown")
+        #expect(L10n.novaGroupDescription(5) == "Unknown")
+    }
+
+    @Test("Weekday headers differ by locale")
+    func weekdayHeaders() {
+        let savedLocale = L10n.currentLocale
+        defer { L10n.currentLocale = savedLocale }
+
+        L10n.currentLocale = .en
+        let enHeaders = L10n.weekdayHeaders
+        #expect(enHeaders.count == 7)
+        #expect(enHeaders[0] == "M")
+        #expect(enHeaders[2] == "W") // Wednesday
+
+        L10n.currentLocale = .de
+        let deHeaders = L10n.weekdayHeaders
+        #expect(deHeaders[2] == "M") // Mittwoch
+    }
+
+    @Test("Entries copied interpolation")
+    func entriesCopiedMessage() {
+        let savedLocale = L10n.currentLocale
+        defer { L10n.currentLocale = savedLocale }
+
+        L10n.currentLocale = .en
+        #expect(L10n.entriesCopied(3) == "3 entries copied")
+
+        L10n.currentLocale = .de
+        #expect(L10n.entriesCopied(3) == "3 Einträge kopiert")
+    }
 }
 
 @Suite("JSON Encoding Tests")
@@ -176,7 +251,7 @@ struct JSONEncodingTests {
         )
 
         let data = try JSONEncoder().encode(food)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["name"] as? String == "Test")
         #expect(json["servingSize"] as? Double == 100)
@@ -195,7 +270,7 @@ struct JSONEncodingTests {
         )
 
         let data = try JSONEncoder().encode(entry)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["foodId"] as? String == "food-1")
         #expect(json["mealType"] as? String == "lunch")
@@ -247,7 +322,7 @@ struct JSONEncodingTests {
         )
 
         let data = try JSONEncoder().encode(weight)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["weightKg"] as? Double == 75.5)
         #expect(json["entryDate"] as? String == "2026-03-12")

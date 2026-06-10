@@ -1,8 +1,33 @@
 import AuthenticationServices
 import SwiftUI
 
+/// Builds, configures and starts the OIDC web sign-in session. Shared between
+/// the login screen and the Settings "Sign in to sync" flow — the caller must
+/// retain the returned session until the callback fires.
+@MainActor
+enum SignInFlow {
+    static func start(authManager: AuthManager) -> ASWebAuthenticationSession? {
+        guard let url = authManager.buildLoginURL() else { return nil }
+
+        let session = ASWebAuthenticationSession(
+            url: url,
+            callbackURLScheme: "bissbilanz"
+        ) { callbackURL, error in
+            guard let callbackURL, error == nil else { return }
+            Task {
+                await authManager.handleCallback(url: callbackURL)
+            }
+        }
+        session.prefersEphemeralWebBrowserSession = false
+        session.presentationContextProvider = ASWebAuthenticationPresentationContextProvider.shared
+        session.start()
+        return session
+    }
+}
+
 struct LoginView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(AppModeManager.self) private var appModeManager
     @State private var authSession: ASWebAuthenticationSession?
 
     var body: some View {
@@ -24,36 +49,36 @@ struct LoginView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Button {
-                signIn()
-            } label: {
-                Label(L10n.signIn, systemImage: "person.crop.circle")
-                    .frame(maxWidth: .infinity)
+            VStack(spacing: 16) {
+                Button {
+                    authSession = SignInFlow.start(authManager: authManager)
+                } label: {
+                    Label(L10n.signIn, systemImage: "person.crop.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                VStack(spacing: 8) {
+                    Button {
+                        appModeManager.setMode(.local)
+                    } label: {
+                        Text(L10n.continueWithoutAccount)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    Text(L10n.localModeExplainer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
 
             Spacer()
         }
         .padding(32)
-    }
-
-    private func signIn() {
-        guard let url = authManager.buildLoginURL() else { return }
-
-        let session = ASWebAuthenticationSession(
-            url: url,
-            callbackURLScheme: "bissbilanz"
-        ) { callbackURL, error in
-            guard let callbackURL, error == nil else { return }
-            Task {
-                await authManager.handleCallback(url: callbackURL)
-            }
-        }
-        session.prefersEphemeralWebBrowserSession = false
-        session.presentationContextProvider = ASWebAuthenticationPresentationContextProvider.shared
-        authSession = session
-        session.start()
     }
 }
 

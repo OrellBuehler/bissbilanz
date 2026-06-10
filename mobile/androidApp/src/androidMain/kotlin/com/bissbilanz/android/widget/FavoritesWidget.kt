@@ -40,7 +40,7 @@ import androidx.glance.text.TextStyle
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
-import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -71,10 +71,10 @@ class FavoritesWidget : GlanceAppWidget() {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
-        val db = koin.get<BissbilanzDatabase>()
+        val db = koin.get<UserDataDatabase>()
         val json = koin.get<Json>()
 
-        val rows = db.bissbilanzDatabaseQueries.selectFavorites().executeAsList()
+        val rows = db.userDataDatabaseQueries.selectFavorites().executeAsList()
         val favorites = rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
 
         val imageDir = File(context.cacheDir, "widget_food_images")

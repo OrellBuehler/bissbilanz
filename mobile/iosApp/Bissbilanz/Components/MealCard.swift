@@ -11,11 +11,11 @@ struct MealCard: View {
 
     private var mealColor: Color {
         switch mealType.lowercased() {
-        case "breakfast": return .orange
-        case "lunch": return .blue
-        case "dinner": return .purple
-        case "snacks", "snack": return .green
-        default: return .gray
+        case "breakfast": .orange
+        case "lunch": .blue
+        case "dinner": .purple
+        case "snacks", "snack": .green
+        default: .gray
         }
     }
 
@@ -57,11 +57,11 @@ struct MealCard: View {
 
     private var mealIcon: String {
         switch mealType.lowercased() {
-        case "breakfast": return "sunrise"
-        case "lunch": return "sun.max"
-        case "dinner": return "moon.stars"
-        case "snacks", "snack": return "carrot"
-        default: return "fork.knife"
+        case "breakfast": "sunrise"
+        case "lunch": "sun.max"
+        case "dinner": "moon.stars"
+        case "snacks", "snack": "carrot"
+        default: "fork.knife"
         }
     }
 }

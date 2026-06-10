@@ -57,7 +57,9 @@ struct TopFoodEntry: Codable, Identifiable {
     let fat: Double
     let fiber: Double
 
-    var id: String { foodId ?? recipeId ?? foodName }
+    var id: String {
+        foodId ?? recipeId ?? foodName
+    }
 }
 
 struct TopFoodsResponse: Codable {
@@ -106,11 +108,13 @@ struct SupplementHistoryItem: Codable, Identifiable {
     let date: String
     let takenAt: String
 
-    // Synthetic id so SwiftUI can diff: one entry per (supplement, day).
-    var id: String { "\(supplementId)-\(date)" }
+    /// Synthetic id so SwiftUI can diff: one entry per (supplement, day).
+    var id: String {
+        "\(supplementId)-\(date)"
+    }
 }
 
-// Alias retained for existing call sites that read `.history` as a list of "entries".
+/// Alias retained for existing call sites that read `.history` as a list of "entries".
 typealias SupplementHistoryEntry = SupplementHistoryItem
 
 struct MealTypeCreate: Codable {

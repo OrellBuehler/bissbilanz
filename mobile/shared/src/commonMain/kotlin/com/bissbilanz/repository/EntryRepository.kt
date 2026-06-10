@@ -6,9 +6,11 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
@@ -23,30 +25,34 @@ import kotlin.uuid.Uuid
 
 class EntryRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     private var currentDate: String? = null
     var onEntryChanged: (suspend () -> Unit)? = null
 
     fun entriesByDate(date: String): Flow<List<Entry>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectEntriesByDate(date)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) } }
 
     suspend fun entriesByDateOnce(date: String): List<Entry> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectEntriesByDate(date)
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
 
     suspend fun refresh(date: String) {
         currentDate = date
+        // In Local mode the cache is the primary store; there is nothing to refresh.
+        if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
         cacheEntries(date, entries)
     }
@@ -59,7 +65,7 @@ class EntryRepository(
         val tempEntry = entryCreateToEntry(entry, food, recipe)
         cacheEntry(tempEntry)
         syncNutritionForCurrentDate()
-        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry)))
+        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
         onEntryChanged?.invoke()
         return tempEntry
     }
@@ -69,7 +75,7 @@ class EntryRepository(
         entry: EntryUpdate,
     ): Entry {
         val cached =
-            db.bissbilanzDatabaseQueries
+            db.userDataDatabaseQueries
                 .selectEntriesByDate(currentDate ?: entry.date ?: "")
                 .executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }.find { it.id == id }
@@ -88,7 +94,9 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        if (!id.startsWith("temp_")) {
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, entry)
+        } else {
             syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
         }
         onEntryChanged?.invoke()
@@ -96,22 +104,85 @@ class EntryRepository(
     }
 
     suspend fun deleteEntry(id: String) {
-        db.bissbilanzDatabaseQueries.deleteEntry(id)
+        db.userDataDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        if (!id.startsWith("temp_")) {
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("entries", id)
+        } else {
             syncQueue.enqueue(SyncOperation.DeleteEntry(id))
         }
         onEntryChanged?.invoke()
     }
 
-    suspend fun getDayProperties(date: String) = api.getDayProperties(date)
+    /**
+     * Rewrites the still-queued Create operation for a temp-id entry so the eventual
+     * upload carries the edited values. If the create has already been drained (no
+     * queued op found), the update is skipped, matching the previous behavior.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: EntryUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("entries", tempId)) {
+            val create = req.operation as? SyncOperation.CreateEntry ?: continue
+            val body = json.decodeOrNull<EntryCreate>(create.body) ?: continue
+            val merged = applyUpdate(body, update)
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
+    }
+
+    /**
+     * Cache-first day properties. In Local mode the cache is authoritative; in Synced
+     * mode the API result is cached and the cache serves as offline fallback.
+     */
+    suspend fun getDayProperties(date: String): DayProperties? {
+        if (appModeManager.isLocal) return cachedDayProperties(date)
+        return try {
+            val props = api.getDayProperties(date)
+            if (props != null) {
+                cacheDayProperties(props)
+            } else {
+                db.userDataDatabaseQueries.deleteDayProperties(date)
+            }
+            props
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            cachedDayProperties(date)
+        }
+    }
 
     suspend fun setDayProperties(
         date: String,
         isFastingDay: Boolean,
-    ) = api.setDayProperties(date, isFastingDay)
+    ): DayProperties {
+        val props = DayProperties(date = date, isFastingDay = isFastingDay)
+        cacheDayProperties(props)
+        if (!appModeManager.isLocal) {
+            syncQueue.enqueue(SyncOperation.SetDayProperties(date, isFastingDay))
+        }
+        return props
+    }
 
-    suspend fun deleteDayProperties(date: String) = api.deleteDayProperties(date)
+    suspend fun deleteDayProperties(date: String) {
+        db.userDataDatabaseQueries.deleteDayProperties(date)
+        if (!appModeManager.isLocal) {
+            syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
+        }
+    }
+
+    private fun cachedDayProperties(date: String): DayProperties? =
+        db.userDataDatabaseQueries
+            .selectDayProperties(date)
+            .executeAsOneOrNull()
+            ?.let { DayProperties(date = it.date, isFastingDay = it.isFastingDay != 0L) }
+
+    private fun cacheDayProperties(props: DayProperties) {
+        db.userDataDatabaseQueries.upsertDayProperties(
+            date = props.date,
+            isFastingDay = if (props.isFastingDay) 1L else 0L,
+        )
+    }
 
     suspend fun copyEntries(
         fromDate: String,
@@ -145,7 +216,7 @@ class EntryRepository(
     private suspend fun syncNutritionForCurrentDate() {
         val date = currentDate ?: return
         try {
-            val cached = db.bissbilanzDatabaseQueries.selectEntriesByDate(date).executeAsList()
+            val cached = db.userDataDatabaseQueries.selectEntriesByDate(date).executeAsList()
             val entries = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
             val totals = entries.totalMacros()
             healthSync.syncNutrition(date, totals)
@@ -162,7 +233,7 @@ class EntryRepository(
         val carbs = entry.food?.carbs ?: entry.carbs ?: entry.quickCarbs ?: 0.0
         val fat = entry.food?.fat ?: entry.fat ?: entry.quickFat ?: 0.0
         val fiber = entry.food?.fiber ?: entry.fiber ?: entry.quickFiber ?: 0.0
-        db.bissbilanzDatabaseQueries.insertEntry(
+        db.userDataDatabaseQueries.insertEntry(
             id = entry.id,
             date = entry.date,
             mealType = entry.mealType,
@@ -183,14 +254,15 @@ class EntryRepository(
         date: String,
         entries: List<Entry>,
     ) {
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.deleteEntriesByDate(date)
+        db.userDataDatabaseQueries.transaction {
+            db.userDataDatabaseQueries.deleteEntriesByDate(date)
             entries.forEach { entry -> cacheEntry(entry.copy(date = date)) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "entries:$date",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "entries:$date",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -218,6 +290,26 @@ class EntryRepository(
             createdAt = Clock.System.now().toString(),
             food = food,
             recipe = recipe,
+        )
+
+    private fun applyUpdate(
+        existing: EntryCreate,
+        update: EntryUpdate,
+    ): EntryCreate =
+        existing.copy(
+            foodId = update.foodId ?: existing.foodId,
+            recipeId = update.recipeId ?: existing.recipeId,
+            mealType = update.mealType ?: existing.mealType,
+            servings = update.servings ?: existing.servings,
+            date = update.date ?: existing.date,
+            notes = update.notes ?: existing.notes,
+            quickName = update.quickName ?: existing.quickName,
+            quickCalories = update.quickCalories ?: existing.quickCalories,
+            quickProtein = update.quickProtein ?: existing.quickProtein,
+            quickCarbs = update.quickCarbs ?: existing.quickCarbs,
+            quickFat = update.quickFat ?: existing.quickFat,
+            quickFiber = update.quickFiber ?: existing.quickFiber,
+            eatenAt = update.eatenAt ?: existing.eatenAt,
         )
 
     private fun applyUpdate(

@@ -13,9 +13,10 @@ sealed class SyncOperation {
     @SerialName("create_food")
     data class CreateFood(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "foods"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create food"
     }
 
@@ -44,9 +45,10 @@ sealed class SyncOperation {
     @SerialName("create_entry")
     data class CreateEntry(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "entries"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create entry"
     }
 
@@ -75,9 +77,10 @@ sealed class SyncOperation {
     @SerialName("create_recipe")
     data class CreateRecipe(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "recipes"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create recipe"
     }
 
@@ -116,9 +119,10 @@ sealed class SyncOperation {
     @SerialName("create_weight")
     data class CreateWeight(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "weight"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create weight entry"
     }
 
@@ -147,9 +151,10 @@ sealed class SyncOperation {
     @SerialName("create_supplement")
     data class CreateSupplement(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "supplements"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create supplement"
     }
 
@@ -197,6 +202,27 @@ sealed class SyncOperation {
     }
 
     @Serializable
+    @SerialName("set_day_properties")
+    data class SetDayProperties(
+        val date: String,
+        val isFastingDay: Boolean,
+    ) : SyncOperation() {
+        override val affectedTable = "day_properties"
+        override val affectedId get() = date
+        override val description get() = "set day properties $date"
+    }
+
+    @Serializable
+    @SerialName("delete_day_properties")
+    data class DeleteDayProperties(
+        val date: String,
+    ) : SyncOperation() {
+        override val affectedTable = "day_properties"
+        override val affectedId get() = date
+        override val description get() = "delete day properties $date"
+    }
+
+    @Serializable
     @SerialName("update_preferences")
     data class UpdatePreferences(
         val body: String,
@@ -210,9 +236,10 @@ sealed class SyncOperation {
     @SerialName("create_sleep")
     data class CreateSleep(
         val body: String,
+        val localId: String? = null,
     ) : SyncOperation() {
         override val affectedTable = "sleep"
-        override val affectedId: String? = null
+        override val affectedId get() = localId
         override val description = "create sleep entry"
     }
 

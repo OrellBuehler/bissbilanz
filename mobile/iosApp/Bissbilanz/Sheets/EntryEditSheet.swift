@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EntryEditSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     let entry: Entry
@@ -30,7 +30,7 @@ struct EntryEditSheet: View {
                 }
 
                 Section(L10n.servings) {
-                    Stepper(value: $servings, in: 0.25...50, step: 0.25) {
+                    Stepper(value: $servings, in: 0.25 ... 50, step: 0.25) {
                         Text("\(servings, specifier: "%.2g")x")
                             .fontWeight(.medium)
                     }
@@ -59,7 +59,10 @@ struct EntryEditSheet: View {
                     .fontWeight(.semibold)
                 }
             }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -71,7 +74,7 @@ struct EntryEditSheet: View {
         isSaving = true
         let update = EntryUpdate(mealType: mealType, servings: servings)
         do {
-            let updated = try await api.updateEntry(id: entry.id, update)
+            let updated = try await entryRepository.updateEntry(id: entry.id, update)
             onSaved(updated)
             dismiss()
         } catch {

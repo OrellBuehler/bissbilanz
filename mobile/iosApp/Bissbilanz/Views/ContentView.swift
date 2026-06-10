@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 enum NavigableTab: String, CaseIterable, Identifiable {
@@ -7,25 +8,27 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     case weight
     case supplements
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var label: String {
         switch self {
-        case .foods: return L10n.foods
-        case .favorites: return L10n.favorites
-        case .insights: return L10n.insights
-        case .weight: return L10n.weight
-        case .supplements: return L10n.supplements
+        case .foods: L10n.foods
+        case .favorites: L10n.favorites
+        case .insights: L10n.insights
+        case .weight: L10n.weight
+        case .supplements: L10n.supplements
         }
     }
 
     var icon: String {
         switch self {
-        case .foods: return "fork.knife"
-        case .favorites: return "star"
-        case .insights: return "chart.bar"
-        case .weight: return "scalemass"
-        case .supplements: return "pills"
+        case .foods: "fork.knife"
+        case .favorites: "star"
+        case .insights: "chart.bar"
+        case .weight: "scalemass"
+        case .supplements: "pills"
         }
     }
 
@@ -42,10 +45,16 @@ enum NavigableTab: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
+    @Environment(AppModeManager.self) private var appModeManager
+    @Environment(AuthManager.self) private var authManager
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+    @State private var showSessionExpiredPrompt = false
+    @State private var reauthSession: ASWebAuthenticationSession?
 
     private var selectedTabs: [NavigableTab] {
-        selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
+        let tabs = selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
+        // Insights are server-computed stats — the tab is hidden in Local mode.
+        return appModeManager.isLocal ? tabs.filter { $0 != .insights } : tabs
     }
 
     var body: some View {
@@ -66,6 +75,21 @@ struct ContentView: View {
                 .tabItem {
                     Label(L10n.settings, systemImage: "gear")
                 }
+        }
+        // Only users who signed in initially are prompted — Local mode is
+        // anonymous by choice and never sees this.
+        .onChange(of: authManager.authState, initial: true) { _, state in
+            if state == .expired, !appModeManager.isLocal {
+                showSessionExpiredPrompt = true
+            }
+        }
+        .alert(L10n.sessionExpiredTitle, isPresented: $showSessionExpiredPrompt) {
+            Button(L10n.signIn) {
+                reauthSession = SignInFlow.start(authManager: authManager)
+            }
+            Button(L10n.notNow, role: .cancel) {}
+        } message: {
+            Text(L10n.sessionExpiredMessage)
         }
     }
 }

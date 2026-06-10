@@ -8,6 +8,9 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.cache.LocalDataWiper
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealType
 import com.bissbilanz.model.MealTypeCreate
@@ -30,7 +33,11 @@ class SettingsViewModel(
     private val healthSync: HealthSyncService,
     private val refreshManager: RefreshManager,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
+    private val localDataWiper: LocalDataWiper,
 ) : ViewModel() {
+    val mode: StateFlow<AppMode?> = appModeManager.mode
+
     val goals: StateFlow<Goals?> =
         goalsRepo
             .goals()
@@ -61,12 +68,15 @@ class SettingsViewModel(
         viewModelScope.launch {
             goalsRepo.refresh()
             prefsRepo.refresh()
-            try {
-                val response = api.getMealTypes()
-                _customMealTypes.value = response.mealTypes
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
+            // Custom meal types are server-only; the management UI is hidden in Local mode.
+            if (!appModeManager.isLocal) {
+                try {
+                    val response = api.getMealTypes()
+                    _customMealTypes.value = response.mealTypes
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                }
             }
             _healthAvailable.value = healthSync.isAvailable()
             if (_healthAvailable.value) {
@@ -154,7 +164,20 @@ class SettingsViewModel(
     }
 
     fun logout() {
-        authManager.logout()
+        viewModelScope.launch {
+            // Deliberate logout: wipe the local store, sync queue and sync markers
+            // BEFORE flipping the auth state. Leftover rows would leak into the next
+            // account that signs in on this device (or be re-uploaded as "local data").
+            try {
+                localDataWiper.wipeAll()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+            authManager.logout()
+            // Reset the mode so the next start shows the login screen with the mode choice again.
+            appModeManager.clear()
+        }
     }
 
     fun clearSnackbar() {

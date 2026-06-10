@@ -26,11 +26,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios
-        FRAMEWORK_SEARCH_PATHS:
-          - '$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)'
-        OTHER_LDFLAGS:
-          - '-framework'
-          - 'shared'
     info:
       path: Bissbilanz/Info.plist
       properties:
@@ -43,8 +38,6 @@ targets:
     entitlements:
       path: Bissbilanz/Bissbilanz.entitlements
     dependencies:
-      - framework: '../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/shared.framework'
-        embed: false
       - sdk: HealthKit.framework
 
   BissbilanzTests:

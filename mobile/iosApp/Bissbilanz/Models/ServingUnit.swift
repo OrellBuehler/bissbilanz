@@ -14,16 +14,16 @@ enum ServingUnit: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .g: return "g"
-        case .kg: return "kg"
-        case .ml: return "ml"
-        case .l: return "L"
-        case .oz: return "oz"
-        case .lb: return "lb"
-        case .flOz: return "fl oz"
-        case .cup: return "cup"
-        case .tbsp: return "tbsp"
-        case .tsp: return "tsp"
+        case .g: "g"
+        case .kg: "kg"
+        case .ml: "ml"
+        case .l: "L"
+        case .oz: "oz"
+        case .lb: "lb"
+        case .flOz: "fl oz"
+        case .cup: "cup"
+        case .tbsp: "tbsp"
+        case .tsp: "tsp"
         }
     }
 }

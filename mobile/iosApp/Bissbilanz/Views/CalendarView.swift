@@ -2,19 +2,36 @@ import SwiftUI
 
 struct CalendarView: View {
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appModeManager
+    @Environment(EntryRepository.self) private var entryRepository
+    @Environment(GoalsRepository.self) private var goalsRepository
 
     @State private var currentMonth = Date()
     @State private var calendarDays: [CalendarDay] = []
     @State private var isLoading = true
 
-    private var weekdayHeaders: [String] { L10n.weekdayHeaders }
+    private var weekdayHeaders: [String] {
+        L10n.weekdayHeaders
+    }
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
-    private var year: Int { Calendar.current.component(.year, from: currentMonth) }
-    private var month: Int { Calendar.current.component(.month, from: currentMonth) }
+    private var year: Int {
+        Calendar.current.component(.year, from: currentMonth)
+    }
 
-    private var daysLogged: Int { calendarDays.filter { $0.calories > 0 }.count }
-    private var daysOnTarget: Int { calendarDays.filter { $0.metGoal }.count }
+    private var month: Int {
+        Calendar.current.component(.month, from: currentMonth)
+    }
+
+    private var daysLogged: Int {
+        calendarDays.filter { $0.calories > 0 }.count
+    }
+
+    private var daysOnTarget: Int {
+        calendarDays.filter(\.metGoal).count
+    }
+
     private var avgCalories: Double {
         let logged = calendarDays.filter { $0.calories > 0 }
         guard !logged.isEmpty else { return 0 }
@@ -83,7 +100,7 @@ struct CalendarView: View {
                 let offset = currentMonth.weekdayOffset
                 let daysInMonth = currentMonth.daysInMonth
 
-                ForEach(0..<(offset + daysInMonth), id: \.self) { index in
+                ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
                     if index < offset {
                         Color.clear.frame(height: 52)
                     } else {
@@ -178,10 +195,20 @@ struct CalendarView: View {
 
     private func loadData() async {
         isLoading = true
-        do {
-            calendarDays = try await api.getCalendarStats(month: month, year: year)
-        } catch {
-            calendarDays = []
+        if appModeManager.isLocal {
+            // In Local mode the local store holds every entry, so the month
+            // is aggregated locally instead of asking the server.
+            calendarDays = entryRepository.calendarDays(
+                year: year,
+                month: month,
+                calorieGoal: goalsRepository.goals()?.calorieGoal
+            )
+        } else {
+            do {
+                calendarDays = try await api.getCalendarStats(month: month, year: year)
+            } catch {
+                calendarDays = []
+            }
         }
         isLoading = false
     }

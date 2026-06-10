@@ -8,9 +8,9 @@ import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Food
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -27,7 +27,7 @@ class FavoritesWidgetWorker(
         val errorReporter = koin.get<ErrorReporter>()
         val foodRepo = koin.get<FoodRepository>()
         val prefsRepo = koin.get<PreferencesRepository>()
-        val db = koin.get<BissbilanzDatabase>()
+        val db = koin.get<UserDataDatabase>()
         val json = koin.get<Json>()
         val api = koin.get<BissbilanzApi>()
 
@@ -36,7 +36,7 @@ class FavoritesWidgetWorker(
             prefsRepo.refresh()
 
             val favorites =
-                db.bissbilanzDatabaseQueries
+                db.userDataDatabaseQueries
                     .selectFavorites()
                     .executeAsList()
                     .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }

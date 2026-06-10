@@ -1,7 +1,6 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("APIError Tests")
 struct APIErrorTests {
@@ -67,12 +66,12 @@ struct APIErrorTests {
 @Suite("API Request Building Tests")
 struct APIRequestBuildingTests {
     @Test("GET request with query params builds correct URL")
-    func getWithQueryParams() {
-        var components = URLComponents(string: "https://example.com/api/foods")!
+    func getWithQueryParams() throws {
+        var components = try #require(URLComponents(string: "https://example.com/api/foods"))
         components.queryItems = ["search": "apple", "limit": "10"].map {
             URLQueryItem(name: $0.key, value: $0.value)
         }
-        let url = components.url!
+        let url = try #require(components.url)
 
         #expect(url.absoluteString.contains("search=apple"))
         #expect(url.absoluteString.contains("limit=10"))
@@ -89,7 +88,7 @@ struct APIRequestBuildingTests {
         )
 
         let data = try JSONEncoder().encode(entry)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["foodId"] as? String == "food-1")
         #expect(json["mealType"] as? String == "lunch")
@@ -113,13 +112,13 @@ struct APIRequestBuildingTests {
         )
 
         let data = try JSONEncoder().encode(recipe)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["name"] as? String == "Oatmeal Bowl")
         #expect(json["totalServings"] as? Double == 2)
         #expect(json["isFavorite"] as? Bool == true)
 
-        let ingredients = json["ingredients"] as! [[String: Any]]
+        let ingredients = try #require(json["ingredients"] as? [[String: Any]])
         #expect(ingredients.count == 2)
         #expect(ingredients[0]["foodId"] as? String == "f1")
         #expect(ingredients[0]["quantity"] as? Double == 80)
@@ -148,19 +147,19 @@ struct APIRequestBuildingTests {
                     ),
                     servings: 1,
                     sortOrder: 0
-                )
+                ),
             ]
         )
 
         let data = try JSONEncoder().encode(supplement)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["name"] as? String == "Vitamin D")
         #expect(json["scheduleType"] as? String == "daily")
         #expect(json["timeOfDay"] as? String == "morning")
-        let ingredients = json["ingredients"] as! [[String: Any]]
+        let ingredients = try #require(json["ingredients"] as? [[String: Any]])
         #expect(ingredients.count == 1)
-        let food = ingredients[0]["food"] as! [String: Any]
+        let food = try #require(ingredients[0]["food"] as? [String: Any])
         #expect(food["name"] as? String == "Vitamin D3")
         #expect(food["ingredientsText"] as? String == "4000 IU")
     }
@@ -177,12 +176,12 @@ struct APIRequestBuildingTests {
                     food: nil,
                     servings: 1,
                     sortOrder: 0
-                )
+                ),
             ]
         )
 
         let data = try JSONEncoder().encode(supplement)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["scheduleType"] as? String == "specific_days")
         #expect(json["scheduleDays"] as? [Int] == [1, 3, 5])
@@ -193,7 +192,7 @@ struct APIRequestBuildingTests {
         let update = WeightUpdate(weightKg: 74.2)
 
         let data = try JSONEncoder().encode(update)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["weightKg"] as? Double == 74.2)
         #expect(json["entryDate"] == nil)
@@ -205,7 +204,7 @@ struct APIRequestBuildingTests {
         let update = EntryUpdate(mealType: "dinner", servings: 2.0)
 
         let data = try JSONEncoder().encode(update)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["mealType"] as? String == "dinner")
         #expect(json["servings"] as? Double == 2.0)
@@ -221,7 +220,7 @@ struct APIRequestBuildingTests {
         )
 
         let data = try JSONEncoder().encode(update)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["showWeightWidget"] as? Bool == false)
         #expect(json["visibleNutrients"] as? [String] == ["sugar", "sodium", "vitaminC"])
@@ -237,7 +236,7 @@ struct APIRequestBuildingTests {
         )
 
         let data = try JSONEncoder().encode(request)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["startDate"] as? String == "2026-01-01")
         #expect(json["endDate"] as? String == "2026-03-01")
@@ -249,7 +248,7 @@ struct APIRequestBuildingTests {
         let props = DayPropertiesSet(isFastingDay: true)
 
         let data = try JSONEncoder().encode(props)
-        let jsonStr = String(data: data, encoding: .utf8)!
+        let jsonStr = try #require(String(data: data, encoding: .utf8))
 
         #expect(jsonStr.contains("is_fasting_day"))
         #expect(!jsonStr.contains("isFastingDay"))

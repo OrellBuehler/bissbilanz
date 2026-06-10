@@ -4,13 +4,20 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.Supplement
+import com.bissbilanz.api.generated.model.SupplementBackingFood
 import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.SupplementIngredient
+import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.SupplementLog
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -32,19 +39,22 @@ private fun cacheKeyFor(
 
 class SupplementRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     fun supplements(): Flow<List<Supplement>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectActiveSupplements()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) } }
 
     suspend fun refresh() {
+        if (appModeManager.isLocal) return
         val supplements = api.getSupplements()
         cacheSupplements(supplements)
     }
@@ -52,7 +62,7 @@ class SupplementRepository(
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
         val temp = supplementCreateToSupplement(supplement)
         cacheSupplement(temp)
-        syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement)))
+        syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement), localId = temp.id))
         return temp
     }
 
@@ -62,17 +72,43 @@ class SupplementRepository(
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
         cacheSupplement(temp)
-        syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, supplement)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
+        }
         return temp
     }
 
     suspend fun deleteSupplement(id: String) {
-        db.bissbilanzDatabaseQueries.deleteSupplement(id)
-        syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
+        db.userDataDatabaseQueries.deleteSupplement(id)
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("supplements", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
+        }
     }
 
-    suspend fun getChecklist(date: String): List<SupplementLog> =
-        try {
+    /**
+     * Rewrites the still-queued Create operation for a temp-id supplement so the
+     * eventual upload carries the edited values. Updates use the full
+     * [SupplementCreate] body, so the new body simply replaces the queued one. If the
+     * create has already been drained (no queued op found), the update is skipped —
+     * the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        supplement: SupplementCreate,
+    ) {
+        for (req in syncQueue.findByAffected("supplements", tempId)) {
+            val create = req.operation as? SyncOperation.CreateSupplement ?: continue
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(supplement)))
+        }
+    }
+
+    suspend fun getChecklist(date: String): List<SupplementLog> {
+        if (appModeManager.isLocal) return checklistFromCache(date)
+        return try {
             val checklist = api.getSupplementChecklist(date)
             val logs =
                 checklist.filter { it.taken }.map { item ->
@@ -84,7 +120,7 @@ class SupplementRepository(
                     )
                 }
             logs.forEach { log ->
-                db.bissbilanzDatabaseQueries.insertSupplementLog(
+                db.userDataDatabaseQueries.insertSupplementLog(
                     id = cacheKeyFor(log.supplementId, log.date),
                     supplementId = log.supplementId,
                     date = log.date,
@@ -95,9 +131,15 @@ class SupplementRepository(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cachedLogs =
-                db.bissbilanzDatabaseQueries.selectSupplementLogsByDate(date).executeAsList()
-            cachedLogs.map { log ->
+            checklistFromCache(date)
+        }
+    }
+
+    private fun checklistFromCache(date: String): List<SupplementLog> =
+        db.userDataDatabaseQueries
+            .selectSupplementLogsByDate(date)
+            .executeAsList()
+            .map { log ->
                 SupplementLog(
                     supplementId = log.supplementId,
                     date = log.date,
@@ -105,7 +147,6 @@ class SupplementRepository(
                     entryIds = emptyList(),
                 )
             }
-        }
 
     @OptIn(ExperimentalUuidApi::class)
     suspend fun logSupplement(
@@ -121,7 +162,7 @@ class SupplementRepository(
                 takenAt = now,
                 entryIds = emptyList(),
             )
-        db.bissbilanzDatabaseQueries.insertSupplementLog(
+        db.userDataDatabaseQueries.insertSupplementLog(
             id = cacheKeyFor(temp.supplementId, temp.date),
             supplementId = temp.supplementId,
             date = temp.date,
@@ -135,58 +176,75 @@ class SupplementRepository(
         supplementId: String,
         date: String,
     ) {
-        db.bissbilanzDatabaseQueries.deleteSupplementLog(supplementId, date)
+        db.userDataDatabaseQueries.deleteSupplementLog(supplementId, date)
         syncQueue.enqueue(SyncOperation.UnlogSupplement(supplementId, date))
     }
 
     suspend fun getHistory(
         from: String,
         to: String,
-    ): List<SupplementHistoryEntry> =
-        try {
+    ): List<SupplementHistoryEntry> {
+        if (appModeManager.isLocal) return historyFromCache(from, to)
+        return try {
             api.getSupplementHistory(from, to).history
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val logs =
-                db.bissbilanzDatabaseQueries
-                    .selectSupplementLogsByDateRange(from, to)
-                    .executeAsList()
-            val supplements =
-                db.bissbilanzDatabaseQueries
-                    .selectAllSupplements()
-                    .executeAsList()
-                    .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
-                    .toMap()
-            logs.map { log ->
-                val supplement = supplements[log.supplementId]
-                SupplementHistoryEntry(
-                    supplementId = log.supplementId,
-                    supplementName = supplement?.name ?: "",
-                    date = log.date,
-                    takenAt = log.takenAt,
-                )
-            }
+            historyFromCache(from, to)
         }
+    }
 
-    suspend fun getAllSupplements(): List<Supplement> =
-        try {
+    private fun historyFromCache(
+        from: String,
+        to: String,
+    ): List<SupplementHistoryEntry> {
+        val logs =
+            db.userDataDatabaseQueries
+                .selectSupplementLogsByDateRange(from, to)
+                .executeAsList()
+        val supplements =
+            db.userDataDatabaseQueries
+                .selectAllSupplements()
+                .executeAsList()
+                .mapNotNull { row -> json.decodeOrNull<Supplement>(row.jsonData)?.let { row.id to it } }
+                .toMap()
+        return logs.map { log ->
+            val supplement = supplements[log.supplementId]
+            SupplementHistoryEntry(
+                supplementId = log.supplementId,
+                supplementName = supplement?.name ?: "",
+                date = log.date,
+                takenAt = log.takenAt,
+            )
+        }
+    }
+
+    suspend fun getAllSupplements(): List<Supplement> {
+        if (appModeManager.isLocal) {
+            // The local DB is the primary store in Local mode; an empty list is the truth.
+            return db.userDataDatabaseQueries
+                .selectAllSupplements()
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
+        }
+        return try {
             val all = api.getAllSupplements().supplements
             cacheSupplements(all, includeInactive = true)
             all
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            val cached = db.bissbilanzDatabaseQueries.selectAllSupplements().executeAsList()
+            val cached = db.userDataDatabaseQueries.selectAllSupplements().executeAsList()
             if (cached.isNotEmpty()) {
                 cached.mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
             } else {
                 throw e
             }
         }
+    }
 
     private fun cacheSupplement(supplement: Supplement) {
-        db.bissbilanzDatabaseQueries.insertSupplement(
+        db.userDataDatabaseQueries.insertSupplement(
             id = supplement.id,
             name = supplement.name,
             isActive = if (supplement.isActive) 1L else 0L,
@@ -199,16 +257,17 @@ class SupplementRepository(
         supplements: List<Supplement>,
         includeInactive: Boolean = false,
     ) {
-        db.bissbilanzDatabaseQueries.transaction {
+        db.userDataDatabaseQueries.transaction {
             if (includeInactive) {
-                db.bissbilanzDatabaseQueries.deleteAllSupplements()
+                db.userDataDatabaseQueries.deleteAllSupplements()
             }
             supplements.forEach { supplement -> cacheSupplement(supplement) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "supplements",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "supplements",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -226,6 +285,87 @@ class SupplementRepository(
             isActive = supplement.isActive ?: true,
             sortOrder = supplement.sortOrder ?: 0,
             timeOfDay = supplement.timeOfDay?.let { Supplement.TimeOfDay.valueOf(it.name) },
-            ingredients = emptyList(),
+            ingredients =
+                supplement.ingredients.mapIndexed { index, input ->
+                    input.toSupplementIngredient(supplementId = id, index = index)
+                },
+        )
+
+    /**
+     * Builds the cached ingredient from the create input. An inline `food` (no server
+     * food exists yet — the server would create one) keeps its data embedded under a
+     * synthesized temp food id; a `foodId` reference resolves the backing food from the
+     * local food rows. The embedded copy is what the migrator uses to recreate inline
+     * backing foods when uploading a locally created supplement.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private fun SupplementIngredientInput.toSupplementIngredient(
+        supplementId: String,
+        index: Int,
+    ): SupplementIngredient {
+        val resolvedFoodId = foodId ?: "temp_${Uuid.random()}"
+        val backingFood =
+            food?.toBackingFood(resolvedFoodId)
+                ?: localBackingFood(resolvedFoodId)
+                ?: placeholderBackingFood(resolvedFoodId)
+        return SupplementIngredient(
+            id = "temp_${Uuid.random()}",
+            supplementId = supplementId,
+            foodId = resolvedFoodId,
+            servings = servings ?: 1.0,
+            sortOrder = sortOrder ?: index,
+            food = backingFood,
+        )
+    }
+
+    private fun FoodCreate.toBackingFood(id: String): SupplementBackingFood =
+        SupplementBackingFood(
+            id = id,
+            name = name,
+            brand = brand,
+            kind = SupplementBackingFood.Kind.supplement,
+            servingSize = servingSize,
+            servingUnit = servingUnit.value,
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = fiber,
+            ingredientsText = ingredientsText,
+        )
+
+    private fun localBackingFood(foodId: String): SupplementBackingFood? {
+        val row = db.userDataDatabaseQueries.selectFoodById(foodId).executeAsOneOrNull() ?: return null
+        val food = json.decodeOrNull<Food>(row.jsonData) ?: return null
+        return SupplementBackingFood(
+            id = food.id,
+            name = food.name,
+            brand = food.brand,
+            kind = SupplementBackingFood.Kind.food,
+            servingSize = food.servingSize,
+            servingUnit = food.servingUnit.value,
+            calories = food.calories,
+            protein = food.protein,
+            carbs = food.carbs,
+            fat = food.fat,
+            fiber = food.fiber,
+            ingredientsText = food.ingredientsText,
+        )
+    }
+
+    private fun placeholderBackingFood(foodId: String): SupplementBackingFood =
+        SupplementBackingFood(
+            id = foodId,
+            name = "",
+            brand = null,
+            kind = SupplementBackingFood.Kind.food,
+            servingSize = 1.0,
+            servingUnit = "g",
+            calories = 0.0,
+            protein = 0.0,
+            carbs = 0.0,
+            fat = 0.0,
+            fiber = 0.0,
+            ingredientsText = null,
         )
 }
