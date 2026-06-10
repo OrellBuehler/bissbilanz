@@ -1,6 +1,82 @@
 import Charts
 import SwiftUI
 
+/// Direction of the recent weight development shown in the trend card.
+enum WeightTrend: Equatable {
+    case rising(Double)
+    case falling(Double)
+    case steady(Double?)
+
+    /// Weekly changes inside this band are daily fluctuation noise, not a trend.
+    static let steadyBandKg = 0.3
+
+    static func from(delta: Double?) -> WeightTrend {
+        guard let delta else { return .steady(nil) }
+        if delta > steadyBandKg { return .rising(delta) }
+        if delta < -steadyBandKg { return .falling(delta) }
+        return .steady(delta)
+    }
+
+    /// Local fallback for the server's `delta_7d` (Local mode / offline):
+    /// average of the entries in the 7 days up to the newest entry vs the
+    /// 7 days before that. Averaging smooths the day-to-day fluctuation a
+    /// point-to-point delta would amplify.
+    static func localDelta7d(entries: [WeightEntry]) -> Double? {
+        let dated = entries.compactMap { entry -> (date: Date, kg: Double)? in
+            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
+            return (date, entry.weightKg)
+        }
+        guard let latest = dated.map(\.date).max() else { return nil }
+        var recent: [Double] = []
+        var previous: [Double] = []
+        for sample in dated {
+            let days = latest.timeIntervalSince(sample.date) / 86400
+            if days < 7 {
+                recent.append(sample.kg)
+            } else if days < 14 {
+                previous.append(sample.kg)
+            }
+        }
+        guard !recent.isEmpty, !previous.isEmpty else { return nil }
+        return recent.reduce(0, +) / Double(recent.count) - previous.reduce(0, +) / Double(previous.count)
+    }
+
+    var delta: Double? {
+        switch self {
+        case let .rising(delta), let .falling(delta):
+            delta
+        case let .steady(delta):
+            delta
+        }
+    }
+}
+
+extension WeightTrend {
+    var icon: String {
+        switch self {
+        case .rising: "arrow.up.right"
+        case .falling: "arrow.down.right"
+        case .steady: "arrow.right"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .rising: L10n.trendRising
+        case .falling: L10n.trendFalling
+        case .steady: L10n.trendSteady
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .rising: .red
+        case .falling: .green
+        case .steady: .secondary
+        }
+    }
+}
+
 struct WeightView: View {
     @Environment(WeightRepository.self) private var weightRepository
     /// Weight stats are server-computed — they stay on the direct API and
@@ -163,30 +239,30 @@ struct WeightView: View {
         }
     }
 
-    // MARK: - Stats Chips
+    // MARK: - Summary Cards
 
-    /// The chips are little cards themselves — the list row stays invisible
-    /// so they don't sit inside another container.
+    /// The trend card prefers the server's smoothed 7-day delta and falls
+    /// back to the local computation in Local mode or offline.
+    private var trend: WeightTrend {
+        WeightTrend.from(delta: weightStats?.delta7d ?? WeightTrend.localDelta7d(entries: entries))
+    }
+
+    /// Top row: latest weight and trend direction side by side as floating
+    /// cards (no list container). Server projections follow as chips.
     private var statsChipsSection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    if let latest = entries.first {
-                        statChip(L10n.latestWeight, value: String(format: "%.1f kg", latest.weightKg), color: .blue)
-                    }
+            HStack(spacing: 12) {
+                latestCard
+                trendCard
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
 
-                    if let stats = weightStats {
-                        if let trend = stats.trend {
-                            statChip(L10n.trendWeight, value: String(format: "%.1f kg", trend), color: .green)
-                        }
-                        if let delta = stats.delta7d {
-                            let prefix = delta >= 0 ? "+" : ""
-                            statChip(
-                                L10n.delta7d,
-                                value: "\(prefix)\(String(format: "%.1f", delta)) kg",
-                                color: delta >= 0 ? .red : .green
-                            )
-                        }
+            if let stats = weightStats,
+               stats.projected14d != nil || stats.projected30d != nil || stats.projected60d != nil
+            {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
                         if let p14 = stats.projected14d {
                             statChip(L10n.projection14d, value: String(format: "%.1f kg", p14), color: .purple)
                         }
@@ -197,12 +273,66 @@ struct WeightView: View {
                             statChip(L10n.projection60d, value: String(format: "%.1f kg", p60), color: .purple)
                         }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
         }
+    }
+
+    private var latestCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.latestWeight)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(String(format: "%.1f kg", entries.first?.weightKg ?? 0))
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(.blue)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(latestDateText)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.blue.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var latestDateText: String {
+        guard let latest = entries.first else { return "" }
+        if let date = DateFormatting.date(from: latest.entryDate) {
+            return DateFormatting.displayString(from: date)
+        }
+        return latest.entryDate
+    }
+
+    private var trendCard: some View {
+        let trend = trend
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.trendWeight)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: trend.icon)
+                Text(trend.label)
+            }
+            .font(.title2)
+            .fontWeight(.bold)
+            .foregroundStyle(trend.color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            Text(trend.delta.map { L10n.deltaPerWeek(String(format: "%+.1f kg", $0)) } ?? "—")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(trend.color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func statChip(_ label: String, value: String, color: Color) -> some View {

@@ -315,3 +315,79 @@ private func makeEntry(
         date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
     )
 }
+
+// MARK: - Weight Trend
+
+// Tests the trend classification and local 7-day delta used by the
+// WeightView trend card.
+
+@Suite("Weight Trend Tests")
+struct WeightTrendTests {
+    private func makeWeight(date: String, kg: Double) -> WeightEntry {
+        WeightEntry(
+            id: "w-\(date)", userId: "u1", weightKg: kg, entryDate: date,
+            loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+        )
+    }
+
+    @Test("Delta classification", arguments: [
+        (nil, WeightTrend.steady(nil)),
+        (0.5, WeightTrend.rising(0.5)),
+        (-0.5, WeightTrend.falling(-0.5)),
+        (0.2, WeightTrend.steady(0.2)),
+        (-0.2, WeightTrend.steady(-0.2)),
+        // The band boundary itself still counts as steady
+        (WeightTrend.steadyBandKg, WeightTrend.steady(WeightTrend.steadyBandKg)),
+        (-WeightTrend.steadyBandKg, WeightTrend.steady(-WeightTrend.steadyBandKg)),
+    ] as [(Double?, WeightTrend)])
+    func deltaClassification(delta: Double?, expected: WeightTrend) {
+        #expect(WeightTrend.from(delta: delta) == expected)
+    }
+
+    @Test("Local delta averages last 7 days against the 7 days before")
+    func localDeltaAverages() throws {
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-08", kg: 102.0),
+            // 8 and 9 days before the newest entry
+            makeWeight(date: "2026-06-02", kg: 102.0),
+            makeWeight(date: "2026-06-01", kg: 103.0),
+        ]
+        let delta = try #require(WeightTrend.localDelta7d(entries: entries))
+        #expect(abs(delta - -1.0) < 0.0001)
+    }
+
+    @Test("Local delta ignores entries older than 14 days")
+    func localDeltaIgnoresOldEntries() throws {
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-02", kg: 102.0),
+            // Far outside both windows — must not skew the average
+            makeWeight(date: "2026-01-01", kg: 90.0),
+        ]
+        let delta = try #require(WeightTrend.localDelta7d(entries: entries))
+        #expect(abs(delta - -1.0) < 0.0001)
+    }
+
+    @Test("Local delta is order-independent")
+    func localDeltaOrderIndependent() {
+        let sorted = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-02", kg: 102.0),
+        ]
+        #expect(WeightTrend.localDelta7d(entries: sorted) == WeightTrend.localDelta7d(entries: sorted.reversed()))
+    }
+
+    @Test("Local delta requires entries in both windows")
+    func localDeltaInsufficientData() {
+        #expect(WeightTrend.localDelta7d(entries: []) == nil)
+        // Only recent entries, nothing 7-14 days back
+        let recentOnly = [
+            makeWeight(date: "2026-06-10", kg: 101.0),
+            makeWeight(date: "2026-06-09", kg: 102.0),
+        ]
+        #expect(WeightTrend.localDelta7d(entries: recentOnly) == nil)
+        // Unparseable dates are skipped entirely
+        #expect(WeightTrend.localDelta7d(entries: [makeWeight(date: "garbage", kg: 100)]) == nil)
+    }
+}

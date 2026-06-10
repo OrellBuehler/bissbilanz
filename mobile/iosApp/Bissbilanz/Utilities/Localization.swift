@@ -952,6 +952,22 @@ enum L10n {
         localized("delta_7d", en: "7d Change", de: "7-Tage-Änderung")
     }
 
+    static var trendRising: String {
+        localized("trend_rising", en: "Rising", de: "Steigend")
+    }
+
+    static var trendFalling: String {
+        localized("trend_falling", en: "Falling", de: "Fallend")
+    }
+
+    static var trendSteady: String {
+        localized("trend_steady", en: "Steady", de: "Stabil")
+    }
+
+    static func deltaPerWeek(_ formatted: String) -> String {
+        localized("delta_per_week", en: "\(formatted) / 7d", de: "\(formatted) / 7T")
+    }
+
     static var projected: String {
         localized("projected", en: "Projected", de: "Prognose")
     }
