@@ -259,6 +259,8 @@ export type DexieSyncQueueItem = {
 	createdAt: number;
 	affectedTable?: string;
 	affectedId?: string;
+	failedAt?: number;
+	failureReason?: string;
 };
 
 // ── Sync Metadata ──────────────────────────────────────────────────

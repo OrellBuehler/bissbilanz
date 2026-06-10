@@ -5,6 +5,7 @@
 
 let isSyncing = $state(false);
 let pendingCount = $state(0);
+let failedCount = $state(0);
 let lastSyncedAt = $state<number | null>(null);
 let errors = $state<string[]>([]);
 
@@ -15,6 +16,9 @@ export function getSyncState() {
 		},
 		get pendingCount() {
 			return pendingCount;
+		},
+		get failedCount() {
+			return failedCount;
 		},
 		get lastSyncedAt() {
 			return lastSyncedAt;
@@ -31,6 +35,10 @@ export function setSyncing(value: boolean) {
 
 export function setPendingCount(count: number) {
 	pendingCount = count;
+}
+
+export function setFailedCount(count: number) {
+	failedCount = count;
 }
 
 export function setLastSyncedAt(timestamp: number) {
