@@ -1,7 +1,7 @@
 version: 2
 updates:
-  # Bun/npm (web app)
-  - package-ecosystem: 'npm'
+  # Bun (web app) — updates package.json AND bun.lock natively
+  - package-ecosystem: 'bun'
     directory: '/'
     schedule:
       interval: 'weekly'
