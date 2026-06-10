@@ -191,18 +191,9 @@ If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling Xco
 - **IMPORTANT:** Always commit changes when work is complete
 - **IMPORTANT:** NEVER include "Co-Authored" comments in commit messages
 
-### Dependabot npm PRs (Bun lockfile)
+### Dependabot PRs
 
-Dependabot's npm ecosystem updates `package.json` but does not regenerate `bun.lock`, so every dependabot npm PR fails CI with `error: lockfile had changes, but lockfile is frozen` (docker-smoke-test, e2e, dependency-audit). The PR itself is still safe to merge if that is the only failure.
-
-**Workflow when multiple dependabot npm PRs are open:**
-
-1. Merge all of them via `gh pr merge <N> --merge` (no rebase — they conflict on `package.json`).
-2. If a later PR fails to merge with conflicts, close it and roll its `package.json` bump into the lockfile commit by hand.
-3. After all merges: `git pull --ff-only origin main`, run `bun install` to regenerate `bun.lock`, then commit both `package.json` (if you rolled in a bump) and `bun.lock` with a `chore(deps): regenerate bun.lock after dependabot merges` message.
-4. Push to main.
-
-Do not try to fix each PR individually — the lockfile churn makes that exponentially more painful.
+Dependabot uses the `bun` package ecosystem, so its PRs update both `package.json` and `bun.lock` — a green CI run means the PR is mergeable as-is. If a dependabot PR fails CI, the failure is real (build/test breakage from the bump or a vulnerability introduced by it), not lockfile noise.
 
 ### Commit Messages
 
