@@ -32,6 +32,17 @@ final class WeightRepository {
         return rows.compactMap { $0.toWeightEntry() }
     }
 
+    /// One page of entries, newest first — backs the paginated history list.
+    func entries(offset: Int, limit: Int) -> [WeightEntry] {
+        var descriptor = FetchDescriptor<LocalWeightEntry>(sortBy: [
+            SortDescriptor(\.entryDate, order: .reverse),
+        ])
+        descriptor.fetchOffset = offset
+        descriptor.fetchLimit = limit
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.compactMap { $0.toWeightEntry() }
+    }
+
     func latest() -> WeightEntry? {
         var descriptor = FetchDescriptor<LocalWeightEntry>(sortBy: [
             SortDescriptor(\.entryDate, order: .reverse),

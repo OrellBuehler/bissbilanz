@@ -952,6 +952,10 @@ enum L10n {
         localized("delta_7d", en: "7d Change", de: "7-Tage-Änderung")
     }
 
+    static var showAll: String {
+        localized("show_all", en: "Show all", de: "Alle anzeigen")
+    }
+
     static var trendRising: String {
         localized("trend_rising", en: "Rising", de: "Steigend")
     }

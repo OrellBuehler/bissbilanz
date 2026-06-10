@@ -228,6 +228,9 @@ struct WeightView: View {
             }
             .refreshable { await loadEntries() }
             .task { await loadEntries(showSpinner: true) }
+            // Cheap local re-read when popping back from the history subpage,
+            // where entries can be edited or deleted.
+            .onAppear { entries = weightRepository.entries() }
             .alert(
                 L10n.error,
                 isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -473,41 +476,26 @@ struct WeightView: View {
 
     // MARK: - History Section
 
+    private static let historyPreviewCount = 5
+
     private var historySection: some View {
         Section(L10n.history) {
-            ForEach(entries) { entry in
-                Button {
+            ForEach(entries.prefix(Self.historyPreviewCount)) { entry in
+                WeightEntryRow(entry: entry) {
                     editingEntry = entry
+                } onDelete: {
+                    Task { await deleteEntry(entry) }
+                }
+            }
+            if entries.count > Self.historyPreviewCount {
+                NavigationLink {
+                    WeightHistoryView()
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let date = DateFormatting.date(from: entry.entryDate) {
-                                Text(DateFormatting.displayString(from: date))
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text(entry.entryDate)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                            }
-                            if let notes = entry.notes, !notes.isEmpty {
-                                Text(notes)
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
-                            }
-                        }
+                        Text(L10n.showAll)
                         Spacer()
-                        Text("\(entry.weightKg, specifier: "%.1f") kg")
+                        Text("\(entries.count)")
                             .foregroundStyle(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        Task { await deleteEntry(entry) }
-                    } label: {
-                        Label(L10n.delete, systemImage: "trash")
                     }
                 }
             }
@@ -578,6 +566,125 @@ struct WeightView: View {
             errorMessage = error.localizedDescription
         }
         entries = weightRepository.entries()
+    }
+}
+
+// MARK: - Entry Row
+
+/// One history row — shared by the preview list on the weight page and the
+/// full history subpage.
+struct WeightEntryRow: View {
+    let entry: WeightEntry
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button(action: onEdit) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let date = DateFormatting.date(from: entry.entryDate) {
+                        Text(DateFormatting.displayString(from: date))
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    } else {
+                        Text(entry.entryDate)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    if let notes = entry.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Text("\(entry.weightKg, specifier: "%.1f") kg")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive, action: onDelete) {
+                Label(L10n.delete, systemImage: "trash")
+            }
+        }
+    }
+}
+
+// MARK: - Full History
+
+/// All weight entries, loaded page-wise from the local store as the list
+/// scrolls — List rows are lazy, so reaching the last loaded row triggers
+/// the next page fetch.
+struct WeightHistoryView: View {
+    @Environment(WeightRepository.self) private var weightRepository
+
+    @State private var entries: [WeightEntry] = []
+    @State private var hasMore = true
+    @State private var editingEntry: WeightEntry?
+    @State private var errorMessage: String?
+
+    private static let pageSize = 50
+
+    var body: some View {
+        List {
+            ForEach(entries) { entry in
+                WeightEntryRow(entry: entry) {
+                    editingEntry = entry
+                } onDelete: {
+                    Task { await deleteEntry(entry) }
+                }
+                .onAppear {
+                    if entry.id == entries.last?.id {
+                        loadNextPage()
+                    }
+                }
+            }
+        }
+        .navigationTitle(L10n.history)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if entries.isEmpty { loadNextPage() }
+        }
+        .sheet(item: $editingEntry) { entry in
+            AddWeightSheet(existingEntry: entry) {
+                reloadLoadedWindow()
+            }
+        }
+        .alert(
+            L10n.error,
+            isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
+    }
+
+    private func loadNextPage() {
+        guard hasMore else { return }
+        let page = weightRepository.entries(offset: entries.count, limit: Self.pageSize)
+        entries += page
+        hasMore = page.count == Self.pageSize
+    }
+
+    /// Re-reads everything loaded so far in one fetch — an edit can change an
+    /// entry's date and therefore its position in the ordering.
+    private func reloadLoadedWindow() {
+        let limit = max(entries.count, Self.pageSize)
+        entries = weightRepository.entries(offset: 0, limit: limit)
+        hasMore = entries.count == limit
+    }
+
+    private func deleteEntry(_ entry: WeightEntry) async {
+        do {
+            try await weightRepository.deleteEntry(id: entry.id)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            entries.removeAll { $0.id == entry.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

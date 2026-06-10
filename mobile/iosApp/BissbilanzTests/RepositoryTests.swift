@@ -562,6 +562,24 @@ struct RepositoryTests {
         #expect(repo.latest()?.id == "w2")
     }
 
+    @Test("Weight pagination returns newest-first pages without overlap")
+    func weightPaginationPages() throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.weightRepository
+        for day in 1 ... 7 {
+            try harness.context.insert(LocalWeightEntry(entry: harness.weight(
+                id: "w\(day)", date: String(format: "2026-06-%02d", day), kg: 80
+            )))
+        }
+        try harness.context.save()
+
+        #expect(repo.entries(offset: 0, limit: 3).map(\.id) == ["w7", "w6", "w5"])
+        #expect(repo.entries(offset: 3, limit: 3).map(\.id) == ["w4", "w3", "w2"])
+        // Last page is short; past the end is empty
+        #expect(repo.entries(offset: 6, limit: 3).map(\.id) == ["w1"])
+        #expect(repo.entries(offset: 7, limit: 3).isEmpty)
+    }
+
     @Test("Drained weight create replaces the temp row with the server record")
     func weightCreateDrainReplacesTempId() async throws {
         let harness = try RepositoryHarness()
