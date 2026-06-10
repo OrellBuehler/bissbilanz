@@ -144,9 +144,9 @@ After completing a feature, run the security scan suite before committing:
 bun run security
 ```
 
-This runs Semgrep (SAST), bun audit (dependency vulnerabilities), and Trivy (filesystem + IaC misconfigs). Fix any CRITICAL or HIGH findings before merging. Known accepted exceptions:
+This runs Semgrep (SAST), bun audit (dependency vulnerabilities), and Trivy (filesystem + IaC misconfigs). Fix any CRITICAL or HIGH findings before merging. Prefer fixing dependency findings by refreshing the lockfile (delete `bun.lock` + `bun install` re-resolves transitive deps to patched versions). Accepted exceptions live in `.trivyignore` — the single source of truth used by both Trivy and `scan-dependencies.sh` — with a justification comment per entry.
 
-- `minimatch` ReDoS (HIGH) via `@vite-pwa/sveltekit → workbox-build` — transitive, no upstream fix available yet
+In CI, whole-tree vulnerability scans (bun audit + Trivy vuln) run on main and weekly, not on PRs; PRs are gated by `dependency-review-action` (fails only if the PR introduces a vulnerable dependency), plus Semgrep, Gitleaks, and Trivy secrets/IaC scans on the PR's code.
 
 To also scan the Docker image:
 
