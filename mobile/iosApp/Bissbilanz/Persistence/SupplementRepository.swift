@@ -8,16 +8,22 @@ import SwiftData
 /// checklist is server-computed (schedule logic lives there); a local
 /// approximation (active supplements + logged state) renders instantly and
 /// `refreshChecklist` returns the authoritative server result while caching
-/// the taken-logs for the day.
+/// the taken-logs for the day. Writes are SwiftData-first with the upload
+/// queued via the sync manager; deleting a still-queued temp supplement also
+/// removes its queued logs (they share the affected table/id).
 @MainActor
 @Observable
 final class SupplementRepository {
     private let context: ModelContext
     private let api: BissbilanzAPI
+    private let appMode: AppModeManager
+    private let syncManager: SyncManager
 
-    init(context: ModelContext, api: BissbilanzAPI) {
+    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
         self.api = api
+        self.appMode = appMode
+        self.syncManager = syncManager
     }
 
     // MARK: - Reads (local)
@@ -51,6 +57,7 @@ final class SupplementRepository {
     // MARK: - Refresh (API → store)
 
     func refresh() async throws {
+        guard !appMode.isLocal else { return }
         let fetched = try await api.getSupplements()
         // The list endpoint returns the complete set — replace wholesale
         // (mirrors Android's getAllSupplements), keeping optimistic temp rows.
@@ -66,6 +73,7 @@ final class SupplementRepository {
 
     @discardableResult
     func refreshChecklist(date: String) async throws -> [SupplementChecklist] {
+        guard !appMode.isLocal else { return localChecklist(date: date) }
         let checklist = try await api.getSupplementChecklist(date: date)
         try? context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.date == date })
         for item in checklist where item.taken {
@@ -79,8 +87,9 @@ final class SupplementRepository {
         return checklist
     }
 
-    /// History is server-computed; the cached logs answer when offline.
+    /// History is server-computed; the cached logs answer offline and in Local mode.
     func history(startDate: String, endDate: String) async -> [SupplementHistoryItem] {
+        guard !appMode.isLocal else { return localHistory(startDate: startDate, endDate: endDate) }
         do {
             return try await api.getSupplementHistory(startDate: startDate, endDate: endDate)
         } catch {
@@ -105,7 +114,7 @@ final class SupplementRepository {
         }
     }
 
-    // MARK: - Writes (local first, then API)
+    // MARK: - Writes (local first + queued upload)
 
     func logSupplement(id: String, date: String) async throws {
         upsertLog(SupplementLog(
@@ -115,17 +124,23 @@ final class SupplementRepository {
             entryIds: []
         ))
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        let log = try await api.logSupplement(id: id, date: date)
-        upsertLog(log)
-        save()
+        syncManager.enqueue(.logSupplement(supplementId: id, date: date))
     }
 
     func unlogSupplement(id: String, date: String) async throws {
         deleteLog(supplementId: id, date: date)
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        try await api.unlogSupplement(id: id, date: date)
+        if LocalStore.isTempId(id) {
+            // The supplement isn't on the server — cancel the queued log instead.
+            for row in syncManager.queuedOperations(table: "supplements", affectedId: id) {
+                guard let operation = row.operation(),
+                      case let .logSupplement(_, queuedDate) = operation, queuedDate == date
+                else { continue }
+                syncManager.remove(row)
+            }
+        } else {
+            syncManager.enqueue(.unlogSupplement(supplementId: id, date: date))
+        }
     }
 
     @discardableResult
@@ -133,11 +148,8 @@ final class SupplementRepository {
         let temp = makeSupplement(from: create, id: LocalStore.makeTempId())
         upsert(temp)
         save()
-        let server = try await api.createSupplement(create)
-        deleteRow(id: temp.id)
-        upsert(server)
-        save()
-        return server
+        syncManager.enqueue(.createSupplement(body: create, localId: temp.id))
+        return temp
     }
 
     @discardableResult
@@ -145,7 +157,7 @@ final class SupplementRepository {
         var optimistic: Supplement?
         if let row = fetchRow(id: id), let existing = row.toSupplement() {
             // Scalar fields only — update ingredients are inputs, not the
-            // full resolved shape; the server response replaces them below.
+            // full resolved shape; a refresh replaces them server-side.
             var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
             patch.removeValue(forKey: "ingredients")
             let updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
@@ -153,20 +165,40 @@ final class SupplementRepository {
             save()
             optimistic = updated
         }
-        if LocalStore.isTempId(id), let optimistic {
+        if LocalStore.isTempId(id) {
+            coalesceQueuedCreate(tempId: id, update: update)
+        } else {
+            syncManager.enqueue(.updateSupplement(id: id, body: update))
+        }
+        if let optimistic {
             return optimistic
         }
-        let server = try await api.updateSupplement(id: id, update)
-        upsert(server)
-        save()
-        return server
+        throw APIError.notFound
     }
 
     func deleteSupplement(id: String) async throws {
         deleteRow(id: id)
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        try await api.deleteSupplement(id: id)
+        if LocalStore.isTempId(id) {
+            // Removes the queued create AND any queued logs for this
+            // supplement — they share affectedTable/affectedId.
+            syncManager.removeQueued(table: "supplements", affectedId: id)
+        } else {
+            syncManager.enqueue(.deleteSupplement(id: id))
+        }
+    }
+
+    /// Rewrites the still-queued create for a temp-id supplement so the
+    /// eventual upload carries the edited values.
+    private func coalesceQueuedCreate(tempId: String, update: SupplementUpdate) {
+        for row in syncManager.queuedOperations(table: "supplements", affectedId: tempId) {
+            guard let operation = row.operation(),
+                  case let .createSupplement(body, localId) = operation
+            else { continue }
+            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+            let merged = (try? JSONPatch.merged(SupplementCreate.self, base: body, patch: patch)) ?? body
+            syncManager.replace(row, with: .createSupplement(body: merged, localId: localId))
+        }
     }
 
     // MARK: - Conversion helpers

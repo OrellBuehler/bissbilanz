@@ -44,10 +44,13 @@ enum NavigableTab: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
+    @Environment(AppModeManager.self) private var appModeManager
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabs: [NavigableTab] {
-        selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
+        let tabs = selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
+        // Insights are server-computed stats — the tab is hidden in Local mode.
+        return appModeManager.isLocal ? tabs.filter { $0 != .insights } : tabs
     }
 
     var body: some View {

@@ -5,18 +5,25 @@ import SwiftData
 /// Local-first repository for the personal food database.
 ///
 /// Favorites, recents and detail reads come from SwiftData; search stays
-/// API-first (the server searches the full DB) with a local fallback,
-/// mirroring the Android repository. Writes are optimistic: local row first,
-/// then the API call, with temp ids replaced by the server record on success.
+/// API-first (the server searches the full DB) with a local fallback. Writes
+/// are SwiftData-first with the upload queued via the sync manager: the
+/// drained create replaces the optimistic `temp_` row with the server record,
+/// and edits/deletes of a still-queued temp row coalesce with the queued
+/// create. In Local mode nothing is queued and refreshes/search are
+/// local-only — the store is the primary database.
 @MainActor
 @Observable
 final class FoodRepository {
     private let context: ModelContext
     private let api: BissbilanzAPI
+    private let appMode: AppModeManager
+    private let syncManager: SyncManager
 
-    init(context: ModelContext, api: BissbilanzAPI) {
+    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
         self.api = api
+        self.appMode = appMode
+        self.syncManager = syncManager
     }
 
     // MARK: - Reads (local)
@@ -72,7 +79,7 @@ final class FoodRepository {
     // MARK: - Refresh (API → store)
 
     func refreshFood(id: String) async throws {
-        guard !LocalStore.isTempId(id) else { return }
+        guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let food = try await api.getFood(id: id)
         upsert(food)
         save()
@@ -81,6 +88,7 @@ final class FoodRepository {
     /// Refreshes favorites and reconciles un-favorited rows. Also caches the
     /// favorite recipes carried in the same response.
     func refreshFavorites() async throws {
+        guard !appMode.isLocal else { return }
         let response = try await api.getFavorites()
         let favoriteIds = Set(response.foods.map(\.id))
         for stale in favorites() where !favoriteIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
@@ -92,23 +100,24 @@ final class FoodRepository {
             upsert(food)
         }
         for recipe in response.recipes ?? [] {
-            upsertRecipe(recipe)
+            LocalRemap.upsertRecipe(recipe, in: context)
         }
         save()
     }
 
     /// Server-ordered recents (trimmed foods, not cached — mirrors Android);
-    /// falls back to the locally derived list when the API is unavailable.
+    /// falls back to the locally derived list offline and in Local mode.
     func refreshRecentFoods(limit: Int = 20) async -> [Food] {
-        if let recents = try? await api.getRecentFoods(limit: limit) {
+        if !appMode.isLocal, let recents = try? await api.getRecentFoods(limit: limit) {
             return recents
         }
         return localRecentFoods(limit: limit)
     }
 
     /// API-first search over the full server-side food DB; results are cached
-    /// and the local store answers when the network is unavailable.
+    /// and the local store answers offline and in Local mode.
     func searchFoods(query: String) async -> [Food] {
+        guard !appMode.isLocal else { return searchLocal(query) }
         do {
             let results = try await api.searchFoods(query: query)
             for food in results {
@@ -125,24 +134,22 @@ final class FoodRepository {
         if let local = findLocalByBarcode(barcode) {
             return local
         }
+        guard !appMode.isLocal else { return nil }
         guard let food = try await api.findFoodByBarcode(barcode) else { return nil }
         upsert(food)
         save()
         return food
     }
 
-    // MARK: - Writes (local first, then API)
+    // MARK: - Writes (local first + queued upload)
 
     @discardableResult
     func createFood(_ create: FoodCreate) async throws -> Food {
         let temp = try Self.makeFood(from: create, id: LocalStore.makeTempId())
         upsert(temp)
         save()
-        let server = try await api.createFood(create)
-        deleteRow(id: temp.id)
-        upsert(server)
-        save()
-        return server
+        syncManager.enqueue(.createFood(body: create, localId: temp.id))
+        return temp
     }
 
     @discardableResult
@@ -150,37 +157,53 @@ final class FoodRepository {
         let optimistic = try Self.makeFood(from: create, id: id)
         upsert(optimistic)
         save()
-        guard !LocalStore.isTempId(id) else { return optimistic }
-        let server = try await api.updateFood(id: id, create)
-        upsert(server)
-        save()
-        return server
+        if LocalStore.isTempId(id) {
+            // Not uploaded yet — the queued create simply carries the new body.
+            coalesceQueuedCreate(tempId: id) { _ in create }
+        } else {
+            syncManager.enqueue(.updateFood(id: id, body: create))
+        }
+        return optimistic
     }
 
     func deleteFood(id: String) async throws {
         deleteRow(id: id)
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        try await api.deleteFood(id: id)
+        if LocalStore.isTempId(id) {
+            syncManager.removeQueued(table: "foods", affectedId: id)
+        } else {
+            syncManager.enqueue(.deleteFood(id: id))
+        }
     }
 
     @discardableResult
     func toggleFavorite(foodId: String, isFavorite: Bool) async throws -> Food {
-        var optimistic: Food?
-        if let row = fetchRow(id: foodId), let current = row.toFood(),
-           let patched = patchedFavorite(current, isFavorite: isFavorite)
-        {
-            row.update(from: patched)
-            save()
-            optimistic = patched
+        guard let row = fetchRow(id: foodId), let current = row.toFood(),
+              let patched = patchedFavorite(current, isFavorite: isFavorite)
+        else {
+            throw APIError.notFound
         }
-        if LocalStore.isTempId(foodId), let optimistic {
-            return optimistic
-        }
-        let server = try await api.toggleFavorite(foodId: foodId, isFavorite: isFavorite)
-        upsert(server)
+        row.update(from: patched)
         save()
-        return server
+        if LocalStore.isTempId(foodId) {
+            coalesceQueuedCreate(tempId: foodId) { body in
+                (try? JSONPatch.merged(FoodCreate.self, base: body, patch: ["isFavorite": isFavorite])) ?? body
+            }
+        } else {
+            syncManager.enqueue(.toggleFavorite(id: foodId, isFavorite: isFavorite))
+        }
+        return patched
+    }
+
+    /// Rewrites the still-queued create for a temp-id food. If the create has
+    /// already drained (no queued op found), the edit stays local-only.
+    private func coalesceQueuedCreate(tempId: String, rewrite: (FoodCreate) -> FoodCreate) {
+        for row in syncManager.queuedOperations(table: "foods", affectedId: tempId) {
+            guard let operation = row.operation(),
+                  case let .createFood(body, localId) = operation
+            else { continue }
+            syncManager.replace(row, with: .createFood(body: rewrite(body), localId: localId))
+        }
     }
 
     // MARK: - Conversion helpers
@@ -216,17 +239,6 @@ final class FoodRepository {
     private func deleteRow(id: String) {
         if let row = fetchRow(id: id) {
             context.delete(row)
-        }
-    }
-
-    private func upsertRecipe(_ recipe: Recipe) {
-        let id = recipe.id
-        var descriptor = FetchDescriptor<LocalRecipe>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        if let row = (try? context.fetch(descriptor))?.first {
-            row.update(from: recipe)
-        } else {
-            context.insert(LocalRecipe(recipe: recipe))
         }
     }
 

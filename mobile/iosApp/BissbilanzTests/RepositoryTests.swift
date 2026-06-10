@@ -3,165 +3,22 @@ import Foundation
 import SwiftData
 import Testing
 
-// MARK: - Networking stub
-
-/// Routes stubbed responses by "METHOD path". Unstubbed requests get a 404 so
-/// repository API calls fail loudly instead of hanging.
-final class StubURLProtocol: URLProtocol {
-    struct Stub {
-        let status: Int
-        let body: Data
-    }
-
-    private nonisolated(unsafe) static var stubs: [String: Stub] = [:]
-    private nonisolated(unsafe) static var recorded: [String] = []
-    private static let lock = NSLock()
-
-    static func reset() {
-        lock.lock()
-        defer { lock.unlock() }
-        stubs = [:]
-        recorded = []
-    }
-
-    static func stub(_ method: String, _ path: String, status: Int = 200, json: String = "{}") {
-        lock.lock()
-        defer { lock.unlock() }
-        stubs["\(method) \(path)"] = Stub(status: status, body: Data(json.utf8))
-    }
-
-    static var recordedRequests: [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return recorded
-    }
-
-    override class func canInit(with _: URLRequest) -> Bool {
-        true
-    }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
-    }
-
-    override func startLoading() {
-        let key = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
-        Self.lock.lock()
-        Self.recorded.append(key)
-        let stub = Self.stubs[key]
-        Self.lock.unlock()
-
-        let response = HTTPURLResponse(
-            url: request.url ?? URL(string: "https://stub.local")!,
-            statusCode: stub?.status ?? 404,
-            httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: stub?.body ?? Data("{}".utf8))
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-}
-
-// MARK: - Test harness
-
-@MainActor
-struct RepositoryHarness {
-    let container: ModelContainer
-    let context: ModelContext
-    let api: BissbilanzAPI
-
-    init() throws {
-        StubURLProtocol.reset()
-        container = try LocalStore.makeContainer(inMemory: true)
-        context = container.mainContext
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        api = BissbilanzAPI(
-            baseURL: "https://stub.local",
-            authManager: AuthManager(baseURL: "https://stub.local"),
-            session: URLSession(configuration: configuration)
-        )
-    }
-
-    func entry(id: String, date: String, mealType: String = "lunch", foodId: String? = nil) throws -> Entry {
-        var dict: [String: Any] = [
-            "id": id,
-            "mealType": mealType,
-            "servings": 1,
-            "foodName": "Seed \(id)",
-            "calories": 100,
-            "date": date,
-        ]
-        if let foodId { dict["foodId"] = foodId }
-        return try JSONPatch.decode(Entry.self, from: dict)
-    }
-
-    func food(id: String, name: String, isFavorite: Bool = false, barcode: String? = nil) throws -> Food {
-        var dict: [String: Any] = [
-            "id": id,
-            "userId": "u1",
-            "name": name,
-            "servingSize": 100,
-            "servingUnit": "g",
-            "calories": 100,
-            "protein": 10,
-            "carbs": 20,
-            "fat": 5,
-            "fiber": 3,
-            "isFavorite": isFavorite,
-        ]
-        if let barcode { dict["barcode"] = barcode }
-        return try JSONPatch.decode(Food.self, from: dict)
-    }
-
-    func recipe(id: String, name: String, isFavorite: Bool = false) throws -> Recipe {
-        try JSONPatch.decode(Recipe.self, from: [
-            "id": id,
-            "userId": "u1",
-            "name": name,
-            "totalServings": 2,
-            "isFavorite": isFavorite,
-        ])
-    }
-
-    func weight(id: String, date: String, kg: Double) throws -> WeightEntry {
-        try JSONPatch.decode(WeightEntry.self, from: [
-            "id": id,
-            "userId": "u1",
-            "weightKg": kg,
-            "entryDate": date,
-        ])
-    }
-
-    func supplement(id: String, name: String, sortOrder: Int = 0) throws -> Supplement {
-        try JSONPatch.decode(Supplement.self, from: [
-            "id": id,
-            "userId": "u1",
-            "name": name,
-            "scheduleType": "daily",
-            "isActive": true,
-            "sortOrder": sortOrder,
-            "ingredients": [],
-        ])
-    }
-}
-
-// MARK: - Tests
-
-@Suite("Repository tests", .serialized)
+@Suite("Repository tests")
 @MainActor
 struct RepositoryTests {
     // MARK: Entries
 
-    @Test("Entry refresh replaces the cached day, leaving other days untouched")
+    @Test("Entry refresh replaces the cached day, keeping temp rows and other days")
     func entryRefreshReplacesByDate() async throws {
         let harness = try RepositoryHarness()
-        let repo = EntryRepository(context: harness.context, api: harness.api)
+        let repo = harness.entryRepository
+        let tempId = LocalStore.makeTempId()
         try harness.context.insert(LocalEntry(
             entry: harness.entry(id: "old-1", date: "2026-06-01"),
+            date: "2026-06-01"
+        ))
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: tempId, date: "2026-06-01"),
             date: "2026-06-01"
         ))
         try harness.context.insert(LocalEntry(
@@ -170,7 +27,7 @@ struct RepositoryTests {
         ))
         try harness.context.save()
 
-        StubURLProtocol.stub("GET", "/api/entries", json: """
+        harness.stub("GET", "/api/entries", json: """
         {"entries": [{
             "id": "new-1", "mealType": "breakfast", "servings": 2,
             "foodId": "f1", "foodName": "Oats",
@@ -181,17 +38,34 @@ struct RepositoryTests {
         try await repo.refresh(date: "2026-06-01")
 
         let day = repo.entries(date: "2026-06-01")
-        #expect(day.count == 1)
-        #expect(day.first?.id == "new-1")
-        #expect(day.first?.date == "2026-06-01")
+        #expect(Set(day.map(\.id)) == [tempId, "new-1"])
         #expect(repo.entries(date: "2026-06-02").map(\.id) == ["other-1"])
     }
 
-    @Test("Entry create writes locally first, then replaces the temp row with the server record")
-    func entryCreateReplacesTempWithServerRecord() async throws {
+    @Test("Entry create writes the temp row locally and queues the upload")
+    func entryCreateWritesLocallyAndQueues() async throws {
         let harness = try RepositoryHarness()
-        let repo = EntryRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/entries", json: """
+        let repo = harness.entryRepository
+
+        let create = EntryCreate(foodId: "f1", mealType: "lunch", servings: 1.5, date: "2026-06-01")
+        let created = try await repo.createEntry(create, food: harness.food(id: "f1", name: "Rice"))
+
+        #expect(LocalStore.isTempId(created.id))
+        #expect(created.displayName == "Rice")
+        #expect(repo.entries(date: "2026-06-01").map(\.id) == [created.id])
+        let queued = harness.syncManager.queuedRows()
+        #expect(queued.count == 1)
+        #expect(queued.first?.type == "create_entry")
+        #expect(queued.first?.affectedId == created.id)
+        // The write itself never touches the network.
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
+    @Test("Drained entry create replaces the temp row with the merged server record")
+    func entryCreateDrainReplacesTempRow() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        harness.stub("POST", "/api/entries", json: """
         {"entry": {
             "id": "server-1", "userId": "u1", "date": "2026-06-01",
             "mealType": "lunch", "servings": 1.5, "foodId": "f1"
@@ -199,128 +73,225 @@ struct RepositoryTests {
         """)
 
         let create = EntryCreate(foodId: "f1", mealType: "lunch", servings: 1.5, date: "2026-06-01")
-        let created = try await repo.createEntry(create, food: harness.food(id: "f1", name: "Rice"))
+        _ = try await repo.createEntry(create, food: harness.food(id: "f1", name: "Rice"))
+        await harness.syncManager.drainPendingQueue()
 
-        #expect(created.id == "server-1")
         let day = repo.entries(date: "2026-06-01")
-        #expect(day.count == 1)
-        #expect(day.first?.id == "server-1")
+        #expect(day.map(\.id) == ["server-1"])
         // Raw POST responses lack resolved macros — merged from the optimistic row.
         #expect(day.first?.displayName == "Rice")
         #expect(day.first?.totalCalories == 150)
-        #expect(!day.contains { LocalStore.isTempId($0.id) })
+        #expect(harness.syncManager.queuedRows().isEmpty)
     }
 
-    @Test("Entry create keeps the optimistic local row when the API fails")
+    @Test("Entry create keeps the optimistic local row when the upload fails")
     func entryCreateKeepsLocalRowOnAPIFailure() async throws {
         let harness = try RepositoryHarness()
-        let repo = EntryRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/entries", status: 500, json: #"{"error": "boom"}"#)
+        let repo = harness.entryRepository
+        harness.stub("POST", "/api/entries", status: 500, json: #"{"error": "boom"}"#)
 
         let create = EntryCreate(foodId: "f1", mealType: "dinner", servings: 1, date: "2026-06-01")
-        await #expect(throws: (any Error).self) {
-            try await repo.createEntry(create, food: harness.food(id: "f1", name: "Rice"))
-        }
+        _ = try await repo.createEntry(create, food: harness.food(id: "f1", name: "Rice"))
+        await harness.syncManager.drainPendingQueue()
 
         let day = repo.entries(date: "2026-06-01")
         #expect(day.count == 1)
         #expect(LocalStore.isTempId(day.first?.id ?? ""))
         #expect(day.first?.displayName == "Rice")
+        // The op stays queued for a retry.
+        #expect(harness.syncManager.queuedRows().count == 1)
+        #expect(harness.syncManager.queuedRows().first?.retryCount == 1)
     }
 
-    @Test("Entry delete removes the local row and skips the API for temp ids")
-    func entryDeleteSkipsAPIForTempIds() async throws {
+    @Test("Entry delete removes the local row and cancels the queued create for temp ids")
+    func entryDeleteCancelsQueuedCreateForTempIds() async throws {
         let harness = try RepositoryHarness()
-        let repo = EntryRepository(context: harness.context, api: harness.api)
-        let tempId = LocalStore.makeTempId()
-        try harness.context.insert(LocalEntry(entry: harness.entry(id: tempId, date: "2026-06-01"), date: "2026-06-01"))
-        try harness.context.save()
+        let repo = harness.entryRepository
 
-        try await repo.deleteEntry(id: tempId)
+        let create = EntryCreate(foodId: "f1", mealType: "lunch", servings: 1, date: "2026-06-01")
+        let created = try await repo.createEntry(create)
+        try await repo.deleteEntry(id: created.id)
+        await harness.syncManager.drainPendingQueue()
 
         #expect(repo.entries(date: "2026-06-01").isEmpty)
-        #expect(!StubURLProtocol.recordedRequests.contains { $0.hasPrefix("DELETE") })
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests.isEmpty)
     }
 
-    @Test("Day properties write locally first and survive an API failure")
-    func dayPropertiesKeepLocalOnAPIFailure() async throws {
+    @Test("Updating a temp entry rewrites the queued create payload")
+    func entryUpdateCoalescesIntoQueuedCreate() async throws {
         let harness = try RepositoryHarness()
-        let repo = EntryRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/day-properties/2026-06-01", status: 500, json: #"{"error": "boom"}"#)
+        let repo = harness.entryRepository
 
-        await #expect(throws: (any Error).self) {
-            try await repo.setDayProperties(date: "2026-06-01", isFastingDay: true)
+        let create = EntryCreate(foodId: "f1", mealType: "lunch", servings: 1, date: "2026-06-01")
+        let created = try await repo.createEntry(create)
+        _ = try await repo.updateEntry(id: created.id, EntryUpdate(mealType: "dinner", servings: 3))
+
+        let queued = harness.syncManager.queuedRows()
+        #expect(queued.count == 1)
+        guard case let .createEntry(body, localId)? = queued.first?.operation() else {
+            Issue.record("expected a coalesced createEntry operation")
+            return
         }
+        #expect(localId == created.id)
+        #expect(body.mealType == "dinner")
+        #expect(body.servings == 3)
+        #expect(repo.entries(date: "2026-06-01").first?.servings == 3)
+    }
+
+    @Test("Day properties write locally first and queue the upload")
+    func dayPropertiesWriteLocallyAndQueue() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        harness.stub("POST", "/api/day-properties/2026-06-01", status: 500, json: #"{"error": "boom"}"#)
+
+        try await repo.setDayProperties(date: "2026-06-01", isFastingDay: true)
+        await harness.syncManager.drainPendingQueue()
 
         #expect(repo.isFastingDay(date: "2026-06-01") == true)
+        #expect(harness.syncManager.queuedRows().count == 1)
+    }
+
+    @Test("Copy entries duplicates the day locally and queues one create per entry")
+    func copyEntriesCopiesLocally() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: "e1", date: "2026-06-01", foodId: "f1"),
+            date: "2026-06-01"
+        ))
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: "e2", date: "2026-06-01", mealType: "dinner"),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+
+        let copied = try await repo.copyEntries(fromDate: "2026-06-01", toDate: "2026-06-02")
+
+        #expect(copied == 2)
+        let day = repo.entries(date: "2026-06-02")
+        #expect(day.count == 2)
+        #expect(day.allSatisfy { LocalStore.isTempId($0.id) })
+        #expect(day.first?.totalCalories == 100) // display macros survive the copy
+        #expect(harness.syncManager.queuedRows().count == 2)
+        #expect(harness.recordedRequests.isEmpty)
     }
 
     // MARK: Foods
 
-    @Test("Food create replaces the temp id with the server record")
-    func foodCreateReplacesTempId() async throws {
+    @Test("Drained food create replaces the temp id and remaps entry references")
+    func foodCreateDrainReplacesTempIdAndRemaps() async throws {
         let harness = try RepositoryHarness()
-        let repo = FoodRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/foods", json: """
+        let foodRepo = harness.foodRepository
+        let entryRepo = harness.entryRepository
+        harness.stub("POST", "/api/foods", json: """
         {"food": {
             "id": "f-server", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
             "calories": 98, "protein": 16, "carbs": 6, "fat": 0.2, "fiber": 0, "isFavorite": false
         }}
+        """)
+        harness.stub("POST", "/api/entries", json: """
+        {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
         """)
 
         let create = FoodCreate(
             name: "Skyr", servingSize: 150, servingUnit: .g,
             calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
         )
-        let created = try await repo.createFood(create)
+        let temp = try await foodRepo.createFood(create)
+        _ = try await entryRepo.createEntry(
+            EntryCreate(foodId: temp.id, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            food: temp
+        )
+        await harness.syncManager.drainPendingQueue()
 
-        #expect(created.id == "f-server")
-        #expect(repo.food(id: "f-server")?.name == "Skyr")
-        #expect(repo.searchLocal("Skyr").count == 1)
+        #expect(foodRepo.food(id: "f-server")?.name == "Skyr")
+        #expect(foodRepo.food(id: temp.id) == nil)
+        // The entry row now points at the server food id.
+        #expect(entryRepo.entries(date: "2026-06-01").first?.foodId == "f-server")
+        #expect(harness.syncManager.queuedRows().isEmpty)
     }
 
-    @Test("Food create keeps the temp row when the API fails")
+    @Test("Food create keeps the temp row when the upload fails")
     func foodCreateKeepsTempRowOnFailure() async throws {
         let harness = try RepositoryHarness()
-        let repo = FoodRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
+        let repo = harness.foodRepository
+        harness.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
 
         let create = FoodCreate(
             name: "Skyr", servingSize: 150, servingUnit: .g,
             calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
         )
-        await #expect(throws: (any Error).self) {
-            try await repo.createFood(create)
-        }
+        _ = try await repo.createFood(create)
+        await harness.syncManager.drainPendingQueue()
 
         let local = repo.searchLocal("Skyr")
         #expect(local.count == 1)
         #expect(LocalStore.isTempId(local.first?.id ?? ""))
+        #expect(harness.syncManager.queuedRows().count == 1)
     }
 
-    @Test("Toggle favorite flips the local row before the API call")
+    @Test("Updating a temp food rewrites the queued create body")
+    func foodUpdateCoalescesIntoQueuedCreate() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+
+        let create = FoodCreate(
+            name: "Skyr", servingSize: 150, servingUnit: .g,
+            calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
+        )
+        let temp = try await repo.createFood(create)
+        let edited = FoodCreate(
+            name: "Skyr Vanilla", servingSize: 150, servingUnit: .g,
+            calories: 105, protein: 15, carbs: 9, fat: 0.2, fiber: 0
+        )
+        _ = try await repo.updateFood(id: temp.id, edited)
+
+        let queued = harness.syncManager.queuedRows()
+        #expect(queued.count == 1)
+        guard case let .createFood(body, localId)? = queued.first?.operation() else {
+            Issue.record("expected a coalesced createFood operation")
+            return
+        }
+        #expect(localId == temp.id)
+        #expect(body.name == "Skyr Vanilla")
+        #expect(body.calories == 105)
+        #expect(repo.food(id: temp.id)?.name == "Skyr Vanilla")
+    }
+
+    @Test("Toggle favorite flips the local row and queues; temp ids patch the queued create")
     func toggleFavoriteUpdatesLocalFirst() async throws {
         let harness = try RepositoryHarness()
-        let repo = FoodRepository(context: harness.context, api: harness.api)
+        let repo = harness.foodRepository
         try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Rice")))
         try harness.context.save()
-        StubURLProtocol.stub("PATCH", "/api/foods/f1", status: 500, json: #"{"error": "boom"}"#)
 
-        await #expect(throws: (any Error).self) {
-            try await repo.toggleFavorite(foodId: "f1", isFavorite: true)
-        }
-
+        _ = try await repo.toggleFavorite(foodId: "f1", isFavorite: true)
         #expect(repo.food(id: "f1")?.isFavorite == true)
         #expect(repo.favorites().map(\.id) == ["f1"])
+        #expect(harness.syncManager.queuedRows().last?.type == "toggle_favorite")
+
+        let temp = try await repo.createFood(FoodCreate(
+            name: "Oats", servingSize: 40, servingUnit: .g,
+            calories: 150, protein: 5, carbs: 27, fat: 2.5, fiber: 4
+        ))
+        _ = try await repo.toggleFavorite(foodId: temp.id, isFavorite: true)
+        let createRow = harness.syncManager.queuedOperations(table: "foods", affectedId: temp.id)
+        #expect(createRow.count == 1)
+        guard case let .createFood(body, _)? = createRow.first?.operation() else {
+            Issue.record("expected the queued createFood to absorb the favorite flag")
+            return
+        }
+        #expect(body.isFavorite == true)
     }
 
     @Test("Favorites refresh upserts foods and recipes and reconciles un-favorited rows")
     func refreshFavoritesReconciles() async throws {
         let harness = try RepositoryHarness()
-        let repo = FoodRepository(context: harness.context, api: harness.api)
+        let repo = harness.foodRepository
         try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Old Fav", isFavorite: true)))
         try harness.context.save()
-        StubURLProtocol.stub("GET", "/api/favorites", json: """
+        harness.stub("GET", "/api/favorites", json: """
         {
             "foods": [{
                 "id": "f2", "userId": "u1", "name": "New Fav", "servingSize": 100, "servingUnit": "g",
@@ -336,21 +307,20 @@ struct RepositoryTests {
 
         #expect(repo.favorites().map(\.id) == ["f2"])
         #expect(repo.food(id: "f1")?.isFavorite == false)
-        let recipeRepo = RecipeRepository(context: harness.context, api: harness.api)
-        #expect(recipeRepo.favoriteRecipes().map(\.id) == ["r1"])
+        #expect(harness.recipeRepository.favoriteRecipes().map(\.id) == ["r1"])
     }
 
     @Test("Barcode lookup answers from the local store before hitting the API")
     func findByBarcodePrefersLocal() async throws {
         let harness = try RepositoryHarness()
-        let repo = FoodRepository(context: harness.context, api: harness.api)
+        let repo = harness.foodRepository
         try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Bar", barcode: "123")))
         try harness.context.save()
 
         let found = try await repo.findByBarcode("123")
 
         #expect(found?.id == "f1")
-        #expect(StubURLProtocol.recordedRequests.isEmpty)
+        #expect(harness.recordedRequests.isEmpty)
     }
 
     // MARK: Recipes
@@ -358,12 +328,12 @@ struct RepositoryTests {
     @Test("Recipe refresh upserts by id, drops server-deleted rows and keeps temp rows")
     func recipeRefreshUpserts() async throws {
         let harness = try RepositoryHarness()
-        let repo = RecipeRepository(context: harness.context, api: harness.api)
+        let repo = harness.recipeRepository
         let tempId = LocalStore.makeTempId()
         try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: "r1", name: "Stale")))
         try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: tempId, name: "Pending")))
         try harness.context.save()
-        StubURLProtocol.stub("GET", "/api/recipes", json: """
+        harness.stub("GET", "/api/recipes", json: """
         {"recipes": [{
             "id": "r2", "userId": "u1", "name": "Fresh", "totalServings": 4,
             "isFavorite": false, "calories": 800, "protein": 40, "carbs": 90, "fat": 25, "fiber": 10
@@ -377,11 +347,11 @@ struct RepositoryTests {
         #expect(repo.recipe(id: "r2")?.calories == 800)
     }
 
-    @Test("Recipe create replaces the temp id with the server record")
-    func recipeCreateReplacesTempId() async throws {
+    @Test("Drained recipe create replaces the temp id with the server record")
+    func recipeCreateDrainReplacesTempId() async throws {
         let harness = try RepositoryHarness()
-        let repo = RecipeRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/recipes", json: """
+        let repo = harness.recipeRepository
+        harness.stub("POST", "/api/recipes", json: """
         {"recipe": {
             "id": "r-server", "userId": "u1", "name": "Bowl", "totalServings": 2,
             "isFavorite": false, "calories": 500, "protein": 30, "carbs": 60, "fat": 15, "fiber": 8
@@ -393,9 +363,10 @@ struct RepositoryTests {
             totalServings: 2,
             ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 80, servingUnit: .g)]
         )
-        let created = try await repo.createRecipe(create)
+        let temp = try await repo.createRecipe(create)
+        #expect(LocalStore.isTempId(temp.id))
+        await harness.syncManager.drainPendingQueue()
 
-        #expect(created.id == "r-server")
         #expect(repo.recipes().map(\.id) == ["r-server"])
         #expect(repo.recipe(id: "r-server")?.calories == 500)
     }
@@ -405,10 +376,10 @@ struct RepositoryTests {
     @Test("Weight refresh upserts by id and updates changed rows")
     func weightRefreshUpsertsById() async throws {
         let harness = try RepositoryHarness()
-        let repo = WeightRepository(context: harness.context, api: harness.api)
+        let repo = harness.weightRepository
         try harness.context.insert(LocalWeightEntry(entry: harness.weight(id: "w1", date: "2026-06-01", kg: 80)))
         try harness.context.save()
-        StubURLProtocol.stub("GET", "/api/weight", json: """
+        harness.stub("GET", "/api/weight", json: """
         {"entries": [
             {"id": "w1", "userId": "u1", "weightKg": 81, "entryDate": "2026-06-01"},
             {"id": "w2", "userId": "u1", "weightKg": 80.4, "entryDate": "2026-06-02"}
@@ -423,29 +394,29 @@ struct RepositoryTests {
         #expect(repo.latest()?.id == "w2")
     }
 
-    @Test("Weight create writes locally then replaces the temp row with the server record")
-    func weightCreateReplacesTempId() async throws {
+    @Test("Drained weight create replaces the temp row with the server record")
+    func weightCreateDrainReplacesTempId() async throws {
         let harness = try RepositoryHarness()
-        let repo = WeightRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/weight", json: """
+        let repo = harness.weightRepository
+        harness.stub("POST", "/api/weight", json: """
         {"entry": {"id": "w-server", "userId": "u1", "weightKg": 74.2, "entryDate": "2026-06-01"}}
         """)
 
-        let created = try await repo.createEntry(WeightCreate(weightKg: 74.2, entryDate: "2026-06-01"))
+        let temp = try await repo.createEntry(WeightCreate(weightKg: 74.2, entryDate: "2026-06-01"))
+        #expect(LocalStore.isTempId(temp.id))
+        await harness.syncManager.drainPendingQueue()
 
-        #expect(created.id == "w-server")
         #expect(repo.entries().map(\.id) == ["w-server"])
     }
 
-    @Test("Weight create keeps the temp row when the API fails")
+    @Test("Weight create keeps the temp row when the upload fails")
     func weightCreateKeepsTempRowOnFailure() async throws {
         let harness = try RepositoryHarness()
-        let repo = WeightRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/weight", status: 500, json: #"{"error": "boom"}"#)
+        let repo = harness.weightRepository
+        harness.stub("POST", "/api/weight", status: 500, json: #"{"error": "boom"}"#)
 
-        await #expect(throws: (any Error).self) {
-            try await repo.createEntry(WeightCreate(weightKg: 74.2, entryDate: "2026-06-01"))
-        }
+        _ = try await repo.createEntry(WeightCreate(weightKg: 74.2, entryDate: "2026-06-01"))
+        await harness.syncManager.drainPendingQueue()
 
         let entries = repo.entries()
         #expect(entries.count == 1)
@@ -455,26 +426,62 @@ struct RepositoryTests {
 
     // MARK: Supplements
 
-    @Test("Supplement log writes the local row even when the API fails")
+    @Test("Supplement log writes the local row and queues; the row survives upload failure")
     func supplementLogKeepsLocalOnFailure() async throws {
         let harness = try RepositoryHarness()
-        let repo = SupplementRepository(context: harness.context, api: harness.api)
+        let repo = harness.supplementRepository
         try harness.context.insert(LocalSupplement(supplement: harness.supplement(id: "s1", name: "Vitamin D")))
         try harness.context.save()
-        StubURLProtocol.stub("POST", "/api/supplements/s1/log", status: 500, json: #"{"error": "boom"}"#)
+        harness.stub("POST", "/api/supplements/s1/log", status: 500, json: #"{"error": "boom"}"#)
 
-        await #expect(throws: (any Error).self) {
-            try await repo.logSupplement(id: "s1", date: "2026-06-01")
-        }
+        try await repo.logSupplement(id: "s1", date: "2026-06-01")
+        await harness.syncManager.drainPendingQueue()
 
         #expect(repo.loggedSupplementIds(date: "2026-06-01") == ["s1"])
         #expect(repo.localChecklist(date: "2026-06-01").first?.taken == true)
+        #expect(harness.syncManager.queuedRows().count == 1)
+    }
+
+    @Test("Deleting a temp supplement removes its queued create and queued logs")
+    func deleteTempSupplementCancelsQueuedCreateAndLogs() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.supplementRepository
+
+        let temp = try await repo.createSupplement(
+            SupplementCreate(name: "Magnesium", scheduleType: .daily, ingredients: [])
+        )
+        try await repo.logSupplement(id: temp.id, date: "2026-06-01")
+        #expect(harness.syncManager.queuedRows().count == 2)
+
+        try await repo.deleteSupplement(id: temp.id)
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(repo.supplements().isEmpty)
+        #expect(repo.loggedSupplementIds(date: "2026-06-01").isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
+    @Test("Unlogging a temp supplement cancels the queued log instead of queueing an unlog")
+    func unlogTempSupplementCancelsQueuedLog() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.supplementRepository
+
+        let temp = try await repo.createSupplement(
+            SupplementCreate(name: "Zinc", scheduleType: .daily, ingredients: [])
+        )
+        try await repo.logSupplement(id: temp.id, date: "2026-06-01")
+        try await repo.unlogSupplement(id: temp.id, date: "2026-06-01")
+
+        let types = harness.syncManager.queuedRows().map(\.type)
+        #expect(types == ["create_supplement"])
+        #expect(repo.loggedSupplementIds(date: "2026-06-01").isEmpty)
     }
 
     @Test("Checklist refresh replaces the cached logs for the day")
     func checklistRefreshReplacesLogsByDate() async throws {
         let harness = try RepositoryHarness()
-        let repo = SupplementRepository(context: harness.context, api: harness.api)
+        let repo = harness.supplementRepository
         try harness.context.insert(LocalSupplement(supplement: harness.supplement(id: "s1", name: "Vitamin D")))
         try harness.context.insert(LocalSupplement(supplement: harness.supplement(
             id: "s2",
@@ -483,7 +490,7 @@ struct RepositoryTests {
         )))
         harness.context.insert(LocalSupplementLog(supplementId: "s1", date: "2026-06-01", takenAt: "old"))
         try harness.context.save()
-        StubURLProtocol.stub("GET", "/api/supplements/2026-06-01/checklist", json: """
+        harness.stub("GET", "/api/supplements/2026-06-01/checklist", json: """
         {"checklist": [
             {
                 "supplement": {"id": "s1", "userId": "u1", "name": "Vitamin D", "scheduleType": "daily", "isActive": true, "sortOrder": 0, "ingredients": []},
@@ -502,49 +509,51 @@ struct RepositoryTests {
         #expect(repo.loggedSupplementIds(date: "2026-06-01") == ["s2"])
     }
 
-    @Test("Supplement create replaces the temp id with the server record")
-    func supplementCreateReplacesTempId() async throws {
+    @Test("Drained supplement create replaces the temp id with the server record")
+    func supplementCreateDrainReplacesTempId() async throws {
         let harness = try RepositoryHarness()
-        let repo = SupplementRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/supplements", json: """
+        let repo = harness.supplementRepository
+        harness.stub("POST", "/api/supplements", json: """
         {"supplement": {
             "id": "s-server", "userId": "u1", "name": "Magnesium",
             "scheduleType": "daily", "isActive": true, "sortOrder": 0, "ingredients": []
         }}
         """)
 
-        let create = SupplementCreate(name: "Magnesium", scheduleType: .daily, ingredients: [])
-        let created = try await repo.createSupplement(create)
+        let temp = try await repo.createSupplement(
+            SupplementCreate(name: "Magnesium", scheduleType: .daily, ingredients: [])
+        )
+        #expect(LocalStore.isTempId(temp.id))
+        await harness.syncManager.drainPendingQueue()
 
-        #expect(created.id == "s-server")
         #expect(repo.supplements().map(\.id) == ["s-server"])
     }
 
     // MARK: Goals
 
-    @Test("Goals write locally first and survive an API failure")
+    @Test("Goals write locally first and survive an upload failure")
     func goalsKeepLocalOnAPIFailure() async throws {
         let harness = try RepositoryHarness()
-        let repo = GoalsRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("POST", "/api/goals", status: 500, json: #"{"error": "boom"}"#)
+        let repo = harness.goalsRepository
+        harness.stub("POST", "/api/goals", status: 500, json: #"{"error": "boom"}"#)
 
         let goals = Goals(
             calorieGoal: 2100, proteinGoal: 155, carbGoal: 230,
             fatGoal: 68, fiberGoal: 32, sodiumGoal: nil, sugarGoal: nil
         )
-        await #expect(throws: (any Error).self) {
-            try await repo.setGoals(goals)
-        }
+        _ = try await repo.setGoals(goals)
+        await harness.syncManager.drainPendingQueue()
 
         #expect(repo.goals()?.calorieGoal == 2100)
         #expect(repo.goals()?.proteinGoal == 155)
+        #expect(harness.syncManager.queuedRows().count == 1)
     }
 
     @Test("Goals refresh caches the server value")
     func goalsRefreshCachesServerValue() async throws {
         let harness = try RepositoryHarness()
-        let repo = GoalsRepository(context: harness.context, api: harness.api)
-        StubURLProtocol.stub("GET", "/api/goals", json: """
+        let repo = harness.goalsRepository
+        harness.stub("GET", "/api/goals", json: """
         {"goals": {"calorieGoal": 1900, "proteinGoal": 140, "carbGoal": 200, "fatGoal": 60, "fiberGoal": 28}}
         """)
 
@@ -559,17 +568,16 @@ struct RepositoryTests {
     @Test("Preferences update merges the partial update onto the cached value locally")
     func preferencesUpdateMergesLocally() async throws {
         let harness = try RepositoryHarness()
-        let repo = PreferencesRepository(context: harness.context, api: harness.api)
+        let repo = harness.preferencesRepository
         harness.context.insert(LocalPreferences(preferences: .defaults))
         try harness.context.save()
-        StubURLProtocol.stub("PATCH", "/api/preferences", status: 500, json: #"{"error": "boom"}"#)
+        harness.stub("PATCH", "/api/preferences", status: 500, json: #"{"error": "boom"}"#)
 
         var update = PreferencesUpdate()
         update.showWeightWidget = false
         update.visibleNutrients = ["sugar"]
-        await #expect(throws: (any Error).self) {
-            try await repo.update(update)
-        }
+        _ = try await repo.update(update)
+        await harness.syncManager.drainPendingQueue()
 
         let merged = try #require(repo.preferences())
         #expect(merged.showWeightWidget == false)
@@ -577,5 +585,65 @@ struct RepositoryTests {
         // Untouched fields keep their cached values.
         #expect(merged.showChartWidget == Preferences.defaults.showChartWidget)
         #expect(merged.startPage == Preferences.defaults.startPage)
+    }
+
+    // MARK: Local mode
+
+    @Test("Local mode repositories never hit the network and never enqueue")
+    func localModeNeverHitsNetwork() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let entryRepo = harness.entryRepository
+        let foodRepo = harness.foodRepository
+        let recipeRepo = harness.recipeRepository
+        let weightRepo = harness.weightRepository
+        let supplementRepo = harness.supplementRepository
+        let goalsRepo = harness.goalsRepository
+        let preferencesRepo = harness.preferencesRepository
+
+        // Refreshes are no-ops.
+        try await entryRepo.refresh(date: "2026-06-01")
+        try await entryRepo.refreshDayProperties(date: "2026-06-01")
+        try await foodRepo.refreshFavorites()
+        try await foodRepo.refreshFood(id: "f1")
+        _ = await foodRepo.refreshRecentFoods()
+        try await recipeRepo.refresh()
+        try await weightRepo.refresh()
+        try await supplementRepo.refresh()
+        _ = try await supplementRepo.refreshChecklist(date: "2026-06-01")
+        _ = await supplementRepo.history(startDate: "2026-06-01", endDate: "2026-06-07")
+        try await goalsRepo.refresh()
+        try await preferencesRepo.refresh()
+
+        // Reads stay local.
+        _ = await foodRepo.searchFoods(query: "rice")
+        _ = try await foodRepo.findByBarcode("123")
+
+        // Writes are purely local — temp ids are permanent until migration.
+        let food = try await foodRepo.createFood(FoodCreate(
+            name: "Local Rice", servingSize: 100, servingUnit: .g,
+            calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4
+        ))
+        _ = try await entryRepo.createEntry(
+            EntryCreate(foodId: food.id, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            food: food
+        )
+        _ = try await weightRepo.createEntry(WeightCreate(weightKg: 74, entryDate: "2026-06-01"))
+        let supplement = try await supplementRepo.createSupplement(
+            SupplementCreate(name: "Vitamin D", scheduleType: .daily, ingredients: [])
+        )
+        try await supplementRepo.logSupplement(id: supplement.id, date: "2026-06-01")
+        _ = try await goalsRepo.setGoals(.defaults)
+        try await entryRepo.setDayProperties(date: "2026-06-01", isFastingDay: true)
+        try await foodRepo.deleteFood(id: food.id)
+
+        // Even an explicit drain uploads nothing in Local mode.
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 0)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests.isEmpty)
+        #expect(LocalStore.isTempId(food.id))
+        #expect(weightRepo.entries().count == 1)
+        #expect(entryRepo.entries(date: "2026-06-01").count == 1)
     }
 }

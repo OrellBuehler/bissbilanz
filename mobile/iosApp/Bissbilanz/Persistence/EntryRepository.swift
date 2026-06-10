@@ -4,19 +4,26 @@ import SwiftData
 
 /// Local-first repository for food entries and day properties.
 ///
-/// Reads come from SwiftData, `refresh(date:)` replaces the cached day with
-/// the server response (mirroring Android's `cacheEntries`), and writes go to
-/// SwiftData first with the API call layered on top. On API failure the local
-/// row is kept and the error is rethrown for the view to surface.
+/// Reads come from SwiftData and `refresh(date:)` replaces the cached day with
+/// the server response (mirroring Android's `cacheEntries`). Writes are
+/// SwiftData-first: the local row is written immediately and the API call is
+/// queued via the sync manager. In Synced mode the queue drains right away
+/// when online and replaces optimistic `temp_` rows with server records; in
+/// Local mode nothing is enqueued, refresh is a no-op and temp ids stay until
+/// the login migration uploads them.
 @MainActor
 @Observable
 final class EntryRepository {
     private let context: ModelContext
     private let api: BissbilanzAPI
+    private let appMode: AppModeManager
+    private let syncManager: SyncManager
 
-    init(context: ModelContext, api: BissbilanzAPI) {
+    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
         self.api = api
+        self.appMode = appMode
+        self.syncManager = syncManager
     }
 
     // MARK: - Reads (local)
@@ -32,34 +39,55 @@ final class EntryRepository {
         }
     }
 
+    /// Local month aggregation for the calendar (used in Local mode, where
+    /// the local store holds every entry).
+    func calendarDays(year: Int, month: Int, calorieGoal: Double?) -> [CalendarDay] {
+        let monthPrefix = String(format: "%04d-%02d-", year, month)
+        let start = monthPrefix + "01"
+        let end = monthPrefix + "31"
+        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date >= start && $0.date <= end })
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return Dictionary(grouping: rows, by: \.date)
+            .map { date, dayRows in
+                let calories = dayRows.reduce(0.0) { $0 + $1.calories * $1.servings }
+                let hasGoal = calorieGoal != nil
+                return CalendarDay(
+                    date: date,
+                    calories: calories,
+                    hasGoal: hasGoal,
+                    metGoal: hasGoal && calories > 0 && calories <= (calorieGoal ?? 0)
+                )
+            }
+            .sorted { $0.date < $1.date }
+    }
+
     // MARK: - Refresh (API → store)
 
     func refresh(date: String) async throws {
+        guard !appMode.isLocal else { return }
         let fetched = try await api.getEntries(date: date)
-        try? context.delete(model: LocalEntry.self, where: #Predicate { $0.date == date })
+        // Keep optimistic temp rows the server doesn't know about yet — their
+        // queued creates replace them with server records when they drain.
+        let tempPrefix = LocalStore.tempIdPrefix
+        try? context.delete(
+            model: LocalEntry.self,
+            where: #Predicate { $0.date == date && !$0.id.starts(with: tempPrefix) }
+        )
         for entry in fetched {
             upsert(entry, date: date)
         }
         save()
     }
 
-    // MARK: - Writes (local first, then API)
+    // MARK: - Writes (local first + queued upload)
 
     @discardableResult
     func createEntry(_ create: EntryCreate, food: Food? = nil, recipe: Recipe? = nil) async throws -> Entry {
         let temp = Self.makeEntry(from: create, id: LocalStore.makeTempId(), food: food, recipe: recipe)
         upsert(temp, date: create.date)
         save()
-        // POST responses are raw DB rows without resolved macros — merge the
-        // resolved display fields from the optimistic local entry. On failure
-        // the local row is kept (the sync-queue package will upload it later;
-        // for now the rethrown error keeps this flow online-required).
-        let server = try await api.createEntry(create)
-        let merged = Self.merge(server: server, local: temp)
-        deleteRow(id: temp.id)
-        upsert(merged, date: merged.date ?? create.date)
-        save()
-        return merged
+        syncManager.enqueue(.createEntry(body: create, localId: temp.id))
+        return temp
     }
 
     @discardableResult
@@ -72,36 +100,79 @@ final class EntryRepository {
             save()
             local = updated
         }
-        // Temp rows don't exist server-side yet; the local edit is all we can do.
-        if LocalStore.isTempId(id), let local {
+        if LocalStore.isTempId(id) {
+            // The row hasn't been uploaded — rewrite the queued create instead.
+            coalesceQueuedCreate(tempId: id, update: update)
+        } else {
+            syncManager.enqueue(.updateEntry(id: id, body: update))
+        }
+        if let local {
             return local
         }
-        let server = try await api.updateEntry(id: id, update)
-        // PATCH responses are raw DB rows without resolved macros — prefer the
-        // locally merged entry for display and keep server bookkeeping fields.
-        if let local {
-            let merged = Self.merge(server: server, local: local)
-            upsert(merged, date: merged.date ?? DateFormatting.today)
-            save()
-            return merged
-        }
-        return server
+        throw APIError.notFound
     }
 
     func deleteEntry(id: String) async throws {
         deleteRow(id: id)
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        try await api.deleteEntry(id: id)
+        if LocalStore.isTempId(id) {
+            syncManager.removeQueued(table: "entries", affectedId: id)
+        } else {
+            syncManager.enqueue(.deleteEntry(id: id))
+        }
     }
 
-    /// Server-side copy (responses are raw rows), then re-fetch the target day
-    /// so resolved macros land in the store. Returns the number copied.
+    /// Client-side copy (mirrors the Android repository): each source entry is
+    /// re-created locally for the target day and queued for upload, so the
+    /// copy works offline and in Local mode. Returns the number copied.
     @discardableResult
     func copyEntries(fromDate: String, toDate: String) async throws -> Int {
-        let copied = try await api.copyEntries(fromDate: fromDate, toDate: toDate)
-        try await refresh(date: toDate)
-        return copied.count
+        var copied = 0
+        for entry in entries(date: fromDate) {
+            let create = EntryCreate(
+                foodId: entry.foodId,
+                recipeId: entry.recipeId,
+                mealType: entry.mealType,
+                servings: entry.servings,
+                date: toDate,
+                notes: entry.notes,
+                quickName: entry.quickName,
+                quickCalories: entry.quickCalories,
+                quickProtein: entry.quickProtein,
+                quickCarbs: entry.quickCarbs,
+                quickFat: entry.quickFat,
+                quickFiber: entry.quickFiber,
+                eatenAt: entry.eatenAt
+            )
+            // Patch the source entry instead of rebuilding so resolved display
+            // macros survive the copy.
+            let tempId = LocalStore.makeTempId()
+            let copy = (try? JSONPatch.merged(Entry.self, base: entry, patch: [
+                "id": tempId,
+                "date": toDate,
+                "createdAt": ISO8601DateFormatter().string(from: Date()),
+            ])) ?? Self.makeEntry(from: create, id: tempId, food: nil, recipe: nil)
+            upsert(copy, date: toDate)
+            save()
+            syncManager.enqueue(.createEntry(body: create, localId: copy.id))
+            copied += 1
+        }
+        return copied
+    }
+
+    /// Rewrites the still-queued create for a temp-id entry so the eventual
+    /// upload carries the edited values. If the create has already drained
+    /// (no queued op found), the edit stays local-only — the temp id is
+    /// unknown server-side.
+    private func coalesceQueuedCreate(tempId: String, update: EntryUpdate) {
+        for row in syncManager.queuedOperations(table: "entries", affectedId: tempId) {
+            guard let operation = row.operation(),
+                  case let .createEntry(body, localId) = operation
+            else { continue }
+            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+            let merged = (try? JSONPatch.merged(EntryCreate.self, base: body, patch: patch)) ?? body
+            syncManager.replace(row, with: .createEntry(body: merged, localId: localId))
+        }
     }
 
     // MARK: - Day properties
@@ -111,6 +182,7 @@ final class EntryRepository {
     }
 
     func refreshDayProperties(date: String) async throws {
+        guard !appMode.isLocal else { return }
         if let properties = try await api.getDayProperties(date: date) {
             upsertDayProperties(properties)
         } else if let row = fetchDayPropertiesRow(date: date) {
@@ -122,9 +194,7 @@ final class EntryRepository {
     func setDayProperties(date: String, isFastingDay: Bool) async throws {
         upsertDayProperties(DayProperties(date: date, userId: "", isFastingDay: isFastingDay))
         save()
-        let server = try await api.setDayProperties(date: date, isFastingDay: isFastingDay)
-        upsertDayProperties(server)
-        save()
+        syncManager.enqueue(.setDayProperties(date: date, isFastingDay: isFastingDay))
     }
 
     func deleteDayProperties(date: String) async throws {
@@ -132,7 +202,7 @@ final class EntryRepository {
             context.delete(row)
             save()
         }
-        try await api.deleteDayProperties(date: date)
+        syncManager.enqueue(.deleteDayProperties(date: date))
     }
 
     // MARK: - Conversion helpers

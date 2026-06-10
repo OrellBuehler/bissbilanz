@@ -20,6 +20,7 @@ enum LocalStore {
             LocalGoals.self,
             LocalPreferences.self,
             LocalDayProperties.self,
+            PendingSyncOperation.self,
         ])
     }
 

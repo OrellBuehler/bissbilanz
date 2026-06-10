@@ -49,6 +49,11 @@ final class BissbilanzAPI {
         return response.foods
     }
 
+    func getFoods(limit: Int = 100) async throws -> [Food] {
+        let response: FoodsResponse = try await get("/api/foods", params: ["limit": "\(limit)"])
+        return response.foods
+    }
+
     func getRecentFoods(limit: Int = 20) async throws -> [Food] {
         let response: FoodsResponse = try await get("/api/foods/recent", params: ["limit": "\(limit)"])
         return response.foods

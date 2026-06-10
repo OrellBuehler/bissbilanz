@@ -753,6 +753,145 @@ enum L10n {
         localized("sign_in", en: "Sign in", de: "Anmelden")
     }
 
+    static var continueWithoutAccount: String {
+        localized(
+            "continue_without_account",
+            en: "Continue without account",
+            de: "Ohne Konto fortfahren"
+        )
+    }
+
+    static var localModeExplainer: String {
+        localized(
+            "local_mode_explainer",
+            en: "Your data stays on this device. Sign in later anytime to sync.",
+            de: "Deine Daten bleiben auf diesem Gerät. Du kannst dich jederzeit später anmelden, um zu synchronisieren."
+        )
+    }
+
+    // MARK: - Local mode / Account
+
+    static var localModeStatus: String {
+        localized(
+            "local_mode_status",
+            en: "Local mode — data only on this device",
+            de: "Lokaler Modus — Daten nur auf diesem Gerät"
+        )
+    }
+
+    static var signInToSync: String {
+        localized("sign_in_to_sync", en: "Sign in to sync", de: "Anmelden zum Synchronisieren")
+    }
+
+    // MARK: - Migration
+
+    static var migrationAccountHasData: String {
+        localized(
+            "migration_account_has_data",
+            en: "Your account already has data",
+            de: "Dein Konto enthält bereits Daten"
+        )
+    }
+
+    static var migrationChoiceDescription: String {
+        localized(
+            "migration_choice_description",
+            en: "You can upload the data stored on this device to your account, "
+                + "or discard it and continue with your account data only.",
+            de: "Du kannst die auf diesem Gerät gespeicherten Daten in dein Konto hochladen "
+                + "oder sie verwerfen und nur mit deinen Kontodaten fortfahren."
+        )
+    }
+
+    static func migrationUploadItems(_ count: Int) -> String {
+        localized(
+            "migration_upload_items",
+            en: "Upload local data (\(count) items)",
+            de: "Lokale Daten hochladen (\(count) Einträge)"
+        )
+    }
+
+    static var migrationStartFresh: String {
+        localized(
+            "migration_start_fresh",
+            en: "Start fresh (discard local data)",
+            de: "Neu beginnen (lokale Daten verwerfen)"
+        )
+    }
+
+    static var migrationDiscardTitle: String {
+        localized(
+            "migration_discard_title",
+            en: "Discard local data?",
+            de: "Lokale Daten verwerfen?"
+        )
+    }
+
+    static var migrationDiscardMessage: String {
+        localized(
+            "migration_discard_message",
+            en: "All foods, recipes, log entries and other data stored on this device "
+                + "will be permanently deleted. The data in your account is kept.",
+            de: "Alle Lebensmittel, Rezepte, Einträge und sonstigen Daten auf diesem Gerät "
+                + "werden dauerhaft gelöscht. Die Daten in deinem Konto bleiben erhalten."
+        )
+    }
+
+    static var discard: String {
+        localized("discard", en: "Discard", de: "Verwerfen")
+    }
+
+    static var migrationUploading: String {
+        localized("migration_uploading", en: "Uploading your data", de: "Deine Daten werden hochgeladen")
+    }
+
+    static var migrationFailedTitle: String {
+        localized("migration_failed_title", en: "Upload failed", de: "Hochladen fehlgeschlagen")
+    }
+
+    static var migrationFailureSafe: String {
+        localized(
+            "migration_failure_safe",
+            en: "Your local data is safe — already uploaded items are not lost and the "
+                + "upload continues where it stopped.",
+            de: "Deine lokalen Daten sind sicher — bereits hochgeladene Einträge gehen nicht "
+                + "verloren und das Hochladen wird dort fortgesetzt, wo es aufgehört hat."
+        )
+    }
+
+    static func migrationStepLabel(_ step: MigrationStep) -> String {
+        switch step {
+        case .prepare:
+            localized("migration_step_prepare", en: "Preparing", de: "Vorbereiten")
+        case .foods:
+            localized("migration_step_foods", en: "Uploading foods", de: "Lebensmittel hochladen")
+        case .recipes:
+            localized("migration_step_recipes", en: "Uploading recipes", de: "Rezepte hochladen")
+        case .entries:
+            localized("migration_step_entries", en: "Uploading entries", de: "Einträge hochladen")
+        case .weights:
+            localized("migration_step_weights", en: "Uploading weight entries", de: "Gewichtseinträge hochladen")
+        case .supplements:
+            localized("migration_step_supplements", en: "Uploading supplements", de: "Supplements hochladen")
+        case .supplementLogs:
+            localized(
+                "migration_step_supplement_logs",
+                en: "Uploading supplement logs",
+                de: "Supplement-Einnahmen hochladen"
+            )
+        case .goals:
+            localized("migration_step_goals", en: "Uploading goals", de: "Ziele hochladen")
+        case .preferences:
+            localized("migration_step_preferences", en: "Uploading preferences", de: "Einstellungen hochladen")
+        case .dayProperties:
+            localized(
+                "migration_step_day_properties",
+                en: "Uploading day properties",
+                de: "Tageseigenschaften hochladen"
+            )
+        }
+    }
+
     // MARK: - Day Properties
 
     static var fastingDay: String {

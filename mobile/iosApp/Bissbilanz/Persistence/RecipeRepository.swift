@@ -4,17 +4,22 @@ import SwiftData
 
 /// Local-first repository for recipes. List/detail reads come from SwiftData;
 /// `refresh()` upserts the server list by id (Android parity). Writes are
-/// optimistic with temp ids replaced by the server record; macros stay nil on
-/// optimistic rows because they are computed server-side.
+/// SwiftData-first with the upload queued via the sync manager; macros stay
+/// nil on optimistic rows because they are computed server-side. In Local
+/// mode nothing is queued and refreshes are no-ops.
 @MainActor
 @Observable
 final class RecipeRepository {
     private let context: ModelContext
     private let api: BissbilanzAPI
+    private let appMode: AppModeManager
+    private let syncManager: SyncManager
 
-    init(context: ModelContext, api: BissbilanzAPI) {
+    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
         self.api = api
+        self.appMode = appMode
+        self.syncManager = syncManager
     }
 
     // MARK: - Reads (local)
@@ -41,6 +46,7 @@ final class RecipeRepository {
     // MARK: - Refresh (API → store)
 
     func refresh() async throws {
+        guard !appMode.isLocal else { return }
         let fetched = try await api.getRecipes()
         let serverIds = Set(fetched.map(\.id))
         // The list endpoint is the complete set — drop rows deleted elsewhere
@@ -55,24 +61,21 @@ final class RecipeRepository {
     }
 
     func refreshRecipe(id: String) async throws {
-        guard !LocalStore.isTempId(id) else { return }
+        guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let recipe = try await api.getRecipe(id: id)
         upsert(recipe)
         save()
     }
 
-    // MARK: - Writes (local first, then API)
+    // MARK: - Writes (local first + queued upload)
 
     @discardableResult
     func createRecipe(_ create: RecipeCreate) async throws -> Recipe {
         let temp = makeRecipe(from: create, id: LocalStore.makeTempId())
         upsert(temp)
         save()
-        let server = try await api.createRecipe(create)
-        deleteRow(id: temp.id)
-        upsert(server)
-        save()
-        return server
+        syncManager.enqueue(.createRecipe(body: create, localId: temp.id))
+        return temp
     }
 
     @discardableResult
@@ -80,7 +83,7 @@ final class RecipeRepository {
         var optimistic: Recipe?
         if let row = fetchRow(id: id), let existing = row.toRecipe() {
             // Scalar fields only — update ingredients are inputs, not the
-            // full resolved shape; the server response replaces them below.
+            // full resolved shape; a refresh replaces them server-side.
             var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
             patch.removeValue(forKey: "ingredients")
             let updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
@@ -88,20 +91,38 @@ final class RecipeRepository {
             save()
             optimistic = updated
         }
-        if LocalStore.isTempId(id), let optimistic {
+        if LocalStore.isTempId(id) {
+            coalesceQueuedCreate(tempId: id, update: update)
+        } else {
+            syncManager.enqueue(.updateRecipe(id: id, body: update))
+        }
+        if let optimistic {
             return optimistic
         }
-        let server = try await api.updateRecipe(id: id, update)
-        upsert(server)
-        save()
-        return server
+        throw APIError.notFound
     }
 
     func deleteRecipe(id: String) async throws {
         deleteRow(id: id)
         save()
-        guard !LocalStore.isTempId(id) else { return }
-        try await api.deleteRecipe(id: id)
+        if LocalStore.isTempId(id) {
+            syncManager.removeQueued(table: "recipes", affectedId: id)
+        } else {
+            syncManager.enqueue(.deleteRecipe(id: id))
+        }
+    }
+
+    /// Rewrites the still-queued create for a temp-id recipe so the eventual
+    /// upload carries the edited values.
+    private func coalesceQueuedCreate(tempId: String, update: RecipeUpdate) {
+        for row in syncManager.queuedOperations(table: "recipes", affectedId: tempId) {
+            guard let operation = row.operation(),
+                  case let .createRecipe(body, localId) = operation
+            else { continue }
+            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+            let merged = (try? JSONPatch.merged(RecipeCreate.self, base: body, patch: patch)) ?? body
+            syncManager.replace(row, with: .createRecipe(body: merged, localId: localId))
+        }
     }
 
     // MARK: - Conversion helpers
@@ -159,9 +180,7 @@ final class RecipeRepository {
     }
 
     private func localFood(id: String) -> Food? {
-        var descriptor = FetchDescriptor<LocalFood>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return (try? context.fetch(descriptor))?.first?.toFood()
+        LocalRemap.foodRow(id: id, in: context)?.toFood()
     }
 
     private func save() {

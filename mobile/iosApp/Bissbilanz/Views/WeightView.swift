@@ -3,8 +3,10 @@ import SwiftUI
 
 struct WeightView: View {
     @Environment(WeightRepository.self) private var weightRepository
-    /// Weight stats are server-computed — they stay on the direct API.
+    /// Weight stats are server-computed — they stay on the direct API and
+    /// are skipped in Local mode.
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appModeManager
 
     @State private var entries: [WeightEntry] = []
     @State private var weightStats: WeightStatsResponse?
@@ -388,11 +390,10 @@ struct WeightView: View {
         entries = weightRepository.entries()
         if showSpinner { isLoading = entries.isEmpty }
 
-        async let refreshTask: Void? = try? weightRepository.refresh()
-        async let statsTask = try? api.getWeightStats()
-
-        _ = await refreshTask
-        weightStats = await statsTask
+        try? await weightRepository.refresh()
+        if !appModeManager.isLocal {
+            weightStats = try? await api.getWeightStats()
+        }
         entries = weightRepository.entries()
 
         isLoading = false
@@ -430,7 +431,9 @@ struct WeightView: View {
 
         if imported {
             entries = weightRepository.entries()
-            weightStats = await (try? api.getWeightStats()) ?? weightStats
+            if !appModeManager.isLocal {
+                weightStats = await (try? api.getWeightStats()) ?? weightStats
+            }
         }
     }
 

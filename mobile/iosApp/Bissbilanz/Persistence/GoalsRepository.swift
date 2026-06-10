@@ -2,16 +2,21 @@ import Foundation
 import Observation
 import SwiftData
 
-/// Local-first repository for daily macro goals (singleton row).
+/// Local-first repository for daily macro goals (singleton row). Writes are
+/// SwiftData-first with the idempotent set-call queued via the sync manager.
 @MainActor
 @Observable
 final class GoalsRepository {
     private let context: ModelContext
     private let api: BissbilanzAPI
+    private let appMode: AppModeManager
+    private let syncManager: SyncManager
 
-    init(context: ModelContext, api: BissbilanzAPI) {
+    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
         self.api = api
+        self.appMode = appMode
+        self.syncManager = syncManager
     }
 
     func goals() -> Goals? {
@@ -19,6 +24,7 @@ final class GoalsRepository {
     }
 
     func refresh() async throws {
+        guard !appMode.isLocal else { return }
         guard let goals = try await api.getGoals() else { return }
         upsert(goals)
         save()
@@ -28,10 +34,8 @@ final class GoalsRepository {
     func setGoals(_ goals: Goals) async throws -> Goals {
         upsert(goals)
         save()
-        let server = try await api.setGoals(goals)
-        upsert(server)
-        save()
-        return server
+        syncManager.enqueue(.setGoals(body: goals))
+        return goals
     }
 
     // MARK: - Store helpers

@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SettingsView: View {
@@ -6,7 +7,9 @@ struct SettingsView: View {
     // Meal types are server-only — they stay on the direct API.
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AuthManager.self) private var authManager
+    @Environment(AppModeManager.self) private var appModeManager
 
+    @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
     @State private var preferences: Preferences = .defaults
     @State private var mealTypes: [MealType] = []
@@ -86,8 +89,11 @@ struct SettingsView: View {
                     NavigationLink { CalendarView() } label: {
                         Label(L10n.calendar, systemImage: "calendar")
                     }
-                    NavigationLink { MaintenanceView() } label: {
-                        Label(L10n.maintenance, systemImage: "function")
+                    // The maintenance calculator is server-computed — hidden in Local mode.
+                    if !appModeManager.isLocal {
+                        NavigationLink { MaintenanceView() } label: {
+                            Label(L10n.maintenance, systemImage: "function")
+                        }
                     }
                 }
 
@@ -172,24 +178,26 @@ struct SettingsView: View {
                     }
                 }
 
-                // Custom meal types
-                Section(L10n.customMealTypes) {
-                    ForEach(mealTypes) { mealType in
-                        Text(mealType.name)
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    Task { await deleteMealType(mealType) }
-                                } label: {
-                                    Label(L10n.delete, systemImage: "trash")
+                // Custom meal types (server-only, hidden in Local mode)
+                if !appModeManager.isLocal {
+                    Section(L10n.customMealTypes) {
+                        ForEach(mealTypes) { mealType in
+                            Text(mealType.name)
+                                .swipeActions {
+                                    Button(role: .destructive) {
+                                        Task { await deleteMealType(mealType) }
+                                    } label: {
+                                        Label(L10n.delete, systemImage: "trash")
+                                    }
                                 }
-                            }
-                    }
-                    HStack {
-                        TextField(L10n.customMealTypes, text: $newMealTypeName)
-                        Button(L10n.add) {
-                            Task { await addMealType() }
                         }
-                        .disabled(newMealTypeName.isEmpty)
+                        HStack {
+                            TextField(L10n.customMealTypes, text: $newMealTypeName)
+                            Button(L10n.add) {
+                                Task { await addMealType() }
+                            }
+                            .disabled(newMealTypeName.isEmpty)
+                        }
                     }
                 }
 
@@ -242,10 +250,25 @@ struct SettingsView: View {
 
                 // Account
                 Section(L10n.account) {
-                    Button(role: .destructive) {
-                        showLogoutConfirmation = true
-                    } label: {
-                        Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
+                    if appModeManager.isLocal {
+                        HStack {
+                            Image(systemName: "iphone")
+                                .foregroundStyle(.secondary)
+                            Text(L10n.localModeStatus)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Button {
+                            signInSession = SignInFlow.start(authManager: authManager)
+                        } label: {
+                            Label(L10n.signInToSync, systemImage: "person.crop.circle")
+                        }
+                    } else {
+                        Button(role: .destructive) {
+                            showLogoutConfirmation = true
+                        } label: {
+                            Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
+                        }
                     }
                 }
 
@@ -263,6 +286,9 @@ struct SettingsView: View {
             .confirmationDialog(L10n.signOut + "?", isPresented: $showLogoutConfirmation) {
                 Button(L10n.signOut, role: .destructive) {
                     authManager.logout()
+                    // Reset the mode so the next start shows the login screen
+                    // with the mode choice again.
+                    appModeManager.clear()
                 }
             } message: {
                 Text(L10n.signOutConfirmation)
@@ -394,10 +420,12 @@ struct SettingsView: View {
 
         async let g: Void? = try? goalsRepository.refresh()
         async let p: Void? = try? preferencesRepository.refresh()
-        async let m = try? api.getMealTypes()
 
         _ = await (g, p)
-        mealTypes = await m ?? []
+        // Meal types are server-only — never fetched in Local mode.
+        if !appModeManager.isLocal {
+            mealTypes = await (try? api.getMealTypes()) ?? []
+        }
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
     }

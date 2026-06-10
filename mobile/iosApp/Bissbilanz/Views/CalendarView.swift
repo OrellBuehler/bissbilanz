@@ -2,6 +2,9 @@ import SwiftUI
 
 struct CalendarView: View {
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appModeManager
+    @Environment(EntryRepository.self) private var entryRepository
+    @Environment(GoalsRepository.self) private var goalsRepository
 
     @State private var currentMonth = Date()
     @State private var calendarDays: [CalendarDay] = []
@@ -192,10 +195,20 @@ struct CalendarView: View {
 
     private func loadData() async {
         isLoading = true
-        do {
-            calendarDays = try await api.getCalendarStats(month: month, year: year)
-        } catch {
-            calendarDays = []
+        if appModeManager.isLocal {
+            // In Local mode the local store holds every entry, so the month
+            // is aggregated locally instead of asking the server.
+            calendarDays = entryRepository.calendarDays(
+                year: year,
+                month: month,
+                calorieGoal: goalsRepository.goals()?.calorieGoal
+            )
+        } else {
+            do {
+                calendarDays = try await api.getCalendarStats(month: month, year: year)
+            } catch {
+                calendarDays = []
+            }
         }
         isLoading = false
     }
