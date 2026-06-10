@@ -54,7 +54,10 @@ jobs:
       - name: Build app
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
-          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+          # Fallback: dependabot-triggered runs read the (empty) Dependabot
+          # secrets store. The value only signs cookies for a throwaway CI
+          # server with fake OIDC creds, so a dummy is fine there.
+          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET || 'e2e-test-only-session-secret' }}
           PUBLIC_APP_URL: http://localhost:4000
           INFOMANIAK_CLIENT_ID: fake
           INFOMANIAK_CLIENT_SECRET: fake
@@ -66,7 +69,7 @@ jobs:
       - name: Run Playwright tests
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
-          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET || 'e2e-test-only-session-secret' }}
           PUBLIC_APP_URL: http://localhost:4000
           INFOMANIAK_CLIENT_ID: fake
           INFOMANIAK_CLIENT_SECRET: fake
