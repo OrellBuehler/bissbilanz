@@ -288,21 +288,25 @@ struct DashboardView: View {
                     .foregroundStyle(taken == supplementChecklist.count ? .green : .secondary)
             }
 
-            ForEach(supplementChecklist) { item in
-                Button {
-                    Task { await toggleSupplement(item) }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(item.taken ? .green : .secondary)
-                        Text(item.supplement.name)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                            .strikethrough(item.taken)
-                        Spacer()
+            VStack(spacing: 0) {
+                ForEach(supplementChecklist) { item in
+                    Button {
+                        Task { await toggleSupplement(item) }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(item.taken ? .green : .secondary)
+                            Text(item.supplement.name)
+                                .font(.subheadline)
+                                .foregroundStyle(item.taken ? .secondary : .primary)
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(12)
