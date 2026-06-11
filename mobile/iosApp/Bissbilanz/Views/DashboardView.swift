@@ -18,6 +18,10 @@ struct DashboardView: View {
     @State private var showCopyConfirmation = false
     @State private var toastMessage: String?
     @State private var isFastingDay = false
+    /// Edge the incoming day content is pushed in from when the date changes.
+    @State private var slideEdge: Edge = .trailing
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
@@ -61,58 +65,18 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     dateNavigator
-                    macroRings
 
-                    if totalCalories == 0 {
-                        HStack {
-                            Image(systemName: "fork.knife")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.fastingDay)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Text(L10n.fastingDayDescription)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: Binding(
-                                get: { isFastingDay },
-                                set: { _ in Task { await toggleFastingDay() } }
-                            ))
-                            .labelsHidden()
-                        }
-                        .padding(12)
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-
-                    if preferences.showWeightWidget, let weight = latestWeight {
-                        NavigationLink {
-                            WeightView()
-                        } label: {
-                            weightWidget(weight)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
-                        supplementsWidget
-                    }
-
-                    if mealGroups.isEmpty, !isLoading {
-                        emptyState
-                    } else {
-                        ForEach(mealGroups, id: \.0) { meal, mealEntries in
-                            NavigationLink(value: dateString) {
-                                MealCard(mealType: meal, entries: mealEntries) {}
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    // ZStack so the outgoing and incoming day overlap during
+                    // the push transition instead of stacking vertically.
+                    ZStack {
+                        dayContent
+                            .id(dateString)
+                            .transition(.push(from: slideEdge))
                     }
                 }
                 .padding()
             }
+            .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
             .navigationDestination(for: String.self) { date in
                 DayLogView(date: date)
@@ -149,13 +113,106 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Day Content
+
+    /// Everything below the date navigator; swapped out with a directional
+    /// push transition when the selected date changes.
+    private var dayContent: some View {
+        VStack(spacing: 16) {
+            macroRings
+
+            if totalCalories == 0 {
+                HStack {
+                    Image(systemName: "fork.knife")
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.fastingDay)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text(L10n.fastingDayDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { isFastingDay },
+                        set: { _ in Task { await toggleFastingDay() } }
+                    ))
+                    .labelsHidden()
+                }
+                .padding(12)
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            if preferences.showWeightWidget, let weight = latestWeight {
+                NavigationLink {
+                    WeightView()
+                } label: {
+                    weightWidget(weight)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
+                supplementsWidget
+            }
+
+            if mealGroups.isEmpty, !isLoading {
+                emptyState
+            } else {
+                ForEach(mealGroups, id: \.0) { meal, mealEntries in
+                    NavigationLink(value: dateString) {
+                        MealCard(mealType: meal, entries: mealEntries) {}
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Date Navigation
+
+    /// Horizontal swipe anywhere on the dashboard changes the day. Runs
+    /// simultaneously with the vertical scroll gesture; the dominance check in
+    /// `onEnded` keeps scrolling and pull-to-refresh unaffected, and the
+    /// minimum distance keeps taps intact.
+    private var dateSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 60, abs(horizontal) > abs(vertical) else { return }
+                changeDay(by: horizontal < 0 ? 1 : -1)
+            }
+    }
+
+    /// Moves the selected date by `delta` days with a directional push
+    /// animation. Moving past today is blocked — no future dates.
+    private func changeDay(by delta: Int) {
+        guard delta != 0 else { return }
+        if delta > 0, selectedDate.isToday { return }
+        slideEdge = delta > 0 ? .trailing : .leading
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) {
+            selectedDate = selectedDate.adding(days: delta)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func goToToday() {
+        slideEdge = .trailing
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) {
+            selectedDate = Date()
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     // MARK: - Date Navigator
 
     private var dateNavigator: some View {
         HStack {
             Button {
-                selectedDate = selectedDate.adding(days: -1)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                changeDay(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.title3)
@@ -170,7 +227,7 @@ struct DashboardView: View {
                     .fontWeight(.semibold)
                 if !selectedDate.isToday {
                     Button(L10n.goToToday) {
-                        selectedDate = Date()
+                        goToToday()
                     }
                     .font(.caption)
                 }
@@ -179,8 +236,7 @@ struct DashboardView: View {
             Spacer()
 
             Button {
-                selectedDate = selectedDate.adding(days: 1)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                changeDay(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.title3)
