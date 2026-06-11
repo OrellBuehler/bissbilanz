@@ -202,6 +202,36 @@ final class LocalWeightEntry {
     }
 }
 
+// MARK: - Sleep
+
+@Model
+final class LocalSleepEntry {
+    @Attribute(.unique) var id: String
+    var entryDate: String
+    var durationMinutes: Int
+    var quality: Int
+    var jsonData: Data
+
+    init(entry: SleepEntry) {
+        id = entry.id
+        entryDate = entry.entryDate
+        durationMinutes = entry.durationMinutes
+        quality = entry.quality
+        jsonData = LocalStoreCoding.encode(entry)
+    }
+
+    func update(from entry: SleepEntry) {
+        entryDate = entry.entryDate
+        durationMinutes = entry.durationMinutes
+        quality = entry.quality
+        jsonData = LocalStoreCoding.encode(entry)
+    }
+
+    func toSleepEntry() -> SleepEntry? {
+        LocalStoreCoding.decode(SleepEntry.self, from: jsonData)
+    }
+}
+
 // MARK: - Supplements
 
 @Model

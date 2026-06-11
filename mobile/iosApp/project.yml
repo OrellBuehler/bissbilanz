@@ -33,8 +33,8 @@ targets:
           - CFBundleURLSchemes:
               - bissbilanz
         NSCameraUsageDescription: 'Bissbilanz needs camera access to scan food barcodes'
-        NSHealthShareUsageDescription: 'Bissbilanz reads your weight data to track trends'
-        NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition and weight data to Health'
+        NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
+        NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:

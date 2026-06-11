@@ -19,6 +19,9 @@ enum SyncOperation: Codable {
     case createWeight(body: WeightCreate, localId: String)
     case updateWeight(id: String, body: WeightUpdate)
     case deleteWeight(id: String)
+    case createSleep(body: SleepCreate, localId: String)
+    case updateSleep(id: String, body: SleepUpdate)
+    case deleteSleep(id: String)
     case createSupplement(body: SupplementCreate, localId: String)
     case updateSupplement(id: String, body: SupplementUpdate)
     case deleteSupplement(id: String)
@@ -45,6 +48,9 @@ enum SyncOperation: Codable {
         case .createWeight: "create_weight"
         case .updateWeight: "update_weight"
         case .deleteWeight: "delete_weight"
+        case .createSleep: "create_sleep"
+        case .updateSleep: "update_sleep"
+        case .deleteSleep: "delete_sleep"
         case .createSupplement: "create_supplement"
         case .updateSupplement: "update_supplement"
         case .deleteSupplement: "delete_supplement"
@@ -63,6 +69,7 @@ enum SyncOperation: Codable {
         case .createRecipe, .updateRecipe, .deleteRecipe: "recipes"
         case .setGoals: "goals"
         case .createWeight, .updateWeight, .deleteWeight: "weight"
+        case .createSleep, .updateSleep, .deleteSleep: "sleep"
         case .createSupplement, .updateSupplement, .deleteSupplement,
              .logSupplement, .unlogSupplement: "supplements"
         case .setDayProperties, .deleteDayProperties: "day_properties"
@@ -74,12 +81,13 @@ enum SyncOperation: Codable {
         switch self {
         case let .createFood(_, localId), let .createEntry(_, localId),
              let .createRecipe(_, localId), let .createWeight(_, localId),
-             let .createSupplement(_, localId):
+             let .createSleep(_, localId), let .createSupplement(_, localId):
             localId
         case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
              let .updateRecipe(id, _), let .deleteRecipe(id),
              let .updateWeight(id, _), let .deleteWeight(id),
+             let .updateSleep(id, _), let .deleteSleep(id),
              let .updateSupplement(id, _), let .deleteSupplement(id):
             id
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
@@ -151,6 +159,12 @@ enum SyncOperation: Codable {
 
         case let .deleteWeight(id) where id == oldId:
             return .deleteWeight(id: newId)
+
+        case let .updateSleep(id, body) where id == oldId:
+            return .updateSleep(id: newId, body: body)
+
+        case let .deleteSleep(id) where id == oldId:
+            return .deleteSleep(id: newId)
 
         case let .createSupplement(body, localId):
             guard let ingredients = Self.remapSupplementIngredients(body.ingredients, from: oldId, to: newId)
@@ -234,6 +248,9 @@ enum SyncOperation: Codable {
         case .createWeight: "create weight entry"
         case let .updateWeight(id, _): "update weight entry \(id)"
         case let .deleteWeight(id): "delete weight entry \(id)"
+        case .createSleep: "create sleep entry"
+        case let .updateSleep(id, _): "update sleep entry \(id)"
+        case let .deleteSleep(id): "delete sleep entry \(id)"
         case .createSupplement: "create supplement"
         case let .updateSupplement(id, _): "update supplement \(id)"
         case let .deleteSupplement(id): "delete supplement \(id)"

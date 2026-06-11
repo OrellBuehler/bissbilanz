@@ -169,3 +169,113 @@ struct HealthKitSortTests {
         #expect(sortDescriptor.ascending == false)
     }
 }
+
+@Suite("Sleep Night Aggregation Tests")
+struct SleepNightAggregationTests {
+    @Test("Sleep analysis category type exists")
+    func sleepAnalysisTypeExists() {
+        let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)
+        #expect(type != nil)
+    }
+
+    /// Local-calendar date builder — `entryDate` is derived in local time.
+    private func date(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        var components = DateComponents()
+        components.year = 2026
+        components.month = 6
+        components.day = day
+        components.hour = hour
+        components.minute = minute
+        return Calendar.current.date(from: components)!
+    }
+
+    private func sample(
+        from start: Date,
+        to end: Date,
+        stage: HealthKitService.SleepStage = .asleep
+    ) -> HealthKitService.SleepSample {
+        HealthKitService.SleepSample(start: start, end: end, stage: stage)
+    }
+
+    @Test("One night sums asleep stages and keys by the wake day")
+    func singleNightAggregation() throws {
+        let samples = [
+            sample(from: date(1, 23, 0), to: date(2, 1, 0)),
+            sample(from: date(2, 1, 0), to: date(2, 1, 20), stage: .awake),
+            sample(from: date(2, 1, 20), to: date(2, 7, 0)),
+        ]
+
+        let nights = HealthKitService.nights(from: samples)
+
+        #expect(nights.count == 1)
+        let night = try #require(nights.first)
+        #expect(night.entryDate == "2026-06-02")
+        #expect(night.bedtime == date(1, 23, 0))
+        #expect(night.wakeTime == date(2, 7, 0))
+        // 23:00–01:00 plus 01:20–07:00 — the awake gap doesn't count.
+        #expect(night.asleepMinutes == 460)
+        #expect(night.wakeUps == 1)
+    }
+
+    @Test("Overlapping samples from two sources are not double-counted")
+    func overlappingSamplesUnioned() {
+        // Watch and iPhone both recorded the same hour.
+        let samples = [
+            sample(from: date(2, 0, 0), to: date(2, 6, 0)),
+            sample(from: date(2, 2, 0), to: date(2, 3, 0)),
+        ]
+
+        let nights = HealthKitService.nights(from: samples)
+
+        #expect(nights.first?.asleepMinutes == 360)
+    }
+
+    @Test("In-bed-only recordings fall back to the in-bed duration")
+    func inBedFallback() {
+        let samples = [
+            sample(from: date(1, 23, 0), to: date(2, 7, 0), stage: .inBed),
+        ]
+
+        let nights = HealthKitService.nights(from: samples)
+
+        #expect(nights.count == 1)
+        #expect(nights.first?.asleepMinutes == 480)
+    }
+
+    @Test("A gap larger than the session threshold splits sessions")
+    func gapSplitsSessions() {
+        let samples = [
+            sample(from: date(1, 23, 0), to: date(2, 7, 0)),
+            // Afternoon nap, ends the same day — a separate session.
+            sample(from: date(2, 14, 0), to: date(2, 15, 0)),
+        ]
+
+        let nights = HealthKitService.nights(from: samples)
+
+        // Both end on day 2 — the longer night wins over the nap.
+        #expect(nights.count == 1)
+        #expect(nights.first?.asleepMinutes == 480)
+        #expect(nights.first?.bedtime == date(1, 23, 0))
+    }
+
+    @Test("Micro-naps below the minimum are dropped")
+    func microNapsDropped() {
+        let samples = [
+            sample(from: date(2, 14, 0), to: date(2, 14, 20)),
+        ]
+
+        #expect(HealthKitService.nights(from: samples).isEmpty)
+    }
+
+    @Test("Consecutive nights produce one entry per wake day")
+    func consecutiveNights() {
+        let samples = [
+            sample(from: date(1, 23, 0), to: date(2, 7, 0)),
+            sample(from: date(2, 22, 30), to: date(3, 6, 30)),
+        ]
+
+        let nights = HealthKitService.nights(from: samples)
+
+        #expect(nights.map(\.entryDate) == ["2026-06-02", "2026-06-03"])
+    }
+}

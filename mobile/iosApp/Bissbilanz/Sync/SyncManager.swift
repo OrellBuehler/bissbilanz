@@ -283,6 +283,21 @@ final class SyncManager {
         case let .deleteWeight(id):
             try await api.deleteWeightEntry(id: id)
 
+        case let .createSleep(body, localId):
+            let server = try await api.createSleepEntry(body)
+            guard LocalRemap.sleepRow(id: localId, in: context) != nil else {
+                enqueue(.deleteSleep(id: server.id))
+                return
+            }
+            LocalRemap.replaceSleep(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
+
+        case let .updateSleep(id, body):
+            _ = try await api.updateSleepEntry(id: id, body)
+
+        case let .deleteSleep(id):
+            try await api.deleteSleepEntry(id: id)
+
         case let .createSupplement(body, localId):
             let server = try await api.createSupplement(body)
             guard LocalRemap.supplementRow(id: localId, in: context) != nil else {

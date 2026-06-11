@@ -610,6 +610,80 @@ struct RepositoryTests {
         #expect(entries.first?.weightKg == 74.2)
     }
 
+    // MARK: Sleep
+
+    @Test("Sleep refresh upserts by id and drops rows deleted on the server")
+    func sleepRefreshUpsertsById() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.sleepRepository
+        try harness.context.insert(LocalSleepEntry(entry: harness.sleepEntry(
+            id: "s1", date: "2026-06-01", durationMinutes: 400
+        )))
+        try harness.context.insert(LocalSleepEntry(entry: harness.sleepEntry(id: "gone", date: "2026-05-31")))
+        try harness.context.save()
+        harness.stub("GET", "/api/sleep", json: """
+        {"entries": [
+            {"id": "s1", "userId": "u1", "entryDate": "2026-06-01", "durationMinutes": 430, "quality": 8},
+            {"id": "s2", "userId": "u1", "entryDate": "2026-06-02", "durationMinutes": 465, "quality": 6}
+        ]}
+        """)
+
+        try await repo.refresh()
+
+        let entries = repo.entries()
+        #expect(entries.map(\.id) == ["s2", "s1"]) // newest first
+        #expect(entries.last?.durationMinutes == 430)
+        #expect(repo.latest()?.id == "s2")
+    }
+
+    @Test("Drained sleep create replaces the temp row with the server record")
+    func sleepCreateDrainReplacesTempId() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.sleepRepository
+        harness.stub("POST", "/api/sleep", json: """
+        {"entry": {"id": "s-server", "userId": "u1", "entryDate": "2026-06-01", "durationMinutes": 450, "quality": 7}}
+        """)
+
+        let temp = try await repo.createEntry(SleepCreate(durationMinutes: 450, quality: 7, entryDate: "2026-06-01"))
+        #expect(LocalStore.isTempId(temp.id))
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(repo.entries().map(\.id) == ["s-server"])
+    }
+
+    @Test("Sleep create keeps the temp row when the upload fails")
+    func sleepCreateKeepsTempRowOnFailure() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.sleepRepository
+        harness.stub("POST", "/api/sleep", status: 500, json: #"{"error": "boom"}"#)
+
+        _ = try await repo.createEntry(SleepCreate(durationMinutes: 450, quality: 7, entryDate: "2026-06-01"))
+        await harness.syncManager.drainPendingQueue()
+
+        let entries = repo.entries()
+        #expect(entries.count == 1)
+        #expect(LocalStore.isTempId(entries.first?.id ?? ""))
+        #expect(entries.first?.durationMinutes == 450)
+    }
+
+    @Test("Editing a queued sleep create coalesces into the pending upload")
+    func sleepUpdateCoalescesQueuedCreate() async throws {
+        let harness = try RepositoryHarness(online: false)
+        let repo = harness.sleepRepository
+
+        let temp = try await repo.createEntry(SleepCreate(durationMinutes: 450, quality: 7, entryDate: "2026-06-01"))
+        _ = try await repo.updateEntry(id: temp.id, SleepUpdate(durationMinutes: 480, quality: 9))
+
+        let rows = harness.syncManager.queuedRows()
+        #expect(rows.count == 1)
+        guard case let .createSleep(body, _)? = rows.first?.operation() else {
+            Issue.record("Expected a coalesced createSleep operation")
+            return
+        }
+        #expect(body.durationMinutes == 480)
+        #expect(body.quality == 9)
+    }
+
     // MARK: Supplements
 
     @Test("Supplement log writes the local row and queues; the row survives upload failure")

@@ -187,6 +187,27 @@ final class BissbilanzAPI {
         try await deleteRequest("/api/weight/\(id)")
     }
 
+    // MARK: - Sleep
+
+    func getSleepEntries() async throws -> [SleepEntry] {
+        let response: SleepEntriesResponse = try await get("/api/sleep")
+        return response.entries
+    }
+
+    func createSleepEntry(_ entry: SleepCreate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await post("/api/sleep", body: entry)
+        return response.entry
+    }
+
+    func updateSleepEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await patch("/api/sleep/\(id)", body: update)
+        return response.entry
+    }
+
+    func deleteSleepEntry(id: String) async throws {
+        try await deleteRequest("/api/sleep/\(id)")
+    }
+
     // MARK: - Supplements
 
     func getSupplements() async throws -> [Supplement] {

@@ -25,6 +25,10 @@ struct SettingsView: View {
     @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey)
     @State private var healthWriteWeightEnabled: Bool = UserDefaults.standard
         .bool(forKey: HealthKitService.writeWeightEnabledKey)
+    @State private var healthReadSleepEnabled: Bool = UserDefaults.standard
+        .bool(forKey: HealthKitService.readSleepEnabledKey)
+    @State private var healthWriteSleepEnabled: Bool = UserDefaults.standard
+        .bool(forKey: HealthKitService.writeSleepEnabledKey)
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabNames: String {
@@ -82,6 +86,9 @@ struct SettingsView: View {
                     NavigationLink { WeightView() } label: {
                         Label(L10n.weight, systemImage: "scalemass")
                     }
+                    NavigationLink { SleepView() } label: {
+                        Label(L10n.sleep, systemImage: "bed.double")
+                    }
                     NavigationLink { SupplementsView() } label: {
                         Label(L10n.supplements, systemImage: "pills")
                     }
@@ -122,6 +129,27 @@ struct SettingsView: View {
                                     }
                                 }
                         }
+                        // Sleep read/write are independently optional — each
+                        // direction only requests its own permission when the
+                        // user opts in.
+                        Toggle(L10n.healthReadSleep, isOn: $healthReadSleepEnabled)
+                            .onChange(of: healthReadSleepEnabled) { _, enabled in
+                                UserDefaults.standard.set(enabled, forKey: HealthKitService.readSleepEnabledKey)
+                                if enabled {
+                                    Task {
+                                        _ = await healthKitService.requestSleepReadAuthorization()
+                                    }
+                                }
+                            }
+                        Toggle(L10n.healthWriteSleep, isOn: $healthWriteSleepEnabled)
+                            .onChange(of: healthWriteSleepEnabled) { _, enabled in
+                                UserDefaults.standard.set(enabled, forKey: HealthKitService.writeSleepEnabledKey)
+                                if enabled {
+                                    Task {
+                                        _ = await healthKitService.requestSleepWriteAuthorization()
+                                    }
+                                }
+                            }
                         if healthKitService.isAuthorized {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
@@ -140,8 +168,15 @@ struct SettingsView: View {
                     } header: {
                         Text(L10n.healthKit)
                     } footer: {
-                        if healthSyncEnabled {
-                            Text(L10n.healthSyncFooter)
+                        if healthSyncEnabled || healthReadSleepEnabled || healthWriteSleepEnabled {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if healthSyncEnabled {
+                                    Text(L10n.healthSyncFooter)
+                                }
+                                if healthReadSleepEnabled || healthWriteSleepEnabled {
+                                    Text(L10n.healthSleepFooter)
+                                }
+                            }
                         }
                     }
                 }

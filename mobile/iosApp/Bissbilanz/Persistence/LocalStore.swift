@@ -15,6 +15,7 @@ enum LocalStore {
             LocalFood.self,
             LocalRecipe.self,
             LocalWeightEntry.self,
+            LocalSleepEntry.self,
             LocalSupplement.self,
             LocalSupplementLog.self,
             LocalGoals.self,

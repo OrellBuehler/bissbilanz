@@ -697,6 +697,30 @@ enum L10n {
         )
     }
 
+    static var healthReadSleep: String {
+        localized(
+            "health_read_sleep",
+            en: "Read sleep from Apple Health",
+            de: "Schlaf aus Apple Health lesen"
+        )
+    }
+
+    static var healthWriteSleep: String {
+        localized(
+            "health_write_sleep",
+            en: "Write sleep to Apple Health",
+            de: "Schlaf in Apple Health schreiben"
+        )
+    }
+
+    static var healthSleepFooter: String {
+        localized(
+            "health_sleep_footer",
+            en: "Reading imports nights recorded in Apple Health (e.g. by Apple Watch) into your sleep log with a neutral quality rating you can edit. Writing saves sleep you log here with bed and wake times to Apple Health — leave it off if your Watch already records sleep.",
+            de: "Beim Lesen werden in Apple Health aufgezeichnete Nächte (z. B. von der Apple Watch) mit einer neutralen, editierbaren Qualitätsbewertung in dein Schlafprotokoll importiert. Beim Schreiben wird hier erfasster Schlaf mit Schlafens- und Aufwachzeit in Apple Health gespeichert — lass es aus, wenn deine Watch bereits Schlaf aufzeichnet."
+        )
+    }
+
     // MARK: - Scanner
 
     static var scanBarcode: String {
@@ -895,6 +919,8 @@ enum L10n {
             localized("migration_step_entries", en: "Uploading entries", de: "Einträge hochladen")
         case .weights:
             localized("migration_step_weights", en: "Uploading weight entries", de: "Gewichtseinträge hochladen")
+        case .sleep:
+            localized("migration_step_sleep", en: "Uploading sleep entries", de: "Schlafeinträge hochladen")
         case .supplements:
             localized("migration_step_supplements", en: "Uploading supplements", de: "Supplements hochladen")
         case .supplementLogs:
@@ -994,6 +1020,64 @@ enum L10n {
 
     static var notes: String {
         localized("notes", en: "Notes", de: "Notizen")
+    }
+
+    // MARK: - Sleep
+
+    static var sleep: String {
+        localized("sleep", en: "Sleep", de: "Schlaf")
+    }
+
+    static var logSleep: String {
+        localized("log_sleep", en: "Log Sleep", de: "Schlaf erfassen")
+    }
+
+    static var sleepDuration: String {
+        localized("sleep_duration", en: "Duration", de: "Dauer")
+    }
+
+    static var sleepQuality: String {
+        localized("sleep_quality", en: "Quality", de: "Qualität")
+    }
+
+    static var sleepQualityPoor: String {
+        localized("sleep_quality_poor", en: "Poor", de: "Schlecht")
+    }
+
+    static var sleepQualityGreat: String {
+        localized("sleep_quality_great", en: "Great", de: "Gut")
+    }
+
+    static var bedtime: String {
+        localized("sleep_bedtime", en: "Bedtime", de: "Schlafenszeit")
+    }
+
+    static var wakeTime: String {
+        localized("sleep_wake_time", en: "Wake time", de: "Aufwachzeit")
+    }
+
+    static var wakeUps: String {
+        localized("sleep_wake_ups", en: "Wake-ups", de: "Aufwachphasen")
+    }
+
+    static var bedAndWakeTimes: String {
+        localized("bed_and_wake_times", en: "Bed & wake times", de: "Schlafens- & Aufwachzeit")
+    }
+
+    static var lastNight: String {
+        localized("last_night", en: "Last night", de: "Letzte Nacht")
+    }
+
+    static var sevenDayAverage: String {
+        localized("seven_day_average", en: "7d average", de: "7T-Schnitt")
+    }
+
+    static var hours: String {
+        localized("hours", en: "Hours", de: "Stunden")
+    }
+
+    static var minutes: String {
+        localized("minutes", en: "Minutes", de: "Minuten")
     }
 
     // MARK: - Insights (additional)

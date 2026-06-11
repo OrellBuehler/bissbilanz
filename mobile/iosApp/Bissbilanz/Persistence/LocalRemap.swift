@@ -44,6 +44,14 @@ enum LocalRemap {
         try? context.save()
     }
 
+    static func replaceSleep(id oldId: String, with entry: SleepEntry, in context: ModelContext) {
+        if let row = sleepRow(id: oldId, in: context), entry.id != oldId {
+            context.delete(row)
+        }
+        upsertSleep(entry, in: context)
+        try? context.save()
+    }
+
     static func replaceSupplement(
         id oldId: String,
         with supplement: Supplement,
@@ -159,6 +167,14 @@ enum LocalRemap {
         }
     }
 
+    static func upsertSleep(_ entry: SleepEntry, in context: ModelContext) {
+        if let row = sleepRow(id: entry.id, in: context) {
+            row.update(from: entry)
+        } else {
+            context.insert(LocalSleepEntry(entry: entry))
+        }
+    }
+
     static func upsertSupplement(_ supplement: Supplement, in context: ModelContext) {
         if let row = supplementRow(id: supplement.id, in: context) {
             row.update(from: supplement)
@@ -189,6 +205,12 @@ enum LocalRemap {
 
     static func weightRow(id: String, in context: ModelContext) -> LocalWeightEntry? {
         var descriptor = FetchDescriptor<LocalWeightEntry>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
+    }
+
+    static func sleepRow(id: String, in context: ModelContext) -> LocalSleepEntry? {
+        var descriptor = FetchDescriptor<LocalSleepEntry>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
