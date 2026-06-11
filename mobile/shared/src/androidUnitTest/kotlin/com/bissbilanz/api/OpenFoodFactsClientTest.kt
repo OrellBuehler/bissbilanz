@@ -3,7 +3,7 @@ package com.bissbilanz.api
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -65,7 +65,7 @@ class OpenFoodFactsClientTest {
 
     @Test
     fun fetchProductMapsOffFieldsLikeTheServerProxy() =
-        runTest {
+        runBlocking {
             val client = clientRespondingWith(fixture)
 
             val product = client.fetchProduct("7622210449283")
@@ -111,7 +111,7 @@ class OpenFoodFactsClientTest {
 
     @Test
     fun fetchProductSendsUserAgentAndFieldsToOffApi() =
-        runTest {
+        runBlocking {
             var requestedUrl = ""
             var userAgent: String? = null
             val client =
@@ -129,7 +129,7 @@ class OpenFoodFactsClientTest {
 
     @Test
     fun fetchProductReturnsNullWhenProductNotFound() =
-        runTest {
+        runBlocking {
             val client = clientRespondingWith("""{"code":"0000","status":0,"status_verbose":"product not found"}""")
 
             assertNull(client.fetchProduct("0000"))
@@ -137,7 +137,7 @@ class OpenFoodFactsClientTest {
 
     @Test
     fun fetchProductReturnsNullOnHttpError() =
-        runTest {
+        runBlocking {
             val client = clientRespondingWith("not found", status = HttpStatusCode.NotFound)
 
             assertNull(client.fetchProduct("0000"))
@@ -145,7 +145,7 @@ class OpenFoodFactsClientTest {
 
     @Test
     fun fetchProductDefaultsMissingNameAndMacrosLikeTheProxy() =
-        runTest {
+        runBlocking {
             val sparse = """{"status":1,"product":{"nutriments":{}}}"""
             val client = clientRespondingWith(sparse)
 
