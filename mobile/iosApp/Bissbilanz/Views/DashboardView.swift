@@ -88,7 +88,12 @@ struct DashboardView: View {
                     }
 
                     if preferences.showWeightWidget, let weight = latestWeight {
-                        weightWidget(weight)
+                        NavigationLink {
+                            WeightView()
+                        } label: {
+                            weightWidget(weight)
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
