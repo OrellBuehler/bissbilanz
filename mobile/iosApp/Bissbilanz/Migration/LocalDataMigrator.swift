@@ -8,6 +8,7 @@ struct MigrationPlan {
     let recipes: Int
     let entries: Int
     let weights: Int
+    let sleepEntries: Int
     let supplements: Int
     let supplementLogs: Int
     let dayProperties: Int
@@ -15,7 +16,7 @@ struct MigrationPlan {
     let hasPreferences: Bool
 
     var total: Int {
-        foods + recipes + entries + weights + supplements + supplementLogs
+        foods + recipes + entries + weights + sleepEntries + supplements + supplementLogs
             + dayProperties + (hasGoals ? 1 : 0) + (hasPreferences ? 1 : 0)
     }
 }
@@ -26,6 +27,7 @@ enum MigrationStep: String {
     case recipes
     case entries
     case weights
+    case sleep
     case supplements
     case supplementLogs = "supplement_logs"
     case goals
@@ -106,6 +108,7 @@ final class LocalDataMigrator {
             recipes: count(LocalRecipe.self),
             entries: count(LocalEntry.self),
             weights: count(LocalWeightEntry.self),
+            sleepEntries: count(LocalSleepEntry.self),
             supplements: count(LocalSupplement.self),
             supplementLogs: count(LocalSupplementLog.self),
             dayProperties: count(LocalDayProperties.self),
@@ -140,6 +143,7 @@ final class LocalDataMigrator {
             done = try await uploadRecipes(done: done, total: total)
             done = try await uploadEntries(done: done, total: total)
             done = try await uploadWeights(done: done, total: total)
+            done = try await uploadSleep(done: done, total: total)
             done = try await uploadSupplements(done: done, total: total)
             done = try await uploadSupplementLogs(done: done, total: total)
             done = try await uploadGoals(done: done, total: total)
@@ -171,6 +175,7 @@ final class LocalDataMigrator {
         try? context.delete(model: LocalFood.self)
         try? context.delete(model: LocalRecipe.self)
         try? context.delete(model: LocalWeightEntry.self)
+        try? context.delete(model: LocalSleepEntry.self)
         try? context.delete(model: LocalSupplement.self)
         try? context.delete(model: LocalSupplementLog.self)
         try? context.delete(model: LocalGoals.self)
@@ -237,6 +242,14 @@ final class LocalDataMigrator {
                 LocalRemap.replaceWeight(id: row.id, with: patched, in: context)
             }
         }
+        for row in fetchAll(LocalSleepEntry.self) where !LocalStore.isTempId(row.id) {
+            let newId = LocalStore.makeTempId()
+            if let entry = row.toSleepEntry(),
+               let patched = try? JSONPatch.merged(SleepEntry.self, base: entry, patch: ["id": newId])
+            {
+                LocalRemap.replaceSleep(id: row.id, with: patched, in: context)
+            }
+        }
         try? context.save()
         defaults.set(true, forKey: Self.normalizedMarkerKey)
     }
@@ -247,6 +260,7 @@ final class LocalDataMigrator {
             + fetchAll(LocalRecipe.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalEntry.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalWeightEntry.self).count { !LocalStore.isTempId($0.id) }
+            + fetchAll(LocalSleepEntry.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalSupplement.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalSupplementLog.self).count { !LocalStore.isTempId($0.id) }
     }
@@ -329,6 +343,29 @@ final class LocalDataMigrator {
             LocalRemap.replaceWeight(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .weights)
+        }
+        return done
+    }
+
+    private func uploadSleep(done startDone: Int, total: Int) async throws -> Int {
+        var done = startDone
+        progress(done, total, .sleep)
+        for row in fetchAll(LocalSleepEntry.self) where LocalStore.isTempId(row.id) {
+            guard let entry = row.toSleepEntry() else {
+                throw MigrationError.unreadableRow("sleep entry from \(row.entryDate)")
+            }
+            let server = try await api.createSleepEntry(SleepCreate(
+                durationMinutes: entry.durationMinutes,
+                quality: entry.quality,
+                entryDate: entry.entryDate,
+                bedtime: entry.bedtime,
+                wakeTime: entry.wakeTime,
+                wakeUps: entry.wakeUps,
+                notes: entry.notes
+            ))
+            LocalRemap.replaceSleep(id: row.id, with: server, in: context)
+            done += 1
+            progress(done, total, .sleep)
         }
         return done
     }

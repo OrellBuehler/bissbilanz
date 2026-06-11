@@ -202,6 +202,10 @@ struct RepositoryHarness {
         WeightRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }
 
+    var sleepRepository: SleepRepository {
+        SleepRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
+    }
+
     var supplementRepository: SupplementRepository {
         SupplementRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }
@@ -284,6 +288,16 @@ struct RepositoryHarness {
             "userId": "u1",
             "weightKg": kg,
             "entryDate": date,
+        ])
+    }
+
+    func sleepEntry(id: String, date: String, durationMinutes: Int = 450, quality: Int = 7) throws -> SleepEntry {
+        try JSONPatch.decode(SleepEntry.self, from: [
+            "id": id,
+            "userId": "u1",
+            "entryDate": date,
+            "durationMinutes": durationMinutes,
+            "quality": quality,
         ])
     }
 

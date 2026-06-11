@@ -42,6 +42,7 @@ struct BissbilanzApp: App {
     @State private var foodRepository: FoodRepository
     @State private var recipeRepository: RecipeRepository
     @State private var weightRepository: WeightRepository
+    @State private var sleepRepository: SleepRepository
     @State private var supplementRepository: SupplementRepository
     @State private var goalsRepository: GoalsRepository
     @State private var preferencesRepository: PreferencesRepository
@@ -95,6 +96,9 @@ struct BissbilanzApp: App {
         _weightRepository = State(wrappedValue: WeightRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
+        _sleepRepository = State(wrappedValue: SleepRepository(
+            context: context, api: api, appMode: appMode, syncManager: sync
+        ))
         _supplementRepository = State(wrappedValue: SupplementRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
@@ -128,6 +132,7 @@ struct BissbilanzApp: App {
             .environment(foodRepository)
             .environment(recipeRepository)
             .environment(weightRepository)
+            .environment(sleepRepository)
             .environment(supplementRepository)
             .environment(goalsRepository)
             .environment(preferencesRepository)
