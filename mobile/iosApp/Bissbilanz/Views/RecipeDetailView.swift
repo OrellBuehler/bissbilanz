@@ -27,11 +27,13 @@ struct RecipeDetailView: View {
                     Button {
                         showLogSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 52))
-                            .foregroundStyle(Color.white, Color.accentColor)
-                            .shadow(radius: 4, y: 2)
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 56, height: 56)
                     }
+                    .circularGlassBackground(tint: Color.accentColor)
                     .padding(20)
                 }
             }

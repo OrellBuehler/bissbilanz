@@ -66,6 +66,7 @@ struct QuickEntrySheet: View {
                 if let errorMessage { Text(errorMessage) }
             }
         }
+        .presentationDetents([.medium, .large])
     }
 
     private func macroField(_ label: String, text: Binding<String>, unit: String) -> some View {

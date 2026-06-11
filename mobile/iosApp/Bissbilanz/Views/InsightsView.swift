@@ -15,6 +15,7 @@ struct InsightsView: View {
     @State private var selectedRange = 7
     @State private var isLoading = true
     @State private var calendarMonth = Date()
+    @ScaledMetric(relativeTo: .largeTitle) private var streakNumberSize = 36.0
 
     var body: some View {
         NavigationStack {
@@ -132,7 +133,7 @@ struct InsightsView: View {
                     HStack(spacing: 32) {
                         VStack {
                             Text("\(streaks.currentStreak)")
-                                .font(.system(size: 36, weight: .bold))
+                                .font(.system(size: streakNumberSize, weight: .bold))
                                 .foregroundStyle(MacroColors.calories)
                             Text(L10n.currentStreak)
                                 .font(.caption)
@@ -140,7 +141,7 @@ struct InsightsView: View {
                         }
                         VStack {
                             Text("\(streaks.longestStreak)")
-                                .font(.system(size: 36, weight: .bold))
+                                .font(.system(size: streakNumberSize, weight: .bold))
                                 .foregroundStyle(MacroColors.fiber)
                             Text(L10n.longestStreak)
                                 .font(.caption)

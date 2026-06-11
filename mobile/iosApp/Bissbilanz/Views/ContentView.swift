@@ -59,23 +59,21 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            DashboardView()
-                .tabItem {
-                    Label(L10n.home, systemImage: "house")
-                }
-
-            ForEach(selectedTabs) { tab in
-                tab.destination
-                    .tabItem {
-                        Label(tab.label, systemImage: tab.icon)
-                    }
+            Tab(L10n.home, systemImage: "house") {
+                DashboardView()
             }
 
-            SettingsView()
-                .tabItem {
-                    Label(L10n.settings, systemImage: "gear")
+            ForEach(selectedTabs) { tab in
+                Tab(tab.label, systemImage: tab.icon) {
+                    tab.destination
                 }
+            }
+
+            Tab(L10n.settings, systemImage: "gear") {
+                SettingsView()
+            }
         }
+        .minimizableTabBar()
         // Only users who signed in initially are prompted — Local mode is
         // anonymous by choice and never sees this.
         .onChange(of: authManager.authState, initial: true) { _, state in
