@@ -190,6 +190,7 @@ If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling Xco
 
 - **IMPORTANT:** Always commit changes when work is complete
 - **IMPORTANT:** NEVER include "Co-Authored" comments in commit messages
+- **IMPORTANT:** NEVER squash merge PRs — always use a merge commit (`gh pr merge --merge`). Squash merging is disabled in the repo settings.
 
 ### Dependabot PRs
 
