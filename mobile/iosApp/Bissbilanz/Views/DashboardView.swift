@@ -207,22 +207,32 @@ struct DashboardView: View {
                 current: totalProtein,
                 goal: goals.proteinGoal,
                 color: MacroColors.protein,
-                showGoal: true
+                showGoal: true,
+                animationDelay: 0.05
             )
             MacroRingView(
                 label: "C",
                 current: totalCarbs,
                 goal: goals.carbGoal,
                 color: MacroColors.carbs,
-                showGoal: true
+                showGoal: true,
+                animationDelay: 0.1
             )
-            MacroRingView(label: "F", current: totalFat, goal: goals.fatGoal, color: MacroColors.fat, showGoal: true)
+            MacroRingView(
+                label: "F",
+                current: totalFat,
+                goal: goals.fatGoal,
+                color: MacroColors.fat,
+                showGoal: true,
+                animationDelay: 0.15
+            )
             MacroRingView(
                 label: "Fb",
                 current: totalFiber,
                 goal: goals.fiberGoal,
                 color: MacroColors.fiber,
-                showGoal: true
+                showGoal: true,
+                animationDelay: 0.2
             )
         }
     }
