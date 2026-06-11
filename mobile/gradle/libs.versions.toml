@@ -1,6 +1,6 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.3.21"
+kotlin = "2.4.0"
 compose-bom = "2026.04.01"
 compose-navigation = "2.9.8"
 ktor = "3.4.3"
