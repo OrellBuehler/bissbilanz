@@ -22,7 +22,7 @@ struct FoodSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
+            Picker("", selection: $selectedTab.animation()) {
                 Text(L10n.search).tag(0)
                 Text(L10n.recent).tag(1)
                 Text(L10n.favorites).tag(2)
@@ -31,16 +31,15 @@ struct FoodSearchView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            switch selectedTab {
-            case 0:
+            TabView(selection: $selectedTab) {
                 searchTab
-            case 1:
+                    .tag(0)
                 recentTab
-            case 2:
+                    .tag(1)
                 favoritesTab
-            default:
-                EmptyView()
+                    .tag(2)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .navigationTitle(L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
