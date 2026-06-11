@@ -19,35 +19,52 @@ struct InsightsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if isLoading {
-                        LoadingView()
-                    } else {
-                        dateRangePicker
-                        streaksCard
-                        calorieTrendChart
-                        macroTrendsCard
-                        macroRadarCard
-                        mealBreakdownChart
-                        goalAchievementCard
-                        calendarHeatmapCard
-                        comparisonCard
-                        topFoodsCard
-                    }
+            VStack(spacing: 0) {
+                dateRangePicker
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                TabView(selection: $selectedRange) {
+                    rangePage
+                        .tag(7)
+                    rangePage
+                        .tag(30)
+                    rangePage
+                        .tag(90)
                 }
-                .padding()
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
             .navigationTitle(L10n.insights)
-            .refreshable { await loadAll() }
             .task { await loadAll() }
         }
+    }
+
+    private var rangePage: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if isLoading {
+                    LoadingView()
+                } else {
+                    streaksCard
+                    calorieTrendChart
+                    macroTrendsCard
+                    macroRadarCard
+                    mealBreakdownChart
+                    goalAchievementCard
+                    calendarHeatmapCard
+                    comparisonCard
+                    topFoodsCard
+                }
+            }
+            .padding()
+        }
+        .refreshable { await loadAll() }
     }
 
     // MARK: - Date Range Picker
 
     private var dateRangePicker: some View {
-        Picker(L10n.period, selection: $selectedRange) {
+        Picker(L10n.period, selection: $selectedRange.animation()) {
             Text("7d").tag(7)
             Text("30d").tag(30)
             Text("90d").tag(90)
