@@ -84,7 +84,7 @@ struct DashboardView: View {
                         }
                         .padding(12)
                         .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
 
                     if preferences.showWeightWidget, let weight = latestWeight {
@@ -241,7 +241,7 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Weight Widget
@@ -268,7 +268,7 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Supplements Widget
@@ -307,73 +307,66 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "fork.knife.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text(L10n.noEntriesYet)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label(L10n.noEntriesYet, systemImage: "fork.knife.circle")
+        } description: {
             Text(L10n.tapToAdd)
-                .foregroundStyle(.secondary)
-
+        } actions: {
             if !selectedDate.isToday {
                 Button(L10n.copyYesterday) {
                     showCopyConfirmation = true
                 }
                 .buttonStyle(.bordered)
-                .padding(.top, 8)
             }
         }
-        .padding(.vertical, 48)
+        .padding(.vertical, 24)
     }
 
     // MARK: - FAB
 
     private var fab: some View {
-        VStack(spacing: 12) {
-            Button {
-                showScanner = true
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            } label: {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(.thinMaterial)
-                    .clipShape(Circle())
-            }
+        FloatingControlGroup {
+            VStack(spacing: 12) {
+                Button {
+                    showScanner = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                } label: {
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .circularGlassBackground()
 
-            Button {
-                showQuickEntry = true
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            } label: {
-                Image(systemName: "bolt")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(.thinMaterial)
-                    .clipShape(Circle())
-            }
+                Button {
+                    showQuickEntry = true
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Image(systemName: "bolt")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .circularGlassBackground()
 
-            Button {
-                showFoodSearch = true
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(MacroColors.calories)
-                    .clipShape(Circle())
-                    .shadow(radius: 4)
+                Button {
+                    showFoodSearch = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                }
+                .circularGlassBackground(tint: MacroColors.calories)
             }
+            .padding()
         }
-        .padding()
     }
 
     // MARK: - Data Loading

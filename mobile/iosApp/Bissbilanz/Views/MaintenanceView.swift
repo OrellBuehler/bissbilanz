@@ -8,6 +8,7 @@ struct MaintenanceView: View {
     @State private var result: MaintenanceResponse?
     @State private var isCalculating = false
     @State private var error: String?
+    @ScaledMetric(relativeTo: .largeTitle) private var heroNumberSize = 48.0
 
     private let weekOptions = [2, 4, 8, 12]
 
@@ -104,7 +105,7 @@ struct MaintenanceView: View {
                     .font(.headline)
 
                 Text("\(Int(result.maintenanceCalories))")
-                    .font(.system(size: 48, weight: .bold))
+                    .font(.system(size: heroNumberSize, weight: .bold))
                     .foregroundStyle(MacroColors.calories)
 
                 Text(L10n.kcalPerDay)

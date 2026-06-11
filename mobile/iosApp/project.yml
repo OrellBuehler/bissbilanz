@@ -2,7 +2,7 @@ name: Bissbilanz
 options:
   bundleIdPrefix: com.bissbilanz
   deploymentTarget:
-    iOS: '17.0'
+    iOS: '18.0'
   xcodeVersion: '16.2'
 
 settings:
@@ -35,8 +35,13 @@ targets:
         NSCameraUsageDescription: 'Bissbilanz needs camera access to scan food barcodes'
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition and weight data to Health'
+    # properties must be declared here: xcodegen regenerates the entitlements
+    # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
       path: Bissbilanz/Bissbilanz.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
     dependencies:
       - sdk: HealthKit.framework
 

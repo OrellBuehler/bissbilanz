@@ -29,6 +29,7 @@ struct LoginView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(AppModeManager.self) private var appModeManager
     @State private var authSession: ASWebAuthenticationSession?
+    @ScaledMetric(relativeTo: .largeTitle) private var brandIconSize = 72.0
 
     var body: some View {
         VStack(spacing: 48) {
@@ -36,7 +37,7 @@ struct LoginView: View {
 
             VStack(spacing: 12) {
                 Image(systemName: "leaf.circle.fill")
-                    .font(.system(size: 72))
+                    .font(.system(size: brandIconSize))
                     .foregroundStyle(MacroColors.calories)
 
                 Text(L10n.appName)
