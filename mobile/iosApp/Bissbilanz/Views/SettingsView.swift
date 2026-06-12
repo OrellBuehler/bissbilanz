@@ -22,13 +22,6 @@ struct SettingsView: View {
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
-    @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey)
-    @State private var healthWriteWeightEnabled: Bool = UserDefaults.standard
-        .bool(forKey: HealthKitService.writeWeightEnabledKey)
-    @State private var healthReadSleepEnabled: Bool = UserDefaults.standard
-        .bool(forKey: HealthKitService.readSleepEnabledKey)
-    @State private var healthWriteSleepEnabled: Bool = UserDefaults.standard
-        .bool(forKey: HealthKitService.writeSleepEnabledKey)
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabNames: String {
@@ -106,76 +99,22 @@ struct SettingsView: View {
                     }
                 }
 
-                // HealthKit section
+                // Apple Health — all sync controls live on the subpage.
                 if healthKitService.isAvailable {
-                    Section {
-                        Toggle(L10n.healthKit, isOn: $healthSyncEnabled)
-                            .onChange(of: healthSyncEnabled) { _, enabled in
-                                UserDefaults.standard.set(enabled, forKey: HealthKitService.syncEnabledKey)
-                                if enabled {
-                                    Task {
-                                        _ = await healthKitService.requestReadAuthorization()
-                                    }
-                                }
-                            }
-                        if healthSyncEnabled {
-                            Toggle(L10n.healthWriteWeight, isOn: $healthWriteWeightEnabled)
-                                .onChange(of: healthWriteWeightEnabled) { _, enabled in
-                                    UserDefaults.standard.set(enabled, forKey: HealthKitService.writeWeightEnabledKey)
-                                    if enabled {
-                                        Task {
-                                            _ = await healthKitService.requestWriteAuthorization()
-                                        }
-                                    }
-                                }
-                        }
-                        // Sleep read/write are independently optional — each
-                        // direction only requests its own permission when the
-                        // user opts in.
-                        Toggle(L10n.healthReadSleep, isOn: $healthReadSleepEnabled)
-                            .onChange(of: healthReadSleepEnabled) { _, enabled in
-                                UserDefaults.standard.set(enabled, forKey: HealthKitService.readSleepEnabledKey)
-                                if enabled {
-                                    Task {
-                                        _ = await healthKitService.requestSleepReadAuthorization()
-                                    }
-                                }
-                            }
-                        Toggle(L10n.healthWriteSleep, isOn: $healthWriteSleepEnabled)
-                            .onChange(of: healthWriteSleepEnabled) { _, enabled in
-                                UserDefaults.standard.set(enabled, forKey: HealthKitService.writeSleepEnabledKey)
-                                if enabled {
-                                    Task {
-                                        _ = await healthKitService.requestSleepWriteAuthorization()
-                                    }
-                                }
-                            }
-                        if healthKitService.isAuthorized {
+                    Section(L10n.appleHealth) {
+                        NavigationLink {
+                            AppleHealthSettingsView()
+                        } label: {
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text(L10n.permissionsGranted)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else if healthSyncEnabled {
-                            Button {
-                                Task { _ = await healthKitService.requestReadAuthorization() }
-                            } label: {
-                                Label(L10n.grantPermissions, systemImage: "heart.circle")
-                            }
-                        }
-                    } header: {
-                        Text(L10n.healthKit)
-                    } footer: {
-                        if healthSyncEnabled || healthReadSleepEnabled || healthWriteSleepEnabled {
-                            VStack(alignment: .leading, spacing: 8) {
-                                if healthSyncEnabled {
-                                    Text(L10n.healthSyncFooter)
-                                }
-                                if healthReadSleepEnabled || healthWriteSleepEnabled {
-                                    Text(L10n.healthSleepFooter)
-                                }
+                                Label(L10n.appleHealth, systemImage: "heart")
+                                Spacer()
+                                Text(
+                                    HealthKitService.isAnySyncEnabled
+                                        ? L10n.healthConnected
+                                        : L10n.healthNotConnected
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                             }
                         }
                     }
