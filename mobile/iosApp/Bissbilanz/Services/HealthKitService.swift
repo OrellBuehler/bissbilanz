@@ -34,25 +34,12 @@ final class HealthKitService {
         return types
     }()
 
+    /// Weight only — nutrition types are authorized per type via
+    /// `requestNutritionWriteAuthorization` so permissions stay lazy.
     private let writeTypes: Set<HKSampleType> = {
         var types = Set<HKSampleType>()
         if let weight = HKQuantityType.quantityType(forIdentifier: .bodyMass) {
             types.insert(weight)
-        }
-        if let energy = HKQuantityType.quantityType(forIdentifier: .dietaryEnergyConsumed) {
-            types.insert(energy)
-        }
-        if let protein = HKQuantityType.quantityType(forIdentifier: .dietaryProtein) {
-            types.insert(protein)
-        }
-        if let carbs = HKQuantityType.quantityType(forIdentifier: .dietaryCarbohydrates) {
-            types.insert(carbs)
-        }
-        if let fat = HKQuantityType.quantityType(forIdentifier: .dietaryFatTotal) {
-            types.insert(fat)
-        }
-        if let fiber = HKQuantityType.quantityType(forIdentifier: .dietaryFiber) {
-            types.insert(fiber)
         }
         return types
     }()
@@ -116,35 +103,106 @@ final class HealthKitService {
         let quantity = HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: weightKg)
         let sample = HKQuantitySample(type: type, quantity: quantity, start: date, end: date)
         try await healthStore.save(sample)
+        Self.markSynced(Self.weightWriteSyncKind)
     }
 
-    func saveNutrition(
-        calories: Double,
-        protein: Double,
-        carbs: Double,
-        fat: Double,
-        fiber: Double,
-        date: Date
-    ) async throws {
+    // MARK: - Nutrition
+
+    /// Requests share access for the given nutrient types only — permissions
+    /// stay lazy: nothing is asked for until the user enables a type.
+    func requestNutritionWriteAuthorization(_ nutrients: [HealthNutrient]) async -> Bool {
+        guard isAvailable else { return false }
+        var types = Set<HKSampleType>()
+        for nutrient in nutrients {
+            if let type = nutrient.quantityType {
+                types.insert(type)
+            }
+        }
+        guard !types.isEmpty else { return false }
+        do {
+            try await healthStore.requestAuthorization(toShare: types, read: [])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Replaces the app's dietary samples for one day with fresh daily totals
+    /// for every enabled nutrient type. Delete-then-rewrite keeps Health
+    /// consistent through edits, deletes and copies without tracking sample
+    /// ids. Failures stay silent, matching the weight and sleep write-backs.
+    func syncNutrition(date: String, entries: [Entry], foods: [String: Food]) async {
+        guard isAvailable else { return }
+        let enabled = HealthNutrient.all.filter(\.isEnabled)
+        guard !enabled.isEmpty, let day = DateFormatting.date(from: date) else { return }
+
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: day)
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return }
+        // Daily totals carry no meal times — noon is a neutral anchor.
+        let sampleDate = dayStart.addingTimeInterval(12 * 60 * 60)
+
+        let totals = Self.nutrientTotals(entries: entries, foods: foods, nutrients: enabled)
+        let dayPredicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+
         var samples: [HKQuantitySample] = []
-
-        let pairs: [(HKQuantityTypeIdentifier, Double, HKUnit)] = [
-            (.dietaryEnergyConsumed, calories, .kilocalorie()),
-            (.dietaryProtein, protein, .gram()),
-            (.dietaryCarbohydrates, carbs, .gram()),
-            (.dietaryFatTotal, fat, .gram()),
-            (.dietaryFiber, fiber, .gram()),
-        ]
-
-        for (identifier, value, unit) in pairs where value > 0 {
-            guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { continue }
-            let quantity = HKQuantity(unit: unit, doubleValue: value)
-            let sample = HKQuantitySample(type: type, quantity: quantity, start: date, end: date)
-            samples.append(sample)
+        var syncedKeys: [String] = []
+        for nutrient in enabled {
+            guard let type = nutrient.quantityType else { continue }
+            // Clear the app's own samples first (other apps' data can't be
+            // deleted anyway) so re-syncs replace instead of accumulate.
+            _ = try? await healthStore.deleteObjects(of: type, predicate: dayPredicate)
+            guard let value = totals[nutrient.key], value > 0 else { continue }
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: nutrient.unit.hkUnit, doubleValue: value),
+                start: sampleDate,
+                end: sampleDate
+            ))
+            syncedKeys.append(nutrient.key)
         }
 
         guard !samples.isEmpty else { return }
-        try await healthStore.save(samples)
+        do {
+            try await healthStore.save(samples)
+            for key in syncedKeys {
+                Self.markSynced(Self.nutrientWriteSyncKind(key))
+            }
+        } catch {
+            // Permission denied or Health unavailable — silent by design.
+        }
+    }
+
+    /// Day totals per nutrient key. Food-backed entries use the food's full
+    /// nutrient data; recipe and quick entries only carry resolved macros and
+    /// contribute nothing beyond the five core macros.
+    nonisolated static func nutrientTotals(
+        entries: [Entry],
+        foods: [String: Food],
+        nutrients: [HealthNutrient]
+    ) -> [String: Double] {
+        let requestedKeys = Set(nutrients.map(\.key))
+        var totals: [String: Double] = [:]
+        for entry in entries {
+            if let foodId = entry.foodId, let food = foods[foodId] {
+                for nutrient in nutrients {
+                    guard let perServing = nutrient.amount(food), perServing > 0 else { continue }
+                    totals[nutrient.key, default: 0] += perServing * entry.servings
+                }
+            } else {
+                let macros = [
+                    ("calories", entry.totalCalories),
+                    ("protein", entry.totalProtein),
+                    ("carbs", entry.totalCarbs),
+                    ("fat", entry.totalFat),
+                    ("fiber", entry.totalFiber),
+                ]
+                for (key, total) in macros where requestedKeys.contains(key) && total > 0 {
+                    totals[key, default: 0] += total
+                }
+            }
+        }
+        return totals
     }
 
     struct WeightSample {
@@ -161,7 +219,7 @@ final class HealthKitService {
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         let ownBundleId = Bundle.main.bundleIdentifier
 
-        return try await withCheckedThrowingContinuation { continuation in
+        let weights: [WeightSample] = try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
@@ -183,6 +241,8 @@ final class HealthKitService {
             }
             self.healthStore.execute(query)
         }
+        Self.markSynced(Self.weightReadSyncKind)
+        return weights
     }
 
     // MARK: - Sleep
@@ -224,6 +284,7 @@ final class HealthKitService {
             end: wakeTime
         )
         try await healthStore.save(sample)
+        Self.markSynced(Self.sleepWriteSyncKind)
     }
 
     /// All sleep-analysis samples overlapping the window, oldest first.
@@ -235,7 +296,7 @@ final class HealthKitService {
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let ownBundleId = Bundle.main.bundleIdentifier
 
-        return try await withCheckedThrowingContinuation { continuation in
+        let sleepSamples: [SleepSample] = try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
@@ -257,6 +318,8 @@ final class HealthKitService {
             }
             self.healthStore.execute(query)
         }
+        Self.markSynced(Self.sleepReadSyncKind)
+        return sleepSamples
     }
 
     private nonisolated static func stage(for rawValue: Int) -> SleepStage? {
@@ -374,5 +437,41 @@ final class HealthKitService {
             }
             self.healthStore.execute(query)
         }
+    }
+
+    // MARK: - Last-synced timestamps
+
+    /// Timestamp kinds — one per data type and direction, shown on the Apple
+    /// Health settings page.
+    static let weightReadSyncKind = "read_bodyMass"
+    static let weightWriteSyncKind = "write_bodyMass"
+    static let sleepReadSyncKind = "read_sleepAnalysis"
+    static let sleepWriteSyncKind = "write_sleepAnalysis"
+
+    static func nutrientWriteSyncKind(_ key: String) -> String {
+        "write_\(key)"
+    }
+
+    /// When the given data type last synced successfully, or nil if it never
+    /// has.
+    static func lastSync(_ kind: String) -> Date? {
+        let timestamp = UserDefaults.standard.double(forKey: "healthkit_last_sync_\(kind)")
+        guard timestamp > 0 else { return nil }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+
+    static func markSynced(_ kind: String) {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "healthkit_last_sync_\(kind)")
+    }
+
+    /// True when any Health sync toggle (weight, sleep or a nutrient) is on —
+    /// the app-side definition of "connected".
+    static var isAnySyncEnabled: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.bool(forKey: syncEnabledKey)
+            || defaults.bool(forKey: writeWeightEnabledKey)
+            || defaults.bool(forKey: readSleepEnabledKey)
+            || defaults.bool(forKey: writeSleepEnabledKey)
+            || HealthNutrient.anyEnabled
     }
 }

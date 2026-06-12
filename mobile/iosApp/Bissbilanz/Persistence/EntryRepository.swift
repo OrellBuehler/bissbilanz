@@ -87,13 +87,16 @@ final class EntryRepository {
         upsert(temp, date: create.date)
         save()
         syncManager.enqueue(.createEntry(body: create, localId: temp.id))
+        syncDayToHealth(create.date, knownFood: food)
         return temp
     }
 
     @discardableResult
     func updateEntry(id: String, _ update: EntryUpdate) async throws -> Entry {
         var local: Entry?
+        var previousDate: String?
         if let row = fetchRow(id: id), let existing = row.toEntry() {
+            previousDate = row.date
             let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
             let updated = (try? JSONPatch.merged(Entry.self, base: existing, patch: patch)) ?? existing
             row.update(from: updated, date: update.date ?? row.date)
@@ -106,6 +109,14 @@ final class EntryRepository {
         } else {
             syncManager.enqueue(.updateEntry(id: id, body: update))
         }
+        // Re-sync the affected day — both days when the entry moved dates.
+        let currentDate = update.date ?? previousDate
+        if let currentDate {
+            syncDayToHealth(currentDate)
+        }
+        if let previousDate, previousDate != currentDate {
+            syncDayToHealth(previousDate)
+        }
         if let local {
             return local
         }
@@ -113,12 +124,16 @@ final class EntryRepository {
     }
 
     func deleteEntry(id: String) async throws {
+        let date = fetchRow(id: id)?.date
         deleteRow(id: id)
         save()
         if LocalStore.isTempId(id) {
             syncManager.removeQueued(table: "entries", affectedId: id)
         } else {
             syncManager.enqueue(.deleteEntry(id: id))
+        }
+        if let date {
+            syncDayToHealth(date)
         }
     }
 
@@ -137,6 +152,7 @@ final class EntryRepository {
                 upsert(entry, date: entry.date ?? toDate)
             }
             save()
+            syncDayToHealth(toDate)
             return serverCopies.count
         }
         var copied = 0
@@ -169,6 +185,9 @@ final class EntryRepository {
             syncManager.enqueue(.createEntry(body: create, localId: copy.id))
             copied += 1
         }
+        if copied > 0 {
+            syncDayToHealth(toDate)
+        }
         return copied
     }
 
@@ -185,6 +204,35 @@ final class EntryRepository {
             let merged = (try? JSONPatch.merged(EntryCreate.self, base: body, patch: patch)) ?? body
             syncManager.replace(row, with: .createEntry(body: merged, localId: localId))
         }
+    }
+
+    // MARK: - Apple Health write-back
+
+    /// Rewrites the day's nutrition totals in Apple Health after a mutation.
+    /// Fire-and-forget like the weight and sleep write-backs — Health errors
+    /// never surface as logging failures.
+    private func syncDayToHealth(_ date: String, knownFood: Food? = nil) {
+        let healthKit = HealthKitService.shared
+        guard healthKit.isAvailable, HealthNutrient.anyEnabled else { return }
+        let dayEntries = entries(date: date)
+        var foods: [String: Food] = [:]
+        if let knownFood {
+            foods[knownFood.id] = knownFood
+        }
+        for id in Set(dayEntries.compactMap(\.foodId)) where foods[id] == nil {
+            if let food = fetchFoodRow(id: id)?.toFood() {
+                foods[id] = food
+            }
+        }
+        Task {
+            await healthKit.syncNutrition(date: date, entries: dayEntries, foods: foods)
+        }
+    }
+
+    private func fetchFoodRow(id: String) -> LocalFood? {
+        var descriptor = FetchDescriptor<LocalFood>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
     }
 
     // MARK: - Day properties

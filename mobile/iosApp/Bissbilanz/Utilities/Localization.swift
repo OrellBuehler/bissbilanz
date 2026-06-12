@@ -677,47 +677,87 @@ enum L10n {
         )
     }
 
-    static var healthKit: String {
-        localized("health_kit", en: "Health Integration", de: "Health-Integration")
+    static var appleHealth: String {
+        localized("apple_health", en: "Apple Health", de: "Apple Health")
     }
 
-    static var healthWriteWeight: String {
+    static var healthConnected: String {
+        localized("health_connected", en: "Connected", de: "Verbunden")
+    }
+
+    static var healthNotConnected: String {
+        localized("health_not_connected", en: "Not connected", de: "Nicht verbunden")
+    }
+
+    static var healthConnect: String {
+        localized("health_connect", en: "Connect", de: "Verbinden")
+    }
+
+    static var healthDisconnect: String {
+        localized("health_disconnect", en: "Disconnect", de: "Trennen")
+    }
+
+    static var healthReadingSection: String {
+        localized("health_reading_section", en: "Reading from Health", de: "Aus Health lesen")
+    }
+
+    static var healthWritingSection: String {
+        localized("health_writing_section", en: "Writing to Health", de: "In Health schreiben")
+    }
+
+    static var healthNutrientsSection: String {
         localized(
-            "health_write_weight",
-            en: "Write weight to Apple Health",
-            de: "Gewicht in Apple Health schreiben"
+            "health_nutrients_section",
+            en: "Nutrients (Writing to Health)",
+            de: "Nährstoffe (in Health schreiben)"
         )
     }
 
-    static var healthSyncFooter: String {
+    static func healthLastSynced(_ when: String) -> String {
         localized(
-            "health_sync_footer",
-            en: "Weights from Apple Health are imported automatically. Enable writing only if you log weight here and want it in Apple Health — leave it off if your scale already syncs to Health.",
-            de: "Gewichte aus Apple Health werden automatisch importiert. Aktiviere das Schreiben nur, wenn du dein Gewicht hier erfasst und es in Apple Health haben möchtest — lass es aus, wenn deine Waage bereits mit Health synchronisiert."
+            "health_last_synced",
+            en: "Last synced \(when)",
+            de: "Zuletzt synchronisiert \(when)"
         )
     }
 
-    static var healthReadSleep: String {
+    static var healthConnectFooter: String {
         localized(
-            "health_read_sleep",
-            en: "Read sleep from Apple Health",
-            de: "Schlaf aus Apple Health lesen"
+            "health_connect_footer",
+            en: "Connecting enables the weight import from Apple Health. Each data type below can be enabled individually — its permission is requested when you turn it on.",
+            de: "Beim Verbinden wird der Gewichtsimport aus Apple Health aktiviert. Jeder Datentyp unten lässt sich einzeln aktivieren — die Berechtigung wird erst beim Einschalten angefragt."
         )
     }
 
-    static var healthWriteSleep: String {
+    static var healthDisconnectFooter: String {
         localized(
-            "health_write_sleep",
-            en: "Write sleep to Apple Health",
-            de: "Schlaf in Apple Health schreiben"
+            "health_disconnect_footer",
+            en: "Disconnecting turns off all syncing with Apple Health. To revoke granted permissions, use the Health app.",
+            de: "Beim Trennen wird die gesamte Synchronisierung mit Apple Health deaktiviert. Um erteilte Berechtigungen zu widerrufen, verwende die Health-App."
         )
     }
 
-    static var healthSleepFooter: String {
+    static var healthReadingFooter: String {
         localized(
-            "health_sleep_footer",
-            en: "Reading imports nights recorded in Apple Health (e.g. by Apple Watch) into your sleep log with a neutral quality rating you can edit. Writing saves sleep you log here with bed and wake times to Apple Health — leave it off if your Watch already records sleep.",
-            de: "Beim Lesen werden in Apple Health aufgezeichnete Nächte (z. B. von der Apple Watch) mit einer neutralen, editierbaren Qualitätsbewertung in dein Schlafprotokoll importiert. Beim Schreiben wird hier erfasster Schlaf mit Schlafens- und Aufwachzeit in Apple Health gespeichert — lass es aus, wenn deine Watch bereits Schlaf aufzeichnet."
+            "health_reading_footer",
+            en: "Data recorded in Apple Health (e.g. by a smart scale or Apple Watch) is imported automatically. Sleep arrives with a neutral quality rating you can edit.",
+            de: "In Apple Health aufgezeichnete Daten (z. B. von einer smarten Waage oder der Apple Watch) werden automatisch importiert. Schlaf erhält eine neutrale, editierbare Qualitätsbewertung."
+        )
+    }
+
+    static var healthWritingFooter: String {
+        localized(
+            "health_writing_footer",
+            en: "Weight and sleep logged in the app are saved to Apple Health. Leave these off if another device already records them — you would get duplicates.",
+            de: "In der App erfasstes Gewicht und erfasster Schlaf werden in Apple Health gespeichert. Lass dies aus, wenn ein anderes Gerät sie bereits aufzeichnet — sonst entstehen Duplikate."
+        )
+    }
+
+    static var healthNutrientsFooter: String {
+        localized(
+            "health_nutrients_footer",
+            en: "Daily totals for enabled nutrients are written to Apple Health whenever you log, edit or delete food entries.",
+            de: "Tagessummen aktivierter Nährstoffe werden in Apple Health geschrieben, sobald du Einträge erfasst, bearbeitest oder löschst."
         )
     }
 
@@ -1108,24 +1148,6 @@ enum L10n {
 
     static var avgCalories: String {
         localized("avg_calories", en: "Avg Calories", de: "Ø Kalorien")
-    }
-
-    // MARK: - HealthKit (additional)
-
-    static var permissionsGranted: String {
-        localized(
-            "permissions_granted",
-            en: "Permissions granted",
-            de: "Berechtigungen erteilt"
-        )
-    }
-
-    static var grantPermissions: String {
-        localized(
-            "grant_permissions",
-            en: "Grant Permissions",
-            de: "Berechtigungen erteilen"
-        )
     }
 
     // MARK: - Visible Nutrients (additional)
