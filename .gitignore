@@ -59,6 +59,7 @@ mobile/androidApp/build/
 # iOS generated Xcode project
 mobile/iosApp/*.xcodeproj
 mobile/iosApp/Bissbilanz/Info.plist
+mobile/iosApp/BissbilanzWidgets/Info.plist
 
 # iOS build output (xcodebuild -derivedDataPath)
 mobile/iosApp/build/

@@ -47,6 +47,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @Environment(AppModeManager.self) private var appModeManager
     @Environment(AuthManager.self) private var authManager
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
     @State private var showSessionExpiredPrompt = false
     @State private var reauthSession: ASWebAuthenticationSession?
@@ -58,6 +59,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        @Bindable var deepLinkRouter = deepLinkRouter
         TabView {
             Tab(L10n.home, systemImage: "house") {
                 DashboardView()
@@ -74,6 +76,22 @@ struct ContentView: View {
             }
         }
         .minimizableTabBar()
+        // Widget deep links land here as sheets so they work regardless of
+        // which tabs the user has configured.
+        .sheet(item: $deepLinkRouter.pending) { link in
+            NavigationStack {
+                switch link {
+                case .logFood:
+                    FoodSearchView(date: DateFormatting.today)
+                case .scanner:
+                    BarcodeScannerView()
+                case .weight:
+                    WeightView()
+                case let .food(foodId):
+                    FoodDetailView(foodId: foodId)
+                }
+            }
+        }
         // Only users who signed in initially are prompted — Local mode is
         // anonymous by choice and never sees this.
         .onChange(of: authManager.authState, initial: true) { _, state in

@@ -46,6 +46,7 @@ struct BissbilanzApp: App {
     @State private var supplementRepository: SupplementRepository
     @State private var goalsRepository: GoalsRepository
     @State private var preferencesRepository: PreferencesRepository
+    @State private var deepLinkRouter = DeepLinkRouter()
     private let modelContainer: ModelContainer
 
     init() {
@@ -140,10 +141,15 @@ struct BissbilanzApp: App {
             .environment(supplementRepository)
             .environment(goalsRepository)
             .environment(preferencesRepository)
+            .environment(deepLinkRouter)
             .modelContainer(modelContainer)
             .onOpenURL { url in
-                Task {
-                    await authManager.handleCallback(url: url)
+                if let link = DeepLink.parse(url) {
+                    deepLinkRouter.pending = link
+                } else {
+                    Task {
+                        await authManager.handleCallback(url: url)
+                    }
                 }
             }
             // Existing installs and fresh logins that never chose a mode
@@ -161,6 +167,9 @@ struct BissbilanzApp: App {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     syncManager.scheduleDrain()
+                    // Covers launch, day rollover while backgrounded and any
+                    // change widgets might have missed.
+                    WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)
                 }
             }
         }

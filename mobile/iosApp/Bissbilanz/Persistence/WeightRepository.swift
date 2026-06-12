@@ -161,5 +161,6 @@ final class WeightRepository {
 
     private func save() {
         try? context.save()
+        WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }
