@@ -49,6 +49,9 @@ struct BissbilanzApp: App {
     private let modelContainer: ModelContainer
 
     init() {
+        // Start crash reporting before anything else can fail.
+        ErrorReporter.start()
+
         let auth = AuthManager()
         let api = BissbilanzAPI(authManager: auth)
         let appMode = AppModeManager()
@@ -61,7 +64,8 @@ struct BissbilanzApp: App {
         } catch {
             // The on-disk store is unusable (e.g. failed migration). Fall back
             // to an in-memory store rather than crashing — data refreshes from
-            // the API while the app is online.
+            // the API while the app is online. Still worth knowing about.
+            ErrorReporter.capture(error)
             do {
                 container = try LocalStore.makeContainer(inMemory: true)
             } catch {
