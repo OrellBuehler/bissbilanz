@@ -318,5 +318,6 @@ final class EntryRepository {
 
     private func save() {
         try? context.save()
+        WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }

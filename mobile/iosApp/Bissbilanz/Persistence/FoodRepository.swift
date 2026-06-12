@@ -259,5 +259,6 @@ final class FoodRepository {
 
     private func save() {
         try? context.save()
+        WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }
