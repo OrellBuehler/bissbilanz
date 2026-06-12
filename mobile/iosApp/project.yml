@@ -5,11 +5,19 @@ options:
     iOS: '18.0'
   xcodeVersion: '16.2'
 
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    exactVersion: 9.17.1
+
 settings:
   base:
     SWIFT_VERSION: '6.0'
     CODE_SIGNING_ALLOWED: 'NO'
     GENERATE_INFOPLIST_FILE: 'YES'
+    # Sentry DSN is injected at build time (e.g. `xcodebuild SENTRY_DSN=...`).
+    # Empty default keeps Sentry disabled for local/CI debug builds.
+    SENTRY_DSN: ''
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: 'YES'
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: 'YES'
     INFOPLIST_KEY_UILaunchScreen_Generation: 'YES'
@@ -35,6 +43,7 @@ targets:
         NSCameraUsageDescription: 'Bissbilanz needs camera access to scan food barcodes'
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
+        SentryDSN: $(SENTRY_DSN)
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
@@ -44,6 +53,7 @@ targets:
         com.apple.developer.healthkit.access: []
     dependencies:
       - sdk: HealthKit.framework
+      - package: Sentry
 
   BissbilanzTests:
     type: bundle.unit-test

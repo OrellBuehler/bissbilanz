@@ -396,7 +396,20 @@ final class BissbilanzAPI {
         let _: EmptyResponse = try await performRequest(request)
     }
 
+    /// Single funnel for every API call: report failures to Sentry here so
+    /// callers that recover (cache fallback, sync retries, `try?` lookups)
+    /// don't silently swallow real defects. `ErrorReporter` filters expected
+    /// noise (unauthorized, offline, not-found).
     private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        do {
+            return try await executeRequest(request)
+        } catch {
+            ErrorReporter.capture(error)
+            throw error
+        }
+    }
+
+    private func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         var req = request
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

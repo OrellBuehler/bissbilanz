@@ -350,6 +350,14 @@ struct SettingsView: View {
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
                     }
+                    #if DEBUG
+                    // Developer-only: verify the Sentry pipeline end-to-end.
+                    // Greyed out unless the build was made with a SENTRY_DSN.
+                    Button("Send Sentry Test Event") {
+                        ErrorReporter.sendTestEvent()
+                    }
+                    .disabled(!ErrorReporter.isEnabled)
+                    #endif
                 }
             }
             .navigationTitle(L10n.settings)
