@@ -200,19 +200,72 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SENTRY_DSN="$SENTRY_DSN"
 
-      - name: Export IPA
+      - name: Import distribution certificate and profiles
         env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
+          PROFILE_WIDGET_BASE64: ${{ secrets.IOS_PROFILE_WIDGET_BASE64 }}
+        # Manual export signing needs our Apple Distribution identity in a
+        # keychain and the App Store profiles installed where xcodebuild looks.
+        # A throwaway keychain keeps the private key off the persistent runner.
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PWD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+
+          CERT="$RUNNER_TEMP/dist.p12"
+          echo "$DIST_CERT_P12_BASE64" | base64 -d > "$CERT"
+          security import "$CERT" -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$CERT"
+          # Let codesign use the imported key without an interactive prompt, and
+          # add our keychain to the search list (keeping the existing ones).
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
+
+          install_profile() {
+            local tmp uuid
+            tmp="$(mktemp "$RUNNER_TEMP"/prof.XXXXXX)"
+            echo "$1" | base64 -d > "$tmp"
+            uuid="$(security cms -D -i "$tmp" | plutil -extract UUID raw -o - -)"
+            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+            cp "$tmp" "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+            echo "installed profile $uuid"
+          }
+          install_profile "$PROFILE_APP_BASE64"
+          install_profile "$PROFILE_WIDGET_BASE64"
+
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Export IPA
+        # Manual signing: export re-signs using the Apple Distribution identity
+        # imported above and the profiles named in ExportOptions.plist. No
+        # -allowProvisioningUpdates / API key here — that path used the flaky
+        # cloud-managed distribution certificate.
         run: |
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Bissbilanz.xcarchive" \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_"$KEY_ID".p8 \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID"
+            -exportPath "$RUNNER_TEMP/export"
+
+      - name: Verify distribution signature
+        # Fail fast and clearly if export did not produce a distribution-signed
+        # app (altool would otherwise reject it ~40s later with a vaguer error).
+        run: |
+          set -euo pipefail
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -n1)
+          unzip -q -o "$IPA" -d "$RUNNER_TEMP/verify"
+          APP=$(ls -d "$RUNNER_TEMP"/verify/Payload/*.app | head -n1)
+          AUTH=$(codesign -dvv "$APP" 2>&1 | grep '^Authority=' | head -n1 || true)
+          echo "$AUTH"
+          case "$AUTH" in
+            *"Apple Distribution"*) echo "OK: distribution-signed" ;;
+            *) echo "::error::Exported app is not distribution-signed: ${AUTH:-<none>}"; exit 1 ;;
+          esac
 
       - name: Upload to TestFlight
         env:
