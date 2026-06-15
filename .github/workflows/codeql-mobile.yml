@@ -120,7 +120,14 @@ jobs:
           key: brew-xcodegen-${{ runner.os }}
 
       - name: Install XcodeGen
-        run: brew install --formula xcodegen
+        run: |
+          # The macOS runner ships unused aws/tap and azure/bicep taps that
+          # trigger untrusted-tap warnings as Homebrew moves to require tap
+          # trust. We only need xcodegen from the core tap, so drop them.
+          for tap in aws/tap azure/bicep; do
+            brew untap "$tap" 2>/dev/null || true
+          done
+          brew install --formula xcodegen
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
