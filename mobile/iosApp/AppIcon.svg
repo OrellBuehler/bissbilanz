@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    iOS app icon source. Unlike static/icon.svg (which draws an inset rounded
+    tile on a transparent canvas), this is FULL-BLEED and OPAQUE: the gradient
+    fills the entire square with no transparency and no pre-rounded corners.
+    Apple rejects the 1024px marketing icon if it has any alpha/transparency,
+    and iOS applies the corner mask itself. Regenerate the PNGs in
+    Bissbilanz/Assets.xcassets/AppIcon.appiconset/ from this file.
+  -->
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed opaque background -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#g1)"/>
+
+  <!-- Artwork scaled 1.28x about the centre so it keeps the same framing it
+       had inside the old 400x400 inset tile. -->
+  <g transform="translate(256,256) scale(1.28) translate(-256,-256)">
+    <!-- Apple body - slight red -->
+    <path d="
+      M150,148
+      C132,148 118,162 118,180
+      C118,200 130,216 150,216
+      C170,216 182,200 182,180
+      C182,162 168,148 150,148
+      Z
+    " fill="#f87171" opacity="0.9"/>
+
+    <!-- Apple top indent -->
+    <ellipse cx="150" cy="150" rx="8" ry="4" fill="url(#g1)"/>
+
+    <!-- Flame on top - light orange, rotated 30 degrees around its base -->
+    <g transform="rotate(30, 150, 155)">
+      <path d="
+        M150,108
+        C146,122 136,130 136,142
+        C136,149 141,154 148,155
+        C146,151 148,146 150,141
+        C152,146 154,151 152,155
+        C159,154 164,149 164,142
+        C164,130 154,122 150,108
+        Z
+      " fill="#fdba74" opacity="0.9"/>
+    </g>
+
+    <!-- Bar 1: fully below goal line -->
+    <rect x="148" y="280" width="48" height="100" rx="10" fill="white" opacity="0.9"/>
+
+    <!-- Bar 2: extends above goal -->
+    <rect x="232" y="220" width="48" height="50" rx="10" fill="#fdba74" opacity="0.9"/>
+    <rect x="232" y="270" width="48" height="110" rx="10" fill="white" opacity="0.9"/>
+
+    <!-- Bar 3: extends above goal -->
+    <rect x="316" y="250" width="48" height="20" rx="10" fill="#fdba74" opacity="0.9"/>
+    <rect x="316" y="270" width="48" height="110" rx="10" fill="white" opacity="0.9"/>
+
+    <!-- Dashed goal line -->
+    <line x1="130" y1="270" x2="382" y2="270" stroke="white" stroke-width="4" stroke-dasharray="12,8" stroke-linecap="round" opacity="0.6"/>
+  </g>
+</svg>
