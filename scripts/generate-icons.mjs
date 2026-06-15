@@ -7,19 +7,23 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const SVG_SOURCE = join(ROOT, 'static/icon.svg');
+// iOS needs a FULL-BLEED, OPAQUE source (Apple rejects alpha on the 1024 marketing
+// icon and applies its own corner mask), so it has a dedicated square SVG.
+const IOS_SVG_SOURCE = join(ROOT, 'mobile/iosApp/AppIcon.svg');
 
 const svgBuffer = readFileSync(SVG_SOURCE);
+const iosSvgBuffer = readFileSync(IOS_SVG_SOURCE);
 
 function ensureDir(dir) {
 	mkdirSync(dir, { recursive: true });
 }
 
 async function generatePng(size, outputPath, options = {}) {
-	const { padding = 0, background } = options;
+	const { padding = 0, background, source = svgBuffer, flatten = false } = options;
 	const iconSize = Math.round(size * (1 - padding * 2));
 	const offset = Math.round(size * padding);
 
-	let pipeline = sharp(svgBuffer).resize(iconSize, iconSize, {
+	let pipeline = sharp(source).resize(iconSize, iconSize, {
 		fit: 'contain',
 		background: { r: 0, g: 0, b: 0, alpha: 0 }
 	});
@@ -32,6 +36,11 @@ async function generatePng(size, outputPath, options = {}) {
 			right: size - iconSize - offset,
 			background: background || { r: 0, g: 0, b: 0, alpha: 0 }
 		});
+	}
+
+	// iOS icons must be fully opaque (no alpha channel) — flatten over the cream.
+	if (flatten) {
+		pipeline = pipeline.flatten({ background: flatten === true ? '#F1EAD9' : flatten });
 	}
 
 	await pipeline.png().toFile(outputPath);
@@ -181,7 +190,8 @@ async function generateIos() {
 		for (const scale of scales) {
 			const px = Math.round(size * scale);
 			const filename = `icon-${size}x${size}@${scale}x.png`;
-			await generatePng(px, join(assetDir, filename));
+			// iOS reads the full-bleed opaque source and flattens any alpha away.
+			await generatePng(px, join(assetDir, filename), { source: iosSvgBuffer, flatten: true });
 			// "universal" entries need platform; the 1024 marketing icon has no scale
 			const image = {
 				filename,
@@ -211,7 +221,9 @@ async function generateIos() {
 }
 
 async function main() {
-	console.log(`Generating icons from: static/icon.svg\n`);
+	console.log(
+		`Generating icons from: static/icon.svg (web/Android) + mobile/iosApp/AppIcon.svg (iOS)\n`
+	);
 
 	await generateWeb();
 	await generateAndroid();
