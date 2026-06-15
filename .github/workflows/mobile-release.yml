@@ -218,11 +218,33 @@ jobs:
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        # altool can print "UPLOAD FAILED" (e.g. an icon with an alpha channel,
+        # or an invalid signature) and still exit 0, which silently produces a
+        # green run with no build in App Store Connect. Validate first, then
+        # upload, and fail the step on a non-zero exit OR any error text.
         run: |
+          set -o pipefail
           IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -n1)
+          echo "IPA: $IPA"
+
+          run_altool() {
+            local action="$1" log="$2"
+            if ! xcrun altool "$action" -f "$IPA" -t ios \
+                  --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID" 2>&1 | tee "$log"; then
+              echo "::error::altool $action exited non-zero"
+              return 1
+            fi
+            if grep -qiE 'UPLOAD FAILED|VALIDATE FAILED|VALIDATION_ERROR|error uploading|errors uploading|not (properly )?signed|alpha channel|Failed to (upload|validate)' "$log"; then
+              echo "::error::altool $action reported errors (see log above)"
+              return 1
+            fi
+          }
+
+          echo "Validating $IPA"
+          run_altool --validate-app "$RUNNER_TEMP/altool-validate.log"
           echo "Uploading $IPA"
-          xcrun altool --upload-app -f "$IPA" -t ios \
-            --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+          run_altool --upload-app "$RUNNER_TEMP/altool-upload.log"
+          echo "Upload accepted by App Store Connect."
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v7
