@@ -132,6 +132,38 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
+      # The app links the KMP shared framework, so build and stage it for the
+      # Release/device archive (mirrors mobile-ios.yml's debug/simulator steps).
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle and Kotlin/Native dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+            ~/.konan
+          key: gradle-ios-release-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-ios-release-${{ runner.os }}-
+
+      - name: Build shared iOS framework (release, device)
+        working-directory: mobile
+        run: ./gradlew shared:linkReleaseFrameworkIosArm64
+
+      - name: Stage shared framework for Xcode
+        working-directory: mobile
+        run: |
+          SDK_NAME=$(xcrun --sdk iphoneos --show-sdk-version)
+          DEST="shared/build/xcode-frameworks/Release/iphoneos${SDK_NAME}"
+          mkdir -p "$DEST"
+          cp -R shared/build/bin/iosArm64/releaseFramework/shared.framework "$DEST/"
+
       - name: Determine version
         id: version
         env:
