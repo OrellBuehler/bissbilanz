@@ -5886,6 +5886,9 @@
 							}
 						]
 					},
+					"lastServings": {
+						"type": "number"
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -5907,7 +5910,8 @@
 					"fiber",
 					"barcode",
 					"isFavorite",
-					"imageUrl"
+					"imageUrl",
+					"lastServings"
 				],
 				"additionalProperties": false
 			},
