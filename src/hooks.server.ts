@@ -148,7 +148,11 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		: pathname === '/de'
 			? '/'
 			: pathname;
-	const isPublicRoute = PUBLIC_PATHS.some((p) => stripped.startsWith(p));
+	// '/' must match exactly: every path starts with '/', so treating it as a
+	// startsWith prefix would mark all routes public and defeat the guard below
+	// (which is what happened after authenticated routes moved to the root).
+	const isPublicRoute =
+		stripped === '/' || PUBLIC_PATHS.some((p) => p !== '/' && stripped.startsWith(p));
 
 	if (!isPublicRoute && !event.locals.user) {
 		throw redirect(302, '/login');
