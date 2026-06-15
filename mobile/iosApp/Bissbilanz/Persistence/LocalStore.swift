@@ -3,34 +3,23 @@ import SwiftData
 
 /// Central schema and container factory for the local SwiftData store.
 ///
-/// The store is split across two configurations that share one container (and
-/// therefore one `ModelContext`, so repositories and the sync queue keep using
-/// a single context):
+/// One store holds every model (the data models and the `PendingSyncOperation`
+/// queue). In Local (anonymous) mode it mirrors to the user's *private CloudKit
+/// database* (`cloudKitEnabled`), giving anonymous users sync across their Apple
+/// devices. CloudKit stays **off in Synced mode** — that data already syncs
+/// through the backend, so mirroring it too would double-sync and duplicate rows.
 ///
-/// - **Data** — every user-facing model, at the default location in Application
-///   Support. Included in iCloud Backup automatically (an explicit goal: a
-///   Local-mode user's data, their primary non-re-downloadable store, survives a
-///   device restore). In Local mode it also mirrors to the user's *private
-///   CloudKit database* (`cloudKitEnabled`), giving anonymous users sync across
-///   their Apple devices. CloudKit stays **off in Synced mode** — that data
-///   already syncs through the backend, and mirroring it too would double-sync
-///   and duplicate rows.
-/// - **Pending sync queue** — `PendingSyncOperation` only, in a separate store
-///   that is *excluded from backup* and *never* uses CloudKit. The queue is
-///   per-device, transient upload state aimed at the backend; restoring or
-///   syncing it onto another device would re-upload already-applied operations
-///   and create duplicate server records.
+/// A single store is deliberate: splitting the queue into its own store crashed
+/// on-disk saves — SwiftData's persistent-history coalescing throws
+/// `-[_NSPersistentHistoryChange initWithDictionary:]` across stores. The queue
+/// is therefore CloudKit-mirrored too, but writes are a no-op in Local mode so it
+/// stays empty there and never actually syncs.
 ///
-/// `cloudKitDatabase` defaults to `.automatic` on `ModelConfiguration`, so once
-/// the iCloud entitlement exists *both* stores would sync unless told not to —
-/// hence the explicit `.none` on the queue (always) and on the data store
-/// outside Local mode.
-///
-/// Tests use the in-memory variant (both configurations in memory, CloudKit off).
+/// `cloudKitDatabase` defaults to `.automatic` on `ModelConfiguration`, so it's
+/// set explicitly to `.none` outside Local mode. Tests use the in-memory variant
+/// (CloudKit off).
 enum LocalStore {
-    /// User-facing models, persisted in the backed-up (and in Local mode,
-    /// CloudKit-mirrored) default store. Listed explicitly because a
-    /// multi-configuration container must know which store each model belongs to.
+    /// User-facing models — everything except the `PendingSyncOperation` queue.
     static var dataModels: [any PersistentModel.Type] {
         [
             LocalEntry.self,
@@ -55,34 +44,15 @@ enum LocalStore {
     /// Builds the container. `cloudKitEnabled` mirrors the data store to the
     /// user's private CloudKit database — pass `true` only in Local mode.
     static func makeContainer(inMemory: Bool = false, cloudKitEnabled: Bool = false) throws -> ModelContainer {
-        let dataSchema = Schema(dataModels)
-        let queueSchema = Schema([PendingSyncOperation.self])
-        let configurations: [ModelConfiguration]
-        if inMemory {
-            // Unique names so simultaneous in-memory containers (unit tests)
-            // stay isolated. CloudKit is never used with in-memory stores.
-            let suffix = UUID().uuidString
-            configurations = [
-                ModelConfiguration(
-                    "data-\(suffix)",
-                    schema: dataSchema,
-                    isStoredInMemoryOnly: true,
-                    cloudKitDatabase: .none
-                ),
-                ModelConfiguration(
-                    "queue-\(suffix)",
-                    schema: queueSchema,
-                    isStoredInMemoryOnly: true,
-                    cloudKitDatabase: .none
-                ),
-            ]
+        // Single store. A multi-store split (queue in its own store) crashes
+        // on-disk saves: SwiftData's persistent-history coalescing throws
+        // -[_NSPersistentHistoryChange initWithDictionary:] across stores.
+        let configuration = if inMemory {
+            ModelConfiguration(UUID().uuidString, schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         } else {
-            configurations = try [
-                ModelConfiguration(schema: dataSchema, cloudKitDatabase: cloudKitEnabled ? .automatic : .none),
-                ModelConfiguration(schema: queueSchema, url: queueStoreURL(), cloudKitDatabase: .none),
-            ]
+            ModelConfiguration(schema: schema, cloudKitDatabase: cloudKitEnabled ? .automatic : .none)
         }
-        return try ModelContainer(for: schema, configurations: configurations)
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     /// Builds the container with graceful fallback: CloudKit-mirrored (when
@@ -108,57 +78,6 @@ enum LocalStore {
                 fatalError("Failed to create SwiftData container: \(error)")
             }
         }
-    }
-
-    /// One-time cleanup for installs upgrading from the pre-split store, where
-    /// `PendingSyncOperation` lived in the data store. Moving it to its own
-    /// store leaves that entity's rows in the data store's *persistent history*;
-    /// CoreData then throws (`_NSPersistentHistoryChange`) the next time it
-    /// coalesces history on save. Purging the stale history once drops those
-    /// now-orphaned transactions. A no-op on fresh installs (nothing to purge);
-    /// the marker keeps it from re-running once it succeeds.
-    @MainActor
-    static func purgeStaleHistoryIfNeeded(_ container: ModelContainer, defaults: UserDefaults = .standard) {
-        let marker = "history_purged_for_queue_split_v1"
-        guard !defaults.bool(forKey: marker) else { return }
-        do {
-            // No predicate → every transaction. Deletion drops transactions in
-            // bulk without decoding individual changes, so it sidesteps the
-            // decode that crashes on save.
-            try ModelContext(container).deleteHistory(HistoryDescriptor<DefaultHistoryTransaction>())
-            defaults.set(true, forKey: marker)
-        } catch {
-            // Leave the marker unset so it retries next launch.
-        }
-    }
-
-    /// URL of the backup-excluded store file that holds the pending sync queue.
-    /// The queue lives in Application Support — not Caches — because the system
-    /// must never purge un-uploaded writes under disk pressure.
-    private static func queueStoreURL() throws -> URL {
-        let appSupport = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let directory = try makeBackupExcludedDirectory(named: "PendingSync", under: appSupport)
-        return directory.appendingPathComponent("PendingSync.store")
-    }
-
-    /// Creates (if needed) `name` under `parent` and marks the directory
-    /// `isExcludedFromBackup`, which covers the SwiftData store plus its
-    /// `-wal`/`-shm` sidecars. The flag is re-applied every launch so a
-    /// directory left by an older build (or reset by some file operation) is
-    /// corrected. Exposed for testing; `queueStoreURL` calls it with
-    /// Application Support.
-    static func makeBackupExcludedDirectory(named name: String, under parent: URL) throws -> URL {
-        var directory = parent.appendingPathComponent(name, isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        var resourceValues = URLResourceValues()
-        resourceValues.isExcludedFromBackup = true
-        try directory.setResourceValues(resourceValues)
-        return directory
     }
 
     /// Client-generated id prefix for optimistic creates. The "temp_" prefix

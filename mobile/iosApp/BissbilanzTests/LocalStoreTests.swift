@@ -6,34 +6,6 @@ import Testing
 @Suite("Local store")
 @MainActor
 struct LocalStoreTests {
-    // MARK: - Backup exclusion
-
-    /// The pending-sync queue must not travel in iCloud Backup — restoring it
-    /// onto another device would re-upload already-applied operations.
-    @Test("Pending-sync directory is excluded from backup")
-    func pendingSyncDirectoryExcludedFromBackup() throws {
-        let parent = URL.temporaryDirectory.appendingPathComponent("bb-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: parent) }
-
-        let directory = try LocalStore.makeBackupExcludedDirectory(named: "PendingSync", under: parent)
-        let values = try directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
-        #expect(values.isExcludedFromBackup == true)
-    }
-
-    /// Re-running it (every launch does) is idempotent and keeps the flag set.
-    @Test("Re-applying the exclusion is idempotent")
-    func reapplyingExclusionIsIdempotent() throws {
-        let parent = URL.temporaryDirectory.appendingPathComponent("bb-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: parent) }
-
-        _ = try LocalStore.makeBackupExcludedDirectory(named: "PendingSync", under: parent)
-        let directory = try LocalStore.makeBackupExcludedDirectory(named: "PendingSync", under: parent)
-        let values = try directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
-        #expect(values.isExcludedFromBackup == true)
-    }
-
     // MARK: - Cross-device de-duplication
 
     //
