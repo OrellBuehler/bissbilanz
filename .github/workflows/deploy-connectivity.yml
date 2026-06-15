@@ -45,11 +45,19 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
         run: |
           echo "Probing $DEPLOY_HOST:$DEPLOY_PORT over the WireGuard tunnel..."
-          if ! banner=$(timeout 10 bash -c "exec 3<>/dev/tcp/$DEPLOY_HOST/$DEPLOY_PORT; head -1 <&3"); then
-            echo "::error::$DEPLOY_HOST:$DEPLOY_PORT is not reachable over the tunnel. Check the OPNsense outbound NAT (wg_ci net -> WAN) and the wg_ci pass rule (-> $DEPLOY_HOST:$DEPLOY_PORT)."
-            exit 1
+          if banner=$(timeout 10 bash -c "exec 3<>/dev/tcp/$DEPLOY_HOST/$DEPLOY_PORT; head -1 <&3"); then
+            echo "Reachable. Server responded: $banner"
+            exit 0
           fi
-          echo "Reachable. Server responded: $banner"
+          echo "Probe failed — diagnosing tunnel state:"
+          sudo wg show wg0
+          received=$(sudo wg show wg0 transfer | awk '{print $2}')
+          if [ "${received:-0}" -eq 0 ] 2>/dev/null; then
+            echo "::error::WireGuard handshake never completed (0 B received from the endpoint). The tunnel is not establishing, which is upstream of any NAT/firewall pass rule. On OPNsense check: (1) the github-ci peer is linked to the wg_ci instance, (2) the peer public key matches the runner's, (3) the instance is enabled and the service restarted, (4) the WAN rule allowing UDP to the wg_ci listen port is applied."
+          else
+            echo "::error::Tunnel is up (handshake OK) but $DEPLOY_HOST:$DEPLOY_PORT is unreachable. Check the OPNsense outbound NAT (wg_ci net -> WAN address) and the wg_ci pass rule (-> $DEPLOY_HOST:$DEPLOY_PORT)."
+          fi
+          exit 1
 
       - name: Disconnect WireGuard
         if: always() && steps.guard.outputs.available == 'true'
