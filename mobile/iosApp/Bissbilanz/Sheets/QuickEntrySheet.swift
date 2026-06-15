@@ -24,15 +24,11 @@ struct QuickEntrySheet: View {
             Form {
                 Section {
                     TextField("Name", text: $name)
-                }
-
-                Section("Meal") {
-                    Picker("Meal", selection: $mealType) {
+                    Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
                             Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
-                    .pickerStyle(.segmented)
                 }
 
                 Section(L10n.nutrition) {
