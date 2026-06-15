@@ -51,6 +51,9 @@ targets:
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
         SentryDSN: $(SENTRY_DSN)
+        # CloudKit delivers sync changes via silent remote notifications.
+        UIBackgroundModes:
+          - remote-notification
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
@@ -60,6 +63,14 @@ targets:
         com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.com.bissbilanz
+        # CloudKit mirroring of the Local-mode SwiftData store (see LocalStore).
+        # The container must be created and its schema promoted to production in
+        # the CloudKit dashboard before release; signed builds need a profile
+        # that includes it.
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.bissbilanz.ios
+        com.apple.developer.icloud-services:
+          - CloudKit
     dependencies:
       - sdk: HealthKit.framework
       - package: Sentry

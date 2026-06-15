@@ -59,20 +59,13 @@ struct BissbilanzApp: App {
         let connectivity = ConnectivityMonitor()
         connectivity.start()
 
-        let container: ModelContainer
-        do {
-            container = try LocalStore.makeContainer()
-        } catch {
-            // The on-disk store is unusable (e.g. failed migration). Fall back
-            // to an in-memory store rather than crashing — data refreshes from
-            // the API while the app is online. Still worth knowing about.
-            ErrorReporter.capture(error)
-            do {
-                container = try LocalStore.makeContainer(inMemory: true)
-            } catch {
-                fatalError("Failed to create SwiftData container: \(error)")
-            }
-        }
+        // CloudKit mirroring runs only in Local (anonymous) mode — Synced mode
+        // already syncs through the backend (see LocalStore). The mode is read
+        // once at launch, so toggling it takes effect on the next launch.
+        let container = LocalStore.makeContainerWithFallback(
+            cloudKitEnabled: appMode.isLocal,
+            onError: { ErrorReporter.capture($0) }
+        )
         modelContainer = container
         let context = container.mainContext
 
@@ -167,6 +160,11 @@ struct BissbilanzApp: App {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     syncManager.scheduleDrain()
+                    // Collapse any cross-device duplicates CloudKit delivered
+                    // while we were away (Local mode only — see LocalDedup).
+                    if appModeManager.isLocal {
+                        LocalDedup.sweep(in: modelContainer.mainContext)
+                    }
                     // Covers launch, day rollover while backgrounded and any
                     // change widgets might have missed.
                     WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)
