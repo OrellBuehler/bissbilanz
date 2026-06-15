@@ -59,7 +59,13 @@ jobs:
           key: brew-xcodegen-${{ runner.os }}
 
       - name: Install XcodeGen
-        run: brew install --formula xcodegen
+        # When the Cellar is restored from cache, `brew install` sees the formula
+        # as already installed and skips linking, leaving xcodegen off PATH (so
+        # `xcodegen generate` fails with command not found). Link explicitly so it
+        # resolves on both fresh and cache-restored runs.
+        run: |
+          brew install --formula xcodegen
+          brew link --overwrite xcodegen
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
