@@ -29,20 +29,20 @@ struct EntryEditSheet: View {
                         .font(.headline)
                 }
 
-                Section(L10n.servings) {
+                Section {
                     Stepper(value: $servings, in: 0.25 ... 50, step: 0.25) {
-                        Text("\(servings, specifier: "%.2g")x")
-                            .fontWeight(.medium)
+                        HStack {
+                            Text(L10n.servings)
+                            Spacer()
+                            Text("\(servings, specifier: "%.2g")x")
+                                .fontWeight(.medium)
+                        }
                     }
-                }
-
-                Section(L10n.meal) {
                     Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
                             Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
-                    .pickerStyle(.segmented)
                 }
             }
             .navigationTitle(L10n.editEntry)
