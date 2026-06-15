@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- TestFlight and App Store distribution share this export method. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<!-- Cloud signing: Xcode creates and manages the distribution certificate
+	     and the app + widget provisioning profiles from the App Store Connect
+	     API key passed to xcodebuild. teamID is injected from a secret in CI
+	     (kept out of the repo). -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- The build number is set explicitly in CI (CURRENT_PROJECT_VERSION from
+	     the run number); don't let export rewrite it. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<!-- Upload dSYMs so Sentry / Xcode Organizer can symbolicate crashes. -->
+	<key>uploadSymbols</key>
+	<true/>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>
