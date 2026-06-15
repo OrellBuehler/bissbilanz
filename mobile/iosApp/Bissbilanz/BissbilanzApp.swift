@@ -67,6 +67,9 @@ struct BissbilanzApp: App {
             onError: { ErrorReporter.capture($0) }
         )
         modelContainer = container
+        // One-time: drop persistent history orphaned by moving the sync queue
+        // into its own store, which otherwise crashes CoreData on the next save.
+        LocalStore.purgeStaleHistoryIfNeeded(container)
         let context = container.mainContext
 
         let sync = SyncManager(context: context, api: api, appMode: appMode, connectivity: connectivity)

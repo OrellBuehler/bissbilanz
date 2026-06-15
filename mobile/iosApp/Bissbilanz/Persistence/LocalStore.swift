@@ -110,6 +110,28 @@ enum LocalStore {
         }
     }
 
+    /// One-time cleanup for installs upgrading from the pre-split store, where
+    /// `PendingSyncOperation` lived in the data store. Moving it to its own
+    /// store leaves that entity's rows in the data store's *persistent history*;
+    /// CoreData then throws (`_NSPersistentHistoryChange`) the next time it
+    /// coalesces history on save. Purging the stale history once drops those
+    /// now-orphaned transactions. A no-op on fresh installs (nothing to purge);
+    /// the marker keeps it from re-running once it succeeds.
+    @MainActor
+    static func purgeStaleHistoryIfNeeded(_ container: ModelContainer, defaults: UserDefaults = .standard) {
+        let marker = "history_purged_for_queue_split_v1"
+        guard !defaults.bool(forKey: marker) else { return }
+        do {
+            // No predicate → every transaction. Deletion drops transactions in
+            // bulk without decoding individual changes, so it sidesteps the
+            // decode that crashes on save.
+            try ModelContext(container).deleteHistory(HistoryDescriptor<DefaultHistoryTransaction>())
+            defaults.set(true, forKey: marker)
+        } catch {
+            // Leave the marker unset so it retries next launch.
+        }
+    }
+
     /// URL of the backup-excluded store file that holds the pending sync queue.
     /// The queue lives in Application Support — not Caches — because the system
     /// must never purge un-uploaded writes under disk pressure.
