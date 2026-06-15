@@ -102,7 +102,9 @@
 				calories: selection.favorite.calories
 			};
 		}
-		servings = 1;
+		// Prefill the amount from the last time this food was logged (Recents);
+		// other entry points have no history and fall back to one serving.
+		servings = selection.type === 'food' ? (selection.lastServings ?? 1) : 1;
 	};
 
 	const confirmAdd = () => {

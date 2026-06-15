@@ -971,5 +971,6 @@ class LocalDataMigratorTest {
             barcode = null,
             isFavorite = false,
             imageUrl = null,
+            lastServings = 1.0,
         )
 }
