@@ -51,6 +51,10 @@ targets:
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
         SentryDSN: $(SENTRY_DSN)
+        # Only standard (exempt) HTTPS encryption is used, so declare no
+        # non-exempt encryption — TestFlight then skips the per-build
+        # export-compliance prompt that would otherwise block each upload.
+        ITSAppUsesNonExemptEncryption: false
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
