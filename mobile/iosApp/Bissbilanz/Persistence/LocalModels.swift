@@ -14,23 +14,38 @@ enum LocalStoreCoding {
     }
 }
 
+// MARK: - CloudKit compatibility
+
+//
+// In Local (anonymous) mode the data store mirrors to the user's private
+// CloudKit database (see `LocalStore`). CloudKit can't enforce SwiftData's
+// `@Attribute(.unique)` and requires every non-optional attribute to have a
+// default value, so these models carry neither unique constraints nor
+// non-defaulted stored properties. Uniqueness is instead enforced in code:
+// every write path fetches by id (or natural key) before inserting — see the
+// repositories and `LocalRemap`. Because CloudKit can independently deliver a
+// row with a key another device already created, the singleton/natural-key
+// models (`LocalGoals`, `LocalPreferences`, `LocalSupplementLog`,
+// `LocalDayProperties`) carry a `modifiedAt` stamp and are de-duplicated
+// (newest wins) by `LocalDedup`.
+
 // MARK: - Entries
 
 @Model
 final class LocalEntry {
-    @Attribute(.unique) var id: String
-    var date: String
-    var mealType: String
-    var servings: Double
+    var id: String = ""
+    var date: String = ""
+    var mealType: String = ""
+    var servings: Double = 0
     var foodId: String?
     var recipeId: String?
     var foodName: String?
-    var calories: Double
-    var protein: Double
-    var carbs: Double
-    var fat: Double
-    var fiber: Double
-    var jsonData: Data
+    var calories: Double = 0
+    var protein: Double = 0
+    var carbs: Double = 0
+    var fat: Double = 0
+    var fiber: Double = 0
+    var jsonData: Data = Data()
 
     init(entry: Entry, date: String) {
         let dated = entry.replacingDate(date)
@@ -83,17 +98,17 @@ extension Entry {
 
 @Model
 final class LocalFood {
-    @Attribute(.unique) var id: String
-    var name: String
+    var id: String = ""
+    var name: String = ""
     var brand: String?
-    var calories: Double
-    var protein: Double
-    var carbs: Double
-    var fat: Double
-    var fiber: Double
-    var isFavorite: Bool
+    var calories: Double = 0
+    var protein: Double = 0
+    var carbs: Double = 0
+    var fat: Double = 0
+    var fiber: Double = 0
+    var isFavorite: Bool = false
     var barcode: String?
-    var jsonData: Data
+    var jsonData: Data = Data()
 
     init(food: Food) {
         id = food.id
@@ -131,16 +146,16 @@ final class LocalFood {
 
 @Model
 final class LocalRecipe {
-    @Attribute(.unique) var id: String
-    var name: String
-    var totalServings: Double
-    var isFavorite: Bool
-    var calories: Double
-    var protein: Double
-    var carbs: Double
-    var fat: Double
-    var fiber: Double
-    var jsonData: Data
+    var id: String = ""
+    var name: String = ""
+    var totalServings: Double = 0
+    var isFavorite: Bool = false
+    var calories: Double = 0
+    var protein: Double = 0
+    var carbs: Double = 0
+    var fat: Double = 0
+    var fiber: Double = 0
+    var jsonData: Data = Data()
 
     init(recipe: Recipe) {
         id = recipe.id
@@ -176,11 +191,11 @@ final class LocalRecipe {
 
 @Model
 final class LocalWeightEntry {
-    @Attribute(.unique) var id: String
-    var entryDate: String
-    var weightKg: Double
+    var id: String = ""
+    var entryDate: String = ""
+    var weightKg: Double = 0
     var loggedAt: String?
-    var jsonData: Data
+    var jsonData: Data = Data()
 
     init(entry: WeightEntry) {
         id = entry.id
@@ -206,11 +221,11 @@ final class LocalWeightEntry {
 
 @Model
 final class LocalSleepEntry {
-    @Attribute(.unique) var id: String
-    var entryDate: String
-    var durationMinutes: Int
-    var quality: Int
-    var jsonData: Data
+    var id: String = ""
+    var entryDate: String = ""
+    var durationMinutes: Int = 0
+    var quality: Int = 0
+    var jsonData: Data = Data()
 
     init(entry: SleepEntry) {
         id = entry.id
@@ -236,11 +251,11 @@ final class LocalSleepEntry {
 
 @Model
 final class LocalSupplement {
-    @Attribute(.unique) var id: String
-    var name: String
-    var isActive: Bool
-    var sortOrder: Int
-    var jsonData: Data
+    var id: String = ""
+    var name: String = ""
+    var isActive: Bool = false
+    var sortOrder: Int = 0
+    var jsonData: Data = Data()
 
     init(supplement: Supplement) {
         id = supplement.id
@@ -263,14 +278,16 @@ final class LocalSupplement {
 }
 
 /// Taken-log rows keyed by the natural (supplementId, date) pair — the server
-/// has no row id for these, mirroring the Android cache.
+/// has no row id for these, mirroring the Android cache. `modifiedAt` lets
+/// `LocalDedup` resolve cross-device duplicates (newest wins).
 @Model
 final class LocalSupplementLog {
-    @Attribute(.unique) var id: String
-    var supplementId: String
-    var date: String
-    var takenAt: String
-    var jsonData: Data
+    var id: String = ""
+    var supplementId: String = ""
+    var date: String = ""
+    var takenAt: String = ""
+    var jsonData: Data = Data()
+    var modifiedAt: Double = 0
 
     init(log: SupplementLog) {
         id = Self.key(supplementId: log.supplementId, date: log.date)
@@ -278,6 +295,7 @@ final class LocalSupplementLog {
         date = log.date
         takenAt = log.takenAt
         jsonData = LocalStoreCoding.encode(log)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     /// Synthetic log without server bookkeeping (`entryIds`) — used for
@@ -291,6 +309,7 @@ final class LocalSupplementLog {
         date = log.date
         takenAt = log.takenAt
         jsonData = LocalStoreCoding.encode(log)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func toSupplementLog() -> SupplementLog? {
@@ -306,18 +325,21 @@ final class LocalSupplementLog {
 
 @Model
 final class LocalGoals {
-    @Attribute(.unique) var id: String
-    var jsonData: Data
+    var id: String = ""
+    var jsonData: Data = Data()
+    var modifiedAt: Double = 0
 
     static let singletonId = "goals"
 
     init(goals: Goals) {
         id = Self.singletonId
         jsonData = LocalStoreCoding.encode(goals)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func update(from goals: Goals) {
         jsonData = LocalStoreCoding.encode(goals)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func toGoals() -> Goals? {
@@ -329,18 +351,21 @@ final class LocalGoals {
 
 @Model
 final class LocalPreferences {
-    @Attribute(.unique) var id: String
-    var jsonData: Data
+    var id: String = ""
+    var jsonData: Data = Data()
+    var modifiedAt: Double = 0
 
     static let singletonId = "preferences"
 
     init(preferences: Preferences) {
         id = Self.singletonId
         jsonData = LocalStoreCoding.encode(preferences)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func update(from preferences: Preferences) {
         jsonData = LocalStoreCoding.encode(preferences)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func toPreferences() -> Preferences? {
@@ -352,19 +377,22 @@ final class LocalPreferences {
 
 @Model
 final class LocalDayProperties {
-    @Attribute(.unique) var date: String
-    var isFastingDay: Bool
-    var jsonData: Data
+    var date: String = ""
+    var isFastingDay: Bool = false
+    var jsonData: Data = Data()
+    var modifiedAt: Double = 0
 
     init(properties: DayProperties) {
         date = properties.date
         isFastingDay = properties.isFastingDay
         jsonData = LocalStoreCoding.encode(properties)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func update(from properties: DayProperties) {
         isFastingDay = properties.isFastingDay
         jsonData = LocalStoreCoding.encode(properties)
+        modifiedAt = Date().timeIntervalSince1970
     }
 
     func toDayProperties() -> DayProperties? {
