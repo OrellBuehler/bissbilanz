@@ -86,7 +86,7 @@ jobs:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           umask 077
-          printf '%s' "$DEPLOY_KEY" > deploy_key
+          printf '%s\n' "$DEPLOY_KEY" > deploy_key
           chmod 600 deploy_key
           ssh -i deploy_key \
             -o IdentitiesOnly=yes \
