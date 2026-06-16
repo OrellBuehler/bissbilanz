@@ -41,6 +41,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios
+        # Link the KMP shared framework. Gradle builds it and stages it under
+        # shared/build/xcode-frameworks/<configuration>/<sdk>/ (see the shared
+        # iOS framework steps in mobile-ios.yml / mobile-release.yml).
+        FRAMEWORK_SEARCH_PATHS:
+          - '$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)'
+        OTHER_LDFLAGS:
+          - '-framework'
+          - 'shared'
+          # SQLDelight's native SQLite driver (SQLiter) inside the static shared
+          # framework references libsqlite3 symbols the host app must resolve.
+          - '-lsqlite3'
     info:
       path: Bissbilanz/Info.plist
       properties:
@@ -76,6 +87,8 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
     dependencies:
+      - framework: '../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/shared.framework'
+        embed: false
       - sdk: HealthKit.framework
       - package: Sentry
       - target: BissbilanzWidgets

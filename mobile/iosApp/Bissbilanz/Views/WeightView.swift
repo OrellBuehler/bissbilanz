@@ -1,5 +1,20 @@
 import Charts
+import shared
 import SwiftUI
+
+/// Bridges Swift `Double` arrays to/from the boxed-number arrays the shared
+/// Kotlin analytics expose across the Objective-C interop boundary.
+private extension [Double] {
+    var asKotlin: [KotlinDouble] {
+        map { KotlinDouble(double: $0) }
+    }
+}
+
+private extension [KotlinDouble] {
+    var asDoubles: [Double] {
+        map(\.doubleValue)
+    }
+}
 
 /// Direction of the recent weight development shown in the trend card.
 enum WeightTrend: Equatable {
@@ -12,9 +27,15 @@ enum WeightTrend: Equatable {
 
     static func from(delta: Double?) -> WeightTrend {
         guard let delta else { return .steady(nil) }
-        if delta > steadyBandKg { return .rising(delta) }
-        if delta < -steadyBandKg { return .falling(delta) }
-        return .steady(delta)
+        // Classification lives in the shared KMP analytics so iOS and Android
+        // agree on what counts as a real trend vs. daily-fluctuation noise.
+        switch WeightChartAnalyticsKt.classifyWeightTrend(deltaKg: delta, steadyBandKg: steadyBandKg) {
+        case .rising: return .rising(delta)
+        case .falling: return .falling(delta)
+        // SKIE exports the enum as non-frozen, so a `default` keeps the switch
+        // exhaustive across Swift toolchains (Xcode 16's 6.1 and CI's 6.2).
+        default: return .steady(delta)
+        }
     }
 
     /// Local fallback for the server's `delta_7d` (Local mode / offline):
@@ -133,13 +154,17 @@ struct WeightView: View {
         let sorted = chartEntries
         guard sorted.count >= 2 else { return [] }
 
+        // 7-point trailing average (with partial leading windows) computed by the
+        // shared KMP analytics; the chart only assembles the dates around it.
+        let averages = WeightChartAnalyticsKt.weightMovingAverage(
+            values: sorted.map(\.weightKg).asKotlin,
+            window: 7
+        ).asDoubles
+
         var result: [(date: Date, average: Double)] = []
         for (index, entry) in sorted.enumerated() {
             guard let date = DateFormatting.date(from: entry.entryDate) else { continue }
-            let windowStart = max(0, index - 6)
-            let window = sorted[windowStart ... index]
-            let avg = window.map(\.weightKg).reduce(0, +) / Double(window.count)
-            result.append((date: date, average: avg))
+            result.append((date: date, average: averages[index]))
         }
         return result
     }
@@ -151,22 +176,19 @@ struct WeightView: View {
             return (date, entry.weightKg)
         }
 
-        // Simple linear regression
-        let n = Double(sorted.count)
-        let xVals = sorted.enumerated().map { Double($0.offset) }
-        let yVals = sorted.map(\.1)
-        let xMean = xVals.reduce(0, +) / n
-        let yMean = yVals.reduce(0, +) / n
-        let numerator = zip(xVals, yVals).map { ($0 - xMean) * ($1 - yMean) }.reduce(0, +)
-        let denominator = xVals.map { ($0 - xMean) * ($0 - xMean) }.reduce(0, +)
-        guard denominator > 0 else { return [] }
-        let slope = numerator / denominator
-        let intercept = yMean - slope * xMean
+        // Least-squares fit (entry index → weight) computed by the shared KMP
+        // analytics; iOS keeps its index-based x-axis by passing entry indices.
+        let fit = WeightChartAnalyticsKt.linearRegression(
+            xs: sorted.indices.map(Double.init).asKotlin,
+            ys: sorted.map(\.1).asKotlin
+        )
+        guard let fit, let lastDate = sorted.last?.0 else { return [] }
+        let slope = fit.slope
+        let intercept = fit.intercept
 
-        guard let lastDate = sorted.last?.0 else { return [] }
         var result: [(Date, Double)] = []
         // Start from last actual data point
-        let lastX = n - 1
+        let lastX = Double(sorted.count - 1)
         result.append((lastDate, slope * lastX + intercept))
         for day in 1 ... projectionDays {
             let futureDate = lastDate.adding(days: day)

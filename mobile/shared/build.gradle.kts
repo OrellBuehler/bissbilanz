@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.skie)
 }
 
 kotlin {
@@ -70,6 +71,15 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+skie {
+    // SKIE uploads anonymized build analytics by default; disable both the
+    // capture and upload phases so CI/dev framework builds make no network
+    // calls and leak no project metadata.
+    analytics {
+        enabled.set(false)
     }
 }
 

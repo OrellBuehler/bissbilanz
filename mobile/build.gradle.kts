@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.sqldelight) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.ktlint) apply false
+    alias(libs.plugins.skie) apply false
 }
 
 subprojects {

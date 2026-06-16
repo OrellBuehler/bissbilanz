@@ -86,9 +86,13 @@ jobs:
       - name: Build iOS app
         working-directory: mobile/iosApp
         run: |
+          # The staged shared.framework is the arm64 simulator slice and the
+          # runner is arm64, so build arm64-only — otherwise the generic
+          # Simulator destination also builds x86_64 and can't find a slice.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
