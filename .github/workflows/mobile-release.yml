@@ -319,7 +319,11 @@ jobs:
               echo "::error::altool $action exited non-zero"
               return 1
             fi
-            if grep -qiE 'UPLOAD FAILED|VALIDATE FAILED|VALIDATION_ERROR|error uploading|errors uploading|not (properly )?signed|alpha channel|Failed to (upload|validate)' "$log"; then
+            # Drop altool's benign success lines ("No errors uploading
+            # archive at ...") first — otherwise the "errors uploading"
+            # pattern below matches them and fails a successful upload.
+            if grep -viE 'No errors (uploading|validating)' "$log" \
+                 | grep -qiE 'UPLOAD FAILED|VALIDATE FAILED|VALIDATION_ERROR|errors? (uploading|validating)|not (properly )?signed|alpha channel|Failed to (upload|validate)'; then
               echo "::error::altool $action reported errors (see log above)"
               return 1
             fi
