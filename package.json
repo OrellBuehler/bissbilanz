@@ -101,6 +101,7 @@
 		"rollup": "^4.59.0",
 		"axios": "^1.15.0",
 		"effect": "^3.20.0",
-		"protobufjs": "^7.5.5"
+		"protobufjs": "^7.5.5",
+		"esbuild": "^0.28.1"
 	}
 }
