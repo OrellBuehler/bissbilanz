@@ -222,3 +222,53 @@ struct AuthManagerStateTests {
         #expect(auth.authState == .unauthenticated)
     }
 }
+
+@Suite("AuthManager JWT sub extraction")
+struct AuthManagerJWTTests {
+    /// Builds an unsigned JWT (`header.payload.signature`) with the given
+    /// payload, base64url-encoded the way real tokens are.
+    private func makeJWT(payload: [String: Any]) throws -> String {
+        func base64url(_ object: Any) throws -> String {
+            let data = try JSONSerialization.data(withJSONObject: object)
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+        let header = try base64url(["alg": "none", "typ": "JWT"])
+        let body = try base64url(payload)
+        return "\(header).\(body).signature"
+    }
+
+    @Test("Extracts sub from a valid token")
+    func extractsSub() throws {
+        let token = try makeJWT(payload: ["sub": "user-123", "name": "Test"])
+        #expect(AuthManager.extractSub(fromJWT: token) == "user-123")
+    }
+
+    @Test("Handles base64url payloads needing padding restored")
+    func handlesPadding() throws {
+        // A sub whose encoding lands on a length that dropped '=' padding.
+        let token = try makeJWT(payload: ["sub": "abcde"])
+        #expect(AuthManager.extractSub(fromJWT: token) == "abcde")
+    }
+
+    @Test("Returns nil when sub claim is missing")
+    func missingSub() throws {
+        let token = try makeJWT(payload: ["name": "no-sub-here"])
+        #expect(AuthManager.extractSub(fromJWT: token) == nil)
+    }
+
+    @Test("Returns nil for a malformed token")
+    func malformedToken() {
+        #expect(AuthManager.extractSub(fromJWT: "not-a-jwt") == nil)
+        #expect(AuthManager.extractSub(fromJWT: "") == nil)
+        #expect(AuthManager.extractSub(fromJWT: "only.two") == nil)
+    }
+
+    @Test("Returns nil when sub is not a string")
+    func nonStringSub() throws {
+        let token = try makeJWT(payload: ["sub": 42])
+        #expect(AuthManager.extractSub(fromJWT: token) == nil)
+    }
+}
