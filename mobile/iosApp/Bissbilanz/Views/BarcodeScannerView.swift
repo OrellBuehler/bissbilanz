@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import VisionKit
 
 struct BarcodeScannerView: View {
     @Environment(FoodRepository.self) private var foodRepository
@@ -18,13 +19,23 @@ struct BarcodeScannerView: View {
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var isTorchOn = false
 
+    /// VisionKit's DataScanner is used on supported hardware; the AVFoundation
+    /// preview is the fallback (notably the Simulator, where isSupported is
+    /// false). Evaluated once — device capability does not change at runtime.
+    private let useDataScanner = DataScannerViewController.isSupported
+
     var body: some View {
         ZStack {
             if cameraPermission == .authorized {
-                CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: $isTorchOn)
-                    .ignoresSafeArea()
+                if useDataScanner {
+                    DataScannerView(onBarcodeScanned: handleBarcode)
+                        .ignoresSafeArea()
+                } else {
+                    CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: $isTorchOn)
+                        .ignoresSafeArea()
 
-                viewfinder
+                    viewfinder
+                }
             } else if cameraPermission == .denied || cameraPermission == .restricted {
                 permissionDenied
             } else {
@@ -87,7 +98,10 @@ struct BarcodeScannerView: View {
                 Button(L10n.close) { dismiss() }
             }
             ToolbarItem(placement: .primaryAction) {
-                if cameraPermission == .authorized {
+                // DataScannerViewController owns its capture session and exposes
+                // no torch control, so the flashlight is offered only on the
+                // AVFoundation fallback path.
+                if cameraPermission == .authorized, !useDataScanner {
                     Button {
                         isTorchOn.toggle()
                     } label: {

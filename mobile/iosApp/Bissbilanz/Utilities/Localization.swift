@@ -811,6 +811,76 @@ enum L10n {
         localized("torch", en: "Torch", de: "Taschenlampe")
     }
 
+    // MARK: - Nutrition label scanner
+
+    static var scanLabel: String {
+        localized("scan_label", en: "Scan nutrition label", de: "Nährwerte scannen")
+    }
+
+    static var scanLabelFooter: String {
+        localized(
+            "scan_label_footer",
+            en: "Photograph a nutrition facts panel to prefill the values below.",
+            de: "Fotografiere eine Nährwerttabelle, um die Werte unten zu übernehmen."
+        )
+    }
+
+    static var scanLabelHint: String {
+        localized(
+            "scan_label_hint",
+            en: "Capture or choose a clear, straight-on photo of the nutrition facts panel.",
+            de: "Nimm ein klares, gerades Foto der Nährwerttabelle auf oder wähle eines aus."
+        )
+    }
+
+    static var scanningLabel: String {
+        localized("scanning_label", en: "Reading nutrition facts...", de: "Nährwerte werden gelesen...")
+    }
+
+    static var takePhoto: String {
+        localized("take_photo", en: "Take Photo", de: "Foto aufnehmen")
+    }
+
+    static var choosePhoto: String {
+        localized("choose_photo", en: "Choose Photo", de: "Foto auswählen")
+    }
+
+    static var scanLabelNoData: String {
+        localized(
+            "scan_label_no_data",
+            en: "Couldn't read the nutrition values. Try a clearer, straight-on photo.",
+            de: "Die Nährwerte konnten nicht gelesen werden. Versuche ein klareres, gerades Foto."
+        )
+    }
+
+    static var scanLabelFailed: String {
+        localized(
+            "scan_label_failed",
+            en: "Couldn't process the image.",
+            de: "Das Bild konnte nicht verarbeitet werden."
+        )
+    }
+
+    static var additionalNutrients: String {
+        localized("additional_nutrients", en: "Additional (from label)", de: "Zusätzlich (vom Etikett)")
+    }
+
+    static var sugar: String {
+        localized("sugar", en: "Sugar", de: "Zucker")
+    }
+
+    static var saturatedFat: String {
+        localized("saturated_fat", en: "Saturated Fat", de: "Gesättigte Fettsäuren")
+    }
+
+    static var salt: String {
+        localized("salt", en: "Salt", de: "Salz")
+    }
+
+    static var sodium: String {
+        localized("sodium", en: "Sodium", de: "Natrium")
+    }
+
     // MARK: - Login
 
     static var trackNutrition: String {
