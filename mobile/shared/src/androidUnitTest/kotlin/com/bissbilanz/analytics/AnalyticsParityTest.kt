@@ -96,6 +96,18 @@ class AnalyticsParityTest {
                 ).toJson()
             }
 
+            "calculateMaintenance" -> {
+                calculateMaintenance(maintenanceInputFrom(input))?.toJson() ?: JsonNull
+            }
+
+            "aggregateDailyNutrientTotals" -> {
+                aggregateDailyNutrientTotals(
+                    aggEntriesFrom(input.getValue("entries")),
+                    aggFoodsFrom(input.getValue("foods")),
+                    aggRecipesFrom(input.getValue("recipes")),
+                ).let { result -> JsonArray(result.map { it.toJson() }) }
+            }
+
             else -> {
                 error("Unknown fn in fixtures: $fn")
             }
@@ -143,6 +155,42 @@ class AnalyticsParityTest {
             put("confidence", confidence.wire())
         }
 
+    private fun MaintenanceResult.toJson() =
+        buildJsonObject {
+            put("maintenanceCalories", maintenanceCalories)
+            put("dailyDeficit", dailyDeficit)
+            put("totalEnergyBalance", totalEnergyBalance)
+            put("fatMassKg", fatMassKg)
+            put("muscleMassKg", muscleMassKg)
+            put("fatCalories", fatCalories)
+            put("muscleCalories", muscleCalories)
+            put("avgDailyCalories", avgDailyCalories)
+            put("weightChangeKg", weightChangeKg)
+            put("days", days)
+            put("muscleRatio", muscleRatio)
+        }
+
+    private fun DailyNutrientTotals.toJson() =
+        buildJsonObject {
+            put("date", date)
+            put("calories", calories)
+            put("protein", protein)
+            put("carbs", carbs)
+            put("fat", fat)
+            put("fiber", fiber)
+            putNullableDouble("omega3", omega3)
+            putNullableDouble("omega6", omega6)
+            putNullableDouble("sodium", sodium)
+            putNullableDouble("caffeine", caffeine)
+            putNullableDouble("saturatedFat", saturatedFat)
+            putNullableDouble("transFat", transFat)
+            putNullableDouble("vitaminC", vitaminC)
+            putNullableDouble("vitaminD", vitaminD)
+            putNullableDouble("vitaminE", vitaminE)
+            putNullableDouble("alcohol", alcohol)
+            putNullableDouble("addedSugars", addedSugars)
+        }
+
     // TS encodes ConfidenceLevel as a lowercase string.
     private fun ConfidenceLevel.wire() = name.lowercase()
 
@@ -169,6 +217,80 @@ class AnalyticsParityTest {
         }
 
     private fun nullableDoublesFrom(el: JsonElement): List<Double?> = el.jsonArray.map { it.asNullableDouble() }
+
+    private fun maintenanceInputFrom(input: JsonObject): MaintenanceInput =
+        MaintenanceInput(
+            weightChangeKg = input.getValue("weightChangeKg").jsonPrimitive.double,
+            avgDailyCalories = input.getValue("avgDailyCalories").jsonPrimitive.double,
+            days = input.getValue("days").jsonPrimitive.int,
+            muscleRatio = input.optDouble("muscleRatio") ?: DEFAULT_MUSCLE_RATIO,
+        )
+
+    private fun aggFoodsFrom(el: JsonElement): List<AggFood> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            AggFood(
+                id = o.str("id"),
+                servingSize = o.dbl("servingSize"),
+                calories = o.dbl("calories"),
+                protein = o.dbl("protein"),
+                carbs = o.dbl("carbs"),
+                fat = o.dbl("fat"),
+                fiber = o.dbl("fiber"),
+                novaGroup = o.optInt("novaGroup"),
+                omega3 = o.optDouble("omega3"),
+                omega6 = o.optDouble("omega6"),
+                sodium = o.optDouble("sodium"),
+                caffeine = o.optDouble("caffeine"),
+                saturatedFat = o.optDouble("saturatedFat"),
+                transFat = o.optDouble("transFat"),
+                vitaminC = o.optDouble("vitaminC"),
+                vitaminD = o.optDouble("vitaminD"),
+                vitaminE = o.optDouble("vitaminE"),
+                alcohol = o.optDouble("alcohol"),
+                addedSugars = o.optDouble("addedSugars"),
+            )
+        }
+
+    private fun aggRecipesFrom(el: JsonElement): List<AggRecipe> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            AggRecipe(
+                id = o.str("id"),
+                totalServings = o.dbl("totalServings"),
+                ingredients =
+                    o.getValue("ingredients").jsonArray.map { it.jsonObject }.map { ing ->
+                        AggRecipeIngredient(foodId = ing.str("foodId"), quantity = ing.dbl("quantity"))
+                    },
+            )
+        }
+
+    private fun aggEntriesFrom(el: JsonElement): List<AggEntry> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            AggEntry(
+                date = o.str("date"),
+                mealType = o.str("mealType"),
+                servings = o.dbl("servings"),
+                foodId = o.optStr("foodId"),
+                recipeId = o.optStr("recipeId"),
+                eatenAt = o.optStr("eatenAt"),
+                foodName = o.optStr("foodName"),
+                quickName = o.optStr("quickName"),
+                quickCalories = o.optDouble("quickCalories"),
+                quickProtein = o.optDouble("quickProtein"),
+                quickCarbs = o.optDouble("quickCarbs"),
+                quickFat = o.optDouble("quickFat"),
+                quickFiber = o.optDouble("quickFiber"),
+            )
+        }
+
+    private fun JsonObject.str(key: String): String = getValue(key).jsonPrimitive.content
+
+    private fun JsonObject.dbl(key: String): Double = getValue(key).jsonPrimitive.double
+
+    private fun JsonObject.optStr(key: String): String? = this[key]?.let { if (it is JsonNull) null else it.jsonPrimitive.content }
+
+    private fun JsonObject.optDouble(key: String): Double? = this[key]?.let { if (it is JsonNull) null else it.jsonPrimitive.double }
+
+    private fun JsonObject.optInt(key: String): Int? = this[key]?.let { if (it is JsonNull) null else it.jsonPrimitive.int }
 
     private fun doubleArrayFrom(el: JsonElement): DoubleArray = el.jsonArray.map { it.jsonPrimitive.double }.toDoubleArray()
 

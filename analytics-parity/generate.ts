@@ -13,6 +13,13 @@ import { fileURLToPath } from 'node:url';
 import { pearsonCorrelation } from '../src/lib/analytics/correlation';
 import { movingAverage } from '../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../src/lib/analytics/tdee';
+import {
+	aggregateDailyNutrientTotals,
+	type AggEntry,
+	type AggFood,
+	type AggRecipe
+} from '../src/lib/analytics/aggregation';
+import { calculateMaintenance, type MaintenanceInput } from '../src/lib/utils/maintenance';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -149,6 +156,101 @@ function round(v: number, dp: number): number {
 		'flat_low_sample',
 		{ weightSeries: w2, weeklyRate: 0.0 },
 		projectWeight(w2, 0)
+	);
+}
+
+// --- calculateMaintenance ---------------------------------------------------
+{
+	const maintenanceCases: { name: string; input: MaintenanceInput }[] = [
+		{
+			name: 'loss_default_ratio',
+			input: { weightChangeKg: -1.2, avgDailyCalories: 2100, days: 28 }
+		},
+		{
+			name: 'gain_custom_ratio',
+			input: { weightChangeKg: 0.8, avgDailyCalories: 2850, days: 21, muscleRatio: 0.5 }
+		},
+		{
+			name: 'no_change',
+			input: { weightChangeKg: 0, avgDailyCalories: 2000, days: 14, muscleRatio: 0.3 }
+		},
+		{
+			name: 'half_round_up',
+			input: { weightChangeKg: -0.355, avgDailyCalories: 2000.5, days: 7, muscleRatio: 0.3 }
+		},
+		{
+			name: 'invalid_days',
+			input: { weightChangeKg: -1, avgDailyCalories: 2000, days: 0, muscleRatio: 0.3 }
+		}
+	];
+	for (const { name, input } of maintenanceCases) {
+		add(
+			'calculateMaintenance',
+			name,
+			input as unknown as Record<string, unknown>,
+			calculateMaintenance(input)
+		);
+	}
+}
+
+// --- aggregateDailyNutrientTotals -------------------------------------------
+{
+	// Foods exercise: a plain food, a food with extended nutrients, an
+	// ingredient-only food, and a zero-serving-size food (NULLIF divide-by-zero).
+	const foods: AggFood[] = [
+		{ id: 'f_oats', servingSize: 40, calories: 150, protein: 5, carbs: 27, fat: 3, fiber: 4 },
+		{
+			id: 'f_salmon',
+			servingSize: 100,
+			calories: 208,
+			protein: 20,
+			carbs: 0,
+			fat: 13,
+			fiber: 0,
+			novaGroup: 1,
+			omega3: 2.3,
+			sodium: 59,
+			vitaminD: 11
+		},
+		{ id: 'f_rice', servingSize: 50, calories: 180, protein: 3.3, carbs: 39, fat: 0.4, fiber: 0.6 },
+		{ id: 'f_zero', servingSize: 0, calories: 999, protein: 9, carbs: 9, fat: 9, fiber: 9 }
+	];
+	const recipes: AggRecipe[] = [
+		{
+			id: 'r_bowl',
+			totalServings: 2,
+			ingredients: [
+				{ foodId: 'f_salmon', quantity: 150 },
+				{ foodId: 'f_rice', quantity: 120 },
+				{ foodId: 'f_zero', quantity: 30 } // contributes nothing (servingSize 0)
+			]
+		},
+		{ id: 'r_degenerate', totalServings: 0, ingredients: [{ foodId: 'f_oats', quantity: 80 }] }
+	];
+	const entries: AggEntry[] = [
+		// Day 1: a food entry, a recipe entry (1.5 servings), a quick-add entry.
+		{ date: '2025-03-01', mealType: 'breakfast', servings: 2, foodId: 'f_oats' },
+		{ date: '2025-03-01', mealType: 'lunch', servings: 1.5, recipeId: 'r_bowl' },
+		{
+			date: '2025-03-01',
+			mealType: 'snack',
+			servings: 1,
+			quickName: 'Protein bar',
+			quickCalories: 200,
+			quickProtein: 20,
+			quickCarbs: 22,
+			quickFat: 7,
+			quickFiber: 3
+		},
+		// Day 2: the degenerate recipe (totalServings 0 -> all macros null -> 0) and a salmon food.
+		{ date: '2025-03-02', mealType: 'dinner', servings: 1, recipeId: 'r_degenerate' },
+		{ date: '2025-03-02', mealType: 'dinner', servings: 2, foodId: 'f_salmon' }
+	];
+	add(
+		'aggregateDailyNutrientTotals',
+		'mixed_food_recipe_quick',
+		{ entries, foods, recipes } as unknown as Record<string, unknown>,
+		aggregateDailyNutrientTotals(entries, foods, recipes)
 	);
 }
 
