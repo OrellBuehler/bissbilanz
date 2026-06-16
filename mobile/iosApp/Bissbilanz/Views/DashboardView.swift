@@ -52,12 +52,7 @@ struct DashboardView: View {
     }
 
     private var mealGroups: [(String, [Entry])] {
-        let grouped = Dictionary(grouping: entries, by: \.mealType)
-        let order = ["breakfast", "lunch", "dinner", "snacks"]
-        return order.compactMap { meal in
-            guard let items = grouped[meal], !items.isEmpty else { return nil }
-            return (meal, items)
-        } + grouped.filter { !order.contains($0.key) }.sorted(by: { $0.key < $1.key }).map { ($0.key, $0.value) }
+        MealGrouping.group(entries)
     }
 
     var body: some View {
@@ -88,11 +83,15 @@ struct DashboardView: View {
                 NavigationStack {
                     FoodSearchView(date: dateString)
                 }
+                // Logging happens inside the sheet; reload on dismiss so the
+                // new entries show without a manual pull-to-refresh.
+                .onDisappear { Task { await loadData() } }
             }
             .sheet(isPresented: $showScanner) {
                 NavigationStack {
                     BarcodeScannerView()
                 }
+                .onDisappear { Task { await loadData() } }
             }
             .sheet(isPresented: $showQuickEntry) {
                 QuickEntrySheet(date: dateString) {
@@ -163,7 +162,7 @@ struct DashboardView: View {
             } else {
                 ForEach(mealGroups, id: \.0) { meal, mealEntries in
                     NavigationLink(value: dateString) {
-                        MealCard(mealType: meal, entries: mealEntries) {}
+                        MealCard(mealType: meal, entries: mealEntries)
                     }
                     .buttonStyle(.plain)
                 }
@@ -465,10 +464,15 @@ struct DashboardView: View {
         async let goalsTask: Void? = try? goalsRepository.refresh()
         async let prefsTask: Void? = try? preferencesRepository.refresh()
         async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
+        // Refresh the supplement list (definitions), not just the checklist
+        // (taken-logs): `localChecklist` reads the cached list, so without this
+        // the card stays empty — and hidden — until a live checklist call
+        // succeeds, which is why it appeared only intermittently.
+        async let suppListTask: Void? = try? supplementRepository.refresh()
         async let supplementsTask = try? supplementRepository.refreshChecklist(date: dateString)
         async let weightTask: Void? = try? weightRepository.refresh()
 
-        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, weightTask)
+        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask)
         let checklist = await supplementsTask
 
         loadFromStore()
@@ -504,17 +508,31 @@ struct DashboardView: View {
     }
 
     private func toggleSupplement(_ item: SupplementChecklist) async {
+        let nowTaken = !item.taken
+        let previous = supplementChecklist
+        // Optimistic UI: flip the checkmark immediately so it feels instant.
+        // The repository write is local-first (SwiftData + a queued upload), so
+        // there's no need to block on a network checklist refresh — that round
+        // trip was the source of the visible lag. `loadData` reconciles with
+        // the server on the next appear / pull-to-refresh.
+        supplementChecklist = supplementChecklist.map { entry in
+            guard entry.supplement.id == item.supplement.id else { return entry }
+            return SupplementChecklist(
+                supplement: entry.supplement,
+                taken: nowTaken,
+                takenAt: nowTaken ? ISO8601DateFormatter().string(from: Date()) : nil
+            )
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         do {
-            if item.taken {
-                try await supplementRepository.unlogSupplement(id: item.supplement.id, date: dateString)
-            } else {
+            if nowTaken {
                 try await supplementRepository.logSupplement(id: item.supplement.id, date: dateString)
+            } else {
+                try await supplementRepository.unlogSupplement(id: item.supplement.id, date: dateString)
             }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
+            supplementChecklist = previous
             toastMessage = L10n.error
         }
-        supplementChecklist = await (try? supplementRepository.refreshChecklist(date: dateString))
-            ?? supplementRepository.localChecklist(date: dateString)
     }
 }
