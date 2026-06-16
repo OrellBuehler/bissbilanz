@@ -32,7 +32,9 @@ enum WeightTrend: Equatable {
         switch WeightChartAnalyticsKt.classifyWeightTrend(deltaKg: delta, steadyBandKg: steadyBandKg) {
         case .rising: return .rising(delta)
         case .falling: return .falling(delta)
-        case .steady: return .steady(delta)
+        // SKIE exports the enum as non-frozen, so a `default` keeps the switch
+        // exhaustive across Swift toolchains (Xcode 16's 6.1 and CI's 6.2).
+        default: return .steady(delta)
         }
     }
 
