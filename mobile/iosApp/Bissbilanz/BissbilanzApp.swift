@@ -82,12 +82,14 @@ struct BissbilanzApp: App {
             appMode: appMode,
             syncManager: sync
         ))
-        _entryRepository = State(wrappedValue: EntryRepository(
+        let entryRepo = EntryRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
-        ))
-        _foodRepository = State(wrappedValue: FoodRepository(
+        )
+        let foodRepo = FoodRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
-        ))
+        )
+        _entryRepository = State(wrappedValue: entryRepo)
+        _foodRepository = State(wrappedValue: foodRepo)
         _recipeRepository = State(wrappedValue: RecipeRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
@@ -106,6 +108,29 @@ struct BissbilanzApp: App {
         _preferencesRepository = State(wrappedValue: PreferencesRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
+
+        // Apple Watch link (Phase 1). The watch relays "log this" commands here;
+        // the phone performs the real write through the same repository the UI
+        // uses, then replies with the refreshed snapshot.
+        PhoneWatchConnectivity.shared.onLogRequest = { request in
+            let food = request.foodId.flatMap { foodRepo.food(id: $0) }
+            let create = EntryCreate(
+                foodId: request.foodId,
+                recipeId: request.recipeId,
+                mealType: request.mealType,
+                servings: request.servings,
+                date: request.date,
+                quickName: request.quickName,
+                quickCalories: request.quickCalories,
+                quickProtein: request.quickProtein,
+                quickCarbs: request.quickCarbs,
+                quickFat: request.quickFat,
+                quickFiber: request.quickFiber
+            )
+            _ = try? await entryRepo.createEntry(create, food: food)
+            return WidgetSnapshotWriter.buildSnapshot(context: context)
+        }
+        PhoneWatchConnectivity.shared.activate()
     }
 
     var body: some Scene {
