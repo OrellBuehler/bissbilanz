@@ -400,13 +400,53 @@ final class BissbilanzAPI {
     /// callers that recover (cache fallback, sync retries, `try?` lookups)
     /// don't silently swallow real defects. `ErrorReporter` filters expected
     /// noise (unauthorized, offline, not-found).
+    ///
+    /// Every request also drops a breadcrumb and, on failure, attaches the
+    /// endpoint, method, status code and (truncated) response body — enough to
+    /// debug a reported issue without reproducing it.
     private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        ErrorReporter.addBreadcrumb(
+            "\(request.httpMethod ?? "?") \(request.url?.path ?? "?")",
+            category: "http"
+        )
         do {
             return try await executeRequest(request)
         } catch {
-            ErrorReporter.capture(error)
+            ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
             throw error
         }
+    }
+
+    /// Builds the structured context attached to a captured API error. Only the
+    /// URL *path* is included — query strings can carry search terms (food
+    /// names), and the response body is truncated to keep events small and
+    /// avoid shipping large payloads.
+    private static func errorContext(for request: URLRequest, error: Error) -> [String: Any] {
+        var context: [String: Any] = [:]
+        if let method = request.httpMethod {
+            context["method"] = method
+        }
+        if let path = request.url?.path {
+            context["endpoint"] = path
+        }
+        switch error as? APIError {
+        case let .serverError(code, message):
+            context["status_code"] = code
+            if let message {
+                context["response_body"] = String(message.prefix(500))
+            }
+        case let .badRequest(message):
+            context["status_code"] = 400
+            if let message {
+                context["response_body"] = String(message.prefix(500))
+            }
+        case let .decodingError(underlying):
+            context["status_code"] = 200
+            context["decoding_error"] = String(describing: underlying)
+        case .networkError, .notFound, .unauthorized, .none:
+            break
+        }
+        return context
     }
 
     private func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {

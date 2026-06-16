@@ -43,6 +43,39 @@ final class AuthManager {
         KeychainHelper.load(key: Self.accessTokenKey)
     }
 
+    /// The signed-in user's stable id — the OIDC `sub` claim decoded from the
+    /// access token — used to attach a user to crash reports (parity with
+    /// Android's `extractSubFromJwt`). Nil when signed out or when the token
+    /// can't be parsed. The token is read locally only; it is never verified
+    /// here (the server already did), this just reads the public claim.
+    var userId: String? {
+        accessToken.flatMap(Self.extractSub(fromJWT:))
+    }
+
+    /// Decodes the `sub` claim from a JWT without validating its signature.
+    /// Returns nil for anything that isn't a well-formed JWT with a string
+    /// `sub`. `nonisolated` and pure so it is unit-testable off the main actor.
+    nonisolated static func extractSub(fromJWT token: String) -> String? {
+        let segments = token.split(separator: ".")
+        guard segments.count >= 2 else { return nil }
+
+        // JWTs use base64url (no padding); restore standard base64.
+        var base64 = String(segments[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 {
+            base64 += "="
+        }
+
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sub = json["sub"] as? String
+        else {
+            return nil
+        }
+        return sub
+    }
+
     func buildLoginURL() -> URL? {
         let state = UUID().uuidString
         pendingState = state

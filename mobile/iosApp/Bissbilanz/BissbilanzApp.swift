@@ -64,7 +64,7 @@ struct BissbilanzApp: App {
         // once at launch, so toggling it takes effect on the next launch.
         let container = LocalStore.makeContainerWithFallback(
             cloudKitEnabled: appMode.isLocal,
-            onError: { ErrorReporter.capture($0) }
+            onError: { ErrorReporter.capture($0, context: ["phase": "store_init"]) }
         )
         modelContainer = container
         let context = container.mainContext
@@ -149,6 +149,7 @@ struct BissbilanzApp: App {
             // default to Synced (mirrors the Android root).
             .onChange(of: authManager.authState, initial: true) { _, state in
                 defaultModeToSyncedIfNeeded()
+                syncErrorReportingUser(for: state)
                 // Upload anything queued while the session was expired.
                 if state == .authenticated {
                     syncManager.scheduleDrain()
@@ -177,6 +178,22 @@ struct BissbilanzApp: App {
         let authState = authManager.authState
         if authState == .authenticated || authState == .refreshing, appModeManager.mode == nil {
             appModeManager.setMode(.synced)
+        }
+    }
+
+    /// Keeps the Sentry user in step with auth (parity with Android): attach
+    /// the signed-in user so issues can be told apart from a fleet-wide
+    /// problem, and detach on sign-out / session expiry. Also drops a
+    /// breadcrumb so the lead-up to any later error shows the auth transition.
+    private func syncErrorReportingUser(for state: AuthState) {
+        ErrorReporter.addBreadcrumb("auth state → \(state)", category: "auth")
+        switch state {
+        case .authenticated, .refreshing:
+            if let id = authManager.userId {
+                ErrorReporter.setUser(id: id)
+            }
+        case .unauthenticated, .expired:
+            ErrorReporter.clearUser()
         }
     }
 }
