@@ -90,9 +90,11 @@ final class EntryWriter {
 
     // MARK: - Writes
 
-    /// Logs a food for `date` (today by default) and, when online and signed
-    /// in, waits for the upload so the entry has synced by the time the intent
-    /// returns. Offline / Local mode falls through to the normal queued path.
+    /// Logs a food for `date` (today by default). When online and signed in it
+    /// then awaits a queue drain so the upload is attempted before the intent
+    /// returns (a concurrent in-flight drain may already own it, in which case
+    /// this returns early and the op uploads on the next trigger). Offline /
+    /// Local mode falls through to the normal queued path.
     @discardableResult
     func logFood(
         id: String,
