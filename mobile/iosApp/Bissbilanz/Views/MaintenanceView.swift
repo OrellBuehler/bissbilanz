@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MaintenanceView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.modelContext) private var modelContext
 
     @State private var selectedWeeks = 4
     @State private var bodyFatRatio = 0.5
@@ -83,7 +83,7 @@ struct MaintenanceView: View {
 
     private var calculateButton: some View {
         Button {
-            Task { await calculate() }
+            calculate()
         } label: {
             if isCalculating {
                 ProgressView()
@@ -167,24 +167,25 @@ struct MaintenanceView: View {
         .font(.subheadline)
     }
 
-    private func calculate() async {
+    private func calculate() {
         isCalculating = true
         error = nil
 
         let endDate = Date()
-        let startDate = endDate.adding(days: -selectedWeeks * 7)
+        let days = selectedWeeks * 7
+        let startDate = endDate.adding(days: -days)
 
-        let request = MaintenanceRequest(
+        let response = LocalMaintenance.compute(
+            context: modelContext,
             startDate: startDate.isoDateString,
             endDate: endDate.isoDateString,
-            bodyFatChangeRatio: bodyFatRatio
+            days: days,
+            bodyFatRatio: bodyFatRatio
         )
-
-        do {
-            result = try await api.calculateMaintenance(request)
-        } catch {
-            self.error = error.localizedDescription
+        if response == nil {
+            error = L10n.maintenanceInsufficientData
         }
+        result = response
         isCalculating = false
     }
 }

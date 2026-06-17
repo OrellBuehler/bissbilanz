@@ -1309,6 +1309,14 @@ enum L10n {
         )
     }
 
+    static var maintenanceInsufficientData: String {
+        localized(
+            "maintenance_insufficient_data",
+            en: "Not enough data. Log at least two weights and some food in this range.",
+            de: "Nicht genug Daten. Erfasse mindestens zwei Gewichte und einige Mahlzeiten in diesem Zeitraum."
+        )
+    }
+
     static var kcalPerDay: String {
         localized("kcal_per_day", en: "kcal/day", de: "kcal/Tag")
     }
