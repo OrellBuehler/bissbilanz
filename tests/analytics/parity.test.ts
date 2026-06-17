@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 import { pearsonCorrelation } from '../../src/lib/analytics/correlation';
 import { movingAverage } from '../../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib/analytics/tdee';
+import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
+import { calculateMaintenance } from '../../src/lib/utils/maintenance';
 
 /**
  * Cross-language golden-vector parity. The same frozen fixtures are asserted by
@@ -37,6 +39,10 @@ function runFn(fn: string, input: any): unknown {
 			);
 		case 'projectWeight':
 			return projectWeight(input.weightSeries, input.weeklyRate);
+		case 'calculateMaintenance':
+			return calculateMaintenance(input);
+		case 'aggregateDailyNutrientTotals':
+			return aggregateDailyNutrientTotals(input.entries, input.foods, input.recipes);
 		default:
 			throw new Error(`Unknown fn in fixtures: ${fn}`);
 	}
