@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftData
 import SwiftUI
 
@@ -46,7 +47,7 @@ struct BissbilanzApp: App {
     @State private var supplementRepository: SupplementRepository
     @State private var goalsRepository: GoalsRepository
     @State private var preferencesRepository: PreferencesRepository
-    @State private var deepLinkRouter = DeepLinkRouter()
+    @State private var deepLinkRouter: DeepLinkRouter
     private let modelContainer: ModelContainer
 
     init() {
@@ -82,17 +83,12 @@ struct BissbilanzApp: App {
             appMode: appMode,
             syncManager: sync
         ))
-        let entryRepo = EntryRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        )
-        let foodRepo = FoodRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        )
+        let entryRepo = EntryRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        let foodRepo = FoodRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        let recipeRepo = RecipeRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         _entryRepository = State(wrappedValue: entryRepo)
         _foodRepository = State(wrappedValue: foodRepo)
-        _recipeRepository = State(wrappedValue: RecipeRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        ))
+        _recipeRepository = State(wrappedValue: recipeRepo)
         _weightRepository = State(wrappedValue: WeightRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
@@ -108,6 +104,25 @@ struct BissbilanzApp: App {
         _preferencesRepository = State(wrappedValue: PreferencesRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
+
+        let router = DeepLinkRouter()
+        _deepLinkRouter = State(wrappedValue: router)
+
+        // App Intents (Siri / Spotlight / Shortcuts) run in a separate launch of
+        // the app — outside the SwiftUI environment the views use — so resolve
+        // their dependencies through AppDependencyManager. Registered here in
+        // init so they exist even when the system background-launches us purely
+        // to service an intent. EntryWriter wraps the same repositories/context
+        // the UI uses, so an intent log shares the offline-first sync path.
+        let entryWriter = EntryWriter(
+            entryRepository: entryRepo,
+            foodRepository: foodRepo,
+            recipeRepository: recipeRepo,
+            syncManager: sync
+        )
+        AppDependencyManager.shared.add(dependency: entryWriter)
+        AppDependencyManager.shared.add(dependency: router)
+        IntentDonations.isEnabled = true
 
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
         // the phone performs the real write through the same repository the UI
@@ -194,6 +209,12 @@ struct BissbilanzApp: App {
                     // Covers launch, day rollover while backgrounded and any
                     // change widgets might have missed.
                     WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)
+                    // Keep Spotlight in step with the searchable catalog so
+                    // foods/recipes are findable before the next manual log.
+                    IntentDonations.indexCatalog(
+                        foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
+                        recipes: recipeRepository.favoriteRecipes()
+                    )
                 }
             }
         }

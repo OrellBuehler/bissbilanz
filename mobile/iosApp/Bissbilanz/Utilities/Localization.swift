@@ -271,6 +271,15 @@ enum L10n {
         localized("failed_to_log", en: "Failed to log", de: "Eintragung fehlgeschlagen")
     }
 
+    /// Spoken/shown confirmation after a Siri / Shortcuts log.
+    static func intentLoggedFood(_ name: String, meal: String, calories: Int) -> String {
+        localized(
+            "intent_logged_food",
+            en: "Logged \(name) — \(mealName(meal)), \(calories) kcal",
+            de: "\(name) eingetragen — \(mealName(meal)), \(calories) kcal"
+        )
+    }
+
     // MARK: - Entries
 
     static var logFood: String {
@@ -1297,6 +1306,14 @@ enum L10n {
             "low_coverage_warning",
             en: "Low data coverage may affect accuracy",
             de: "Geringe Datenabdeckung kann die Genauigkeit beeinflussen"
+        )
+    }
+
+    static var maintenanceInsufficientData: String {
+        localized(
+            "maintenance_insufficient_data",
+            en: "Not enough data. Log at least two weights and some food in this range.",
+            de: "Nicht genug Daten. Erfasse mindestens zwei Gewichte und einige Mahlzeiten in diesem Zeitraum."
         )
     }
 
