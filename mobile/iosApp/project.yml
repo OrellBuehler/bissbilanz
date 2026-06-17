@@ -90,6 +90,10 @@ targets:
       - framework: '../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/shared.framework'
         embed: false
       - sdk: HealthKit.framework
+      # App Intents (Siri / Shortcuts / Spotlight voice logging) + Spotlight
+      # indexing of FoodEntity/RecipeEntity.
+      - sdk: AppIntents.framework
+      - sdk: CoreSpotlight.framework
       - package: Sentry
       - target: BissbilanzWidgets
         embed: true

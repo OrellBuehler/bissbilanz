@@ -93,6 +93,8 @@ struct ContentView: View {
                     WeightView()
                 case let .food(foodId):
                     FoodDetailView(foodId: foodId)
+                case let .recipe(recipeId):
+                    RecipeDetailView(recipeId: recipeId)
                 }
             }
         }

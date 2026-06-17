@@ -1042,6 +1042,263 @@
 				"sampleSize": 5,
 				"confidence": "insufficient"
 			}
+		},
+		{
+			"fn": "calculateMaintenance",
+			"name": "loss_default_ratio",
+			"input": {
+				"weightChangeKg": -1.2,
+				"avgDailyCalories": 2100,
+				"days": 28
+			},
+			"expected": {
+				"maintenanceCalories": 2354,
+				"dailyDeficit": 254,
+				"totalEnergyBalance": 7116,
+				"fatMassKg": 0.84,
+				"muscleMassKg": 0.36,
+				"fatCalories": 6468,
+				"muscleCalories": 648,
+				"avgDailyCalories": 2100,
+				"weightChangeKg": -1.2,
+				"days": 28,
+				"muscleRatio": 0.3
+			}
+		},
+		{
+			"fn": "calculateMaintenance",
+			"name": "gain_custom_ratio",
+			"input": {
+				"weightChangeKg": 0.8,
+				"avgDailyCalories": 2850,
+				"days": 21,
+				"muscleRatio": 0.5
+			},
+			"expected": {
+				"maintenanceCalories": 2669,
+				"dailyDeficit": -181,
+				"totalEnergyBalance": -3800,
+				"fatMassKg": 0.4,
+				"muscleMassKg": 0.4,
+				"fatCalories": 3080,
+				"muscleCalories": 720,
+				"avgDailyCalories": 2850,
+				"weightChangeKg": 0.8,
+				"days": 21,
+				"muscleRatio": 0.5
+			}
+		},
+		{
+			"fn": "calculateMaintenance",
+			"name": "no_change",
+			"input": {
+				"weightChangeKg": 0,
+				"avgDailyCalories": 2000,
+				"days": 14,
+				"muscleRatio": 0.3
+			},
+			"expected": {
+				"maintenanceCalories": 2000,
+				"dailyDeficit": 0,
+				"totalEnergyBalance": 0,
+				"fatMassKg": 0,
+				"muscleMassKg": 0,
+				"fatCalories": 0,
+				"muscleCalories": 0,
+				"avgDailyCalories": 2000,
+				"weightChangeKg": 0,
+				"days": 14,
+				"muscleRatio": 0.3
+			}
+		},
+		{
+			"fn": "calculateMaintenance",
+			"name": "half_round_up",
+			"input": {
+				"weightChangeKg": -0.355,
+				"avgDailyCalories": 2000.5,
+				"days": 7,
+				"muscleRatio": 0.3
+			},
+			"expected": {
+				"maintenanceCalories": 2301,
+				"dailyDeficit": 301,
+				"totalEnergyBalance": 2105,
+				"fatMassKg": 0.25,
+				"muscleMassKg": 0.11,
+				"fatCalories": 1913,
+				"muscleCalories": 192,
+				"avgDailyCalories": 2001,
+				"weightChangeKg": -0.355,
+				"days": 7,
+				"muscleRatio": 0.3
+			}
+		},
+		{
+			"fn": "calculateMaintenance",
+			"name": "invalid_days",
+			"input": {
+				"weightChangeKg": -1,
+				"avgDailyCalories": 2000,
+				"days": 0,
+				"muscleRatio": 0.3
+			},
+			"expected": null
+		},
+		{
+			"fn": "aggregateDailyNutrientTotals",
+			"name": "mixed_food_recipe_quick",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-03-01",
+						"mealType": "breakfast",
+						"servings": 2,
+						"foodId": "f_oats"
+					},
+					{
+						"date": "2025-03-01",
+						"mealType": "lunch",
+						"servings": 1.5,
+						"recipeId": "r_bowl"
+					},
+					{
+						"date": "2025-03-01",
+						"mealType": "snack",
+						"servings": 1,
+						"quickName": "Protein bar",
+						"quickCalories": 200,
+						"quickProtein": 20,
+						"quickCarbs": 22,
+						"quickFat": 7,
+						"quickFiber": 3
+					},
+					{
+						"date": "2025-03-02",
+						"mealType": "dinner",
+						"servings": 1,
+						"recipeId": "r_degenerate"
+					},
+					{
+						"date": "2025-03-02",
+						"mealType": "dinner",
+						"servings": 2,
+						"foodId": "f_salmon"
+					}
+				],
+				"foods": [
+					{
+						"id": "f_oats",
+						"servingSize": 40,
+						"calories": 150,
+						"protein": 5,
+						"carbs": 27,
+						"fat": 3,
+						"fiber": 4
+					},
+					{
+						"id": "f_salmon",
+						"servingSize": 100,
+						"calories": 208,
+						"protein": 20,
+						"carbs": 0,
+						"fat": 13,
+						"fiber": 0,
+						"novaGroup": 1,
+						"omega3": 2.3,
+						"sodium": 59,
+						"vitaminD": 11
+					},
+					{
+						"id": "f_rice",
+						"servingSize": 50,
+						"calories": 180,
+						"protein": 3.3,
+						"carbs": 39,
+						"fat": 0.4,
+						"fiber": 0.6
+					},
+					{
+						"id": "f_zero",
+						"servingSize": 0,
+						"calories": 999,
+						"protein": 9,
+						"carbs": 9,
+						"fat": 9,
+						"fiber": 9
+					}
+				],
+				"recipes": [
+					{
+						"id": "r_bowl",
+						"totalServings": 2,
+						"ingredients": [
+							{
+								"foodId": "f_salmon",
+								"quantity": 150
+							},
+							{
+								"foodId": "f_rice",
+								"quantity": 120
+							},
+							{
+								"foodId": "f_zero",
+								"quantity": 30
+							}
+						]
+					},
+					{
+						"id": "r_degenerate",
+						"totalServings": 0,
+						"ingredients": [
+							{
+								"foodId": "f_oats",
+								"quantity": 80
+							}
+						]
+					}
+				]
+			},
+			"expected": [
+				{
+					"date": "2025-03-01",
+					"calories": 1058,
+					"protein": 58.44,
+					"carbs": 146.2,
+					"fat": 28.345,
+					"fiber": 12.08,
+					"omega3": 2.5875000000000004,
+					"omega6": null,
+					"sodium": 66.375,
+					"caffeine": null,
+					"saturatedFat": null,
+					"transFat": null,
+					"vitaminC": null,
+					"vitaminD": 12.375,
+					"vitaminE": null,
+					"alcohol": null,
+					"addedSugars": null
+				},
+				{
+					"date": "2025-03-02",
+					"calories": 416,
+					"protein": 40,
+					"carbs": 0,
+					"fat": 26,
+					"fiber": 0,
+					"omega3": 4.6,
+					"omega6": null,
+					"sodium": 118,
+					"caffeine": null,
+					"saturatedFat": null,
+					"transFat": null,
+					"vitaminC": null,
+					"vitaminD": 22,
+					"vitaminE": null,
+					"alcohol": null,
+					"addedSugars": null
+				}
+			]
 		}
 	]
 }
