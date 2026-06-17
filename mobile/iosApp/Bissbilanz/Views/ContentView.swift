@@ -32,10 +32,16 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         }
     }
 
-    @ViewBuilder
+    // @MainActor because `NavigationStack.init(root:)` is main-actor-isolated;
+    // this builder is only ever read from `ContentView.body` (the main actor).
+    @MainActor @ViewBuilder
     var destination: some View {
         switch self {
-        case .foods: FoodSearchView()
+        // FoodSearchView relies on a navigation container for its search bar,
+        // title, toolbar, and navigation destinations (unlike the other tab
+        // views, it doesn't wrap itself). The deep-link sheet supplies one; the
+        // tab destination must too, otherwise the search field never appears.
+        case .foods: NavigationStack { FoodSearchView() }
         case .favorites: FavoritesView()
         case .insights: InsightsView()
         case .weight: WeightView()

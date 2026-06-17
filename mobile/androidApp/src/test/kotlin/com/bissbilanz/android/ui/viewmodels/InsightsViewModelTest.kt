@@ -344,38 +344,45 @@ class InsightsViewModelTest {
             coVerify(atLeast = 1) { statsRepo.getCalendarStats(any()) }
         }
 
+    // On-device analytics (issue #321): AnalyticsRepository now computes these
+    // from the local SQLDelight cache via LocalAnalytics, so local/anonymous
+    // users get them too — the per-tab loaders intentionally no longer skip in
+    // local mode (see commit 0cdcf8f3, which dropped the early `if (isLocalMode)
+    // return` guards).
     @Test
-    fun localModeSkipsNutritionAnalytics() =
+    fun localModeLoadsNutritionAnalytics() =
         runTest {
             appModeManager.setMode(AppMode.LOCAL)
 
             val viewModel = createViewModel()
             viewModel.selectTab(1)
 
-            coVerify(exactly = 0) { analyticsRepo.getNutrientsExtended(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getNutrientsExtended(any(), any()) }
             assertEquals(false, viewModel.nutritionLoading.value)
         }
 
     @Test
-    fun localModeSkipsWeightAnalytics() =
+    fun localModeLoadsWeightAnalytics() =
         runTest {
             appModeManager.setMode(AppMode.LOCAL)
 
             val viewModel = createViewModel()
             viewModel.selectTab(2)
 
-            coVerify(exactly = 0) { analyticsRepo.getWeightFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getWeightFood(any(), any()) }
+            assertEquals(false, viewModel.weightLoading.value)
         }
 
     @Test
-    fun localModeSkipsSleepAnalytics() =
+    fun localModeLoadsSleepAnalytics() =
         runTest {
             appModeManager.setMode(AppMode.LOCAL)
 
             val viewModel = createViewModel()
             viewModel.selectTab(3)
 
-            coVerify(exactly = 0) { analyticsRepo.getSleepFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getSleepFood(any(), any()) }
+            assertEquals(false, viewModel.sleepLoading.value)
         }
 
     @Test
