@@ -405,7 +405,6 @@ class InsightsViewModel(
     }
 
     fun loadNutritionAnalytics() {
-        if (isLocalMode) return
         viewModelScope.launch {
             _nutritionLoading.value = true
             val (startDate, endDate) = dateRange()
@@ -483,7 +482,6 @@ class InsightsViewModel(
     }
 
     fun loadWeightAnalytics() {
-        if (isLocalMode) return
         viewModelScope.launch {
             _weightLoading.value = true
             val (startDate, endDate) = dateRange()
@@ -591,7 +589,6 @@ class InsightsViewModel(
     }
 
     fun loadSleepAnalytics() {
-        if (isLocalMode) return
         viewModelScope.launch {
             _sleepLoading.value = true
             val (startDate, endDate) = dateRange()
