@@ -9,6 +9,7 @@ enum DeepLink: Equatable, Identifiable {
     case scanner
     case weight
     case food(String)
+    case recipe(String)
 
     var id: String {
         switch self {
@@ -16,6 +17,7 @@ enum DeepLink: Equatable, Identifiable {
         case .scanner: "scan"
         case .weight: "weight"
         case let .food(foodId): "food-\(foodId)"
+        case let .recipe(recipeId): "recipe-\(recipeId)"
         }
     }
 
@@ -36,6 +38,12 @@ enum DeepLink: Equatable, Identifiable {
                 .removingPercentEncoding
             guard let foodId, !foodId.isEmpty else { return nil }
             return .food(foodId)
+        case "recipe":
+            let recipeId = url.pathComponents
+                .first { $0 != "/" }?
+                .removingPercentEncoding
+            guard let recipeId, !recipeId.isEmpty else { return nil }
+            return .recipe(recipeId)
         default:
             return nil
         }

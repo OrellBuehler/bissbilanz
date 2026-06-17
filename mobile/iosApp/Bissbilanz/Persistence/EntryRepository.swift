@@ -88,6 +88,11 @@ final class EntryRepository {
         save()
         syncManager.enqueue(.createEntry(body: create, localId: temp.id))
         syncDayToHealth(create.date, knownFood: food)
+        // Feed Siri suggestions / Spotlight when a known food or recipe was
+        // logged. No-op outside the app (e.g. in tests) — see IntentDonations.
+        if food != nil || recipe != nil {
+            IntentDonations.donateLog(food: food, recipe: recipe, mealType: create.mealType)
+        }
         return temp
     }
 
