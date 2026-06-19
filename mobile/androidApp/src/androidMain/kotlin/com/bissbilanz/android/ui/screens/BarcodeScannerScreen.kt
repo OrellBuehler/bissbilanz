@@ -43,6 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -68,6 +69,7 @@ fun BarcodeScannerScreen(navController: NavController) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val foodRepo: FoodRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     var hasPermission by remember {
         mutableStateOf(
@@ -136,12 +138,19 @@ fun BarcodeScannerScreen(navController: NavController) {
                             scannedBarcode = barcode
                             scanState = ScanState.SEARCHING
                             scope.launch {
-                                val food = foodRepo.findByBarcode(barcode)
-                                if (food != null) {
-                                    navController.navigate("food/${food.id}") {
-                                        popUpTo("scanner") { inclusive = true }
+                                try {
+                                    val food = foodRepo.findByBarcode(barcode)
+                                    if (food != null) {
+                                        navController.navigate("food/${food.id}") {
+                                            popUpTo("scanner") { inclusive = true }
+                                        }
+                                    } else {
+                                        scanState = ScanState.NOT_FOUND
                                     }
-                                } else {
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    // Recover the UI instead of leaving it stuck on SEARCHING.
                                     scanState = ScanState.NOT_FOUND
                                 }
                             }

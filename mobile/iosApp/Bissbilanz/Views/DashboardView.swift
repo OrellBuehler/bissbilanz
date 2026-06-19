@@ -20,8 +20,12 @@ struct DashboardView: View {
     @State private var isFastingDay = false
     /// Edge the incoming day content is pushed in from when the date changes.
     @State private var slideEdge: Edge = .trailing
+    /// The calendar day that was "today" at last activation, so we can roll the
+    /// selected date forward after a midnight rollover while backgrounded.
+    @State private var trackedToday = Calendar.current.startOfDay(for: Date())
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     // Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
@@ -108,6 +112,17 @@ struct DashboardView: View {
             .task { await loadData() }
             .onChange(of: selectedDate) { _, _ in
                 Task { await loadData() }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                let newToday = Calendar.current.startOfDay(for: Date())
+                guard newToday != trackedToday else { return }
+                // Day rolled over while backgrounded; if we were showing the old
+                // "today", follow the rollover instead of staying stuck on it.
+                if Calendar.current.isDate(selectedDate, inSameDayAs: trackedToday) {
+                    selectedDate = Date()
+                }
+                trackedToday = newToday
             }
         }
     }
