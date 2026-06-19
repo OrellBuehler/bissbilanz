@@ -36,7 +36,16 @@ bun run crawl off /path/to/openfoodfacts-products.jsonl.gz
 # Migros — live API (polite, throttled):
 bun run crawl migros
 #   → writes data/catalog/migros-<date>.jsonl
+
+# Validate first: cap either source to N products to confirm field-paths
+# against a live response before committing to a full multi-hour crawl.
+bun run crawl migros --limit 5
 ```
+
+On the first real Migros crawl, validate with `--limit 5` and inspect the output before a
+full run — the food category id (`MIGROS_FOOD_CATEGORIES` in `index.ts`) and the
+product-detail field paths in `adapters/migros/client.ts` are confirmed against a live
+response at that point (design spec §13).
 
 The OFF dump is large (tens of GB uncompressed); the crawler streams it (gunzip + line split),
 never loading it into memory. The Migros crawl is live and rate-limited — expect it to take a

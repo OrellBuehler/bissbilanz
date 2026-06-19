@@ -11,7 +11,11 @@ import { newStats, type CrawlStats } from './types';
 const MIGROS_FOOD_CATEGORIES = ['7494731'];
 const MIGROS_CHECKPOINT = 'data/catalog/.migros-checkpoint.json';
 
-export async function runOff(opts: { dumpPath: string; outPath: string }): Promise<CrawlStats> {
+export async function runOff(opts: {
+	dumpPath: string;
+	outPath: string;
+	limit?: number;
+}): Promise<CrawlStats> {
 	const stats = newStats();
 	const writer = new DatasetWriter(opts.outPath, {
 		key: 'off-ch',
@@ -23,6 +27,7 @@ export async function runOff(opts: { dumpPath: string; outPath: string }): Promi
 	try {
 		for await (const product of crawlOffDump(readDumpLines(opts.dumpPath), {
 			stats,
+			limit: opts.limit,
 			onProgress: (s) =>
 				console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
 		})) {
@@ -39,6 +44,7 @@ export async function runOff(opts: { dumpPath: string; outPath: string }): Promi
 export async function runMigros(opts: {
 	outPath: string;
 	checkpointPath?: string;
+	limit?: number;
 }): Promise<CrawlStats> {
 	const stats = newStats();
 	const checkpointPath = opts.checkpointPath ?? MIGROS_CHECKPOINT;
@@ -58,6 +64,7 @@ export async function runMigros(opts: {
 		for await (const product of crawlMigros(client, {
 			stats,
 			throttleMs: 600,
+			limit: opts.limit,
 			resume,
 			onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, cursor),
 			onProgress: (s) =>
@@ -79,14 +86,40 @@ function dateStamp(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
+function parseArgs(argv: string[]): { positional: string[]; limit?: number } {
+	const positional: string[] = [];
+	let limit: number | undefined;
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		const raw =
+			arg === '--limit' ? argv[++i] : arg.startsWith('--limit=') ? arg.slice(8) : undefined;
+		if (raw !== undefined) {
+			limit = Number(raw);
+			if (!Number.isInteger(limit) || limit <= 0)
+				throw new Error('--limit requires a positive integer');
+		} else {
+			positional.push(arg);
+		}
+	}
+	return { positional, limit };
+}
+
 async function main() {
-	const [cmd, ...args] = process.argv.slice(2);
+	const [cmd, ...rest] = process.argv.slice(2);
+	const { positional, limit } = parseArgs(rest);
 	if (cmd === 'off') {
-		const dumpPath = args[0];
-		if (!dumpPath) throw new Error('Usage: crawl off <dumpPath.jsonl[.gz]> [outPath]');
-		await runOff({ dumpPath, outPath: args[1] ?? `data/catalog/off-ch-${dateStamp()}.jsonl` });
+		const dumpPath = positional[0];
+		if (!dumpPath) throw new Error('Usage: crawl off <dumpPath.jsonl[.gz]> [outPath] [--limit N]');
+		await runOff({
+			dumpPath,
+			outPath: positional[1] ?? `data/catalog/off-ch-${dateStamp()}.jsonl`,
+			limit
+		});
 	} else if (cmd === 'migros') {
-		await runMigros({ outPath: args[0] ?? `data/catalog/migros-${dateStamp()}.jsonl` });
+		await runMigros({
+			outPath: positional[0] ?? `data/catalog/migros-${dateStamp()}.jsonl`,
+			limit
+		});
 	} else {
 		throw new Error(`Unknown command: ${cmd ?? '(none)'}. Expected: off | migros`);
 	}
