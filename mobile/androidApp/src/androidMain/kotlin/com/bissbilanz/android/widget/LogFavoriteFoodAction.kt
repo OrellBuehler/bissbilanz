@@ -7,9 +7,9 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.MainActivity
-import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.resolveDefaultMeal
 import kotlinx.coroutines.delay
@@ -34,11 +34,11 @@ class LogFavoriteFoodAction : ActionCallback {
             org.koin.java.KoinJavaComponent
                 .getKoin()
         val entryRepo = koin.get<EntryRepository>()
-        val db = koin.get<BissbilanzDatabase>()
+        val db = koin.get<UserDataDatabase>()
         val json = koin.get<Json>()
         val errorReporter = koin.get<ErrorReporter>()
 
-        val cached = db.bissbilanzDatabaseQueries.selectPreferences().executeAsOneOrNull()
+        val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val prefs = cached?.let { json.decodeOrNull<com.bissbilanz.api.generated.model.Preferences>(it.jsonData) }
         val meal = resolveDefaultMeal(prefs)
 

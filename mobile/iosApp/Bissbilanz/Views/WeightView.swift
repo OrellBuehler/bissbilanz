@@ -1,8 +1,109 @@
 import Charts
+import shared
 import SwiftUI
 
+/// Bridges Swift `Double` arrays to/from the boxed-number arrays the shared
+/// Kotlin analytics expose across the Objective-C interop boundary.
+private extension [Double] {
+    var asKotlin: [KotlinDouble] {
+        map { KotlinDouble(double: $0) }
+    }
+}
+
+private extension [KotlinDouble] {
+    var asDoubles: [Double] {
+        map(\.doubleValue)
+    }
+}
+
+/// Direction of the recent weight development shown in the trend card.
+enum WeightTrend: Equatable {
+    case rising(Double)
+    case falling(Double)
+    case steady(Double?)
+
+    /// Weekly changes inside this band are daily fluctuation noise, not a trend.
+    static let steadyBandKg = 0.3
+
+    static func from(delta: Double?) -> WeightTrend {
+        guard let delta else { return .steady(nil) }
+        // Classification lives in the shared KMP analytics so iOS and Android
+        // agree on what counts as a real trend vs. daily-fluctuation noise.
+        switch WeightChartAnalyticsKt.classifyWeightTrend(deltaKg: delta, steadyBandKg: steadyBandKg) {
+        case .rising: return .rising(delta)
+        case .falling: return .falling(delta)
+        // SKIE exports the enum as non-frozen, so a `default` keeps the switch
+        // exhaustive across Swift toolchains (Xcode 16's 6.1 and CI's 6.2).
+        default: return .steady(delta)
+        }
+    }
+
+    /// Local fallback for the server's `delta_7d` (Local mode / offline):
+    /// average of the entries in the 7 days up to the newest entry vs the
+    /// 7 days before that. Averaging smooths the day-to-day fluctuation a
+    /// point-to-point delta would amplify.
+    static func localDelta7d(entries: [WeightEntry]) -> Double? {
+        let dated = entries.compactMap { entry -> (date: Date, kg: Double)? in
+            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
+            return (date, entry.weightKg)
+        }
+        guard let latest = dated.map(\.date).max() else { return nil }
+        var recent: [Double] = []
+        var previous: [Double] = []
+        for sample in dated {
+            let days = latest.timeIntervalSince(sample.date) / 86400
+            if days < 7 {
+                recent.append(sample.kg)
+            } else if days < 14 {
+                previous.append(sample.kg)
+            }
+        }
+        guard !recent.isEmpty, !previous.isEmpty else { return nil }
+        return recent.reduce(0, +) / Double(recent.count) - previous.reduce(0, +) / Double(previous.count)
+    }
+
+    var delta: Double? {
+        switch self {
+        case let .rising(delta), let .falling(delta):
+            delta
+        case let .steady(delta):
+            delta
+        }
+    }
+}
+
+extension WeightTrend {
+    var icon: String {
+        switch self {
+        case .rising: "arrow.up.right"
+        case .falling: "arrow.down.right"
+        case .steady: "arrow.right"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .rising: L10n.trendRising
+        case .falling: L10n.trendFalling
+        case .steady: L10n.trendSteady
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .rising: .red
+        case .falling: .green
+        case .steady: .secondary
+        }
+    }
+}
+
 struct WeightView: View {
+    @Environment(WeightRepository.self) private var weightRepository
+    /// Weight stats are server-computed — they stay on the direct API and
+    /// are skipped in Local mode.
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appModeManager
 
     @State private var entries: [WeightEntry] = []
     @State private var weightStats: WeightStatsResponse?
@@ -20,14 +121,16 @@ struct WeightView: View {
         case quarter = 90
         case all = 0
 
-        var id: Int { rawValue }
+        var id: Int {
+            rawValue
+        }
 
         var label: String {
             switch self {
-            case .week: return "7d"
-            case .month: return "30d"
-            case .quarter: return "90d"
-            case .all: return L10n.history
+            case .week: "7d"
+            case .month: "30d"
+            case .quarter: "90d"
+            case .all: L10n.history
             }
         }
     }
@@ -35,7 +138,8 @@ struct WeightView: View {
     private var chartEntries: [WeightEntry] {
         let sorted = entries.sorted { entryA, entryB in
             guard let dateA = DateFormatting.date(from: entryA.entryDate),
-                  let dateB = DateFormatting.date(from: entryB.entryDate) else { return false }
+                  let dateB = DateFormatting.date(from: entryB.entryDate)
+            else { return false }
             return dateA < dateB
         }
         guard selectedRange > 0 else { return sorted }
@@ -50,13 +154,17 @@ struct WeightView: View {
         let sorted = chartEntries
         guard sorted.count >= 2 else { return [] }
 
+        // 7-point trailing average (with partial leading windows) computed by the
+        // shared KMP analytics; the chart only assembles the dates around it.
+        let averages = WeightChartAnalyticsKt.weightMovingAverage(
+            values: sorted.map(\.weightKg).asKotlin,
+            window: 7
+        ).asDoubles
+
         var result: [(date: Date, average: Double)] = []
         for (index, entry) in sorted.enumerated() {
             guard let date = DateFormatting.date(from: entry.entryDate) else { continue }
-            let windowStart = max(0, index - 6)
-            let window = sorted[windowStart...index]
-            let avg = window.map(\.weightKg).reduce(0, +) / Double(window.count)
-            result.append((date: date, average: avg))
+            result.append((date: date, average: averages[index]))
         }
         return result
     }
@@ -68,24 +176,21 @@ struct WeightView: View {
             return (date, entry.weightKg)
         }
 
-        // Simple linear regression
-        let n = Double(sorted.count)
-        let xVals = sorted.enumerated().map { Double($0.offset) }
-        let yVals = sorted.map(\.1)
-        let xMean = xVals.reduce(0, +) / n
-        let yMean = yVals.reduce(0, +) / n
-        let numerator = zip(xVals, yVals).map { ($0 - xMean) * ($1 - yMean) }.reduce(0, +)
-        let denominator = xVals.map { ($0 - xMean) * ($0 - xMean) }.reduce(0, +)
-        guard denominator > 0 else { return [] }
-        let slope = numerator / denominator
-        let intercept = yMean - slope * xMean
+        // Least-squares fit (entry index → weight) computed by the shared KMP
+        // analytics; iOS keeps its index-based x-axis by passing entry indices.
+        let fit = WeightChartAnalyticsKt.linearRegression(
+            xs: sorted.indices.map(Double.init).asKotlin,
+            ys: sorted.map(\.1).asKotlin
+        )
+        guard let fit, let lastDate = sorted.last?.0 else { return [] }
+        let slope = fit.slope
+        let intercept = fit.intercept
 
-        guard let lastDate = sorted.last?.0 else { return [] }
         var result: [(Date, Double)] = []
         // Start from last actual data point
-        let lastX = n - 1
+        let lastX = Double(sorted.count - 1)
         result.append((lastDate, slope * lastX + intercept))
-        for day in 1...projectionDays {
+        for day in 1 ... projectionDays {
             let futureDate = lastDate.adding(days: day)
             let futureWeight = slope * (lastX + Double(day)) + intercept
             result.append((futureDate, futureWeight))
@@ -97,10 +202,10 @@ struct WeightView: View {
         var weights = chartEntries.map(\.weightKg)
         weights.append(contentsOf: projectionData.map(\.weight))
         guard let minW = weights.min(), let maxW = weights.max() else {
-            return 0...100
+            return 0 ... 100
         }
         let padding = max((maxW - minW) * 0.15, 0.5)
-        return (minW - padding)...(maxW + padding)
+        return (minW - padding) ... (maxW + padding)
     }
 
     var body: some View {
@@ -144,8 +249,14 @@ struct WeightView: View {
                 }
             }
             .refreshable { await loadEntries() }
-            .task { await loadEntries() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .task { await loadEntries(showSpinner: true) }
+            // Cheap local re-read when popping back from the history subpage,
+            // where entries can be edited or deleted.
+            .onAppear { entries = weightRepository.entries() }
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -153,24 +264,30 @@ struct WeightView: View {
         }
     }
 
-    // MARK: - Stats Chips
+    // MARK: - Summary Cards
 
+    /// The trend card prefers the server's smoothed 7-day delta and falls
+    /// back to the local computation in Local mode or offline.
+    private var trend: WeightTrend {
+        WeightTrend.from(delta: weightStats?.delta7d ?? WeightTrend.localDelta7d(entries: entries))
+    }
+
+    /// Top row: latest weight and trend direction side by side as floating
+    /// cards (no list container). Server projections follow as chips.
     private var statsChipsSection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    if let latest = entries.first {
-                        statChip(L10n.latestWeight, value: String(format: "%.1f kg", latest.weightKg), color: .blue)
-                    }
+            HStack(spacing: 12) {
+                latestCard
+                trendCard
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
 
-                    if let stats = weightStats {
-                        if let trend = stats.trend {
-                            statChip(L10n.trendWeight, value: String(format: "%.1f kg", trend), color: .green)
-                        }
-                        if let delta = stats.delta7d {
-                            let prefix = delta >= 0 ? "+" : ""
-                            statChip(L10n.delta7d, value: "\(prefix)\(String(format: "%.1f", delta)) kg", color: delta >= 0 ? .red : .green)
-                        }
+            if let stats = weightStats,
+               stats.projected14d != nil || stats.projected30d != nil || stats.projected60d != nil
+            {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
                         if let p14 = stats.projected14d {
                             statChip(L10n.projection14d, value: String(format: "%.1f kg", p14), color: .purple)
                         }
@@ -181,11 +298,66 @@ struct WeightView: View {
                             statChip(L10n.projection60d, value: String(format: "%.1f kg", p60), color: .purple)
                         }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
-            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
         }
+    }
+
+    private var latestCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.latestWeight)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(String(format: "%.1f kg", entries.first?.weightKg ?? 0))
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(.blue)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(latestDateText)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.blue.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var latestDateText: String {
+        guard let latest = entries.first else { return "" }
+        if let date = DateFormatting.date(from: latest.entryDate) {
+            return DateFormatting.displayString(from: date)
+        }
+        return latest.entryDate
+    }
+
+    private var trendCard: some View {
+        let trend = trend
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.trendWeight)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: trend.icon)
+                Text(trend.label)
+            }
+            .font(.title2)
+            .fontWeight(.bold)
+            .foregroundStyle(trend.color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            Text(trend.delta.map { L10n.deltaPerWeek(String(format: "%+.1f kg", $0)) } ?? "—")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(trend.color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func statChip(_ label: String, value: String, color: Color) -> some View {
@@ -326,41 +498,26 @@ struct WeightView: View {
 
     // MARK: - History Section
 
+    private static let historyPreviewCount = 5
+
     private var historySection: some View {
         Section(L10n.history) {
-            ForEach(entries) { entry in
-                Button {
+            ForEach(entries.prefix(Self.historyPreviewCount)) { entry in
+                WeightEntryRow(entry: entry) {
                     editingEntry = entry
+                } onDelete: {
+                    Task { await deleteEntry(entry) }
+                }
+            }
+            if entries.count > Self.historyPreviewCount {
+                NavigationLink {
+                    WeightHistoryView()
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let date = DateFormatting.date(from: entry.entryDate) {
-                                Text(DateFormatting.displayString(from: date))
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text(entry.entryDate)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                            }
-                            if let notes = entry.notes, !notes.isEmpty {
-                                Text(notes)
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
-                            }
-                        }
+                        Text(L10n.showAll)
                         Spacer()
-                        Text("\(entry.weightKg, specifier: "%.1f") kg")
+                        Text("\(entries.count)")
                             .foregroundStyle(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        Task { await deleteEntry(entry) }
-                    } label: {
-                        Label(L10n.delete, systemImage: "trash")
                     }
                 }
             }
@@ -369,23 +526,184 @@ struct WeightView: View {
 
     // MARK: - Data Loading
 
-    private func loadEntries() async {
-        isLoading = true
+    /// showSpinner only on first load: flipping isLoading during pull-to-refresh
+    /// swaps the List out for LoadingView, which kills the refresh gesture and
+    /// leaves the spinner stuck.
+    private func loadEntries(showSpinner: Bool = false) async {
+        entries = weightRepository.entries()
+        if showSpinner { isLoading = entries.isEmpty }
 
-        async let entriesTask = try? api.getWeightEntries()
-        async let statsTask = try? api.getWeightStats()
-
-        entries = await entriesTask ?? []
-        weightStats = await statsTask
+        try? await weightRepository.refresh()
+        if !appModeManager.isLocal {
+            weightStats = try? await api.getWeightStats()
+        }
+        entries = weightRepository.entries()
 
         isLoading = false
+
+        if UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey) {
+            await importFromHealthKit()
+        }
+    }
+
+    /// Import weights from Apple Health that the app doesn't have yet
+    /// (read-only — never writes back to Health from here).
+    private func importFromHealthKit() async {
+        let healthKit = HealthKitService.shared
+        guard healthKit.isAvailable else { return }
+        let since = Date().adding(days: -90)
+        guard let samples = try? await healthKit.fetchWeights(since: since), !samples.isEmpty else { return }
+
+        let existingDates = Set(entries.map(\.entryDate))
+        // Latest sample per day wins
+        var latestPerDay: [String: HealthKitService.WeightSample] = [:]
+        for sample in samples {
+            let day = DateFormatting.isoString(from: sample.date)
+            if let current = latestPerDay[day], current.date > sample.date { continue }
+            latestPerDay[day] = sample
+        }
+
+        var imported = false
+        for (day, sample) in latestPerDay where !existingDates.contains(day) {
+            let kg = (sample.weightKg * 100).rounded() / 100
+            let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
+            if await (try? weightRepository.createEntry(create)) != nil {
+                imported = true
+            }
+        }
+
+        if imported {
+            entries = weightRepository.entries()
+            if !appModeManager.isLocal {
+                weightStats = await (try? api.getWeightStats()) ?? weightStats
+            }
+        }
     }
 
     private func deleteEntry(_ entry: WeightEntry) async {
         do {
-            try await api.deleteWeightEntry(id: entry.id)
-            entries.removeAll { $0.id == entry.id }
+            try await weightRepository.deleteEntry(id: entry.id)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        entries = weightRepository.entries()
+    }
+}
+
+// MARK: - Entry Row
+
+/// One history row — shared by the preview list on the weight page and the
+/// full history subpage.
+struct WeightEntryRow: View {
+    let entry: WeightEntry
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button(action: onEdit) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let date = DateFormatting.date(from: entry.entryDate) {
+                        Text(DateFormatting.displayString(from: date))
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    } else {
+                        Text(entry.entryDate)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    if let notes = entry.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Text("\(entry.weightKg, specifier: "%.1f") kg")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive, action: onDelete) {
+                Label(L10n.delete, systemImage: "trash")
+            }
+        }
+    }
+}
+
+// MARK: - Full History
+
+/// All weight entries, loaded page-wise from the local store as the list
+/// scrolls — List rows are lazy, so reaching the last loaded row triggers
+/// the next page fetch.
+struct WeightHistoryView: View {
+    @Environment(WeightRepository.self) private var weightRepository
+
+    @State private var entries: [WeightEntry] = []
+    @State private var hasMore = true
+    @State private var editingEntry: WeightEntry?
+    @State private var errorMessage: String?
+
+    private static let pageSize = 50
+
+    var body: some View {
+        List {
+            ForEach(entries) { entry in
+                WeightEntryRow(entry: entry) {
+                    editingEntry = entry
+                } onDelete: {
+                    Task { await deleteEntry(entry) }
+                }
+                .onAppear {
+                    if entry.id == entries.last?.id {
+                        loadNextPage()
+                    }
+                }
+            }
+        }
+        .navigationTitle(L10n.history)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if entries.isEmpty { loadNextPage() }
+        }
+        .sheet(item: $editingEntry) { entry in
+            AddWeightSheet(existingEntry: entry) {
+                reloadLoadedWindow()
+            }
+        }
+        .alert(
+            L10n.error,
+            isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
+    }
+
+    private func loadNextPage() {
+        guard hasMore else { return }
+        let page = weightRepository.entries(offset: entries.count, limit: Self.pageSize)
+        entries += page
+        hasMore = page.count == Self.pageSize
+    }
+
+    /// Re-reads everything loaded so far in one fetch — an edit can change an
+    /// entry's date and therefore its position in the ordering.
+    private func reloadLoadedWindow() {
+        let limit = max(entries.count, Self.pageSize)
+        entries = weightRepository.entries(offset: 0, limit: limit)
+        hasMore = entries.count == limit
+    }
+
+    private func deleteEntry(_ entry: WeightEntry) async {
+        do {
+            try await weightRepository.deleteEntry(id: entry.id)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            entries.removeAll { $0.id == entry.id }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -395,7 +713,7 @@ struct WeightView: View {
 // MARK: - Add / Edit Weight Sheet
 
 struct AddWeightSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(WeightRepository.self) private var weightRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingEntry: WeightEntry?
@@ -447,12 +765,25 @@ struct AddWeightSheet: View {
                 }
             }
             .onAppear { prefill() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
             }
         }
+    }
+
+    private func writeToHealthIfEnabled(kg: Double) async {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: HealthKitService.syncEnabledKey),
+              defaults.bool(forKey: HealthKitService.writeWeightEnabledKey),
+              HealthKitService.shared.isAvailable
+        else { return }
+        // Best effort — the user may have denied write permission in Health
+        try? await HealthKitService.shared.saveWeight(kg, date: date)
     }
 
     private func prefill() {
@@ -476,14 +807,15 @@ struct AddWeightSheet: View {
                     entryDate: dateStr,
                     notes: notes.isEmpty ? nil : notes
                 )
-                _ = try await api.updateWeightEntry(id: existing.id, update)
+                try await weightRepository.updateEntry(id: existing.id, update)
             } else {
                 let entry = WeightCreate(
                     weightKg: kg,
                     entryDate: dateStr,
                     notes: notes.isEmpty ? nil : notes
                 )
-                _ = try await api.createWeightEntry(entry)
+                try await weightRepository.createEntry(entry)
+                await writeToHealthIfEnabled(kg: kg)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()

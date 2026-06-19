@@ -20,12 +20,56 @@ enum DateFormatting {
         return f
     }()
 
+    private static let isoDateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        return f
+    }()
+
+    private static let isoDateTimeFractionalFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        f.dateStyle = .none
+        return f
+    }()
+
     static func isoString(from date: Date) -> String {
         isoFormatter.string(from: date)
     }
 
+    /// UTC ISO-8601 timestamp ("2026-06-12T05:30:00Z") — the wire format for
+    /// `bedtime`/`wakeTime`.
+    static func isoDateTimeString(from date: Date) -> String {
+        isoDateTimeFormatter.string(from: date)
+    }
+
+    /// Parses ISO-8601 timestamps with or without fractional seconds (the
+    /// server serializes with milliseconds, the app writes without).
+    static func isoDateTime(from string: String) -> Date? {
+        isoDateTimeFractionalFormatter.date(from: string) ?? isoDateTimeFormatter.date(from: string)
+    }
+
+    static func timeString(from date: Date) -> String {
+        timeFormatter.string(from: date)
+    }
+
     static func date(from isoString: String) -> Date? {
-        isoFormatter.date(from: isoString)
+        // ICU parsing is lenient about punctuation (e.g. "2026/03/12" matches
+        // "yyyy-MM-dd"); round-trip to accept canonical ISO strings only.
+        guard let date = isoFormatter.date(from: isoString),
+              isoFormatter.string(from: date) == isoString
+        else { return nil }
+        return date
     }
 
     static func displayString(from date: Date) -> String {

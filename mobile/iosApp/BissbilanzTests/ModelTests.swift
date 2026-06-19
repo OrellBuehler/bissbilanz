@@ -1,7 +1,6 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("Food Model Tests")
 struct FoodModelTests {
@@ -49,14 +48,9 @@ struct FoodModelTests {
 struct EntryModelTests {
     @Test("Entry total macros multiply by servings")
     func entryTotalMacros() {
-        let food = makeFood(id: "1", name: "Rice", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4)
-        let entry = Entry(
-            id: "e1", userId: "u1", foodId: "1", recipeId: nil,
-            date: "2026-03-12", mealType: "lunch", servings: 2.5,
-            notes: nil, quickName: nil, quickCalories: nil,
-            quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: food, recipe: nil
+        let entry = makeListEntry(
+            foodName: "Rice", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4,
+            servings: 2.5
         )
 
         #expect(entry.totalCalories == 325)
@@ -67,21 +61,63 @@ struct EntryModelTests {
         #expect(entry.displayName == "Rice")
     }
 
-    @Test("Quick entry uses quick values")
+    @Test("Quick entry falls back to quick values when flat macros absent")
     func quickEntryMacros() {
         let entry = Entry(
-            id: "e2", userId: "u1", foodId: nil, recipeId: nil,
-            date: "2026-03-12", mealType: "snacks", servings: 1,
-            notes: nil, quickName: "Protein Bar",
-            quickCalories: 200, quickProtein: 20,
+            id: "e2", mealType: "snacks", servings: 1, notes: nil,
+            foodId: nil, recipeId: nil,
+            quickName: "Protein Bar", quickCalories: 200, quickProtein: 20,
             quickCarbs: 25, quickFat: 8, quickFiber: 3,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: nil
+            foodName: nil, calories: nil, protein: nil,
+            carbs: nil, fat: nil, fiber: nil,
+            servingSize: nil, servingUnit: nil,
+            date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
         )
 
         #expect(entry.displayName == "Protein Bar")
         #expect(entry.totalCalories == 200)
         #expect(entry.totalProtein == 20)
+    }
+}
+
+@Suite("Entry Decoding Tests")
+struct EntryDecodingTests {
+    // Regression: GET /api/entries items are flat — no `date` key, no nested
+    // food/recipe. Decoding used to fail on any day with entries because the
+    // model required `date`.
+    @Test("Decodes GET /api/entries list item (no date key)")
+    func decodesListItem() throws {
+        let json = """
+        {"entries":[{"id":"e1","mealType":"lunch","servings":2,"notes":null,
+        "foodId":"f1","recipeId":null,"quickName":null,"quickCalories":null,
+        "quickProtein":null,"quickCarbs":null,"quickFat":null,"quickFiber":null,
+        "foodName":"Rice","calories":130,"protein":2.7,"carbs":28,
+        "fat":0.3,"fiber":0.4,"eatenAt":"2026-06-09T12:00:00.000Z",
+        "createdAt":"2026-06-09T12:00:00.000Z","servingSize":100,"servingUnit":"g"}],
+        "total":1}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.date == nil)
+        #expect(entry.displayName == "Rice")
+        #expect(entry.totalCalories == 260)
+    }
+
+    @Test("Decodes POST /api/entries row (no resolved macros)")
+    func decodesCreatedRow() throws {
+        let json = """
+        {"entry":{"id":"e2","userId":"u1","foodId":"f1","recipeId":null,
+        "supplementId":null,"date":"2026-06-09","mealType":"dinner","servings":1,
+        "notes":null,"quickName":null,"quickCalories":null,"quickProtein":null,
+        "quickCarbs":null,"quickFat":null,"quickFiber":null,
+        "eatenAt":"2026-06-09T19:00:00.000Z","createdAt":"2026-06-09T19:00:00.000Z",
+        "updatedAt":"2026-06-09T19:00:00.000Z"}}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntryResponse.self, from: json)
+        #expect(response.entry.date == "2026-06-09")
+        #expect(response.entry.calories == nil)
     }
 }
 
@@ -144,21 +180,12 @@ struct ScheduleTypeTests {
 
 @Suite("Entry Recipe Tests")
 struct EntryRecipeTests {
-    @Test("Entry with recipe uses recipe macros")
+    @Test("Recipe entry uses server-resolved flat macros")
     func entryWithRecipe() {
-        let recipe = Recipe(
-            id: "r1", userId: "u1", name: "Oatmeal Bowl",
-            totalServings: 2, isFavorite: false, imageUrl: nil,
+        let entry = makeListEntry(
+            recipeId: "r1", foodName: "Oatmeal Bowl",
             calories: 350, protein: 12, carbs: 55, fat: 8, fiber: 7,
-            createdAt: nil, updatedAt: nil, ingredients: nil
-        )
-        let entry = Entry(
-            id: "e1", userId: "u1", foodId: nil, recipeId: "r1",
-            date: "2026-03-12", mealType: "breakfast", servings: 2,
-            notes: nil, quickName: nil, quickCalories: nil,
-            quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: recipe
+            servings: 2
         )
 
         #expect(entry.displayName == "Oatmeal Bowl")
@@ -169,43 +196,29 @@ struct EntryRecipeTests {
         #expect(entry.totalFiber == 14) // 7 * 2
     }
 
-    @Test("Entry with recipe nil macros falls back to zero")
+    @Test("Entry with nil macros falls back to zero")
     func entryWithRecipeNilMacros() {
-        let recipe = Recipe(
-            id: "r1", userId: "u1", name: "Simple Recipe",
-            totalServings: 1, isFavorite: false, imageUrl: nil,
+        let entry = makeListEntry(
+            recipeId: "r1", foodName: "Simple Recipe",
             calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil,
-            createdAt: nil, updatedAt: nil, ingredients: nil
-        )
-        let entry = Entry(
-            id: "e1", userId: "u1", foodId: nil, recipeId: "r1",
-            date: "2026-03-12", mealType: "lunch", servings: 1,
-            notes: nil, quickName: nil, quickCalories: nil,
-            quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: recipe
+            servings: 1
         )
 
         #expect(entry.totalCalories == 0)
         #expect(entry.totalProtein == 0)
     }
 
-    @Test("Entry prefers food over recipe when both present")
-    func entryPrefersFoodOverRecipe() {
-        let food = makeFood(id: "f1", name: "Apple", calories: 95)
-        let recipe = Recipe(
-            id: "r1", userId: "u1", name: "Apple Pie",
-            totalServings: 1, isFavorite: false, imageUrl: nil,
-            calories: 300, protein: 5, carbs: 45, fat: 12, fiber: 3,
-            createdAt: nil, updatedAt: nil, ingredients: nil
-        )
+    @Test("Resolved flat macros take precedence over quick values")
+    func flatMacrosPreferredOverQuick() {
         let entry = Entry(
-            id: "e1", userId: "u1", foodId: "f1", recipeId: "r1",
-            date: "2026-03-12", mealType: "snacks", servings: 1,
-            notes: nil, quickName: nil, quickCalories: nil,
-            quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: food, recipe: recipe
+            id: "e1", mealType: "snacks", servings: 1, notes: nil,
+            foodId: "f1", recipeId: nil,
+            quickName: nil, quickCalories: 200, quickProtein: 20,
+            quickCarbs: nil, quickFat: nil, quickFiber: nil,
+            foodName: "Apple", calories: 95, protein: 0.5,
+            carbs: 25, fat: 0.3, fiber: 4.4,
+            servingSize: nil, servingUnit: nil,
+            date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
         )
 
         #expect(entry.displayName == "Apple")
@@ -215,15 +228,12 @@ struct EntryRecipeTests {
 
 @Suite("Entry Display Name Fallback Tests")
 struct EntryDisplayNameTests {
-    @Test("Display name falls back to Unknown when no food/recipe/quick")
+    @Test("Display name falls back to Unknown when no name available")
     func displayNameFallback() {
-        let entry = Entry(
-            id: "e1", userId: "u1", foodId: nil, recipeId: nil,
-            date: "2026-03-12", mealType: "snacks", servings: 1,
-            notes: nil, quickName: nil, quickCalories: nil,
-            quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: nil
+        let entry = makeListEntry(
+            foodName: nil,
+            calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil,
+            servings: 1
         )
 
         #expect(entry.displayName == "Unknown")
@@ -232,13 +242,14 @@ struct EntryDisplayNameTests {
     @Test("Quick entry with nil quick macros uses zero")
     func quickEntryNilMacros() {
         let entry = Entry(
-            id: "e1", userId: "u1", foodId: nil, recipeId: nil,
-            date: "2026-03-12", mealType: "snacks", servings: 2,
-            notes: nil, quickName: "Mystery Snack",
-            quickCalories: nil, quickProtein: nil,
+            id: "e1", mealType: "snacks", servings: 2, notes: nil,
+            foodId: nil, recipeId: nil,
+            quickName: "Mystery Snack", quickCalories: nil, quickProtein: nil,
             quickCarbs: nil, quickFat: nil, quickFiber: nil,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: nil
+            foodName: nil, calories: nil, protein: nil,
+            carbs: nil, fat: nil, fiber: nil,
+            servingSize: nil, servingUnit: nil,
+            date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
         )
 
         #expect(entry.totalCalories == 0)
@@ -248,13 +259,14 @@ struct EntryDisplayNameTests {
     @Test("Quick entry servings multiply quick values")
     func quickEntryServingsMultiply() {
         let entry = Entry(
-            id: "e1", userId: "u1", foodId: nil, recipeId: nil,
-            date: "2026-03-12", mealType: "snacks", servings: 3,
-            notes: nil, quickName: "Protein Bar",
-            quickCalories: 200, quickProtein: 20,
+            id: "e1", mealType: "snacks", servings: 3, notes: nil,
+            foodId: nil, recipeId: nil,
+            quickName: "Protein Bar", quickCalories: 200, quickProtein: 20,
             quickCarbs: 25, quickFat: 8, quickFiber: 3,
-            eatenAt: nil, createdAt: nil, updatedAt: nil,
-            food: nil, recipe: nil
+            foodName: nil, calories: nil, protein: nil,
+            carbs: nil, fat: nil, fiber: nil,
+            servingSize: nil, servingUnit: nil,
+            date: "2026-03-12", eatenAt: nil, createdAt: nil, updatedAt: nil
         )
 
         #expect(entry.totalCalories == 600)
@@ -342,9 +354,54 @@ struct FoodNutrientGroupsTests {
 struct RecipeModelTests {
     @Test("Recipe equality based on id")
     func recipeEquality() {
-        let r1 = Recipe(id: "r1", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: 100, protein: 5, carbs: 10, fat: 3, fiber: 2, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r2 = Recipe(id: "r1", userId: "u1", name: "B", totalServings: 2, isFavorite: true, imageUrl: nil, calories: 200, protein: 10, carbs: 20, fat: 6, fiber: 4, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r3 = Recipe(id: "r2", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: 100, protein: 5, carbs: 10, fat: 3, fiber: 2, createdAt: nil, updatedAt: nil, ingredients: nil)
+        let r1 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: 100,
+            protein: 5,
+            carbs: 10,
+            fat: 3,
+            fiber: 2,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r2 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "B",
+            totalServings: 2,
+            isFavorite: true,
+            imageUrl: nil,
+            calories: 200,
+            protein: 10,
+            carbs: 20,
+            fat: 6,
+            fiber: 4,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r3 = Recipe(
+            id: "r2",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: 100,
+            protein: 5,
+            carbs: 10,
+            fat: 3,
+            fiber: 2,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
 
         #expect(r1 == r2)
         #expect(r1 != r3)
@@ -352,8 +409,38 @@ struct RecipeModelTests {
 
     @Test("Recipe hashable uses id")
     func recipeHashable() {
-        let r1 = Recipe(id: "r1", userId: "u1", name: "A", totalServings: 1, isFavorite: false, imageUrl: nil, calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil, createdAt: nil, updatedAt: nil, ingredients: nil)
-        let r2 = Recipe(id: "r1", userId: "u1", name: "B", totalServings: 2, isFavorite: true, imageUrl: nil, calories: nil, protein: nil, carbs: nil, fat: nil, fiber: nil, createdAt: nil, updatedAt: nil, ingredients: nil)
+        let r1 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "A",
+            totalServings: 1,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: nil,
+            protein: nil,
+            carbs: nil,
+            fat: nil,
+            fiber: nil,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+        let r2 = Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "B",
+            totalServings: 2,
+            isFavorite: true,
+            imageUrl: nil,
+            calories: nil,
+            protein: nil,
+            carbs: nil,
+            fat: nil,
+            fiber: nil,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
 
         var set = Set<Recipe>()
         set.insert(r1)
@@ -462,7 +549,7 @@ struct WeightModelTests {
         let create = WeightCreate(weightKg: 74.0, entryDate: "2026-03-13")
 
         let data = try JSONEncoder().encode(create)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         #expect(json["weightKg"] as? Double == 74.0)
         #expect(json["notes"] == nil)
@@ -555,5 +642,31 @@ private func makeFood(
         barcode: nil, isFavorite: false, nutriScore: nil, novaGroup: nil,
         additives: nil, ingredientsText: nil, imageUrl: nil,
         createdAt: nil, updatedAt: nil
+    )
+}
+
+/// Entry as it arrives from GET /api/entries: flat per-serving macros, no `date`.
+private func makeListEntry(
+    id: String = "e1",
+    mealType: String = "lunch",
+    foodId: String? = "f1",
+    recipeId: String? = nil,
+    foodName: String? = "Test Food",
+    calories: Double? = 100,
+    protein: Double? = 5,
+    carbs: Double? = 15,
+    fat: Double? = 3,
+    fiber: Double? = 2,
+    servings: Double = 1
+) -> Entry {
+    Entry(
+        id: id, mealType: mealType, servings: servings, notes: nil,
+        foodId: foodId, recipeId: recipeId,
+        quickName: nil, quickCalories: nil,
+        quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
+        foodName: foodName, calories: calories, protein: protein,
+        carbs: carbs, fat: fat, fiber: fiber,
+        servingSize: nil, servingUnit: nil,
+        date: nil, eatenAt: nil, createdAt: nil, updatedAt: nil
     )
 }

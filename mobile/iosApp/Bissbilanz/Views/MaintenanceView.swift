@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct MaintenanceView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.modelContext) private var modelContext
 
     @State private var selectedWeeks = 4
     @State private var bodyFatRatio = 0.5
     @State private var result: MaintenanceResponse?
     @State private var isCalculating = false
     @State private var error: String?
+    @ScaledMetric(relativeTo: .largeTitle) private var heroNumberSize = 48.0
 
     private let weekOptions = [2, 4, 8, 12]
 
@@ -61,7 +62,7 @@ struct MaintenanceView: View {
                     Text(L10n.fatLabel)
                         .font(.caption)
                         .foregroundStyle(MacroColors.fat)
-                    Slider(value: $bodyFatRatio, in: 0...1, step: 0.05)
+                    Slider(value: $bodyFatRatio, in: 0 ... 1, step: 0.05)
                     Text(L10n.muscleLabel)
                         .font(.caption)
                         .foregroundStyle(MacroColors.protein)
@@ -82,7 +83,7 @@ struct MaintenanceView: View {
 
     private var calculateButton: some View {
         Button {
-            Task { await calculate() }
+            calculate()
         } label: {
             if isCalculating {
                 ProgressView()
@@ -104,7 +105,7 @@ struct MaintenanceView: View {
                     .font(.headline)
 
                 Text("\(Int(result.maintenanceCalories))")
-                    .font(.system(size: 48, weight: .bold))
+                    .font(.system(size: heroNumberSize, weight: .bold))
                     .foregroundStyle(MacroColors.calories)
 
                 Text(L10n.kcalPerDay)
@@ -166,24 +167,25 @@ struct MaintenanceView: View {
         .font(.subheadline)
     }
 
-    private func calculate() async {
+    private func calculate() {
         isCalculating = true
         error = nil
 
         let endDate = Date()
-        let startDate = endDate.adding(days: -selectedWeeks * 7)
+        let days = selectedWeeks * 7
+        let startDate = endDate.adding(days: -days)
 
-        let request = MaintenanceRequest(
+        let response = LocalMaintenance.compute(
+            context: modelContext,
             startDate: startDate.isoDateString,
             endDate: endDate.isoDateString,
-            bodyFatChangeRatio: bodyFatRatio
+            days: days,
+            bodyFatRatio: bodyFatRatio
         )
-
-        do {
-            result = try await api.calculateMaintenance(request)
-        } catch {
-            self.error = error.localizedDescription
+        if response == nil {
+            error = L10n.maintenanceInsufficientData
         }
+        result = response
         isCalculating = false
     }
 }

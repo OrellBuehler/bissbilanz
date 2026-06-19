@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipeIngredients, supplementIngredients } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, getTableColumns, ilike, isNotNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, getTableColumns, ilike, isNotNull } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -221,18 +221,22 @@ export const findFoodByBarcode = async (
 
 export const listRecentFoods = async (userId: string, limit = 25) => {
 	const db = getDB();
+	// One row per food: the most recently logged entry. DISTINCT ON keeps the
+	// first row per food_id given the ORDER BY, so ordering by created_at DESC
+	// within each food yields its latest entry (and its servings).
 	const recentSq = db
-		.select({
+		.selectDistinctOn([foodEntries.foodId], {
 			foodId: foodEntries.foodId,
-			lastUsed: sql<Date>`MAX(${foodEntries.createdAt})`.as('last_used')
+			lastUsed: foodEntries.createdAt,
+			lastServings: foodEntries.servings
 		})
 		.from(foodEntries)
 		.where(and(eq(foodEntries.userId, userId), isNotNull(foodEntries.foodId)))
-		.groupBy(foodEntries.foodId)
+		.orderBy(foodEntries.foodId, desc(foodEntries.createdAt))
 		.as('recent');
 
 	const rows = await db
-		.select({ ...getTableColumns(foods) })
+		.select({ ...getTableColumns(foods), lastServings: recentSq.lastServings })
 		.from(foods)
 		.innerJoin(recentSq, eq(foods.id, recentSq.foodId))
 		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')))

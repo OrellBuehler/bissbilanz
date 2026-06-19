@@ -1,0 +1,343 @@
+-- The user's own data (userdata.db). This file IS included in Android Auto Backup,
+-- so it must never contain server-derived/transient state (sync queue, sync meta,
+-- meal-type cache) — those live in BissbilanzDatabase (bissbilanz.db).
+--
+-- Schema convention (CRITICAL): every statement must stay CREATE TABLE IF NOT EXISTS
+-- and changes must be additive-only. DatabaseDriverFactory re-runs Schema.create on
+-- every open to materialize tables added in app updates; that is only safe while
+-- this convention holds.
+
+CREATE TABLE IF NOT EXISTS CachedEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    date TEXT NOT NULL,
+    mealType TEXT NOT NULL,
+    servings REAL NOT NULL,
+    foodId TEXT,
+    recipeId TEXT,
+    foodName TEXT,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedFood (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    barcode TEXT,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedGoals (
+    id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
+    calorieGoal REAL NOT NULL,
+    proteinGoal REAL NOT NULL,
+    carbGoal REAL NOT NULL,
+    fatGoal REAL NOT NULL,
+    fiberGoal REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedRecipe (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    totalServings REAL NOT NULL DEFAULT 1,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    calories REAL NOT NULL DEFAULT 0,
+    protein REAL NOT NULL DEFAULT 0,
+    carbs REAL NOT NULL DEFAULT 0,
+    fat REAL NOT NULL DEFAULT 0,
+    fiber REAL NOT NULL DEFAULT 0,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedSupplement (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    sortOrder INTEGER NOT NULL DEFAULT 0,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedSupplementLog (
+    id TEXT NOT NULL PRIMARY KEY,
+    supplementId TEXT NOT NULL,
+    date TEXT NOT NULL,
+    takenAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedWeightEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    entryDate TEXT NOT NULL,
+    weightKg REAL NOT NULL,
+    loggedAt TEXT,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedSleepEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    entryDate TEXT NOT NULL,
+    durationMinutes INTEGER NOT NULL,
+    quality INTEGER NOT NULL,
+    loggedAt TEXT,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedPreferences (
+    id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
+    jsonData TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CachedDayProperties (
+    date TEXT NOT NULL PRIMARY KEY,
+    isFastingDay INTEGER NOT NULL DEFAULT 0
+);
+
+-- Tiny key/value store local to this database file. Currently only holds the
+-- "legacy user data copied out of bissbilanz.db" marker written by
+-- LegacyUserDataMigration; being part of userdata.db it survives backup/restore,
+-- which is exactly right (a restored device must not re-copy from a fresh cache DB).
+CREATE TABLE IF NOT EXISTS LocalMeta (
+    key TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Entries
+selectAllEntries:
+SELECT * FROM CachedEntry;
+
+selectEntriesByFoodId:
+SELECT * FROM CachedEntry WHERE foodId = ?;
+
+selectEntriesByRecipeId:
+SELECT * FROM CachedEntry WHERE recipeId = ?;
+
+selectEntriesByDate:
+SELECT * FROM CachedEntry WHERE date = ?;
+
+selectEntriesByDateRange:
+SELECT * FROM CachedEntry WHERE date >= ? AND date <= ? ORDER BY date;
+
+insertEntry:
+INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, jsonData)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteEntry:
+DELETE FROM CachedEntry WHERE id = ?;
+
+deleteEntriesByDate:
+DELETE FROM CachedEntry WHERE date = ?;
+
+-- Foods
+selectAllFoods:
+SELECT * FROM CachedFood ORDER BY name;
+
+selectFoodById:
+SELECT * FROM CachedFood WHERE id = ?;
+
+selectFoodByBarcode:
+SELECT * FROM CachedFood WHERE barcode = ? LIMIT 1;
+
+selectFavorites:
+SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
+
+searchFoods:
+SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY name LIMIT ?;
+
+-- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
+selectRecentFoods:
+SELECT CachedFood.* FROM CachedFood
+JOIN (
+    SELECT foodId, MAX(date) AS lastDate
+    FROM CachedEntry
+    WHERE foodId IS NOT NULL
+    GROUP BY foodId
+) recent ON recent.foodId = CachedFood.id
+ORDER BY recent.lastDate DESC
+LIMIT ?;
+
+insertFood:
+INSERT OR REPLACE INTO CachedFood(id, name, brand, calories, protein, carbs, fat, fiber, isFavorite, barcode, jsonData)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteFood:
+DELETE FROM CachedFood WHERE id = ?;
+
+deleteAllFoods:
+DELETE FROM CachedFood;
+
+-- Goals
+selectGoals:
+SELECT * FROM CachedGoals WHERE id = 1;
+
+insertGoals:
+INSERT OR REPLACE INTO CachedGoals(id, calorieGoal, proteinGoal, carbGoal, fatGoal, fiberGoal)
+VALUES (1, ?, ?, ?, ?, ?);
+
+-- Recipes
+selectAllRecipes:
+SELECT * FROM CachedRecipe ORDER BY name;
+
+selectRecipeById:
+SELECT * FROM CachedRecipe WHERE id = ?;
+
+selectFavoriteRecipes:
+SELECT * FROM CachedRecipe WHERE isFavorite = 1 ORDER BY name;
+
+insertRecipe:
+INSERT OR REPLACE INTO CachedRecipe(id, name, totalServings, isFavorite, calories, protein, carbs, fat, fiber, jsonData)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteRecipe:
+DELETE FROM CachedRecipe WHERE id = ?;
+
+deleteAllRecipes:
+DELETE FROM CachedRecipe;
+
+-- Supplements
+selectAllSupplements:
+SELECT * FROM CachedSupplement ORDER BY sortOrder;
+
+selectActiveSupplements:
+SELECT * FROM CachedSupplement WHERE isActive = 1 ORDER BY sortOrder;
+
+selectSupplementById:
+SELECT * FROM CachedSupplement WHERE id = ?;
+
+insertSupplement:
+INSERT OR REPLACE INTO CachedSupplement(id, name, isActive, sortOrder, jsonData)
+VALUES (?, ?, ?, ?, ?);
+
+deleteSupplement:
+DELETE FROM CachedSupplement WHERE id = ?;
+
+deleteAllSupplements:
+DELETE FROM CachedSupplement;
+
+-- Supplement Logs
+selectAllSupplementLogs:
+SELECT * FROM CachedSupplementLog;
+
+selectSupplementLogsBySupplementId:
+SELECT * FROM CachedSupplementLog WHERE supplementId = ?;
+
+selectSupplementLogsByDate:
+SELECT * FROM CachedSupplementLog WHERE date = ?;
+
+selectSupplementLogsByDateRange:
+SELECT * FROM CachedSupplementLog WHERE date >= ? AND date <= ?;
+
+selectSupplementLogBySupplementAndDate:
+SELECT * FROM CachedSupplementLog WHERE supplementId = ? AND date = ? LIMIT 1;
+
+insertSupplementLog:
+INSERT OR REPLACE INTO CachedSupplementLog(id, supplementId, date, takenAt)
+VALUES (?, ?, ?, ?);
+
+deleteSupplementLog:
+DELETE FROM CachedSupplementLog WHERE supplementId = ? AND date = ?;
+
+deleteSupplementLogById:
+DELETE FROM CachedSupplementLog WHERE id = ?;
+
+-- Weight
+selectAllWeightEntries:
+SELECT * FROM CachedWeightEntry ORDER BY entryDate DESC;
+
+selectWeightEntriesLimited:
+SELECT * FROM CachedWeightEntry ORDER BY loggedAt DESC LIMIT ?;
+
+selectLatestWeightEntry:
+SELECT * FROM CachedWeightEntry ORDER BY entryDate DESC LIMIT 1;
+
+selectWeightEntriesByDateRange:
+SELECT * FROM CachedWeightEntry WHERE entryDate >= ? AND entryDate <= ? ORDER BY entryDate;
+
+insertWeightEntry:
+INSERT OR REPLACE INTO CachedWeightEntry(id, entryDate, weightKg, loggedAt, jsonData)
+VALUES (?, ?, ?, ?, ?);
+
+deleteWeightEntry:
+DELETE FROM CachedWeightEntry WHERE id = ?;
+
+deleteAllWeightEntries:
+DELETE FROM CachedWeightEntry;
+
+-- Sleep
+selectAllSleepEntries:
+SELECT * FROM CachedSleepEntry ORDER BY entryDate DESC;
+
+selectSleepEntriesByDateRange:
+SELECT * FROM CachedSleepEntry WHERE entryDate >= ? AND entryDate <= ? ORDER BY entryDate;
+
+insertSleepEntry:
+INSERT OR REPLACE INTO CachedSleepEntry(id, entryDate, durationMinutes, quality, loggedAt, jsonData)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteSleepEntry:
+DELETE FROM CachedSleepEntry WHERE id = ?;
+
+deleteAllSleepEntries:
+DELETE FROM CachedSleepEntry;
+
+-- Preferences
+selectPreferences:
+SELECT * FROM CachedPreferences WHERE id = 1;
+
+insertPreferences:
+INSERT OR REPLACE INTO CachedPreferences(id, jsonData) VALUES (1, ?);
+
+deletePreferences:
+DELETE FROM CachedPreferences WHERE id = 1;
+
+-- Day Properties
+selectAllDayProperties:
+SELECT * FROM CachedDayProperties;
+
+selectDayProperties:
+SELECT * FROM CachedDayProperties WHERE date = ?;
+
+upsertDayProperties:
+INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay) VALUES (?, ?);
+
+deleteDayProperties:
+DELETE FROM CachedDayProperties WHERE date = ?;
+
+-- Clear all data (for logout)
+clearAllData:
+DELETE FROM CachedEntry;
+
+clearAllFoods:
+DELETE FROM CachedFood;
+
+clearAllGoals:
+DELETE FROM CachedGoals;
+
+clearAllRecipes:
+DELETE FROM CachedRecipe;
+
+clearAllSupplements:
+DELETE FROM CachedSupplement;
+
+clearAllSupplementLogs:
+DELETE FROM CachedSupplementLog;
+
+clearAllWeightEntries:
+DELETE FROM CachedWeightEntry;
+
+clearAllSleepEntries:
+DELETE FROM CachedSleepEntry;
+
+clearAllPreferences:
+DELETE FROM CachedPreferences;
+
+clearAllDayProperties:
+DELETE FROM CachedDayProperties;

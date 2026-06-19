@@ -5,7 +5,8 @@ vi.mock('$lib/nutrients', () => ({
 	ALL_NUTRIENTS: [
 		{ key: 'saturatedFat', unit: 'g' },
 		{ key: 'sodium', unit: 'mg' }
-	]
+	],
+	ALL_NUTRIENT_KEYS: ['saturatedFat', 'sodium']
 }));
 vi.mock('$lib/server/mcp/handlers', () => ({
 	handleCreateFood: vi.fn(),

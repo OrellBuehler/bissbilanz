@@ -8,6 +8,7 @@
 	import BottomTabBar from '$lib/components/navigation/bottom-tab-bar.svelte';
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/pwa/OfflineIndicator.svelte';
+	import SyncErrorBanner from '$lib/components/pwa/SyncErrorBanner.svelte';
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
@@ -89,6 +90,7 @@
 			<Sidebar.Inset class="h-[calc(100svh-1rem)] overflow-hidden">
 				<SiteHeader />
 				<OfflineIndicator />
+				<SyncErrorBanner />
 				<div class="flex min-h-0 flex-1 flex-col overflow-auto">
 					<main class="flex-1 p-4 lg:p-6">
 						{@render children()}
@@ -102,6 +104,7 @@
 	<div class="flex min-h-dvh flex-col md:hidden">
 		<MobileHeader />
 		<OfflineIndicator />
+		<SyncErrorBanner />
 		<main class="flex-1 px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
 			{@render children()}
 		</main>

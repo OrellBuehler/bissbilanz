@@ -1,3 +1,13 @@
-# kysely — transitive via @inlang/sdk, MySQL-only SQL injection (we use PostgreSQL)
-CVE-2026-32763
-CVE-2026-33468
+# Accepted vulnerability exceptions — single source of truth.
+#
+# Consumed by:
+#   - Trivy (natively, in CI and scripts/security/scan-trivy.sh)
+#   - scripts/security/scan-dependencies.sh (parses CVE-*/GHSA-* lines to
+#     filter bun audit output)
+#
+# For each accepted finding, list the CVE id (matched by Trivy) AND the GHSA
+# id (matched against bun audit output) when both exist, each on its own
+# line, with a justification comment. Remove entries as soon as a fix is
+# applied.
+#
+# Currently empty: the dependency tree has no unfixed high/critical findings.

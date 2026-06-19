@@ -60,6 +60,14 @@ mobile/androidApp/build/
 
 # iOS generated Xcode project
 mobile/iosApp/*.xcodeproj
+mobile/iosApp/Bissbilanz/Info.plist
+mobile/iosApp/BissbilanzWidgets/Info.plist
+mobile/iosApp/BissbilanzWatch/Info.plist
+mobile/iosApp/BissbilanzWatchWidgets/Info.plist
+
+# iOS build output (xcodebuild -derivedDataPath)
+mobile/iosApp/build/
+mobile/iosApp/build-device/
 
 # OpenAPI generator temp output
 .openapi-gen-tmp/

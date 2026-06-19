@@ -59,17 +59,18 @@ db.version(3).stores({
 	sleepEntries: 'id, entryDate, loggedAt'
 });
 
-// v4: supplements are now nutrient-backed (kind on foods). supplementLogs keyed by
-// (supplementId, date) since per-day-per-supplement uniqueness. Existing foods
-// rows from v3 lack `kind` — backfill with 'food' so kind-filtered queries
-// don't hide them. Old logs are cleared — the server will resync on next fetch.
+// v4: supplements are now nutrient-backed (kind on foods). Existing foods rows
+// from v3 lack `kind` — backfill with 'food' so kind-filtered queries don't hide
+// them. supplementLogs is DROPPED here (recreated in v6 with a compound key):
+// Dexie cannot change a table's primary key in place, so the old `id`-keyed table
+// must be deleted and re-added across two versions. Old logs are discarded — the
+// server resyncs them on next fetch.
 db.version(4)
 	.stores({
 		foods: 'id, name, barcode, isFavorite, kind, updatedAt',
-		supplementLogs: '[supplementId+date], supplementId, date'
+		supplementLogs: null
 	})
 	.upgrade(async (tx) => {
-		await tx.table('supplementLogs').clear();
 		await tx
 			.table('foods')
 			.toCollection()
@@ -77,6 +78,21 @@ db.version(4)
 				if (!food.kind) food.kind = 'food';
 			});
 	});
+
+// v5: syncQueue gains a failedAt index — failed writes are parked (dead-letter)
+// instead of deleted, so the user can retry or discard them explicitly.
+db.version(5).stores({
+	syncQueue: '++id, createdAt, failedAt'
+});
+
+// v6: recreate supplementLogs with a compound primary key ([supplementId+date]) —
+// one log per supplement per day. Split from v4's drop because Dexie models a
+// primary-key change as delete-then-create across separate versions. Users
+// upgrading from schema v1–v3 previously crashed here with "Not yet support for
+// changing primary key" (Sentry BISSBILANZ-1T); fresh installs are unaffected.
+db.version(6).stores({
+	supplementLogs: '[supplementId+date], supplementId, date'
+});
 
 export { db };
 

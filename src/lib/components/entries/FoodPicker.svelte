@@ -24,7 +24,7 @@
 	export type PickerRecipeItem = { id: string; name: string; isFavorite?: boolean };
 
 	export type PickerSelection =
-		| { type: 'food'; food: PickerFoodItem }
+		| { type: 'food'; food: PickerFoodItem; lastServings?: number }
 		| { type: 'recipe'; recipe: PickerRecipeItem }
 		| {
 				type: 'favorite';
@@ -125,7 +125,7 @@
 		}, 300);
 	};
 
-	let recentFoods: Array<{ id: string; name: string }> = $state([]);
+	let recentFoods: Array<{ id: string; name: string; lastServings?: number }> = $state([]);
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
@@ -333,7 +333,8 @@
 							const fullFood = foods.find((f) => f.id === food.id);
 							onSelect({
 								type: 'food',
-								food: fullFood ?? { id: food.id, name: food.name }
+								food: fullFood ?? { id: food.id, name: food.name },
+								lastServings: food.lastServings
 							});
 						}}
 					>

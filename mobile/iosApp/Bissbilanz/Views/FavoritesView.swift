@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(EntryRepository.self) private var entryRepository
 
     @State private var favoriteFoods: [Food] = []
     @State private var favoriteRecipes: [Recipe] = []
@@ -122,9 +124,9 @@ struct FavoritesView: View {
     private func mealForCurrentTime() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5..<11: return "breakfast"
-        case 11..<14: return "lunch"
-        case 14..<17: return "snacks"
+        case 5 ..< 11: return "breakfast"
+        case 11 ..< 14: return "lunch"
+        case 14 ..< 17: return "snacks"
         default: return "dinner"
         }
     }
@@ -138,7 +140,7 @@ struct FavoritesView: View {
             date: DateFormatting.today
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry, food: food)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = "\(food.name) \(L10n.logged)"
         } catch {
@@ -156,7 +158,7 @@ struct FavoritesView: View {
             date: DateFormatting.today
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry, recipe: recipe)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = "\(recipe.name) \(L10n.logged)"
         } catch {
@@ -166,15 +168,12 @@ struct FavoritesView: View {
     }
 
     private func loadFavorites() async {
-        isLoading = true
-        do {
-            let response = try await api.getFavorites()
-            favoriteFoods = response.foods
-            favoriteRecipes = response.recipes ?? []
-        } catch {
-            favoriteFoods = []
-            favoriteRecipes = []
-        }
+        favoriteFoods = foodRepository.favorites()
+        favoriteRecipes = recipeRepository.favoriteRecipes()
+        isLoading = favoriteFoods.isEmpty && favoriteRecipes.isEmpty
+        try? await foodRepository.refreshFavorites()
+        favoriteFoods = foodRepository.favorites()
+        favoriteRecipes = recipeRepository.favoriteRecipes()
         isLoading = false
     }
 }

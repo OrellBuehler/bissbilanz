@@ -1,6 +1,15 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { servingUnitValues } from '$lib/units';
+import { safe } from './safe';
+import { describeShape } from './schema-utils';
+import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation/foods';
+import { entryBaseSchema, entryUpdateSchema } from '$lib/server/validation/entries';
+import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation/recipes';
+import { goalsSchema } from '$lib/server/validation/goals';
+import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
+import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
+import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
+import { scheduleTypeValues } from '$lib/supplement-units';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -82,26 +91,6 @@ export function createMcpServer(userId: string): McpServer {
 		version: MCP_SERVER_VERSION
 	});
 
-	const asText = (payload: unknown) => ({
-		content: [
-			{
-				type: 'text' as const,
-				text: JSON.stringify(payload, null, 2)
-			}
-		]
-	});
-
-	const safe = <T extends unknown[], R>(fn: (...args: T) => Promise<R>) => {
-		return async (...args: T) => {
-			try {
-				return asText(await fn(...args));
-			} catch (e) {
-				const message = e instanceof Error ? e.message : String(e);
-				return asText({ error: message });
-			}
-		};
-	};
-
 	server.registerTool(
 		'get_daily_status',
 		{
@@ -156,128 +145,88 @@ export function createMcpServer(userId: string): McpServer {
 			.describe(`${n.key} in ${n.unit} per serving`);
 	}
 
+	const NUTRIENT_DOCS = Object.fromEntries(
+		ALL_NUTRIENTS.map((n) => [n.key, `${n.key} in ${n.unit} per serving`])
+	);
+
+	const FOOD_FIELD_DOCS = {
+		name: 'Food name',
+		brand: 'Brand name',
+		servingSize: 'Serving size amount',
+		servingUnit: 'Serving unit (e.g., "g", "ml", "oz")',
+		calories: 'Calories per serving',
+		protein: 'Protein in grams per serving',
+		carbs: 'Carbohydrates in grams per serving',
+		fat: 'Fat in grams per serving',
+		fiber: 'Fiber in grams per serving',
+		barcode: 'Barcode number',
+		isFavorite: 'Mark as favorite',
+		nutriScore: 'Nutri-Score grade (null to clear)',
+		novaGroup: 'NOVA food processing group 1-4 (null to clear)',
+		additives: 'List of additives (null to clear)',
+		ingredientsText: 'Full ingredients text (null to clear)',
+		imageUrl: 'Image URL or relative path (null to clear)',
+		...NUTRIENT_DOCS
+	};
+
 	server.registerTool(
 		'create_food',
 		{
 			description:
 				"Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
-			inputSchema: {
-				name: z.string().describe('Food name'),
-				brand: z.string().optional().describe('Brand name'),
-				servingSize: z.number().describe('Serving size amount'),
-				servingUnit: z.enum(servingUnitValues).describe('Serving unit (e.g., "g", "ml", "oz")'),
-				calories: z.number().nonnegative().describe('Calories per serving'),
-				protein: z.number().nonnegative().describe('Protein in grams per serving'),
-				carbs: z.number().nonnegative().describe('Carbohydrates in grams per serving'),
-				fat: z.number().nonnegative().describe('Fat in grams per serving'),
-				fiber: z.number().nonnegative().describe('Fiber in grams per serving'),
-				barcode: z.string().optional().describe('Barcode number'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z
-					.enum(['a', 'b', 'c', 'd', 'e'])
-					.nullable()
-					.optional()
-					.describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z
-					.number()
-					.int()
-					.min(1)
-					.max(4)
-					.nullable()
-					.optional()
-					.describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z
-					.array(z.string())
-					.nullable()
-					.optional()
-					.describe('List of additives (null to clear)'),
-				ingredientsText: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Full ingredients text (null to clear)'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)'),
-				...nutrientInputSchema
-			},
+			inputSchema: describeShape(foodCreateSchema.shape, FOOD_FIELD_DOCS),
 			annotations: WRITE
 		},
 		safe((args) => handleCreateFood(userId, args))
 	);
+
+	const RECIPE_FIELD_DOCS = {
+		name: 'Recipe name',
+		totalServings: 'Number of servings the recipe makes',
+		ingredients:
+			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit.',
+		isFavorite: 'Mark as favorite',
+		imageUrl: 'Image URL or relative path (null to clear)'
+	};
 
 	server.registerTool(
 		'create_recipe',
 		{
 			description:
 				'Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.',
-			inputSchema: {
-				name: z.string().describe('Recipe name'),
-				totalServings: z.number().describe('Number of servings the recipe makes'),
-				ingredients: z
-					.array(
-						z.object({
-							foodId: z.string().describe('Food ID from the database'),
-							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
-						})
-					)
-					.describe('List of ingredients'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)')
-			},
+			inputSchema: describeShape(recipeCreateSchema.shape, RECIPE_FIELD_DOCS),
 			annotations: WRITE
 		},
 		safe((args) => handleCreateRecipe(userId, args))
 	);
+
+	const ENTRY_FIELD_DOCS = {
+		foodId: 'Food ID to log',
+		recipeId: 'Recipe ID to log',
+		mealType:
+			'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.',
+		servings: 'Number of servings',
+		notes: 'Optional notes for the entry',
+		date: 'Date in YYYY-MM-DD format. Defaults to today.',
+		quickName: 'Label for quick log entry (e.g., "Restaurant lunch")',
+		quickCalories: 'Calories for quick log (use instead of foodId/recipeId)',
+		quickProtein: 'Protein in grams for quick log',
+		quickCarbs: 'Carbs in grams for quick log',
+		quickFat: 'Fat in grams for quick log',
+		quickFiber: 'Fiber in grams for quick log',
+		eatenAt:
+			'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
+	};
 
 	server.registerTool(
 		'log_food',
 		{
 			description:
 				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
-			inputSchema: {
-				foodId: z.string().optional().describe('Food ID to log'),
-				recipeId: z.string().optional().describe('Recipe ID to log'),
-				mealType: z
-					.string()
-					.describe(
-						'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
-					),
-				servings: z.number().describe('Number of servings'),
-				notes: z.string().optional().describe('Optional notes for the entry'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				quickName: z
-					.string()
-					.optional()
-					.describe('Label for quick log entry (e.g., "Restaurant lunch")'),
-				quickCalories: z
-					.number()
-					.nonnegative()
-					.optional()
-					.describe('Calories for quick log (use instead of foodId/recipeId)'),
-				quickProtein: z
-					.number()
-					.nonnegative()
-					.optional()
-					.describe('Protein in grams for quick log'),
-				quickCarbs: z.number().nonnegative().optional().describe('Carbs in grams for quick log'),
-				quickFat: z.number().nonnegative().optional().describe('Fat in grams for quick log'),
-				quickFiber: z.number().nonnegative().optional().describe('Fiber in grams for quick log'),
-				eatenAt: z
-					.string()
-					.datetime({ offset: true })
-					.optional()
-					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
-					)
-			},
+			inputSchema: describeShape(
+				{ ...entryBaseSchema.shape, date: entryBaseSchema.shape.date.optional() },
+				ENTRY_FIELD_DOCS
+			),
 			annotations: WRITE
 		},
 		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
@@ -328,50 +277,10 @@ export function createMcpServer(userId: string): McpServer {
 		'update_entry',
 		{
 			description:
-				'Update an existing food entry. Can change servings, meal type, notes, or quick log fields.',
+				'Update an existing food entry. Can change servings, meal type, notes, date, food/recipe reference, or quick log fields.',
 			inputSchema: {
-				entryId: z.string().describe('ID of the entry to update'),
-				servings: z.number().optional().describe('New number of servings'),
-				mealType: z
-					.string()
-					.optional()
-					.describe(
-						'New meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.'
-					),
-				notes: z.string().optional().describe('New notes'),
-				quickName: z.string().optional().nullable().describe('New label for quick log entry'),
-				quickCalories: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New calories for quick log'),
-				quickProtein: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New protein for quick log'),
-				quickCarbs: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New carbs for quick log'),
-				quickFat: z.number().nonnegative().optional().nullable().describe('New fat for quick log'),
-				quickFiber: z
-					.number()
-					.nonnegative()
-					.optional()
-					.nullable()
-					.describe('New fiber for quick log'),
-				eatenAt: z
-					.string()
-					.datetime({ offset: true })
-					.optional()
-					.describe(
-						'When the food was eaten, as ISO 8601 datetime with timezone. Omit to leave unchanged.'
-					)
+				entryId: z.string().uuid().describe('ID of the entry to update'),
+				...describeShape(entryUpdateSchema.shape, ENTRY_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},
@@ -412,20 +321,15 @@ export function createMcpServer(userId: string): McpServer {
 		'update_goals',
 		{
 			description: 'Set or update daily nutrition goals.',
-			inputSchema: {
-				calorieGoal: z.number().positive().describe('Daily calorie goal'),
-				proteinGoal: z.number().nonnegative().describe('Daily protein goal in grams'),
-				carbGoal: z.number().nonnegative().describe('Daily carbohydrate goal in grams'),
-				fatGoal: z.number().nonnegative().describe('Daily fat goal in grams'),
-				fiberGoal: z.number().nonnegative().describe('Daily fiber goal in grams'),
-				sodiumGoal: z
-					.number()
-					.nonnegative()
-					.nullable()
-					.optional()
-					.describe('Daily sodium goal in mg'),
-				sugarGoal: z.number().nonnegative().nullable().optional().describe('Daily sugar goal in g')
-			},
+			inputSchema: describeShape(goalsSchema.shape, {
+				calorieGoal: 'Daily calorie goal',
+				proteinGoal: 'Daily protein goal in grams',
+				carbGoal: 'Daily carbohydrate goal in grams',
+				fatGoal: 'Daily fat goal in grams',
+				fiberGoal: 'Daily fiber goal in grams',
+				sodiumGoal: 'Daily sodium goal in mg (null to clear)',
+				sugarGoal: 'Daily sugar goal in grams (null to clear)'
+			}),
 			annotations: UPDATE
 		},
 		safe((args) => handleUpdateGoals(userId, args))
@@ -480,9 +384,11 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Log a body weight measurement.',
 			inputSchema: {
-				weightKg: z.number().describe('Weight in kilograms'),
-				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				notes: z.string().optional().describe('Optional notes')
+				weightKg: weightCreateSchema.shape.weightKg.describe('Weight in kilograms'),
+				date: weightCreateSchema.shape.entryDate
+					.optional()
+					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
+				notes: weightCreateSchema.shape.notes.describe('Optional notes')
 			},
 			annotations: WRITE
 		},
@@ -588,47 +494,8 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).',
 			inputSchema: {
-				foodId: z.string().describe('The food ID to update'),
-				name: z.string().optional().describe('New name'),
-				servingSize: z.number().optional().describe('New serving size'),
-				servingUnit: z.enum(servingUnitValues).optional().describe('New serving unit'),
-				calories: z.number().nonnegative().optional().describe('New calories per serving'),
-				protein: z.number().nonnegative().optional().describe('New protein in grams per serving'),
-				carbs: z.number().nonnegative().optional().describe('New carbs in grams per serving'),
-				fat: z.number().nonnegative().optional().describe('New fat in grams per serving'),
-				fiber: z.number().nonnegative().optional().describe('New fiber in grams per serving'),
-				brand: z.string().optional().describe('New brand name'),
-				barcode: z.string().optional().describe('New barcode number'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				nutriScore: z
-					.enum(['a', 'b', 'c', 'd', 'e'])
-					.nullable()
-					.optional()
-					.describe('Nutri-Score grade (null to clear)'),
-				novaGroup: z
-					.number()
-					.int()
-					.min(1)
-					.max(4)
-					.nullable()
-					.optional()
-					.describe('NOVA food processing group 1-4 (null to clear)'),
-				additives: z
-					.array(z.string())
-					.nullable()
-					.optional()
-					.describe('List of additives (null to clear)'),
-				ingredientsText: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Full ingredients text (null to clear)'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)'),
-				...nutrientInputSchema
+				foodId: z.string().uuid().describe('The food ID to update'),
+				...describeShape(foodUpdateSchema.shape, FOOD_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},
@@ -667,25 +534,8 @@ export function createMcpServer(userId: string): McpServer {
 			description:
 				'Update an existing recipe. Can change name, servings, or replace all ingredients.',
 			inputSchema: {
-				recipeId: z.string().describe('The recipe ID to update'),
-				name: z.string().optional().describe('New recipe name'),
-				totalServings: z.number().optional().describe('New number of servings'),
-				ingredients: z
-					.array(
-						z.object({
-							foodId: z.string().describe('Food ID from the database'),
-							quantity: z.number().describe('Quantity of the food'),
-							servingUnit: z.enum(servingUnitValues).describe('Unit for the quantity')
-						})
-					)
-					.optional()
-					.describe('New list of ingredients (replaces all existing)'),
-				isFavorite: z.boolean().optional().describe('Mark as favorite'),
-				imageUrl: z
-					.string()
-					.nullable()
-					.optional()
-					.describe('Image URL or relative path (null to clear)')
+				recipeId: z.string().uuid().describe('The recipe ID to update'),
+				...describeShape(recipeUpdateSchema.shape, RECIPE_FIELD_DOCS)
 			},
 			annotations: UPDATE
 		},
@@ -745,11 +595,9 @@ export function createMcpServer(userId: string): McpServer {
 				"Create a new supplement with schedule and ingredients. Each ingredient needs a backing food (kind='supplement') that carries its nutrient data. Pass `foodId` to reuse an existing backing food, or `food: { name, nutrients... }` to create one inline.",
 			inputSchema: {
 				name: z.string().describe('Supplement name'),
-				scheduleType: z
-					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
-					.describe('Schedule type'),
+				scheduleType: z.enum(scheduleTypeValues).describe('Schedule type'),
 				scheduleDays: z
-					.array(z.number())
+					.array(z.number().int().min(0).max(6))
 					.optional()
 					.describe('Days of week (0=Sun..6=Sat) for weekly/specific_days'),
 				scheduleStartDate: z.string().optional().describe('Start date in YYYY-MM-DD format'),
@@ -760,6 +608,7 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(supplementIngredientInputSchema)
 					.min(1)
+					.max(50)
 					.describe('At least one ingredient'),
 				isActive: z
 					.boolean()
@@ -793,11 +642,11 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to update'),
 				name: z.string().optional().describe('New name'),
-				scheduleType: z
-					.enum(['daily', 'every_other_day', 'weekly', 'specific_days'])
+				scheduleType: z.enum(scheduleTypeValues).optional().describe('New schedule type'),
+				scheduleDays: z
+					.array(z.number().int().min(0).max(6))
 					.optional()
-					.describe('New schedule type'),
-				scheduleDays: z.array(z.number()).optional().describe('New days of week'),
+					.describe('New days of week'),
 				scheduleStartDate: z.string().optional().describe('New start date'),
 				timeOfDay: z
 					.enum(['morning', 'noon', 'evening'])
@@ -808,6 +657,7 @@ export function createMcpServer(userId: string): McpServer {
 				ingredients: z
 					.array(supplementIngredientInputSchema)
 					.min(1)
+					.max(50)
 					.optional()
 					.describe('New ingredients (replaces all; must have at least one)')
 			},
@@ -846,10 +696,12 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Update an existing weight entry.',
 			inputSchema: {
-				weightId: z.string().describe('The weight entry ID to update'),
-				weightKg: z.number().optional().describe('New weight in kilograms'),
-				entryDate: z.string().optional().describe('New date in YYYY-MM-DD format'),
-				notes: z.string().optional().nullable().describe('New notes')
+				weightId: z.string().uuid().describe('The weight entry ID to update'),
+				...describeShape(weightUpdateSchema.shape, {
+					weightKg: 'New weight in kilograms',
+					entryDate: 'New date in YYYY-MM-DD format',
+					notes: 'New notes'
+				})
 			},
 			annotations: UPDATE
 		},
@@ -873,32 +725,21 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			description: 'Log a sleep entry. Records duration and quality for a given date.',
 			inputSchema: {
-				durationMinutes: z
-					.number()
-					.int()
-					.min(1)
-					.max(1440)
-					.describe('Total sleep duration in minutes'),
-				quality: z
-					.number()
-					.int()
-					.min(1)
-					.max(10)
-					.describe('Sleep quality rating from 1 (poor) to 10 (great)'),
-				date: z
-					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}$/)
+				durationMinutes: sleepCreateSchema.shape.durationMinutes.describe(
+					'Total sleep duration in minutes'
+				),
+				quality: sleepCreateSchema.shape.quality.describe(
+					'Sleep quality rating from 1 (poor) to 10 (great)'
+				),
+				date: sleepCreateSchema.shape.entryDate
 					.optional()
 					.describe('Date in YYYY-MM-DD format. Defaults to today.'),
-				bedtime: z.string().optional().describe('Bedtime as ISO datetime string'),
-				wakeTime: z.string().optional().describe('Wake time as ISO datetime string'),
-				wakeUps: z
-					.number()
-					.int()
-					.min(0)
-					.optional()
-					.describe('Number of times woken up during the night'),
-				notes: z.string().optional().describe('Optional notes')
+				bedtime: sleepCreateSchema.shape.bedtime.describe('Bedtime as ISO datetime string'),
+				wakeTime: sleepCreateSchema.shape.wakeTime.describe('Wake time as ISO datetime string'),
+				wakeUps: sleepCreateSchema.shape.wakeUps.describe(
+					'Number of times woken up during the night'
+				),
+				notes: sleepCreateSchema.shape.notes.describe('Optional notes')
 			},
 			annotations: WRITE
 		},
@@ -939,17 +780,15 @@ export function createMcpServer(userId: string): McpServer {
 			description: 'Update an existing sleep entry.',
 			inputSchema: {
 				id: z.string().uuid().describe('Sleep entry ID to update'),
-				durationMinutes: z.number().int().min(1).max(1440).optional(),
-				quality: z.number().int().min(1).max(10).optional(),
-				entryDate: z
-					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}$/)
-					.optional()
-					.describe('New date in YYYY-MM-DD format'),
-				bedtime: z.string().optional().nullable(),
-				wakeTime: z.string().optional().nullable(),
-				wakeUps: z.number().int().min(0).optional().nullable(),
-				notes: z.string().optional().nullable()
+				...describeShape(sleepUpdateSchema.shape, {
+					durationMinutes: 'New total sleep duration in minutes',
+					quality: 'New sleep quality rating from 1 (poor) to 10 (great)',
+					entryDate: 'New date in YYYY-MM-DD format',
+					bedtime: 'New bedtime as ISO datetime string (null to clear)',
+					wakeTime: 'New wake time as ISO datetime string (null to clear)',
+					wakeUps: 'New number of wake-ups (null to clear)',
+					notes: 'New notes (null to clear)'
+				})
 			},
 			annotations: UPDATE
 		},
@@ -1151,10 +990,10 @@ export function createMcpServer(userId: string): McpServer {
 		'set_day_properties',
 		{
 			description: 'Set properties for a specific day, such as marking it as a fasting day.',
-			inputSchema: {
-				date: dateStr.describe('Date in YYYY-MM-DD format'),
-				isFastingDay: z.boolean().describe('Whether the day is a fasting day')
-			},
+			inputSchema: describeShape(dayPropertiesSetSchema.shape, {
+				date: 'Date in YYYY-MM-DD format',
+				isFastingDay: 'Whether the day is a fasting day'
+			}),
 			annotations: UPDATE
 		},
 		safe((args) => handleSetDayProperties(userId, args))

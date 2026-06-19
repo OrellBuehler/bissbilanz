@@ -12,10 +12,12 @@ Bissbilanz is a food tracking application that allows users to:
 - Log daily food entries organized by meals
 - Set and track daily macro goals
 - Scan barcodes to quickly add foods
+- Track body weight, sleep, and supplements
+- Calculate maintenance calories from weight trend + food log
 - Use AI agents via MCP to assist with logging
 - Access the app offline via PWA
 
-**Authentication:** Required via Infomaniak OIDC (no guest access)
+**Authentication:** Infomaniak OIDC required on web (no guest access). The mobile apps additionally support an anonymous local-only mode; its data is migrated to the account on first sign-in.
 
 ## Tech Stack
 
@@ -43,12 +45,13 @@ Bissbilanz is a food tracking application that allows users to:
 - **Charts:** layerchart
 - **Date Handling:** @internationalized/date
 - **Food Data:** Open Food Facts API
+- **Offline Storage:** Dexie (IndexedDB)
 
 ### Development
 
-- **Type Checking:** TypeScript 5.x
+- **Type Checking:** TypeScript (strict) via svelte-check
 - **Package Manager:** Bun
-- **Code Quality:** svelte-check
+- **Formatting:** Prettier (runs in pre-commit hook and as part of `bun run check`)
 
 ## Development Commands
 
@@ -67,9 +70,15 @@ bun run db:generate    # Generate migrations from schema
 bun run db:migrate     # Run migrations (applied automatically on dev server start too)
 # NOTE: Do NOT use db:push — see "Migration Safety" in Database section
 
-# Testing (vitest)
-bun run test                    # Run all tests
+# Testing
+bun run test                    # Unit tests (vitest)
 bun run test:watch              # Watch mode
+bun run test:integration-db     # DB integration tests (Testcontainers, requires Docker)
+bun run test:mobile             # Playwright e2e tests
+
+# API codegen (OpenAPI spec + TS/Kotlin clients)
+bun run api:generate            # Regenerate after changing API routes or validation schemas
+bun run api:check               # Verify generated output is current (enforced in CI)
 ```
 
 ## Code Conventions
@@ -109,6 +118,7 @@ bun run test:watch              # Watch mode
 - Return consistent error format: `{ error: string }`
 - Always check user authentication/authorization
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
+- The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (CI fails otherwise via `api:check`)
 
 ### Styling
 
@@ -134,9 +144,9 @@ After completing a feature, run the security scan suite before committing:
 bun run security
 ```
 
-This runs Semgrep (SAST), bun audit (dependency vulnerabilities), and Trivy (filesystem + IaC misconfigs). Fix any CRITICAL or HIGH findings before merging. Known accepted exceptions:
+This runs Semgrep (SAST), bun audit (dependency vulnerabilities), and Trivy (filesystem + IaC misconfigs). Fix any CRITICAL or HIGH findings before merging. Prefer fixing dependency findings by refreshing the lockfile (delete `bun.lock` + `bun install` re-resolves transitive deps to patched versions). Accepted exceptions live in `.trivyignore` — the single source of truth used by both Trivy and `scan-dependencies.sh` — with a justification comment per entry.
 
-- `minimatch` ReDoS (HIGH) via `@vite-pwa/sveltekit → workbox-build` — transitive, no upstream fix available yet
+In CI, whole-tree vulnerability scans (bun audit + Trivy vuln) run on main and weekly, not on PRs; PRs are gated by `dependency-review-action` (fails only if the PR introduces a vulnerable dependency), plus Semgrep, Gitleaks, and Trivy secrets/IaC scans on the PR's code.
 
 To also scan the Docker image:
 
@@ -146,7 +156,7 @@ To also scan the Docker image:
 
 ## Mobile Development
 
-The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI skeleton).
+The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI).
 
 ### Build Commands
 
@@ -162,7 +172,7 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 
 - **Shared module** (`mobile/shared/`): KMP code shared between Android and iOS — models, API client, repositories, auth, DI
 - **Android app** (`mobile/androidApp/`): Jetpack Compose UI with Material 3
-- **iOS app** (`mobile/iosApp/`): SwiftUI (skeleton, requires macOS with Xcode to build)
+- **iOS app** (`mobile/iosApp/`): SwiftUI, project generated with XcodeGen (`project.yml`)
 - Use `expect`/`actual` for platform-specific implementations (HTTP engine, secure storage, SHA-256)
 - Use Koin for dependency injection
 - Use Ktor for HTTP client, kotlinx.serialization for JSON
@@ -174,23 +184,17 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 
 iOS builds require macOS with Xcode installed. The shared KMP framework is compiled to a static framework for iOS targets (x64, arm64, simulator arm64).
 
+If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
+
 ## Git Workflow
 
 - **IMPORTANT:** Always commit changes when work is complete
 - **IMPORTANT:** NEVER include "Co-Authored" comments in commit messages
+- **IMPORTANT:** NEVER squash merge PRs — always use a merge commit (`gh pr merge --merge`). Squash merging is disabled in the repo settings.
 
-### Dependabot npm PRs (Bun lockfile)
+### Dependabot PRs
 
-Dependabot's npm ecosystem updates `package.json` but does not regenerate `bun.lock`, so every dependabot npm PR fails CI with `error: lockfile had changes, but lockfile is frozen` (docker-smoke-test, e2e, dependency-audit). The PR itself is still safe to merge if that is the only failure.
-
-**Workflow when multiple dependabot npm PRs are open:**
-
-1. Merge all of them via `gh pr merge <N> --merge` (no rebase — they conflict on `package.json`).
-2. If a later PR fails to merge with conflicts, close it and roll its `package.json` bump into the lockfile commit by hand.
-3. After all merges: `git pull --ff-only origin main`, run `bun install` to regenerate `bun.lock`, then commit both `package.json` (if you rolled in a bump) and `bun.lock` with a `chore(deps): regenerate bun.lock after dependabot merges` message.
-4. Push to main.
-
-Do not try to fix each PR individually — the lockfile churn makes that exponentially more painful.
+Dependabot uses the `bun` package ecosystem, so its PRs update both `package.json` and `bun.lock` — a green CI run means the PR is mergeable as-is. If a dependabot PR fails CI, the failure is real (build/test breakage from the bump or a vulnerability introduced by it), not lockfile noise.
 
 ### Commit Messages
 

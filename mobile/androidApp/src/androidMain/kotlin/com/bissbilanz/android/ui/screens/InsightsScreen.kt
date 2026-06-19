@@ -98,8 +98,14 @@ fun InsightsScreen() {
     val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
 
+    val isLocalMode = viewModel.isLocalMode
+
     val ranges = listOf("7 Days", "30 Days", "90 Days")
-    val tabs = listOf("Overview", "Nutrition", "Weight", "Sleep")
+
+    // Nutrition, Weight and Sleep analytics are now computed on-device from the
+    // local DB (AnalyticsRepository -> LocalAnalytics), so every tab works in both
+    // modes. Pairs of (ViewModel tab index, title).
+    val tabs = listOf(0 to "Overview", 1 to "Nutrition", 2 to "Weight", 3 to "Sleep")
 
     PullToRefreshWrapper(
         onRefresh = {
@@ -135,11 +141,11 @@ fun InsightsScreen() {
             Spacer(modifier = Modifier.height(8.dp))
 
             ScrollableTabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0),
                 modifier = Modifier.fillMaxWidth(),
                 edgePadding = 0.dp,
             ) {
-                tabs.forEachIndexed { index, title ->
+                tabs.forEach { (index, title) ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { viewModel.selectTab(index) },
@@ -648,6 +654,7 @@ fun InsightsScreen() {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Sleep analytics cards are now computed on-device from the local DB.
                     if (sleepLoading) {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
@@ -684,6 +691,17 @@ fun InsightsScreen() {
                         )
                     }
                 }
+            }
+
+            if (isLocalMode) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "More insights available with an account",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

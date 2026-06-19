@@ -18,7 +18,7 @@ struct NutrientRow: View {
     }
 
     private var formattedValue: String {
-        if value == value.rounded() && value < 10000 {
+        if value == value.rounded(), value < 10000 {
             return "\(Int(value))"
         }
         return String(format: "%.1f", value)

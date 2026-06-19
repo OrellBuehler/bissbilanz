@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct FoodSearchView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     var date: String?
@@ -21,7 +22,7 @@ struct FoodSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
+            Picker("", selection: $selectedTab.animation()) {
                 Text(L10n.search).tag(0)
                 Text(L10n.recent).tag(1)
                 Text(L10n.favorites).tag(2)
@@ -30,16 +31,15 @@ struct FoodSearchView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            switch selectedTab {
-            case 0:
+            TabView(selection: $selectedTab) {
                 searchTab
-            case 1:
+                    .tag(0)
                 recentTab
-            case 2:
+                    .tag(1)
                 favoritesTab
-            default:
-                EmptyView()
+                    .tag(2)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .navigationTitle(L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
@@ -96,7 +96,11 @@ struct FoodSearchView: View {
             } else if isSearching {
                 LoadingView(message: L10n.loading)
             } else if searchResults.isEmpty {
-                ContentUnavailableView(L10n.noResults, systemImage: "magnifyingglass", description: Text("\(L10n.noResults): \"\(query)\""))
+                ContentUnavailableView(
+                    L10n.noResults,
+                    systemImage: "magnifyingglass",
+                    description: Text("\(L10n.noResults): \"\(query)\"")
+                )
             } else {
                 List(searchResults) { food in
                     foodRow(food)
@@ -193,37 +197,33 @@ struct FoodSearchView: View {
             return
         }
         isSearching = true
-        do {
-            searchResults = try await api.searchFoods(query: query)
-        } catch {
-            searchResults = []
-        }
+        searchResults = await foodRepository.searchFoods(query: query)
         isSearching = false
     }
 
     private func loadRecent() async {
-        do {
-            recentFoods = try await api.getRecentFoods()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        recentFoods = foodRepository.localRecentFoods()
+        recentFoods = await foodRepository.refreshRecentFoods()
     }
 
     private func loadFavorites() async {
+        favoriteFoods = foodRepository.favorites()
         do {
-            let response = try await api.getFavorites()
-            favoriteFoods = response.foods
+            try await foodRepository.refreshFavorites()
+            favoriteFoods = foodRepository.favorites()
         } catch {
-            errorMessage = error.localizedDescription
+            if favoriteFoods.isEmpty {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
     private func mealForCurrentTime() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5..<11: return "breakfast"
-        case 11..<14: return "lunch"
-        case 14..<17: return "snacks"
+        case 5 ..< 11: return "breakfast"
+        case 11 ..< 14: return "lunch"
+        case 14 ..< 17: return "snacks"
         default: return "dinner"
         }
     }
@@ -237,7 +237,7 @@ struct FoodSearchView: View {
             date: date
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry, food: food)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = "\(food.name) \(L10n.logged)"
         } catch {
@@ -248,7 +248,7 @@ struct FoodSearchView: View {
 }
 
 struct LogFoodSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     let food: Food
@@ -282,7 +282,7 @@ struct LogFoodSheet: View {
                         Text("\(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)")
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Stepper(value: $servings, in: 0.25...20, step: 0.25) {
+                        Stepper(value: $servings, in: 0.25 ... 20, step: 0.25) {
                             Text("\(servings, specifier: "%.2g")x")
                                 .fontWeight(.medium)
                         }
@@ -299,8 +299,18 @@ struct LogFoodSheet: View {
                 }
 
                 Section(L10n.nutrition) {
-                    NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal", color: MacroColors.calories)
-                    NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g", color: MacroColors.protein)
+                    NutrientRow(
+                        label: L10n.calories,
+                        value: food.calories * servings,
+                        unit: "kcal",
+                        color: MacroColors.calories
+                    )
+                    NutrientRow(
+                        label: L10n.protein,
+                        value: food.protein * servings,
+                        unit: "g",
+                        color: MacroColors.protein
+                    )
                     NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g", color: MacroColors.carbs)
                     NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g", color: MacroColors.fat)
                     NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g", color: MacroColors.fiber)
@@ -320,7 +330,10 @@ struct LogFoodSheet: View {
                     .fontWeight(.semibold)
                 }
             }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -337,7 +350,7 @@ struct LogFoodSheet: View {
             date: date
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry, food: food)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

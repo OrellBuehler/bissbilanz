@@ -1372,6 +1372,7 @@ export interface components {
 			barcode: string | null;
 			isFavorite: boolean;
 			imageUrl: string | null;
+			lastServings: number;
 			createdAt?: string;
 			updatedAt?: string;
 		};

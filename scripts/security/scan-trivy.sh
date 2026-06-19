@@ -40,6 +40,7 @@ if ! trivy fs "${REPO_ROOT}" \
     --skip-dirs node_modules \
     --skip-dirs .svelte-kit \
     --skip-dirs .worktrees \
+    --skip-dirs .claude/worktrees \
     --exit-code 1; then
   EXIT_CODE=1
 fi
@@ -53,6 +54,7 @@ if ! trivy config "${REPO_ROOT}" \
     --skip-dirs node_modules \
     --skip-dirs .svelte-kit \
     --skip-dirs .worktrees \
+    --skip-dirs .claude/worktrees \
     --exit-code 1; then
   EXIT_CODE=1
 fi

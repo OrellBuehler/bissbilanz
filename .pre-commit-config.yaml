@@ -30,6 +30,9 @@ repos:
         language: system
         types:
           - kotlin
+        # Auto-generated API DTOs are excluded from ktlint in Gradle
+        # (build.gradle.kts), so exclude them here too for parity.
+        exclude: /generated/
 
       - id: swiftformat
         name: swiftformat

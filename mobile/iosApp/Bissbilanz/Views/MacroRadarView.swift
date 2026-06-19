@@ -17,7 +17,7 @@ struct MacroRadarView: View {
                 }
 
                 // Draw axes
-                for i in 0..<count {
+                for i in 0 ..< count {
                     let angle = angleFor(index: i, total: count)
                     let point = pointAt(center: center, radius: radius, angle: angle)
                     var path = Path()
@@ -28,7 +28,7 @@ struct MacroRadarView: View {
 
                 // Draw filled data polygon
                 var dataPath = Path()
-                for i in 0..<count {
+                for i in 0 ..< count {
                     let ratio = min(axes[i].1, 1.5)
                     let angle = angleFor(index: i, total: count)
                     let point = pointAt(center: center, radius: radius * ratio, angle: angle)
@@ -45,7 +45,7 @@ struct MacroRadarView: View {
             }
 
             // Draw labels
-            ForEach(0..<count, id: \.self) { i in
+            ForEach(0 ..< count, id: \.self) { i in
                 let angle = angleFor(index: i, total: count)
                 let labelRadius = radius + 16
                 let point = pointAt(center: center, radius: labelRadius, angle: angle)
@@ -75,7 +75,7 @@ struct MacroRadarView: View {
 
     private func polygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
         var path = Path()
-        for i in 0..<sides {
+        for i in 0 ..< sides {
             let angle = angleFor(index: i, total: sides)
             let point = pointAt(center: center, radius: radius, angle: angle)
             if i == 0 {

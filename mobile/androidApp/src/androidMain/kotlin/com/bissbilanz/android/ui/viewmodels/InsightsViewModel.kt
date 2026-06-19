@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.analytics.*
 import com.bissbilanz.android.R
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.repository.GoalsRepository
@@ -26,7 +27,17 @@ class InsightsViewModel(
     private val sleepRepo: SleepRepository,
     private val errorReporter: ErrorReporter,
     private val analyticsRepo: AnalyticsRepository,
+    appModeManager: AppModeManager,
 ) : ViewModel() {
+    /**
+     * True when the app runs in anonymous Local mode. Server-only insights (weekly/monthly
+     * stats, streaks, top foods, meal breakdown and all AnalyticsRepository-backed cards)
+     * are skipped and their UI is hidden; locally computable data (daily stats, calendar,
+     * goals, sleep log) keeps working. Constant for the lifetime of this ViewModel — mode
+     * changes recreate the whole navigation graph.
+     */
+    val isLocalMode: Boolean = appModeManager.isLocal
+
     private val _weeklyStats = MutableStateFlow<MacroTotals?>(null)
     val weeklyStats: StateFlow<MacroTotals?> = _weeklyStats.asStateFlow()
 
@@ -300,8 +311,11 @@ class InsightsViewModel(
 
             try {
                 coroutineScope {
+                    // Weekly/monthly stats, streaks, top foods and meal breakdown are
+                    // server-only; in Local mode they stay empty and their cards are hidden.
                     val weeklyDeferred =
                         async {
+                            if (isLocalMode) return@async null
                             try {
                                 statsRepo.getWeeklyStats().stats
                             } catch (e: Exception) {
@@ -312,6 +326,7 @@ class InsightsViewModel(
                         }
                     val monthlyDeferred =
                         async {
+                            if (isLocalMode) return@async null
                             try {
                                 statsRepo.getMonthlyStats().stats
                             } catch (e: Exception) {
@@ -322,6 +337,7 @@ class InsightsViewModel(
                         }
                     val streaksDeferred =
                         async {
+                            if (isLocalMode) return@async null
                             try {
                                 statsRepo.getStreaks()
                             } catch (e: Exception) {
@@ -332,6 +348,7 @@ class InsightsViewModel(
                         }
                     val topFoodsDeferred =
                         async {
+                            if (isLocalMode) return@async emptyList()
                             try {
                                 statsRepo.getTopFoods(days).data
                             } catch (e: Exception) {
@@ -352,6 +369,7 @@ class InsightsViewModel(
                         }
                     val mealBreakdownDeferred =
                         async {
+                            if (isLocalMode) return@async emptyList()
                             try {
                                 statsRepo.getMealBreakdown(startDate, endDate).data
                             } catch (e: Exception) {

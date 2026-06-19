@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DayLogView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
     let date: String
 
     @State private var entries: [Entry] = []
@@ -73,10 +73,9 @@ struct DayLogView: View {
             }
         }
         .sheet(item: $editingEntry) { entry in
-            EntryEditSheet(entry: entry) { updated in
-                if let index = entries.firstIndex(where: { $0.id == updated.id }) {
-                    entries[index] = updated
-                }
+            // PATCH responses are raw DB rows without resolved macros — reload instead
+            EntryEditSheet(entry: entry) { _ in
+                Task { await loadEntries() }
             }
         }
         .task { await loadEntries(showSpinner: true) }
@@ -203,23 +202,26 @@ struct DayLogView: View {
     }
 
     private func loadEntries(showSpinner: Bool = false) async {
-        if showSpinner { isLoading = true }
+        entries = entryRepository.entries(date: date)
+        if showSpinner { isLoading = entries.isEmpty }
         error = nil
         do {
-            entries = try await api.getEntries(date: date)
+            try await entryRepository.refresh(date: date)
+            entries = entryRepository.entries(date: date)
         } catch {
-            self.error = error
+            // Local data still renders — only block the screen when there is none.
+            if entries.isEmpty { self.error = error }
         }
         isLoading = false
     }
 
     private func deleteEntry(_ entry: Entry) async {
         do {
-            try await api.deleteEntry(id: entry.id)
-            entries.removeAll { $0.id == entry.id }
+            try await entryRepository.deleteEntry(id: entry.id)
         } catch {
             errorMessage = error.localizedDescription
         }
+        entries = entryRepository.entries(date: date)
     }
 
     private func copyYesterday() async {
@@ -227,8 +229,8 @@ struct DayLogView: View {
         let viewedDate = DateFormatting.date(from: date) ?? Date()
         let yesterday = viewedDate.adding(days: -1).isoDateString
         do {
-            let copied = try await api.copyEntries(fromDate: yesterday, toDate: date)
-            entries.append(contentsOf: copied)
+            try await entryRepository.copyEntries(fromDate: yesterday, toDate: date)
+            entries = entryRepository.entries(date: date)
         } catch {
             errorMessage = error.localizedDescription
         }

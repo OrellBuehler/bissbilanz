@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecipeEditSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingRecipe: Recipe?
@@ -23,7 +23,7 @@ struct RecipeEditSheet: View {
     }
 
     init(recipe: Recipe? = nil, onSaved: @escaping (Recipe) -> Void = { _ in }) {
-        self.existingRecipe = recipe
+        existingRecipe = recipe
         self.onSaved = onSaved
     }
 
@@ -96,7 +96,11 @@ struct RecipeEditSheet: View {
             }
             .sheet(isPresented: $showFoodPicker) {
                 FoodPickerSheet { food in
-                    ingredients.append(IngredientRow(food: food, quantity: "\(food.servingSize)", unit: food.servingUnit))
+                    ingredients.append(IngredientRow(
+                        food: food,
+                        quantity: "\(food.servingSize)",
+                        unit: food.servingUnit
+                    ))
                 }
             }
             .onAppear { prefill() }
@@ -137,7 +141,7 @@ struct RecipeEditSheet: View {
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )
-                saved = try await api.updateRecipe(id: existing.id, update)
+                saved = try await recipeRepository.updateRecipe(id: existing.id, update)
             } else {
                 let create = RecipeCreate(
                     name: name,
@@ -145,7 +149,7 @@ struct RecipeEditSheet: View {
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )
-                saved = try await api.createRecipe(create)
+                saved = try await recipeRepository.createRecipe(create)
             }
             onSaved(saved)
             dismiss()
@@ -156,9 +160,9 @@ struct RecipeEditSheet: View {
     }
 }
 
-// Helper sheet for picking a food to add as ingredient
+/// Helper sheet for picking a food to add as ingredient
 struct FoodPickerSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
     let onPicked: (Food) -> Void
@@ -172,7 +176,11 @@ struct FoodPickerSheet: View {
         NavigationStack {
             Group {
                 if query.count < 2 {
-                    ContentUnavailableView(L10n.search, systemImage: "magnifyingglass", description: Text("Type at least 2 characters"))
+                    ContentUnavailableView(
+                        L10n.search,
+                        systemImage: "magnifyingglass",
+                        description: Text("Type at least 2 characters")
+                    )
                 } else if isSearching {
                     LoadingView()
                 } else if results.isEmpty {
@@ -186,9 +194,11 @@ struct FoodPickerSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(food.name)
                                     .foregroundStyle(.primary)
-                                Text("\(Int(food.calories)) cal \u{00B7} \(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                Text(
+                                    "\(Int(food.calories)) cal \u{00B7} \(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -215,9 +225,11 @@ struct FoodPickerSheet: View {
     }
 
     private func search(_ query: String) async {
-        guard query.count >= 2 else { results = []; return }
+        guard query.count >= 2 else { results = []
+            return
+        }
         isSearching = true
-        results = (try? await api.searchFoods(query: query)) ?? []
+        results = await foodRepository.searchFoods(query: query)
         isSearching = false
     }
 }

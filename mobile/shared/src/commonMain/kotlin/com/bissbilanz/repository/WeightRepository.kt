@@ -10,8 +10,10 @@ import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,22 +27,25 @@ import kotlin.uuid.Uuid
 
 class WeightRepository(
     private val api: BissbilanzApi,
-    private val db: BissbilanzDatabase,
+    private val db: UserDataDatabase,
+    private val cacheDb: BissbilanzDatabase,
     private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
+    private val appModeManager: AppModeManager,
 ) {
     var onWeightChanged: (suspend () -> Unit)? = null
 
     fun entries(): Flow<List<WeightEntry>> =
-        db.bissbilanzDatabaseQueries
+        db.userDataDatabaseQueries
             .selectAllWeightEntries()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) } }
 
     suspend fun refresh(limit: Int = 30) {
+        if (appModeManager.isLocal) return
         val entries = api.getWeightEntries(limit)
         cacheWeightEntries(entries)
     }
@@ -54,7 +59,7 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
-        syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry)))
+        syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
         onWeightChanged?.invoke()
         return temp
     }
@@ -63,7 +68,7 @@ class WeightRepository(
         id: String,
         entry: WeightUpdate,
     ): WeightEntry {
-        val cached = db.bissbilanzDatabaseQueries.selectAllWeightEntries().executeAsList()
+        val cached = db.userDataDatabaseQueries.selectAllWeightEntries().executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }.find { it.id == id }
         val result =
             if (existing != null) {
@@ -90,37 +95,75 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
-        syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        if (id.startsWith("temp_")) {
+            coalesceQueuedCreate(id, entry)
+        } else {
+            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+        }
         onWeightChanged?.invoke()
         return result
+    }
+
+    /**
+     * Rewrites the still-queued Create operation for a temp-id weight entry so the
+     * eventual upload carries the edited values. If the create has already been drained
+     * (no queued op found), the update is skipped — the temp id is unknown server-side.
+     */
+    private suspend fun coalesceQueuedCreate(
+        tempId: String,
+        update: WeightUpdate,
+    ) {
+        for (req in syncQueue.findByAffected("weight", tempId)) {
+            val create = req.operation as? SyncOperation.CreateWeight ?: continue
+            val body = json.decodeOrNull<WeightCreate>(create.body) ?: continue
+            val merged =
+                body.copy(
+                    weightKg = update.weightKg ?: body.weightKg,
+                    entryDate = update.entryDate ?: body.entryDate,
+                    notes = update.notes ?: body.notes,
+                )
+            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+        }
     }
 
     suspend fun getTrend(
         from: String,
         to: String,
-    ): List<WeightTrendEntry> =
-        try {
+    ): List<WeightTrendEntry> {
+        if (appModeManager.isLocal) return trendFromCache(from, to)
+        return try {
             api.getWeightTrend(from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            db.bissbilanzDatabaseQueries
-                .selectAllWeightEntries()
-                .executeAsList()
-                .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
-                .filter { it.entryDate in from..to }
-                .sortedBy { it.entryDate }
-                .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
+            trendFromCache(from, to)
         }
+    }
+
+    private fun trendFromCache(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> =
+        db.userDataDatabaseQueries
+            .selectAllWeightEntries()
+            .executeAsList()
+            .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
+            .filter { it.entryDate in from..to }
+            .sortedBy { it.entryDate }
+            .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
 
     suspend fun deleteEntry(id: String) {
-        db.bissbilanzDatabaseQueries.deleteWeightEntry(id)
-        syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        db.userDataDatabaseQueries.deleteWeightEntry(id)
+        if (id.startsWith("temp_")) {
+            syncQueue.removeByAffected("weight", id)
+        } else {
+            syncQueue.enqueue(SyncOperation.DeleteWeight(id))
+        }
         onWeightChanged?.invoke()
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {
-        db.bissbilanzDatabaseQueries.insertWeightEntry(
+        db.userDataDatabaseQueries.insertWeightEntry(
             id = entry.id,
             entryDate = entry.entryDate,
             weightKg = entry.weightKg,
@@ -130,14 +173,15 @@ class WeightRepository(
     }
 
     private fun cacheWeightEntries(entries: List<WeightEntry>) {
-        db.bissbilanzDatabaseQueries.transaction {
-            db.bissbilanzDatabaseQueries.deleteAllWeightEntries()
+        db.userDataDatabaseQueries.transaction {
+            db.userDataDatabaseQueries.deleteAllWeightEntries()
             entries.forEach { entry -> cacheWeightEntry(entry) }
-            db.bissbilanzDatabaseQueries.upsertSyncMeta(
-                entityType = "weight",
-                lastSyncedAt = Clock.System.now().toString(),
-            )
         }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "weight",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

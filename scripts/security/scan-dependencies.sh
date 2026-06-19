@@ -4,43 +4,46 @@ set -euo pipefail
 # Dependency vulnerability audit using bun audit.
 # Fails on high or critical severity vulnerabilities.
 #
+# Accepted exceptions live in .trivyignore (single source of truth, shared
+# with Trivy). Lines starting with CVE- or GHSA- are treated as accepted
+# advisory ids; bun audit findings referencing an accepted GHSA id are
+# filtered out before the severity gate.
+#
 # Usage:
 #   ./scripts/security/scan-dependencies.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+IGNORE_FILE="${REPO_ROOT}/.trivyignore"
 
 EXIT_CODE=0
 
 echo "Running dependency audit..."
 echo ""
 
-KNOWN_ACCEPTED=(
-  "GHSA-q5qw-h33p-qvwr"  # hono serveStatic — we don't use serveStatic
-  "GHSA-c2c7-rcm5-vvqj"  # picomatch ReDoS — transitive via vite/vitest, no upstream fix
-  "GHSA-wmrf-hv6w-mr66"   # kysely SQL injection — transitive via @inlang/sdk, not used directly
-  "GHSA-8cpq-38p9-67gx"   # kysely MySQL injection — transitive via @inlang/sdk, we use PostgreSQL
-  "GHSA-3ppc-4f35-3m26"   # minimatch ReDoS — transitive via workbox-build/sentry/etc
-  "GHSA-7r86-cg39-jmmj"   # minimatch ReDoS — transitive via workbox-build/sentry/etc
-  "GHSA-23c5-xmqv-rm74"   # minimatch ReDoS — transitive via workbox-build/sentry/etc
-  "GHSA-5c6j-r48x-rmvq"   # serialize-javascript RCE — transitive via @rollup/plugin-terser
-  "GHSA-38f7-945m-qr2g"   # effect AsyncLocalStorage — transitive, not used directly
-  "GHSA-46wh-pxpv-q5gq"   # express-rate-limit IPv6 bypass — transitive via MCP SDK
-  "GHSA-j3q9-mxjg-w52f"   # path-to-regexp DoS — transitive via express
-  "GHSA-r5fr-rjxr-66jc"   # lodash code injection — transitive via workbox-build, no fix available
-  "GHSA-v2wj-q39q-566r"   # vite server.fs.deny bypass — false positive, we're on 8.x not 7.x
-  "GHSA-p9ff-h696-f583"   # vite WebSocket file read — false positive, we're on 8.x not 7.x
-  "GHSA-xq3m-2v4x-88gg"   # protobufjs code execution — transitive via testcontainers (test-only)
-)
+KNOWN_ACCEPTED=()
+if [[ -f "${IGNORE_FILE}" ]]; then
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    line="$(echo "${line}" | tr -d '[:space:]')"
+    if [[ "${line}" == CVE-* || "${line}" == GHSA-* ]]; then
+      KNOWN_ACCEPTED+=("${line}")
+    fi
+  done < "${IGNORE_FILE}"
+  echo "Accepted exceptions from .trivyignore: ${#KNOWN_ACCEPTED[@]}"
+  echo ""
+fi
 
 echo "=== bun audit ==="
 if [[ -f "${REPO_ROOT}/bun.lock" ]]; then
   AUDIT_OUTPUT=$(cd "${REPO_ROOT}" && bun audit --audit-level=high 2>&1) || true
 
   FILTERED_OUTPUT="${AUDIT_OUTPUT}"
-  for advisory in "${KNOWN_ACCEPTED[@]}"; do
-    FILTERED_OUTPUT=$(echo "${FILTERED_OUTPUT}" | grep -v "${advisory}" || true)
-  done
+  if ((${#KNOWN_ACCEPTED[@]} > 0)); then
+    for advisory in "${KNOWN_ACCEPTED[@]}"; do
+      FILTERED_OUTPUT=$(echo "${FILTERED_OUTPUT}" | grep -v "${advisory}" || true)
+    done
+  fi
 
   if echo "${FILTERED_OUTPUT}" | grep -qE '^\s+(high|critical):'; then
     echo "${AUDIT_OUTPUT}"

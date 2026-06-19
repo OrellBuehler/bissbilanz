@@ -1,7 +1,7 @@
 package com.bissbilanz.repository
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
@@ -10,6 +10,10 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
+import com.bissbilanz.test.appModeManager
+import com.bissbilanz.test.inMemoryCacheDatabase
+import com.bissbilanz.test.inMemoryUserDataDatabase
+import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -25,7 +29,8 @@ import kotlin.test.assertTrue
 
 class FoodRepositoryTest {
     private lateinit var api: BissbilanzApi
-    private lateinit var db: BissbilanzDatabase
+    private lateinit var db: UserDataDatabase
+    private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: FoodRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -33,11 +38,21 @@ class FoodRepositoryTest {
     @BeforeTest
     fun setup() {
         api = mockk()
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        BissbilanzDatabase.Schema.create(driver)
-        db = BissbilanzDatabase(driver)
+        db = inMemoryUserDataDatabase()
+        cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
-        repository = FoodRepository(api, db, syncQueue, json, NoopErrorReporter(), kotlinx.coroutines.Dispatchers.Unconfined)
+        repository =
+            FoodRepository(
+                api,
+                db,
+                cacheDb,
+                syncQueue,
+                json,
+                NoopErrorReporter(),
+                appModeManager(),
+                mockk<OpenFoodFactsClient>(relaxed = true),
+                kotlinx.coroutines.Dispatchers.Unconfined,
+            )
     }
 
     @Test
@@ -52,7 +67,7 @@ class FoodRepositoryTest {
 
             repository.refreshFoods()
 
-            val cached = db.bissbilanzDatabaseQueries.selectAllFoods().executeAsList()
+            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
             assertEquals(2, cached.size)
         }
 
@@ -101,7 +116,20 @@ class FoodRepositoryTest {
 
             assertEquals("Rice", result.name)
             assertTrue(result.id.startsWith("temp_"))
-            coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.CreateFood }) }
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> { it is SyncOperation.CreateFood && it.localId == result.id },
+                )
+            }
+        }
+
+    @Test
+    fun deleteTempFoodRemovesQueuedCreateInsteadOfEnqueuingDelete() =
+        runTest {
+            repository.deleteFood("temp_abc")
+
+            coVerify { syncQueue.removeByAffected("foods", "temp_abc") }
+            coVerify(exactly = 0) { syncQueue.enqueue(any()) }
         }
 
     @Test
@@ -113,7 +141,7 @@ class FoodRepositoryTest {
             val result = repository.findByBarcode("123456")
 
             assertEquals("Milk", result?.name)
-            val cached = db.bissbilanzDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
             assertNull(cached)
         }
 
@@ -159,7 +187,7 @@ class FoodRepositoryTest {
 
             repository.findByBarcode("123456")
 
-            val cached = db.bissbilanzDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectFoodByBarcode("123456").executeAsOneOrNull()
             assertNotNull(cached)
             assertEquals("1", cached.id)
         }
@@ -172,7 +200,7 @@ class FoodRepositoryTest {
 
             repository.deleteFood("1")
 
-            val cached = db.bissbilanzDatabaseQueries.selectFoodById("1").executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectFoodById("1").executeAsOneOrNull()
             assertNull(cached)
             coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.DeleteFood && it.id == "1" }) }
         }
@@ -183,7 +211,7 @@ class FoodRepositoryTest {
     }
 
     private fun seedFoodInCache(food: Food) {
-        db.bissbilanzDatabaseQueries.insertFood(
+        db.userDataDatabaseQueries.insertFood(
             id = food.id,
             name = food.name,
             brand = food.brand,

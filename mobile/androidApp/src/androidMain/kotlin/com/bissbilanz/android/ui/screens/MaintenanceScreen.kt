@@ -14,8 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.android.ui.theme.*
-import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.model.MaintenanceResponse
+import com.bissbilanz.repository.AnalyticsRepository
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaintenanceScreen(navController: NavController) {
-    val api: BissbilanzApi = koinInject()
+    val analyticsRepo: AnalyticsRepository = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
@@ -49,7 +49,11 @@ fun MaintenanceScreen(navController: NavController) {
             try {
                 val endDate = today.toString()
                 val startDate = today.minus(selectedRange, DateTimeUnit.DAY).toString()
-                result = api.getMaintenanceCalories(startDate, endDate, muscleRatio.toDouble())
+                val response = analyticsRepo.getMaintenance(startDate, endDate, muscleRatio.toDouble())
+                if (response == null) {
+                    error = "Could not calculate. Ensure you have enough weight entries and food logs in the selected range."
+                }
+                result = response
             } catch (e: Exception) {
                 error = "Could not calculate. Ensure you have enough weight entries and food logs in the selected range."
                 result = null

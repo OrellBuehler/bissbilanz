@@ -11,12 +11,12 @@ enum APIError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: return "Not authenticated"
-        case .notFound: return "Not found"
-        case .badRequest(let msg): return msg ?? "Bad request"
-        case .serverError(let code, let msg): return msg ?? "Server error (\(code))"
-        case .networkError(let err): return err.localizedDescription
-        case .decodingError(let err): return "Failed to parse response: \(err.localizedDescription)"
+        case .unauthorized: "Not authenticated"
+        case .notFound: "Not found"
+        case let .badRequest(msg): msg ?? "Bad request"
+        case let .serverError(code, msg): msg ?? "Server error (\(code))"
+        case let .networkError(err): err.localizedDescription
+        case let .decodingError(err): "Failed to parse response: \(err.localizedDescription)"
         }
     }
 }
@@ -30,18 +30,27 @@ final class BissbilanzAPI {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: String = "https://bissbilanz.orell.ch", authManager: AuthManager) {
+    init(
+        baseURL: String = "https://bissbilanz.orellbuehler.ch",
+        authManager: AuthManager,
+        session: URLSession = .shared
+    ) {
         self.baseURL = baseURL
         self.authManager = authManager
-        self.session = URLSession.shared
-        self.decoder = JSONDecoder()
-        self.encoder = JSONEncoder()
+        self.session = session
+        decoder = JSONDecoder()
+        encoder = JSONEncoder()
     }
 
     // MARK: - Foods
 
     func searchFoods(query: String) async throws -> [Food] {
         let response: FoodsResponse = try await get("/api/foods", params: ["search": query])
+        return response.foods
+    }
+
+    func getFoods(limit: Int = 100) async throws -> [Food] {
+        let response: FoodsResponse = try await get("/api/foods", params: ["limit": "\(limit)"])
         return response.foods
     }
 
@@ -106,8 +115,11 @@ final class BissbilanzAPI {
     }
 
     func copyEntries(fromDate: String, toDate: String) async throws -> [Entry] {
-        let body = ["fromDate": fromDate, "toDate": toDate]
-        let response: EntriesResponse = try await post("/api/entries/copy", body: body)
+        // The server reads fromDate/toDate from query params, not the body
+        let response: EntriesResponse = try await post(
+            "/api/entries/copy?fromDate=\(fromDate)&toDate=\(toDate)",
+            body: [String: String]()
+        )
         return response.entries
     }
 
@@ -173,6 +185,27 @@ final class BissbilanzAPI {
 
     func deleteWeightEntry(id: String) async throws {
         try await deleteRequest("/api/weight/\(id)")
+    }
+
+    // MARK: - Sleep
+
+    func getSleepEntries() async throws -> [SleepEntry] {
+        let response: SleepEntriesResponse = try await get("/api/sleep")
+        return response.entries
+    }
+
+    func createSleepEntry(_ entry: SleepCreate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await post("/api/sleep", body: entry)
+        return response.entry
+    }
+
+    func updateSleepEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await patch("/api/sleep/\(id)", body: update)
+        return response.entry
+    }
+
+    func deleteSleepEntry(id: String) async throws {
+        try await deleteRequest("/api/sleep/\(id)")
     }
 
     // MARK: - Supplements
@@ -341,7 +374,7 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    private func post<T: Decodable>(_ path: String, body: some Encodable) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -349,7 +382,7 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func patch<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    private func patch<T: Decodable>(_ path: String, body: some Encodable) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -363,7 +396,60 @@ final class BissbilanzAPI {
         let _: EmptyResponse = try await performRequest(request)
     }
 
+    /// Single funnel for every API call: report failures to Sentry here so
+    /// callers that recover (cache fallback, sync retries, `try?` lookups)
+    /// don't silently swallow real defects. `ErrorReporter` filters expected
+    /// noise (unauthorized, offline, not-found).
+    ///
+    /// Every request also drops a breadcrumb and, on failure, attaches the
+    /// endpoint, method, status code and (truncated) response body — enough to
+    /// debug a reported issue without reproducing it.
     private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        ErrorReporter.addBreadcrumb(
+            "\(request.httpMethod ?? "?") \(request.url?.path ?? "?")",
+            category: "http"
+        )
+        do {
+            return try await executeRequest(request)
+        } catch {
+            ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
+            throw error
+        }
+    }
+
+    /// Builds the structured context attached to a captured API error. Only the
+    /// URL *path* is included — query strings can carry search terms (food
+    /// names), and the response body is truncated to keep events small and
+    /// avoid shipping large payloads.
+    private static func errorContext(for request: URLRequest, error: Error) -> [String: Any] {
+        var context: [String: Any] = [:]
+        if let method = request.httpMethod {
+            context["method"] = method
+        }
+        if let path = request.url?.path {
+            context["endpoint"] = path
+        }
+        switch error as? APIError {
+        case let .serverError(code, message):
+            context["status_code"] = code
+            if let message {
+                context["response_body"] = String(message.prefix(500))
+            }
+        case let .badRequest(message):
+            context["status_code"] = 400
+            if let message {
+                context["response_body"] = String(message.prefix(500))
+            }
+        case let .decodingError(underlying):
+            context["status_code"] = 200
+            context["decoding_error"] = String(describing: underlying)
+        case .networkError, .notFound, .unauthorized, .none:
+            break
+        }
+        return context
+    }
+
+    private func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         var req = request
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -396,7 +482,14 @@ final class BissbilanzAPI {
                 }
                 return try decoder.decode(T.self, from: retryData)
             }
-            throw APIError.unauthorized
+            // `unauthorized` means "session is dead, prompt to sign in" — a
+            // transient refresh failure (offline, 5xx) is just retryable.
+            switch authManager.authState {
+            case .expired, .unauthenticated:
+                throw APIError.unauthorized
+            case .authenticated, .refreshing:
+                throw APIError.networkError(URLError(.cannotConnectToHost))
+            }
         }
 
         if httpResponse.statusCode == 404 {

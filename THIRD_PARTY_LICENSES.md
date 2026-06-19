@@ -6,11 +6,11 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 256   |
-| Apache-2.0                | 53    |
-| ISC                       | 15    |
-| BlueOak-1.0.0             | 6     |
+| MIT                       | 231   |
+| Apache-2.0                | 22    |
+| ISC                       | 14    |
 | BSD-2-Clause              | 5     |
+| BlueOak-1.0.0             | 5     |
 | BSD-3-Clause              | 4     |
 | MPL-2.0                   | 3     |
 | OFL-1.1                   | 2     |
@@ -20,11 +20,10 @@ This file lists all third-party dependencies used in production and their licens
 | CC-BY-4.0                 | 1     |
 | Unlicense                 | 1     |
 | MIT\*                     | 1     |
-| 0BSD                      | 1     |
 
 ## Packages
 
-### @babel/code-frame@7.29.0
+### @babel/code-frame@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -58,7 +57,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/compat-data@7.29.0
+### @babel/compat-data@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -92,7 +91,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/core@7.29.0
+### @babel/core@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -126,7 +125,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/generator@7.29.1
+### @babel/generator@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -160,7 +159,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-compilation-targets@7.28.6
+### @babel/helper-compilation-targets@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -194,7 +193,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-globals@7.28.0
+### @babel/helper-globals@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -228,7 +227,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-module-imports@7.28.6
+### @babel/helper-module-imports@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -262,7 +261,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-module-transforms@7.28.6
+### @babel/helper-module-transforms@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -296,7 +295,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-string-parser@7.27.1
+### @babel/helper-string-parser@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -330,7 +329,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-validator-identifier@7.28.5
+### @babel/helper-validator-identifier@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -364,7 +363,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helper-validator-option@7.27.1
+### @babel/helper-validator-option@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -398,7 +397,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/helpers@7.28.6
+### @babel/helpers@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -433,7 +432,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/parser@7.26.9
+### @babel/parser@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -464,38 +463,7 @@ THE SOFTWARE.
 
 </details>
 
-### @babel/parser@7.29.0
-
-- **License:** MIT
-- **Repository:** https://github.com/babel/babel
-
-<details><summary>License Text</summary>
-
-```
-Copyright (C) 2012-2014 by various contributors (see AUTHORS)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
-
-</details>
-
-### @babel/template@7.28.6
+### @babel/template@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -529,7 +497,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/traverse@7.29.0
+### @babel/traverse@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -563,7 +531,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/types@7.29.0
+### @babel/types@7.29.7
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -597,7 +565,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @esbuild/linux-x64@0.25.12
+### @esbuild/linux-x64@0.28.1
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -608,41 +576,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # esbuild
 
 This is the Linux 64-bit binary for esbuild, a JavaScript bundler and minifier. See https://github.com/evanw/esbuild for details.
-```
-
-</details>
-
-### @fastify/otel@0.16.0
-
-- **License:** MIT
-- **Repository:** https://github.com/fastify/otel
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2024-present The Fastify team
-
-The Fastify team members are listed at https://github.com/fastify/fastify#team.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 ```
 
 </details>
@@ -857,7 +790,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @hono/node-server@2.0.1
+### @hono/node-server@2.0.4
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
@@ -890,7 +823,7 @@ SOFTWARE.
 
 </details>
 
-### @img/colour@1.0.0
+### @img/colour@1.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/lovell/colour
@@ -1110,7 +1043,7 @@ https://github.com/lovell/sharp-libvips/issues/new
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @inlang/paraglide-js@2.10.0
+### @inlang/paraglide-js@2.18.2
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
@@ -1175,7 +1108,7 @@ SOFTWARE.
 
 </details>
 
-### @inlang/sdk@2.6.2
+### @inlang/sdk@2.9.3
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/inlang
@@ -1186,75 +1119,6 @@ SOFTWARE.
 MIT License
 
 Copyright (c) 2024 Opral US Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### @isaacs/balanced-match@4.0.1
-
-- **License:** MIT
-- **Repository:** https://github.com/isaacs/balanced-match
-
-<details><summary>License Text</summary>
-
-```
-(MIT)
-
-Original code Copyright Julian Gruber <julian@juliangruber.com>
-
-Port to TypeScript Copyright Isaac Z. Schlueter <i@izs.me>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### @isaacs/brace-expansion@5.0.1
-
-- **License:** MIT
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright Julian Gruber <julian@juliangruber.com>
-
-TypeScript port Copyright Isaac Z. Schlueter <i@izs.me>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1463,7 +1327,7 @@ SOFTWARE.
 
 </details>
 
-### @lix-js/sdk@0.4.7
+### @lix-js/sdk@0.4.10
 
 - **License:** Apache-2.0
 
@@ -1527,7 +1391,7 @@ SOFTWARE.
 
 </details>
 
-### @modelcontextprotocol/sdk@1.27.1
+### @modelcontextprotocol/sdk@1.29.0
 
 - **License:** MIT
 - **Repository:** https://github.com/modelcontextprotocol/typescript-sdk
@@ -1560,192 +1424,42 @@ SOFTWARE.
 
 </details>
 
-### @opentelemetry/api-logs@0.207.0
+### @opentelemetry/api-logs@0.214.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/api-logs@0.208.0
+### @opentelemetry/api@1.9.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/api-logs@0.211.0
+### @opentelemetry/core@2.7.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/api@1.9.0
+### @opentelemetry/instrumentation@0.214.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/context-async-hooks@2.5.1
+### @opentelemetry/resources@2.7.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/core@2.5.0
+### @opentelemetry/sdk-trace-base@2.7.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/core@2.5.1
+### @opentelemetry/semantic-conventions@1.41.1
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/instrumentation-amqplib@0.58.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-connect@0.54.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-dataloader@0.28.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-express@0.59.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-fs@0.30.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-generic-pool@0.54.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-graphql@0.58.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-hapi@0.57.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-http@0.211.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/instrumentation-ioredis@0.59.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-kafkajs@0.20.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-knex@0.55.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-koa@0.59.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-lru-memoizer@0.55.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-mongodb@0.64.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-mongoose@0.57.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-mysql@0.57.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-mysql2@0.57.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-pg@0.63.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-redis@0.59.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-tedious@0.30.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation-undici@0.21.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/instrumentation@0.207.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/instrumentation@0.208.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/instrumentation@0.211.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/redis-common@0.38.2
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @opentelemetry/resources@2.5.1
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/sdk-trace-base@2.5.1
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/semantic-conventions@1.39.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js
-
-### @opentelemetry/sql-common@0.41.2
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/open-telemetry/opentelemetry-js-contrib
-
-### @oxc-project/types@0.124.0
+### @oxc-project/types@0.133.0
 
 - **License:** MIT
 - **Repository:** https://github.com/oxc-project/oxc
@@ -1861,12 +1575,7 @@ MIT © [Luke Edwards](https://lukeed.com)
 
 </details>
 
-### @prisma/instrumentation@7.2.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/prisma/prisma
-
-### @rodrigodagostino/svelte-sortable-list@2.1.10
+### @rodrigodagostino/svelte-sortable-list@2.1.18
 
 - **License:** MIT
 - **Repository:** https://github.com/rodrigodagostino/svelte-sortable-list
@@ -1877,7 +1586,7 @@ MIT © [Luke Edwards](https://lukeed.com)
 
 MIT License
 
-Copyright (c) 2024-2025 Rodrigo D’Agostino
+Copyright (c) 2024-2026 Rodrigo D’Agostino
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1901,7 +1610,7 @@ SOFTWARE.
 
 </details>
 
-### @rolldown/binding-linux-x64-gnu@1.0.0-rc.15
+### @rolldown/binding-linux-x64-gnu@1.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1918,7 +1627,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `@rolldown/binding`
 
 </details>
 
-### @rolldown/binding-linux-x64-musl@1.0.0-rc.15
+### @rolldown/binding-linux-x64-musl@1.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1935,10 +1644,10 @@ This is the **x86_64-unknown-linux-musl** binary for `@rolldown/binding`
 
 </details>
 
-### @rolldown/pluginutils@1.0.0-rc.15
+### @rolldown/pluginutils@1.0.1
 
 - **License:** MIT
-- **Repository:** https://github.com/rolldown/rolldown
+- **Repository:** https://github.com/rolldown/plugins
 
 <details><summary>License Text</summary>
 
@@ -1946,7 +1655,7 @@ This is the **x86_64-unknown-linux-musl** binary for `@rolldown/binding`
 
 MIT License
 
-Copyright (c) 2024-present VoidZero Inc. & Contributors
+Copyright (c) 2026-present, rolldown/plugins repository contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1966,15 +1675,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-end of terms and conditions
-
-The licenses of externally maintained libraries from which parts of the Software is derived are listed [here](https://github.com/rolldown/rolldown/blob/main/THIRD-PARTY-LICENSE).
-
 ```
 
 </details>
 
-### @rollup/rollup-linux-x64-gnu@4.59.0
+### @rollup/rollup-linux-x64-gnu@4.61.1
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -1991,7 +1696,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `rollup`
 
 </details>
 
-### @rollup/rollup-linux-x64-musl@4.59.0
+### @rollup/rollup-linux-x64-musl@4.61.1
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -2008,7 +1713,7 @@ This is the **x86_64-unknown-linux-musl** binary for `rollup`
 
 </details>
 
-### @sentry-internal/browser-utils@10.42.0
+### @sentry-internal/browser-utils@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2043,7 +1748,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry-internal/feedback@10.42.0
+### @sentry-internal/feedback@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2078,7 +1783,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry-internal/replay-canvas@10.42.0
+### @sentry-internal/replay-canvas@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2113,7 +1818,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry-internal/replay@10.42.0
+### @sentry-internal/replay@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2148,7 +1853,44 @@ SOFTWARE.
 
 </details>
 
-### @sentry/babel-plugin-component-annotate@5.1.0
+### @sentry-internal/server-utils@10.57.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-javascript
+
+<details><summary>License Text</summary>
+
+```
+
+<p align="center">
+  <a href="https://sentry.io/?utm_source=github&utm_medium=logo" target="_blank">
+    <img src="https://sentry-brand.storage.googleapis.com/sentry-wordmark-dark-280x84.png" alt="Sentry" width="280" height="84">
+  </a>
+</p>
+
+# Sentry JavaScript SDK Server Utilities
+
+[![npm version](https://img.shields.io/npm/v/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
+[![npm dm](https://img.shields.io/npm/dm/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
+[![npm dt](https://img.shields.io/npm/dt/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
+
+## Links
+
+- [Official SDK Docs](https://docs.sentry.io/quickstart/)
+
+## General
+
+Common server-only utilities used by the Sentry JavaScript server SDKs (node, node-core, bun, deno, cloudflare,
+aws-serverless, google-cloud-serverless, vercel-edge).
+
+Note: This package is only meant to be used internally, and as such is not part of our public API contract and does not
+follow semver.
+
+```
+
+</details>
+
+### @sentry/babel-plugin-component-annotate@5.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
@@ -2191,7 +1933,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### @sentry/browser@10.42.0
+### @sentry/browser@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2226,7 +1968,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/bundler-plugin-core@5.1.0
+### @sentry/bundler-plugin-core@5.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
@@ -2269,7 +2011,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### @sentry/cli-linux-x64@2.58.5
+### @sentry/cli-linux-x64@2.58.6
 
 - **License:** FSL-1.1-MIT
 - **Repository:** https://github.com/getsentry/sentry-cli
@@ -2294,7 +2036,7 @@ See https://github.com/getsentry/sentry-cli for more information.
 
 </details>
 
-### @sentry/cli@2.58.5
+### @sentry/cli@2.58.6
 
 - **License:** FSL-1.1-MIT
 - **Repository:** https://github.com/getsentry/sentry-cli
@@ -2418,7 +2160,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/cloudflare@10.42.0
+### @sentry/cloudflare@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2453,7 +2195,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/core@10.42.0
+### @sentry/core@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2488,7 +2230,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node-core@10.42.0
+### @sentry/node-core@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2523,7 +2265,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node@10.42.0
+### @sentry/node@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2558,7 +2300,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/opentelemetry@10.42.0
+### @sentry/opentelemetry@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2593,7 +2335,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/rollup-plugin@5.1.0
+### @sentry/rollup-plugin@5.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
@@ -2636,7 +2378,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### @sentry/svelte@10.42.0
+### @sentry/svelte@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2671,7 +2413,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/sveltekit@10.42.0
+### @sentry/sveltekit@10.57.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2706,7 +2448,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/vite-plugin@5.1.0
+### @sentry/vite-plugin@5.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
@@ -2826,7 +2568,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/acorn-typescript@1.0.8
+### @sveltejs/acorn-typescript@1.0.10
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/acorn-typescript
@@ -2862,7 +2604,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/kit@2.57.1
+### @sveltejs/kit@2.64.0
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/kit
@@ -2918,41 +2660,6 @@ SOFTWARE.
 
 </details>
 
-### @types/connect@3.4.38
-
-- **License:** MIT
-- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
-
-```
-
-</details>
-
 ### @types/cookie@0.6.0
 
 - **License:** MIT
@@ -2988,7 +2695,7 @@ MIT License
 
 </details>
 
-### @types/estree@1.0.8
+### @types/estree@1.0.9
 
 - **License:** MIT
 - **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
@@ -3023,147 +2730,7 @@ MIT License
 
 </details>
 
-### @types/mysql@2.15.27
-
-- **License:** MIT
-- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
-
-```
-
-</details>
-
-### @types/node@25.2.0
-
-- **License:** MIT
-- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
-
-```
-
-</details>
-
-### @types/pg-pool@2.0.7
-
-- **License:** MIT
-- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
-
-```
-
-</details>
-
-### @types/pg@8.15.6
-
-- **License:** MIT
-- **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
-
-```
-
-</details>
-
-### @types/tedious@4.0.14
+### @types/node@25.9.2
 
 - **License:** MIT
 - **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
@@ -3350,7 +2917,7 @@ SOFTWARE.
 
 </details>
 
-### acorn@8.15.0
+### acorn@8.16.0
 
 - **License:** MIT
 - **Repository:** https://github.com/acornjs/acorn
@@ -3425,7 +2992,7 @@ SOFTWARE.
 
 </details>
 
-### ajv@8.17.1
+### ajv@8.20.0
 
 - **License:** MIT
 - **Repository:** https://github.com/ajv-validator/ajv
@@ -3500,40 +3067,6 @@ THE SOFTWARE.
 
 </details>
 
-### ast-types@0.16.1
-
-- **License:** MIT
-- **Repository:** https://github.com/benjamn/ast-types
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright (c) 2013 Ben Newman <bn@cs.stanford.edu>
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
 ### axobject-query@4.1.0
 
 - **License:** Apache-2.0
@@ -3576,7 +3109,7 @@ SOFTWARE.
 
 </details>
 
-### baseline-browser-mapping@2.9.19
+### baseline-browser-mapping@2.10.35
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/web-platform-dx/baseline-browser-mapping
@@ -3651,7 +3184,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### brace-expansion@5.0.3
+### brace-expansion@5.0.6
 
 - **License:** MIT
 - **Repository:** https://github.com/juliangruber/brace-expansion
@@ -3688,7 +3221,7 @@ SOFTWARE.
 
 </details>
 
-### browserslist@4.28.1
+### browserslist@4.28.2
 
 - **License:** MIT
 - **Repository:** https://github.com/browserslist/browserslist
@@ -3699,7 +3232,7 @@ SOFTWARE.
 
 The MIT License (MIT)
 
-Copyright 2014 Andrey Sitnik <andrey@sitnik.ru> and other contributors
+Copyright 2014 Andrey Sitnik <andrey@sitnik.es> and other contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -3757,7 +3290,7 @@ SOFTWARE.
 
 </details>
 
-### bun-types@1.3.8
+### bun-types@1.3.14
 
 - **License:** MIT
 - **Repository:** https://github.com/oven-sh/bun
@@ -3911,7 +3444,7 @@ SOFTWARE.
 
 </details>
 
-### caniuse-lite@1.0.30001767
+### caniuse-lite@1.0.30001797
 
 - **License:** CC-BY-4.0
 - **Repository:** https://github.com/browserslist/caniuse-lite
@@ -4034,7 +3567,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### comment-json@4.5.1
+### comment-json@4.6.2
 
 - **License:** MIT
 - **Repository:** https://github.com/kaelzhang/node-comment-json
@@ -4130,7 +3663,7 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### content-disposition@1.0.1
+### content-disposition@1.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/content-disposition
@@ -4167,6 +3700,42 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 </details>
 
 ### content-type@1.0.5
+
+- **License:** MIT
+- **Repository:** https://github.com/jshttp/content-type
+
+<details><summary>License Text</summary>
+
+```
+
+(The MIT License)
+
+Copyright (c) 2015 Douglas Christopher Wilson
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
+### content-type@2.0.0
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/content-type
@@ -4344,39 +3913,6 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
 CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
-### core-util-is@1.0.3
-
-- **License:** MIT
-- **Repository:** https://github.com/isaacs/core-util-is
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright Node.js contributors. All rights reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to
-deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
 
 ```
 
@@ -4597,7 +4133,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/detect-libc
 
-### devalue@5.7.1
+### devalue@5.8.1
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/devalue
@@ -4618,7 +4154,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### dexie@4.3.0
+### dexie@4.4.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/dexie/Dexie.js
@@ -4787,10 +4323,10 @@ THE SOFTWARE.
 
 </details>
 
-### electron-to-chromium@1.5.286
+### electron-to-chromium@1.5.371
 
 - **License:** ISC
-- **Repository:** https://github.com/kilian/electron-to-chromium
+- **Repository:** https://github.com/Kilian/electron-to-chromium
 
 <details><summary>License Text</summary>
 
@@ -4904,7 +4440,7 @@ SOFTWARE.
 
 </details>
 
-### es-object-atoms@1.1.1
+### es-object-atoms@1.1.2
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/es-object-atoms
@@ -4937,7 +4473,7 @@ SOFTWARE.
 
 </details>
 
-### esbuild@0.25.12
+### esbuild@0.28.1
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -5079,7 +4615,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### esrap@2.2.5
+### esrap@2.2.11
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/esrap
@@ -5132,7 +4668,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### eventsource-parser@3.0.6
+### eventsource-parser@3.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/rexxars/eventsource-parser
@@ -5142,7 +4678,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 MIT License
 
-Copyright (c) 2025 Espen Hovlandsdal <espen@hovlandsdal.com>
+Copyright (c) 2026 Espen Hovlandsdal <espen@hovlandsdal.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -5199,39 +4735,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### express-rate-limit@8.2.1
-
-- **License:** MIT
-- **Repository:** https://github.com/express-rate-limit/express-rate-limit
-
-<details><summary>License Text</summary>
-
-```
-# MIT License
-
-Copyright 2023 Nathan Friedly, Vedant K
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-</details>
-
-### express-rate-limit@8.3.2
+### express-rate-limit@8.5.2
 
 - **License:** MIT
 - **Repository:** https://github.com/express-rate-limit/express-rate-limit
@@ -5332,7 +4836,7 @@ SOFTWARE.
 
 </details>
 
-### fast-uri@3.1.0
+### fast-uri@3.1.2
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/fastify/fast-uri
@@ -5341,10 +4845,8 @@ SOFTWARE.
 
 ```
 Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae
-Copyright (c) 2021-present The Fastify team
+Copyright (c) 2021-present The Fastify team <https://github.com/fastify/fastify#team>
 All rights reserved.
-
-The Fastify team members are listed at https://github.com/fastify/fastify#team.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -5446,37 +4948,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-</details>
-
-### forwarded-parse@2.1.2
-
-- **License:** MIT
-- **Repository:** https://github.com/lpinca/forwarded-parse
-
-<details><summary>License Text</summary>
-
-```
-Copyright (c) 2015 Luigi Pinca
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
 ```
 
 </details>
@@ -5873,7 +5344,7 @@ SOFTWARE.
 
 </details>
 
-### hasown@2.0.2
+### hasown@2.0.4
 
 - **License:** MIT
 - **Repository:** https://github.com/inspect-js/hasOwn
@@ -5906,40 +5377,7 @@ SOFTWARE.
 
 </details>
 
-### hono@4.11.7
-
-- **License:** MIT
-- **Repository:** https://github.com/honojs/hono
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2021 - present, Yusuke Wada and Hono contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### hono@4.12.12
+### hono@4.12.25
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
@@ -6151,7 +5589,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### human-id@4.1.3
+### human-id@4.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/RienNeVaPlus/human-id
@@ -6220,7 +5658,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### import-in-the-middle@2.0.6
+### import-in-the-middle@3.0.2
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/nodejs/import-in-the-middle
@@ -6254,40 +5692,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### ip-address@10.0.1
-
-- **License:** MIT
-- **Repository:** https://github.com/beaugunderson/ip-address
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright (C) 2011 by Beau Gunderson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### ip-address@10.1.0
+### ip-address@10.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/beaugunderson/ip-address
@@ -6487,7 +5892,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### jiti@2.6.1
+### jiti@2.7.0
 
 - **License:** MIT
 - **Repository:** https://github.com/unjs/jiti
@@ -6522,7 +5927,7 @@ SOFTWARE.
 
 </details>
 
-### jose@6.1.3
+### jose@6.2.3
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
@@ -6840,7 +6245,7 @@ THE SOFTWARE.
 
 </details>
 
-### kysely@0.27.6
+### kysely@0.28.17
 
 - **License:** MIT
 - **Repository:** https://github.com/kysely-org/kysely
@@ -6993,7 +6398,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### lru-cache@11.2.5
+### lru-cache@11.5.1
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/node-lru-cache
@@ -7095,27 +6500,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 - **License:** MIT
 - **Repository:** https://github.com/Rich-Harris/magic-string
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright 2018 Rich Harris
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
-### magic-string@0.30.8
-
-- **License:** MIT
-- **Repository:** https://github.com/rich-harris/magic-string
 
 <details><summary>License Text</summary>
 
@@ -7303,76 +6687,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### minimatch@10.1.2
-
-- **License:** BlueOak-1.0.0
-- **Repository:** https://github.com/isaacs/minimatch
-
-<details><summary>License Text</summary>
-
-```
-
-# Blue Oak Model License
-
-Version 1.0.0
-
-## Purpose
-
-This license gives everyone as much permission to work with
-this software as possible, while protecting contributors
-from liability.
-
-## Acceptance
-
-In order to receive this license, you must agree to its
-rules. The rules of this license are both obligations
-under that agreement and conditions to your license.
-You must not do anything with this software that triggers
-a rule that you cannot or will not follow.
-
-## Copyright
-
-Each contributor licenses you to do everything with this
-software that would otherwise infringe that contributor's
-copyright in it.
-
-## Notices
-
-You must ensure that everyone who gets a copy of
-any part of this software from you, with or without
-changes, also gets the text of this license or a link to
-<https://blueoakcouncil.org/license/1.0.0>.
-
-## Excuse
-
-If anyone notifies you in writing that you have not
-complied with [Notices](#notices), you can keep your
-license by taking all practical steps to comply within 30
-days after the notice. If you do not do so, your license
-ends immediately.
-
-## Patent
-
-Each contributor licenses you to do everything with this
-software that would otherwise infringe any patent claims
-they can license or become able to license.
-
-## Reliability
-
-No contributor can revoke this license.
-
-## No Liability
-
-**_As far as the law allows, this software comes as is,
-without any warranty or condition, and no contributor
-will be liable to anyone for any damages related to this
-software or this license, under any kind of legal claim._**
-
-```
-
-</details>
-
-### minimatch@10.2.4
+### minimatch@10.2.5
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/minimatch
@@ -7647,7 +6962,7 @@ SOFTWARE.
 
 </details>
 
-### nanoid@3.3.11
+### nanoid@3.3.12
 
 - **License:** MIT
 - **Repository:** https://github.com/ai/nanoid
@@ -7719,7 +7034,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### node-addon-api@8.5.0
+### node-addon-api@8.8.0
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/node-addon-api
@@ -7812,7 +7127,7 @@ THE SOFTWARE.
 
 </details>
 
-### node-releases@2.0.27
+### node-releases@2.0.47
 
 - **License:** MIT
 - **Repository:** https://github.com/chicoxyzzy/node-releases
@@ -7917,7 +7232,7 @@ SOFTWARE.
 
 </details>
 
-### obug@2.1.1
+### obug@2.1.2
 
 - **License:** MIT
 - **Repository:** https://github.com/sxzz/obug
@@ -8288,7 +7603,7 @@ software or this license, under any kind of legal claim._**
 
 </details>
 
-### path-to-regexp@8.3.0
+### path-to-regexp@8.4.2
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/path-to-regexp
@@ -8300,193 +7615,6 @@ software or this license, under any kind of legal claim._**
 The MIT License (MIT)
 
 Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### path-to-regexp@8.4.0
-
-- **License:** MIT
-- **Repository:** https://github.com/pillarjs/path-to-regexp
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### pg-int8@1.0.1
-
-- **License:** ISC
-- **Repository:** https://github.com/charmander/pg-int8
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright © 2017, Charmander <~@charmander.me>
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED “AS IS” AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-
-```
-
-</details>
-
-### pg-protocol@1.12.0
-
-- **License:** MIT
-- **Repository:** https://github.com/brianc/node-postgres
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2010 - 2021 Brian Carlson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### pg-types@2.2.0
-
-- **License:** MIT
-- **Repository:** https://github.com/brianc/node-pg-types
-
-<details><summary>License Text</summary>
-
-```
-
-# pg-types
-
-This is the code that turns all the raw text from postgres into JavaScript types for [node-postgres](https://github.com/brianc/node-postgres.git)
-
-## use
-
-This module is consumed and exported from the root `pg` object of node-postgres. To access it, do the following:
-
-```js
-var types = require('pg').types;
-```
-
-Generally what you'll want to do is override how a specific data-type is parsed and turned into a JavaScript type. By default the PostgreSQL backend server returns everything as strings. Every data type corresponds to a unique `OID` within the server, and these `OIDs` are sent back with the query response. So, you need to match a particluar `OID` to a function you'd like to use to take the raw text input and produce a valid JavaScript object as a result. `null` values are never parsed.
-
-Let's do something I commonly like to do on projects: return 64-bit integers `(int8)` as JavaScript integers. Because JavaScript doesn't have support for 64-bit integers node-postgres cannot confidently parse `int8` data type results as numbers because if you have a _huge_ number it will overflow and the result you'd get back from node-postgres would not be the result in the datbase. That would be a **very bad thing** so node-postgres just returns `int8` results as strings and leaves the parsing up to you. Let's say that you know you don't and wont ever have numbers greater than `int4` in your database, but you're tired of recieving results from the `COUNT(*)` function as strings (because that function returns `int8`). You would do this:
-
-```js
-var types = require('pg').types;
-types.setTypeParser(20, function (val) {
-	return parseInt(val);
-});
-```
-
-**boom**: now you get numbers instead of strings.
-
-Just as another example -- not saying this is a good idea -- let's say you want to return all dates from your database as [moment](http://momentjs.com/docs/) objects. Okay, do this:
-
-```js
-var types = require('pg').types;
-var moment = require('moment');
-var parseFn = function (val) {
-	return val === null ? null : moment(val);
-};
-types.setTypeParser(types.builtins.TIMESTAMPTZ, parseFn);
-types.setTypeParser(types.builtins.TIMESTAMP, parseFn);
-```
-
-_note: I've never done that with my dates, and I'm not 100% sure moment can parse all the date strings returned from postgres. It's just an example!_
-
-If you're thinking "gee, this seems pretty handy, but how can I get a list of all the OIDs in the database and what they correspond to?!?!?!" worry not:
-
-```bash
-$ psql -c "select typname, oid, typarray from pg_type order by oid"
-```
-
-If you want to find out the OID of a specific type:
-
-```bash
-$ psql -c "select typname, oid, typarray from pg_type where typname = 'daterange' order by oid"
-```
-
-:smile:
-
-## license
-
-The MIT License (MIT)
-
-Copyright (c) 2014 Brian M. Carlson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -8534,41 +7662,6 @@ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-```
-
-</details>
-
-### picomatch@4.0.3
-
-- **License:** MIT
-- **Repository:** https://github.com/micromatch/picomatch
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) 2017-present, Jon Schlinkert.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
 
 ```
 
@@ -8644,7 +7737,7 @@ SOFTWARE.
 
 </details>
 
-### postcss@8.5.9
+### postcss@8.5.15
 
 - **License:** MIT
 - **Repository:** https://github.com/postcss/postcss
@@ -8678,147 +7771,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### postgres-array@2.0.0
-
-- **License:** MIT
-- **Repository:** https://github.com/bendrucker/postgres-array
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Ben Drucker <bvdrucker@gmail.com> (bendrucker.me)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### postgres-bytea@1.0.1
-
-- **License:** MIT
-- **Repository:** https://github.com/bendrucker/postgres-bytea
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Ben Drucker <bvdrucker@gmail.com> (bendrucker.me)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### postgres-date@1.0.7
-
-- **License:** MIT
-- **Repository:** https://github.com/bendrucker/postgres-date
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Ben Drucker <bvdrucker@gmail.com> (bendrucker.me)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### postgres-interval@1.2.0
-
-- **License:** MIT
-- **Repository:** https://github.com/bendrucker/postgres-interval
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) Ben Drucker <bvdrucker@gmail.com> (bendrucker.me)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### postgres@3.4.8
+### postgres@3.4.9
 
 - **License:** Unlicense
 - **Repository:** https://github.com/porsager/postgres
@@ -8929,7 +7882,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### qs@6.14.1
+### qs@6.15.2
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/ljharb/qs
@@ -9045,40 +7998,6 @@ THE SOFTWARE.
 
 </details>
 
-### recast@0.23.11
-
-- **License:** MIT
-- **Repository:** https://github.com/benjamn/recast
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright (c) 2012 Ben Newman <bn@cs.stanford.edu>
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
 ### require-from-string@2.0.2
 
 - **License:** MIT
@@ -9151,7 +8070,7 @@ SOFTWARE.
 
 </details>
 
-### rolldown@1.0.0-rc.15
+### rolldown@1.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -9190,7 +8109,7 @@ The licenses of externally maintained libraries from which parts of the Software
 
 </details>
 
-### rollup@4.59.0
+### rollup@4.61.1
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -9296,7 +8215,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### semver@7.7.4
+### semver@7.8.4
 
 - **License:** ISC
 - **Repository:** https://github.com/npm/node-semver
@@ -9401,7 +8320,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### set-cookie-parser@3.0.1
+### set-cookie-parser@3.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/nfriedly/set-cookie-parser
@@ -9514,7 +8433,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### side-channel-list@1.0.0
+### side-channel-list@1.0.1
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel-list
@@ -9619,7 +8538,7 @@ SOFTWARE.
 
 </details>
 
-### side-channel@1.1.0
+### side-channel@1.1.1
 
 - **License:** MIT
 - **Repository:** https://github.com/ljharb/side-channel
@@ -9993,7 +8912,7 @@ THE SOFTWARE.
 
 </details>
 
-### svelte@5.55.3
+### svelte@5.56.3
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/svelte
@@ -10014,7 +8933,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### terser@5.46.0
+### terser@5.48.0
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/terser/terser
@@ -10090,42 +9009,7 @@ SOFTWARE.
 
 </details>
 
-### tiny-invariant@1.3.3
-
-- **License:** MIT
-- **Repository:** https://github.com/alexreardon/tiny-invariant
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2019 Alexander Reardon
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### tinyglobby@0.2.15
+### tinyglobby@0.2.17
 
 - **License:** MIT
 - **Repository:** https://github.com/SuperchupuDev/tinyglobby
@@ -10270,27 +9154,36 @@ THE SOFTWARE.
 
 </details>
 
-### tslib@2.8.1
+### tsx@4.22.4
 
-- **License:** 0BSD
-- **Repository:** https://github.com/Microsoft/tslib
+- **License:** MIT
+- **Repository:** https://github.com/privatenumber/tsx
 
 <details><summary>License Text</summary>
 
 ```
 
-Copyright (c) Microsoft Corporation.
+MIT License
 
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
+Copyright (c) Hiroki Osame <hiroki.osame@gmail.com>
 
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ```
 
@@ -10331,7 +9224,7 @@ SOFTWARE.
 
 </details>
 
-### type-is@2.0.1
+### type-is@2.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/type-is
@@ -10368,12 +9261,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### typescript@6.0.2
+### typescript@6.0.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/microsoft/TypeScript
 
-### undici-types@7.16.0
+### undici-types@7.24.6
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/undici
@@ -10546,30 +9439,7 @@ THE SOFTWARE.
 
 </details>
 
-### uuid@10.0.0
-
-- **License:** MIT
-- **Repository:** https://github.com/uuidjs/uuid
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) 2010-2020 Robert Kieffer and other contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
-### uuid@13.0.0
+### uuid@14.0.0
 
 - **License:** MIT
 - **Repository:** https://github.com/uuidjs/uuid
@@ -10628,7 +9498,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### vite@8.0.8
+### vite@8.0.16
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
@@ -10822,40 +9692,6 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### xtend@4.0.2
-
-- **License:** MIT
-- **Repository:** https://github.com/Raynos/xtend
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-Copyright (c) 2012-2014 Raynos.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
 ### yallist@3.1.1
 
 - **License:** ISC
@@ -10885,7 +9721,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### yaml@2.8.2
+### yaml@2.9.0
 
 - **License:** ISC
 - **Repository:** https://github.com/eemeli/yaml
@@ -10970,7 +9806,7 @@ SOFTWARE.
 
 </details>
 
-### zod-to-json-schema@3.25.1
+### zod-to-json-schema@3.25.2
 
 - **License:** ISC
 - **Repository:** https://github.com/StefanTerdell/zod-to-json-schema
@@ -10999,7 +9835,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### zod@4.3.6
+### zod@4.4.3
 
 - **License:** MIT
 - **Repository:** https://github.com/colinhacks/zod

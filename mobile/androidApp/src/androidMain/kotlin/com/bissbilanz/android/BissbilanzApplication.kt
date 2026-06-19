@@ -12,6 +12,7 @@ import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
@@ -22,8 +23,10 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.health.HealthConnectService
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.storage.PlainStorage
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
@@ -52,6 +55,7 @@ class BissbilanzApplication : Application() {
             module {
                 single(named("baseUrl")) { BuildConfig.BASE_URL }
                 single { SecureStorage(androidContext()) }
+                single { PlainStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
                 single<HealthSyncService> { HealthConnectService(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
@@ -66,6 +70,7 @@ class BissbilanzApplication : Application() {
                 viewModelOf(::WeightViewModel)
                 viewModelOf(::SettingsViewModel)
                 viewModelOf(::AddFoodViewModel)
+                viewModelOf(::MigrationViewModel)
             }
 
         startKoin {
@@ -84,6 +89,11 @@ class BissbilanzApplication : Application() {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
+
+        // Load the persisted app mode before any sync can start, so Local mode is
+        // respected from the first connectivity event onwards.
+        koin.get<AppModeManager>().initialize()
+
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
         }

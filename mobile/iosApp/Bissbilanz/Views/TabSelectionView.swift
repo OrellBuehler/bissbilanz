@@ -1,10 +1,16 @@
 import SwiftUI
 
 struct TabSelectionView: View {
+    @Environment(AppModeManager.self) private var appModeManager
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabs: Set<NavigableTab> {
         Set(selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) })
+    }
+
+    /// Insights are server-computed stats — not offered in Local mode.
+    private var availableTabs: [NavigableTab] {
+        appModeManager.isLocal ? NavigableTab.allCases.filter { $0 != .insights } : NavigableTab.allCases
     }
 
     var body: some View {
@@ -16,7 +22,7 @@ struct TabSelectionView: View {
             }
 
             Section {
-                ForEach(NavigableTab.allCases) { tab in
+                ForEach(availableTabs) { tab in
                     let isSelected = selectedTabs.contains(tab)
                     Button {
                         toggleTab(tab)

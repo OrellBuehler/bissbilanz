@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecipeListView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(RecipeRepository.self) private var recipeRepository
 
     @State private var recipes: [Recipe] = []
     @State private var isLoading = true
@@ -85,7 +85,10 @@ struct RecipeListView: View {
             }
             .refreshable { await loadRecipes() }
             .task { await loadRecipes() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -125,20 +128,22 @@ struct RecipeListView: View {
 
     private func deleteRecipe(_ recipe: Recipe) async {
         do {
-            try await api.deleteRecipe(id: recipe.id)
-            recipes.removeAll { $0.id == recipe.id }
+            try await recipeRepository.deleteRecipe(id: recipe.id)
         } catch {
             errorMessage = error.localizedDescription
         }
+        recipes = recipeRepository.recipes()
     }
 
     private func loadRecipes() async {
-        isLoading = true
+        recipes = recipeRepository.recipes()
+        isLoading = recipes.isEmpty
         error = nil
         do {
-            recipes = try await api.getRecipes()
+            try await recipeRepository.refresh()
+            recipes = recipeRepository.recipes()
         } catch {
-            self.error = error
+            if recipes.isEmpty { self.error = error }
         }
         isLoading = false
     }
@@ -147,7 +152,7 @@ struct RecipeListView: View {
 // MARK: - Log Recipe Sheet
 
 struct LogRecipeSheet: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     let recipe: Recipe
@@ -178,15 +183,35 @@ struct LogRecipeSheet: View {
 
                 if let cal = recipe.calories {
                     Section(L10n.perServing) {
-                        NutrientRow(label: L10n.calories, value: cal / recipe.totalServings, unit: "kcal", color: MacroColors.calories)
+                        NutrientRow(
+                            label: L10n.calories,
+                            value: cal / recipe.totalServings,
+                            unit: "kcal",
+                            color: MacroColors.calories
+                        )
                         if let p = recipe.protein {
-                            NutrientRow(label: L10n.protein, value: p / recipe.totalServings, unit: "g", color: MacroColors.protein)
+                            NutrientRow(
+                                label: L10n.protein,
+                                value: p / recipe.totalServings,
+                                unit: "g",
+                                color: MacroColors.protein
+                            )
                         }
                         if let c = recipe.carbs {
-                            NutrientRow(label: L10n.carbs, value: c / recipe.totalServings, unit: "g", color: MacroColors.carbs)
+                            NutrientRow(
+                                label: L10n.carbs,
+                                value: c / recipe.totalServings,
+                                unit: "g",
+                                color: MacroColors.carbs
+                            )
                         }
                         if let f = recipe.fat {
-                            NutrientRow(label: L10n.fat, value: f / recipe.totalServings, unit: "g", color: MacroColors.fat)
+                            NutrientRow(
+                                label: L10n.fat,
+                                value: f / recipe.totalServings,
+                                unit: "g",
+                                color: MacroColors.fat
+                            )
                         }
                     }
                 }
@@ -224,7 +249,10 @@ struct LogRecipeSheet: View {
                     .fontWeight(.semibold)
                 }
             }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -241,7 +269,7 @@ struct LogRecipeSheet: View {
             date: DateFormatting.isoString(from: date)
         )
         do {
-            _ = try await api.createEntry(entry)
+            try await entryRepository.createEntry(entry, recipe: recipe)
             onLogged()
             dismiss()
         } catch {

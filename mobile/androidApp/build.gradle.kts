@@ -128,7 +128,7 @@ android {
         testImplementation(libs.turbine)
         testImplementation(libs.compose.ui.test.junit4)
         testImplementation(libs.robolectric)
-        testImplementation("androidx.navigation:navigation-testing:2.9.7")
+        testImplementation("androidx.navigation:navigation-testing:2.9.8")
         debugImplementation(libs.compose.ui.test.manifest)
         androidTestImplementation(platform(libs.compose.bom))
         androidTestImplementation(libs.compose.ui.test.junit4.android)

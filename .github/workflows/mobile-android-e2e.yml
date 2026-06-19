@@ -39,6 +39,7 @@ jobs:
     env:
       DATABASE_URL: postgres://bissbilanz:bissbilanz@localhost:5432/bissbilanz_test
       TEST_MODE: 'true'
+      TEST_AUTH_TOKEN: 'test-integration-token'
       TEST_USER_ID: '00000000-0000-0000-0000-000000000001'
 
     steps:

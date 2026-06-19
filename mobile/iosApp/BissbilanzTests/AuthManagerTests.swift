@@ -1,7 +1,6 @@
+@testable import Bissbilanz
 import Foundation
 import Testing
-
-@testable import Bissbilanz
 
 @Suite("AuthState Tests")
 struct AuthStateTests {
@@ -10,14 +9,28 @@ struct AuthStateTests {
         let unauthenticated = AuthState.unauthenticated
         let authenticated = AuthState.authenticated
         let refreshing = AuthState.refreshing
+        let expired = AuthState.expired
 
         #expect(unauthenticated != authenticated)
         #expect(authenticated != refreshing)
         #expect(unauthenticated != refreshing)
+        #expect(expired != unauthenticated)
+        #expect(expired != authenticated)
     }
 }
 
-@Suite("KeychainHelper Tests")
+/// The keychain rejects unsigned processes: with the project default
+/// `CODE_SIGNING_ALLOWED=NO`, `SecItemAdd` fails (missing entitlement) and
+/// every save silently no-ops. Probe once and skip the suite in unsigned runs;
+/// pass `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` to exercise it.
+private let keychainIsAvailable: Bool = {
+    let probeKey = "bissbilanz_test_probe_\(UUID().uuidString)"
+    KeychainHelper.save(key: probeKey, value: "probe")
+    defer { KeychainHelper.delete(key: probeKey) }
+    return KeychainHelper.load(key: probeKey) == "probe"
+}()
+
+@Suite("KeychainHelper Tests", .enabled(if: keychainIsAvailable, "Keychain requires a signed test host"))
 struct KeychainHelperTests {
     private let testKey = "bissbilanz_test_key_\(UUID().uuidString)"
 
@@ -95,37 +108,37 @@ struct KeychainHelperTests {
 struct AuthManagerLoginURLTests {
     @Test("Login URL contains base URL and state parameter")
     @MainActor
-    func loginURLFormat() {
+    func loginURLFormat() throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
         let url = auth.buildLoginURL()
 
         #expect(url != nil)
-        #expect(url!.absoluteString.starts(with: "https://test.example.com/api/auth/mobile/login"))
-        #expect(url!.absoluteString.contains("state="))
+        #expect(try #require(url?.absoluteString.starts(with: "https://test.example.com/api/auth/mobile/login")))
+        #expect(try #require(url?.absoluteString.contains("state=")))
     }
 
     @Test("Login URL state parameter is UUID format")
     @MainActor
-    func loginURLStateFormat() {
+    func loginURLStateFormat() throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
-        let url = auth.buildLoginURL()!
+        let url = try #require(auth.buildLoginURL())
 
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         let state = components.queryItems?.first(where: { $0.name == "state" })?.value
 
         #expect(state != nil)
-        #expect(UUID(uuidString: state!) != nil)
+        #expect(try UUID(uuidString: #require(state)) != nil)
     }
 
     @Test("Each login URL has unique state")
     @MainActor
-    func uniqueLoginState() {
+    func uniqueLoginState() throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
-        let url1 = auth.buildLoginURL()!
-        let url2 = auth.buildLoginURL()!
+        let url1 = try #require(auth.buildLoginURL())
+        let url2 = try #require(auth.buildLoginURL())
 
-        let components1 = URLComponents(url: url1, resolvingAgainstBaseURL: false)!
-        let components2 = URLComponents(url: url2, resolvingAgainstBaseURL: false)!
+        let components1 = try #require(URLComponents(url: url1, resolvingAgainstBaseURL: false))
+        let components2 = try #require(URLComponents(url: url2, resolvingAgainstBaseURL: false))
         let state1 = components1.queryItems?.first(where: { $0.name == "state" })?.value
         let state2 = components2.queryItems?.first(where: { $0.name == "state" })?.value
 
@@ -137,43 +150,43 @@ struct AuthManagerLoginURLTests {
 struct AuthManagerCallbackTests {
     @Test("Callback URL without code returns false")
     @MainActor
-    func callbackWithoutCode() async {
+    func callbackWithoutCode() async throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
         _ = auth.buildLoginURL()
 
-        let callbackURL = URL(string: "bissbilanz://callback?state=wrong")!
+        let callbackURL = try #require(URL(string: "bissbilanz://callback?state=wrong"))
         let result = await auth.handleCallback(url: callbackURL)
         #expect(result == false)
     }
 
     @Test("Callback URL with wrong state returns false")
     @MainActor
-    func callbackWrongState() async {
+    func callbackWrongState() async throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
         _ = auth.buildLoginURL()
 
-        let callbackURL = URL(string: "bissbilanz://callback?code=abc123&state=wrong-state")!
+        let callbackURL = try #require(URL(string: "bissbilanz://callback?code=abc123&state=wrong-state"))
         let result = await auth.handleCallback(url: callbackURL)
         #expect(result == false)
     }
 
     @Test("Callback without prior login URL returns false")
     @MainActor
-    func callbackWithoutLogin() async {
+    func callbackWithoutLogin() async throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
 
-        let callbackURL = URL(string: "bissbilanz://callback?code=abc123&state=some-state")!
+        let callbackURL = try #require(URL(string: "bissbilanz://callback?code=abc123&state=some-state"))
         let result = await auth.handleCallback(url: callbackURL)
         #expect(result == false)
     }
 
     @Test("Callback with empty components returns false")
     @MainActor
-    func callbackEmptyComponents() async {
+    func callbackEmptyComponents() async throws {
         let auth = AuthManager(baseURL: "https://test.example.com")
         _ = auth.buildLoginURL()
 
-        let callbackURL = URL(string: "bissbilanz://callback")!
+        let callbackURL = try #require(URL(string: "bissbilanz://callback"))
         let result = await auth.handleCallback(url: callbackURL)
         #expect(result == false)
     }
@@ -210,3 +223,52 @@ struct AuthManagerStateTests {
     }
 }
 
+@Suite("AuthManager JWT sub extraction")
+struct AuthManagerJWTTests {
+    /// Builds an unsigned JWT (`header.payload.signature`) with the given
+    /// payload, base64url-encoded the way real tokens are.
+    private func makeJWT(payload: [String: Any]) throws -> String {
+        func base64url(_ object: Any) throws -> String {
+            let data = try JSONSerialization.data(withJSONObject: object)
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+        let header = try base64url(["alg": "none", "typ": "JWT"])
+        let body = try base64url(payload)
+        return "\(header).\(body).signature"
+    }
+
+    @Test("Extracts sub from a valid token")
+    func extractsSub() throws {
+        let token = try makeJWT(payload: ["sub": "user-123", "name": "Test"])
+        #expect(AuthManager.extractSub(fromJWT: token) == "user-123")
+    }
+
+    @Test("Handles base64url payloads needing padding restored")
+    func handlesPadding() throws {
+        // A sub whose encoding lands on a length that dropped '=' padding.
+        let token = try makeJWT(payload: ["sub": "abcde"])
+        #expect(AuthManager.extractSub(fromJWT: token) == "abcde")
+    }
+
+    @Test("Returns nil when sub claim is missing")
+    func missingSub() throws {
+        let token = try makeJWT(payload: ["name": "no-sub-here"])
+        #expect(AuthManager.extractSub(fromJWT: token) == nil)
+    }
+
+    @Test("Returns nil for a malformed token")
+    func malformedToken() {
+        #expect(AuthManager.extractSub(fromJWT: "not-a-jwt") == nil)
+        #expect(AuthManager.extractSub(fromJWT: "") == nil)
+        #expect(AuthManager.extractSub(fromJWT: "only.two") == nil)
+    }
+
+    @Test("Returns nil when sub is not a string")
+    func nonStringSub() throws {
+        let token = try makeJWT(payload: ["sub": 42])
+        #expect(AuthManager.extractSub(fromJWT: token) == nil)
+    }
+}

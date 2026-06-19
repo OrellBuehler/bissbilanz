@@ -1,9 +1,17 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(GoalsRepository.self) private var goalsRepository
+    @Environment(PreferencesRepository.self) private var preferencesRepository
+    // Meal types are server-only — they stay on the direct API.
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AuthManager.self) private var authManager
+    @Environment(AppModeManager.self) private var appModeManager
+    @Environment(SyncManager.self) private var syncManager
+    @Environment(LocalDataMigrator.self) private var migrator
 
+    @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
     @State private var preferences: Preferences = .defaults
     @State private var mealTypes: [MealType] = []
@@ -13,8 +21,7 @@ struct SettingsView: View {
     @State private var showCreateRecipe = false
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
-    @State private var healthKitService = HealthKitService()
-    @State private var healthSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "healthkit_sync_enabled")
+    private let healthKitService = HealthKitService.shared
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
     private var selectedTabNames: String {
@@ -72,6 +79,9 @@ struct SettingsView: View {
                     NavigationLink { WeightView() } label: {
                         Label(L10n.weight, systemImage: "scalemass")
                     }
+                    NavigationLink { SleepView() } label: {
+                        Label(L10n.sleep, systemImage: "bed.double")
+                    }
                     NavigationLink { SupplementsView() } label: {
                         Label(L10n.supplements, systemImage: "pills")
                     }
@@ -81,42 +91,36 @@ struct SettingsView: View {
                     NavigationLink { CalendarView() } label: {
                         Label(L10n.calendar, systemImage: "calendar")
                     }
-                    NavigationLink { MaintenanceView() } label: {
-                        Label(L10n.maintenance, systemImage: "function")
+                    // The maintenance calculator is server-computed — hidden in Local mode.
+                    if !appModeManager.isLocal {
+                        NavigationLink { MaintenanceView() } label: {
+                            Label(L10n.maintenance, systemImage: "function")
+                        }
                     }
                 }
 
-                // HealthKit section
+                // Apple Health — all sync controls live on the subpage.
                 if healthKitService.isAvailable {
-                    Section(L10n.healthKit) {
-                        Toggle(L10n.healthKit, isOn: $healthSyncEnabled)
-                            .onChange(of: healthSyncEnabled) { _, enabled in
-                                UserDefaults.standard.set(enabled, forKey: "healthkit_sync_enabled")
-                                if enabled {
-                                    Task {
-                                        _ = await healthKitService.requestAuthorization()
-                                    }
-                                }
-                            }
-                        if healthKitService.isAuthorized {
+                    Section(L10n.appleHealth) {
+                        NavigationLink {
+                            AppleHealthSettingsView()
+                        } label: {
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text(L10n.permissionsGranted)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else if healthSyncEnabled {
-                            Button {
-                                Task { _ = await healthKitService.requestAuthorization() }
-                            } label: {
-                                Label(L10n.grantPermissions, systemImage: "heart.circle")
+                                Label(L10n.appleHealth, systemImage: "heart")
+                                Spacer()
+                                Text(
+                                    HealthKitService.isAnySyncEnabled
+                                        ? L10n.healthConnected
+                                        : L10n.healthNotConnected
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                             }
                         }
                     }
                 }
 
-                // Quick actions
+                // Quick actions — standalone buttons, no card behind them
                 Section(L10n.quickActions) {
                     HStack(spacing: 12) {
                         Button {
@@ -135,7 +139,8 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.bordered)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 // Language section
@@ -150,24 +155,26 @@ struct SettingsView: View {
                     }
                 }
 
-                // Custom meal types
-                Section(L10n.customMealTypes) {
-                    ForEach(mealTypes) { mealType in
-                        Text(mealType.name)
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    Task { await deleteMealType(mealType) }
-                                } label: {
-                                    Label(L10n.delete, systemImage: "trash")
+                // Custom meal types (server-only, hidden in Local mode)
+                if !appModeManager.isLocal {
+                    Section(L10n.customMealTypes) {
+                        ForEach(mealTypes) { mealType in
+                            Text(mealType.name)
+                                .swipeActions {
+                                    Button(role: .destructive) {
+                                        Task { await deleteMealType(mealType) }
+                                    } label: {
+                                        Label(L10n.delete, systemImage: "trash")
+                                    }
                                 }
-                            }
-                    }
-                    HStack {
-                        TextField(L10n.customMealTypes, text: $newMealTypeName)
-                        Button(L10n.add) {
-                            Task { await addMealType() }
                         }
-                        .disabled(newMealTypeName.isEmpty)
+                        HStack {
+                            TextField(L10n.customMealTypes, text: $newMealTypeName)
+                            Button(L10n.add) {
+                                Task { await addMealType() }
+                            }
+                            .disabled(newMealTypeName.isEmpty)
+                        }
                     }
                 }
 
@@ -177,7 +184,10 @@ struct SettingsView: View {
                     Toggle(L10n.favorites, isOn: widgetBinding(\.showFavoritesWidget, key: "showFavoritesWidget"))
                     Toggle(L10n.supplements, isOn: widgetBinding(\.showSupplementsWidget, key: "showSupplementsWidget"))
                     Toggle(L10n.weight, isOn: widgetBinding(\.showWeightWidget, key: "showWeightWidget"))
-                    Toggle(L10n.mealBreakdown, isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget"))
+                    Toggle(
+                        L10n.mealBreakdown,
+                        isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget")
+                    )
                     Toggle(L10n.topFoods, isOn: widgetBinding(\.showTopFoodsWidget, key: "showTopFoodsWidget"))
                 }
 
@@ -189,9 +199,8 @@ struct SettingsView: View {
                             Task {
                                 var update = PreferencesUpdate()
                                 update.favoriteMealAssignmentMode = newValue
-                                if let updated = try? await api.updatePreferences(update) {
-                                    preferences = updated
-                                }
+                                preferences = await (try? preferencesRepository.update(update))
+                                    ?? (preferencesRepository.preferences() ?? .defaults)
                             }
                         }
                     )) {
@@ -218,10 +227,57 @@ struct SettingsView: View {
 
                 // Account
                 Section(L10n.account) {
-                    Button(role: .destructive) {
-                        showLogoutConfirmation = true
-                    } label: {
-                        Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
+                    if appModeManager.isLocal {
+                        HStack {
+                            Image(systemName: "iphone")
+                                .foregroundStyle(.secondary)
+                            Text(L10n.localModeStatus)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Button {
+                            signInSession = SignInFlow.start(authManager: authManager)
+                        } label: {
+                            Label(L10n.signInToSync, systemImage: "person.crop.circle")
+                        }
+                    } else {
+                        if authManager.authState == .expired {
+                            HStack(alignment: .firstTextBaseline) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                Text(L10n.sessionExpiredMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Button {
+                                signInSession = SignInFlow.start(authManager: authManager)
+                            } label: {
+                                Label(L10n.signIn, systemImage: "person.crop.circle")
+                            }
+                        }
+                        if syncManager.pendingCount > 0 {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(.secondary)
+                                Text(L10n.pendingSyncCount(syncManager.pendingCount))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if let syncError = syncManager.errors.last {
+                            HStack(alignment: .firstTextBaseline) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.red)
+                                Text(syncError)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        Button(role: .destructive) {
+                            showLogoutConfirmation = true
+                        } label: {
+                            Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
+                        }
                     }
                 }
 
@@ -233,12 +289,27 @@ struct SettingsView: View {
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
                     }
+                    #if DEBUG
+                    // Developer-only: verify the Sentry pipeline end-to-end.
+                    // Greyed out unless the build was made with a SENTRY_DSN.
+                    Button("Send Sentry Test Event") {
+                        ErrorReporter.sendTestEvent()
+                    }
+                    .disabled(!ErrorReporter.isEnabled)
+                    #endif
                 }
             }
             .navigationTitle(L10n.settings)
             .confirmationDialog(L10n.signOut + "?", isPresented: $showLogoutConfirmation) {
                 Button(L10n.signOut, role: .destructive) {
+                    // The local store and pending queue belong to the
+                    // signed-out account — wipe them so nothing leaks into
+                    // the next session (Local mode or another account).
+                    migrator.wipeLocalData()
                     authManager.logout()
+                    // Reset the mode so the next start shows the login screen
+                    // with the mode choice again.
+                    appModeManager.clear()
                 }
             } message: {
                 Text(L10n.signOutConfirmation)
@@ -253,7 +324,10 @@ struct SettingsView: View {
                 RecipeEditSheet()
             }
             .task { await loadData() }
-            .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert(
+                L10n.error,
+                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+            ) {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
@@ -278,9 +352,8 @@ struct SettingsView: View {
                     case "showTopFoodsWidget": update.showTopFoodsWidget = newValue
                     default: break
                     }
-                    if let updated = try? await api.updatePreferences(update) {
-                        preferences = updated
-                    }
+                    preferences = await (try? preferencesRepository.update(update))
+                        ?? (preferencesRepository.preferences() ?? .defaults)
                 }
             }
         )
@@ -353,21 +426,29 @@ struct SettingsView: View {
             sugarGoal: goals.sugarGoal
         )
         do {
-            goals = try await api.setGoals(newGoals)
+            goals = try await goalsRepository.setGoals(newGoals)
         } catch {
             errorMessage = error.localizedDescription
+            // The optimistic local write persisted — keep the view in sync with it.
+            goals = goalsRepository.goals() ?? .defaults
         }
         isEditingGoals = false
     }
 
     private func loadData() async {
-        async let g = try? api.getGoals()
-        async let p = try? api.getPreferences()
-        async let m = try? api.getMealTypes()
+        goals = goalsRepository.goals() ?? .defaults
+        preferences = preferencesRepository.preferences() ?? .defaults
 
-        goals = await g ?? .defaults
-        preferences = await p ?? .defaults
-        mealTypes = await m ?? []
+        async let g: Void? = try? goalsRepository.refresh()
+        async let p: Void? = try? preferencesRepository.refresh()
+
+        _ = await (g, p)
+        // Meal types are server-only — never fetched in Local mode.
+        if !appModeManager.isLocal {
+            mealTypes = await (try? api.getMealTypes()) ?? []
+        }
+        goals = goalsRepository.goals() ?? .defaults
+        preferences = preferencesRepository.preferences() ?? .defaults
     }
 
     private func addMealType() async {
@@ -395,7 +476,7 @@ struct SettingsView: View {
 // MARK: - Visible Nutrients View
 
 struct VisibleNutrientsView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(PreferencesRepository.self) private var preferencesRepository
     @Binding var preferences: Preferences
 
     @State private var selectedNutrients: Set<String> = []
@@ -453,6 +534,8 @@ struct VisibleNutrientsView: View {
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
                 }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
             ForEach(Self.nutrientCategories, id: \.0) { category, nutrients in
@@ -495,9 +578,8 @@ struct VisibleNutrientsView: View {
         isSaving = true
         var update = PreferencesUpdate()
         update.visibleNutrients = Array(selectedNutrients)
-        if let updated = try? await api.updatePreferences(update) {
-            preferences = updated
-        }
+        preferences = await (try? preferencesRepository.update(update))
+            ?? (preferencesRepository.preferences() ?? .defaults)
         isDirty = false
         isSaving = false
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecipeDetailView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(\.dismiss) private var dismiss
 
     let recipeId: String
@@ -27,11 +27,13 @@ struct RecipeDetailView: View {
                     Button {
                         showLogSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 52))
-                            .foregroundStyle(Color.white, Color.accentColor)
-                            .shadow(radius: 4, y: 2)
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 56, height: 56)
                     }
+                    .circularGlassBackground(tint: Color.accentColor)
                     .padding(20)
                 }
             }
@@ -108,10 +110,20 @@ struct RecipeDetailView: View {
 
             Section(L10n.perServing) {
                 if let cal = recipe.calories {
-                    NutrientRow(label: L10n.calories, value: cal / recipe.totalServings, unit: "kcal", color: MacroColors.calories)
+                    NutrientRow(
+                        label: L10n.calories,
+                        value: cal / recipe.totalServings,
+                        unit: "kcal",
+                        color: MacroColors.calories
+                    )
                 }
                 if let p = recipe.protein {
-                    NutrientRow(label: L10n.protein, value: p / recipe.totalServings, unit: "g", color: MacroColors.protein)
+                    NutrientRow(
+                        label: L10n.protein,
+                        value: p / recipe.totalServings,
+                        unit: "g",
+                        color: MacroColors.protein
+                    )
                 }
                 if let c = recipe.carbs {
                     NutrientRow(label: L10n.carbs, value: c / recipe.totalServings, unit: "g", color: MacroColors.carbs)
@@ -120,7 +132,12 @@ struct RecipeDetailView: View {
                     NutrientRow(label: L10n.fat, value: f / recipe.totalServings, unit: "g", color: MacroColors.fat)
                 }
                 if let fb = recipe.fiber {
-                    NutrientRow(label: L10n.fiber, value: fb / recipe.totalServings, unit: "g", color: MacroColors.fiber)
+                    NutrientRow(
+                        label: L10n.fiber,
+                        value: fb / recipe.totalServings,
+                        unit: "g",
+                        color: MacroColors.fiber
+                    )
                 }
             }
 
@@ -163,19 +180,21 @@ struct RecipeDetailView: View {
     // MARK: - Actions
 
     private func loadRecipe() async {
-        isLoading = true
+        recipe = recipeRepository.recipe(id: recipeId)
+        isLoading = recipe == nil
         error = nil
         do {
-            recipe = try await api.getRecipe(id: recipeId)
+            try await recipeRepository.refreshRecipe(id: recipeId)
+            recipe = recipeRepository.recipe(id: recipeId) ?? recipe
         } catch {
-            self.error = error
+            if recipe == nil { self.error = error }
         }
         isLoading = false
     }
 
     private func deleteRecipe() async {
         do {
-            try await api.deleteRecipe(id: recipeId)
+            try await recipeRepository.deleteRecipe(id: recipeId)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

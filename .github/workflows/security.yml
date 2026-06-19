@@ -12,6 +12,8 @@ permissions:
   contents: read
 
 jobs:
+  # ── PR + main: scan the code itself ──────────────────────────────────────────
+
   semgrep:
     name: Semgrep (SAST)
     runs-on: ubuntu-latest
@@ -31,8 +33,70 @@ jobs:
       - name: Run Semgrep scan
         run: ./scripts/security/scan-semgrep.sh
 
+  gitleaks:
+    name: Gitleaks (Secret History)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.30.1_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
+
+      - name: Run Gitleaks
+        run: gitleaks detect --source . --verbose
+
+  trivy-code:
+    name: Trivy (Secrets + IaC)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run Trivy secret/misconfig scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          skip-dirs: node_modules,.svelte-kit,.worktrees
+
+      - name: Run Trivy IaC config scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          skip-dirs: node_modules,.svelte-kit,.worktrees
+
+  # ── PR only: does this PR introduce a vulnerable dependency? ─────────────────
+
+  dependency-review:
+    name: Dependency Review (PR diff)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+
+  # ── main + weekly schedule only: whole-tree vulnerability scans ──────────────
+  # A CVE published against an existing dependency should alert (red main run),
+  # not turn every open PR red. PRs are gated by dependency-review instead.
+
   dependencies:
     name: Dependency Audit
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,44 +119,20 @@ jobs:
       - name: Run dependency audit
         run: ./scripts/security/scan-dependencies.sh
 
-  gitleaks:
-    name: Gitleaks (Secret History)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install Gitleaks
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.30.1_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
-
-      - name: Run Gitleaks
-        run: gitleaks detect --source . --verbose
-
-  trivy:
-    name: Trivy (Filesystem + IaC)
+  trivy-vuln:
+    name: Trivy (Dependency Vulnerabilities)
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Run Trivy filesystem scan
+      - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          scanners: vuln,secret,misconfig
-          severity: CRITICAL,HIGH
-          exit-code: 1
-          skip-dirs: node_modules,.svelte-kit,.worktrees
-
-      - name: Run Trivy IaC config scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: config
-          scan-ref: .
+          scanners: vuln
           severity: CRITICAL,HIGH
           exit-code: 1
           skip-dirs: node_modules,.svelte-kit,.worktrees

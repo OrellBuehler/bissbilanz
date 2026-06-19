@@ -48,6 +48,9 @@ const recentFoodSchema = z
 		barcode: z.string().nullable(),
 		isFavorite: z.boolean(),
 		imageUrl: z.string().nullable(),
+		// Servings used in the most recent log entry of this food, so the log
+		// dialog can prefill the amount instead of defaulting to one serving.
+		lastServings: z.number(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})

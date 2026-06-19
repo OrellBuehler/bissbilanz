@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @Environment(BissbilanzAPI.self) private var api
+    @Environment(EntryRepository.self) private var entryRepository
+    @Environment(GoalsRepository.self) private var goalsRepository
+    @Environment(PreferencesRepository.self) private var preferencesRepository
+    @Environment(SupplementRepository.self) private var supplementRepository
+    @Environment(WeightRepository.self) private var weightRepository
 
     @State private var entries: [Entry] = []
     @State private var goals: Goals = .defaults
@@ -14,18 +18,38 @@ struct DashboardView: View {
     @State private var showCopyConfirmation = false
     @State private var toastMessage: String?
     @State private var isFastingDay = false
+    /// Edge the incoming day content is pushed in from when the date changes.
+    @State private var slideEdge: Edge = .trailing
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
     @State private var latestWeight: WeightEntry?
 
-    private var dateString: String { selectedDate.isoDateString }
+    private var dateString: String {
+        selectedDate.isoDateString
+    }
 
-    private var totalCalories: Double { entries.reduce(0) { $0 + $1.totalCalories } }
-    private var totalProtein: Double { entries.reduce(0) { $0 + $1.totalProtein } }
-    private var totalCarbs: Double { entries.reduce(0) { $0 + $1.totalCarbs } }
-    private var totalFat: Double { entries.reduce(0) { $0 + $1.totalFat } }
-    private var totalFiber: Double { entries.reduce(0) { $0 + $1.totalFiber } }
+    private var totalCalories: Double {
+        entries.reduce(0) { $0 + $1.totalCalories }
+    }
+
+    private var totalProtein: Double {
+        entries.reduce(0) { $0 + $1.totalProtein }
+    }
+
+    private var totalCarbs: Double {
+        entries.reduce(0) { $0 + $1.totalCarbs }
+    }
+
+    private var totalFat: Double {
+        entries.reduce(0) { $0 + $1.totalFat }
+    }
+
+    private var totalFiber: Double {
+        entries.reduce(0) { $0 + $1.totalFiber }
+    }
 
     private var mealGroups: [(String, [Entry])] {
         let grouped = Dictionary(grouping: entries, by: \.mealType)
@@ -41,53 +65,18 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     dateNavigator
-                    macroRings
 
-                    if totalCalories == 0 {
-                        HStack {
-                            Image(systemName: "fork.knife")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.fastingDay)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Text(L10n.fastingDayDescription)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: Binding(
-                                get: { isFastingDay },
-                                set: { _ in Task { await toggleFastingDay() } }
-                            ))
-                            .labelsHidden()
-                        }
-                        .padding(12)
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-
-                    if preferences.showWeightWidget, let weight = latestWeight {
-                        weightWidget(weight)
-                    }
-
-                    if preferences.showSupplementsWidget && !supplementChecklist.isEmpty {
-                        supplementsWidget
-                    }
-
-                    if mealGroups.isEmpty && !isLoading {
-                        emptyState
-                    } else {
-                        ForEach(mealGroups, id: \.0) { meal, mealEntries in
-                            NavigationLink(value: dateString) {
-                                MealCard(mealType: meal, entries: mealEntries) {}
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    // ZStack so the outgoing and incoming day overlap during
+                    // the push transition instead of stacking vertically.
+                    ZStack {
+                        dayContent
+                            .id(dateString)
+                            .transition(.push(from: slideEdge))
                     }
                 }
                 .padding()
             }
+            .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
             .navigationDestination(for: String.self) { date in
                 DayLogView(date: date)
@@ -124,13 +113,106 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Day Content
+
+    /// Everything below the date navigator; swapped out with a directional
+    /// push transition when the selected date changes.
+    private var dayContent: some View {
+        VStack(spacing: 16) {
+            macroRings
+
+            if totalCalories == 0 {
+                HStack {
+                    Image(systemName: "fork.knife")
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.fastingDay)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text(L10n.fastingDayDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { isFastingDay },
+                        set: { _ in Task { await toggleFastingDay() } }
+                    ))
+                    .labelsHidden()
+                }
+                .padding(12)
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            if preferences.showWeightWidget, let weight = latestWeight {
+                NavigationLink {
+                    WeightView()
+                } label: {
+                    weightWidget(weight)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
+                supplementsWidget
+            }
+
+            if mealGroups.isEmpty, !isLoading {
+                emptyState
+            } else {
+                ForEach(mealGroups, id: \.0) { meal, mealEntries in
+                    NavigationLink(value: dateString) {
+                        MealCard(mealType: meal, entries: mealEntries) {}
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Date Navigation
+
+    /// Horizontal swipe anywhere on the dashboard changes the day. Runs
+    /// simultaneously with the vertical scroll gesture; the dominance check in
+    /// `onEnded` keeps scrolling and pull-to-refresh unaffected, and the
+    /// minimum distance keeps taps intact.
+    private var dateSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 60, abs(horizontal) > abs(vertical) else { return }
+                changeDay(by: horizontal < 0 ? 1 : -1)
+            }
+    }
+
+    /// Moves the selected date by `delta` days with a directional push
+    /// animation. Moving past today is blocked — no future dates.
+    private func changeDay(by delta: Int) {
+        guard delta != 0 else { return }
+        if delta > 0, selectedDate.isToday { return }
+        slideEdge = delta > 0 ? .trailing : .leading
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) {
+            selectedDate = selectedDate.adding(days: delta)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func goToToday() {
+        slideEdge = .trailing
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) {
+            selectedDate = Date()
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     // MARK: - Date Navigator
 
     private var dateNavigator: some View {
         HStack {
             Button {
-                selectedDate = selectedDate.adding(days: -1)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                changeDay(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.title3)
@@ -145,7 +227,7 @@ struct DashboardView: View {
                     .fontWeight(.semibold)
                 if !selectedDate.isToday {
                     Button(L10n.goToToday) {
-                        selectedDate = Date()
+                        goToToday()
                     }
                     .font(.caption)
                 }
@@ -154,8 +236,7 @@ struct DashboardView: View {
             Spacer()
 
             Button {
-                selectedDate = selectedDate.adding(days: 1)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                changeDay(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.title3)
@@ -170,11 +251,45 @@ struct DashboardView: View {
 
     private var macroRings: some View {
         HStack(spacing: 16) {
-            MacroRingView(label: "Cal", current: totalCalories, goal: goals.calorieGoal, color: MacroColors.calories, showGoal: true)
-            MacroRingView(label: "P", current: totalProtein, goal: goals.proteinGoal, color: MacroColors.protein, showGoal: true)
-            MacroRingView(label: "C", current: totalCarbs, goal: goals.carbGoal, color: MacroColors.carbs, showGoal: true)
-            MacroRingView(label: "F", current: totalFat, goal: goals.fatGoal, color: MacroColors.fat, showGoal: true)
-            MacroRingView(label: "Fb", current: totalFiber, goal: goals.fiberGoal, color: MacroColors.fiber, showGoal: true)
+            MacroRingView(
+                label: "Cal",
+                current: totalCalories,
+                goal: goals.calorieGoal,
+                color: MacroColors.calories,
+                showGoal: true
+            )
+            MacroRingView(
+                label: "P",
+                current: totalProtein,
+                goal: goals.proteinGoal,
+                color: MacroColors.protein,
+                showGoal: true,
+                animationDelay: 0.05
+            )
+            MacroRingView(
+                label: "C",
+                current: totalCarbs,
+                goal: goals.carbGoal,
+                color: MacroColors.carbs,
+                showGoal: true,
+                animationDelay: 0.1
+            )
+            MacroRingView(
+                label: "F",
+                current: totalFat,
+                goal: goals.fatGoal,
+                color: MacroColors.fat,
+                showGoal: true,
+                animationDelay: 0.15
+            )
+            MacroRingView(
+                label: "Fb",
+                current: totalFiber,
+                goal: goals.fiberGoal,
+                color: MacroColors.fiber,
+                showGoal: true,
+                animationDelay: 0.2
+            )
         }
     }
 
@@ -197,7 +312,7 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Weight Widget
@@ -215,7 +330,8 @@ struct DashboardView: View {
             }
             Spacer()
             if let dateStr = entry.loggedAt ?? entry.createdAt,
-               let date = DateFormatting.date(from: String(dateStr.prefix(10))) {
+               let date = DateFormatting.date(from: String(dateStr.prefix(10)))
+            {
                 Text(DateFormatting.displayString(from: date))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -223,7 +339,7 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Supplements Widget
@@ -243,122 +359,129 @@ struct DashboardView: View {
                     .foregroundStyle(taken == supplementChecklist.count ? .green : .secondary)
             }
 
-            ForEach(supplementChecklist) { item in
-                Button {
-                    Task { await toggleSupplement(item) }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(item.taken ? .green : .secondary)
-                        Text(item.supplement.name)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                            .strikethrough(item.taken)
-                        Spacer()
+            VStack(spacing: 0) {
+                ForEach(supplementChecklist) { item in
+                    Button {
+                        Task { await toggleSupplement(item) }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(item.taken ? .green : .secondary)
+                            Text(item.supplement.name)
+                                .font(.subheadline)
+                                .foregroundStyle(item.taken ? .secondary : .primary)
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(12)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "fork.knife.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text(L10n.noEntriesYet)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label(L10n.noEntriesYet, systemImage: "fork.knife.circle")
+        } description: {
             Text(L10n.tapToAdd)
-                .foregroundStyle(.secondary)
-
+        } actions: {
             if !selectedDate.isToday {
                 Button(L10n.copyYesterday) {
                     showCopyConfirmation = true
                 }
                 .buttonStyle(.bordered)
-                .padding(.top, 8)
             }
         }
-        .padding(.vertical, 48)
+        .padding(.vertical, 24)
     }
 
     // MARK: - FAB
 
     private var fab: some View {
-        VStack(spacing: 12) {
-            Button {
-                showScanner = true
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            } label: {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(.thinMaterial)
-                    .clipShape(Circle())
-            }
+        FloatingControlGroup {
+            VStack(spacing: 12) {
+                Button {
+                    showScanner = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                } label: {
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .circularGlassBackground()
 
-            Button {
-                showQuickEntry = true
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            } label: {
-                Image(systemName: "bolt")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(.thinMaterial)
-                    .clipShape(Circle())
-            }
+                Button {
+                    showQuickEntry = true
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Image(systemName: "bolt")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .circularGlassBackground()
 
-            Button {
-                showFoodSearch = true
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(MacroColors.calories)
-                    .clipShape(Circle())
-                    .shadow(radius: 4)
+                Button {
+                    showFoodSearch = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                }
+                .circularGlassBackground(tint: MacroColors.calories)
             }
+            .padding()
         }
-        .padding()
     }
 
     // MARK: - Data Loading
 
+    /// Instant render from the local store; `loadData` refreshes from the API on top.
+    private func loadFromStore() {
+        entries = entryRepository.entries(date: dateString)
+        goals = goalsRepository.goals() ?? .defaults
+        preferences = preferencesRepository.preferences() ?? .defaults
+        isFastingDay = entryRepository.isFastingDay(date: dateString)
+        supplementChecklist = supplementRepository.localChecklist(date: dateString)
+        latestWeight = weightRepository.latest()
+    }
+
     private func loadData() async {
+        loadFromStore()
         isLoading = true
         defer { isLoading = false }
 
-        async let entriesTask = api.getEntries(date: dateString)
-        async let goalsTask = api.getGoals()
-        async let prefsTask = api.getPreferences()
-        async let dayPropsTask = api.getDayProperties(date: dateString)
-        async let supplementsTask = api.getSupplementChecklist(date: dateString)
-        async let weightTask = api.getLatestWeight()
+        async let entriesTask: Void? = try? entryRepository.refresh(date: dateString)
+        async let goalsTask: Void? = try? goalsRepository.refresh()
+        async let prefsTask: Void? = try? preferencesRepository.refresh()
+        async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
+        async let supplementsTask = try? supplementRepository.refreshChecklist(date: dateString)
+        async let weightTask: Void? = try? weightRepository.refresh()
 
-        do { entries = try await entriesTask } catch { entries = [] }
-        do { goals = try await goalsTask ?? .defaults } catch { goals = .defaults }
-        do { preferences = try await prefsTask } catch { preferences = .defaults }
-        do { isFastingDay = try await dayPropsTask?.isFastingDay ?? false } catch { isFastingDay = false }
-        do { supplementChecklist = try await supplementsTask } catch { supplementChecklist = [] }
-        do { latestWeight = try await weightTask } catch { latestWeight = nil }
+        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, weightTask)
+        let checklist = await supplementsTask
+
+        loadFromStore()
+        if let checklist { supplementChecklist = checklist }
     }
 
     private func copyYesterday() async {
         let yesterday = selectedDate.adding(days: -1).isoDateString
         do {
-            let copied = try await api.copyEntries(fromDate: yesterday, toDate: dateString)
-            entries.append(contentsOf: copied)
+            let count = try await entryRepository.copyEntries(fromDate: yesterday, toDate: dateString)
+            entries = entryRepository.entries(date: dateString)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            toastMessage = L10n.entriesCopied(copied.count)
+            toastMessage = L10n.entriesCopied(count)
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.failedToCopy
@@ -369,28 +492,29 @@ struct DashboardView: View {
         let newValue = !isFastingDay
         do {
             if newValue {
-                _ = try await api.setDayProperties(date: dateString, isFastingDay: true)
+                try await entryRepository.setDayProperties(date: dateString, isFastingDay: true)
             } else {
-                try await api.deleteDayProperties(date: dateString)
+                try await entryRepository.deleteDayProperties(date: dateString)
             }
-            isFastingDay = newValue
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch {
             toastMessage = L10n.error
         }
+        isFastingDay = entryRepository.isFastingDay(date: dateString)
     }
 
     private func toggleSupplement(_ item: SupplementChecklist) async {
         do {
             if item.taken {
-                try await api.unlogSupplement(id: item.supplement.id, date: dateString)
+                try await supplementRepository.unlogSupplement(id: item.supplement.id, date: dateString)
             } else {
-                _ = try await api.logSupplement(id: item.supplement.id, date: dateString)
+                try await supplementRepository.logSupplement(id: item.supplement.id, date: dateString)
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            supplementChecklist = (try? await api.getSupplementChecklist(date: dateString)) ?? supplementChecklist
         } catch {
             toastMessage = L10n.error
         }
+        supplementChecklist = await (try? supplementRepository.refreshChecklist(date: dateString))
+            ?? supplementRepository.localChecklist(date: dateString)
     }
 }
