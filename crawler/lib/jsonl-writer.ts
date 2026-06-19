@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { datasetProductSchema, type DatasetProduct } from '$lib/server/catalog/dataset-schema';
 
 export type DatasetHeaderInput = {
@@ -22,6 +24,7 @@ export class DatasetWriter {
 	}
 
 	async open(): Promise<void> {
+		mkdirSync(dirname(this.#path), { recursive: true });
 		this.#sink = Bun.file(this.#path).writer();
 		const headerLine = JSON.stringify({
 			_dataset: {

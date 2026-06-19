@@ -46,3 +46,16 @@ test('writes a header line then product lines, all schema-valid, with a correct 
 	expect(datasetProductSchema.safeParse(JSON.parse(lines[1])).success).toBe(true);
 	expect(JSON.parse(lines[0])._dataset.source).toBe('off');
 });
+
+test('creates the output directory if it does not exist', async () => {
+	const path = join(tmpdir(), `crawler-test-mkdir-${process.pid}`, 'nested', 'out.jsonl');
+	const w = new DatasetWriter(path, {
+		key: 'migros',
+		name: 'Migros',
+		source: 'migros',
+		priority: 10
+	});
+	await w.open();
+	await w.close();
+	expect(await Bun.file(path).exists()).toBe(true);
+});
