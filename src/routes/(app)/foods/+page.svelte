@@ -37,6 +37,10 @@
 	let offLoading = $state(false);
 	let offNotFound = $state(false);
 	let activeBarcode = $state('');
+	let offResults = $state<components['schemas']['OpenFoodFactsProduct'][]>([]);
+	let offSearchLoading = $state(false);
+	// Below this many local matches, offer Open Food Facts results to fill the gap.
+	const OFF_FALLBACK_THRESHOLD = 5;
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
 	let qualityOpen = $state(false);
@@ -93,6 +97,33 @@
 	);
 
 	const foods = $derived(debouncedQuery ? searchResults.value : allFoodsQuery.value);
+
+	// Online Open Food Facts fallback when the personal DB has few matches.
+	$effect(() => {
+		const q = debouncedQuery.trim();
+		const localCount = foods.length;
+		if (!browser || q.length < 2 || localCount >= OFF_FALLBACK_THRESHOLD) {
+			offResults = [];
+			offSearchLoading = false;
+			return;
+		}
+		let cancelled = false;
+		offSearchLoading = true;
+		api
+			.GET('/api/openfoodfacts/search', { params: { query: { q } } })
+			.then(({ data }) => {
+				if (!cancelled) offResults = data?.results ?? [];
+			})
+			.catch(() => {
+				if (!cancelled) offResults = [];
+			})
+			.finally(() => {
+				if (!cancelled) offSearchLoading = false;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	$effect(() => {
 		if (browser) {
@@ -252,6 +283,13 @@
 		}
 	}
 
+	const prefillFromOff = (product: components['schemas']['OpenFoodFactsProduct']) => {
+		resetFormState();
+		offData = product;
+		activeBarcode = product.barcode;
+		showForm = true;
+	};
+
 	// Load visible nutrients preference (once)
 	$effect(() => {
 		if (browser) {
@@ -330,7 +368,7 @@
 		/>
 	</div>
 
-	{#if query && foods.length === 0}
+	{#if query && foods.length === 0 && !offSearchLoading && offResults.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.foods_no_results()}</p>
 	{:else}
 		<FoodList
@@ -340,6 +378,38 @@
 			onEnrich={enrichFood}
 			onMerge={openMergeFromMenu}
 		/>
+	{/if}
+
+	{#if debouncedQuery && (offSearchLoading || offResults.length > 0)}
+		<div class="space-y-2">
+			<p class="text-muted-foreground text-xs font-medium">{m.add_food_off_section()}</p>
+			{#if offSearchLoading}
+				<p class="text-muted-foreground text-sm">{m.add_food_off_searching()}</p>
+			{:else}
+				<ul class="space-y-2">
+					{#each offResults as product (product.barcode)}
+						<li class="flex min-w-0 items-center justify-between gap-2 rounded-md border p-2">
+							<span class="min-w-0 flex-1 truncate text-sm">
+								{product.name}
+								{#if product.brand}<span class="text-muted-foreground">
+										· {product.brand}</span
+									>{/if}
+							</span>
+							<Button
+								variant="outline"
+								size="sm"
+								class="shrink-0"
+								aria-label={m.add_food_add()}
+								onclick={() => prefillFromOff(product)}
+							>
+								<Plus class="size-4 sm:mr-1" />
+								<span class="hidden sm:inline">{m.add_food_add()}</span>
+							</Button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
 	{/if}
 </div>
 

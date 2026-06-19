@@ -18,10 +18,11 @@ function isDuplicateBarcodeError(error: unknown): boolean {
 async function handleBarcodeConflict(
 	error: unknown,
 	userId: string,
-	barcode: string | null | undefined
+	barcode: string | null | undefined,
+	dbOverride?: ReturnType<typeof getDB>
 ): Promise<Result<never> | null> {
 	if (!isDuplicateBarcodeError(error) || !barcode) return null;
-	const existing = await findFoodByBarcode(userId, barcode).catch(() => null);
+	const existing = await findFoodByBarcode(userId, barcode, dbOverride).catch(() => null);
 	const name = existing?.name ?? 'unknown';
 	return {
 		success: false,
@@ -93,7 +94,8 @@ export const listFoods = async (
 
 export const createFood = async (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	dbOverride?: ReturnType<typeof getDB>
 ): Promise<Result<typeof foods.$inferSelect>> => {
 	const result = foodCreateSchema.safeParse(payload);
 	if (!result.success) {
@@ -101,7 +103,7 @@ export const createFood = async (
 	}
 
 	try {
-		const db = getDB();
+		const db = dbOverride ?? getDB();
 		const [created] = await db.insert(foods).values(toFoodInsert(userId, result.data)).returning();
 		if (!created) {
 			return { success: false, error: new Error('Failed to create food') };
@@ -109,7 +111,7 @@ export const createFood = async (
 		return { success: true, data: roundNutrition(created) };
 	} catch (error) {
 		return (
-			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
+			(await handleBarcodeConflict(error, userId, result.data.barcode, dbOverride)) ?? {
 				success: false,
 				error: error as Error
 			}
@@ -204,8 +206,12 @@ export const deleteFood = async (
 	});
 };
 
-export const findFoodByBarcode = async (userId: string, barcode: string) => {
-	const db = getDB();
+export const findFoodByBarcode = async (
+	userId: string,
+	barcode: string,
+	dbOverride?: ReturnType<typeof getDB>
+) => {
+	const db = dbOverride ?? getDB();
 	const [food] = await db
 		.select()
 		.from(foods)

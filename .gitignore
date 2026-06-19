@@ -30,7 +30,9 @@ vite.config.ts.timestamp-*
 
 # Worktrees
 .worktrees/
-.claude/worktrees/
+
+# Claude Code
+.claude/
 
 # Superpowers
 .superpowers/
@@ -69,3 +71,7 @@ mobile/iosApp/build-device/
 
 # OpenAPI generator temp output
 .openapi-gen-tmp/
+
+# Crawled catalog datasets — never commit (public repo; private data)
+data/catalog/
+tests/fixtures/catalog/bad.jsonl
