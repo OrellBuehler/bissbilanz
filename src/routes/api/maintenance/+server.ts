@@ -88,9 +88,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'End date must be after start date');
 		}
 
+		// The food query is inclusive of both endpoints, so it covers `days + 1`
+		// calendar days; average intake over that inclusive count (dividing by `days`
+		// inflated the average). The weight-change *rate* (calculateMaintenance) is
+		// per-interval, so it keeps `days`.
+		const inclusiveDays = days + 1;
 		const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
-		const avgDailyCalories = totalCalories / days;
-		const coverage = daysWithEntries.length / days;
+		const avgDailyCalories = totalCalories / inclusiveDays;
+		const coverage = daysWithEntries.length / inclusiveDays;
 
 		const firstWeight = weights[0];
 		const lastWeight = weights[weights.length - 1];
@@ -112,7 +117,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			meta: {
 				weightEntries: weights.length,
 				foodEntryDays: daysWithEntries.length,
-				totalDays: days,
+				totalDays: inclusiveDays,
 				coverage,
 				firstWeight: firstWeight.weightKg,
 				lastWeight: lastWeight.weightKg,

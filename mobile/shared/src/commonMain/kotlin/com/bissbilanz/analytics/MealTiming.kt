@@ -2,6 +2,7 @@ package com.bissbilanz.analytics
 
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 data class DailyEatingWindow(
     val date: String,
@@ -79,8 +80,8 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
     return MealTimingSummary(
         dailyWindows = dailyWindows,
         avgWindowMinutes = avgWindowMinutes,
-        avgFirstMealTime = minutesToHHmm(avgFirstMinutes.toInt()),
-        avgLastMealTime = minutesToHHmm(avgLastMinutes.toInt()),
+        avgFirstMealTime = minutesToHHmm(avgFirstMinutes.roundToInt()),
+        avgLastMealTime = minutesToHHmm(avgLastMinutes.roundToInt()),
         lateNightFrequency = lateNightFrequency,
         hourlyDistribution = hourlyDistribution,
     )

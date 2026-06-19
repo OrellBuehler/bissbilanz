@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -93,7 +94,7 @@ fun WeightWidget(
                     )
                     Button(
                         onClick = {
-                            val kg = weightInput.toDoubleOrNull()
+                            val kg = weightInput.toLocalizedDoubleOrNull()
                             if (kg != null) {
                                 scope.launch {
                                     try {
@@ -107,7 +108,7 @@ fun WeightWidget(
                                 }
                             }
                         },
-                        enabled = weightInput.toDoubleOrNull() != null,
+                        enabled = weightInput.toLocalizedDoubleOrNull() != null,
                     ) {
                         Text("Log")
                     }

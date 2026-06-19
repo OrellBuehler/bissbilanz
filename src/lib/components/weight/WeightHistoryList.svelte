@@ -6,7 +6,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { weightService } from '$lib/services/weight-service.svelte';
-	import { round2 } from '$lib/utils/number';
+	import { round2, parseDecimalInput } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieWeightEntry } from '$lib/db/types';
@@ -34,7 +34,7 @@
 
 	const saveEdit = async () => {
 		if (!editingId) return;
-		const kg = parseFloat(editWeight);
+		const kg = parseDecimalInput(editWeight);
 		if (isNaN(kg) || kg < 20 || kg > 500) return;
 
 		await weightService.update(editingId, { weightKg: kg, notes: editNotes || undefined });

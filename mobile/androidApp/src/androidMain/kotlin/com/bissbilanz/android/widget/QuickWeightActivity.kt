@@ -29,6 +29,7 @@ import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -148,7 +149,7 @@ private fun WeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.replace(',', '.').toDoubleOrNull()
+                    val weight = weightText.toLocalizedDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text(stringResource(R.string.weight_save)) }

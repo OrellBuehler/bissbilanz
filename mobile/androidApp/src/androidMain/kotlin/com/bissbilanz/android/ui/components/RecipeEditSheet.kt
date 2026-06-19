@@ -21,6 +21,7 @@ import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -322,7 +323,7 @@ fun RecipeEditSheet(
                                         ingredients.map { ing ->
                                             RecipeIngredientInput(
                                                 foodId = ing.foodId,
-                                                quantity = ing.quantity.toDoubleOrNull() ?: 100.0,
+                                                quantity = ing.quantity.toLocalizedDoubleOrNull() ?: 100.0,
                                                 servingUnit = ing.unit,
                                             )
                                         }
@@ -333,7 +334,7 @@ fun RecipeEditSheet(
                                             RecipeUpdate(
                                                 name = nameVal,
                                                 totalServings =
-                                                    totalServings.toDoubleOrNull()
+                                                    totalServings.toLocalizedDoubleOrNull()
                                                         ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
@@ -344,7 +345,7 @@ fun RecipeEditSheet(
                                             RecipeCreate(
                                                 name = nameVal,
                                                 totalServings =
-                                                    totalServings.toDoubleOrNull()
+                                                    totalServings.toLocalizedDoubleOrNull()
                                                         ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,

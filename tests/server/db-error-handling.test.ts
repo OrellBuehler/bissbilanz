@@ -140,7 +140,17 @@ describe('Database error handling', () => {
 		test('createEntry returns error when insert returns no rows', async () => {
 			setResult([undefined]);
 
-			const result = await createEntry(TEST_USER.id, VALID_ENTRY_PAYLOAD);
+			// Quick entry (no foodId/recipeId) so the food/recipe ownership check is
+			// skipped and we exercise the insert-returns-no-rows path specifically.
+			// (The single mock result can't distinguish the ownership SELECT from the
+			// insert; a foodId payload would trip the ownership guard first.)
+			const result = await createEntry(TEST_USER.id, {
+				mealType: 'Breakfast',
+				servings: 1,
+				date: '2026-01-01',
+				quickName: 'Quick',
+				quickCalories: 100
+			});
 			expect(result.success).toBe(false);
 			if (!result.success) {
 				expect(result.error.message).toBe('Failed to create entry');

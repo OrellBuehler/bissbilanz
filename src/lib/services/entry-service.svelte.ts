@@ -60,35 +60,41 @@ async function create(entry: {
 	let servingSize: number | null = null;
 	let servingUnit: string | null = null;
 
+	// Macros are stored PER-SERVING to match the server (`/api/entries` returns
+	// per-serving values and `calculateEntryMacros` multiplies by `servings`).
+	// Storing pre-multiplied values here caused a value × servings² display bug.
 	if (foodId) {
 		const food = await db.foods.get(foodId);
 		if (food) {
 			foodName = food.name;
-			calories = food.calories * servings;
-			protein = food.protein * servings;
-			carbs = food.carbs * servings;
-			fat = food.fat * servings;
-			fiber = food.fiber * servings;
+			calories = food.calories;
+			protein = food.protein;
+			carbs = food.carbs;
+			fat = food.fat;
+			fiber = food.fiber;
 			servingSize = food.servingSize;
 			servingUnit = food.servingUnit;
 		}
 	} else if (recipeId) {
 		const recipe = await db.recipes.get(recipeId);
 		if (recipe) {
+			// Cached recipe macros are whole-recipe totals; the server entry
+			// endpoint returns them divided by totalServings (per serving).
+			const perServing = recipe.totalServings ? 1 / recipe.totalServings : 1;
 			foodName = recipe.name;
-			calories = (recipe.calories ?? 0) * servings;
-			protein = (recipe.protein ?? 0) * servings;
-			carbs = (recipe.carbs ?? 0) * servings;
-			fat = (recipe.fat ?? 0) * servings;
-			fiber = (recipe.fiber ?? 0) * servings;
+			calories = (recipe.calories ?? 0) * perServing;
+			protein = (recipe.protein ?? 0) * perServing;
+			carbs = (recipe.carbs ?? 0) * perServing;
+			fat = (recipe.fat ?? 0) * perServing;
+			fiber = (recipe.fiber ?? 0) * perServing;
 		}
 	} else if (entry.quickName) {
 		foodName = entry.quickName;
-		calories = (entry.quickCalories ?? 0) * servings;
-		protein = (entry.quickProtein ?? 0) * servings;
-		carbs = (entry.quickCarbs ?? 0) * servings;
-		fat = (entry.quickFat ?? 0) * servings;
-		fiber = (entry.quickFiber ?? 0) * servings;
+		calories = entry.quickCalories ?? 0;
+		protein = entry.quickProtein ?? 0;
+		carbs = entry.quickCarbs ?? 0;
+		fat = entry.quickFat ?? 0;
+		fiber = entry.quickFiber ?? 0;
 	}
 
 	await db.foodEntries.put({
@@ -140,38 +146,9 @@ async function update(
 
 	const dexieUpdate: Record<string, unknown> = { ...entry };
 
-	if (existing && entry.servings != null && entry.servings !== existing.servings) {
-		const servings = entry.servings;
-		if (existing.foodId) {
-			const food = await db.foods.get(existing.foodId);
-			if (food) {
-				dexieUpdate.calories = food.calories * servings;
-				dexieUpdate.protein = food.protein * servings;
-				dexieUpdate.carbs = food.carbs * servings;
-				dexieUpdate.fat = food.fat * servings;
-				dexieUpdate.fiber = food.fiber * servings;
-			}
-		} else if (existing.recipeId) {
-			const recipe = await db.recipes.get(existing.recipeId);
-			if (recipe) {
-				dexieUpdate.calories = (recipe.calories ?? 0) * servings;
-				dexieUpdate.protein = (recipe.protein ?? 0) * servings;
-				dexieUpdate.carbs = (recipe.carbs ?? 0) * servings;
-				dexieUpdate.fat = (recipe.fat ?? 0) * servings;
-				dexieUpdate.fiber = (recipe.fiber ?? 0) * servings;
-			}
-		} else if (existing.calories != null) {
-			const oldServings = existing.servings || 1;
-			const perServing = (val: number | null) =>
-				val != null ? (val / oldServings) * servings : null;
-			dexieUpdate.calories = perServing(existing.calories);
-			dexieUpdate.protein = perServing(existing.protein);
-			dexieUpdate.carbs = perServing(existing.carbs);
-			dexieUpdate.fat = perServing(existing.fat);
-			dexieUpdate.fiber = perServing(existing.fiber);
-		}
-	}
-
+	// Macros are stored per-serving, so changing `servings` alone doesn't change
+	// them (consumers multiply by `servings`). Only a quick-entry macro edit
+	// rewrites the stored per-serving values.
 	if (
 		existing &&
 		!existing.foodId &&
@@ -183,14 +160,11 @@ async function update(
 			entry.quickFiber !== undefined ||
 			entry.quickName !== undefined)
 	) {
-		const servings = entry.servings ?? existing.servings ?? 1;
-		if (entry.quickCalories !== undefined)
-			dexieUpdate.calories = (entry.quickCalories ?? 0) * servings;
-		if (entry.quickProtein !== undefined)
-			dexieUpdate.protein = (entry.quickProtein ?? 0) * servings;
-		if (entry.quickCarbs !== undefined) dexieUpdate.carbs = (entry.quickCarbs ?? 0) * servings;
-		if (entry.quickFat !== undefined) dexieUpdate.fat = (entry.quickFat ?? 0) * servings;
-		if (entry.quickFiber !== undefined) dexieUpdate.fiber = (entry.quickFiber ?? 0) * servings;
+		if (entry.quickCalories !== undefined) dexieUpdate.calories = entry.quickCalories ?? 0;
+		if (entry.quickProtein !== undefined) dexieUpdate.protein = entry.quickProtein ?? 0;
+		if (entry.quickCarbs !== undefined) dexieUpdate.carbs = entry.quickCarbs ?? 0;
+		if (entry.quickFat !== undefined) dexieUpdate.fat = entry.quickFat ?? 0;
+		if (entry.quickFiber !== undefined) dexieUpdate.fiber = entry.quickFiber ?? 0;
 		if (entry.quickName !== undefined) dexieUpdate.foodName = entry.quickName;
 	}
 

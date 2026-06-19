@@ -20,6 +20,7 @@ import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -113,7 +114,7 @@ fun SupplementEditSheet(
             ingredients.isNotEmpty() &&
             ingredients.all { row ->
                 row.name.isNotBlank() &&
-                    ((row.dosage.toDoubleOrNull() ?: 0.0) > 0.0 || !row.originalText.isNullOrBlank())
+                    ((row.dosage.toLocalizedDoubleOrNull() ?: 0.0) > 0.0 || !row.originalText.isNullOrBlank())
             }
 
     ModalBottomSheet(
@@ -362,7 +363,7 @@ fun SupplementEditSheet(
                                 try {
                                     val ingredientInputs =
                                         ingredients.mapIndexed { idx, row ->
-                                            val dose = row.dosage.toDoubleOrNull() ?: 0.0
+                                            val dose = row.dosage.toLocalizedDoubleOrNull() ?: 0.0
                                             // Prefer a rebuilt "<dosage> <unit>" label; fall back to
                                             // the preserved originalText for free-form labels.
                                             val label =

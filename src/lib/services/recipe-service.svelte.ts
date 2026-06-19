@@ -2,6 +2,7 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieRecipe, DexieRecipeIngredient } from '$lib/db/types';
 import { api } from '$lib/api/client';
+import { isQueued } from '$lib/utils/api';
 import { refreshTable, withOfflineFallback } from './base';
 
 function allRecipes() {
@@ -97,7 +98,8 @@ async function create(recipe: Record<string, unknown>) {
 
 	await withOfflineFallback(
 		async () => {
-			const { data } = await api.POST('/api/recipes', { body: recipe as never });
+			const { data, response } = await api.POST('/api/recipes', { body: recipe as never });
+			if (isQueued(response)) return;
 			if (data) {
 				const { ingredients, ...recipeData } = data.recipe;
 				await db.recipes.put(recipeData as unknown as DexieRecipe);
@@ -142,10 +144,11 @@ async function update(id: string, recipe: Record<string, unknown>) {
 
 	await withOfflineFallback(
 		async () => {
-			const { data } = await api.PATCH('/api/recipes/{id}', {
+			const { data, response } = await api.PATCH('/api/recipes/{id}', {
 				params: { path: { id } },
 				body: recipe as never
 			});
+			if (isQueued(response)) return;
 			if (data) {
 				const { ingredients: respIngredients, ...respRecipeData } = data.recipe;
 				await db.recipes.put(respRecipeData as unknown as DexieRecipe);

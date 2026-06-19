@@ -247,9 +247,13 @@ class LocalAnalytics(
         val days = LocalDate.parse(startDate).daysUntil(LocalDate.parse(endDate))
         if (days <= 0) return null
 
+        // The food window is inclusive of both endpoints, so it covers days + 1
+        // calendar days; average intake over that inclusive count. The weight-change
+        // rate (passed as `days` to calculateMaintenance) stays per-interval.
+        val inclusiveDays = days + 1
         val totalCalories = dailyTotals.values.sum()
-        val avgDailyCalories = totalCalories / days
-        val coverage = dailyTotals.size.toDouble() / days
+        val avgDailyCalories = totalCalories / inclusiveDays
+        val coverage = dailyTotals.size.toDouble() / inclusiveDays
         val firstWeight = weights.first().weightKg
         val lastWeight = weights.last().weightKg
         val weightChangeKg = lastWeight - firstWeight
@@ -283,7 +287,7 @@ class LocalAnalytics(
                 MaintenanceMeta(
                     weightEntries = weights.size,
                     foodEntryDays = dailyTotals.size,
-                    totalDays = days,
+                    totalDays = inclusiveDays,
                     coverage = coverage,
                     firstWeight = firstWeight,
                     lastWeight = lastWeight,

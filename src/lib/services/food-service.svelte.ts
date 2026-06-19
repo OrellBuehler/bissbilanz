@@ -2,6 +2,7 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
+import { isQueued } from '$lib/utils/api';
 import { refreshTable, withOfflineFallback } from './base';
 import type { paths } from '$lib/api/generated/schema';
 
@@ -135,7 +136,8 @@ async function create(food: FoodCreate) {
 
 	await withOfflineFallback(
 		async () => {
-			const { data } = await api.POST('/api/foods', { body: food });
+			const { data, response } = await api.POST('/api/foods', { body: food });
+			if (isQueued(response)) return;
 			if (data) {
 				await db.foods.put(data.food as unknown as DexieFood);
 			}
@@ -150,10 +152,11 @@ async function update(id: string, food: FoodUpdate) {
 
 	await withOfflineFallback(
 		async () => {
-			const { data } = await api.PATCH('/api/foods/{id}', {
+			const { data, response } = await api.PATCH('/api/foods/{id}', {
 				params: { path: { id } },
 				body: food
 			});
+			if (isQueued(response)) return;
 			if (data) {
 				await db.foods.put(data.food as unknown as DexieFood);
 			}

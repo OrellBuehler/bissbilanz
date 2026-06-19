@@ -37,6 +37,7 @@ import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -406,7 +407,7 @@ fun AddWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.replace(',', '.').toDoubleOrNull()
+                    val weight = weightText.toLocalizedDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }
@@ -451,7 +452,7 @@ fun EditWeightDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val weight = weightText.replace(',', '.').toDoubleOrNull()
+                    val weight = weightText.toLocalizedDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
             ) { Text("Save") }

@@ -108,6 +108,10 @@ class AnalyticsParityTest {
                 ).let { result -> JsonArray(result.map { it.toJson() }) }
             }
 
+            "computeTEF" -> {
+                computeTEF(tefInputsFrom(input.getValue("dailyNutrients"))).toJson()
+            }
+
             else -> {
                 error("Unknown fn in fixtures: $fn")
             }
@@ -191,6 +195,15 @@ class AnalyticsParityTest {
             putNullableDouble("addedSugars", addedSugars)
         }
 
+    // Kotlin TEFResult uses avgTEF/avgTEFPct; the TS wire shape is avgDailyTEF/avgTEFPercent.
+    private fun TEFResult.toJson() =
+        buildJsonObject {
+            put("avgDailyTEF", avgTEF)
+            put("avgTEFPercent", avgTEFPct)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
     // TS encodes ConfidenceLevel as a lowercase string.
     private fun ConfidenceLevel.wire() = name.lowercase()
 
@@ -225,6 +238,16 @@ class AnalyticsParityTest {
             days = input.getValue("days").jsonPrimitive.int,
             muscleRatio = input.optDouble("muscleRatio") ?: DEFAULT_MUSCLE_RATIO,
         )
+
+    private fun tefInputsFrom(el: JsonElement): List<TEFInput> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            TEFInput(
+                protein = o.dbl("protein"),
+                carbs = o.dbl("carbs"),
+                fat = o.dbl("fat"),
+                calories = o.dbl("calories"),
+            )
+        }
 
     private fun aggFoodsFrom(el: JsonElement): List<AggFood> =
         el.jsonArray.map { it.jsonObject }.map { o ->

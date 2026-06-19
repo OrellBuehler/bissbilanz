@@ -21,6 +21,7 @@ import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -255,7 +256,7 @@ fun EntryEditSheet(
                                         EntryUpdate(
                                             mealType = mealType,
                                             servings =
-                                                servings.toDoubleOrNull() ?: 1.0,
+                                                servings.toLocalizedDoubleOrNull() ?: 1.0,
                                             notes = notes.ifBlank { null },
                                         ),
                                     )
@@ -268,14 +269,14 @@ fun EntryEditSheet(
                                             quickName =
                                                 quickName.trim().ifBlank { null },
                                             quickCalories =
-                                                quickCalories.toDoubleOrNull(),
+                                                quickCalories.toLocalizedDoubleOrNull(),
                                             quickProtein =
-                                                quickProtein.toDoubleOrNull(),
+                                                quickProtein.toLocalizedDoubleOrNull(),
                                             quickCarbs =
-                                                quickCarbs.toDoubleOrNull(),
-                                            quickFat = quickFat.toDoubleOrNull(),
+                                                quickCarbs.toLocalizedDoubleOrNull(),
+                                            quickFat = quickFat.toLocalizedDoubleOrNull(),
                                             quickFiber =
-                                                quickFiber.toDoubleOrNull(),
+                                                quickFiber.toLocalizedDoubleOrNull(),
                                             notes = notes.ifBlank { null },
                                         ),
                                     )

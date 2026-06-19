@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { today } from '$lib/utils/dates';
+	import { parseDecimalInput } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
 	import Weight from '@lucide/svelte/icons/weight';
 	import * as m from '$lib/paraglide/messages';
@@ -23,7 +24,7 @@
 
 	const logWeight = async (e: Event) => {
 		e.preventDefault();
-		const kg = Number(inputValue);
+		const kg = parseDecimalInput(inputValue);
 		if (isNaN(kg) || kg <= 0) return;
 		saving = true;
 		try {

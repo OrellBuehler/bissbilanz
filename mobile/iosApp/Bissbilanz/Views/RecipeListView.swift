@@ -265,7 +265,7 @@ struct LogRecipeSheet: View {
         let entry = EntryCreate(
             recipeId: recipe.id,
             mealType: mealType,
-            servings: Double(servings) ?? 1,
+            servings: Double.parseUserInput(servings) ?? 1,
             date: DateFormatting.isoString(from: date)
         )
         do {

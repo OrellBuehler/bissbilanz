@@ -140,7 +140,7 @@ struct SupplementEditSheet: View {
         guard !name.isEmpty, !ingredientRows.isEmpty else { return false }
         return ingredientRows.allSatisfy { row in
             !row.name.isEmpty &&
-                ((Double(row.dosage) ?? 0) > 0 || (row.originalText ?? "").isEmpty == false)
+                ((Double.parseUserInput(row.dosage) ?? 0) > 0 || (row.originalText ?? "").isEmpty == false)
         }
     }
 
@@ -188,7 +188,7 @@ struct SupplementEditSheet: View {
         errorMessage = nil
 
         let ingredientInputs = ingredientRows.enumerated().map { idx, row -> SupplementIngredientInput in
-            let dose = Double(row.dosage) ?? 0
+            let dose = Double.parseUserInput(row.dosage) ?? 0
             let label: String = if dose > 0 {
                 "\(row.dosage) \(row.dosageUnit)"
             } else {

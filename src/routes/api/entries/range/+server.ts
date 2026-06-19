@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { handleApiError, requireAuth, requireDate, ApiError } from '$lib/server/errors';
+import { daysBetween } from '$lib/utils/dates';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -14,6 +15,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 		const start = requireDate(startDate, 'startDate');
 		const end = requireDate(endDate, 'endDate');
+
+		// Bound the span (consistent with analytics) — this endpoint has no
+		// pagination, so an unbounded range could scan/return all of a user's data.
+		const span = daysBetween(start, end);
+		if (span < 0) {
+			throw new ApiError(400, 'endDate must be on or after startDate');
+		}
+		if (span > 366) {
+			throw new ApiError(400, 'Date range must not exceed 366 days');
+		}
 
 		const entries = await listEntriesByDateRange(userId, start, end);
 		return json({ entries });

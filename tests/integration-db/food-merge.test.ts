@@ -269,4 +269,45 @@ describe('mergeFoods (integration)', () => {
 		expect(entries).toHaveLength(3);
 		expect(entries.every((e) => e.foodId === keeperId)).toBe(true);
 	});
+
+	it('rescales entry servings when keeper and source serving sizes differ (macros invariant)', async () => {
+		const db = getTestDB(dbUrl);
+		// Source defines a 50 g serving; keeper (from beforeEach) a 100 g serving.
+		const [halfServingSource] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Yogurt (50g serving)',
+				servingSize: 50,
+				servingUnit: 'g',
+				calories: 30,
+				protein: 5,
+				carbs: 2,
+				fat: 0,
+				fiber: 0
+			})
+			.returning();
+
+		// 2 servings of the 50 g food = 100 g logged.
+		const [entry] = await db
+			.insert(foodEntries)
+			.values({
+				userId,
+				foodId: halfServingSource.id,
+				date: '2026-04-20',
+				mealType: 'snack',
+				servings: 2
+			})
+			.returning();
+
+		const { mergeFoods } = await import('$lib/server/food-merge');
+		const result = await mergeFoods(userId, { keeperId, sourceIds: [halfServingSource.id] });
+		expect(result.success).toBe(true);
+
+		const [updated] = await db.select().from(foodEntries).where(eq(foodEntries.id, entry.id));
+		expect(updated.foodId).toBe(keeperId);
+		// factor = source.servingSize / keeper.servingSize = 50/100 = 0.5 → 2 * 0.5 = 1
+		// i.e. still 100 g against the keeper's 100 g serving — macros unchanged.
+		expect(updated.servings).toBeCloseTo(1, 5);
+	});
 });

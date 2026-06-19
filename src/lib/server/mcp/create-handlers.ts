@@ -404,8 +404,8 @@ export function createHandlers(d: HandlerDeps) {
 			const { entryId, ...rest } = args;
 			const result = await d.updateEntry(userId, entryId, rest);
 			if (!result.success) return errorPayload(result.error);
-			const date = result.data?.date ?? d.today();
-			const dailyStatus = await getDailyStatusForDate(userId, date);
+			if (!result.data) return { error: 'Entry not found' };
+			const dailyStatus = await getDailyStatusForDate(userId, result.data.date);
 			return { success: true, entryId, dailyStatus };
 		} catch (e) {
 			wrapError('update entry', e);
@@ -602,6 +602,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { foodId, ...rest } = args;
 			const result = await d.updateFood(userId, foodId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Food not found' };
 			return { success: true, foodId };
 		} catch (e) {
 			wrapError('update food', e);
@@ -639,6 +640,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { recipeId, ...rest } = args;
 			const result = await d.updateRecipe(userId, recipeId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Recipe not found' };
 			return { success: true, recipeId };
 		} catch (e) {
 			wrapError('update recipe', e);
@@ -733,6 +735,7 @@ export function createHandlers(d: HandlerDeps) {
 			};
 			const result = await d.updateSupplement(userId, supplementId, normalized);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Supplement not found' };
 			return { success: true, supplementId };
 		} catch (e) {
 			wrapError('update supplement', e);
@@ -768,6 +771,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { weightId, ...rest } = args;
 			const result = await d.updateWeightEntry(userId, weightId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Weight entry not found' };
 			return { success: true, weightId };
 		} catch (e) {
 			wrapError('update weight', e);

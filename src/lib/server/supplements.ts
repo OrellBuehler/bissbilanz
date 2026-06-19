@@ -353,16 +353,23 @@ export const logSupplement = async (
 		// on (user_id, supplement_id, date, food_id) WHERE supplement_id IS NOT NULL.
 		// Concurrent double-taps will all succeed but only one ingredient set wins.
 		const takenAt = new Date();
+		// Aggregate ingredients that share a backing food: the partial unique index
+		// on (user_id, supplement_id, date, food_id) + ON CONFLICT DO NOTHING would
+		// otherwise silently drop a second same-food ingredient, under-counting it.
+		const servingsByFood = new Map<string, number>();
+		for (const ing of ingredients) {
+			servingsByFood.set(ing.foodId, (servingsByFood.get(ing.foodId) ?? 0) + ing.servings);
+		}
 		await db
 			.insert(foodEntries)
 			.values(
-				ingredients.map((ing) => ({
+				[...servingsByFood].map(([foodId, servings]) => ({
 					userId,
-					foodId: ing.foodId,
+					foodId,
 					supplementId,
 					date,
 					mealType: 'Snacks',
-					servings: ing.servings,
+					servings,
 					eatenAt: takenAt
 				}))
 			)

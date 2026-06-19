@@ -2,6 +2,7 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { parseDecimalInput } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -39,14 +40,14 @@
 	});
 
 	const handleServingsInput = (e: Event) => {
-		const val = parseFloat((e.target as HTMLInputElement).value);
+		const val = parseDecimalInput((e.target as HTMLInputElement).value);
 		if (!isNaN(val) && val > 0) {
 			onServingsChange(val);
 		}
 	};
 
 	const handleUnitInput = (e: Event) => {
-		const val = parseFloat((e.target as HTMLInputElement).value);
+		const val = parseDecimalInput((e.target as HTMLInputElement).value);
 		if (!isNaN(val) && val > 0 && servingSize) {
 			unitAmount = val;
 			onServingsChange(Math.round((val / servingSize) * 1000) / 1000);

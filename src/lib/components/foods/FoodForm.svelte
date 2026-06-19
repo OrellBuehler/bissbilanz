@@ -14,7 +14,7 @@
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
-	import { round2 } from '$lib/utils/number';
+	import { round2, parseDecimalInput } from '$lib/utils/number';
 	import {
 		ALL_NUTRIENTS,
 		CATEGORY_ORDER,
@@ -299,7 +299,7 @@
 												value={form[nutrient.key] as number | null}
 												oninput={(e) => {
 													const val = (e.currentTarget as HTMLInputElement).value;
-													form[nutrient.key] = val === '' ? null : Number(val);
+													form[nutrient.key] = val === '' ? null : parseDecimalInput(val);
 												}}
 											/>
 										</div>

@@ -11,6 +11,7 @@ import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
 
 const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
 	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
@@ -112,8 +113,8 @@ export const listEntriesByDate = async (
 				servingUnit: foods.servingUnit
 			})
 			.from(foodEntries)
-			.leftJoin(foods, eq(foodEntries.foodId, foods.id))
-			.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
+			.leftJoin(foods, and(eq(foodEntries.foodId, foods.id), eq(foods.userId, userId)))
+			.leftJoin(recipes, and(eq(foodEntries.recipeId, recipes.id), eq(recipes.userId, userId)))
 			.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
 			.where(whereClause)
 			.limit(limit)
@@ -139,6 +140,9 @@ export const createEntry = async (
 
 	try {
 		const db = getDB();
+		// Reject references to foods/recipes the caller doesn't own (IDOR).
+		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
+		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
 		const [created] = await db
 			.insert(foodEntries)
 			.values({
@@ -194,6 +198,9 @@ export const updateEntry = async (
 
 	try {
 		const db = getDB();
+		// Reject references to foods/recipes the caller doesn't own (IDOR).
+		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
+		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
 		const [updated] = await db
 			.update(foodEntries)
 			.set({ ...toEntryUpdate(result.data), updatedAt: new Date() })

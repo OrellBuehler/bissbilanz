@@ -4,6 +4,7 @@ import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { assertFoodOwned } from '$lib/server/ownership';
 
 type RecipeInput = {
 	name: string;
@@ -93,6 +94,10 @@ export const createRecipe = async (
 				sortOrder: index
 			}));
 
+			// Reject ingredients referencing foods the caller doesn't own (IDOR).
+			for (const ingredient of result.data.ingredients) {
+				await assertFoodOwned(tx, userId, ingredient.foodId);
+			}
 			await tx.insert(recipeIngredients).values(ingredientRows);
 			return created;
 		});
@@ -159,6 +164,10 @@ export const updateRecipe = async (
 			if (!updated) return null;
 
 			if (ingredients) {
+				// Reject ingredients referencing foods the caller doesn't own (IDOR).
+				for (const ingredient of ingredients) {
+					await assertFoodOwned(tx, userId, ingredient.foodId);
+				}
 				await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
 				const rows = ingredients.map((ingredient, index) => ({
 					recipeId: id,

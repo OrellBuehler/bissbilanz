@@ -164,6 +164,7 @@ describe('api/maintenance', () => {
 		expect(data.meta.coverage).toBeGreaterThan(0);
 		expect(data.meta.coverage).toBeLessThanOrEqual(1);
 		expect(data.meta.foodEntryDays).toBe(3);
-		expect(data.meta.totalDays).toBe(13);
+		// Inclusive day count: daysBetween(02-01, 02-14) = 13 intervals → 14 calendar days.
+		expect(data.meta.totalDays).toBe(14);
 	});
 });

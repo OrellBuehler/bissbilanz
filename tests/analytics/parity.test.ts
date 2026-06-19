@@ -7,6 +7,7 @@ import { movingAverage } from '../../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib/analytics/tdee';
 import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
 import { calculateMaintenance } from '../../src/lib/utils/maintenance';
+import { computeTEF } from '../../src/lib/analytics/food-quality';
 
 /**
  * Cross-language golden-vector parity. The same frozen fixtures are asserted by
@@ -43,6 +44,8 @@ function runFn(fn: string, input: any): unknown {
 			return calculateMaintenance(input);
 		case 'aggregateDailyNutrientTotals':
 			return aggregateDailyNutrientTotals(input.entries, input.foods, input.recipes);
+		case 'computeTEF':
+			return computeTEF(input.dailyNutrients);
 		default:
 			throw new Error(`Unknown fn in fixtures: ${fn}`);
 	}
