@@ -2,7 +2,6 @@
 import Foundation
 import Testing
 
-@Suite("APIError Tests")
 struct APIErrorTests {
     @Test("Unauthorized error description")
     func unauthorizedDescription() {
@@ -63,7 +62,6 @@ struct APIErrorTests {
     }
 }
 
-@Suite("API Request Building Tests")
 struct APIRequestBuildingTests {
     @Test("GET request with query params builds correct URL")
     func getWithQueryParams() throws {
@@ -255,7 +253,6 @@ struct APIRequestBuildingTests {
     }
 }
 
-@Suite("API Response Decoding Tests")
 struct APIResponseDecodingTests {
     @Test("Food response decodes from JSON")
     func foodResponseDecoding() throws {
@@ -767,7 +764,8 @@ struct APIResponseDecodingTests {
             favoriteTapAction: "instant",
             favoriteMealAssignmentMode: "time_based",
             visibleNutrients: ["sugar", "sodium"],
-            locale: "de"
+            locale: "de",
+            timeZone: "Europe/Zurich"
         )
 
         let data = try JSONEncoder().encode(prefs)

@@ -32,3 +32,9 @@ export const openfoodfactsResponseSchema = z
 		product: productSchema
 	})
 	.meta({ id: 'OpenFoodFactsResponse' });
+
+export const openfoodfactsSearchResponseSchema = z
+	.object({
+		results: z.array(productSchema)
+	})
+	.meta({ id: 'OpenFoodFactsSearchResponse' });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ALL_NUTRIENTS } from '$lib/nutrients';
+import { extractAllNutrients } from '$lib/server/nutrient-extract';
 
 const OFF_API_BASE = 'https://world.openfoodfacts.net/api/v2/product';
 const OFF_SEARCH_BASE = 'https://world.openfoodfacts.net/cgi/search.pl';
@@ -64,20 +64,6 @@ export type OFFProduct = {
 	[key: string]: unknown;
 };
 
-function extractNutrient(
-	nutriments: Record<string, number | string | undefined>,
-	offKey: string | undefined,
-	conversion?: number
-): number | null {
-	if (!offKey) return null;
-	const raw = nutriments[offKey];
-	if (raw == null) return null;
-	const num = typeof raw === 'string' ? parseFloat(raw) : raw;
-	if (isNaN(num)) return null;
-	if (conversion) return Math.round(num * conversion * 100) / 100;
-	return Math.round(num * 100) / 100;
-}
-
 function mapSearchProduct(
 	p: z.infer<typeof offProductSchema> & { code?: string },
 	barcode: string
@@ -104,9 +90,7 @@ function mapSearchProduct(
 		barcode
 	};
 
-	for (const nutrient of ALL_NUTRIENTS) {
-		result[nutrient.key] = extractNutrient(n, nutrient.offKey, nutrient.offConversion);
-	}
+	Object.assign(result, extractAllNutrients(n));
 
 	return result;
 }

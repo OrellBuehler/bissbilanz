@@ -32,8 +32,9 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         }
     }
 
-    @MainActor
-    @ViewBuilder
+    /// @MainActor because `NavigationStack.init(root:)` is main-actor-isolated;
+    /// this builder is only ever read from `ContentView.body` (the main actor).
+    @MainActor @ViewBuilder
     var destination: some View {
         switch self {
         // FoodSearchView relies on a navigation container for its search bar,

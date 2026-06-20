@@ -605,6 +605,121 @@ export const oauthAuthorizationCodes = pgTable(
 	]
 );
 
+export const catalogDatasets = pgTable('catalog_datasets', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	key: text('key').notNull().unique(),
+	name: text('name').notNull(),
+	source: text('source').notNull(),
+	priority: integer('priority').notNull().default(100),
+	description: text('description'),
+	productCount: integer('product_count'),
+	version: text('version'),
+	snapshotAt: timestamp('snapshot_at', { withTimezone: true }),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+});
+
+export const catalogFoods = pgTable(
+	'catalog_foods',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		datasetId: uuid('dataset_id')
+			.notNull()
+			.references(() => catalogDatasets.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		brand: text('brand'),
+		language: text('language'),
+		servingSize: real('serving_size').notNull(),
+		servingUnit: servingUnitEnum('serving_unit').notNull(),
+		calories: real('calories').notNull(),
+		protein: real('protein').notNull(),
+		carbs: real('carbs').notNull(),
+		fat: real('fat').notNull(),
+		fiber: real('fiber').notNull(),
+		// Advanced nutrients — fat breakdown
+		saturatedFat: real('saturated_fat'),
+		monounsaturatedFat: real('monounsaturated_fat'),
+		polyunsaturatedFat: real('polyunsaturated_fat'),
+		transFat: real('trans_fat'),
+		cholesterol: real('cholesterol'),
+		omega3: real('omega3'),
+		omega6: real('omega6'),
+		// Sugar & carb details
+		sugar: real('sugar'),
+		addedSugars: real('added_sugars'),
+		sugarAlcohols: real('sugar_alcohols'),
+		starch: real('starch'),
+		// Minerals
+		sodium: real('sodium'),
+		potassium: real('potassium'),
+		calcium: real('calcium'),
+		iron: real('iron'),
+		magnesium: real('magnesium'),
+		phosphorus: real('phosphorus'),
+		zinc: real('zinc'),
+		copper: real('copper'),
+		manganese: real('manganese'),
+		selenium: real('selenium'),
+		iodine: real('iodine'),
+		fluoride: real('fluoride'),
+		chromium: real('chromium'),
+		molybdenum: real('molybdenum'),
+		chloride: real('chloride'),
+		// Vitamins
+		vitaminA: real('vitamin_a'),
+		vitaminC: real('vitamin_c'),
+		vitaminD: real('vitamin_d'),
+		vitaminE: real('vitamin_e'),
+		vitaminK: real('vitamin_k'),
+		vitaminB1: real('vitamin_b1'),
+		vitaminB2: real('vitamin_b2'),
+		vitaminB3: real('vitamin_b3'),
+		vitaminB5: real('vitamin_b5'),
+		vitaminB6: real('vitamin_b6'),
+		vitaminB7: real('vitamin_b7'),
+		vitaminB9: real('vitamin_b9'),
+		vitaminB12: real('vitamin_b12'),
+		// Other
+		caffeine: real('caffeine'),
+		alcohol: real('alcohol'),
+		water: real('water'),
+		salt: real('salt'),
+		barcode: text('barcode'),
+		nutriScore: text('nutri_score'),
+		novaGroup: integer('nova_group'),
+		additives: text('additives').array(),
+		ingredientsText: text('ingredients_text'),
+		imageUrl: text('image_url'),
+		sourceUrl: text('source_url'),
+		sourceRef: text('source_ref'),
+		crawledAt: timestamp('crawled_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_catalog_foods_dataset').on(table.datasetId),
+		index('idx_catalog_foods_dataset_barcode').on(table.datasetId, table.barcode),
+		check('catalog_foods_serving_positive', sql`${table.servingSize} > 0`),
+		check(
+			'catalog_foods_nutrition_nonnegative',
+			sql`${table.calories} >= 0 AND ${table.protein} >= 0 AND ${table.carbs} >= 0 AND ${table.fat} >= 0 AND ${table.fiber} >= 0`
+		)
+	]
+);
+
+export const catalogAccess = pgTable(
+	'catalog_access',
+	{
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		datasetId: uuid('dataset_id')
+			.notNull()
+			.references(() => catalogDatasets.id, { onDelete: 'cascade' }),
+		grantedAt: timestamp('granted_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.datasetId] })]
+);
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

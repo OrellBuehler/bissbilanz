@@ -4,3544 +4,3807 @@
  */
 
 export interface paths {
-    "/api/goals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get daily nutrition goals. */
-        get: operations["getGoals"];
-        put?: never;
-        /** @description Set daily nutrition goals. */
-        post: operations["setGoals"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/foods": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Search or list foods in the personal database. */
-        get: operations["listFoods"];
-        put?: never;
-        /** @description Create a new food in the personal database. */
-        post: operations["createFood"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/foods/recent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List recently logged foods. */
-        get: operations["listRecentFoods"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/foods/duplicates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Detect duplicate foods (shared barcode or matching name+brand). */
-        get: operations["listFoodDuplicates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/foods/merge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both. */
-        post: operations["mergeFoods"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/foods/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get a single food by ID. */
-        get: operations["getFood"];
-        put?: never;
-        post?: never;
-        /** @description Delete a food. Pass force=true to delete even if diary entries reference it. */
-        delete: operations["deleteFood"];
-        options?: never;
-        head?: never;
-        /** @description Update a food in the personal database. */
-        patch: operations["updateFood"];
-        trace?: never;
-    };
-    "/api/entries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List diary entries for a given date. */
-        get: operations["listEntries"];
-        put?: never;
-        /** @description Log a food entry. */
-        post: operations["createEntry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/entries/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Copy all diary entries from one date to another. */
-        post: operations["copyEntries"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/entries/range": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get diary entries for a date range. */
-        get: operations["getEntriesRange"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/entries/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** @description Delete a diary entry. */
-        delete: operations["deleteEntry"];
-        options?: never;
-        head?: never;
-        /** @description Update a diary entry. */
-        patch: operations["updateEntry"];
-        trace?: never;
-    };
-    "/api/recipes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List recipes. */
-        get: operations["listRecipes"];
-        put?: never;
-        /** @description Create a new recipe. */
-        post: operations["createRecipe"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recipes/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get a single recipe by ID. */
-        get: operations["getRecipe"];
-        put?: never;
-        post?: never;
-        /** @description Delete a recipe. Pass force=true to delete even if diary entries reference it. */
-        delete: operations["deleteRecipe"];
-        options?: never;
-        head?: never;
-        /** @description Update a recipe. */
-        patch: operations["updateRecipe"];
-        trace?: never;
-    };
-    "/api/supplements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List supplements. Pass all=true to include inactive ones. */
-        get: operations["listSupplements"];
-        put?: never;
-        /** @description Create a new supplement. */
-        post: operations["createSupplement"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supplements/today": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get today's supplement checklist. */
-        get: operations["getTodaySupplementChecklist"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supplements/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get supplement log history. */
-        get: operations["getSupplementHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supplements/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get a single supplement by ID. */
-        get: operations["getSupplement"];
-        put?: never;
-        post?: never;
-        /** @description Delete a supplement. */
-        delete: operations["deleteSupplement"];
-        options?: never;
-        head?: never;
-        /** @description Update a supplement. */
-        patch: operations["updateSupplement"];
-        trace?: never;
-    };
-    "/api/supplements/{id}/log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Log a supplement as taken today. */
-        post: operations["logSupplement"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supplements/{id}/log/{date}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** @description Remove a supplement log entry for a specific date. */
-        delete: operations["unlogSupplementForDate"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supplements/{date}/checklist": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get supplement checklist for a specific date. */
-        get: operations["getSupplementChecklist"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/weight": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Returns weight entries. When from/to query params are provided, returns trend data instead. */
-        get: operations["listWeightEntries"];
-        put?: never;
-        /** @description Log a new weight measurement. */
-        post: operations["createWeightEntry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/weight/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get the most recent weight entry. */
-        get: operations["getLatestWeight"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/weight/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** @description Delete a weight entry. */
-        delete: operations["deleteWeightEntry"];
-        options?: never;
-        head?: never;
-        /** @description Update a weight entry. */
-        patch: operations["updateWeightEntry"];
-        trace?: never;
-    };
-    "/api/stats/daily": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get daily nutrition totals for a date range. */
-        get: operations["getDailyStats"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/weekly": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get average daily nutrition over the past 7 days. */
-        get: operations["getWeeklyStats"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/monthly": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get average daily nutrition over the past 30 days. */
-        get: operations["getMonthlyStats"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/meal-breakdown": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get nutrition totals broken down by meal type. */
-        get: operations["getMealBreakdown"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/top-foods": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get most frequently logged foods. */
-        get: operations["getTopFoods"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/streaks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get current and longest logging streaks. */
-        get: operations["getStreaks"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/calendar": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get calendar view of logged days for a month. */
-        get: operations["getCalendar"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/day-properties": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range. */
-        get: operations["getDayProperties"];
-        /** @description Set day properties (e.g. mark as fasting day). */
-        put: operations["setDayProperties"];
-        post?: never;
-        /** @description Delete day properties for a specific date. */
-        delete: operations["deleteDayProperties"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/preferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get user preferences. */
-        get: operations["getPreferences"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Update user preferences. */
-        patch: operations["updatePreferences"];
-        trace?: never;
-    };
-    "/api/meal-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List meal types. */
-        get: operations["listMealTypes"];
-        put?: never;
-        /** @description Create a new meal type. */
-        post: operations["createMealType"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/meal-types/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** @description Delete a meal type. */
-        delete: operations["deleteMealType"];
-        options?: never;
-        head?: never;
-        /** @description Update a meal type. */
-        patch: operations["updateMealType"];
-        trace?: never;
-    };
-    "/api/favorites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List favorite foods and recipes. */
-        get: operations["listFavorites"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/maintenance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Calculate maintenance calories for a date range. */
-        get: operations["getMaintenance"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/images/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Upload an image file. */
-        post: operations["uploadImage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sleep": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description List sleep entries, optionally filtered by date range. */
-        get: operations["listSleepEntries"];
-        put?: never;
-        /** @description Create a new sleep entry. */
-        post: operations["createSleepEntry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sleep/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** @description Delete a sleep entry. */
-        delete: operations["deleteSleepEntry"];
-        options?: never;
-        head?: never;
-        /** @description Update a sleep entry. */
-        patch: operations["updateSleepEntry"];
-        trace?: never;
-    };
-    "/api/analytics/food-diversity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get food diversity data for a date range. */
-        get: operations["getFoodDiversity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/meal-timing": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get meal timing data for a date range. */
-        get: operations["getMealTiming"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/nutrients-daily": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get daily nutrient totals for a date range. */
-        get: operations["getNutrientsDaily"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/nutrients-extended": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get extended nutrient entries for a date range. */
-        get: operations["getNutrientsExtended"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/weight-food": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get weight and food data correlation for a date range. */
-        get: operations["getWeightFood"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/sleep-food": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get sleep-food correlation data for a date range. */
-        get: operations["getSleepFoodCorrelation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/openfoodfacts/{barcode}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Look up a product by barcode in Open Food Facts. */
-        get: operations["lookupOpenFoodFacts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+	'/api/goals': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get daily nutrition goals. */
+		get: operations['getGoals'];
+		put?: never;
+		/** @description Set daily nutrition goals. */
+		post: operations['setGoals'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Search or list foods in the personal database. */
+		get: operations['listFoods'];
+		put?: never;
+		/** @description Create a new food in the personal database. */
+		post: operations['createFood'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/recent': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List recently logged foods. */
+		get: operations['listRecentFoods'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/duplicates': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Detect duplicate foods (shared barcode or matching name+brand). */
+		get: operations['listFoodDuplicates'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/merge': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both. */
+		post: operations['mergeFoods'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get a single food by ID. */
+		get: operations['getFood'];
+		put?: never;
+		post?: never;
+		/** @description Delete a food. Pass force=true to delete even if diary entries reference it. */
+		delete: operations['deleteFood'];
+		options?: never;
+		head?: never;
+		/** @description Update a food in the personal database. */
+		patch: operations['updateFood'];
+		trace?: never;
+	};
+	'/api/entries': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List diary entries for a given date. */
+		get: operations['listEntries'];
+		put?: never;
+		/** @description Log a food entry. */
+		post: operations['createEntry'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/entries/copy': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Copy all diary entries from one date to another. */
+		post: operations['copyEntries'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/entries/range': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get diary entries for a date range. */
+		get: operations['getEntriesRange'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/entries/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a diary entry. */
+		delete: operations['deleteEntry'];
+		options?: never;
+		head?: never;
+		/** @description Update a diary entry. */
+		patch: operations['updateEntry'];
+		trace?: never;
+	};
+	'/api/recipes': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List recipes. */
+		get: operations['listRecipes'];
+		put?: never;
+		/** @description Create a new recipe. */
+		post: operations['createRecipe'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/recipes/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get a single recipe by ID. */
+		get: operations['getRecipe'];
+		put?: never;
+		post?: never;
+		/** @description Delete a recipe. Pass force=true to delete even if diary entries reference it. */
+		delete: operations['deleteRecipe'];
+		options?: never;
+		head?: never;
+		/** @description Update a recipe. */
+		patch: operations['updateRecipe'];
+		trace?: never;
+	};
+	'/api/supplements': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List supplements. Pass all=true to include inactive ones. */
+		get: operations['listSupplements'];
+		put?: never;
+		/** @description Create a new supplement. */
+		post: operations['createSupplement'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/supplements/today': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get today's supplement checklist. */
+		get: operations['getTodaySupplementChecklist'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/supplements/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get supplement log history. */
+		get: operations['getSupplementHistory'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/supplements/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get a single supplement by ID. */
+		get: operations['getSupplement'];
+		put?: never;
+		post?: never;
+		/** @description Delete a supplement. */
+		delete: operations['deleteSupplement'];
+		options?: never;
+		head?: never;
+		/** @description Update a supplement. */
+		patch: operations['updateSupplement'];
+		trace?: never;
+	};
+	'/api/supplements/{id}/log': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Log a supplement as taken today. */
+		post: operations['logSupplement'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/supplements/{id}/log/{date}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Remove a supplement log entry for a specific date. */
+		delete: operations['unlogSupplementForDate'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/supplements/{date}/checklist': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get supplement checklist for a specific date. */
+		get: operations['getSupplementChecklist'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/weight': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Returns weight entries. When from/to query params are provided, returns trend data instead. */
+		get: operations['listWeightEntries'];
+		put?: never;
+		/** @description Log a new weight measurement. */
+		post: operations['createWeightEntry'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/weight/latest': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get the most recent weight entry. */
+		get: operations['getLatestWeight'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/weight/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a weight entry. */
+		delete: operations['deleteWeightEntry'];
+		options?: never;
+		head?: never;
+		/** @description Update a weight entry. */
+		patch: operations['updateWeightEntry'];
+		trace?: never;
+	};
+	'/api/stats/daily': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get daily nutrition totals for a date range. */
+		get: operations['getDailyStats'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/weekly': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get average daily nutrition over the past 7 days. */
+		get: operations['getWeeklyStats'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/monthly': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get average daily nutrition over the past 30 days. */
+		get: operations['getMonthlyStats'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/meal-breakdown': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get nutrition totals broken down by meal type. */
+		get: operations['getMealBreakdown'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/top-foods': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get most frequently logged foods. */
+		get: operations['getTopFoods'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/streaks': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get current and longest logging streaks. */
+		get: operations['getStreaks'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/stats/calendar': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get calendar view of logged days for a month. */
+		get: operations['getCalendar'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/day-properties': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range. */
+		get: operations['getDayProperties'];
+		/** @description Set day properties (e.g. mark as fasting day). */
+		put: operations['setDayProperties'];
+		post?: never;
+		/** @description Delete day properties for a specific date. */
+		delete: operations['deleteDayProperties'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/preferences': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get user preferences. */
+		get: operations['getPreferences'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** @description Update user preferences. */
+		patch: operations['updatePreferences'];
+		trace?: never;
+	};
+	'/api/meal-types': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List meal types. */
+		get: operations['listMealTypes'];
+		put?: never;
+		/** @description Create a new meal type. */
+		post: operations['createMealType'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/meal-types/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a meal type. */
+		delete: operations['deleteMealType'];
+		options?: never;
+		head?: never;
+		/** @description Update a meal type. */
+		patch: operations['updateMealType'];
+		trace?: never;
+	};
+	'/api/favorites': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List favorite foods and recipes. */
+		get: operations['listFavorites'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/maintenance': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Calculate maintenance calories for a date range. */
+		get: operations['getMaintenance'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/images/upload': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Upload an image file. */
+		post: operations['uploadImage'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/sleep': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List sleep entries, optionally filtered by date range. */
+		get: operations['listSleepEntries'];
+		put?: never;
+		/** @description Create a new sleep entry. */
+		post: operations['createSleepEntry'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/sleep/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a sleep entry. */
+		delete: operations['deleteSleepEntry'];
+		options?: never;
+		head?: never;
+		/** @description Update a sleep entry. */
+		patch: operations['updateSleepEntry'];
+		trace?: never;
+	};
+	'/api/analytics/food-diversity': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get food diversity data for a date range. */
+		get: operations['getFoodDiversity'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/meal-timing': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get meal timing data for a date range. */
+		get: operations['getMealTiming'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/nutrients-daily': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get daily nutrient totals for a date range. */
+		get: operations['getNutrientsDaily'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/nutrients-extended': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get extended nutrient entries for a date range. */
+		get: operations['getNutrientsExtended'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/weight-food': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get weight and food data correlation for a date range. */
+		get: operations['getWeightFood'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/analytics/sleep-food': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get sleep-food correlation data for a date range. */
+		get: operations['getSleepFoodCorrelation'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/catalog/search': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Online catalog search across the requesting user's granted datasets. */
+		get: operations['catalogSearch'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/catalog/barcode/{code}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Barcode lookup across granted catalog datasets (priority tie-break). */
+		get: operations['catalogByBarcode'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/catalog/{id}/save': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Instantiate a personal food from a catalog row (copy-on-use). */
+		post: operations['saveCatalogFood'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/openfoodfacts/search': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse. */
+		get: operations['searchOpenFoodFacts'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/openfoodfacts/{barcode}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Look up a product by barcode in Open Food Facts. */
+		get: operations['lookupOpenFoodFacts'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/openfoodfacts/{barcode}/save': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved. */
+		post: operations['saveOpenFoodFactsProduct'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        GoalsUpdate: {
-            calorieGoal: number;
-            proteinGoal: number;
-            carbGoal: number;
-            fatGoal: number;
-            fiberGoal: number;
-            sodiumGoal?: number | null;
-            sugarGoal?: number | null;
-        };
-        FoodCreate: {
-            name: string;
-            brand?: string | null;
-            servingSize: number;
-            servingUnit: components["schemas"]["ServingUnit"];
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            saturatedFat?: number | null;
-            monounsaturatedFat?: number | null;
-            polyunsaturatedFat?: number | null;
-            transFat?: number | null;
-            cholesterol?: number | null;
-            omega3?: number | null;
-            omega6?: number | null;
-            sugar?: number | null;
-            addedSugars?: number | null;
-            sugarAlcohols?: number | null;
-            starch?: number | null;
-            sodium?: number | null;
-            potassium?: number | null;
-            calcium?: number | null;
-            iron?: number | null;
-            magnesium?: number | null;
-            phosphorus?: number | null;
-            zinc?: number | null;
-            copper?: number | null;
-            manganese?: number | null;
-            selenium?: number | null;
-            iodine?: number | null;
-            fluoride?: number | null;
-            chromium?: number | null;
-            molybdenum?: number | null;
-            chloride?: number | null;
-            vitaminA?: number | null;
-            vitaminC?: number | null;
-            vitaminD?: number | null;
-            vitaminE?: number | null;
-            vitaminK?: number | null;
-            vitaminB1?: number | null;
-            vitaminB2?: number | null;
-            vitaminB3?: number | null;
-            vitaminB5?: number | null;
-            vitaminB6?: number | null;
-            vitaminB7?: number | null;
-            vitaminB9?: number | null;
-            vitaminB12?: number | null;
-            caffeine?: number | null;
-            alcohol?: number | null;
-            water?: number | null;
-            salt?: number | null;
-            barcode?: string | null;
-            isFavorite?: boolean;
-            nutriScore?: ("a" | "b" | "c" | "d" | "e") | null;
-            novaGroup?: number | null;
-            additives?: string[] | null;
-            ingredientsText?: string | null;
-            imageUrl?: string | null;
-        };
-        /** @enum {string} */
-        ServingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
-        FoodMerge: {
-            /** Format: uuid */
-            keeperId: string;
-            sourceIds: string[];
-            overrides?: {
-                name?: string;
-                brand?: string | null;
-                servingSize?: number;
-                servingUnit?: components["schemas"]["ServingUnit"];
-                calories?: number;
-                protein?: number;
-                carbs?: number;
-                fat?: number;
-                fiber?: number;
-                saturatedFat?: number | null;
-                monounsaturatedFat?: number | null;
-                polyunsaturatedFat?: number | null;
-                transFat?: number | null;
-                cholesterol?: number | null;
-                omega3?: number | null;
-                omega6?: number | null;
-                sugar?: number | null;
-                addedSugars?: number | null;
-                sugarAlcohols?: number | null;
-                starch?: number | null;
-                sodium?: number | null;
-                potassium?: number | null;
-                calcium?: number | null;
-                iron?: number | null;
-                magnesium?: number | null;
-                phosphorus?: number | null;
-                zinc?: number | null;
-                copper?: number | null;
-                manganese?: number | null;
-                selenium?: number | null;
-                iodine?: number | null;
-                fluoride?: number | null;
-                chromium?: number | null;
-                molybdenum?: number | null;
-                chloride?: number | null;
-                vitaminA?: number | null;
-                vitaminC?: number | null;
-                vitaminD?: number | null;
-                vitaminE?: number | null;
-                vitaminK?: number | null;
-                vitaminB1?: number | null;
-                vitaminB2?: number | null;
-                vitaminB3?: number | null;
-                vitaminB5?: number | null;
-                vitaminB6?: number | null;
-                vitaminB7?: number | null;
-                vitaminB9?: number | null;
-                vitaminB12?: number | null;
-                caffeine?: number | null;
-                alcohol?: number | null;
-                water?: number | null;
-                salt?: number | null;
-                barcode?: string | null;
-                isFavorite?: boolean;
-                nutriScore?: ("a" | "b" | "c" | "d" | "e") | null;
-                novaGroup?: number | null;
-                additives?: string[] | null;
-                ingredientsText?: string | null;
-                imageUrl?: string | null;
-            };
-        };
-        FoodUpdate: {
-            name?: string;
-            brand?: string | null;
-            servingSize?: number;
-            servingUnit?: components["schemas"]["ServingUnit"];
-            calories?: number;
-            protein?: number;
-            carbs?: number;
-            fat?: number;
-            fiber?: number;
-            saturatedFat?: number | null;
-            monounsaturatedFat?: number | null;
-            polyunsaturatedFat?: number | null;
-            transFat?: number | null;
-            cholesterol?: number | null;
-            omega3?: number | null;
-            omega6?: number | null;
-            sugar?: number | null;
-            addedSugars?: number | null;
-            sugarAlcohols?: number | null;
-            starch?: number | null;
-            sodium?: number | null;
-            potassium?: number | null;
-            calcium?: number | null;
-            iron?: number | null;
-            magnesium?: number | null;
-            phosphorus?: number | null;
-            zinc?: number | null;
-            copper?: number | null;
-            manganese?: number | null;
-            selenium?: number | null;
-            iodine?: number | null;
-            fluoride?: number | null;
-            chromium?: number | null;
-            molybdenum?: number | null;
-            chloride?: number | null;
-            vitaminA?: number | null;
-            vitaminC?: number | null;
-            vitaminD?: number | null;
-            vitaminE?: number | null;
-            vitaminK?: number | null;
-            vitaminB1?: number | null;
-            vitaminB2?: number | null;
-            vitaminB3?: number | null;
-            vitaminB5?: number | null;
-            vitaminB6?: number | null;
-            vitaminB7?: number | null;
-            vitaminB9?: number | null;
-            vitaminB12?: number | null;
-            caffeine?: number | null;
-            alcohol?: number | null;
-            water?: number | null;
-            salt?: number | null;
-            barcode?: string | null;
-            isFavorite?: boolean;
-            nutriScore?: ("a" | "b" | "c" | "d" | "e") | null;
-            novaGroup?: number | null;
-            additives?: string[] | null;
-            ingredientsText?: string | null;
-            imageUrl?: string | null;
-        };
-        EntryCreate: {
-            /** Format: uuid */
-            foodId?: string;
-            /** Format: uuid */
-            recipeId?: string;
-            mealType: string;
-            servings: number;
-            notes?: string | null;
-            date: string;
-            quickName?: string | null;
-            quickCalories?: number | null;
-            quickProtein?: number | null;
-            quickCarbs?: number | null;
-            quickFat?: number | null;
-            quickFiber?: number | null;
-            /** Format: date-time */
-            eatenAt?: string;
-        };
-        EntryUpdate: {
-            /** Format: uuid */
-            foodId?: string;
-            /** Format: uuid */
-            recipeId?: string;
-            mealType?: string;
-            servings?: number;
-            notes?: string | null;
-            date?: string;
-            quickName?: string | null;
-            quickCalories?: number | null;
-            quickProtein?: number | null;
-            quickCarbs?: number | null;
-            quickFat?: number | null;
-            quickFiber?: number | null;
-            /** Format: date-time */
-            eatenAt?: string;
-        };
-        RecipeCreate: {
-            name: string;
-            totalServings: number;
-            ingredients: components["schemas"]["RecipeIngredientInput"][];
-            isFavorite?: boolean;
-            imageUrl?: string | null;
-        };
-        RecipeIngredientInput: {
-            /** Format: uuid */
-            foodId: string;
-            quantity: number;
-            servingUnit: components["schemas"]["ServingUnit"];
-        };
-        RecipeUpdate: {
-            name?: string;
-            totalServings?: number;
-            ingredients?: components["schemas"]["RecipeIngredientInput"][];
-            isFavorite?: boolean;
-            imageUrl?: string | null;
-        };
-        SupplementIngredientInput: {
-            /** Format: uuid */
-            foodId?: string;
-            food?: components["schemas"]["FoodCreate"];
-            servings?: number;
-            sortOrder?: number;
-        };
-        SupplementCreate: {
-            name: string;
-            /** @enum {string} */
-            scheduleType: "daily" | "every_other_day" | "weekly" | "specific_days";
-            scheduleDays?: number[] | null;
-            scheduleStartDate?: string | null;
-            isActive?: boolean;
-            sortOrder?: number;
-            timeOfDay?: ("morning" | "noon" | "evening") | null;
-            ingredients: components["schemas"]["SupplementIngredientInput"][];
-        };
-        SupplementUpdate: {
-            name?: string;
-            /** @enum {string} */
-            scheduleType?: "daily" | "every_other_day" | "weekly" | "specific_days";
-            scheduleDays?: number[] | null;
-            scheduleStartDate?: string | null;
-            isActive?: boolean;
-            sortOrder?: number;
-            timeOfDay?: ("morning" | "noon" | "evening") | null;
-            ingredients?: components["schemas"]["SupplementIngredientInput"][];
-        };
-        SupplementLogCreate: {
-            date?: string;
-        };
-        WeightCreate: {
-            weightKg: number;
-            entryDate: string;
-            notes?: string | null;
-        };
-        WeightUpdate: {
-            weightKg?: number;
-            entryDate?: string;
-            notes?: string | null;
-        };
-        DayPropertiesSet: {
-            date: string;
-            isFastingDay: boolean;
-        };
-        PreferencesUpdate: {
-            showChartWidget?: boolean;
-            showFavoritesWidget?: boolean;
-            showSupplementsWidget?: boolean;
-            showWeightWidget?: boolean;
-            showMealBreakdownWidget?: boolean;
-            showTopFoodsWidget?: boolean;
-            showSleepWidget?: boolean;
-            widgetOrder?: ("chart" | "streaks" | "favorites" | "supplements" | "weight" | "meal-breakdown" | "top-foods" | "sleep" | "summary" | "daylog")[];
-            /** @enum {string} */
-            startPage?: "dashboard" | "favorites";
-            /** @enum {string} */
-            favoriteTapAction?: "instant" | "picker";
-            /** @enum {string} */
-            favoriteMealAssignmentMode?: "time_based" | "ask_meal";
-            favoriteMealTimeframes?: components["schemas"]["FavoriteMealTimeframeInput"][];
-            mealOrder?: string[];
-            visibleNutrients?: string[];
-            /** @enum {string} */
-            locale?: "en" | "de";
-            caloricLagDaysOverride?: number | null;
-            timeZone?: string;
-        };
-        FavoriteMealTimeframeInput: {
-            mealType: string;
-            customMealTypeId?: string | null;
-            startTime: string;
-            endTime: string;
-        };
-        MealTypeCreate: {
-            name: string;
-            sortOrder: number;
-        };
-        MealTypeUpdate: {
-            name?: string;
-            sortOrder?: number;
-        };
-        SleepCreate: {
-            durationMinutes: number;
-            quality: number;
-            entryDate: string;
-            bedtime?: string | null;
-            wakeTime?: string | null;
-            wakeUps?: number | null;
-            notes?: string | null;
-        };
-        SleepUpdate: {
-            durationMinutes?: number;
-            quality?: number;
-            entryDate?: string;
-            bedtime?: string | null;
-            wakeTime?: string | null;
-            wakeUps?: number | null;
-            notes?: string | null;
-        };
-        GoalsResponse: {
-            goals: components["schemas"]["Goals"] | null;
-        };
-        Goals: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            userId?: string;
-            calorieGoal: number;
-            proteinGoal: number;
-            carbGoal: number;
-            fatGoal: number;
-            fiberGoal: number;
-            sodiumGoal?: number | null;
-            sugarGoal?: number | null;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        ErrorResponse: {
-            error: string;
-        };
-        GoalsSetResponse: {
-            goals: components["schemas"]["Goals"];
-        };
-        ValidationErrorResponse: {
-            error: string;
-            details?: {
-                [key: string]: string[];
-            };
-        };
-        FoodsListResponse: {
-            foods: components["schemas"]["Food"][];
-            total: number;
-        };
-        Food: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            brand: string | null;
-            servingSize: number;
-            /** @enum {string} */
-            servingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            saturatedFat?: number | null;
-            monounsaturatedFat?: number | null;
-            polyunsaturatedFat?: number | null;
-            transFat?: number | null;
-            cholesterol?: number | null;
-            omega3?: number | null;
-            omega6?: number | null;
-            sugar?: number | null;
-            addedSugars?: number | null;
-            sugarAlcohols?: number | null;
-            starch?: number | null;
-            sodium?: number | null;
-            potassium?: number | null;
-            calcium?: number | null;
-            iron?: number | null;
-            magnesium?: number | null;
-            phosphorus?: number | null;
-            zinc?: number | null;
-            copper?: number | null;
-            manganese?: number | null;
-            selenium?: number | null;
-            iodine?: number | null;
-            fluoride?: number | null;
-            chromium?: number | null;
-            molybdenum?: number | null;
-            chloride?: number | null;
-            vitaminA?: number | null;
-            vitaminC?: number | null;
-            vitaminD?: number | null;
-            vitaminE?: number | null;
-            vitaminK?: number | null;
-            vitaminB1?: number | null;
-            vitaminB2?: number | null;
-            vitaminB3?: number | null;
-            vitaminB5?: number | null;
-            vitaminB6?: number | null;
-            vitaminB7?: number | null;
-            vitaminB9?: number | null;
-            vitaminB12?: number | null;
-            caffeine?: number | null;
-            alcohol?: number | null;
-            water?: number | null;
-            salt?: number | null;
-            barcode: string | null;
-            /** @default false */
-            isFavorite: boolean;
-            nutriScore: string | null;
-            novaGroup: number | null;
-            additives: string[] | null;
-            ingredientsText: string | null;
-            imageUrl: string | null;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        FoodResponse: {
-            food: components["schemas"]["Food"];
-        };
-        FoodsRecentResponse: {
-            foods: components["schemas"]["FoodRecent"][];
-        };
-        FoodRecent: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            brand: string | null;
-            servingSize: number;
-            /** @enum {string} */
-            servingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            barcode: string | null;
-            isFavorite: boolean;
-            imageUrl: string | null;
-            lastServings: number;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        FoodDuplicatesResponse: {
-            groups: components["schemas"]["FoodDuplicateGroup"][];
-        };
-        FoodDuplicateGroup: {
-            /** @enum {string} */
-            reason: "barcode" | "name_brand";
-            key: string;
-            foods: components["schemas"]["FoodDuplicateFood"][];
-        };
-        FoodDuplicateFood: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            brand: string | null;
-            barcode: string | null;
-        };
-        ConflictErrorResponse: {
-            error: string;
-            entryCount?: number;
-        };
-        EntriesListResponse: {
-            entries: components["schemas"]["EntryListItem"][];
-            total: number;
-        };
-        EntryListItem: {
-            /** Format: uuid */
-            id: string;
-            mealType: string;
-            servings: number;
-            notes: string | null;
-            foodId: string | null;
-            recipeId: string | null;
-            quickName: string | null;
-            quickCalories: number | null;
-            quickProtein: number | null;
-            quickCarbs: number | null;
-            quickFat: number | null;
-            quickFiber: number | null;
-            foodName: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            eatenAt: string;
-            createdAt?: string;
-            servingSize: number | null;
-            servingUnit: string | null;
-        };
-        EntryResponse: {
-            entry: components["schemas"]["Entry"];
-        };
-        Entry: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            foodId: string | null;
-            recipeId: string | null;
-            date: string;
-            mealType: string;
-            servings: number;
-            notes: string | null;
-            quickName: string | null;
-            quickCalories: number | null;
-            quickProtein: number | null;
-            quickCarbs: number | null;
-            quickFat: number | null;
-            quickFiber: number | null;
-            eatenAt: string;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        EntriesCopyResponse: {
-            entries: components["schemas"]["Entry"][];
-            count: number;
-        };
-        EntriesRangeResponse: {
-            entries: components["schemas"]["EntryRangeItem"][];
-        };
-        EntryRangeItem: {
-            /** Format: uuid */
-            id: string;
-            date: string;
-            mealType: string;
-            servings: number;
-            notes: string | null;
-            foodId: string | null;
-            recipeId: string | null;
-            foodName: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        RecipesListResponse: {
-            recipes: components["schemas"]["RecipeSummary"][];
-            total: number;
-        };
-        RecipeSummary: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            totalServings: number;
-            isFavorite: boolean;
-            imageUrl: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        RecipeResponse: {
-            recipe: components["schemas"]["RecipeDetail"];
-        };
-        RecipeDetail: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            totalServings: number;
-            isFavorite: boolean;
-            imageUrl: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            createdAt?: string;
-            updatedAt?: string;
-            ingredients: components["schemas"]["RecipeIngredient"][];
-        };
-        RecipeIngredient: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            recipeId?: string;
-            /** Format: uuid */
-            foodId: string;
-            quantity: number;
-            /** @enum {string} */
-            servingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
-            sortOrder: number;
-        };
-        SupplementsListResponse: {
-            supplements: components["schemas"]["Supplement"][];
-        };
-        Supplement: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            /** @enum {string} */
-            scheduleType: "daily" | "every_other_day" | "weekly" | "specific_days";
-            scheduleDays: number[] | null;
-            scheduleStartDate: string | null;
-            /** @default true */
-            isActive: boolean;
-            sortOrder: number;
-            timeOfDay: ("morning" | "noon" | "evening") | null;
-            createdAt?: string;
-            updatedAt?: string;
-            ingredients: components["schemas"]["SupplementIngredient"][];
-        };
-        SupplementIngredient: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            supplementId: string;
-            /** Format: uuid */
-            foodId: string;
-            servings: number;
-            sortOrder: number;
-            food: components["schemas"]["SupplementBackingFood"];
-        };
-        SupplementBackingFood: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            brand: string | null;
-            /** @enum {string} */
-            kind: "food" | "supplement";
-            servingSize: number;
-            servingUnit: string;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            ingredientsText?: string | null;
-        } & {
-            [key: string]: unknown;
-        };
-        SupplementResponse: {
-            supplement: components["schemas"]["Supplement"];
-        };
-        SupplementChecklistResponse: {
-            checklist: components["schemas"]["SupplementChecklistItem"][];
-            date: string;
-        };
-        SupplementChecklistItem: {
-            supplement: components["schemas"]["Supplement"];
-            taken: boolean;
-            takenAt: string | null;
-        };
-        SupplementHistoryResponse: {
-            history: components["schemas"]["SupplementHistoryItem"][];
-        };
-        SupplementHistoryItem: {
-            /** Format: uuid */
-            supplementId: string;
-            supplementName: string;
-            date: string;
-            takenAt: string;
-        };
-        SupplementLogResponse: {
-            log: components["schemas"]["SupplementLog"];
-        };
-        SupplementLog: {
-            /** Format: uuid */
-            supplementId: string;
-            date: string;
-            takenAt: string;
-            entryIds: string[];
-        };
-        WeightEntriesResponse: {
-            entries: components["schemas"]["WeightEntry"][];
-        };
-        WeightEntry: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            weightKg: number;
-            entryDate: string;
-            loggedAt?: string;
-            notes: string | null;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        WeightTrendResponse: {
-            data: components["schemas"]["WeightTrendEntry"][];
-        };
-        WeightTrendEntry: {
-            entry_date: string;
-            weight_kg: number;
-            moving_avg: number;
-        };
-        WeightEntryResponse: {
-            entry: components["schemas"]["WeightEntry"];
-        };
-        WeightLatestResponse: {
-            entry: components["schemas"]["WeightEntry"] | null;
-        };
-        DailyStatsResponse: {
-            data: components["schemas"]["DailyStat"][];
-            goals: components["schemas"]["GoalsSummary"];
-        };
-        DailyStat: {
-            date: string;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        GoalsSummary: {
-            calorieGoal: number;
-            proteinGoal: number;
-            carbGoal: number;
-            fatGoal: number;
-            fiberGoal: number;
-        } | null;
-        WeeklyStatsResponse: {
-            stats: components["schemas"]["MacroSummary"];
-        };
-        MacroSummary: {
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        MonthlyStatsResponse: {
-            stats: components["schemas"]["MacroSummary"];
-        };
-        MealBreakdownResponse: {
-            data: components["schemas"]["MealBreakdownItem"][];
-        };
-        MealBreakdownItem: {
-            mealType: string;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        TopFoodsResponse: {
-            data: components["schemas"]["TopFoodItem"][];
-        };
-        TopFoodItem: {
-            foodId: string | null;
-            recipeId: string | null;
-            foodName: string;
-            count: number;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        StreaksResponse: {
-            currentStreak: number;
-            longestStreak: number;
-        };
-        CalendarResponse: {
-            days: {
-                [key: string]: components["schemas"]["CalendarDay"];
-            };
-        };
-        CalendarDay: {
-            calories: number;
-            hasEntries: boolean;
-        };
-        DayPropertiesResponse: {
-            properties: components["schemas"]["DayProperties"] | null;
-        };
-        DayProperties: {
-            date: string;
-            isFastingDay: boolean;
-        };
-        DayPropertiesRangeResponse: {
-            data: components["schemas"]["DayProperties"][];
-        };
-        PreferencesResponse: {
-            preferences: components["schemas"]["Preferences"];
-        };
-        Preferences: {
-            showChartWidget: boolean;
-            showFavoritesWidget: boolean;
-            showSupplementsWidget: boolean;
-            showWeightWidget: boolean;
-            showMealBreakdownWidget: boolean;
-            showTopFoodsWidget: boolean;
-            showSleepWidget: boolean;
-            widgetOrder: string[];
-            mealOrder: string[];
-            startPage: string;
-            favoriteTapAction: string;
-            favoriteMealAssignmentMode: string;
-            visibleNutrients: string[];
-            caloricLagDaysOverride?: number | null;
-            locale: string | null;
-            timeZone: string;
-            updatedAt?: string;
-            favoriteMealTimeframes: components["schemas"]["FavoriteMealTimeframe"][];
-        };
-        FavoriteMealTimeframe: {
-            /** Format: uuid */
-            id: string;
-            mealType: string;
-            customMealTypeId?: string | null;
-            startMinute: number;
-            endMinute: number;
-            startTime: string;
-            endTime: string;
-            sortOrder: number;
-        };
-        MealTypesListResponse: {
-            mealTypes: components["schemas"]["MealType"][];
-        };
-        MealType: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            sortOrder: number;
-            createdAt?: string;
-        };
-        MealTypeResponse: {
-            mealType: components["schemas"]["MealType"];
-        };
-        FavoritesResponse: {
-            foods?: components["schemas"]["FavoriteFood"][];
-            recipes?: components["schemas"]["FavoriteRecipe"][];
-        };
-        FavoriteFood: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            name: string;
-            brand: string | null;
-            servingSize: number;
-            /** @enum {string} */
-            servingUnit: "g" | "kg" | "ml" | "l" | "oz" | "lb" | "fl_oz" | "cup" | "tbsp" | "tsp";
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            saturatedFat?: number | null;
-            monounsaturatedFat?: number | null;
-            polyunsaturatedFat?: number | null;
-            transFat?: number | null;
-            cholesterol?: number | null;
-            omega3?: number | null;
-            omega6?: number | null;
-            sugar?: number | null;
-            addedSugars?: number | null;
-            sugarAlcohols?: number | null;
-            starch?: number | null;
-            sodium?: number | null;
-            potassium?: number | null;
-            calcium?: number | null;
-            iron?: number | null;
-            magnesium?: number | null;
-            phosphorus?: number | null;
-            zinc?: number | null;
-            copper?: number | null;
-            manganese?: number | null;
-            selenium?: number | null;
-            iodine?: number | null;
-            fluoride?: number | null;
-            chromium?: number | null;
-            molybdenum?: number | null;
-            chloride?: number | null;
-            vitaminA?: number | null;
-            vitaminC?: number | null;
-            vitaminD?: number | null;
-            vitaminE?: number | null;
-            vitaminK?: number | null;
-            vitaminB1?: number | null;
-            vitaminB2?: number | null;
-            vitaminB3?: number | null;
-            vitaminB5?: number | null;
-            vitaminB6?: number | null;
-            vitaminB7?: number | null;
-            vitaminB9?: number | null;
-            vitaminB12?: number | null;
-            caffeine?: number | null;
-            alcohol?: number | null;
-            water?: number | null;
-            salt?: number | null;
-            barcode: string | null;
-            /** @default false */
-            isFavorite: boolean;
-            nutriScore: string | null;
-            novaGroup: number | null;
-            additives: string[] | null;
-            ingredientsText: string | null;
-            imageUrl: string | null;
-            createdAt?: string;
-            updatedAt?: string;
-            logCount: number;
-            /** @constant */
-            type: "food";
-        };
-        FavoriteRecipe: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            imageUrl: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            logCount: number;
-            totalServings: number;
-            /** @constant */
-            type: "recipe";
-        };
-        MaintenanceResponse: {
-            result: components["schemas"]["MaintenanceResult"];
-            meta: components["schemas"]["MaintenanceMeta"];
-        };
-        MaintenanceResult: {
-            maintenanceCalories: number;
-            dailyDeficit: number;
-            totalEnergyBalance: number;
-            fatMassKg: number;
-            muscleMassKg: number;
-            fatCalories: number;
-            muscleCalories: number;
-            avgDailyCalories: number;
-            weightChangeKg: number;
-            days: number;
-            muscleRatio: number;
-        };
-        MaintenanceMeta: {
-            weightEntries: number;
-            foodEntryDays: number;
-            totalDays: number;
-            coverage: number;
-            firstWeight: number;
-            lastWeight: number;
-            startDate: string;
-            endDate: string;
-        };
-        ImageUploadResponse: {
-            imageUrl: string;
-        };
-        SleepEntriesResponse: {
-            entries: components["schemas"]["SleepEntry"][];
-        };
-        SleepEntry: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            userId: string;
-            entryDate: string;
-            durationMinutes: number;
-            quality: number;
-            bedtime: string | null;
-            wakeTime: string | null;
-            wakeUps: number | null;
-            sleepLatencyMinutes: number | null;
-            deepSleepMinutes: number | null;
-            lightSleepMinutes: number | null;
-            remSleepMinutes: number | null;
-            source: string | null;
-            notes: string | null;
-            loggedAt?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        };
-        SleepEntryResponse: {
-            entry: components["schemas"]["SleepEntry"];
-        };
-        FoodDiversityResponse: {
-            data: components["schemas"]["FoodDiversityEntry"][];
-        };
-        FoodDiversityEntry: {
-            date: string;
-            foodId: string | null;
-            recipeId: string | null;
-            foodName: string;
-            novaGroup: number | null;
-        };
-        MealTimingResponse: {
-            data: components["schemas"]["MealTimingEntry"][];
-        };
-        MealTimingEntry: {
-            date: string;
-            mealType: string;
-            eatenAt: string;
-            foodId: string | null;
-            recipeId: string | null;
-            calories: number;
-            foodName: string;
-        };
-        NutrientsDailyResponse: {
-            data: components["schemas"]["DailyNutrients"][];
-        };
-        DailyNutrients: {
-            date: string;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-        };
-        NutrientsExtendedResponse: {
-            data: components["schemas"]["ExtendedNutrientEntry"][];
-        };
-        ExtendedNutrientEntry: {
-            date: string;
-            mealType: string;
-            eatenAt: string;
-            foodId: string | null;
-            recipeId: string | null;
-            foodName: string;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            novaGroup: number | null;
-            omega3: number | null;
-            omega6: number | null;
-            sodium: number | null;
-            caffeine: number | null;
-            saturatedFat: number | null;
-            transFat: number | null;
-            vitaminC: number | null;
-            vitaminD: number | null;
-            vitaminE: number | null;
-            alcohol: number | null;
-            addedSugars: number | null;
-        };
-        WeightFoodResponse: {
-            data: components["schemas"]["DailyWeightFood"][];
-        };
-        DailyWeightFood: {
-            date: string;
-            calories: number | null;
-            weightKg: number | null;
-            movingAvg: number | null;
-        };
-        SleepFoodCorrelationResponse: {
-            data: components["schemas"]["SleepFoodCorrelationEntry"][];
-        };
-        SleepFoodCorrelationEntry: {
-            date: string;
-            eveningCalories: number | null;
-            sleepDurationMinutes: number;
-            sleepQuality: number;
-        };
-        OpenFoodFactsResponse: {
-            product: components["schemas"]["OpenFoodFactsProduct"];
-        };
-        OpenFoodFactsProduct: {
-            id: string;
-            name: string;
-            brand: string | null;
-            barcode: string;
-            imageUrl: string | null;
-            nutriScore: ("a" | "b" | "c" | "d" | "e") | null;
-            novaGroup: number | null;
-            servingSize: number | null;
-            servingUnit: string | null;
-            calories: number;
-            protein: number;
-            carbs: number;
-            fat: number;
-            fiber: number;
-            saturatedFat?: number | null;
-            monounsaturatedFat?: number | null;
-            polyunsaturatedFat?: number | null;
-            transFat?: number | null;
-            cholesterol?: number | null;
-            omega3?: number | null;
-            omega6?: number | null;
-            sugar?: number | null;
-            addedSugars?: number | null;
-            sugarAlcohols?: number | null;
-            starch?: number | null;
-            sodium?: number | null;
-            potassium?: number | null;
-            calcium?: number | null;
-            iron?: number | null;
-            magnesium?: number | null;
-            phosphorus?: number | null;
-            zinc?: number | null;
-            copper?: number | null;
-            manganese?: number | null;
-            selenium?: number | null;
-            iodine?: number | null;
-            fluoride?: number | null;
-            chromium?: number | null;
-            molybdenum?: number | null;
-            chloride?: number | null;
-            vitaminA?: number | null;
-            vitaminC?: number | null;
-            vitaminD?: number | null;
-            vitaminE?: number | null;
-            vitaminK?: number | null;
-            vitaminB1?: number | null;
-            vitaminB2?: number | null;
-            vitaminB3?: number | null;
-            vitaminB5?: number | null;
-            vitaminB6?: number | null;
-            vitaminB7?: number | null;
-            vitaminB9?: number | null;
-            vitaminB12?: number | null;
-            caffeine?: number | null;
-            alcohol?: number | null;
-            water?: number | null;
-            salt?: number | null;
-            additives: string[] | null;
-            ingredientsText: string | null;
-        };
-    };
-    responses: {
-        /** @description Unauthorized */
-        UnauthorizedResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Validation error */
-        ValidationErrorResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ValidationErrorResponse"];
-            };
-        };
-        /** @description Deleted */
-        DeletedResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content?: never;
-        };
-        /** @description Conflict */
-        ConflictResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ConflictErrorResponse"];
-            };
-        };
-    };
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+	schemas: {
+		GoalsUpdate: {
+			calorieGoal: number;
+			proteinGoal: number;
+			carbGoal: number;
+			fatGoal: number;
+			fiberGoal: number;
+			sodiumGoal?: number | null;
+			sugarGoal?: number | null;
+		};
+		FoodCreate: {
+			name: string;
+			brand?: string | null;
+			servingSize: number;
+			servingUnit: components['schemas']['ServingUnit'];
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			barcode?: string | null;
+			isFavorite?: boolean;
+			nutriScore?: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+			novaGroup?: number | null;
+			additives?: string[] | null;
+			ingredientsText?: string | null;
+			imageUrl?: string | null;
+		};
+		/** @enum {string} */
+		ServingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+		FoodMerge: {
+			/** Format: uuid */
+			keeperId: string;
+			sourceIds: string[];
+			overrides?: {
+				name?: string;
+				brand?: string | null;
+				servingSize?: number;
+				servingUnit?: components['schemas']['ServingUnit'];
+				calories?: number;
+				protein?: number;
+				carbs?: number;
+				fat?: number;
+				fiber?: number;
+				saturatedFat?: number | null;
+				monounsaturatedFat?: number | null;
+				polyunsaturatedFat?: number | null;
+				transFat?: number | null;
+				cholesterol?: number | null;
+				omega3?: number | null;
+				omega6?: number | null;
+				sugar?: number | null;
+				addedSugars?: number | null;
+				sugarAlcohols?: number | null;
+				starch?: number | null;
+				sodium?: number | null;
+				potassium?: number | null;
+				calcium?: number | null;
+				iron?: number | null;
+				magnesium?: number | null;
+				phosphorus?: number | null;
+				zinc?: number | null;
+				copper?: number | null;
+				manganese?: number | null;
+				selenium?: number | null;
+				iodine?: number | null;
+				fluoride?: number | null;
+				chromium?: number | null;
+				molybdenum?: number | null;
+				chloride?: number | null;
+				vitaminA?: number | null;
+				vitaminC?: number | null;
+				vitaminD?: number | null;
+				vitaminE?: number | null;
+				vitaminK?: number | null;
+				vitaminB1?: number | null;
+				vitaminB2?: number | null;
+				vitaminB3?: number | null;
+				vitaminB5?: number | null;
+				vitaminB6?: number | null;
+				vitaminB7?: number | null;
+				vitaminB9?: number | null;
+				vitaminB12?: number | null;
+				caffeine?: number | null;
+				alcohol?: number | null;
+				water?: number | null;
+				salt?: number | null;
+				barcode?: string | null;
+				isFavorite?: boolean;
+				nutriScore?: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+				novaGroup?: number | null;
+				additives?: string[] | null;
+				ingredientsText?: string | null;
+				imageUrl?: string | null;
+			};
+		};
+		FoodUpdate: {
+			name?: string;
+			brand?: string | null;
+			servingSize?: number;
+			servingUnit?: components['schemas']['ServingUnit'];
+			calories?: number;
+			protein?: number;
+			carbs?: number;
+			fat?: number;
+			fiber?: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			barcode?: string | null;
+			isFavorite?: boolean;
+			nutriScore?: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+			novaGroup?: number | null;
+			additives?: string[] | null;
+			ingredientsText?: string | null;
+			imageUrl?: string | null;
+		};
+		EntryCreate: {
+			/** Format: uuid */
+			foodId?: string;
+			/** Format: uuid */
+			recipeId?: string;
+			mealType: string;
+			servings: number;
+			notes?: string | null;
+			date: string;
+			quickName?: string | null;
+			quickCalories?: number | null;
+			quickProtein?: number | null;
+			quickCarbs?: number | null;
+			quickFat?: number | null;
+			quickFiber?: number | null;
+			/** Format: date-time */
+			eatenAt?: string;
+		};
+		EntryUpdate: {
+			/** Format: uuid */
+			foodId?: string;
+			/** Format: uuid */
+			recipeId?: string;
+			mealType?: string;
+			servings?: number;
+			notes?: string | null;
+			date?: string;
+			quickName?: string | null;
+			quickCalories?: number | null;
+			quickProtein?: number | null;
+			quickCarbs?: number | null;
+			quickFat?: number | null;
+			quickFiber?: number | null;
+			/** Format: date-time */
+			eatenAt?: string;
+		};
+		RecipeCreate: {
+			name: string;
+			totalServings: number;
+			ingredients: components['schemas']['RecipeIngredientInput'][];
+			isFavorite?: boolean;
+			imageUrl?: string | null;
+		};
+		RecipeIngredientInput: {
+			/** Format: uuid */
+			foodId: string;
+			quantity: number;
+			servingUnit: components['schemas']['ServingUnit'];
+		};
+		RecipeUpdate: {
+			name?: string;
+			totalServings?: number;
+			ingredients?: components['schemas']['RecipeIngredientInput'][];
+			isFavorite?: boolean;
+			imageUrl?: string | null;
+		};
+		SupplementIngredientInput: {
+			/** Format: uuid */
+			foodId?: string;
+			food?: components['schemas']['FoodCreate'];
+			servings?: number;
+			sortOrder?: number;
+		};
+		SupplementCreate: {
+			name: string;
+			/** @enum {string} */
+			scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
+			scheduleDays?: number[] | null;
+			scheduleStartDate?: string | null;
+			isActive?: boolean;
+			sortOrder?: number;
+			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			ingredients: components['schemas']['SupplementIngredientInput'][];
+		};
+		SupplementUpdate: {
+			name?: string;
+			/** @enum {string} */
+			scheduleType?: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
+			scheduleDays?: number[] | null;
+			scheduleStartDate?: string | null;
+			isActive?: boolean;
+			sortOrder?: number;
+			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			ingredients?: components['schemas']['SupplementIngredientInput'][];
+		};
+		SupplementLogCreate: {
+			date?: string;
+		};
+		WeightCreate: {
+			weightKg: number;
+			entryDate: string;
+			notes?: string | null;
+		};
+		WeightUpdate: {
+			weightKg?: number;
+			entryDate?: string;
+			notes?: string | null;
+		};
+		DayPropertiesSet: {
+			date: string;
+			isFastingDay: boolean;
+		};
+		PreferencesUpdate: {
+			showChartWidget?: boolean;
+			showFavoritesWidget?: boolean;
+			showSupplementsWidget?: boolean;
+			showWeightWidget?: boolean;
+			showMealBreakdownWidget?: boolean;
+			showTopFoodsWidget?: boolean;
+			showSleepWidget?: boolean;
+			widgetOrder?: (
+				| 'chart'
+				| 'streaks'
+				| 'favorites'
+				| 'supplements'
+				| 'weight'
+				| 'meal-breakdown'
+				| 'top-foods'
+				| 'sleep'
+				| 'summary'
+				| 'daylog'
+			)[];
+			/** @enum {string} */
+			startPage?: 'dashboard' | 'favorites';
+			/** @enum {string} */
+			favoriteTapAction?: 'instant' | 'picker';
+			/** @enum {string} */
+			favoriteMealAssignmentMode?: 'time_based' | 'ask_meal';
+			favoriteMealTimeframes?: components['schemas']['FavoriteMealTimeframeInput'][];
+			mealOrder?: string[];
+			visibleNutrients?: string[];
+			/** @enum {string} */
+			locale?: 'en' | 'de';
+			caloricLagDaysOverride?: number | null;
+			timeZone?: string;
+		};
+		FavoriteMealTimeframeInput: {
+			mealType: string;
+			customMealTypeId?: string | null;
+			startTime: string;
+			endTime: string;
+		};
+		MealTypeCreate: {
+			name: string;
+			sortOrder: number;
+		};
+		MealTypeUpdate: {
+			name?: string;
+			sortOrder?: number;
+		};
+		SleepCreate: {
+			durationMinutes: number;
+			quality: number;
+			entryDate: string;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
+		};
+		SleepUpdate: {
+			durationMinutes?: number;
+			quality?: number;
+			entryDate?: string;
+			bedtime?: string | null;
+			wakeTime?: string | null;
+			wakeUps?: number | null;
+			notes?: string | null;
+		};
+		GoalsResponse: {
+			goals: components['schemas']['Goals'] | null;
+		};
+		Goals: {
+			/** Format: uuid */
+			id?: string;
+			/** Format: uuid */
+			userId?: string;
+			calorieGoal: number;
+			proteinGoal: number;
+			carbGoal: number;
+			fatGoal: number;
+			fiberGoal: number;
+			sodiumGoal?: number | null;
+			sugarGoal?: number | null;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		ErrorResponse: {
+			error: string;
+		};
+		GoalsSetResponse: {
+			goals: components['schemas']['Goals'];
+		};
+		ValidationErrorResponse: {
+			error: string;
+			details?: {
+				[key: string]: string[];
+			};
+		};
+		FoodsListResponse: {
+			foods: components['schemas']['Food'][];
+			total: number;
+		};
+		Food: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			barcode: string | null;
+			/** @default false */
+			isFavorite: boolean;
+			nutriScore: string | null;
+			novaGroup: number | null;
+			additives: string[] | null;
+			ingredientsText: string | null;
+			imageUrl: string | null;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		FoodResponse: {
+			food: components['schemas']['Food'];
+		};
+		FoodsRecentResponse: {
+			foods: components['schemas']['FoodRecent'][];
+		};
+		FoodRecent: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			barcode: string | null;
+			isFavorite: boolean;
+			imageUrl: string | null;
+			lastServings: number;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		FoodDuplicatesResponse: {
+			groups: components['schemas']['FoodDuplicateGroup'][];
+		};
+		FoodDuplicateGroup: {
+			/** @enum {string} */
+			reason: 'barcode' | 'name_brand';
+			key: string;
+			foods: components['schemas']['FoodDuplicateFood'][];
+		};
+		FoodDuplicateFood: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			brand: string | null;
+			barcode: string | null;
+		};
+		ConflictErrorResponse: {
+			error: string;
+			entryCount?: number;
+		};
+		EntriesListResponse: {
+			entries: components['schemas']['EntryListItem'][];
+			total: number;
+		};
+		EntryListItem: {
+			/** Format: uuid */
+			id: string;
+			mealType: string;
+			servings: number;
+			notes: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			quickName: string | null;
+			quickCalories: number | null;
+			quickProtein: number | null;
+			quickCarbs: number | null;
+			quickFat: number | null;
+			quickFiber: number | null;
+			foodName: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			eatenAt: string;
+			createdAt?: string;
+			servingSize: number | null;
+			servingUnit: string | null;
+		};
+		EntryResponse: {
+			entry: components['schemas']['Entry'];
+		};
+		Entry: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			foodId: string | null;
+			recipeId: string | null;
+			date: string;
+			mealType: string;
+			servings: number;
+			notes: string | null;
+			quickName: string | null;
+			quickCalories: number | null;
+			quickProtein: number | null;
+			quickCarbs: number | null;
+			quickFat: number | null;
+			quickFiber: number | null;
+			eatenAt: string;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		EntriesCopyResponse: {
+			entries: components['schemas']['Entry'][];
+			count: number;
+		};
+		EntriesRangeResponse: {
+			entries: components['schemas']['EntryRangeItem'][];
+		};
+		EntryRangeItem: {
+			/** Format: uuid */
+			id: string;
+			date: string;
+			mealType: string;
+			servings: number;
+			notes: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		RecipesListResponse: {
+			recipes: components['schemas']['RecipeSummary'][];
+			total: number;
+		};
+		RecipeSummary: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			totalServings: number;
+			isFavorite: boolean;
+			imageUrl: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		RecipeResponse: {
+			recipe: components['schemas']['RecipeDetail'];
+		};
+		RecipeDetail: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			totalServings: number;
+			isFavorite: boolean;
+			imageUrl: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			createdAt?: string;
+			updatedAt?: string;
+			ingredients: components['schemas']['RecipeIngredient'][];
+		};
+		RecipeIngredient: {
+			/** Format: uuid */
+			id?: string;
+			/** Format: uuid */
+			recipeId?: string;
+			/** Format: uuid */
+			foodId: string;
+			quantity: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			sortOrder: number;
+		};
+		SupplementsListResponse: {
+			supplements: components['schemas']['Supplement'][];
+		};
+		Supplement: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			/** @enum {string} */
+			scheduleType: 'daily' | 'every_other_day' | 'weekly' | 'specific_days';
+			scheduleDays: number[] | null;
+			scheduleStartDate: string | null;
+			/** @default true */
+			isActive: boolean;
+			sortOrder: number;
+			timeOfDay: ('morning' | 'noon' | 'evening') | null;
+			createdAt?: string;
+			updatedAt?: string;
+			ingredients: components['schemas']['SupplementIngredient'][];
+		};
+		SupplementIngredient: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			supplementId: string;
+			/** Format: uuid */
+			foodId: string;
+			servings: number;
+			sortOrder: number;
+			food: components['schemas']['SupplementBackingFood'];
+		};
+		SupplementBackingFood: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			brand: string | null;
+			/** @enum {string} */
+			kind: 'food' | 'supplement';
+			servingSize: number;
+			servingUnit: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			ingredientsText?: string | null;
+		} & {
+			[key: string]: unknown;
+		};
+		SupplementResponse: {
+			supplement: components['schemas']['Supplement'];
+		};
+		SupplementChecklistResponse: {
+			checklist: components['schemas']['SupplementChecklistItem'][];
+			date: string;
+		};
+		SupplementChecklistItem: {
+			supplement: components['schemas']['Supplement'];
+			taken: boolean;
+			takenAt: string | null;
+		};
+		SupplementHistoryResponse: {
+			history: components['schemas']['SupplementHistoryItem'][];
+		};
+		SupplementHistoryItem: {
+			/** Format: uuid */
+			supplementId: string;
+			supplementName: string;
+			date: string;
+			takenAt: string;
+		};
+		SupplementLogResponse: {
+			log: components['schemas']['SupplementLog'];
+		};
+		SupplementLog: {
+			/** Format: uuid */
+			supplementId: string;
+			date: string;
+			takenAt: string;
+			entryIds: string[];
+		};
+		WeightEntriesResponse: {
+			entries: components['schemas']['WeightEntry'][];
+		};
+		WeightEntry: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			weightKg: number;
+			entryDate: string;
+			loggedAt?: string;
+			notes: string | null;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		WeightTrendResponse: {
+			data: components['schemas']['WeightTrendEntry'][];
+		};
+		WeightTrendEntry: {
+			entry_date: string;
+			weight_kg: number;
+			moving_avg: number;
+		};
+		WeightEntryResponse: {
+			entry: components['schemas']['WeightEntry'];
+		};
+		WeightLatestResponse: {
+			entry: components['schemas']['WeightEntry'] | null;
+		};
+		DailyStatsResponse: {
+			data: components['schemas']['DailyStat'][];
+			goals: components['schemas']['GoalsSummary'];
+		};
+		DailyStat: {
+			date: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		GoalsSummary: {
+			calorieGoal: number;
+			proteinGoal: number;
+			carbGoal: number;
+			fatGoal: number;
+			fiberGoal: number;
+		} | null;
+		WeeklyStatsResponse: {
+			stats: components['schemas']['MacroSummary'];
+		};
+		MacroSummary: {
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		MonthlyStatsResponse: {
+			stats: components['schemas']['MacroSummary'];
+		};
+		MealBreakdownResponse: {
+			data: components['schemas']['MealBreakdownItem'][];
+		};
+		MealBreakdownItem: {
+			mealType: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		TopFoodsResponse: {
+			data: components['schemas']['TopFoodItem'][];
+		};
+		TopFoodItem: {
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string;
+			count: number;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		StreaksResponse: {
+			currentStreak: number;
+			longestStreak: number;
+		};
+		CalendarResponse: {
+			days: {
+				[key: string]: components['schemas']['CalendarDay'];
+			};
+		};
+		CalendarDay: {
+			calories: number;
+			hasEntries: boolean;
+		};
+		DayPropertiesResponse: {
+			properties: components['schemas']['DayProperties'] | null;
+		};
+		DayProperties: {
+			date: string;
+			isFastingDay: boolean;
+		};
+		DayPropertiesRangeResponse: {
+			data: components['schemas']['DayProperties'][];
+		};
+		PreferencesResponse: {
+			preferences: components['schemas']['Preferences'];
+		};
+		Preferences: {
+			showChartWidget: boolean;
+			showFavoritesWidget: boolean;
+			showSupplementsWidget: boolean;
+			showWeightWidget: boolean;
+			showMealBreakdownWidget: boolean;
+			showTopFoodsWidget: boolean;
+			showSleepWidget: boolean;
+			widgetOrder: string[];
+			mealOrder: string[];
+			startPage: string;
+			favoriteTapAction: string;
+			favoriteMealAssignmentMode: string;
+			visibleNutrients: string[];
+			caloricLagDaysOverride?: number | null;
+			locale: string | null;
+			timeZone: string;
+			updatedAt?: string;
+			favoriteMealTimeframes: components['schemas']['FavoriteMealTimeframe'][];
+		};
+		FavoriteMealTimeframe: {
+			/** Format: uuid */
+			id: string;
+			mealType: string;
+			customMealTypeId?: string | null;
+			startMinute: number;
+			endMinute: number;
+			startTime: string;
+			endTime: string;
+			sortOrder: number;
+		};
+		MealTypesListResponse: {
+			mealTypes: components['schemas']['MealType'][];
+		};
+		MealType: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			sortOrder: number;
+			createdAt?: string;
+		};
+		MealTypeResponse: {
+			mealType: components['schemas']['MealType'];
+		};
+		FavoritesResponse: {
+			foods?: components['schemas']['FavoriteFood'][];
+			recipes?: components['schemas']['FavoriteRecipe'][];
+		};
+		FavoriteFood: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			barcode: string | null;
+			/** @default false */
+			isFavorite: boolean;
+			nutriScore: string | null;
+			novaGroup: number | null;
+			additives: string[] | null;
+			ingredientsText: string | null;
+			imageUrl: string | null;
+			createdAt?: string;
+			updatedAt?: string;
+			logCount: number;
+			/** @constant */
+			type: 'food';
+		};
+		FavoriteRecipe: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			imageUrl: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			logCount: number;
+			totalServings: number;
+			/** @constant */
+			type: 'recipe';
+		};
+		MaintenanceResponse: {
+			result: components['schemas']['MaintenanceResult'];
+			meta: components['schemas']['MaintenanceMeta'];
+		};
+		MaintenanceResult: {
+			maintenanceCalories: number;
+			dailyDeficit: number;
+			totalEnergyBalance: number;
+			fatMassKg: number;
+			muscleMassKg: number;
+			fatCalories: number;
+			muscleCalories: number;
+			avgDailyCalories: number;
+			weightChangeKg: number;
+			days: number;
+			muscleRatio: number;
+		};
+		MaintenanceMeta: {
+			weightEntries: number;
+			foodEntryDays: number;
+			totalDays: number;
+			coverage: number;
+			firstWeight: number;
+			lastWeight: number;
+			startDate: string;
+			endDate: string;
+		};
+		ImageUploadResponse: {
+			imageUrl: string;
+		};
+		SleepEntriesResponse: {
+			entries: components['schemas']['SleepEntry'][];
+		};
+		SleepEntry: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			entryDate: string;
+			durationMinutes: number;
+			quality: number;
+			bedtime: string | null;
+			wakeTime: string | null;
+			wakeUps: number | null;
+			sleepLatencyMinutes: number | null;
+			deepSleepMinutes: number | null;
+			lightSleepMinutes: number | null;
+			remSleepMinutes: number | null;
+			source: string | null;
+			notes: string | null;
+			loggedAt?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		SleepEntryResponse: {
+			entry: components['schemas']['SleepEntry'];
+		};
+		FoodDiversityResponse: {
+			data: components['schemas']['FoodDiversityEntry'][];
+		};
+		FoodDiversityEntry: {
+			date: string;
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string;
+			novaGroup: number | null;
+		};
+		MealTimingResponse: {
+			data: components['schemas']['MealTimingEntry'][];
+		};
+		MealTimingEntry: {
+			date: string;
+			mealType: string;
+			eatenAt: string;
+			foodId: string | null;
+			recipeId: string | null;
+			calories: number;
+			foodName: string;
+		};
+		NutrientsDailyResponse: {
+			data: components['schemas']['DailyNutrients'][];
+		};
+		DailyNutrients: {
+			date: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+		};
+		NutrientsExtendedResponse: {
+			data: components['schemas']['ExtendedNutrientEntry'][];
+		};
+		ExtendedNutrientEntry: {
+			date: string;
+			mealType: string;
+			eatenAt: string;
+			foodId: string | null;
+			recipeId: string | null;
+			foodName: string;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			novaGroup: number | null;
+			omega3: number | null;
+			omega6: number | null;
+			sodium: number | null;
+			caffeine: number | null;
+			saturatedFat: number | null;
+			transFat: number | null;
+			vitaminC: number | null;
+			vitaminD: number | null;
+			vitaminE: number | null;
+			alcohol: number | null;
+			addedSugars: number | null;
+		};
+		WeightFoodResponse: {
+			data: components['schemas']['DailyWeightFood'][];
+		};
+		DailyWeightFood: {
+			date: string;
+			calories: number | null;
+			weightKg: number | null;
+			movingAvg: number | null;
+		};
+		SleepFoodCorrelationResponse: {
+			data: components['schemas']['SleepFoodCorrelationEntry'][];
+		};
+		SleepFoodCorrelationEntry: {
+			date: string;
+			eveningCalories: number | null;
+			sleepDurationMinutes: number;
+			sleepQuality: number;
+		};
+		OpenFoodFactsSearchResponse: {
+			results: components['schemas']['OpenFoodFactsProduct'][];
+		};
+		OpenFoodFactsProduct: {
+			id: string;
+			name: string;
+			brand: string | null;
+			barcode: string;
+			imageUrl: string | null;
+			nutriScore: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+			novaGroup: number | null;
+			servingSize: number | null;
+			servingUnit: string | null;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			additives: string[] | null;
+			ingredientsText: string | null;
+		};
+		OpenFoodFactsResponse: {
+			product: components['schemas']['OpenFoodFactsProduct'];
+		};
+	};
+	responses: {
+		/** @description Unauthorized */
+		UnauthorizedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
+		/** @description Validation error */
+		ValidationErrorResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ValidationErrorResponse'];
+			};
+		};
+		/** @description Deleted */
+		DeletedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content?: never;
+		};
+		/** @description Conflict */
+		ConflictResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ConflictErrorResponse'];
+			};
+		};
+		/** @description Not found */
+		NotFoundResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
+	};
+	parameters: never;
+	requestBodies: never;
+	headers: never;
+	pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getGoals: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    setGoals: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoalsUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalsSetResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listFoods: {
-        parameters: {
-            query?: {
-                q?: string;
-                barcode?: string;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodsListResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createFood: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FoodCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listRecentFoods: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodsRecentResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listFoodDuplicates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodDuplicatesResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    mergeFoods: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FoodMerge"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getFood: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteFood: {
-        parameters: {
-            query?: {
-                force?: boolean;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-            409: components["responses"]["ConflictResponse"];
-        };
-    };
-    updateFood: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FoodUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listEntries: {
-        parameters: {
-            query: {
-                date: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EntriesListResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EntryCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    copyEntries: {
-        parameters: {
-            query: {
-                fromDate: string;
-                toDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EntriesCopyResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getEntriesRange: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EntriesRangeResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updateEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EntryUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listRecipes: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipesListResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createRecipe: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecipeCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipeResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getRecipe: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipeResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteRecipe: {
-        parameters: {
-            query?: {
-                force?: boolean;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-            409: components["responses"]["ConflictResponse"];
-        };
-    };
-    updateRecipe: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecipeUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipeResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listSupplements: {
-        parameters: {
-            query?: {
-                all?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementsListResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createSupplement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SupplementCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getTodaySupplementChecklist: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementChecklistResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getSupplementHistory: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementHistoryResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getSupplement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteSupplement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updateSupplement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SupplementUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    logSupplement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SupplementLogCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementLogResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    unlogSupplementForDate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getSupplementChecklist: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplementChecklistResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listWeightEntries: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Weight entries or trend data */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeightEntriesResponse"] | components["schemas"]["WeightTrendResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createWeightEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WeightCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeightEntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getLatestWeight: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeightLatestResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteWeightEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updateWeightEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WeightUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeightEntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getDailyStats: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DailyStatsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getWeeklyStats: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeeklyStatsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getMonthlyStats: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MonthlyStatsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getMealBreakdown: {
-        parameters: {
-            query?: {
-                date?: string;
-                startDate?: string;
-                endDate?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealBreakdownResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getTopFoods: {
-        parameters: {
-            query?: {
-                days?: number;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TopFoodsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getStreaks: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StreaksResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getCalendar: {
-        parameters: {
-            query: {
-                month: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CalendarResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getDayProperties: {
-        parameters: {
-            query?: {
-                date?: string;
-                startDate?: string;
-                endDate?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Day properties or range of day properties */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DayPropertiesResponse"] | components["schemas"]["DayPropertiesRangeResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    setDayProperties: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DayPropertiesSet"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DayPropertiesResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteDayProperties: {
-        parameters: {
-            query: {
-                date: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getPreferences: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PreferencesResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updatePreferences: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PreferencesUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PreferencesResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listMealTypes: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealTypesListResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createMealType: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MealTypeCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealTypeResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteMealType: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updateMealType: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MealTypeUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealTypeResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listFavorites: {
-        parameters: {
-            query?: {
-                type?: "foods" | "recipes";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FavoritesResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getMaintenance: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-                muscleRatio?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaintenanceResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    uploadImage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImageUploadResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    listSleepEntries: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SleepEntriesResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    createSleepEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SleepCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SleepEntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    deleteSleepEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: components["responses"]["DeletedResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    updateSleepEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SleepUpdate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SleepEntryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getFoodDiversity: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodDiversityResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getMealTiming: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealTimingResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getNutrientsDaily: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NutrientsDailyResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getNutrientsExtended: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NutrientsExtendedResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getWeightFood: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeightFoodResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    getSleepFoodCorrelation: {
-        parameters: {
-            query: {
-                startDate: string;
-                endDate: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SleepFoodCorrelationResponse"];
-                };
-            };
-            400: components["responses"]["ValidationErrorResponse"];
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
-    lookupOpenFoodFacts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                barcode: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenFoodFactsResponse"];
-                };
-            };
-            401: components["responses"]["UnauthorizedResponse"];
-        };
-    };
+	getGoals: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['GoalsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	setGoals: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['GoalsUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['GoalsSetResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFoods: {
+		parameters: {
+			query?: {
+				q?: string;
+				barcode?: string;
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodsListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listRecentFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodsRecentResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFoodDuplicates: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodDuplicatesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	mergeFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodMerge'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteFood: {
+		parameters: {
+			query?: {
+				force?: boolean;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	updateFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listEntries: {
+		parameters: {
+			query: {
+				date: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EntriesListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['EntryCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	copyEntries: {
+		parameters: {
+			query: {
+				fromDate: string;
+				toDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EntriesCopyResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getEntriesRange: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EntriesRangeResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['EntryUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listRecipes: {
+		parameters: {
+			query?: {
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipesListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createRecipe: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['RecipeCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getRecipe: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteRecipe: {
+		parameters: {
+			query?: {
+				force?: boolean;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	updateRecipe: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['RecipeUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listSupplements: {
+		parameters: {
+			query?: {
+				all?: boolean;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementsListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createSupplement: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SupplementCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getTodaySupplementChecklist: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementChecklistResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getSupplementHistory: {
+		parameters: {
+			query?: {
+				from?: string;
+				to?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementHistoryResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getSupplement: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteSupplement: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateSupplement: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SupplementUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	logSupplement: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SupplementLogCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementLogResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	unlogSupplementForDate: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+				date: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getSupplementChecklist: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				date: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SupplementChecklistResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listWeightEntries: {
+		parameters: {
+			query?: {
+				from?: string;
+				to?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Weight entries or trend data */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json':
+						| components['schemas']['WeightEntriesResponse']
+						| components['schemas']['WeightTrendResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createWeightEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WeightCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeightEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getLatestWeight: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeightLatestResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteWeightEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateWeightEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WeightUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeightEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getDailyStats: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DailyStatsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getWeeklyStats: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeeklyStatsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getMonthlyStats: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MonthlyStatsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getMealBreakdown: {
+		parameters: {
+			query?: {
+				date?: string;
+				startDate?: string;
+				endDate?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealBreakdownResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getTopFoods: {
+		parameters: {
+			query?: {
+				days?: number;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['TopFoodsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getStreaks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StreaksResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getCalendar: {
+		parameters: {
+			query: {
+				month: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CalendarResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getDayProperties: {
+		parameters: {
+			query?: {
+				date?: string;
+				startDate?: string;
+				endDate?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Day properties or range of day properties */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json':
+						| components['schemas']['DayPropertiesResponse']
+						| components['schemas']['DayPropertiesRangeResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	setDayProperties: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['DayPropertiesSet'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DayPropertiesResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteDayProperties: {
+		parameters: {
+			query: {
+				date: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getPreferences: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PreferencesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updatePreferences: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PreferencesUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PreferencesResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listMealTypes: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealTypesListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createMealType: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['MealTypeCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealTypeResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteMealType: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateMealType: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['MealTypeUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealTypeResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFavorites: {
+		parameters: {
+			query?: {
+				type?: 'foods' | 'recipes';
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FavoritesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getMaintenance: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+				muscleRatio?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MaintenanceResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	uploadImage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					/** Format: binary */
+					file: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ImageUploadResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listSleepEntries: {
+		parameters: {
+			query?: {
+				from?: string;
+				to?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntriesResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SleepCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateSleepEntry: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SleepUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepEntryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getFoodDiversity: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodDiversityResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getMealTiming: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MealTimingResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getNutrientsDaily: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NutrientsDailyResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getNutrientsExtended: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NutrientsExtendedResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getWeightFood: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WeightFoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getSleepFoodCorrelation: {
+		parameters: {
+			query: {
+				startDate: string;
+				endDate: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SleepFoodCorrelationResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	catalogSearch: {
+		parameters: {
+			query: {
+				q: string;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						results: {
+							[key: string]: unknown;
+						}[];
+					};
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	catalogByBarcode: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				code: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						found: boolean;
+						result?: {
+							[key: string]: unknown;
+						};
+					};
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						found: boolean;
+					};
+				};
+			};
+		};
+	};
+	saveCatalogFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	searchOpenFoodFacts: {
+		parameters: {
+			query: {
+				q: string;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['OpenFoodFactsSearchResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	lookupOpenFoodFacts: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				barcode: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['OpenFoodFactsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	saveOpenFoodFactsProduct: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				barcode: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Existing food returned */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
 }

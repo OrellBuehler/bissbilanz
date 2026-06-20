@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.bissbilanz
   deploymentTarget:
     iOS: '18.0'
+    watchOS: '11.0'
   xcodeVersion: '16.2'
 
 packages:
@@ -97,6 +98,11 @@ targets:
       - package: Sentry
       - target: BissbilanzWidgets
         embed: true
+      # Phase 1 dependent companion: the watch app is embedded in the host iOS
+      # app. Its version keys are inherited from the base MARKETING_VERSION /
+      # CURRENT_PROJECT_VERSION so they match the host (required to install).
+      - target: BissbilanzWatch
+        embed: true
 
   BissbilanzWidgets:
     type: app-extension
@@ -118,6 +124,77 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.bissbilanz
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+
+  # Apple Watch companion app (Phase 1). Modern SwiftUI App lifecycle — a
+  # single watchOS application target (not the legacy WatchKit storyboard
+  # two-target form). Compiles Shared/ for models/colors and a separate
+  # BissbilanzWatchShared/ for code shared with its complication extension.
+  BissbilanzWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: '11.0'
+    sources:
+      - path: BissbilanzWatch
+      - path: BissbilanzWatchShared
+      # Shares CODE, not data: App Groups never cross devices, so the watch
+      # gets WidgetSnapshot/MacroColors and the WCSession payload types this
+      # way — never the phone's App Group.
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.watchkitapp
+    info:
+      path: BissbilanzWatch/Info.plist
+      properties:
+        WKApplication: true
+        # Dependent on the host iPhone app. The one-way switch to independent
+        # (WKRunsIndependentlyOfCompanionApp) is a deliberate Phase 2 change.
+        WKCompanionAppBundleIdentifier: com.bissbilanz.ios
+        CFBundleDisplayName: Bissbilanz
+        # Lets the complication's `bissbilanz://log` deep link open the watch app.
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - bissbilanz
+    entitlements:
+      path: BissbilanzWatch/BissbilanzWatch.entitlements
+      properties:
+        # The watch's OWN App Group — shared between the watch app and its
+        # complication on-device, fed exclusively by WatchConnectivity.
+        com.apple.security.application-groups:
+          - group.com.bissbilanz.watch
+    dependencies:
+      - target: BissbilanzWatchWidgets
+        embed: true
+      - sdk: WatchConnectivity.framework
+      - sdk: WidgetKit.framework
+      - sdk: WatchKit.framework
+
+  # WidgetKit accessory widgets = watch complications (ClockKit is deprecated).
+  BissbilanzWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: '11.0'
+    sources:
+      - path: BissbilanzWatchWidgets
+      - path: BissbilanzWatchShared
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.watchkitapp.widgets
+        SKIP_INSTALL: 'YES'
+    info:
+      path: BissbilanzWatchWidgets/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: BissbilanzWatchWidgets/BissbilanzWatchWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.bissbilanz.watch
     dependencies:
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework

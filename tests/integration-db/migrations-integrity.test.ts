@@ -58,7 +58,10 @@ describe('migration integrity', () => {
 			'oauth_clients',
 			'oauth_authorizations',
 			'oauth_tokens',
-			'oauth_authorization_codes'
+			'oauth_authorization_codes',
+			'catalog_datasets',
+			'catalog_foods',
+			'catalog_access'
 		];
 		for (const table of expected) {
 			expect(tables).toContain(table);

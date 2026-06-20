@@ -1,0 +1,3 @@
+{"_dataset":{"key":"testset","name":"Test Set","source":"migros","priority":10,"version":"t1","snapshotAt":"2026-05-18T00:00:00.000Z"}}
+{"name":"Zweifel Paprika Chips","brand":"Zweifel","language":"de","servingSize":100,"servingUnit":"g","calories":515,"protein":5.8,"carbs":53,"fat":30,"fiber":5.6,"saturatedFat":1.8,"salt":1.3,"barcode":"7610095131003","sourceUrl":"https://www.migros.ch/de/product/1","sourceRef":"1"}
+{"name":"Coop Naturaplan Bio Apfel","brand":"Coop","language":"de","servingSize":100,"servingUnit":"g","calories":52,"protein":0.3,"carbs":14,"fat":0.2,"fiber":2.4,"barcode":"7610095131004","sourceUrl":"https://www.migros.ch/de/product/2","sourceRef":"2"}

@@ -47,6 +47,18 @@ class PreferencesRepository(
         cachePreferences(prefs)
     }
 
+    /**
+     * Reports the device's IANA timezone to the server so server-side analytics/MCP
+     * bucket days/hours in the user's local tz. Only updates when it differs from the
+     * stored value (loop guard); compares against the authoritative server value.
+     */
+    suspend fun reportTimeZone(deviceTimeZone: String) {
+        if (appModeManager.isLocal) return
+        val current = api.getPreferences()
+        if (current.timeZone == deviceTimeZone) return
+        updatePreferences(PreferencesUpdate(timeZone = deviceTimeZone))
+    }
+
     suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
         val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
@@ -71,6 +83,7 @@ class PreferencesRepository(
                 favoriteMealTimeframes = emptyList(),
                 visibleNutrients = emptyList(),
                 locale = null,
+                timeZone = "UTC",
             )
         val updated = applyUpdate(current, update)
         cachePreferences(updated)
@@ -109,5 +122,6 @@ class PreferencesRepository(
             favoriteMealTimeframes = current.favoriteMealTimeframes,
             visibleNutrients = update.visibleNutrients ?: current.visibleNutrients,
             locale = update.locale?.value ?: current.locale,
+            timeZone = update.timeZone ?: current.timeZone,
         )
 }

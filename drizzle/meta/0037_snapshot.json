@@ -1,9 +1,633 @@
 {
-  "id": "f967ab31-67da-4a5b-94cf-ceb5c5b36235",
+  "id": "bd3185f0-74bd-437b-acc5-b3bdb569995d",
   "prevId": "b9568d8e-88f7-4f1d-a5f3-fbb6eb4380ac",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.catalog_access": {
+      "name": "catalog_access",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dataset_id": {
+          "name": "dataset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "catalog_access_user_id_users_id_fk": {
+          "name": "catalog_access_user_id_users_id_fk",
+          "tableFrom": "catalog_access",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "catalog_access_dataset_id_catalog_datasets_id_fk": {
+          "name": "catalog_access_dataset_id_catalog_datasets_id_fk",
+          "tableFrom": "catalog_access",
+          "tableTo": "catalog_datasets",
+          "columnsFrom": [
+            "dataset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "catalog_access_user_id_dataset_id_pk": {
+          "name": "catalog_access_user_id_dataset_id_pk",
+          "columns": [
+            "user_id",
+            "dataset_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.catalog_datasets": {
+      "name": "catalog_datasets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 100
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_count": {
+          "name": "product_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshot_at": {
+          "name": "snapshot_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "catalog_datasets_key_unique": {
+          "name": "catalog_datasets_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.catalog_foods": {
+      "name": "catalog_foods",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "dataset_id": {
+          "name": "dataset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brand": {
+          "name": "brand",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serving_size": {
+          "name": "serving_size",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "serving_unit": {
+          "name": "serving_unit",
+          "type": "serving_unit",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calories": {
+          "name": "calories",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protein": {
+          "name": "protein",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "carbs": {
+          "name": "carbs",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fat": {
+          "name": "fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fiber": {
+          "name": "fiber",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saturated_fat": {
+          "name": "saturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monounsaturated_fat": {
+          "name": "monounsaturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "polyunsaturated_fat": {
+          "name": "polyunsaturated_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trans_fat": {
+          "name": "trans_fat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cholesterol": {
+          "name": "cholesterol",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "omega3": {
+          "name": "omega3",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "omega6": {
+          "name": "omega6",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sugar": {
+          "name": "sugar",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "added_sugars": {
+          "name": "added_sugars",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sugar_alcohols": {
+          "name": "sugar_alcohols",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "starch": {
+          "name": "starch",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sodium": {
+          "name": "sodium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "potassium": {
+          "name": "potassium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calcium": {
+          "name": "calcium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iron": {
+          "name": "iron",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "magnesium": {
+          "name": "magnesium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phosphorus": {
+          "name": "phosphorus",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zinc": {
+          "name": "zinc",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "copper": {
+          "name": "copper",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manganese": {
+          "name": "manganese",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selenium": {
+          "name": "selenium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iodine": {
+          "name": "iodine",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fluoride": {
+          "name": "fluoride",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chromium": {
+          "name": "chromium",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "molybdenum": {
+          "name": "molybdenum",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chloride": {
+          "name": "chloride",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_a": {
+          "name": "vitamin_a",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_c": {
+          "name": "vitamin_c",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_d": {
+          "name": "vitamin_d",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_e": {
+          "name": "vitamin_e",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_k": {
+          "name": "vitamin_k",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b1": {
+          "name": "vitamin_b1",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b2": {
+          "name": "vitamin_b2",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b3": {
+          "name": "vitamin_b3",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b5": {
+          "name": "vitamin_b5",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b6": {
+          "name": "vitamin_b6",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b7": {
+          "name": "vitamin_b7",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b9": {
+          "name": "vitamin_b9",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vitamin_b12": {
+          "name": "vitamin_b12",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caffeine": {
+          "name": "caffeine",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alcohol": {
+          "name": "alcohol",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "water": {
+          "name": "water",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "salt": {
+          "name": "salt",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "barcode": {
+          "name": "barcode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nutri_score": {
+          "name": "nutri_score",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nova_group": {
+          "name": "nova_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additives": {
+          "name": "additives",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ingredients_text": {
+          "name": "ingredients_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "crawled_at": {
+          "name": "crawled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_catalog_foods_dataset": {
+          "name": "idx_catalog_foods_dataset",
+          "columns": [
+            {
+              "expression": "dataset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_catalog_foods_dataset_barcode": {
+          "name": "idx_catalog_foods_dataset_barcode",
+          "columns": [
+            {
+              "expression": "dataset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "barcode",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "catalog_foods_dataset_id_catalog_datasets_id_fk": {
+          "name": "catalog_foods_dataset_id_catalog_datasets_id_fk",
+          "tableFrom": "catalog_foods",
+          "tableTo": "catalog_datasets",
+          "columnsFrom": [
+            "dataset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "catalog_foods_serving_positive": {
+          "name": "catalog_foods_serving_positive",
+          "value": "\"catalog_foods\".\"serving_size\" > 0"
+        },
+        "catalog_foods_nutrition_nonnegative": {
+          "name": "catalog_foods_nutrition_nonnegative",
+          "value": "\"catalog_foods\".\"calories\" >= 0 AND \"catalog_foods\".\"protein\" >= 0 AND \"catalog_foods\".\"carbs\" >= 0 AND \"catalog_foods\".\"fat\" >= 0 AND \"catalog_foods\".\"fiber\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.custom_meal_types": {
       "name": "custom_meal_types",
       "schema": "",
@@ -2643,13 +3267,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 30
-        },
-        "time_zone": {
-          "name": "time_zone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'UTC'"
         },
         "updated_at": {
           "name": "updated_at",

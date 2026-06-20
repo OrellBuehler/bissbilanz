@@ -123,6 +123,29 @@ struct BissbilanzApp: App {
         AppDependencyManager.shared.add(dependency: entryWriter)
         AppDependencyManager.shared.add(dependency: router)
         IntentDonations.isEnabled = true
+
+        // Apple Watch link (Phase 1). The watch relays "log this" commands here;
+        // the phone performs the real write through the same repository the UI
+        // uses, then replies with the refreshed snapshot.
+        PhoneWatchConnectivity.shared.onLogRequest = { request in
+            let food = request.foodId.flatMap { foodRepo.food(id: $0) }
+            let create = EntryCreate(
+                foodId: request.foodId,
+                recipeId: request.recipeId,
+                mealType: request.mealType,
+                servings: request.servings,
+                date: request.date,
+                quickName: request.quickName,
+                quickCalories: request.quickCalories,
+                quickProtein: request.quickProtein,
+                quickCarbs: request.quickCarbs,
+                quickFat: request.quickFat,
+                quickFiber: request.quickFiber
+            )
+            _ = try? await entryRepo.createEntry(create, food: food)
+            return WidgetSnapshotWriter.buildSnapshot(context: context)
+        }
+        PhoneWatchConnectivity.shared.activate()
     }
 
     var body: some Scene {

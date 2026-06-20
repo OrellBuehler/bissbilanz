@@ -46,3 +46,11 @@ repos:
         entry: gitleaks protect --staged --verbose --redact
         language: system
         pass_filenames: false
+
+      - id: no-catalog-data
+        name: no committed catalog datasets
+        entry: >-
+          bash -c 'if git diff --cached --name-only | grep -qE "^data/catalog/.*\.jsonl$";
+          then echo "ERROR - catalog dataset files must not be committed (public repo)"; exit 1; fi'
+        language: system
+        pass_filenames: false

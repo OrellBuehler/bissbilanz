@@ -31,6 +31,16 @@ final class PreferencesRepository {
         save()
     }
 
+    /// Reports the device's IANA timezone to the server so server-side analytics/MCP
+    /// bucket days/hours in the user's local tz. Only updates when it differs from the
+    /// stored value (loop guard); compares against the authoritative server value.
+    func reportTimeZone(_ deviceTimeZone: String) async throws {
+        guard !appMode.isLocal else { return }
+        let current = try await api.getPreferences()
+        guard current.timeZone != deviceTimeZone else { return }
+        _ = try await update(PreferencesUpdate(timeZone: deviceTimeZone))
+    }
+
     @discardableResult
     func update(_ update: PreferencesUpdate) async throws -> Preferences {
         let current = preferences() ?? .defaults

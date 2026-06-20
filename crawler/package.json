@@ -1,0 +1,14 @@
+{
+	"name": "@bissbilanz/crawler",
+	"private": true,
+	"type": "module",
+	"description": "Offline crawler that builds Bissbilanz catalog datasets (not part of the app build).",
+	"scripts": {
+		"test": "bun test",
+		"check": "tsc --noEmit",
+		"crawl": "bun run index.ts"
+	},
+	"dependencies": {
+		"migros-api-wrapper": "1.1.37"
+	}
+}

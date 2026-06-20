@@ -486,8 +486,10 @@ struct DashboardView: View {
         async let suppListTask: Void? = try? supplementRepository.refresh()
         async let supplementsTask = try? supplementRepository.refreshChecklist(date: dateString)
         async let weightTask: Void? = try? weightRepository.refresh()
+        // Report the device timezone so server-side analytics/MCP use the user's tz.
+        async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
 
-        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask)
+        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask)
         let checklist = await supplementsTask
 
         loadFromStore()
