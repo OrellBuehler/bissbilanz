@@ -1,4 +1,5 @@
 import { getDB } from '$lib/server/db';
+import { getUserTimeZone } from '$lib/server/preferences';
 import {
 	foodEntries,
 	foods,
@@ -322,8 +323,11 @@ export const getSleepFoodCorrelationData = async (
 	userId: string,
 	startDate: string,
 	endDate: string,
-	timezone: string = 'Europe/Berlin'
+	timezone?: string
 ) => {
+	// "Evening" is defined in the user's local time, so the AT TIME ZONE shift
+	// uses their stored timezone rather than a hardcoded one.
+	const tz = timezone ?? (await getUserTimeZone(userId));
 	const db = getDB();
 
 	const rm = buildRecipeMacrosCte(db);
@@ -343,7 +347,7 @@ export const getSleepFoodCorrelationData = async (
 				eq(foodEntries.userId, userId),
 				gte(foodEntries.date, startDate),
 				lte(foodEntries.date, endDate),
-				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt} AT TIME ZONE ${timezone}) >= 17`
+				sql`EXTRACT(HOUR FROM ${foodEntries.eatenAt} AT TIME ZONE ${tz}) >= 17`
 			)
 		)
 		.orderBy(asc(foodEntries.date));
