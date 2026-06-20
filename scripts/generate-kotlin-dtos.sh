@@ -41,10 +41,11 @@ else
 fi
 
 # Fix duplicate @Serializable annotation (openapi-generator multiplatform bug)
-find "$OUTPUT_DIR" -name '*.kt' -exec sed -i 's/@Serializable@Serializable/@Serializable/' {} +
-
-# Strip any JVM-only imports (safety net)
-find "$OUTPUT_DIR" -name '*.kt' -exec sed -i '/^import java\./d' {} +
+# and strip JVM-only imports. Use `sed -i.bak` (portable across GNU + BSD/macOS),
+# then remove the backups.
+find "$OUTPUT_DIR" -name '*.kt' -exec sed -i.bak 's/@Serializable@Serializable/@Serializable/' {} +
+find "$OUTPUT_DIR" -name '*.kt' -exec sed -i.bak '/^import java\./d' {} +
+find "$OUTPUT_DIR" -name '*.bak' -delete
 
 # Format with ktlint (if available)
 if command -v ktlint &> /dev/null; then

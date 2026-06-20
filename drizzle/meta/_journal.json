@@ -260,6 +260,13 @@
       "when": 1776891225760,
       "tag": "0036_living_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1781908800646,
+      "tag": "0037_heavy_nextwave",
+      "breakpoints": true
     }
   ]
 }

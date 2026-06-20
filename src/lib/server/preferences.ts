@@ -54,6 +54,7 @@ export const DEFAULT_PREFERENCES = {
 	mealOrder: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
+	timeZone: 'UTC' as const,
 	favoriteTapAction: 'instant' as const,
 	favoriteMealAssignmentMode: 'time_based' as const,
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],

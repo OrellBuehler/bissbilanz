@@ -288,6 +288,7 @@ export const userPreferences = pgTable('user_preferences', {
 		.default(sql`ARRAY['Breakfast', 'Lunch', 'Dinner', 'Snacks']::text[]`),
 	caloricLagDaysOverride: integer('caloric_lag_days_override'),
 	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
+	timeZone: text('time_zone').notNull().default('UTC'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
