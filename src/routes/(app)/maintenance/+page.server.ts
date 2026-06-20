@@ -3,12 +3,13 @@ import { listEntriesByDateRange } from '$lib/server/entries';
 import { getWeightEntriesByDateRange } from '$lib/server/weight';
 import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
 import { calculateEntryMacros } from '$lib/utils/nutrition';
-import { daysBetween, today, shiftDate } from '$lib/utils/dates';
+import { daysBetween, todayInTimeZone, shiftDate } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import { getFastingDays } from '$lib/server/day-properties';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const startDate = shiftDate(endDate, -27);
 	const muscleRatio = DEFAULT_MUSCLE_RATIO;
 

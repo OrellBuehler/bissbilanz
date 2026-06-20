@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logSupplement } from '$lib/server/supplements';
 import { supplementLogSchema } from '$lib/server/validation';
-import { today } from '$lib/utils/dates';
+import { todayInTimeZone } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import {
 	handleApiError,
 	requireAuth,
@@ -22,7 +23,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const id = requireUuid(params.id);
-		const date = parsed.data.date ?? today();
+		const date = parsed.data.date ?? todayInTimeZone(await getUserTimeZone(userId));
 		const result = await logSupplement(userId, id, date);
 
 		if (!result.success) {

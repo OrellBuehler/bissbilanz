@@ -9,16 +9,17 @@ import {
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { getGoals } from '$lib/server/goals';
 import { getWeightWithTrend } from '$lib/server/weight';
-import { today, shiftDate, daysAgo } from '$lib/utils/dates';
+import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const start7 = shiftDate(endDate, -6);
 	const start28 = shiftDate(endDate, -27);
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = now.getMonth();
+	// Calendar month follows the user's local "today" (derived from endDate).
+	const [year, monthNum] = endDate.split('-').map(Number);
+	const month = monthNum - 1;
 	const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 	const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
 	const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
@@ -38,7 +39,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getGoals(userId),
 		getMealBreakdown(userId, endDate, endDate),
 		getTopFoods(userId, 7, 10),
-		getWeightWithTrend(userId, daysAgo(30), endDate),
+		getWeightWithTrend(userId, shiftDate(endDate, -29), endDate),
 		getStreaks(userId),
 		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd)
 	]);

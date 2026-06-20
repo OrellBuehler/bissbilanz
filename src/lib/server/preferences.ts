@@ -225,6 +225,19 @@ const buildNormalizedTimeframeRows = async (
 	}));
 };
 
+/**
+ * The user's stored IANA timezone (default 'UTC'). Used by server-side date
+ * bucketing so "today" and day boundaries follow the user's local day.
+ */
+export const getUserTimeZone = async (userId: string): Promise<string> => {
+	const db = getDB();
+	const [row] = await db
+		.select({ timeZone: userPreferences.timeZone })
+		.from(userPreferences)
+		.where(eq(userPreferences.userId, userId));
+	return row?.timeZone ?? 'UTC';
+};
+
 export const getPreferences = async (userId: string) => {
 	const db = getDB();
 	const [prefsResult, timeframeRows, userResult, customMeals] = await Promise.all([

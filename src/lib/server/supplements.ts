@@ -3,7 +3,8 @@ import { supplements, supplementIngredients, foods, foodEntries } from '$lib/ser
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { toFoodInsert } from '$lib/server/foods';
 import { and, eq, desc, inArray, gte, lte, sql } from 'drizzle-orm';
-import { today } from '$lib/utils/dates';
+import { todayInTimeZone } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
 
@@ -228,7 +229,8 @@ export const createSupplement = async (
 					name: data.name,
 					scheduleType: data.scheduleType,
 					scheduleDays: data.scheduleDays ?? null,
-					scheduleStartDate: data.scheduleStartDate ?? today(),
+					scheduleStartDate:
+						data.scheduleStartDate ?? todayInTimeZone(await getUserTimeZone(userId)),
 					isActive: data.isActive ?? true,
 					sortOrder: data.sortOrder ?? 0,
 					timeOfDay: data.timeOfDay ?? null

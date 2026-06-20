@@ -3,17 +3,18 @@ import { listEntriesByDateRange } from '$lib/server/entries';
 import { getFastingDays } from '$lib/server/day-properties';
 import { getGoals } from '$lib/server/goals';
 import { computeAverages, computeDailyBreakdown, computeCalendarDays } from '$lib/server/stats';
-import { today, shiftDate } from '$lib/utils/dates';
+import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const start30 = shiftDate(endDate, -29);
 	const start7 = shiftDate(endDate, -6);
 
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = now.getMonth();
+	// Calendar month follows the user's local "today" (derived from endDate).
+	const [year, monthNum] = endDate.split('-').map(Number);
+	const month = monthNum - 1;
 	const calendarStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const calendarEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;

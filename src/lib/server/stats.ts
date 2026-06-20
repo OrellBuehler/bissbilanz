@@ -8,7 +8,8 @@ import {
 	scaleTotals,
 	type MacroTotals
 } from '$lib/utils/nutrition';
-import { today, shiftDate } from '$lib/utils/dates';
+import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import { getDB, foodEntries } from '$lib/server/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays } from '$lib/server/day-properties';
@@ -117,7 +118,7 @@ export const computeCalendarDays = (entries: EntryRow): Record<string, CalendarD
 };
 
 export const getWeeklyStats = async (userId: string) => {
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const startDate = shiftDate(endDate, -6);
 	const [entries, fastingDaySet] = await Promise.all([
 		listEntriesByDateRange(userId, startDate, endDate),
@@ -127,7 +128,7 @@ export const getWeeklyStats = async (userId: string) => {
 };
 
 export const getMonthlyStats = async (userId: string) => {
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const startDate = shiftDate(endDate, -29);
 	const [entries, fastingDaySet] = await Promise.all([
 		listEntriesByDateRange(userId, startDate, endDate),
@@ -183,11 +184,12 @@ export const getDailyBreakdown = async (
 };
 
 export const getStreaks = async (userId: string) => {
+	const todayStr = todayInTimeZone(await getUserTimeZone(userId));
 	const db = getDB();
 	const rows = await db
 		.selectDistinct({ date: foodEntries.date })
 		.from(foodEntries)
-		.where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, shiftDate(today(), -730))))
+		.where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, shiftDate(todayStr, -730))))
 		.orderBy(sql`${foodEntries.date} desc`);
 
 	if (rows.length === 0) {
@@ -196,7 +198,6 @@ export const getStreaks = async (userId: string) => {
 
 	const dates = rows.map((r) => r.date);
 
-	const todayStr = today();
 	const yesterdayStr = shiftDate(todayStr, -1);
 
 	let currentStreak = 0;
@@ -243,7 +244,7 @@ export const getTopFoods = async (
 		fiber: number;
 	}>
 > => {
-	const endDate = today();
+	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const startDate = shiftDate(endDate, -(days - 1));
 	const entries = await listEntriesByDateRange(userId, startDate, endDate);
 
