@@ -47,7 +47,7 @@ describe('Dexie schema migration (BISSBILANZ-1T)', () => {
 		// Import after seeding so the app db opens against the legacy IndexedDB.
 		const { db } = await import('../../src/lib/db/index');
 		await expect(db.open()).resolves.toBeDefined();
-		expect(db.verno).toBe(6);
+		expect(db.verno).toBe(7);
 
 		// supplementLogs was dropped (v4) and recreated (v6): old rows are gone and
 		// the table now accepts the compound primary key.

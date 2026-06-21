@@ -15,6 +15,7 @@ import { preferencesUpdateSchema } from '$lib/server/validation';
 import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { lwwStamp } from '$lib/server/sync/conflict';
 
 type FavoriteMealTimeframePreference = {
 	id: string;
@@ -258,8 +259,9 @@ export const getPreferences = async (userId: string) => {
 
 export const updatePreferences = async (
 	userId: string,
-	payload: unknown
-): Promise<Result<PreferencesResponse>> => {
+	payload: unknown,
+	clientEditedAt?: Date | null
+): Promise<Result<PreferencesResponse | undefined>> => {
 	const result = preferencesUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
@@ -267,6 +269,21 @@ export const updatePreferences = async (
 
 	try {
 		const db = getDB();
+
+		// LWW guard. Preferences span several tables, so rather than a per-statement
+		// SQL guard we gate the whole update on the prefs row's version: if a newer
+		// edit already landed, this stale offline write is rejected (handler 409s).
+		if (clientEditedAt) {
+			const [existing] = await db
+				.select({ updatedAt: userPreferences.updatedAt })
+				.from(userPreferences)
+				.where(eq(userPreferences.userId, userId));
+			if (existing?.updatedAt && existing.updatedAt > clientEditedAt) {
+				return { success: true, data: undefined };
+			}
+		}
+		const stamp = lwwStamp(clientEditedAt);
+
 		const {
 			locale,
 			favoriteMealTimeframes: favoriteMealTimeframesInput,
@@ -295,10 +312,10 @@ export const updatePreferences = async (
 			if (hasPrefsData) {
 				await tx
 					.insert(userPreferences)
-					.values({ userId, ...prefsData, updatedAt: new Date() })
+					.values({ userId, ...prefsData, updatedAt: stamp })
 					.onConflictDoUpdate({
 						target: userPreferences.userId,
-						set: { ...prefsData, updatedAt: new Date() }
+						set: { ...prefsData, updatedAt: stamp }
 					});
 			} else {
 				const [existing] = await tx
@@ -307,7 +324,7 @@ export const updatePreferences = async (
 					.where(eq(userPreferences.userId, userId));
 
 				if (!existing) {
-					await tx.insert(userPreferences).values({ userId, updatedAt: new Date() });
+					await tx.insert(userPreferences).values({ userId, updatedAt: stamp });
 				}
 			}
 		});

@@ -14,6 +14,8 @@ import {
 	deleteDayProperties
 } from '$lib/server/day-properties';
 import { dayPropertiesSetSchema } from '$lib/server/validation';
+import { respondUpdate } from '$lib/server/sync/conflict';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -50,8 +52,19 @@ export const PUT: RequestHandler = async ({ locals, request }) => {
 			throw new ApiError(400, 'Invalid request body');
 		}
 
-		const properties = await setDayProperties(userId, result.data.date, result.data.isFastingDay);
-		return json({ properties });
+		const clientEditedAt = readClientEditedAt(request);
+		const properties = await setDayProperties(
+			userId,
+			result.data.date,
+			result.data.isFastingDay,
+			clientEditedAt
+		);
+		return respondUpdate({
+			key: 'properties',
+			updated: properties,
+			clientEditedAt,
+			resourceName: 'Day properties'
+		});
 	} catch (error) {
 		return handleApiError(error);
 	}

@@ -62,7 +62,7 @@ describe('goals-db', () => {
 			});
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data.calorieGoal).toBe(2200);
+				expect(result.data?.calorieGoal).toBe(2200);
 			}
 		});
 
@@ -106,8 +106,8 @@ describe('goals-db', () => {
 			const result = await upsertGoals(TEST_USER.id, payloadWithOptional);
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data.sodiumGoal).toBe(2300);
-				expect(result.data.sugarGoal).toBe(50);
+				expect(result.data?.sodiumGoal).toBe(2300);
+				expect(result.data?.sugarGoal).toBe(50);
 			}
 		});
 	});

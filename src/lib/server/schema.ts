@@ -705,6 +705,31 @@ export const catalogFoods = pgTable(
 	]
 );
 
+// Idempotency keys — dedupe offline-queue replays. A client stamps each queued
+// mutation with a stable Idempotency-Key; if a success ack is lost and the item
+// is retried, the server replays the original response instead of re-applying the
+// write (which would create duplicate entries). Scoped per user; pruned by age.
+export const idempotencyKeys = pgTable(
+	'idempotency_keys',
+	{
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		key: text('key').notNull(),
+		method: text('method').notNull(),
+		path: text('path').notNull(),
+		// NULL while the request is in flight (claim placeholder); set once the
+		// handler has produced a final response that is safe to replay.
+		statusCode: integer('status_code'),
+		responseBody: text('response_body'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.key] }),
+		index('idx_idempotency_keys_created_at').on(table.createdAt)
+	]
+);
+
 export const catalogAccess = pgTable(
 	'catalog_access',
 	{
@@ -754,3 +779,5 @@ export type WeightEntry = typeof weightEntries.$inferSelect;
 export type NewWeightEntry = typeof weightEntries.$inferInsert;
 export type DayProperty = typeof dayProperties.$inferSelect;
 export type NewDayProperty = typeof dayProperties.$inferInsert;
+export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
+export type NewIdempotencyKey = typeof idempotencyKeys.$inferInsert;

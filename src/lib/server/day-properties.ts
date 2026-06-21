@@ -1,5 +1,6 @@
 import { getDB, dayProperties } from '$lib/server/db';
 import { and, eq, gte, lte, inArray } from 'drizzle-orm';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 export const getDayProperties = async (userId: string, date: string) => {
 	const db = getDB();
@@ -31,20 +32,27 @@ export const getDayPropertiesRange = async (userId: string, startDate: string, e
 		);
 };
 
-export const setDayProperties = async (userId: string, date: string, isFastingDay: boolean) => {
+export const setDayProperties = async (
+	userId: string,
+	date: string,
+	isFastingDay: boolean,
+	clientEditedAt?: Date | null
+) => {
 	const db = getDB();
-	const now = new Date();
+	const stamp = lwwStamp(clientEditedAt);
 	const [row] = await db
 		.insert(dayProperties)
-		.values({ userId, date, isFastingDay, updatedAt: now })
+		.values({ userId, date, isFastingDay, updatedAt: stamp })
 		.onConflictDoUpdate({
 			target: [dayProperties.userId, dayProperties.date],
-			set: { isFastingDay, updatedAt: now }
+			set: { isFastingDay, updatedAt: stamp },
+			setWhere: lwwGuard(dayProperties.updatedAt, clientEditedAt)
 		})
 		.returning({
 			date: dayProperties.date,
 			isFastingDay: dayProperties.isFastingDay
 		});
+	// Undefined when the LWW guard rejected a stale write (newer value on server).
 	return row;
 };
 

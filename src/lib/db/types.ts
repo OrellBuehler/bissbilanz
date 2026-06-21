@@ -261,6 +261,20 @@ export type DexieSyncQueueItem = {
 	affectedId?: string;
 	failedAt?: number;
 	failureReason?: string;
+	/**
+	 * Stable per-mutation key sent as `Idempotency-Key`. Constant across every
+	 * retry so the server dedupes replays instead of applying the write twice.
+	 */
+	idempotencyKey?: string;
+	/**
+	 * ISO-8601 instant the user made the edit, sent as `X-Client-Edited-At` for
+	 * last-write-wins conflict resolution.
+	 */
+	clientEditedAt?: string;
+	/** Transient-failure retry count, used to drive exponential backoff. */
+	retryCount?: number;
+	/** Epoch ms before which this item should not be retried (backoff gate). */
+	nextAttemptAt?: number;
 };
 
 // ── Sync Metadata ──────────────────────────────────────────────────

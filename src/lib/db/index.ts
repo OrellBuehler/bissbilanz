@@ -94,6 +94,25 @@ db.version(6).stores({
 	supplementLogs: '[supplementId+date], supplementId, date'
 });
 
+// v7: sync queue items gain idempotency + conflict-resolution + backoff fields.
+// `nextAttemptAt` is indexed so the drain query can cheaply skip items still in
+// their exponential-backoff window. Existing rows are backfilled so they keep
+// draining (key/editedAt absent on legacy items is fine — the server falls back
+// to its pre-idempotency behaviour for those).
+db.version(7)
+	.stores({
+		syncQueue: '++id, createdAt, failedAt, nextAttemptAt'
+	})
+	.upgrade(async (tx) => {
+		await tx
+			.table('syncQueue')
+			.toCollection()
+			.modify((item: { retryCount?: number; nextAttemptAt?: number }) => {
+				item.retryCount ??= 0;
+				item.nextAttemptAt ??= 0;
+			});
+	});
+
 export { db };
 
 /** Clear all user data from Dexie (e.g. on logout). Uses a transaction for atomicity. */

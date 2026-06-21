@@ -3,6 +3,7 @@ import { weightEntries } from '$lib/server/schema';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation';
 import { and, eq, desc, gte, lte, asc, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 export const createWeightEntry = async (
 	userId: string,
@@ -122,7 +123,8 @@ export const getLatestWeight = async (userId: string) => {
 export const updateWeightEntry = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof weightEntries.$inferSelect | undefined>> => {
 	const result = weightUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -133,8 +135,14 @@ export const updateWeightEntry = async (
 		const db = getDB();
 		const [updated] = await db
 			.update(weightEntries)
-			.set({ ...result.data, updatedAt: new Date() })
-			.where(and(eq(weightEntries.id, id), eq(weightEntries.userId, userId)))
+			.set({ ...result.data, updatedAt: lwwStamp(clientEditedAt) })
+			.where(
+				and(
+					eq(weightEntries.id, id),
+					eq(weightEntries.userId, userId),
+					lwwGuard(weightEntries.updatedAt, clientEditedAt)
+				)
+			)
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {

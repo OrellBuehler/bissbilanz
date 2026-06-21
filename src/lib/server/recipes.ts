@@ -4,6 +4,7 @@ import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type RecipeInput = {
 	name: string;
@@ -138,7 +139,8 @@ export const getRecipe = async (userId: string, id: string) => {
 export const updateRecipe = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof recipes.$inferSelect | null>> => {
 	const result = recipeUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -152,8 +154,14 @@ export const updateRecipe = async (
 		const recipe = await db.transaction(async (tx) => {
 			const [updated] = await tx
 				.update(recipes)
-				.set({ ...recipeData, updatedAt: new Date() })
-				.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+				.set({ ...recipeData, updatedAt: lwwStamp(clientEditedAt) })
+				.where(
+					and(
+						eq(recipes.id, id),
+						eq(recipes.userId, userId),
+						lwwGuard(recipes.updatedAt, clientEditedAt)
+					)
+				)
 				.returning();
 
 			if (!updated) return null;
