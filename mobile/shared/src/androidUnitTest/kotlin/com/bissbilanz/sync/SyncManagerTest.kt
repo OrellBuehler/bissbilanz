@@ -65,15 +65,15 @@ class SyncManagerTest {
         runTest {
             syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_1"))
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
-            coEvery { api.createFood(any()) } returns TestFixtures.food()
-            coEvery { api.deleteEntry("e1") } returns Unit
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food()
+            coEvery { api.deleteEntry("e1", any(), any()) } returns Unit
 
             val synced = manager.syncPendingQueue()
 
             assertEquals(2, synced)
             assertEquals(0, syncQueue.pendingCount())
-            coVerify { api.createFood(match { it.name == "Rice" }) }
-            coVerify { api.deleteEntry("e1") }
+            coVerify { api.createFood(match { it.name == "Rice" }, any(), any()) }
+            coVerify { api.deleteEntry("e1", any(), any()) }
             assertTrue(
                 manager.state.value.errors
                     .isEmpty(),
@@ -84,7 +84,7 @@ class SyncManagerTest {
     fun clientErrorDropsOperationAndRecordsError() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
-            coEvery { api.deleteEntry("e1") } throws ApiException("bad request", 400)
+            coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("bad request", 400)
 
             val synced = manager.syncPendingQueue()
 
@@ -98,25 +98,38 @@ class SyncManagerTest {
         }
 
     @Test
-    fun serverErrorReleasesForRetryAndGivesUpAfterThreeRetries() =
+    fun serverErrorBacksOffAndGivesUpAfterMaxRetries() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
-            coEvery { api.deleteEntry("e1") } throws ApiException("server error", 500)
+            coEvery { api.deleteEntry(any(), any(), any()) } throws ApiException("server error", 500)
 
-            assertEquals(0, manager.syncPendingQueue())
-            assertEquals(1, syncQueue.pendingCount())
-            assertEquals(0, manager.syncPendingQueue())
-            assertEquals(1, syncQueue.pendingCount())
-            val third = manager.syncPendingQueue()
+            // Attempts 1-4: each syncPendingQueue picks the item (nextAttemptAt reset to 0),
+            // hits 5xx, schedules backoff, releases. Returns 0 synced each time.
+            var itemId: Long = -1
+            repeat(4) { attempt ->
+                if (attempt > 0) {
+                    // Reset backoff so the drain sees the item again.
+                    syncQueue.setNextAttemptAt(itemId, 0)
+                }
+                assertEquals(0, manager.syncPendingQueue())
+                assertEquals(1, syncQueue.pendingCount())
+                if (attempt == 0) {
+                    itemId = syncQueue.all().single().id
+                }
+            }
 
-            assertEquals(1, third)
+            // Attempt 5: hits the MAX_RETRIES cap, drops the item.
+            syncQueue.setNextAttemptAt(itemId, 0)
+            val last = manager.syncPendingQueue()
+
+            assertEquals(1, last)
             assertEquals(0, syncQueue.pendingCount())
             assertTrue(
                 manager.state.value.errors
                     .single()
                     .contains("Gave up"),
             )
-            coVerify(exactly = 3) { api.deleteEntry("e1") }
+            coVerify(exactly = 5) { api.deleteEntry(any(), any(), any()) }
         }
 
     @Test
@@ -124,13 +137,13 @@ class SyncManagerTest {
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
             syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
-            coEvery { api.deleteEntry(any()) } throws UnauthorizedException()
+            coEvery { api.deleteEntry(any(), any(), any()) } throws UnauthorizedException()
 
             val synced = manager.syncPendingQueue()
 
             assertEquals(0, synced)
             assertEquals(2, syncQueue.pendingCount())
-            coVerify(exactly = 1) { api.deleteEntry(any()) }
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
             assertTrue(
                 manager.state.value.errors
                     .single()
@@ -170,34 +183,34 @@ class SyncManagerTest {
 
             assertEquals(0, synced)
             assertEquals(1, syncQueue.pendingCount())
-            coVerify(exactly = 0) { api.deleteEntry(any()) }
+            coVerify(exactly = 0) { api.deleteEntry(any(), any(), any()) }
         }
 
     @Test
     fun executesSetDayPropertiesViaApi() =
         runTest {
             syncQueue.enqueue(SyncOperation.SetDayProperties("2024-01-15", isFastingDay = true))
-            coEvery { api.setDayProperties("2024-01-15", true) } returns
+            coEvery { api.setDayProperties("2024-01-15", true, any(), any()) } returns
                 DayProperties(date = "2024-01-15", isFastingDay = true)
 
             val synced = manager.syncPendingQueue()
 
             assertEquals(1, synced)
             assertEquals(0, syncQueue.pendingCount())
-            coVerify { api.setDayProperties("2024-01-15", true) }
+            coVerify { api.setDayProperties("2024-01-15", true, any(), any()) }
         }
 
     @Test
     fun executesDeleteDayPropertiesViaApi() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties("2024-01-15"))
-            coEvery { api.deleteDayProperties("2024-01-15") } returns Unit
+            coEvery { api.deleteDayProperties("2024-01-15", any(), any()) } returns Unit
 
             val synced = manager.syncPendingQueue()
 
             assertEquals(1, synced)
             assertEquals(0, syncQueue.pendingCount())
-            coVerify { api.deleteDayProperties("2024-01-15") }
+            coVerify { api.deleteDayProperties("2024-01-15", any(), any()) }
         }
 
     // ------------------------------------------------------------------------------
@@ -214,6 +227,8 @@ class SyncManagerTest {
             createdAt = createdAt,
             affectedTable = operation.affectedTable,
             affectedId = operation.affectedId,
+            idempotencyKey = null,
+            clientEditedAt = null,
         )
     }
 
@@ -230,9 +245,9 @@ class SyncManagerTest {
                 ),
                 createdAt = 2,
             )
-            coEvery { api.createFood(any()) } returns TestFixtures.food(id = "srv-food-1")
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
             val entryCreates = mutableListOf<EntryCreate>()
-            coEvery { api.createEntry(capture(entryCreates)) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
+            coEvery { api.createEntry(capture(entryCreates), any(), any()) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
 
             val synced = manager.syncPendingQueue()
 
@@ -263,7 +278,7 @@ class SyncManagerTest {
                 jsonData = json.encodeToString(TestFixtures.food(id = "temp_f1", name = "Rice")),
             )
             syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
-            coEvery { api.createFood(any()) } returns TestFixtures.food(id = "srv-food-1", name = "Rice")
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1", name = "Rice")
 
             manager.syncPendingQueue()
 
@@ -292,18 +307,18 @@ class SyncManagerTest {
                 ),
                 createdAt = 4,
             )
-            coEvery { api.createFood(any()) } returns TestFixtures.food(id = "srv-food-1")
-            coEvery { api.updateFood(any(), any()) } returns TestFixtures.food(id = "srv-food-1", name = "Brown Rice")
-            coEvery { api.deleteFood(any()) } returns Unit
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            coEvery { api.updateFood(any(), any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1", name = "Brown Rice")
+            coEvery { api.deleteFood(any(), any(), any()) } returns Unit
             val recipeCreates = mutableListOf<RecipeCreate>()
-            coEvery { api.createRecipe(capture(recipeCreates)) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
+            coEvery { api.createRecipe(capture(recipeCreates), any(), any()) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
 
             val synced = manager.syncPendingQueue()
 
             assertEquals(4, synced)
             assertEquals(0, syncQueue.pendingCount())
-            coVerify { api.updateFood("srv-food-1", match { it.name == "Brown Rice" }) }
-            coVerify { api.deleteFood("srv-food-1") }
+            coVerify { api.updateFood("srv-food-1", match { it.name == "Brown Rice" }, any(), any()) }
+            coVerify { api.deleteFood("srv-food-1", any(), any()) }
             assertEquals(listOf("srv-food-1"), recipeCreates.single().ingredients.map { it.foodId })
         }
 
@@ -330,8 +345,8 @@ class SyncManagerTest {
                 createdAt = 1,
             )
             enqueueAt(SyncOperation.LogSupplement("temp_s1", "2024-01-15"), createdAt = 2)
-            coEvery { api.createSupplement(any()) } returns supplement("srv-supp-1")
-            coEvery { api.logSupplement(any(), any()) } returns
+            coEvery { api.createSupplement(any(), any(), any()) } returns supplement("srv-supp-1")
+            coEvery { api.logSupplement(any(), any(), any(), any()) } returns
                 com.bissbilanz.api.generated.model.SupplementLog(
                     supplementId = "srv-supp-1",
                     date = "2024-01-15",
@@ -342,7 +357,7 @@ class SyncManagerTest {
             val synced = manager.syncPendingQueue()
 
             assertEquals(2, synced)
-            coVerify { api.logSupplement("srv-supp-1", "2024-01-15") }
+            coVerify { api.logSupplement("srv-supp-1", "2024-01-15", any(), any()) }
             // Local log rows were re-keyed onto the server supplement id.
             val logs = userDb.userDataDatabaseQueries.selectAllSupplementLogs().executeAsList()
             assertEquals(listOf("srv-supp-1-2024-01-15"), logs.map { it.id })
@@ -362,8 +377,8 @@ class SyncManagerTest {
                 ),
                 createdAt = 2,
             )
-            coEvery { api.createFood(any()) } returns TestFixtures.food(id = "srv-food-1")
-            coEvery { api.createEntry(any()) } throws ApiException("server error", 500)
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            coEvery { api.createEntry(any(), any(), any()) } throws ApiException("server error", 500)
 
             assertEquals(1, manager.syncPendingQueue())
 
@@ -372,8 +387,11 @@ class SyncManagerTest {
             val queuedEntry = syncQueue.all().single().operation as SyncOperation.CreateEntry
             assertEquals("srv-food-1", json.decodeFromString<EntryCreate>(queuedEntry.body).foodId)
 
+            // Reset backoff so the retry drains immediately in the test.
+            syncQueue.setNextAttemptAt(syncQueue.all().single().id, 0)
+
             val entryCreates = mutableListOf<EntryCreate>()
-            coEvery { api.createEntry(capture(entryCreates)) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
+            coEvery { api.createEntry(capture(entryCreates), any(), any()) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
 
             assertEquals(1, manager.syncPendingQueue())
             assertEquals(0, syncQueue.pendingCount())
@@ -385,8 +403,8 @@ class SyncManagerTest {
         runTest {
             enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
             enqueueAt(SyncOperation.UpdateFood("temp_f1", json.encodeToString(foodCreate(name = "Brown Rice"))), createdAt = 2)
-            coEvery { api.createFood(any()) } returns TestFixtures.food(id = "srv-food-1")
-            coEvery { api.updateFood(any(), any()) } throws ApiException("server error", 500)
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            coEvery { api.updateFood(any(), any(), any(), any()) } throws ApiException("server error", 500)
 
             manager.syncPendingQueue()
 

@@ -61,7 +61,7 @@ struct SyncManagerTests {
         #expect(harness.recordedRequests.contains("POST /api/goals"))
     }
 
-    @Test("5xx responses stop draining, then drop after the retry cap")
+    @Test("5xx responses stop draining and back off, then drop after the retry cap")
     func serverErrorRetriesThenDrops() async throws {
         let harness = try RepositoryHarness()
         harness.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
@@ -70,16 +70,18 @@ struct SyncManagerTests {
         harness.syncManager.enqueue(.createFood(body: makeFoodCreate(), localId: LocalStore.makeTempId()))
         harness.syncManager.enqueue(.setGoals(body: .defaults))
 
-        // Attempts 1 and 2: the failing head-of-queue blocks everything behind it.
-        await harness.syncManager.drainPendingQueue()
-        #expect(harness.syncManager.queuedRows().count == 2)
-        #expect(harness.syncManager.queuedRows().first?.retryCount == 1)
-        #expect(!harness.recordedRequests.contains("POST /api/goals"))
+        // Attempts 1 through (maxRetries - 1): each fails with 5xx, sets nextAttemptAt
+        // in the future, and stops the drain. We reset backoff after each attempt so the
+        // next drain picks the item up immediately (avoiding real time delays in tests).
+        for expectedRetry in 1 ..< SyncManager.maxRetries {
+            await harness.syncManager.drainPendingQueue()
+            #expect(harness.syncManager.queuedRows().count == 2)
+            #expect(harness.syncManager.queuedRows().first?.retryCount == expectedRetry)
+            #expect(!harness.recordedRequests.contains("POST /api/goals"))
+            harness.syncManager.resetBackoffForTesting()
+        }
 
-        await harness.syncManager.drainPendingQueue()
-        #expect(harness.syncManager.queuedRows().first?.retryCount == 2)
-
-        // Attempt 3 hits the cap: the op is dropped and draining continues.
+        // Final attempt hits the cap: the op is dropped and draining continues.
         await harness.syncManager.drainPendingQueue()
         #expect(harness.syncManager.queuedRows().isEmpty)
         #expect(harness.syncManager.errors.contains { $0.contains("Gave up syncing create food") })

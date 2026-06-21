@@ -4,7 +4,11 @@ import Observation
 enum APIError: Error, LocalizedError {
     case unauthorized
     case notFound
+    /// HTTP 410 Gone — the resource existed and was permanently deleted.
+    case gone
     case badRequest(String?)
+    /// HTTP 409 with `X-Sync-Conflict: server-newer` — LWW conflict.
+    case conflict(serverNewer: Bool)
     case serverError(Int, String?)
     case networkError(Error)
     case decodingError(Error)
@@ -13,7 +17,9 @@ enum APIError: Error, LocalizedError {
         switch self {
         case .unauthorized: "Not authenticated"
         case .notFound: "Not found"
+        case .gone: "Gone"
         case let .badRequest(msg): msg ?? "Bad request"
+        case .conflict: "Conflict"
         case let .serverError(code, msg): msg ?? "Server error (\(code))"
         case let .networkError(err): err.localizedDescription
         case let .decodingError(err): "Failed to parse response: \(err.localizedDescription)"
@@ -68,18 +74,40 @@ final class BissbilanzAPI {
         return response.food
     }
 
-    func createFood(_ food: FoodCreate) async throws -> Food {
-        let response: FoodResponse = try await post("/api/foods", body: food)
+    func createFood(
+        _ food: FoodCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Food {
+        let response: FoodResponse = try await post(
+            "/api/foods", body: food,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.food
     }
 
-    func updateFood(id: String, _ food: FoodCreate) async throws -> Food {
-        let response: FoodResponse = try await patch("/api/foods/\(id)", body: food)
+    func updateFood(
+        id: String,
+        _ food: FoodCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Food {
+        let response: FoodResponse = try await patch(
+            "/api/foods/\(id)", body: food,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.food
     }
 
-    func deleteFood(id: String) async throws {
-        try await deleteRequest("/api/foods/\(id)")
+    func deleteFood(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/foods/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     func findFoodByBarcode(_ barcode: String) async throws -> Food? {
@@ -87,9 +115,17 @@ final class BissbilanzAPI {
         return response.foods.first
     }
 
-    func toggleFavorite(foodId: String, isFavorite: Bool) async throws -> Food {
+    func toggleFavorite(
+        foodId: String,
+        isFavorite: Bool,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Food {
         let body = ["isFavorite": isFavorite]
-        let response: FoodResponse = try await patch("/api/foods/\(foodId)", body: body)
+        let response: FoodResponse = try await patch(
+            "/api/foods/\(foodId)", body: body,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.food
     }
 
@@ -100,22 +136,43 @@ final class BissbilanzAPI {
         return response.entries
     }
 
-    func createEntry(_ entry: EntryCreate) async throws -> Entry {
-        let response: EntryResponse = try await post("/api/entries", body: entry)
+    func createEntry(
+        _ entry: EntryCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Entry {
+        let response: EntryResponse = try await post(
+            "/api/entries", body: entry,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func updateEntry(id: String, _ update: EntryUpdate) async throws -> Entry {
-        let response: EntryResponse = try await patch("/api/entries/\(id)", body: update)
+    func updateEntry(
+        id: String,
+        _ update: EntryUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Entry {
+        let response: EntryResponse = try await patch(
+            "/api/entries/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func deleteEntry(id: String) async throws {
-        try await deleteRequest("/api/entries/\(id)")
+    func deleteEntry(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/entries/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     func copyEntries(fromDate: String, toDate: String) async throws -> [Entry] {
-        // The server reads fromDate/toDate from query params, not the body
         let response: EntriesResponse = try await post(
             "/api/entries/copy?fromDate=\(fromDate)&toDate=\(toDate)",
             body: [String: String]()
@@ -135,18 +192,40 @@ final class BissbilanzAPI {
         return response.recipe
     }
 
-    func createRecipe(_ recipe: RecipeCreate) async throws -> Recipe {
-        let response: RecipeResponse = try await post("/api/recipes", body: recipe)
+    func createRecipe(
+        _ recipe: RecipeCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Recipe {
+        let response: RecipeResponse = try await post(
+            "/api/recipes", body: recipe,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.recipe
     }
 
-    func updateRecipe(id: String, _ update: RecipeUpdate) async throws -> Recipe {
-        let response: RecipeResponse = try await patch("/api/recipes/\(id)", body: update)
+    func updateRecipe(
+        id: String,
+        _ update: RecipeUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Recipe {
+        let response: RecipeResponse = try await patch(
+            "/api/recipes/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.recipe
     }
 
-    func deleteRecipe(id: String) async throws {
-        try await deleteRequest("/api/recipes/\(id)")
+    func deleteRecipe(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/recipes/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     // MARK: - Goals
@@ -156,8 +235,15 @@ final class BissbilanzAPI {
         return response.goals
     }
 
-    func setGoals(_ goals: Goals) async throws -> Goals {
-        let response: GoalsResponse = try await post("/api/goals", body: goals)
+    func setGoals(
+        _ goals: Goals,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Goals {
+        let response: GoalsResponse = try await post(
+            "/api/goals", body: goals,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.goals ?? goals
     }
 
@@ -173,18 +259,40 @@ final class BissbilanzAPI {
         return response?.entry
     }
 
-    func createWeightEntry(_ entry: WeightCreate) async throws -> WeightEntry {
-        let response: WeightEntryResponse = try await post("/api/weight", body: entry)
+    func createWeightEntry(
+        _ entry: WeightCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> WeightEntry {
+        let response: WeightEntryResponse = try await post(
+            "/api/weight", body: entry,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func updateWeightEntry(id: String, _ update: WeightUpdate) async throws -> WeightEntry {
-        let response: WeightEntryResponse = try await patch("/api/weight/\(id)", body: update)
+    func updateWeightEntry(
+        id: String,
+        _ update: WeightUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> WeightEntry {
+        let response: WeightEntryResponse = try await patch(
+            "/api/weight/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func deleteWeightEntry(id: String) async throws {
-        try await deleteRequest("/api/weight/\(id)")
+    func deleteWeightEntry(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/weight/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     // MARK: - Sleep
@@ -194,18 +302,40 @@ final class BissbilanzAPI {
         return response.entries
     }
 
-    func createSleepEntry(_ entry: SleepCreate) async throws -> SleepEntry {
-        let response: SleepEntryResponse = try await post("/api/sleep", body: entry)
+    func createSleepEntry(
+        _ entry: SleepCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await post(
+            "/api/sleep", body: entry,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func updateSleepEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
-        let response: SleepEntryResponse = try await patch("/api/sleep/\(id)", body: update)
+    func updateSleepEntry(
+        id: String,
+        _ update: SleepUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> SleepEntry {
+        let response: SleepEntryResponse = try await patch(
+            "/api/sleep/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.entry
     }
 
-    func deleteSleepEntry(id: String) async throws {
-        try await deleteRequest("/api/sleep/\(id)")
+    func deleteSleepEntry(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/sleep/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     // MARK: - Supplements
@@ -215,18 +345,40 @@ final class BissbilanzAPI {
         return response.supplements
     }
 
-    func createSupplement(_ supplement: SupplementCreate) async throws -> Supplement {
-        let response: SupplementResponse = try await post("/api/supplements", body: supplement)
+    func createSupplement(
+        _ supplement: SupplementCreate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Supplement {
+        let response: SupplementResponse = try await post(
+            "/api/supplements", body: supplement,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.supplement
     }
 
-    func updateSupplement(id: String, _ update: SupplementUpdate) async throws -> Supplement {
-        let response: SupplementResponse = try await patch("/api/supplements/\(id)", body: update)
+    func updateSupplement(
+        id: String,
+        _ update: SupplementUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Supplement {
+        let response: SupplementResponse = try await patch(
+            "/api/supplements/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.supplement
     }
 
-    func deleteSupplement(id: String) async throws {
-        try await deleteRequest("/api/supplements/\(id)")
+    func deleteSupplement(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/supplements/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     func getSupplementChecklist(date: String) async throws -> [SupplementChecklist] {
@@ -234,13 +386,29 @@ final class BissbilanzAPI {
         return response.checklist
     }
 
-    func logSupplement(id: String, date: String) async throws -> SupplementLog {
-        let response: SupplementLogResponse = try await post("/api/supplements/\(id)/log", body: ["date": date])
+    func logSupplement(
+        id: String,
+        date: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> SupplementLog {
+        let response: SupplementLogResponse = try await post(
+            "/api/supplements/\(id)/log", body: ["date": date],
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         return response.log
     }
 
-    func unlogSupplement(id: String, date: String) async throws {
-        try await deleteRequest("/api/supplements/\(id)/log/\(date)")
+    func unlogSupplement(
+        id: String,
+        date: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/supplements/\(id)/log/\(date)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     func getSupplementHistory(startDate: String, endDate: String) async throws -> [SupplementHistoryEntry] {
@@ -309,8 +477,15 @@ final class BissbilanzAPI {
         try await get("/api/preferences")
     }
 
-    func updatePreferences(_ prefs: PreferencesUpdate) async throws -> Preferences {
-        try await patch("/api/preferences", body: prefs)
+    func updatePreferences(
+        _ prefs: PreferencesUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Preferences {
+        try await patch(
+            "/api/preferences", body: prefs,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     // MARK: - Meal Types
@@ -336,17 +511,32 @@ final class BissbilanzAPI {
         return response.properties
     }
 
-    func setDayProperties(date: String, isFastingDay: Bool) async throws -> DayProperties {
+    func setDayProperties(
+        date: String,
+        isFastingDay: Bool,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> DayProperties {
         let body = DayPropertiesSet(isFastingDay: isFastingDay)
-        let response: DayPropertiesResponse = try await post("/api/day-properties/\(date)", body: body)
+        let response: DayPropertiesResponse = try await post(
+            "/api/day-properties/\(date)", body: body,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
         guard let properties = response.properties else {
             throw APIError.serverError(200, "Server returned null properties for day \(date)")
         }
         return properties
     }
 
-    func deleteDayProperties(date: String) async throws {
-        try await deleteRequest("/api/day-properties/\(date)")
+    func deleteDayProperties(
+        date: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/day-properties/\(date)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
     }
 
     // MARK: - Weight Stats
@@ -374,26 +564,56 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func post<T: Decodable>(_ path: String, body: some Encodable) async throws -> T {
+    private func post<T: Decodable>(
+        _ path: String,
+        body: some Encodable,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
+        applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         return try await performRequest(request)
     }
 
-    private func patch<T: Decodable>(_ path: String, body: some Encodable) async throws -> T {
+    private func patch<T: Decodable>(
+        _ path: String,
+        body: some Encodable,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
+        applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         return try await performRequest(request)
     }
 
-    private func deleteRequest(_ path: String) async throws {
+    private func deleteRequest(
+        _ path: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "DELETE"
+        applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         let _: EmptyResponse = try await performRequest(request)
+    }
+
+    private func applySyncHeaders(
+        _ request: inout URLRequest,
+        idempotencyKey: String?,
+        clientEditedAt: String?
+    ) {
+        if let key = idempotencyKey {
+            request.setValue(key, forHTTPHeaderField: "Idempotency-Key")
+        }
+        if let editedAt = clientEditedAt {
+            request.setValue(editedAt, forHTTPHeaderField: "X-Client-Edited-At")
+        }
     }
 
     /// Single funnel for every API call: report failures to Sentry here so
@@ -443,7 +663,7 @@ final class BissbilanzAPI {
         case let .decodingError(underlying):
             context["status_code"] = 200
             context["decoding_error"] = String(describing: underlying)
-        case .networkError, .notFound, .unauthorized, .none:
+        case .networkError, .notFound, .gone, .conflict, .unauthorized, .none:
             break
         }
         return context
@@ -492,8 +712,17 @@ final class BissbilanzAPI {
             }
         }
 
+        if httpResponse.statusCode == 409 {
+            let conflictHeader = httpResponse.value(forHTTPHeaderField: "X-Sync-Conflict")
+            throw APIError.conflict(serverNewer: conflictHeader == "server-newer")
+        }
+
         if httpResponse.statusCode == 404 {
             throw APIError.notFound
+        }
+
+        if httpResponse.statusCode == 410 {
+            throw APIError.gone
         }
 
         if httpResponse.statusCode == 400 {

@@ -11,12 +11,16 @@ import SwiftData
 /// connectivity is regained, or the app foregrounds. Per-operation outcomes:
 /// - success → row removed; for creates the local `temp_` row is replaced with
 ///   the server record (shared `LocalRemap` helpers, same code the migrator uses).
-/// - 4xx (except 401) → the server rejected the payload; the row is dropped and
-///   an error is recorded.
+/// - HTTP 409 + `X-Sync-Conflict: server-newer` → LWW lost; row removed, a
+///   conflict notice is surfaced via `conflictNotices`, refresh triggered.
+/// - HTTP 409 without header → real validation conflict; dead-letter (drop + error).
+/// - HTTP 404/410 on DELETE → idempotent; treat as success, remove silently.
+/// - HTTP 404/410 on other ops → record deleted elsewhere; remove + conflict notice.
 /// - 401 → `performRequest` already refreshed and retried once, so a final 401
 ///   means the session is dead: draining stops, the queue is kept.
-/// - 5xx / network errors → retryCount increments and draining stops; after
-///   `maxRetries` failed attempts the row is dropped with an error.
+/// - 5xx / network errors → retryCount increments, exponential backoff via
+///   `nextAttemptAt`; after `maxRetries` failed attempts the row is dropped with
+///   an error.
 @MainActor
 @Observable
 final class SyncManager {
@@ -28,6 +32,7 @@ final class SyncManager {
     private(set) var isSyncing = false
     private(set) var pendingCount = 0
     private(set) var errors: [String] = []
+    private(set) var conflictNotices: [String] = []
     private(set) var lastSyncedAt: Date?
 
     @ObservationIgnored private var isDraining = false
@@ -36,7 +41,10 @@ final class SyncManager {
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
 
-    static let maxRetries = 3
+    static let maxRetries = 5
+    private static let backoffBase: TimeInterval = 2.0
+    private static let backoffCap: TimeInterval = 5 * 60.0
+    private static let backoffJitter: TimeInterval = 0.5
 
     init(
         context: ModelContext,
@@ -79,6 +87,7 @@ final class SyncManager {
     }
 
     /// Rewrites a queued operation in place (temp-id coalescing).
+    /// The idempotencyKey is NOT changed — coalescing never changes the logical operation.
     func replace(_ row: PendingSyncOperation, with operation: SyncOperation) {
         row.replaceOperation(operation)
         save()
@@ -141,15 +150,17 @@ final class SyncManager {
         // (their `scheduleDrain` is swallowed by the `isDraining` guard) are
         // picked up by this drain instead of waiting for the next trigger.
         // Every iteration either removes the head row or returns, so the
-        // loop terminates.
-        while let row = queuedRows().first {
+        // loop terminates. Items whose `nextAttemptAt` is in the future are
+        // skipped via `nextDueRow()` (backoff).
+        while let row = nextDueRow() {
             guard let operation = row.operation() else {
                 // Unreadable payload — nothing useful can ever be uploaded.
                 remove(row)
                 continue
             }
+            let isDelete = isDeleteOperation(operation)
             do {
-                try await execute(operation)
+                try await execute(operation, idempotencyKey: row.idempotencyKey, clientEditedAt: row.clientEditedAt)
                 if !row.isDeleted {
                     remove(row)
                 }
@@ -160,16 +171,35 @@ final class SyncManager {
                     errors.append("Session expired. Please log in again to sync pending changes.")
                     return processed
 
+                case .conflict(serverNewer: true):
+                    remove(row)
+                    processed += 1
+                    conflictNotices.append(
+                        "Offline change to \(operation.summary) was superseded by a newer change from another device."
+                    )
+
+                case .conflict(serverNewer: false):
+                    remove(row)
+                    processed += 1
+                    errors.append("Failed to sync \(operation.summary): HTTP 409")
+
+                case .notFound where isDelete:
+                    remove(row)
+                    processed += 1
+
+                case .notFound:
+                    remove(row)
+                    processed += 1
+                    conflictNotices.append(
+                        "Offline change to \(operation.summary) was lost: the record was deleted on another device."
+                    )
+
                 case let .clientError(status):
                     remove(row)
                     processed += 1
                     errors.append("Failed to sync \(operation.summary): HTTP \(status)")
 
                 case .offline:
-                    // Plain connectivity failure (e.g. the optimistic
-                    // `isOnline` default before the path monitor reports an
-                    // offline launch) — never burn the retry budget on it,
-                    // just stop and wait for connectivity to come back.
                     return processed
 
                 case .retryable:
@@ -179,6 +209,7 @@ final class SyncManager {
                         processed += 1
                         errors.append("Gave up syncing \(operation.summary) after \(Self.maxRetries) retries.")
                     } else {
+                        row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
                         save()
                         return processed
                     }
@@ -210,13 +241,11 @@ final class SyncManager {
 
     // MARK: - Execution
 
-    private func execute(_ operation: SyncOperation) async throws {
+    private func execute(_ operation: SyncOperation, idempotencyKey: String, clientEditedAt: String) async throws {
         switch operation {
         case let .createFood(body, localId):
-            let server = try await api.createFood(body)
+            let server = try await api.createFood(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.foodRow(id: localId, in: context) != nil else {
-                // Deleted while the create was in flight — don't resurrect
-                // the row; remove the freshly created server record instead.
                 enqueue(.deleteFood(id: server.id))
                 return
             }
@@ -224,34 +253,32 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateFood(id, body):
-            _ = try await api.updateFood(id: id, body)
+            _ = try await api.updateFood(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteFood(id):
-            try await api.deleteFood(id: id)
+            try await api.deleteFood(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .toggleFavorite(id, isFavorite):
-            _ = try await api.toggleFavorite(foodId: id, isFavorite: isFavorite)
+            _ = try await api.toggleFavorite(foodId: id, isFavorite: isFavorite, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createEntry(body, localId):
-            let server = try await api.createEntry(body)
+            let server = try await api.createEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry() else {
                 enqueue(.deleteEntry(id: server.id))
                 return
             }
-            // POST responses are raw DB rows without resolved macros — merge
-            // the display fields from the optimistic local row.
             let merged = EntryRepository.merge(server: server, local: local)
             LocalRemap.replaceEntry(id: localId, with: merged, date: merged.date ?? body.date, in: context)
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateEntry(id, body):
-            _ = try await api.updateEntry(id: id, body)
+            _ = try await api.updateEntry(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteEntry(id):
-            try await api.deleteEntry(id: id)
+            try await api.deleteEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createRecipe(body, localId):
-            let server = try await api.createRecipe(body)
+            let server = try await api.createRecipe(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.recipeRow(id: localId, in: context) != nil else {
                 enqueue(.deleteRecipe(id: server.id))
                 return
@@ -260,16 +287,16 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateRecipe(id, body):
-            _ = try await api.updateRecipe(id: id, body)
+            _ = try await api.updateRecipe(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteRecipe(id):
-            try await api.deleteRecipe(id: id)
+            try await api.deleteRecipe(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .setGoals(body):
-            _ = try await api.setGoals(body)
+            _ = try await api.setGoals(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createWeight(body, localId):
-            let server = try await api.createWeightEntry(body)
+            let server = try await api.createWeightEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.weightRow(id: localId, in: context) != nil else {
                 enqueue(.deleteWeight(id: server.id))
                 return
@@ -278,13 +305,13 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateWeight(id, body):
-            _ = try await api.updateWeightEntry(id: id, body)
+            _ = try await api.updateWeightEntry(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteWeight(id):
-            try await api.deleteWeightEntry(id: id)
+            try await api.deleteWeightEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createSleep(body, localId):
-            let server = try await api.createSleepEntry(body)
+            let server = try await api.createSleepEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.sleepRow(id: localId, in: context) != nil else {
                 enqueue(.deleteSleep(id: server.id))
                 return
@@ -293,13 +320,13 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateSleep(id, body):
-            _ = try await api.updateSleepEntry(id: id, body)
+            _ = try await api.updateSleepEntry(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteSleep(id):
-            try await api.deleteSleepEntry(id: id)
+            try await api.deleteSleepEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createSupplement(body, localId):
-            let server = try await api.createSupplement(body)
+            let server = try await api.createSupplement(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.supplementRow(id: localId, in: context) != nil else {
                 enqueue(.deleteSupplement(id: server.id))
                 return
@@ -308,25 +335,25 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateSupplement(id, body):
-            _ = try await api.updateSupplement(id: id, body)
+            _ = try await api.updateSupplement(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteSupplement(id):
-            try await api.deleteSupplement(id: id)
+            try await api.deleteSupplement(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .logSupplement(supplementId, date):
-            _ = try await api.logSupplement(id: supplementId, date: date)
+            _ = try await api.logSupplement(id: supplementId, date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .unlogSupplement(supplementId, date):
-            try await api.unlogSupplement(id: supplementId, date: date)
+            try await api.unlogSupplement(id: supplementId, date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .setDayProperties(date, isFastingDay):
-            _ = try await api.setDayProperties(date: date, isFastingDay: isFastingDay)
+            _ = try await api.setDayProperties(date: date, isFastingDay: isFastingDay, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .deleteDayProperties(date):
-            try await api.deleteDayProperties(date: date)
+            try await api.deleteDayProperties(date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .updatePreferences(body):
-            _ = try await api.updatePreferences(body)
+            _ = try await api.updatePreferences(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         }
     }
 
@@ -334,6 +361,8 @@ final class SyncManager {
 
     private enum FailureKind {
         case unauthorized
+        case conflict(serverNewer: Bool)
+        case notFound
         case clientError(Int)
         case offline
         case retryable
@@ -346,10 +375,14 @@ final class SyncManager {
         switch apiError {
         case .unauthorized:
             return .unauthorized
+        case .conflict(let serverNewer):
+            return .conflict(serverNewer: serverNewer)
+        case .notFound:
+            return .notFound
+        case .gone:
+            return .notFound
         case .badRequest:
             return .clientError(400)
-        case .notFound:
-            return .clientError(404)
         case let .serverError(status, _):
             return status < 500 ? .clientError(status) : .retryable
         case let .networkError(underlying):
@@ -374,7 +407,39 @@ final class SyncManager {
         }
     }
 
+    private func isDeleteOperation(_ operation: SyncOperation) -> Bool {
+        switch operation {
+        case .deleteFood, .deleteEntry, .deleteRecipe, .deleteWeight,
+             .deleteSupplement, .deleteSleep, .deleteDayProperties,
+             .unlogSupplement:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // MARK: - Backoff
+
+    private func backoffDate(retryCount: Int, id: UUID) -> Date {
+        let base = Self.backoffBase * pow(2.0, Double(min(retryCount, 20)))
+        let jitter = Self.backoffJitter * Double(id.hashValue & 0xFF) / 255.0
+        let delay = min(base + jitter, Self.backoffCap)
+        return Date().addingTimeInterval(delay)
+    }
+
     // MARK: - Store helpers
+
+    /// Next queued row whose backoff has expired (nextAttemptAt <= now), in FIFO order.
+    private func nextDueRow() -> PendingSyncOperation? {
+        let now = Date()
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.nextAttemptAt <= now },
+            sortBy: [SortDescriptor(\.seq)]
+        )
+        var limited = descriptor
+        limited.fetchLimit = 1
+        return (try? context.fetch(limited))?.first
+    }
 
     /// All queued rows in FIFO order.
     func queuedRows() -> [PendingSyncOperation] {
@@ -391,5 +456,14 @@ final class SyncManager {
 
     private func save() {
         try? context.save()
+    }
+
+    /// Test seam: resets `nextAttemptAt` on all queued rows so the next drain
+    /// picks them up immediately, bypassing the exponential backoff delay.
+    func resetBackoffForTesting() {
+        for row in queuedRows() {
+            row.nextAttemptAt = Date.distantPast
+        }
+        save()
     }
 }

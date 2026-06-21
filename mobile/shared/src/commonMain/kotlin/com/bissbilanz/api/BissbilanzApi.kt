@@ -87,11 +87,15 @@ import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class ApiException(
     message: String,
     val statusCode: Int = 0,
+    val rawResponse: HttpResponse? = null,
 ) : Exception(message)
 
 class BissbilanzApi(
@@ -145,25 +149,38 @@ class BissbilanzApi(
             throw ApiException(
                 "GET $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
                 response.status.value,
+                response,
             )
         }
         return response.body()
     }
 
+    private fun HttpRequestBuilder.applySyncHeaders(
+        idempotencyKey: String?,
+        clientEditedAt: String?,
+    ) {
+        if (idempotencyKey != null) header("Idempotency-Key", idempotencyKey)
+        if (clientEditedAt != null) header("X-Client-Edited-At", clientEditedAt)
+    }
+
     private suspend inline fun <reified T> post(
         path: String,
         body: Any,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
         block: HttpRequestBuilder.() -> Unit = {},
     ): T {
         val response =
             client.post(path) {
                 setBody(body)
+                applySyncHeaders(idempotencyKey, clientEditedAt)
                 block()
             }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
                 response.status.value,
+                response,
             )
         }
         return response.body()
@@ -172,15 +189,19 @@ class BissbilanzApi(
     private suspend inline fun <reified T> put(
         path: String,
         body: Any,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): T {
         val response =
             client.put(path) {
                 setBody(body)
+                applySyncHeaders(idempotencyKey, clientEditedAt)
             }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "PUT $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
                 response.status.value,
+                response,
             )
         }
         return response.body()
@@ -189,26 +210,38 @@ class BissbilanzApi(
     private suspend inline fun <reified T> patch(
         path: String,
         body: Any,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): T {
         val response =
             client.patch(path) {
                 setBody(body)
+                applySyncHeaders(idempotencyKey, clientEditedAt)
             }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "PATCH $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
                 response.status.value,
+                response,
             )
         }
         return response.body()
     }
 
-    private suspend fun delete(path: String) {
-        val response = client.delete(path)
+    private suspend fun delete(
+        path: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val response =
+            client.delete(path) {
+                applySyncHeaders(idempotencyKey, clientEditedAt)
+            }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "DELETE $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
                 response.status.value,
+                response,
             )
         }
     }
@@ -237,20 +270,41 @@ class BissbilanzApi(
         return response.food
     }
 
-    suspend fun createFood(food: FoodCreate): Food {
-        val response: FoodResponse = post("/api/foods", food)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createFood(
+        food: FoodCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Food {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse = post("/api/foods", food, key, editedAt)
         return response.food
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateFood(
         id: String,
         food: FoodCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): Food {
-        val response: FoodResponse = patch("/api/foods/$id", food)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse = patch("/api/foods/$id", food, key, editedAt)
         return response.food
     }
 
-    suspend fun deleteFood(id: String) = delete("/api/foods/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteFood(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/foods/$id", key, editedAt)
+    }
 
     suspend fun searchFoods(query: String): List<Food> {
         val response: FoodsListResponse = get("/api/foods") { parameter("q", query) }
@@ -322,8 +376,15 @@ class BissbilanzApi(
         }
     }
 
-    suspend fun createEntry(entry: EntryCreate): Entry {
-        val response: EntryResponse = post("/api/entries", entry)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createEntry(
+        entry: EntryCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Entry {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: EntryResponse = post("/api/entries", entry, key, editedAt)
         val e = response.entry
         return Entry(
             id = e.id,
@@ -346,11 +407,16 @@ class BissbilanzApi(
         )
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateEntry(
         id: String,
         entry: EntryUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): Entry {
-        val response: EntryResponse = patch("/api/entries/$id", entry)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: EntryResponse = patch("/api/entries/$id", entry, key, editedAt)
         val e = response.entry
         return Entry(
             id = e.id,
@@ -373,7 +439,16 @@ class BissbilanzApi(
         )
     }
 
-    suspend fun deleteEntry(id: String) = delete("/api/entries/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteEntry(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/entries/$id", key, editedAt)
+    }
 
     suspend fun getEntriesRange(
         startDate: String,
@@ -398,20 +473,41 @@ class BissbilanzApi(
         return response.recipe
     }
 
-    suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
-        val response: RecipeResponse = post("/api/recipes", recipe)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createRecipe(
+        recipe: RecipeCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): RecipeDetail {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: RecipeResponse = post("/api/recipes", recipe, key, editedAt)
         return response.recipe
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateRecipe(
         id: String,
         recipe: RecipeUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): RecipeDetail {
-        val response: RecipeResponse = patch("/api/recipes/$id", recipe)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: RecipeResponse = patch("/api/recipes/$id", recipe, key, editedAt)
         return response.recipe
     }
 
-    suspend fun deleteRecipe(id: String) = delete("/api/recipes/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteRecipe(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/recipes/$id", key, editedAt)
+    }
 
     // Goals
     suspend fun getGoals(): Goals? =
@@ -423,8 +519,15 @@ class BissbilanzApi(
             null
         }
 
-    suspend fun setGoals(goals: Goals): Goals {
-        val response: GoalsSetResponse = post("/api/goals", goals)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun setGoals(
+        goals: Goals,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Goals {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: GoalsSetResponse = post("/api/goals", goals, key, editedAt)
         return response.goals
     }
 
@@ -434,20 +537,41 @@ class BissbilanzApi(
         return response.propertyEntries
     }
 
-    suspend fun createWeightEntry(entry: WeightCreate): WeightEntry {
-        val response: WeightEntryResponse = post("/api/weight", entry)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createWeightEntry(
+        entry: WeightCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): WeightEntry {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: WeightEntryResponse = post("/api/weight", entry, key, editedAt)
         return response.entry
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateWeightEntry(
         id: String,
         entry: WeightUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): WeightEntry {
-        val response: WeightEntryResponse = patch("/api/weight/$id", entry)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: WeightEntryResponse = patch("/api/weight/$id", entry, key, editedAt)
         return response.entry
     }
 
-    suspend fun deleteWeightEntry(id: String) = delete("/api/weight/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteWeightEntry(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/weight/$id", key, editedAt)
+    }
 
     suspend fun getLatestWeightEntry(): WeightEntry? {
         val response: WeightLatestResponse = get("/api/weight/latest")
@@ -472,25 +596,54 @@ class BissbilanzApi(
         return response.supplements
     }
 
-    suspend fun createSupplement(supplement: SupplementCreate): Supplement {
-        val response: SupplementResponse = post("/api/supplements", supplement)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createSupplement(
+        supplement: SupplementCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Supplement {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: SupplementResponse = post("/api/supplements", supplement, key, editedAt)
         return response.supplement
     }
 
-    suspend fun deleteSupplement(id: String) = delete("/api/supplements/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteSupplement(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/supplements/$id", key, editedAt)
+    }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun logSupplement(
         supplementId: String,
         date: String? = null,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): SupplementLog {
-        val response: SupplementLogResponse = post("/api/supplements/$supplementId/log", mapOf("date" to date))
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: SupplementLogResponse =
+            post("/api/supplements/$supplementId/log", mapOf("date" to date), key, editedAt)
         return response.log
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun unlogSupplement(
         supplementId: String,
         date: String,
-    ) = delete("/api/supplements/$supplementId/log?date=$date")
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/supplements/$supplementId/log?date=$date", key, editedAt)
+    }
 
     // Stats
     suspend fun getDailyStats(
@@ -534,8 +687,15 @@ class BissbilanzApi(
         return response.preferences
     }
 
-    suspend fun updatePreferences(prefs: PreferencesUpdate): Preferences {
-        val response: PreferencesResponse = patch("/api/preferences", prefs)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun updatePreferences(
+        prefs: PreferencesUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Preferences {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: PreferencesResponse = patch("/api/preferences", prefs, key, editedAt)
         return response.preferences
     }
 
@@ -585,26 +745,47 @@ class BissbilanzApi(
         return response.properties
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun setDayProperties(
         date: String,
         isFastingDay: Boolean,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): DayProperties? {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
         val response: DayPropertiesResponse =
             put(
                 "/api/day-properties",
                 DayPropertiesSet(date = date, isFastingDay = isFastingDay),
+                key,
+                editedAt,
             )
         return response.properties
     }
 
-    suspend fun deleteDayProperties(date: String) = delete("/api/day-properties?date=$date")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteDayProperties(
+        date: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/day-properties?date=$date", key, editedAt)
+    }
 
     // Supplement update
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateSupplement(
         id: String,
         supplement: SupplementCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): Supplement {
-        val response: SupplementResponse = patch("/api/supplements/$id", supplement)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: SupplementResponse = patch("/api/supplements/$id", supplement, key, editedAt)
         return response.supplement
     }
 
@@ -641,20 +822,41 @@ class BissbilanzApi(
         return response.propertyEntries
     }
 
-    suspend fun createSleepEntry(entry: SleepCreate): SleepEntry {
-        val response: SleepEntryResponse = post("/api/sleep", entry)
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createSleepEntry(
+        entry: SleepCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): SleepEntry {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: SleepEntryResponse = post("/api/sleep", entry, key, editedAt)
         return response.entry
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun updateSleepEntry(
         id: String,
         entry: SleepUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
     ): SleepEntry {
-        val response: SleepEntryResponse = patch("/api/sleep/$id", entry)
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: SleepEntryResponse = patch("/api/sleep/$id", entry, key, editedAt)
         return response.entry
     }
 
-    suspend fun deleteSleepEntry(id: String) = delete("/api/sleep/$id")
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteSleepEntry(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/sleep/$id", key, editedAt)
+    }
 
     // Analytics
     suspend fun getSleepFoodCorrelation(

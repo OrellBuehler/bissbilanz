@@ -15,6 +15,7 @@ final class StubURLProtocol: URLProtocol {
         let body: Data
         var errorCode: URLError.Code?
         var delayMs: Int = 0
+        var headers: [String: String] = [:]
     }
 
     private nonisolated(unsafe) static var stubs: [String: Stub] = [:]
@@ -22,10 +23,15 @@ final class StubURLProtocol: URLProtocol {
     private nonisolated(unsafe) static var bodies: [String: [Data]] = [:]
     private static let lock = NSLock()
 
-    static func stub(_ method: String, _ url: String, status: Int = 200, json: String = "{}", delayMs: Int = 0) {
+    static func stub(
+        _ method: String, _ url: String,
+        status: Int = 200, json: String = "{}",
+        headers: [String: String] = [:],
+        delayMs: Int = 0
+    ) {
         lock.lock()
         defer { lock.unlock() }
-        stubs["\(method) \(url)"] = Stub(status: status, body: Data(json.utf8), delayMs: delayMs)
+        stubs["\(method) \(url)"] = Stub(status: status, body: Data(json.utf8), delayMs: delayMs, headers: headers)
     }
 
     /// Makes "METHOD url" fail with a transport-level URLError.
@@ -90,11 +96,15 @@ final class StubURLProtocol: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(code))
             return
         }
+        var headerFields: [String: String] = ["Content-Type": "application/json"]
+        if let extra = stub?.headers {
+            headerFields.merge(extra) { _, new in new }
+        }
         let response = HTTPURLResponse(
             url: url ?? URL(string: "https://stub.local")!,
             statusCode: stub?.status ?? 404,
             httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: headerFields
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: stub?.body ?? Data("{}".utf8))
@@ -168,8 +178,13 @@ struct RepositoryHarness {
 
     // MARK: Stubbing
 
-    func stub(_ method: String, _ path: String, status: Int = 200, json: String = "{}", delayMs: Int = 0) {
-        StubURLProtocol.stub(method, "\(baseURL)\(path)", status: status, json: json, delayMs: delayMs)
+    func stub(
+        _ method: String, _ path: String,
+        status: Int = 200, json: String = "{}",
+        headers: [String: String] = [:],
+        delayMs: Int = 0
+    ) {
+        StubURLProtocol.stub(method, "\(baseURL)\(path)", status: status, json: json, headers: headers, delayMs: delayMs)
     }
 
     func stubError(_ method: String, _ path: String, code: URLError.Code) {
