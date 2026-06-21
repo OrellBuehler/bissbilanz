@@ -180,6 +180,29 @@ describe('idempotency (withIdempotency)', () => {
 		expect(calls).toBe(2);
 	});
 
+	it('does not cache a LWW conflict — a retry re-derives it with the header intact', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		let calls = 0;
+		const resolve = async () => {
+			calls += 1;
+			return new Response(JSON.stringify({ error: 'conflict_server_newer' }), {
+				status: 409,
+				headers: { 'content-type': 'application/json', 'x-sync-conflict': 'server-newer' }
+			});
+		};
+
+		const first = await withIdempotency(fakeEvent('PATCH'), resolve, userId, 'key-conflict');
+		const second = await withIdempotency(fakeEvent('PATCH'), resolve, userId, 'key-conflict');
+
+		expect(first.status).toBe(409);
+		expect(second.status).toBe(409);
+		// Re-ran rather than replaying a header-less 409 (which the client would
+		// dead-letter instead of surfacing as a conflict).
+		expect(calls).toBe(2);
+		expect(second.headers.get('x-sync-conflict')).toBe('server-newer');
+		expect(second.headers.get('x-idempotent-replay')).not.toBe('true');
+	});
+
 	it('releases the claim on a 5xx so a later retry runs for real', async () => {
 		const { withIdempotency } = await import('$lib/server/sync/idempotency');
 		let calls = 0;

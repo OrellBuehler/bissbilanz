@@ -3,6 +3,7 @@ import { and, eq, lt } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { getDB } from '$lib/server/db';
 import { idempotencyKeys } from '$lib/server/schema';
+import { SYNC_CONFLICT_HEADER } from '$lib/server/sync/headers';
 
 /** Header echoed on a replayed response so clients/tests can observe dedup. */
 const REPLAY_HEADER = 'x-idempotent-replay';
@@ -92,9 +93,12 @@ export async function withIdempotency(
 		throw error;
 	}
 
-	// Server errors are transient — release the claim so the retry isn't permanently
-	// short-circuited into replaying a 500.
-	if (response.status >= 500) {
+	// Don't cache responses we can't faithfully replay or that are transient:
+	//  - 5xx are transient; let the retry run for real.
+	//  - A last-write-wins conflict (X-Sync-Conflict) carries a header replay
+	//    can't reconstruct, and it means the write was rejected (no mutation), so
+	//    re-running deterministically re-derives the same conflict + header.
+	if (response.status >= 500 || response.headers.has(SYNC_CONFLICT_HEADER)) {
 		await release();
 		return response;
 	}
