@@ -16,7 +16,7 @@ class CaloriePatternsTest {
                 Triple("2024-01-02", "2024-01-02T11:00:00Z", 400.0),
                 Triple("2024-01-02", "2024-01-02T20:00:00Z", 100.0),
             )
-        val result = computeCalorieFrontLoading(entries)
+        val result = computeCalorieFrontLoading(entries, "UTC")
         assertTrue(result.avgMorningPct > 50.0, "Expected morning-heavy loading, got ${result.avgMorningPct}")
         assertEquals(2, result.daysAbove50Pct)
         assertEquals(2, result.totalDays)
@@ -24,7 +24,7 @@ class CaloriePatternsTest {
 
     @Test
     fun frontLoadingEmptyReturnsZero() {
-        val result = computeCalorieFrontLoading(emptyList())
+        val result = computeCalorieFrontLoading(emptyList(), "UTC")
         assertEquals(0.0, result.avgMorningPct)
         assertEquals(0, result.daysAbove50Pct)
         assertEquals(0, result.totalDays)
@@ -38,7 +38,7 @@ class CaloriePatternsTest {
                 Triple<String, String?, Double>("2024-01-01", null, 500.0),
                 Triple<String, String?, Double>("2024-01-02", "2024-01-02T08:00:00Z", 800.0),
             )
-        val result = computeCalorieFrontLoading(entries)
+        val result = computeCalorieFrontLoading(entries, "UTC")
         assertEquals(1, result.totalDays)
     }
 
@@ -100,7 +100,7 @@ class CaloriePatternsTest {
     @Test
     fun frontLoadingSingleDayProducesResult() {
         val entries = listOf(Triple("2024-01-01", "2024-01-01T10:00:00Z", 500.0))
-        val result = computeCalorieFrontLoading(entries)
+        val result = computeCalorieFrontLoading(entries, "UTC")
         assertEquals(1, result.totalDays)
         assertEquals(100.0, result.avgMorningPct, 1e-9)
     }
@@ -112,7 +112,7 @@ class CaloriePatternsTest {
                 Triple("2024-01-01", null as String?, 500.0),
                 Triple("2024-01-02", null, 600.0),
             )
-        val result = computeCalorieFrontLoading(entries)
+        val result = computeCalorieFrontLoading(entries, "UTC")
         assertEquals(0, result.totalDays)
         assertEquals(0.0, result.avgMorningPct)
     }
@@ -124,9 +124,9 @@ class CaloriePatternsTest {
                 Triple("2024-01-01", "2024-01-01T10:00:00Z", 500.0),
                 Triple("2024-01-01", "2024-01-01T11:00:00Z", 500.0),
             )
-        val result10 = computeCalorieFrontLoading(entries, cutoffHour = 10)
+        val result10 = computeCalorieFrontLoading(entries, "UTC", cutoffHour = 10)
         assertEquals(0.0, result10.avgMorningPct, 1e-9)
-        val result12 = computeCalorieFrontLoading(entries, cutoffHour = 12)
+        val result12 = computeCalorieFrontLoading(entries, "UTC", cutoffHour = 12)
         assertEquals(100.0, result12.avgMorningPct, 1e-9)
     }
 

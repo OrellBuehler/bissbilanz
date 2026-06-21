@@ -1,3 +1,5 @@
+import { localMinutesOfDay } from './local-time';
+
 export type DailyEatingWindow = {
 	date: string;
 	firstMealTime: string;
@@ -17,7 +19,8 @@ export type MealTimingSummary = {
 };
 
 export function extractMealTimingPatterns(
-	entries: { date: string; eatenAt: string | null; calories: number }[]
+	entries: { date: string; eatenAt: string | null; calories: number }[],
+	timeZone: string
 ): MealTimingSummary {
 	const hourlyDistribution = new Array<number>(24).fill(0);
 
@@ -26,7 +29,7 @@ export function extractMealTimingPatterns(
 	for (const entry of entries) {
 		if (!entry.eatenAt) continue;
 
-		const localMinutes = parseLocalMinutes(entry.eatenAt);
+		const localMinutes = localMinutesOfDay(entry.eatenAt, timeZone);
 		if (localMinutes === null) continue;
 
 		const hour = Math.floor(localMinutes / 60);
@@ -89,31 +92,6 @@ export function extractMealTimingPatterns(
 		lateNightFrequency,
 		hourlyDistribution
 	};
-}
-
-export function parseLocalMinutes(isoString: string): number | null {
-	const match = isoString.match(
-		/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$/
-	);
-	if (!match) return null;
-
-	const hours = parseInt(match[2], 10);
-	const minutes = parseInt(match[3], 10);
-	const tzStr = match[4] ?? 'Z';
-
-	let offsetMinutes = 0;
-	if (tzStr !== 'Z') {
-		const tzMatch = tzStr.match(/([+-])(\d{2}):(\d{2})/);
-		if (tzMatch) {
-			const sign = tzMatch[1] === '+' ? 1 : -1;
-			offsetMinutes = sign * (parseInt(tzMatch[2], 10) * 60 + parseInt(tzMatch[3], 10));
-		}
-	}
-
-	const utcMinutes = hours * 60 + minutes;
-	const localMinutes = (((utcMinutes + offsetMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
-
-	return localMinutes;
 }
 
 function minutesToHHmm(totalMinutes: number): string {

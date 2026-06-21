@@ -11,8 +11,8 @@ import com.bissbilanz.analytics.aggregateDailyNutrientTotals
 import com.bissbilanz.analytics.calculateMaintenance
 import com.bissbilanz.analytics.extendedNutrientEntries
 import com.bissbilanz.analytics.foodDiversityRows
+import com.bissbilanz.analytics.localMinutesOfDay
 import com.bissbilanz.analytics.mealTimingRows
-import com.bissbilanz.analytics.parseLocalMinutes
 import com.bissbilanz.analytics.sleepFoodCorrelation
 import com.bissbilanz.analytics.weightFoodSeries
 import com.bissbilanz.api.generated.model.DailyNutrients
@@ -35,6 +35,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.serialization.json.Json
 import com.bissbilanz.api.generated.model.ExtendedNutrientEntry as ExtendedNutrientDto
@@ -192,10 +193,11 @@ class LocalAnalytics(
         endDate: String,
     ): SleepFoodCorrelationResponse {
         // The server filters evening entries to those eaten at/after 17:00 local;
-        // parseLocalMinutes reads the local minutes from the stored timestamp.
+        // bucket the stored UTC instant into the device timezone to match.
+        val deviceTz = TimeZone.currentSystemDefault().id
         val eveningEntries =
             loadEntries(startDate, endDate).filter { e ->
-                val minutes = e.eatenAt?.let { parseLocalMinutes(it) } ?: return@filter false
+                val minutes = e.eatenAt?.let { localMinutesOfDay(it, deviceTz) } ?: return@filter false
                 minutes / 60 >= EVENING_CUTOFF_HOUR
             }
         val inputs = buildInputs(eveningEntries)

@@ -9,7 +9,7 @@ describe('computeCalorieFrontLoading', () => {
 			{ date: '2024-01-02', eatenAt: '2024-01-02T09:00:00+00:00', calories: 600 },
 			{ date: '2024-01-02', eatenAt: '2024-01-02T11:00:00+00:00', calories: 400 }
 		];
-		const result = computeCalorieFrontLoading(entries, 14);
+		const result = computeCalorieFrontLoading(entries, 'UTC', 14);
 		expect(result.avgMorningPct).toBe(100);
 		expect(result.daysAbove50Pct).toBe(2);
 	});
@@ -19,7 +19,7 @@ describe('computeCalorieFrontLoading', () => {
 			{ date: '2024-01-01', eatenAt: '2024-01-01T18:00:00+00:00', calories: 800 },
 			{ date: '2024-01-01', eatenAt: '2024-01-01T20:00:00+00:00', calories: 700 }
 		];
-		const result = computeCalorieFrontLoading(entries, 14);
+		const result = computeCalorieFrontLoading(entries, 'UTC', 14);
 		expect(result.avgMorningPct).toBe(0);
 		expect(result.daysAbove50Pct).toBe(0);
 	});
@@ -29,13 +29,13 @@ describe('computeCalorieFrontLoading', () => {
 			{ date: '2024-01-01', eatenAt: null, calories: 800 },
 			{ date: '2024-01-01', eatenAt: '2024-01-01T09:00:00+00:00', calories: 500 }
 		];
-		const result = computeCalorieFrontLoading(entries, 14);
+		const result = computeCalorieFrontLoading(entries, 'UTC', 14);
 		expect(result.sampleSize).toBe(1);
 		expect(result.avgMorningPct).toBe(100);
 	});
 
 	test('returns zero for empty input', () => {
-		const result = computeCalorieFrontLoading([], 14);
+		const result = computeCalorieFrontLoading([], 'UTC', 14);
 		expect(result.avgMorningPct).toBe(0);
 		expect(result.sampleSize).toBe(0);
 		expect(result.confidence).toBe('insufficient');

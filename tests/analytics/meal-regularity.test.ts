@@ -14,7 +14,7 @@ describe('computeMealRegularity', () => {
 			{ date: '2024-01-03', mealType: 'Lunch', eatenAt: '2024-01-03T12:00:00+00:00' },
 			{ date: '2024-01-03', mealType: 'Dinner', eatenAt: '2024-01-03T19:00:00+00:00' }
 		];
-		const result = computeMealRegularity(entries);
+		const result = computeMealRegularity(entries, 'UTC');
 		expect(result.overallScore).toBeCloseTo(100, 0);
 		expect(result.meals.every((m) => m.regularity === 'high')).toBe(true);
 	});
@@ -27,7 +27,7 @@ describe('computeMealRegularity', () => {
 			{ date: '2024-01-04', mealType: 'Breakfast', eatenAt: '2024-01-04T11:00:00+00:00' },
 			{ date: '2024-01-05', mealType: 'Breakfast', eatenAt: '2024-01-05T08:30:00+00:00' }
 		];
-		const result = computeMealRegularity(entries);
+		const result = computeMealRegularity(entries, 'UTC');
 		expect(result.overallScore).toBeLessThan(100);
 	});
 
@@ -37,7 +37,7 @@ describe('computeMealRegularity', () => {
 			{ date: '2024-01-01', mealType: 'Lunch', eatenAt: '2024-01-01T14:00:00+00:00' },
 			{ date: '2024-01-02', mealType: 'Lunch', eatenAt: '2024-01-02T12:00:00+00:00' }
 		];
-		const result = computeMealRegularity(entries);
+		const result = computeMealRegularity(entries, 'UTC');
 		const lunch = result.meals.find((m) => m.mealType === 'Lunch');
 		expect(lunch?.avgMinute).toBe(12 * 60);
 	});
@@ -47,15 +47,16 @@ describe('computeMealRegularity', () => {
 			{ date: '2024-01-01', mealType: 'Breakfast', eatenAt: null },
 			{ date: '2024-01-01', mealType: 'Lunch', eatenAt: '2024-01-01T12:00:00+00:00' }
 		];
-		const result = computeMealRegularity(entries);
+		const result = computeMealRegularity(entries, 'UTC');
 		expect(result.meals).toHaveLength(1);
 		expect(result.meals[0].mealType).toBe('Lunch');
 	});
 
 	test('returns empty for no timed entries', () => {
-		const result = computeMealRegularity([
-			{ date: '2024-01-01', mealType: 'Breakfast', eatenAt: null }
-		]);
+		const result = computeMealRegularity(
+			[{ date: '2024-01-01', mealType: 'Breakfast', eatenAt: null }],
+			'UTC'
+		);
 		expect(result.meals).toHaveLength(0);
 		expect(result.overallScore).toBe(0);
 	});
@@ -66,7 +67,7 @@ describe('computeMealRegularity', () => {
 			mealType: 'Dinner',
 			eatenAt: `2024-01-0${i + 1}T${String(10 + i * 3).padStart(2, '0')}:00:00+00:00`
 		}));
-		const result = computeMealRegularity(entries);
+		const result = computeMealRegularity(entries, 'UTC');
 		expect(result.overallScore).toBeGreaterThanOrEqual(0);
 		expect(result.overallScore).toBeLessThanOrEqual(100);
 	});

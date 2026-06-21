@@ -28,13 +28,16 @@ data class MealEntry(
     val calories: Double,
 )
 
-fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
+fun extractMealTimingPatterns(
+    entries: List<MealEntry>,
+    timeZone: String,
+): MealTimingSummary {
     val hourlyDistribution = MutableList(24) { 0 }
     val byDate = mutableMapOf<String, MutableList<Pair<Int, Int>>>()
 
     for (entry in entries) {
         if (entry.eatenAt == null) continue
-        val localMinutes = parseLocalMinutes(entry.eatenAt) ?: continue
+        val localMinutes = localMinutesOfDay(entry.eatenAt, timeZone) ?: continue
         val hour = localMinutes / 60
         hourlyDistribution[hour]++
         byDate.getOrPut(entry.date) { mutableListOf() }.add(Pair(localMinutes, hour))
@@ -85,39 +88,6 @@ fun extractMealTimingPatterns(entries: List<MealEntry>): MealTimingSummary {
         lateNightFrequency = lateNightFrequency,
         hourlyDistribution = hourlyDistribution,
     )
-}
-
-/**
- * Parses a local-time ISO 8601 datetime string from the API and returns the time as
- * minutes since midnight in local time.
- *
- * Expected input format: "2024-03-15T19:30:00+01:00" or "2024-03-15T19:30:00Z"
- *
- * The function extracts the wall-clock time from the string and applies the embedded
- * UTC offset to return the correct local minutes-since-midnight value.
- *
- * Assumption: `eatenAt` from the Bissbilanz API is always a local-time ISO string with
- * an explicit UTC offset, not a pure UTC timestamp. Do not use this function with UTC
- * timestamps that lack an offset.
- */
-fun parseLocalMinutes(isoString: String): Int? {
-    val match =
-        Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?([+-]\d{2}:\d{2}|Z)?$""")
-            .matchEntire(isoString) ?: return null
-    val hours = match.groupValues[2].toIntOrNull() ?: return null
-    val minutes = match.groupValues[3].toIntOrNull() ?: return null
-    val tzStr = match.groupValues[4].ifEmpty { "Z" }
-    var offsetMinutes = 0
-    if (tzStr != "Z") {
-        val tzMatch = Regex("""([+-])(\d{2}):(\d{2})""").matchEntire(tzStr)
-        if (tzMatch != null) {
-            val sign = if (tzMatch.groupValues[1] == "+") 1 else -1
-            offsetMinutes = sign * (tzMatch.groupValues[2].toInt() * 60 + tzMatch.groupValues[3].toInt())
-        }
-    }
-    val utcMinutes = hours * 60 + minutes
-    val localMinutes = ((utcMinutes + offsetMinutes) % (24 * 60) + 24 * 60) % (24 * 60)
-    return localMinutes
 }
 
 internal fun minutesToHHmm(totalMinutes: Int): String {

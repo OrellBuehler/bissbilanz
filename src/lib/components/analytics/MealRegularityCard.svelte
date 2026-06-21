@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeMealRegularity } from '$lib/analytics/meal-regularity';
+	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 	import type { MealEntry } from './types';
 
@@ -14,7 +15,7 @@
 
 	const result = $derived.by(() => {
 		if (mealEntries.length === 0) return null;
-		return computeMealRegularity(mealEntries);
+		return computeMealRegularity(mealEntries, deviceTimeZone());
 	});
 
 	const regularityLabel = (r: 'high' | 'medium' | 'low') => {

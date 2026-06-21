@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
+	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
 	import type { MealEntry } from './types';
@@ -14,7 +15,7 @@
 
 	const analysis = $derived.by(() => {
 		if (mealTimingData.length === 0) return null;
-		return extractMealTimingPatterns(mealTimingData);
+		return extractMealTimingPatterns(mealTimingData, deviceTimeZone());
 	});
 
 	const hourlyData = $derived.by(() => {

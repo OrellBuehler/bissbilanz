@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeCalorieFrontLoading } from '$lib/analytics/calorie-patterns';
+	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
@@ -19,7 +20,7 @@
 
 	const result = $derived.by(() => {
 		if (nutrientEntries.length === 0) return null;
-		return computeCalorieFrontLoading(nutrientEntries);
+		return computeCalorieFrontLoading(nutrientEntries, deviceTimeZone());
 	});
 
 	const morningColor = $derived.by(() => {

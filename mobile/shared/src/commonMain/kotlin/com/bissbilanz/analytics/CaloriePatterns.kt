@@ -21,10 +21,9 @@ data class CalorieCyclingResult(
     val sampleSize: Int,
 )
 
-private fun parseHour(eatenAt: String): Int = eatenAt.substring(11, 13).toIntOrNull() ?: 0
-
 fun computeCalorieFrontLoading(
     entries: List<Triple<String, String?, Double>>,
+    timeZone: String,
     cutoffHour: Int = 14,
 ): FrontLoadingResult {
     data class DayAccum(
@@ -35,7 +34,8 @@ fun computeCalorieFrontLoading(
     val byDate = mutableMapOf<String, DayAccum>()
     for ((date, eatenAt, calories) in entries) {
         if (eatenAt == null) continue
-        val hour = parseHour(eatenAt)
+        val minutes = localMinutesOfDay(eatenAt, timeZone) ?: continue
+        val hour = minutes / 60
         val day = byDate.getOrPut(date) { DayAccum() }
         day.total += calories
         if (hour < cutoffHour) day.morning += calories

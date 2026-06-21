@@ -1,4 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
+import { localMinutesOfDay } from './local-time';
 
 export type CaffeineSleepResult = {
 	estimatedCutoffHour: number | null;
@@ -15,7 +16,8 @@ function getNextDate(dateStr: string): string {
 
 export function computeCaffeineSleepCutoff(
 	caffeineEntries: { date: string; eatenAt: string | null; caffeine: number }[],
-	sleepData: { date: string; sleepQuality: number | null; sleepDurationMinutes: number | null }[]
+	sleepData: { date: string; sleepQuality: number | null; sleepDurationMinutes: number | null }[],
+	timeZone: string
 ): CaffeineSleepResult {
 	const sleepByDate = new Map<string, { quality: number; duration: number }>();
 	for (const s of sleepData) {
@@ -27,7 +29,9 @@ export function computeCaffeineSleepCutoff(
 	const lastCaffeineHourByDate = new Map<string, number>();
 	for (const entry of caffeineEntries) {
 		if (!entry.eatenAt || entry.caffeine <= 0) continue;
-		const hour = new Date(entry.eatenAt).getHours();
+		const minutes = localMinutesOfDay(entry.eatenAt, timeZone);
+		if (minutes === null) continue;
+		const hour = Math.floor(minutes / 60);
 		const existing = lastCaffeineHourByDate.get(entry.date);
 		if (existing === undefined || hour > existing) {
 			lastCaffeineHourByDate.set(entry.date, hour);

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { computeCaffeineSleepCutoff } from '$lib/analytics/caffeine-sleep';
+	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
 
@@ -51,7 +52,8 @@
 				eatenAt: e.eatenAt,
 				caffeine: e.caffeine ?? 0
 			})),
-			sleepData
+			sleepData,
+			deviceTimeZone()
 		);
 	});
 
