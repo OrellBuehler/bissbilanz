@@ -144,8 +144,14 @@ enum ErrorReporter {
         case .networkError:
             // Offline, timeout, DNS hiccup — mirrors Android's IOException filter.
             return true
-        case .notFound:
-            // Lookups (barcode, latest weight) legitimately miss.
+        case .notFound, .gone:
+            // Lookups (barcode, latest weight) legitimately miss; `.gone` is an
+            // idempotent delete / deleted-elsewhere outcome surfaced by the sync
+            // layer, not a bug.
+            return true
+        case .conflict:
+            // Last-write-wins resolved an offline edit — an expected sync outcome
+            // surfaced to the user, not worth a Sentry report.
             return true
         case .badRequest, .serverError, .decodingError, nil:
             return false
