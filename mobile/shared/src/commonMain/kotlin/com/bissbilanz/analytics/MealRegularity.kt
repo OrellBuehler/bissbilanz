@@ -24,11 +24,14 @@ data class RegularityInputEntry(
     val eatenAt: String?,
 )
 
-fun computeMealRegularity(entries: List<RegularityInputEntry>): MealRegularityResult {
+fun computeMealRegularity(
+    entries: List<RegularityInputEntry>,
+    timeZone: String,
+): MealRegularityResult {
     val byMealDate = mutableMapOf<String, MutableMap<String, Int>>()
     for (entry in entries) {
         if (entry.eatenAt == null) continue
-        val minutes = parseLocalMinutes(entry.eatenAt) ?: continue
+        val minutes = localMinutesOfDay(entry.eatenAt, timeZone) ?: continue
         val dateMap = byMealDate.getOrPut(entry.mealType) { mutableMapOf() }
         val existing = dateMap[entry.date]
         if (existing == null || minutes < existing) dateMap[entry.date] = minutes

@@ -14,7 +14,7 @@ class MealRegularityTest {
                 RegularityInputEntry(date = "2024-01-01", mealType = "Breakfast", eatenAt = null),
                 RegularityInputEntry(date = "2024-01-02", mealType = "Breakfast", eatenAt = null),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(emptyList(), result.meals)
         assertEquals(0.0, result.overallScore)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
@@ -29,7 +29,7 @@ class MealRegularityTest {
                 val date = "2024-01-${pad2(i)}"
                 RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T08:0${i % 10}:00Z")
             }
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(1, result.meals.size)
         assertEquals("high", result.meals[0].regularity)
         assertTrue(result.meals[0].stddevMinutes < 30)
@@ -44,7 +44,7 @@ class MealRegularityTest {
                 val date = "2024-01-${pad2(i + 1)}"
                 RegularityInputEntry(date = date, mealType = "Breakfast", eatenAt = "${date}T${pad2(hour)}:00:00Z")
             }
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(1, result.meals.size)
         assertEquals("low", result.meals[0].regularity)
         assertTrue(result.meals[0].stddevMinutes > 60)
@@ -58,7 +58,7 @@ class MealRegularityTest {
                 val date = "2024-01-${pad2(i)}"
                 RegularityInputEntry(date = date, mealType = "Lunch", eatenAt = "${date}T12:00:00Z")
             }
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(100.0, result.overallScore, 0.001)
     }
 
@@ -70,7 +70,7 @@ class MealRegularityTest {
                 RegularityInputEntry("2024-01-01", "Lunch", "2024-01-01T12:00:00Z"),
                 RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(2, result.sampleSize)
     }
 
@@ -83,7 +83,7 @@ class MealRegularityTest {
                 RegularityInputEntry("2024-01-01", "Breakfast", "2024-01-01T08:00:00Z"),
                 RegularityInputEntry("2024-01-02", "Breakfast", "2024-01-02T08:00:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(1, result.meals.size)
         val meal = result.meals[0]
         // Both days at 08:00 => stddev = 0
@@ -92,7 +92,7 @@ class MealRegularityTest {
 
     @Test
     fun emptyEntriesReturnsInsufficient() {
-        val result = computeMealRegularity(emptyList())
+        val result = computeMealRegularity(emptyList(), "UTC")
         assertEquals(0, result.meals.size)
         assertEquals(0.0, result.overallScore)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
@@ -105,7 +105,7 @@ class MealRegularityTest {
             listOf(
                 RegularityInputEntry("2024-01-01", "breakfast", "2024-01-01T08:00:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(1, result.meals.size)
         assertEquals(0.0, result.meals[0].stddevMinutes)
         assertEquals("high", result.meals[0].regularity)
@@ -120,7 +120,7 @@ class MealRegularityTest {
                 RegularityInputEntry("2024-01-01", "breakfast", "2024-01-01T08:00:00Z"),
                 RegularityInputEntry("2024-01-02", "breakfast", "2024-01-02T09:00:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals("medium", result.meals[0].regularity)
     }
 
@@ -132,7 +132,7 @@ class MealRegularityTest {
                 RegularityInputEntry("2024-01-01", "breakfast", "2024-01-01T07:30:00Z"),
                 RegularityInputEntry("2024-01-02", "breakfast", "2024-01-02T09:30:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals("low", result.meals[0].regularity)
     }
 
@@ -145,7 +145,7 @@ class MealRegularityTest {
                 RegularityInputEntry("2024-01-02", "breakfast", "2024-01-02T08:00:00Z"),
                 RegularityInputEntry("2024-01-02", "lunch", "2024-01-02T12:00:00Z"),
             )
-        val result = computeMealRegularity(entries)
+        val result = computeMealRegularity(entries, "UTC")
         assertEquals(2, result.meals.size)
     }
 }

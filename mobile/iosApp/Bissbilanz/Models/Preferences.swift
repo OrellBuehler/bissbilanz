@@ -16,6 +16,7 @@ struct Preferences: Codable {
     let favoriteMealAssignmentMode: String
     let visibleNutrients: [String]
     let locale: String?
+    let timeZone: String?
 
     static let defaults = Preferences(
         showChartWidget: true,
@@ -32,7 +33,8 @@ struct Preferences: Codable {
         favoriteTapAction: "instant",
         favoriteMealAssignmentMode: "time_based",
         visibleNutrients: [],
-        locale: nil
+        locale: nil,
+        timeZone: "UTC"
     )
 }
 
@@ -52,6 +54,7 @@ struct PreferencesUpdate: Codable {
     var favoriteMealAssignmentMode: String?
     var visibleNutrients: [String]?
     var locale: String?
+    var timeZone: String?
     var favoriteMealTimeframes: [FavoriteMealTimeframe]?
 }
 

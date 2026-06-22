@@ -29,6 +29,7 @@ data class SleepDataPoint(
 fun computeCaffeineSleepCutoff(
     caffeineEntries: List<CaffeineEntry>,
     sleepData: List<SleepDataPoint>,
+    timeZone: String,
 ): CaffeineSleepResult {
     val sleepByDate = mutableMapOf<String, Pair<Double, Double>>()
     for (s in sleepData) {
@@ -40,7 +41,7 @@ fun computeCaffeineSleepCutoff(
     val lastCaffeineHourByDate = mutableMapOf<String, Int>()
     for (entry in caffeineEntries) {
         if (entry.eatenAt == null || entry.caffeine <= 0) continue
-        val localMinutes = parseLocalMinutes(entry.eatenAt) ?: continue
+        val localMinutes = localMinutesOfDay(entry.eatenAt, timeZone) ?: continue
         val hour = localMinutes / 60
         val existing = lastCaffeineHourByDate[entry.date]
         if (existing == null || hour > existing) lastCaffeineHourByDate[entry.date] = hour

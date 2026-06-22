@@ -5132,6 +5132,10 @@
 								"type": "null"
 							}
 						]
+					},
+					"timeZone": {
+						"type": "string",
+						"maxLength": 64
 					}
 				},
 				"additionalProperties": false
@@ -7763,6 +7767,9 @@
 							}
 						]
 					},
+					"timeZone": {
+						"type": "string"
+					},
 					"updatedAt": {
 						"type": "string"
 					},
@@ -7788,6 +7795,7 @@
 					"favoriteMealAssignmentMode",
 					"visibleNutrients",
 					"locale",
+					"timeZone",
 					"favoriteMealTimeframes"
 				],
 				"additionalProperties": false

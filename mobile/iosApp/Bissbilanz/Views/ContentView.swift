@@ -32,8 +32,8 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         }
     }
 
-    // @MainActor because `NavigationStack.init(root:)` is main-actor-isolated;
-    // this builder is only ever read from `ContentView.body` (the main actor).
+    /// @MainActor because `NavigationStack.init(root:)` is main-actor-isolated;
+    /// this builder is only ever read from `ContentView.body` (the main actor).
     @MainActor @ViewBuilder
     var destination: some View {
         switch self {

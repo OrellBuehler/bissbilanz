@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +79,7 @@ fun MealPickerSheet(
                 }
                 Button(
                     onClick = {
-                        val servings = servingsText.toDoubleOrNull() ?: 1.0
+                        val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
                         if (servings > 0) {
                             scope.launch { sheetState.hide() }.invokeOnCompletion {
                                 onConfirm(selectedMeal, servings)

@@ -10,7 +10,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
-	import { round2 } from '$lib/utils/number';
+	import { round2, parseDecimalInput } from '$lib/utils/number';
 	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
@@ -73,15 +73,15 @@
 	const isQuickEntry = $derived(entry?.quickCalories != null);
 
 	let editMacroCalories = $derived(
-		(Number(editQuickProtein) || 0) * 4 +
-			(Number(editQuickCarbs) || 0) * 4 +
-			(Number(editQuickFat) || 0) * 9
+		(parseDecimalInput(editQuickProtein) || 0) * 4 +
+			(parseDecimalInput(editQuickCarbs) || 0) * 4 +
+			(parseDecimalInput(editQuickFat) || 0) * 9
 	);
 	let editHasMacros = $derived(
 		(!!editQuickProtein || !!editQuickCarbs || !!editQuickFat) && !!editQuickCalories
 	);
 	let editMacrosMatch = $derived(
-		Math.round(editMacroCalories) === Math.round(Number(editQuickCalories) || 0)
+		Math.round(editMacroCalories) === Math.round(parseDecimalInput(editQuickCalories) || 0)
 	);
 
 	$effect(() => {
@@ -104,7 +104,7 @@
 		if (!entry) return;
 		const eatenAt = timeToIsoString(editTime, date) ?? undefined;
 		if (isQuickEntry) {
-			const cal = Number(editQuickCalories);
+			const cal = parseDecimalInput(editQuickCalories);
 			if (!cal || cal < 0) return;
 			onSave({
 				id: entry.id,
@@ -113,10 +113,10 @@
 				eatenAt,
 				quickName: editQuickName.trim() || null,
 				quickCalories: cal,
-				quickProtein: editQuickProtein ? Number(editQuickProtein) : null,
-				quickCarbs: editQuickCarbs ? Number(editQuickCarbs) : null,
-				quickFat: editQuickFat ? Number(editQuickFat) : null,
-				quickFiber: editQuickFiber ? Number(editQuickFiber) : null
+				quickProtein: editQuickProtein ? parseDecimalInput(editQuickProtein) : null,
+				quickCarbs: editQuickCarbs ? parseDecimalInput(editQuickCarbs) : null,
+				quickFat: editQuickFat ? parseDecimalInput(editQuickFat) : null,
+				quickFiber: editQuickFiber ? parseDecimalInput(editQuickFiber) : null
 			});
 		} else {
 			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
@@ -230,7 +230,8 @@
 				<Button
 					class="flex-1 sm:flex-none"
 					aria-label={m.edit_entry_save()}
-					disabled={isQuickEntry && (!editQuickCalories || Number(editQuickCalories) <= 0)}
+					disabled={isQuickEntry &&
+						(!editQuickCalories || parseDecimalInput(editQuickCalories) <= 0)}
 					onclick={handleSave}
 				>
 					<Check class="size-4" />

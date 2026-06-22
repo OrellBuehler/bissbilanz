@@ -1212,6 +1212,7 @@ export interface components {
 			/** @enum {string} */
 			locale?: 'en' | 'de';
 			caloricLagDaysOverride?: number | null;
+			timeZone?: string;
 		};
 		FavoriteMealTimeframeInput: {
 			mealType: string;
@@ -1732,6 +1733,7 @@ export interface components {
 			visibleNutrients: string[];
 			caloricLagDaysOverride?: number | null;
 			locale: string | null;
+			timeZone: string;
 			updatedAt?: string;
 			favoriteMealTimeframes: components['schemas']['FavoriteMealTimeframe'][];
 		};

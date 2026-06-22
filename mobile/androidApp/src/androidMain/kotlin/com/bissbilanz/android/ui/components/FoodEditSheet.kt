@@ -19,6 +19,7 @@ import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -104,16 +105,16 @@ fun FoodEditSheet(
             errorMessage = "Name is required"
             return
         }
-        val caloriesVal = calories.toDoubleOrNull()
-        val proteinVal = protein.toDoubleOrNull()
-        val carbsVal = carbs.toDoubleOrNull()
-        val fatVal = fat.toDoubleOrNull()
-        val servingSizeVal = servingSize.toDoubleOrNull()
+        val caloriesVal = calories.toLocalizedDoubleOrNull()
+        val proteinVal = protein.toLocalizedDoubleOrNull()
+        val carbsVal = carbs.toLocalizedDoubleOrNull()
+        val fatVal = fat.toLocalizedDoubleOrNull()
+        val servingSizeVal = servingSize.toLocalizedDoubleOrNull()
         if (caloriesVal == null || proteinVal == null || carbsVal == null || fatVal == null || servingSizeVal == null) {
             errorMessage = "Calories, protein, carbs, fat, and serving size are required"
             return
         }
-        val fiberVal = fiber.toDoubleOrNull() ?: 0.0
+        val fiberVal = fiber.toLocalizedDoubleOrNull() ?: 0.0
 
         errorMessage = null
         isSaving = true
@@ -132,14 +133,14 @@ fun FoodEditSheet(
                         fiber = fiberVal,
                         barcode = barcode.trim().ifBlank { null },
                         isFavorite = isFavorite,
-                        saturatedFat = saturatedFat.toDoubleOrNull(),
-                        sugar = sugar.toDoubleOrNull(),
-                        sodium = sodium.toDoubleOrNull(),
-                        potassium = potassium.toDoubleOrNull(),
-                        calcium = calcium.toDoubleOrNull(),
-                        iron = iron.toDoubleOrNull(),
-                        vitaminC = vitaminC.toDoubleOrNull(),
-                        vitaminD = vitaminD.toDoubleOrNull(),
+                        saturatedFat = saturatedFat.toLocalizedDoubleOrNull(),
+                        sugar = sugar.toLocalizedDoubleOrNull(),
+                        sodium = sodium.toLocalizedDoubleOrNull(),
+                        potassium = potassium.toLocalizedDoubleOrNull(),
+                        calcium = calcium.toLocalizedDoubleOrNull(),
+                        iron = iron.toLocalizedDoubleOrNull(),
+                        vitaminC = vitaminC.toLocalizedDoubleOrNull(),
+                        vitaminD = vitaminD.toLocalizedDoubleOrNull(),
                     )
                 if (isEditing) {
                     val id = foodId ?: return@launch
@@ -324,11 +325,11 @@ fun FoodEditSheet(
                         enabled =
                             !isSaving &&
                                 name.isNotBlank() &&
-                                calories.toDoubleOrNull() != null &&
-                                protein.toDoubleOrNull() != null &&
-                                carbs.toDoubleOrNull() != null &&
-                                fat.toDoubleOrNull() != null &&
-                                servingSize.toDoubleOrNull() != null,
+                                calories.toLocalizedDoubleOrNull() != null &&
+                                protein.toLocalizedDoubleOrNull() != null &&
+                                carbs.toLocalizedDoubleOrNull() != null &&
+                                fat.toLocalizedDoubleOrNull() != null &&
+                                servingSize.toLocalizedDoubleOrNull() != null,
                     ) {
                         Text("Save")
                     }

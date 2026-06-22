@@ -5,7 +5,6 @@ import Testing
 /// JSON round-trips Local model ↔ Codable struct for every persisted entity.
 /// The local models keep typed columns plus a `jsonData` payload; these tests
 /// prove the payload is lossless and the typed columns mirror the struct.
-@Suite("Local model JSON round-trips")
 struct LocalModelTests {
     @Test("LocalEntry round-trips and stamps the cache date")
     func localEntryRoundTrip() throws {
@@ -254,7 +253,8 @@ struct LocalModelTests {
             favoriteTapAction: "instant",
             favoriteMealAssignmentMode: "ask_meal",
             visibleNutrients: ["sugar", "sodium"],
-            locale: "de"
+            locale: "de",
+            timeZone: "Europe/Zurich"
         )
 
         let local = LocalPreferences(preferences: preferences)

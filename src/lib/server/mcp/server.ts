@@ -67,7 +67,6 @@ import {
 	handleDeleteDayProperties,
 	handleGetCalendarStats
 } from './handlers';
-import { today } from '$lib/utils/dates';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
@@ -229,7 +228,7 @@ export function createMcpServer(userId: string): McpServer {
 			),
 			annotations: WRITE
 		},
-		safe((args) => handleLogFood(userId, { ...args, date: args.date ?? today() }))
+		safe((args) => handleLogFood(userId, args))
 	);
 
 	server.registerTool(

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { round2 } from '../../src/lib/utils/number';
+import { round2, parseDecimalInput } from '../../src/lib/utils/number';
 
 describe('round2', () => {
 	test('rounds positive numbers to 2 decimal places', () => {
@@ -47,5 +47,31 @@ describe('round2', () => {
 		expect(round2(1)).toBe(1);
 		expect(round2(42)).toBe(42);
 		expect(round2(100)).toBe(100);
+	});
+});
+
+describe('parseDecimalInput', () => {
+	test('parses dot decimals', () => {
+		expect(parseDecimalInput('1.5')).toBe(1.5);
+		expect(parseDecimalInput('0.85')).toBe(0.85);
+		expect(parseDecimalInput('200')).toBe(200);
+	});
+
+	test('parses comma decimals (German locale)', () => {
+		expect(parseDecimalInput('1,5')).toBe(1.5);
+		expect(parseDecimalInput('72,4')).toBe(72.4);
+		expect(parseDecimalInput('0,5')).toBe(0.5);
+	});
+
+	test('returns NaN for empty/blank/invalid input (not 0)', () => {
+		expect(parseDecimalInput('')).toBeNaN();
+		expect(parseDecimalInput('   ')).toBeNaN();
+		expect(parseDecimalInput('abc')).toBeNaN();
+		expect(parseDecimalInput(null)).toBeNaN();
+		expect(parseDecimalInput(undefined)).toBeNaN();
+	});
+
+	test('trims surrounding whitespace', () => {
+		expect(parseDecimalInput('  2,5  ')).toBe(2.5);
 	});
 });

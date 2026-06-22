@@ -3,7 +3,8 @@ import { supplements, supplementIngredients, foods, foodEntries } from '$lib/ser
 import { supplementCreateSchema, supplementUpdateSchema } from '$lib/server/validation';
 import { toFoodInsert } from '$lib/server/foods';
 import { and, eq, desc, inArray, gte, lte, sql } from 'drizzle-orm';
-import { today } from '$lib/utils/dates';
+import { todayInTimeZone } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
@@ -229,7 +230,8 @@ export const createSupplement = async (
 					name: data.name,
 					scheduleType: data.scheduleType,
 					scheduleDays: data.scheduleDays ?? null,
-					scheduleStartDate: data.scheduleStartDate ?? today(),
+					scheduleStartDate:
+						data.scheduleStartDate ?? todayInTimeZone(await getUserTimeZone(userId)),
 					isActive: data.isActive ?? true,
 					sortOrder: data.sortOrder ?? 0,
 					timeOfDay: data.timeOfDay ?? null
@@ -361,16 +363,23 @@ export const logSupplement = async (
 		// on (user_id, supplement_id, date, food_id) WHERE supplement_id IS NOT NULL.
 		// Concurrent double-taps will all succeed but only one ingredient set wins.
 		const takenAt = new Date();
+		// Aggregate ingredients that share a backing food: the partial unique index
+		// on (user_id, supplement_id, date, food_id) + ON CONFLICT DO NOTHING would
+		// otherwise silently drop a second same-food ingredient, under-counting it.
+		const servingsByFood = new Map<string, number>();
+		for (const ing of ingredients) {
+			servingsByFood.set(ing.foodId, (servingsByFood.get(ing.foodId) ?? 0) + ing.servings);
+		}
 		await db
 			.insert(foodEntries)
 			.values(
-				ingredients.map((ing) => ({
+				[...servingsByFood].map(([foodId, servings]) => ({
 					userId,
-					foodId: ing.foodId,
+					foodId,
 					supplementId,
 					date,
 					mealType: 'Snacks',
-					servings: ing.servings,
+					servings,
 					eatenAt: takenAt
 				}))
 			)

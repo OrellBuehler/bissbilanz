@@ -20,6 +20,7 @@ import {
 	type AggRecipe
 } from '../src/lib/analytics/aggregation';
 import { calculateMaintenance, type MaintenanceInput } from '../src/lib/utils/maintenance';
+import { computeTEF } from '../src/lib/analytics/food-quality';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -252,6 +253,20 @@ function round(v: number, dp: number): number {
 		{ entries, foods, recipes } as unknown as Record<string, unknown>,
 		aggregateDailyNutrientTotals(entries, foods, recipes)
 	);
+}
+
+// --- computeTEF -------------------------------------------------------------
+{
+	// Varying daily calories so average-of-ratios != ratio-of-averages (the bug
+	// that diverged Kotlin from TS). Includes a zero-calorie day (0% contribution).
+	const tefDays = [
+		{ protein: 120, carbs: 250, fat: 70, calories: 2100 },
+		{ protein: 90, carbs: 180, fat: 55, calories: 1600 },
+		{ protein: 160, carbs: 300, fat: 95, calories: 2850 },
+		{ protein: 100, carbs: 0, fat: 40, calories: 0 }
+	];
+	add('computeTEF', 'varying_calories', { dailyNutrients: tefDays }, computeTEF(tefDays));
+	add('computeTEF', 'empty', { dailyNutrients: [] }, computeTEF([]));
 }
 
 const out = {

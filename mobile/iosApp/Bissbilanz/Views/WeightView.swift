@@ -174,21 +174,23 @@ struct WeightView: View {
         let sorted = chartEntries.compactMap { entry -> (Date, Double)? in
             guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
             return (date, entry.weightKg)
-        }
+        }.sorted { $0.0 < $1.0 }
+        guard let firstDate = sorted.first?.0, let lastDate = sorted.last?.0 else { return [] }
 
-        // Least-squares fit (entry index → weight) computed by the shared KMP
-        // analytics; iOS keeps its index-based x-axis by passing entry indices.
+        // Least-squares fit on real day offsets (not entry index) so unevenly
+        // spaced weigh-ins project at the correct rate — matching the web chart.
+        let dayOffset = { (d: Date) in d.timeIntervalSince(firstDate) / 86400 }
         let fit = WeightChartAnalyticsKt.linearRegression(
-            xs: sorted.indices.map(Double.init).asKotlin,
+            xs: sorted.map { dayOffset($0.0) }.asKotlin,
             ys: sorted.map(\.1).asKotlin
         )
-        guard let fit, let lastDate = sorted.last?.0 else { return [] }
+        guard let fit else { return [] }
         let slope = fit.slope
         let intercept = fit.intercept
 
         var result: [(Date, Double)] = []
-        // Start from last actual data point
-        let lastX = Double(sorted.count - 1)
+        // Start from the last actual data point's day offset.
+        let lastX = dayOffset(lastDate)
         result.append((lastDate, slope * lastX + intercept))
         for day in 1 ... projectionDays {
             let futureDate = lastDate.adding(days: day)
@@ -796,7 +798,7 @@ struct AddWeightSheet: View {
     }
 
     private func save() async {
-        guard let kg = Double(weight) else { return }
+        guard let kg = Double.parseUserInput(weight) else { return }
         isSaving = true
         let dateStr = DateFormatting.isoString(from: date)
 

@@ -525,6 +525,7 @@ final class LocalDataMigrator {
         update.favoriteMealAssignmentMode = preferences.favoriteMealAssignmentMode
         update.visibleNutrients = preferences.visibleNutrients.isEmpty ? nil : preferences.visibleNutrients
         update.locale = preferences.locale
+        update.timeZone = preferences.timeZone
         return update
     }
 

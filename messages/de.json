@@ -581,6 +581,7 @@
 	"sleep_more_details": "Mehr Details",
 	"sleep_less_details": "Weniger Details",
 	"sleep_save": "Speichern",
+	"sleep_invalid_duration": "Die Schlafdauer muss zwischen 0 und 24 Stunden liegen.",
 	"sleep_edit": "Bearbeiten",
 	"sleep_delete": "Löschen",
 	"sleep_confirm_delete": "Diesen Schlafeintrag löschen?",

@@ -55,6 +55,7 @@ export const DEFAULT_PREFERENCES = {
 	mealOrder: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
+	timeZone: 'UTC' as const,
 	favoriteTapAction: 'instant' as const,
 	favoriteMealAssignmentMode: 'time_based' as const,
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
@@ -223,6 +224,19 @@ const buildNormalizedTimeframeRows = async (
 		sortOrder: index,
 		updatedAt: new Date()
 	}));
+};
+
+/**
+ * The user's stored IANA timezone (default 'UTC'). Used by server-side date
+ * bucketing so "today" and day boundaries follow the user's local day.
+ */
+export const getUserTimeZone = async (userId: string): Promise<string> => {
+	const db = getDB();
+	const [row] = await db
+		.select({ timeZone: userPreferences.timeZone })
+		.from(userPreferences)
+		.where(eq(userPreferences.userId, userId));
+	return row?.timeZone ?? 'UTC';
 };
 
 export const getPreferences = async (userId: string) => {

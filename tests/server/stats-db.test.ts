@@ -43,6 +43,11 @@ vi.mock('$lib/server/entries', () => ({
 	toEntryUpdate: () => ({})
 }));
 
+// Stats now resolve "today" in the user's stored timezone.
+vi.mock('$lib/server/preferences', () => ({
+	getUserTimeZone: async () => 'UTC'
+}));
+
 // Mock day-properties module (no fasting days by default)
 let mockFastingDays = new Set<string>();
 const setMockFastingDays = (days: string[]) => {

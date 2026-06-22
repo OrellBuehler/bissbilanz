@@ -38,6 +38,7 @@ async function refresh() {
 				visibleNutrients: p.visibleNutrients,
 				updatedAt: p.updatedAt ?? null,
 				locale: p.locale,
+				timeZone: p.timeZone,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({
 					id: t.id,
 					userId: 'me',
@@ -76,4 +77,26 @@ async function update(prefs: PreferencesPatchBody): Promise<boolean> {
 	}
 }
 
-export const preferencesService = { preferences, refresh, update };
+// Reports the device's IANA timezone to the server so server-side analytics/MCP
+// bucket days/hours in the user's local tz. Only PATCHes when it differs from the
+// stored value (loop guard); compares against the authoritative server value.
+async function reportTimeZone() {
+	if (!browser || !navigator.onLine) return;
+	let deviceTz: string;
+	try {
+		deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	} catch {
+		return;
+	}
+	if (!deviceTz) return;
+	try {
+		const { data } = await api.GET('/api/preferences');
+		if (!data) return;
+		if (data.preferences.timeZone === deviceTz) return;
+		await update({ timeZone: deviceTz });
+	} catch {
+		// fire-and-forget
+	}
+}
+
+export const preferencesService = { preferences, refresh, update, reportTimeZone };

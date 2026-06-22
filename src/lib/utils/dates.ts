@@ -6,7 +6,32 @@ export const shiftDate = (isoDate: string, days: number) => {
 	return date.toISOString().slice(0, 10);
 };
 
-export const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * The calendar date (YYYY-MM-DD) for "now" in the given IANA timezone.
+ * Server callers pass the user's stored timezone so days bucket in the user's
+ * local day rather than UTC.
+ */
+export const todayInTimeZone = (timeZone: string): string => {
+	const parts = new Intl.DateTimeFormat('en-CA', {
+		timeZone,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).formatToParts(new Date());
+	const get = (type: string) => parts.find((p) => p.type === type)!.value;
+	return `${get('year')}-${get('month')}-${get('day')}`;
+};
+
+/**
+ * The current calendar date in the runtime-local timezone. In the browser this
+ * is the user's device timezone (the correct "today" for display + logging).
+ * Server code must use {@link todayInTimeZone} with the user's stored timezone
+ * instead, since the server's runtime timezone is not the user's.
+ */
+export const today = () => {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export const yesterday = () => shiftDate(today(), -1);
 

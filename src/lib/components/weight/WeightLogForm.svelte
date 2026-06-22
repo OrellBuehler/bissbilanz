@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { weightService } from '$lib/services/weight-service.svelte';
+	import { parseDecimalInput } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onLogged }: { onLogged?: () => void } = $props();
@@ -15,7 +16,7 @@
 
 	const submit = async () => {
 		error = '';
-		const kg = parseFloat(weightKg);
+		const kg = parseDecimalInput(weightKg);
 		if (isNaN(kg) || kg < 20 || kg > 500) {
 			error = m.error_weight_range();
 			return;

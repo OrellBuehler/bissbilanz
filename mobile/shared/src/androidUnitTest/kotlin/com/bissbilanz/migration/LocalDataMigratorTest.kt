@@ -944,6 +944,7 @@ class LocalDataMigratorTest {
             favoriteMealAssignmentMode = "auto",
             visibleNutrients = listOf("calories"),
             locale = "en",
+            timeZone = "UTC",
             favoriteMealTimeframes = emptyList(),
         )
 

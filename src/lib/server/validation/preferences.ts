@@ -48,7 +48,24 @@ export const preferencesUpdateSchema = z
 			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))
 			.optional(),
 		locale: z.enum(['en', 'de']).optional(),
-		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional()
+		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
+		// IANA timezone reported by the client (e.g. 'Europe/Zurich'). Validated
+		// against Intl so a bad value can't break server-side AT TIME ZONE queries.
+		timeZone: z
+			.string()
+			.max(64)
+			.refine(
+				(tz) => {
+					try {
+						new Intl.DateTimeFormat('en-US', { timeZone: tz });
+						return true;
+					} catch {
+						return false;
+					}
+				},
+				{ message: 'Invalid IANA time zone' }
+			)
+			.optional()
 	})
 	.strict()
 	.meta({ id: 'PreferencesUpdate' });

@@ -38,6 +38,7 @@ import kotlinx.serialization.encoding.*
  * @param mealOrder
  * @param visibleNutrients
  * @param locale
+ * @param timeZone
  * @param caloricLagDaysOverride
  */
 @Serializable
@@ -57,6 +58,7 @@ data class PreferencesUpdate(
     @SerialName(value = "mealOrder") val mealOrder: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "visibleNutrients") val visibleNutrients: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "locale") val locale: PreferencesUpdate.Locale? = null,
+    @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
 ) {
     /**

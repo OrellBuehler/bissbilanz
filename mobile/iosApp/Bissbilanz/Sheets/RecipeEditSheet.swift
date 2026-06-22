@@ -127,7 +127,7 @@ struct RecipeEditSheet: View {
         let ingredientInputs = ingredients.map { ing in
             RecipeIngredientInput(
                 foodId: ing.food.id,
-                quantity: Double(ing.quantity) ?? 1,
+                quantity: Double.parseUserInput(ing.quantity) ?? 1,
                 servingUnit: ing.unit
             )
         }
@@ -137,7 +137,7 @@ struct RecipeEditSheet: View {
             if let existing = existingRecipe {
                 let update = RecipeUpdate(
                     name: name,
-                    totalServings: Double(totalServings) ?? 1,
+                    totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )
@@ -145,7 +145,7 @@ struct RecipeEditSheet: View {
             } else {
                 let create = RecipeCreate(
                     name: name,
-                    totalServings: Double(totalServings) ?? 1,
+                    totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )

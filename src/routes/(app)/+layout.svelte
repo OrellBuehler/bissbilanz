@@ -2,6 +2,7 @@
 	import { setUser } from '$lib/stores/auth.svelte';
 	import { startSyncListener, refreshPendingCount } from '$lib/stores/sync';
 	import { migrateOldOfflineQueue, ensureUserScope } from '$lib/db';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 	import SiteHeader from '$lib/components/navigation/site-header.svelte';
 	import MobileHeader from '$lib/components/navigation/mobile-header.svelte';
@@ -77,6 +78,8 @@
 		// Migrate any pending items from the old bissbilanz-offline IndexedDB
 		migrateOldOfflineQueue().then(() => refreshPendingCount());
 		startSyncListener();
+		// Report the device timezone so server-side analytics/MCP use the user's tz.
+		if (data.user?.id) preferencesService.reportTimeZone();
 	});
 </script>
 

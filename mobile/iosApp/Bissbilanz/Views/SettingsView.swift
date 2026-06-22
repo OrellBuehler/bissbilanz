@@ -417,11 +417,11 @@ struct SettingsView: View {
 
     private func saveGoals() async {
         let newGoals = Goals(
-            calorieGoal: Double(editCalories) ?? goals.calorieGoal,
-            proteinGoal: Double(editProtein) ?? goals.proteinGoal,
-            carbGoal: Double(editCarbs) ?? goals.carbGoal,
-            fatGoal: Double(editFat) ?? goals.fatGoal,
-            fiberGoal: Double(editFiber) ?? goals.fiberGoal,
+            calorieGoal: Double.parseUserInput(editCalories) ?? goals.calorieGoal,
+            proteinGoal: Double.parseUserInput(editProtein) ?? goals.proteinGoal,
+            carbGoal: Double.parseUserInput(editCarbs) ?? goals.carbGoal,
+            fatGoal: Double.parseUserInput(editFat) ?? goals.fatGoal,
+            fiberGoal: Double.parseUserInput(editFiber) ?? goals.fiberGoal,
             sodiumGoal: goals.sodiumGoal,
             sugarGoal: goals.sugarGoal
         )

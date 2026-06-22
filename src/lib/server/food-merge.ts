@@ -1,6 +1,6 @@
 import { getDB } from '$lib/server/db';
-import { foods, foodEntries, recipeIngredients } from '$lib/server/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { foods, foodEntries, recipeIngredients, recipes } from '$lib/server/schema';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -153,15 +153,34 @@ export async function mergeFoods(userId: string, input: MergeFoodsInput): Promis
 			}
 			merged = applyOverrides(merged, overrides);
 
-			await tx
-				.update(foodEntries)
-				.set({ foodId: keeperId })
-				.where(and(eq(foodEntries.userId, userId), inArray(foodEntries.foodId, uniqueSources)));
+			// Re-point entries to the keeper, rescaling `servings` so the logged
+			// amount — and therefore historical macros — is preserved when source
+			// and keeper define different serving sizes. Entry macros are
+			// per-serving × servings, and the keeper's servingSize wins the merge,
+			// so without this the past days' totals would silently change.
+			for (const source of sources) {
+				const factor = keeper.servingSize > 0 ? source.servingSize / keeper.servingSize : 1;
+				await tx
+					.update(foodEntries)
+					.set({ foodId: keeperId, servings: sql`${foodEntries.servings} * ${factor}` })
+					.where(and(eq(foodEntries.userId, userId), eq(foodEntries.foodId, source.id)));
+			}
 
+			// Recipe ingredients reference foods by absolute quantity (grams), which
+			// is density-preserving for true duplicates, so quantity is left as-is.
+			// Scope to the user's recipes — recipe_ingredients has no user_id column.
 			await tx
 				.update(recipeIngredients)
 				.set({ foodId: keeperId })
-				.where(inArray(recipeIngredients.foodId, uniqueSources));
+				.where(
+					and(
+						inArray(recipeIngredients.foodId, uniqueSources),
+						inArray(
+							recipeIngredients.recipeId,
+							tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.userId, userId))
+						)
+					)
+				);
 
 			await tx.delete(foods).where(and(eq(foods.userId, userId), inArray(foods.id, uniqueSources)));
 

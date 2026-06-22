@@ -63,7 +63,6 @@ import type {
 	getSupplementChecklist
 } from '$lib/server/supplements';
 import type { formatDailyStatus } from '$lib/server/mcp/format';
-import type { today } from '$lib/utils/dates';
 import type { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
 import type {
 	createSleepEntry,
@@ -169,7 +168,8 @@ export type HandlerDeps = {
 	getCalendarStats: typeof getCalendarStats;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
-	today: typeof today;
+	// Resolves "today" in the user's stored timezone (server-side day bucketing).
+	todayForUser: (userId: string) => Promise<string>;
 	// Open Food Facts
 	fetchProduct: typeof fetchProduct;
 	searchProducts: typeof searchProducts;
@@ -211,7 +211,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleGetDailyStatus = async (userId: string, date?: string, includeEntries?: boolean) => {
 		try {
-			const targetDate = date ?? d.today();
+			const targetDate = date ?? (await d.todayForUser(userId));
 			const { items: entries } = await d.listEntriesByDate(userId, targetDate);
 			const goals = await d.getGoals(userId);
 			const status = d.formatDailyStatus({ entries, goals });
@@ -274,7 +274,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const result = await d.createEntry(userId, payload);
 			if (!result.success) return errorPayload(result.error);
-			const date = result.data.date ?? d.today();
+			const date = result.data.date ?? (await d.todayForUser(userId));
 			const dailyStatus = await getDailyStatusForDate(userId, date);
 			return { entryId: result.data.id, success: true, dailyStatus };
 		} catch (e) {
@@ -284,7 +284,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleGetSupplementStatus = async (userId: string, date?: string) => {
 		try {
-			const targetDate = date ?? d.today();
+			const targetDate = date ?? (await d.todayForUser(userId));
 			const items = await d.getSupplementChecklist(userId, targetDate);
 
 			const checklist = items.map((item) => ({
@@ -317,7 +317,7 @@ export function createHandlers(d: HandlerDeps) {
 		args: { name?: string; supplementId?: string; date?: string }
 	) => {
 		try {
-			const targetDate = args.date ?? d.today();
+			const targetDate = args.date ?? (await d.todayForUser(userId));
 			let id = args.supplementId;
 
 			if (!id && args.name) {
@@ -373,7 +373,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleListEntries = async (userId: string, date?: string) => {
 		try {
-			const targetDate = date ?? d.today();
+			const targetDate = date ?? (await d.todayForUser(userId));
 			const { items: entries } = await d.listEntriesByDate(userId, targetDate);
 			return { date: targetDate, entries };
 		} catch (e) {
@@ -404,8 +404,8 @@ export function createHandlers(d: HandlerDeps) {
 			const { entryId, ...rest } = args;
 			const result = await d.updateEntry(userId, entryId, rest);
 			if (!result.success) return errorPayload(result.error);
-			const date = result.data?.date ?? d.today();
-			const dailyStatus = await getDailyStatusForDate(userId, date);
+			if (!result.data) return { error: 'Entry not found' };
+			const dailyStatus = await getDailyStatusForDate(userId, result.data.date);
 			return { success: true, entryId, dailyStatus };
 		} catch (e) {
 			wrapError('update entry', e);
@@ -415,7 +415,7 @@ export function createHandlers(d: HandlerDeps) {
 	const handleDeleteEntry = async (userId: string, entryId: string, date?: string) => {
 		try {
 			await d.deleteEntry(userId, entryId);
-			const targetDate = date ?? d.today();
+			const targetDate = date ?? (await d.todayForUser(userId));
 			const dailyStatus = await getDailyStatusForDate(userId, targetDate);
 			return { success: true, dailyStatus };
 		} catch (e) {
@@ -566,7 +566,7 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleCopyEntries = async (userId: string, args: { fromDate: string; toDate?: string }) => {
 		try {
-			const targetDate = args.toDate ?? d.today();
+			const targetDate = args.toDate ?? (await d.todayForUser(userId));
 			const copied = await d.copyEntries(userId, args.fromDate, targetDate);
 			const dailyStatus = await getDailyStatusForDate(userId, targetDate);
 			return { success: true, copiedCount: copied.length, dailyStatus };
@@ -602,6 +602,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { foodId, ...rest } = args;
 			const result = await d.updateFood(userId, foodId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Food not found' };
 			return { success: true, foodId };
 		} catch (e) {
 			wrapError('update food', e);
@@ -639,6 +640,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { recipeId, ...rest } = args;
 			const result = await d.updateRecipe(userId, recipeId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Recipe not found' };
 			return { success: true, recipeId };
 		} catch (e) {
 			wrapError('update recipe', e);
@@ -733,6 +735,7 @@ export function createHandlers(d: HandlerDeps) {
 			};
 			const result = await d.updateSupplement(userId, supplementId, normalized);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Supplement not found' };
 			return { success: true, supplementId };
 		} catch (e) {
 			wrapError('update supplement', e);
@@ -753,7 +756,11 @@ export function createHandlers(d: HandlerDeps) {
 		args: { supplementId: string; date?: string }
 	) => {
 		try {
-			await d.unlogSupplement(userId, args.supplementId, args.date ?? d.today());
+			await d.unlogSupplement(
+				userId,
+				args.supplementId,
+				args.date ?? (await d.todayForUser(userId))
+			);
 			return { success: true };
 		} catch (e) {
 			wrapError('unlog supplement', e);
@@ -768,6 +775,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { weightId, ...rest } = args;
 			const result = await d.updateWeightEntry(userId, weightId, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Weight entry not found' };
 			return { success: true, weightId };
 		} catch (e) {
 			wrapError('update weight', e);
@@ -851,7 +859,7 @@ export function createHandlers(d: HandlerDeps) {
 			const result = await d.createSleepEntry(userId, {
 				durationMinutes: args.durationMinutes,
 				quality: args.quality,
-				entryDate: args.date ?? d.today(),
+				entryDate: args.date ?? (await d.todayForUser(userId)),
 				bedtime: args.bedtime ?? null,
 				wakeTime: args.wakeTime ?? null,
 				wakeUps: args.wakeUps ?? null,

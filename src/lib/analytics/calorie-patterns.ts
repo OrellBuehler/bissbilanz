@@ -1,4 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
+import { localMinutesOfDay } from './local-time';
 
 export type FrontLoadingResult = {
 	avgMorningPct: number;
@@ -19,19 +20,18 @@ export type CalorieCyclingResult = {
 	sampleSize: number;
 };
 
-function parseHour(eatenAt: string): number {
-	return new Date(eatenAt).getHours();
-}
-
 export function computeCalorieFrontLoading(
 	entries: { date: string; eatenAt: string | null; calories: number }[],
+	timeZone: string,
 	cutoffHour = 14
 ): FrontLoadingResult {
 	const byDate = new Map<string, { morning: number; total: number }>();
 
 	for (const entry of entries) {
 		if (!entry.eatenAt) continue;
-		const hour = parseHour(entry.eatenAt);
+		const minutes = localMinutesOfDay(entry.eatenAt, timeZone);
+		if (minutes === null) continue;
+		const hour = Math.floor(minutes / 60);
 		if (!byDate.has(entry.date)) byDate.set(entry.date, { morning: 0, total: 0 });
 		const day = byDate.get(entry.date)!;
 		day.total += entry.calories;

@@ -457,6 +457,7 @@ class InsightsViewModel(
                     _frontLoadingResult.value =
                         computeCalorieFrontLoading(
                             extData.map { Triple(it.date, it.eatenAt, it.calories) },
+                            TimeZone.currentSystemDefault().id,
                         )
                     _calorieCyclingResult.value = computeCalorieCycling(dailyData.map { Pair(it.date, it.calories) })
                     _weekdayWeekendResult.value =
@@ -466,6 +467,7 @@ class InsightsViewModel(
                     _mealRegularityResult.value =
                         computeMealRegularity(
                             timingData.map { RegularityInputEntry(it.date, it.mealType, it.eatenAt) },
+                            TimeZone.currentSystemDefault().id,
                         )
                     _foodDiversityResult.value =
                         computeFoodDiversity(
@@ -546,6 +548,7 @@ class InsightsViewModel(
                     _mealTimingSummary.value =
                         extractMealTimingPatterns(
                             timingData.map { MealEntry(it.date, it.eatenAt, it.calories) },
+                            TimeZone.currentSystemDefault().id,
                         )
 
                     // Intentionally limited to the 7 nutrients most relevant for dietary adequacy
@@ -606,11 +609,12 @@ class InsightsViewModel(
                     val timingData = timingResponse?.data ?: emptyList()
                     val sleepFoodData = sleepFoodResponse?.data ?: emptyList()
 
+                    val deviceTz = TimeZone.currentSystemDefault().id
                     val eveningFoods =
                         extData
                             .filter { entry ->
                                 val eatenAt = entry.eatenAt ?: return@filter false
-                                val localMinutes = parseLocalMinutes(eatenAt) ?: return@filter false
+                                val localMinutes = localMinutesOfDay(eatenAt, deviceTz) ?: return@filter false
                                 val hour = localMinutes / 60
                                 hour >= 19
                             }.mapNotNull { entry ->
@@ -650,6 +654,7 @@ class InsightsViewModel(
                     _preSleepTimingSummary.value =
                         extractMealTimingPatterns(
                             timingData.map { MealEntry(it.date, it.eatenAt, it.calories) },
+                            deviceTz,
                         )
 
                     val caffeineEntries =
@@ -660,7 +665,7 @@ class InsightsViewModel(
                         sleepEntries.value.map {
                             SleepDataPoint(it.entryDate, it.quality.toDouble(), it.durationMinutes.toDouble())
                         }
-                    _caffeineSleepResult.value = computeCaffeineSleepCutoff(caffeineEntries, sleepDataPoints)
+                    _caffeineSleepResult.value = computeCaffeineSleepCutoff(caffeineEntries, sleepDataPoints, deviceTz)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

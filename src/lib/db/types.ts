@@ -166,6 +166,7 @@ export type DexieUserPreferences = {
 	visibleNutrients: string[];
 	updatedAt: string | null;
 	locale: string | null;
+	timeZone: string | null;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 
