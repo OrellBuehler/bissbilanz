@@ -154,12 +154,20 @@ jobs:
       - name: Build iOS app
         working-directory: mobile/iosApp
         run: |
+          # Use a generic Simulator destination, not a named device: resolving
+          # `name=iPhone 16,OS=latest` makes xcodebuild query/boot a specific
+          # CoreSimulator device, which stalls indefinitely under CodeQL's build
+          # tracer (hit the 60-min timeout). The staged shared.framework is the
+          # arm64 simulator slice and the runner is arm64, so build arm64-only —
+          # otherwise the generic destination also builds x86_64 and can't find a
+          # slice. Mirrors the build in mobile-ios.yml.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
