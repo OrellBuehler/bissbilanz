@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Xcode 26+ so the compiler(>=6.2)-gated Liquid Glass code compiles in CI
       - name: Select latest stable Xcode
