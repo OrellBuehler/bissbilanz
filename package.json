@@ -38,7 +38,7 @@
 		"@j178/prek": "^0.4.5",
 		"@lucide/svelte": "^1.18.0",
 		"@playwright/test": "^1.60.0",
-		"@sveltejs/kit": "^2.64.0",
+		"@sveltejs/kit": "^2.66.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@tanstack/table-core": "^8.21.3",
