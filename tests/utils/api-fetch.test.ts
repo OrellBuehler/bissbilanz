@@ -332,11 +332,17 @@ describe('apiFetch', () => {
 				headers: { 'content-type': 'application/json' }
 			});
 
-			expect(fetchSpy).toHaveBeenCalledWith('/api/foods', {
-				method: 'POST',
-				body: JSON.stringify({ name: 'Test' }),
-				headers: { 'content-type': 'application/json' }
-			});
+			// Online writes still pass method/body through, plus the sync headers
+			// (idempotency key + edit time) that make them dedupe-safe and LWW-aware.
+			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			const [url, init] = fetchSpy.mock.calls[0];
+			expect(url).toBe('/api/foods');
+			expect(init?.method).toBe('POST');
+			expect(init?.body).toBe(JSON.stringify({ name: 'Test' }));
+			const headers = new Headers(init?.headers);
+			expect(headers.get('content-type')).toBe('application/json');
+			expect(headers.get('idempotency-key')).toBeTruthy();
+			expect(headers.get('x-client-edited-at')).toBeTruthy();
 		});
 
 		test('does not enqueue when online', async () => {

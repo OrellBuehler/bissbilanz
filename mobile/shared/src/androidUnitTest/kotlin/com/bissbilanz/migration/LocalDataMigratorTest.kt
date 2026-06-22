@@ -181,7 +181,7 @@ class LocalDataMigratorTest {
             insertPreferences()
             insertDayProperties()
             // Stale queue item that must be cleared before uploading the cache state.
-            cacheQueries.insertSyncQueueItem("{}", 0L, null, null)
+            cacheQueries.insertSyncQueueItem("{}", 0L, null, null, null, null)
 
             val captures = stubHappyApi()
 
@@ -412,7 +412,7 @@ class LocalDataMigratorTest {
             insertGoals()
             insertPreferences()
             insertDayProperties()
-            cacheQueries.insertSyncQueueItem("{}", 0L, null, null)
+            cacheQueries.insertSyncQueueItem("{}", 0L, null, null, null, null)
 
             migrator.discardLocalData()
 

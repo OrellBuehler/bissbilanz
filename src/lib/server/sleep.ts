@@ -3,6 +3,7 @@ import { sleepEntries } from '$lib/server/schema';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { and, eq, desc, gte, lte } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 export const createSleepEntry = async (
 	userId: string,
@@ -97,7 +98,8 @@ export const getLatestSleep = async (userId: string) => {
 export const updateSleepEntry = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof sleepEntries.$inferSelect | undefined>> => {
 	const result = sleepUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -106,7 +108,7 @@ export const updateSleepEntry = async (
 
 	try {
 		const db = getDB();
-		const updateData: Record<string, unknown> = { updatedAt: new Date() };
+		const updateData: Record<string, unknown> = { updatedAt: lwwStamp(clientEditedAt) };
 		if (result.data.durationMinutes !== undefined)
 			updateData.durationMinutes = result.data.durationMinutes;
 		if (result.data.quality !== undefined) updateData.quality = result.data.quality;
@@ -121,7 +123,13 @@ export const updateSleepEntry = async (
 		const [updated] = await db
 			.update(sleepEntries)
 			.set(updateData)
-			.where(and(eq(sleepEntries.id, id), eq(sleepEntries.userId, userId)))
+			.where(
+				and(
+					eq(sleepEntries.id, id),
+					eq(sleepEntries.userId, userId),
+					lwwGuard(sleepEntries.updatedAt, clientEditedAt)
+				)
+			)
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {

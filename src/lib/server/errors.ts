@@ -1,6 +1,7 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { ZodError } from 'zod';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 /**
  * Narrow type for postgres.js server errors exposed as `Error.cause`.
@@ -193,11 +194,18 @@ export class ResultValidationError extends Error {
 type AuthedResourceEvent<E extends RequestEvent<{ id: string }>> = E & {
 	userId: string;
 	id: string;
+	/**
+	 * Client edit timestamp from the `X-Client-Edited-At` header, used for
+	 * last-write-wins conflict resolution. Null when absent (online writes from
+	 * older clients) — handlers then keep their pre-LWW behaviour.
+	 */
+	clientEditedAt: Date | null;
 };
 
 /**
  * Wraps a route handler with auth + UUID validation + central error handling.
- * The handler receives the same event extended with `userId` and validated `id`.
+ * The handler receives the same event extended with `userId`, validated `id`,
+ * and the parsed `clientEditedAt` (for LWW conflict resolution).
  */
 export function withAuthedResource<E extends RequestEvent<{ id: string }>>(
 	handler: (event: AuthedResourceEvent<E>) => Response | Promise<Response>
@@ -206,7 +214,8 @@ export function withAuthedResource<E extends RequestEvent<{ id: string }>>(
 		try {
 			const userId = requireAuth(event.locals);
 			const id = requireUuid(event.params.id);
-			return await handler({ ...event, userId, id } as AuthedResourceEvent<E>);
+			const clientEditedAt = readClientEditedAt(event.request);
+			return await handler({ ...event, userId, id, clientEditedAt } as AuthedResourceEvent<E>);
 		} catch (error) {
 			return handleApiError(error);
 		}

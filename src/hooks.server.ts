@@ -11,6 +11,8 @@ import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
 import { isCrossOriginEndpoint, isOriginMismatch } from '$lib/server/csrf';
+import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
+import { readIdempotencyKey } from '$lib/server/sync/headers';
 import { env } from '$env/dynamic/public';
 
 if (env.PUBLIC_SENTRY_DSN) {
@@ -41,11 +43,12 @@ export async function init() {
 		}
 	}
 	await ensureMobileClient();
-	cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
-	setInterval(
-		() => cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err)),
-		3600000
-	);
+	const runCleanup = () => {
+		cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
+		cleanupIdempotencyKeys().catch((err) => console.error('[idempotency-cleanup] Error:', err));
+	};
+	runCleanup();
+	setInterval(runCleanup, 3600000);
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>
@@ -196,6 +199,34 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(Sentry.sentryHandle(), paraglideHandle, sessionHandle);
+/**
+ * Idempotency for offline-queue replays. Runs after sessionHandle so auth has
+ * populated locals.user and rate limiting has already applied. Only mutating
+ * /api requests that carry an Idempotency-Key are intercepted; everything else
+ * passes straight through. MCP routes manage their own request lifecycle.
+ */
+const idempotencyHandle: Handle = async ({ event, resolve }) => {
+	const pathname = event.url.pathname;
+	const method = event.request.method;
+	const isWrite =
+		method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+	const user = event.locals.user;
+
+	if (!isWrite || !user || !pathname.startsWith('/api/') || isMcpRoute(pathname)) {
+		return resolve(event);
+	}
+
+	const key = readIdempotencyKey(event.request);
+	if (!key) return resolve(event);
+
+	return withIdempotency(event, resolve, user.id, key);
+};
+
+export const handle = sequence(
+	Sentry.sentryHandle(),
+	paraglideHandle,
+	sessionHandle,
+	idempotencyHandle
+);
 
 export const handleError = Sentry.handleErrorWithSentry();

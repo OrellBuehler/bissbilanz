@@ -171,6 +171,8 @@ class SyncQueueTest {
                 createdAt = 0,
                 affectedTable = "foods",
                 affectedId = null,
+                idempotencyKey = null,
+                clientEditedAt = null,
             )
 
             val drained = queue.drain().single().operation as SyncOperation.CreateFood

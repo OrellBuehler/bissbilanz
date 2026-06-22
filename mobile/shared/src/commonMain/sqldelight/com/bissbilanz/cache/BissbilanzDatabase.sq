@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS SyncQueue (
     createdAt INTEGER NOT NULL,
     affectedTable TEXT,
     affectedId TEXT,
-    retryCount INTEGER NOT NULL DEFAULT 0
+    retryCount INTEGER NOT NULL DEFAULT 0,
+    idempotencyKey TEXT,
+    clientEditedAt TEXT,
+    nextAttemptAt INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS SyncMeta (
@@ -41,20 +44,23 @@ DELETE FROM CachedMealType;
 
 -- Sync Queue
 selectSyncQueue:
-SELECT * FROM SyncQueue ORDER BY createdAt LIMIT 50;
+SELECT * FROM SyncQueue WHERE nextAttemptAt <= ? ORDER BY createdAt LIMIT 50;
 
 selectAllSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt;
 
 insertSyncQueueItem:
-INSERT INTO SyncQueue(operation, createdAt, affectedTable, affectedId, retryCount)
-VALUES (?, ?, ?, ?, 0);
+INSERT INTO SyncQueue(operation, createdAt, affectedTable, affectedId, retryCount, idempotencyKey, clientEditedAt, nextAttemptAt)
+VALUES (?, ?, ?, ?, 0, ?, ?, 0);
 
 incrementSyncQueueRetryCount:
 UPDATE SyncQueue SET retryCount = retryCount + 1 WHERE id = ?;
 
 selectSyncQueueItemRetryCount:
 SELECT retryCount FROM SyncQueue WHERE id = ?;
+
+updateSyncQueueNextAttemptAt:
+UPDATE SyncQueue SET nextAttemptAt = ? WHERE id = ?;
 
 deleteSyncQueueItem:
 DELETE FROM SyncQueue WHERE id = ?;

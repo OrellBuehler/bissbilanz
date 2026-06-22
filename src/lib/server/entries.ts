@@ -11,6 +11,7 @@ import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
 
 const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
@@ -185,7 +186,8 @@ export const toEntryUpdate = (input: EntryUpdateInput) => {
 export const updateEntry = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof foodEntries.$inferSelect | undefined>> => {
 	const result = entryUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -201,10 +203,19 @@ export const updateEntry = async (
 		// Reject references to foods/recipes the caller doesn't own (IDOR).
 		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
 		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
+		// LWW: skip the write when a newer edit already won (guard), and stamp the
+		// row with the client's edit time so it stays the logical clock for the next
+		// conflict. No row returned ⇒ stale edit or deleted elsewhere (handler 409s).
 		const [updated] = await db
 			.update(foodEntries)
-			.set({ ...toEntryUpdate(result.data), updatedAt: new Date() })
-			.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
+			.set({ ...toEntryUpdate(result.data), updatedAt: lwwStamp(clientEditedAt) })
+			.where(
+				and(
+					eq(foodEntries.id, id),
+					eq(foodEntries.userId, userId),
+					lwwGuard(foodEntries.updatedAt, clientEditedAt)
+				)
+			)
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {

@@ -7,6 +7,7 @@ import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type SupplementRow = typeof supplements.$inferSelect;
 type FoodRow = typeof foods.$inferSelect;
@@ -254,7 +255,8 @@ export const createSupplement = async (
 export const updateSupplement = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<SupplementWithIngredients | undefined>> => {
 	const result = supplementUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -268,8 +270,14 @@ export const updateSupplement = async (
 		return await db.transaction(async (tx) => {
 			const [updated] = await tx
 				.update(supplements)
-				.set({ ...data, updatedAt: new Date() })
-				.where(and(eq(supplements.id, id), eq(supplements.userId, userId)))
+				.set({ ...data, updatedAt: lwwStamp(clientEditedAt) })
+				.where(
+					and(
+						eq(supplements.id, id),
+						eq(supplements.userId, userId),
+						lwwGuard(supplements.updatedAt, clientEditedAt)
+					)
+				)
 				.returning();
 
 			if (!updated) {

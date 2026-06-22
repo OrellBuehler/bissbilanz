@@ -6,6 +6,7 @@ import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -130,7 +131,8 @@ export const toFoodUpdate = (input: FoodUpdateInput) => {
 export const updateFood = async (
 	userId: string,
 	id: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof foods.$inferSelect | undefined>> => {
 	const result = foodUpdateSchema.safeParse(payload);
 	if (!result.success) {
@@ -141,8 +143,10 @@ export const updateFood = async (
 		const db = getDB();
 		const [updated] = await db
 			.update(foods)
-			.set({ ...toFoodUpdate(result.data), updatedAt: new Date() })
-			.where(and(eq(foods.id, id), eq(foods.userId, userId)))
+			.set({ ...toFoodUpdate(result.data), updatedAt: lwwStamp(clientEditedAt) })
+			.where(
+				and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
+			)
 			.returning();
 		return { success: true, data: updated ? roundNutrition(updated) : updated };
 	} catch (error) {

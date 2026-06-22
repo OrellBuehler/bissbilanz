@@ -9,12 +9,17 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 data class QueuedRequest(
     val id: Long,
     val operation: SyncOperation,
     val createdAt: Long,
     val retryCount: Long,
+    val idempotencyKey: String,
+    val clientEditedAt: String,
+    val nextAttemptAt: Long,
 )
 
 class SyncQueue(
@@ -28,17 +33,21 @@ class SyncQueue(
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun enqueue(operation: SyncOperation) {
         // In Local mode the local DB is the primary store, so nothing is queued for
         // upload. The login migrator uploads the cache state when switching to Synced;
         // queued ops would double-apply.
         if (appModeManager.isLocal) return
+        val now = Clock.System.now()
         mutex.withLock {
             db.bissbilanzDatabaseQueries.insertSyncQueueItem(
                 operation = json.encodeToString(SyncOperation.serializer(), operation),
-                createdAt = Clock.System.now().toEpochMilliseconds(),
+                createdAt = now.toEpochMilliseconds(),
                 affectedTable = operation.affectedTable,
                 affectedId = operation.affectedId,
+                idempotencyKey = Uuid.random().toString(),
+                clientEditedAt = now.toString(),
             )
             _enqueueSignal.tryEmit(Unit)
         }
@@ -46,8 +55,9 @@ class SyncQueue(
 
     suspend fun drain(): List<QueuedRequest> =
         mutex.withLock {
+            val nowMs = Clock.System.now().toEpochMilliseconds()
             db.bissbilanzDatabaseQueries
-                .selectSyncQueue()
+                .selectSyncQueue(nowMs)
                 .executeAsList()
                 .filter { it.id !in inProgress }
                 .map {
@@ -57,6 +67,9 @@ class SyncQueue(
                         operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
                         createdAt = it.createdAt,
                         retryCount = it.retryCount,
+                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
+                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
+                        nextAttemptAt = it.nextAttemptAt,
                     )
                 }
         }
@@ -79,6 +92,9 @@ class SyncQueue(
                         operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
                         createdAt = it.createdAt,
                         retryCount = it.retryCount,
+                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
+                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
+                        nextAttemptAt = it.nextAttemptAt,
                     )
                 }
         }
@@ -97,6 +113,9 @@ class SyncQueue(
                         operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
                         createdAt = it.createdAt,
                         retryCount = it.retryCount,
+                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
+                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
+                        nextAttemptAt = it.nextAttemptAt,
                     )
                 }
         }
@@ -104,6 +123,7 @@ class SyncQueue(
     // Note: an item that has already been drained (in progress) can still be rewritten or
     // removed here while its original payload is in flight. That small race is accepted —
     // the in-flight upload wins and the local change for that item is lost.
+    // The idempotencyKey is NOT changed: coalescing never changes the logical operation.
     suspend fun replaceOperation(
         queueId: Long,
         operation: SyncOperation,
@@ -157,6 +177,15 @@ class SyncQueue(
                 .selectSyncQueueItemRetryCount(id)
                 .executeAsOneOrNull() ?: 0
         }
+
+    suspend fun setNextAttemptAt(
+        id: Long,
+        nextAttemptAt: Long,
+    ) {
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.updateSyncQueueNextAttemptAt(nextAttemptAt, id)
+        }
+    }
 
     suspend fun pendingCount(): Long =
         mutex.withLock {

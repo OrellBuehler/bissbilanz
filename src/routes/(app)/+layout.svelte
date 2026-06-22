@@ -10,6 +10,7 @@
 	import InstallBanner from '$lib/components/pwa/InstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/pwa/OfflineIndicator.svelte';
 	import SyncErrorBanner from '$lib/components/pwa/SyncErrorBanner.svelte';
+	import SyncConflictBanner from '$lib/components/pwa/SyncConflictBanner.svelte';
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
@@ -94,6 +95,7 @@
 				<SiteHeader />
 				<OfflineIndicator />
 				<SyncErrorBanner />
+				<SyncConflictBanner />
 				<div class="flex min-h-0 flex-1 flex-col overflow-auto">
 					<main class="flex-1 p-4 lg:p-6">
 						{@render children()}
@@ -108,6 +110,7 @@
 		<MobileHeader />
 		<OfflineIndicator />
 		<SyncErrorBanner />
+		<SyncConflictBanner />
 		<main class="flex-1 px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
 			{@render children()}
 		</main>

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteFood, getFood, updateFood } from '$lib/server/foods';
 import { notFound, unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
+import { respondUpdate } from '$lib/server/sync/conflict';
 
 export const GET: RequestHandler = withAuthedResource(async ({ userId, id }) => {
 	const food = await getFood(userId, id);
@@ -11,14 +12,13 @@ export const GET: RequestHandler = withAuthedResource(async ({ userId, id }) => 
 	return json({ food });
 });
 
-export const PATCH: RequestHandler = withAuthedResource(async ({ userId, id, request }) => {
-	const body = await parseJsonBody(request);
-	const food = unwrapResult(await updateFood(userId, id, body));
-	if (!food) {
-		return notFound('Food');
+export const PATCH: RequestHandler = withAuthedResource(
+	async ({ userId, id, request, clientEditedAt }) => {
+		const body = await parseJsonBody(request);
+		const food = unwrapResult(await updateFood(userId, id, body, clientEditedAt));
+		return respondUpdate({ key: 'food', updated: food, clientEditedAt, resourceName: 'Food' });
 	}
-	return json({ food });
-});
+);
 
 export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id, url }) => {
 	const force = url.searchParams.get('force') === 'true';

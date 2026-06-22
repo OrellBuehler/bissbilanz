@@ -9,6 +9,8 @@ import {
 	unwrapResult,
 	parseJsonBody
 } from '$lib/server/errors';
+import { respondUpdate } from '$lib/server/sync/conflict';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
@@ -29,11 +31,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const userId = requireAuth(locals);
 		const id = requireUuid(params.id);
 		const body = await parseJsonBody(request);
-		const supplement = unwrapResult(await updateSupplement(userId, id, body));
-		if (!supplement) {
-			return notFound('Supplement');
-		}
-		return json({ supplement });
+		const clientEditedAt = readClientEditedAt(request);
+		const supplement = unwrapResult(await updateSupplement(userId, id, body, clientEditedAt));
+		return respondUpdate({
+			key: 'supplement',
+			updated: supplement,
+			clientEditedAt,
+			resourceName: 'Supplement'
+		});
 	} catch (error) {
 		return handleApiError(error);
 	}

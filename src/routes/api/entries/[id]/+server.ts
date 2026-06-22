@@ -1,16 +1,15 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteEntry, updateEntry } from '$lib/server/entries';
-import { notFound, unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
+import { unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
+import { respondUpdate } from '$lib/server/sync/conflict';
 
-export const PATCH: RequestHandler = withAuthedResource(async ({ userId, id, request }) => {
-	const body = await parseJsonBody(request);
-	const entry = unwrapResult(await updateEntry(userId, id, body));
-	if (!entry) {
-		return notFound('Entry');
+export const PATCH: RequestHandler = withAuthedResource(
+	async ({ userId, id, request, clientEditedAt }) => {
+		const body = await parseJsonBody(request);
+		const entry = unwrapResult(await updateEntry(userId, id, body, clientEditedAt));
+		return respondUpdate({ key: 'entry', updated: entry, clientEditedAt, resourceName: 'Entry' });
 	}
-	return json({ entry });
-});
+);
 
 export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id }) => {
 	await deleteEntry(userId, id);
