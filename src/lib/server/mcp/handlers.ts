@@ -41,7 +41,8 @@ import {
 	computeAverages
 } from '$lib/server/stats';
 import { formatDailyStatus } from '$lib/server/mcp/format';
-import { today } from '$lib/utils/dates';
+import { todayInTimeZone } from '$lib/utils/dates';
+import { getUserTimeZone } from '$lib/server/preferences';
 import {
 	createSupplement,
 	listSupplements,
@@ -172,7 +173,7 @@ export const {
 	getTopFoods,
 	getStreaks,
 	formatDailyStatus,
-	today,
+	todayForUser: async (userId: string) => todayInTimeZone(await getUserTimeZone(userId)),
 	createSupplement,
 	listSupplements,
 	updateSupplement,

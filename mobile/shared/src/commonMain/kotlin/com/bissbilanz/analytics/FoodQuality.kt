@@ -259,16 +259,19 @@ fun computeTEF(dailyNutrients: List<TEFInput>): TEFResult {
             sampleSize = 0,
         )
     }
-    val tefValues =
-        dailyNutrients.map { d ->
-            d.protein * 4.0 * 0.25 + d.carbs * 4.0 * 0.08 + d.fat * 9.0 * 0.03
-        }
-    val avgTEF = tefValues.sum() / sampleSize
-    val avgCalories = dailyNutrients.sumOf { it.calories } / sampleSize
-    val avgTEFPct = if (avgCalories > 0) (avgTEF / avgCalories) * 100.0 else 0.0
+    // Average-of-ratios (per-day TEF%), matching the server TS computeTEF. A
+    // ratio-of-averages (avgTEF / avgCalories) diverges whenever daily calories
+    // vary, which broke cross-platform parity.
+    var totalTEF = 0.0
+    var totalTEFPct = 0.0
+    for (d in dailyNutrients) {
+        val tef = d.protein * 4.0 * 0.25 + d.carbs * 4.0 * 0.08 + d.fat * 9.0 * 0.03
+        totalTEF += tef
+        totalTEFPct += if (d.calories > 0) (tef / d.calories) * 100.0 else 0.0
+    }
     return TEFResult(
-        avgTEF = avgTEF,
-        avgTEFPct = avgTEFPct,
+        avgTEF = totalTEF / sampleSize,
+        avgTEFPct = totalTEFPct / sampleSize,
         confidence = getConfidenceLevel(sampleSize),
         sampleSize = sampleSize,
     )

@@ -1,6 +1,11 @@
 import { describe, test, expect } from 'vitest';
 import { computeCaffeineSleepCutoff } from '$lib/analytics/caffeine-sleep';
 
+// localHourTs encodes the hour in the runtime-local timezone (via setHours), so
+// reading it back through the function with the same runtime tz round-trips
+// regardless of where the test runs.
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 function makeSleepData(date: string, quality: number, duration: number) {
 	return { date, sleepQuality: quality, sleepDurationMinutes: duration };
 }
@@ -32,7 +37,7 @@ describe('computeCaffeineSleepCutoff', () => {
 			makeSleepData('2024-01-09', 9, 500),
 			makeSleepData('2024-01-10', 8, 490)
 		];
-		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData);
+		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
 		expect(result.estimatedCutoffHour).not.toBeNull();
 	});
 
@@ -47,13 +52,13 @@ describe('computeCaffeineSleepCutoff', () => {
 			makeSleepData('2024-01-03', 8, 480),
 			makeSleepData('2024-01-04', 8, 480)
 		];
-		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData);
+		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
 		expect(result.estimatedCutoffHour).toBeNull();
 	});
 
 	test('no caffeine data returns null cutoff and empty hourly impact', () => {
 		const sleepData = [makeSleepData('2024-01-02', 8, 480), makeSleepData('2024-01-03', 7, 450)];
-		const result = computeCaffeineSleepCutoff([], sleepData);
+		const result = computeCaffeineSleepCutoff([], sleepData, TZ);
 		expect(result.estimatedCutoffHour).toBeNull();
 		expect(result.hourlyImpact).toHaveLength(0);
 		expect(result.sampleSize).toBe(0);
@@ -67,7 +72,7 @@ describe('computeCaffeineSleepCutoff', () => {
 			{ date: '2024-01-02', eatenAt: localHourTs('2024-01-02', hour), caffeine: 100 }
 		];
 		const sleepData = [makeSleepData('2024-01-02', 7, 420), makeSleepData('2024-01-03', 7, 420)];
-		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData);
+		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
 		expect(result.hourlyImpact).toHaveLength(1);
 		expect(result.hourlyImpact[0].hour).toBe(hour);
 		expect(result.hourlyImpact[0].count).toBe(2);
@@ -79,12 +84,12 @@ describe('computeCaffeineSleepCutoff', () => {
 			{ date: '2024-01-02', eatenAt: localHourTs('2024-01-02', 8), caffeine: 100 }
 		];
 		const sleepData = [makeSleepData('2024-01-03', 8, 480)];
-		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData);
+		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
 		expect(result.hourlyImpact).toHaveLength(1);
 	});
 
 	test('confidence reflects sample size', () => {
-		const result = computeCaffeineSleepCutoff([], []);
+		const result = computeCaffeineSleepCutoff([], [], TZ);
 		expect(result.confidence).toBe('insufficient');
 	});
 });

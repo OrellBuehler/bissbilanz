@@ -60,6 +60,11 @@ vi.mock('$lib/utils/dates', async () => {
 	};
 });
 
+// Supplement routes resolve "today" in the user's stored timezone.
+vi.mock('$lib/server/preferences', () => ({
+	getUserTimeZone: async () => 'UTC'
+}));
+
 import { allValidationSchemas } from '../helpers/mock-validation';
 vi.mock('$lib/server/validation', () => ({
 	...allValidationSchemas,

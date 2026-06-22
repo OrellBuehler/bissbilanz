@@ -1299,6 +1299,57 @@
 					"addedSugars": null
 				}
 			]
+		},
+		{
+			"fn": "computeTEF",
+			"name": "varying_calories",
+			"input": {
+				"dailyNutrients": [
+					{
+						"protein": 120,
+						"carbs": 250,
+						"fat": 70,
+						"calories": 2100
+					},
+					{
+						"protein": 90,
+						"carbs": 180,
+						"fat": 55,
+						"calories": 1600
+					},
+					{
+						"protein": 160,
+						"carbs": 300,
+						"fat": 95,
+						"calories": 2850
+					},
+					{
+						"protein": 100,
+						"carbs": 0,
+						"fat": 40,
+						"calories": 0
+					}
+				]
+			},
+			"expected": {
+				"avgDailyTEF": 193.45,
+				"avgTEFPercent": 7.6148476660401,
+				"confidence": "insufficient",
+				"sampleSize": 4
+			}
+		},
+		{
+			"fn": "computeTEF",
+			"name": "empty",
+			"input": {
+				"dailyNutrients": []
+			},
+			"expected": {
+				"avgDailyTEF": 0,
+				"avgTEFPercent": 0,
+				"confidence": "insufficient",
+				"sampleSize": 0
+			}
 		}
 	]
 }

@@ -35,6 +35,7 @@ class RefreshManager(
             launch { safeRefresh { weightRepo.refresh() } }
             launch { safeRefresh { supplementRepo.refresh() } }
             launch { safeRefresh { prefsRepo.refresh() } }
+            launch { safeRefresh { prefsRepo.reportTimeZone(TimeZone.currentSystemDefault().id) } }
         }
     }
 

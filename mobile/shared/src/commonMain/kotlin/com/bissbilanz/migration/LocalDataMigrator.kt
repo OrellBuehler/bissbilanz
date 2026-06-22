@@ -936,6 +936,7 @@ class LocalDataMigrator(
             mealOrder = mealOrder.takeIf { it.isNotEmpty() },
             visibleNutrients = visibleNutrients.takeIf { it.isNotEmpty() },
             locale = locale?.let { value -> PreferencesUpdate.Locale.entries.firstOrNull { it.value == value } },
+            timeZone = timeZone,
             caloricLagDaysOverride = caloricLagDaysOverride,
         )
 

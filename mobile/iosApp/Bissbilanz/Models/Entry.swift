@@ -85,3 +85,39 @@ struct EntriesResponse: Codable {
 struct EntryResponse: Codable {
     let entry: Entry
 }
+
+/// Canonical grouping/ordering for meal types. The server normalizes the four
+/// built-in meals to capitalized forms (`normalizeMealType`: "dinner" ->
+/// "Dinner") while the client logs them lowercase, so an optimistic entry
+/// ("dinner") and its synced counterpart ("Dinner") would otherwise land in
+/// separate groups and render as two cards for the same meal. Collapsing to a
+/// lowercase canonical key keeps each built-in meal in a single card; custom
+/// meal types pass through unchanged.
+enum MealGrouping {
+    static let order = ["breakfast", "lunch", "dinner", "snacks"]
+
+    static func canonicalKey(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "breakfast": "breakfast"
+        case "lunch": "lunch"
+        case "dinner": "dinner"
+        case "snacks", "snack": "snacks"
+        default: raw
+        }
+    }
+
+    /// Groups entries into meal cards using the canonical key, ordered
+    /// breakfast → lunch → dinner → snacks, then custom meals alphabetically.
+    static func group(_ entries: [Entry]) -> [(String, [Entry])] {
+        let grouped = Dictionary(grouping: entries) { canonicalKey($0.mealType) }
+        let ordered = order.compactMap { meal -> (String, [Entry])? in
+            guard let items = grouped[meal], !items.isEmpty else { return nil }
+            return (meal, items)
+        }
+        let custom = grouped
+            .filter { !order.contains($0.key) }
+            .sorted { $0.key < $1.key }
+            .map { ($0.key, $0.value) }
+        return ordered + custom
+    }
+}

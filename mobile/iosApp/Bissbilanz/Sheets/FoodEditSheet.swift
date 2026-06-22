@@ -176,7 +176,7 @@ struct FoodEditSheet: View {
     }
 
     private func parsedValue(_ text: String) -> Double? {
-        text.isEmpty ? nil : Double(text)
+        text.isEmpty ? nil : Double.parseUserInput(text)
     }
 
     /// Renders a parsed value without a trailing ".0".
@@ -191,13 +191,13 @@ struct FoodEditSheet: View {
         let foodData = FoodCreate(
             name: name,
             brand: brand.isEmpty ? nil : brand,
-            servingSize: Double(servingSize) ?? 100,
+            servingSize: Double.parseUserInput(servingSize) ?? 100,
             servingUnit: servingUnit,
-            calories: Double(calories) ?? 0,
-            protein: Double(protein) ?? 0,
-            carbs: Double(carbs) ?? 0,
-            fat: Double(fat) ?? 0,
-            fiber: Double(fiber) ?? 0,
+            calories: Double.parseUserInput(calories) ?? 0,
+            protein: Double.parseUserInput(protein) ?? 0,
+            carbs: Double.parseUserInput(carbs) ?? 0,
+            fat: Double.parseUserInput(fat) ?? 0,
+            fiber: Double.parseUserInput(fiber) ?? 0,
             saturatedFat: parsedValue(saturatedFat),
             sugar: parsedValue(sugar),
             sodium: parsedValue(sodium),

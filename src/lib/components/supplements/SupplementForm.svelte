@@ -163,12 +163,18 @@
 		ingredients = ingredients.filter((_, i) => i !== index);
 	};
 
+	// weekly / specific_days schedules are meaningless (never due) with no days picked.
+	const requiresScheduleDays = $derived(
+		scheduleType === 'weekly' || scheduleType === 'specific_days'
+	);
+
 	const isValid = $derived(
 		name.trim().length > 0 &&
 			ingredients.length > 0 &&
 			ingredients.every(
 				(i) => i.name.trim().length > 0 && (i.dosage > 0 || (i.originalText ?? '').length > 0)
-			)
+			) &&
+			(!requiresScheduleDays || scheduleDays.length > 0)
 	);
 
 	const handleSubmit = () => {

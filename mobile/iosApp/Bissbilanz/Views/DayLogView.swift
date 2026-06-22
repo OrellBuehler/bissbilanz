@@ -14,12 +14,7 @@ struct DayLogView: View {
     @State private var errorMessage: String?
 
     private var mealGroups: [(String, [Entry])] {
-        let grouped = Dictionary(grouping: entries, by: \.mealType)
-        let order = ["breakfast", "lunch", "dinner", "snacks"]
-        return order.compactMap { meal in
-            guard let items = grouped[meal], !items.isEmpty else { return nil }
-            return (meal, items)
-        } + grouped.filter { !order.contains($0.key) }.sorted(by: { $0.key < $1.key }).map { ($0.key, $0.value) }
+        MealGrouping.group(entries)
     }
 
     var body: some View {

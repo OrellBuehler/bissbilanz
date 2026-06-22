@@ -11,8 +11,8 @@ import com.bissbilanz.analytics.aggregateDailyNutrientTotals
 import com.bissbilanz.analytics.calculateMaintenance
 import com.bissbilanz.analytics.extendedNutrientEntries
 import com.bissbilanz.analytics.foodDiversityRows
+import com.bissbilanz.analytics.localMinutesOfDay
 import com.bissbilanz.analytics.mealTimingRows
-import com.bissbilanz.analytics.parseLocalMinutes
 import com.bissbilanz.analytics.sleepFoodCorrelation
 import com.bissbilanz.analytics.weightFoodSeries
 import com.bissbilanz.api.generated.model.DailyNutrients
@@ -35,6 +35,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.serialization.json.Json
 import com.bissbilanz.api.generated.model.ExtendedNutrientEntry as ExtendedNutrientDto
@@ -192,10 +193,11 @@ class LocalAnalytics(
         endDate: String,
     ): SleepFoodCorrelationResponse {
         // The server filters evening entries to those eaten at/after 17:00 local;
-        // parseLocalMinutes reads the local minutes from the stored timestamp.
+        // bucket the stored UTC instant into the device timezone to match.
+        val deviceTz = TimeZone.currentSystemDefault().id
         val eveningEntries =
             loadEntries(startDate, endDate).filter { e ->
-                val minutes = e.eatenAt?.let { parseLocalMinutes(it) } ?: return@filter false
+                val minutes = e.eatenAt?.let { localMinutesOfDay(it, deviceTz) } ?: return@filter false
                 minutes / 60 >= EVENING_CUTOFF_HOUR
             }
         val inputs = buildInputs(eveningEntries)
@@ -247,9 +249,13 @@ class LocalAnalytics(
         val days = LocalDate.parse(startDate).daysUntil(LocalDate.parse(endDate))
         if (days <= 0) return null
 
+        // The food window is inclusive of both endpoints, so it covers days + 1
+        // calendar days; average intake over that inclusive count. The weight-change
+        // rate (passed as `days` to calculateMaintenance) stays per-interval.
+        val inclusiveDays = days + 1
         val totalCalories = dailyTotals.values.sum()
-        val avgDailyCalories = totalCalories / days
-        val coverage = dailyTotals.size.toDouble() / days
+        val avgDailyCalories = totalCalories / inclusiveDays
+        val coverage = dailyTotals.size.toDouble() / inclusiveDays
         val firstWeight = weights.first().weightKg
         val lastWeight = weights.last().weightKg
         val weightChangeKg = lastWeight - firstWeight
@@ -283,7 +289,7 @@ class LocalAnalytics(
                 MaintenanceMeta(
                     weightEntries = weights.size,
                     foodEntryDays = dailyTotals.size,
-                    totalDays = days,
+                    totalDays = inclusiveDays,
                     coverage = coverage,
                     firstWeight = firstWeight,
                     lastWeight = lastWeight,

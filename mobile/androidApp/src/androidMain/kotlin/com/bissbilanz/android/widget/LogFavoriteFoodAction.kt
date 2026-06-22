@@ -48,12 +48,12 @@ class LogFavoriteFoodAction : ActionCallback {
                 val entry = EntryCreate(foodId = foodId, mealType = meal, servings = 1.0, date = today)
                 entryRepo.createEntry(entry)
 
-                loggedFoodId = foodId
+                markLogged(foodId)
                 FavoritesWidget.updateAllWidgets(context)
 
                 delay(1200)
 
-                loggedFoodId = null
+                clearLogged(foodId)
                 FavoritesWidget.updateAllWidgets(context)
 
                 MacroWidget.updateAllWidgets(context)
@@ -73,7 +73,21 @@ class LogFavoriteFoodAction : ActionCallback {
     }
 
     companion object {
-        @Volatile
-        var loggedFoodId: String? = null
+        // Per-food "just logged ✓" markers. A single shared field was clobbered
+        // when two favorites were logged within the checkmark window, so the wrong
+        // tile (or none) showed the checkmark.
+        private val recentlyLogged: MutableSet<String> =
+            java.util.concurrent.ConcurrentHashMap
+                .newKeySet()
+
+        fun isRecentlyLogged(foodId: String): Boolean = recentlyLogged.contains(foodId)
+
+        internal fun markLogged(foodId: String) {
+            recentlyLogged.add(foodId)
+        }
+
+        internal fun clearLogged(foodId: String) {
+            recentlyLogged.remove(foodId)
+        }
     }
 }

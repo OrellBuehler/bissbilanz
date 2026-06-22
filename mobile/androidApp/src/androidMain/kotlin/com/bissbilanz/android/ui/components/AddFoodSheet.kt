@@ -59,6 +59,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
+import com.bissbilanz.util.toLocalizedDoubleOrNull
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
@@ -177,7 +178,7 @@ fun AddFoodSheet(
                     ) { Text("Cancel") }
                     Button(
                         onClick = {
-                            val servings = servingsText.toDoubleOrNull() ?: 1.0
+                            val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
                             if (selectedFood != null) {
                                 viewModel.logFood(selectedFood!!, mealType, servings, date) { onLogged() }
                             } else if (selectedRecipe != null) {
@@ -215,7 +216,7 @@ fun AddFoodSheet(
 
                 Box(modifier = Modifier.weight(1f)) {
                     when (selectedTab) {
-                        0 ->
+                        0 -> {
                             SearchTab(
                                 viewModel,
                                 baseUrl,
@@ -224,7 +225,9 @@ fun AddFoodSheet(
                                 isSearching,
                                 onSelect = { selectedFood = it },
                             )
-                        1 ->
+                        }
+
+                        1 -> {
                             FavoritesTab(
                                 favoriteFoods,
                                 favoriteRecipes,
@@ -232,9 +235,17 @@ fun AddFoodSheet(
                                 onSelectFood = { selectedFood = it },
                                 onSelectRecipe = { selectedRecipe = it },
                             )
-                        2 -> RecentTab(recentFoods, baseUrl, onSelect = { selectedFood = it })
-                        3 -> RecipesTab(recipes, onSelect = { selectedRecipe = it })
-                        4 ->
+                        }
+
+                        2 -> {
+                            RecentTab(recentFoods, baseUrl, onSelect = { selectedFood = it })
+                        }
+
+                        3 -> {
+                            RecipesTab(recipes, onSelect = { selectedRecipe = it })
+                        }
+
+                        4 -> {
                             QuickTab(
                                 quickName,
                                 quickCalories,
@@ -256,15 +267,16 @@ fun AddFoodSheet(
                                         mealType,
                                         date,
                                         quickName,
-                                        quickCalories.toDoubleOrNull(),
-                                        quickProtein.toDoubleOrNull(),
-                                        quickCarbs.toDoubleOrNull(),
-                                        quickFat.toDoubleOrNull(),
-                                        quickFiber.toDoubleOrNull(),
+                                        quickCalories.toLocalizedDoubleOrNull(),
+                                        quickProtein.toLocalizedDoubleOrNull(),
+                                        quickCarbs.toLocalizedDoubleOrNull(),
+                                        quickFat.toLocalizedDoubleOrNull(),
+                                        quickFiber.toLocalizedDoubleOrNull(),
                                         quickNotes,
                                     ) { onLogged() }
                                 },
                             )
+                        }
                     }
                 }
             }

@@ -7,6 +7,7 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import { parseDecimalInput } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	export type QuickLogPayload = {
@@ -35,21 +36,25 @@
 	let quickMacrosOpen = $state(false);
 
 	let macroCalories = $derived(
-		(Number(quickProtein) || 0) * 4 + (Number(quickCarbs) || 0) * 4 + (Number(quickFat) || 0) * 9
+		(parseDecimalInput(quickProtein) || 0) * 4 +
+			(parseDecimalInput(quickCarbs) || 0) * 4 +
+			(parseDecimalInput(quickFat) || 0) * 9
 	);
 	let hasMacros = $derived((!!quickProtein || !!quickCarbs || !!quickFat) && !!quickCalories);
-	let macrosMatch = $derived(Math.round(macroCalories) === Math.round(Number(quickCalories) || 0));
+	let macrosMatch = $derived(
+		Math.round(macroCalories) === Math.round(parseDecimalInput(quickCalories) || 0)
+	);
 
 	const submit = () => {
-		const cal = Number(quickCalories);
+		const cal = parseDecimalInput(quickCalories);
 		if (!cal || cal < 0) return;
 		onSubmit({
 			quickName: quickName.trim() || undefined,
 			quickCalories: cal,
-			quickProtein: quickProtein ? Number(quickProtein) : undefined,
-			quickCarbs: quickCarbs ? Number(quickCarbs) : undefined,
-			quickFat: quickFat ? Number(quickFat) : undefined,
-			quickFiber: quickFiber ? Number(quickFiber) : undefined
+			quickProtein: quickProtein ? parseDecimalInput(quickProtein) : undefined,
+			quickCarbs: quickCarbs ? parseDecimalInput(quickCarbs) : undefined,
+			quickFat: quickFat ? parseDecimalInput(quickFat) : undefined,
+			quickFiber: quickFiber ? parseDecimalInput(quickFiber) : undefined
 		});
 		quickName = '';
 		quickCalories = '';
@@ -120,7 +125,11 @@
 			oninput={(e) => onEatenTimeChange((e.target as HTMLInputElement).value)}
 		/>
 	</div>
-	<Button class="w-full" disabled={!quickCalories || Number(quickCalories) <= 0} onclick={submit}>
+	<Button
+		class="w-full"
+		disabled={!quickCalories || parseDecimalInput(quickCalories) <= 0}
+		onclick={submit}
+	>
 		<Check class="mr-1 size-4" />
 		{m.quick_log_add()}
 	</Button>

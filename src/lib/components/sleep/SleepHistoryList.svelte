@@ -6,6 +6,8 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
+	import { parseDecimalInput } from '$lib/utils/number';
+	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieSleepEntry } from '$lib/db/types';
 
@@ -31,8 +33,13 @@
 
 	const saveEdit = async () => {
 		if (!editingId) return;
-		const durationMinutes = Number(editHours) * 60 + Number(editMinutes);
-		if (durationMinutes <= 0) return;
+		const durationMinutes =
+			(parseDecimalInput(String(editHours)) || 0) * 60 +
+			(parseDecimalInput(String(editMinutes)) || 0);
+		if (durationMinutes <= 0 || durationMinutes > 24 * 60) {
+			toast.error(m.sleep_invalid_duration());
+			return;
+		}
 		await sleepService.update(editingId, {
 			durationMinutes,
 			quality: editQuality,

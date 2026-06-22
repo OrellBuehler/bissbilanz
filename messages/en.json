@@ -577,6 +577,7 @@
 	"sleep_more_details": "More details",
 	"sleep_less_details": "Less details",
 	"sleep_save": "Save",
+	"sleep_invalid_duration": "Sleep duration must be between 0 and 24 hours.",
 	"sleep_edit": "Edit",
 	"sleep_delete": "Delete",
 	"sleep_confirm_delete": "Delete this sleep entry?",

@@ -86,11 +86,11 @@ struct QuickEntrySheet: View {
             servings: 1,
             date: date,
             quickName: name,
-            quickCalories: Double(calories),
-            quickProtein: Double(protein),
-            quickCarbs: Double(carbs),
-            quickFat: Double(fat),
-            quickFiber: Double(fiber)
+            quickCalories: Double.parseUserInput(calories),
+            quickProtein: Double.parseUserInput(protein),
+            quickCarbs: Double.parseUserInput(carbs),
+            quickFat: Double.parseUserInput(fat),
+            quickFiber: Double.parseUserInput(fiber)
         )
         do {
             try await entryRepository.createEntry(entry)

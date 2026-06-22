@@ -4,9 +4,12 @@ export const U1 = '00000000-0000-0000-0001-000000000001';
 export const U2 = '00000000-0000-0000-0001-000000000002';
 export const F1 = '00000000-0000-0000-0002-000000000001';
 export const F2 = '00000000-0000-0000-0002-000000000002';
+export const SF1 = '00000000-0000-0000-0002-000000000003';
+export const SF2 = '00000000-0000-0000-0002-000000000004';
 
 export const SUP1 = '00000000-0000-0000-0007-000000000001';
 export const SUP2 = '00000000-0000-0000-0007-000000000002';
+export const SI1 = '00000000-0000-0000-0007-000000000011';
 export const SI2A = '00000000-0000-0000-0007-00000000002a';
 export const SI2B = '00000000-0000-0000-0007-00000000002b';
 
@@ -15,17 +18,16 @@ const E1 = '00000000-0000-0000-0004-000000000001';
 const R1 = '00000000-0000-0000-0005-000000000001';
 const RI1 = '00000000-0000-0000-0006-000000000001';
 const G1 = U1;
-const SL1 = '00000000-0000-0000-0008-000000000001';
-const SL2 = '00000000-0000-0000-0008-000000000002';
+const UP1 = U1;
 const W1 = '00000000-0000-0000-0009-000000000001';
 const OC1 = '00000000-0000-0000-000a-000000000001';
 const CMT1 = '00000000-0000-0000-000b-000000000001';
 
-// NOTE: this seeds the PRE-migration-0035 schema.
-// test-migrations.ts applies base migrations (everything up to but not
-// including the PR's new migrations), seeds, then applies the new
-// migrations — so we're exercising whatever data-migration logic is in the
-// new SQL. Keep dosage/dosage_unit/supplement_logs here; 0035 rewrites them.
+// Seeds representative rows in the CURRENT base schema (everything up to but not
+// including the PR's new migrations). test-migrations.ts applies base migrations,
+// seeds, then applies the new migrations — so the new SQL runs against real data
+// and we verify the seeded rows survive. Keep this in sync with the schema; if a
+// new migration drops/renames a column referenced here, update the seed too.
 export async function seedData(db: ReturnType<typeof postgres>) {
 	await db`
 		INSERT INTO users (id, infomaniak_sub, email, name, locale)
@@ -40,10 +42,23 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	await db`
+		INSERT INTO user_preferences (user_id)
+		VALUES (${UP1})
+	`;
+
+	await db`
 		INSERT INTO foods (id, user_id, name, serving_size, serving_unit, calories, protein, carbs, fat, fiber)
 		VALUES
 			(${F1}, ${U1}, 'Oats', 100, 'g', 370, 13, 66, 7, 10),
 			(${F2}, ${U1}, 'Chicken Breast', 100, 'g', 165, 31, 0, 3.6, 0)
+	`;
+
+	// Supplement ingredients are backed by foods with kind='supplement'.
+	await db`
+		INSERT INTO foods (id, user_id, name, kind, serving_size, serving_unit, calories, protein, carbs, fat, fiber)
+		VALUES
+			(${SF1}, ${U1}, 'Vitamin D3', 'supplement', 1, 'g', 0, 0, 0, 0, 0),
+			(${SF2}, ${U1}, 'Vitamin C', 'supplement', 1, 'g', 0, 0, 0, 0, 0)
 	`;
 
 	await db`
@@ -67,26 +82,18 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	await db`
-		INSERT INTO supplements (id, user_id, name, dosage, dosage_unit, schedule_type, sort_order)
+		INSERT INTO supplements (id, user_id, name, schedule_type, sort_order)
 		VALUES
-			(${SUP1}, ${U1}, 'Vitamin D', 1000, 'IU', 'daily', 0),
-			(${SUP2}, ${U1}, 'Multivitamin', 1, 'capsule', 'daily', 1)
-	`;
-
-	// SUP2 already has explicit ingredients, exercising the ingredient-backing
-	// path in 0035 (vs. SUP1's synthetic-ingredient fallback).
-	await db`
-		INSERT INTO supplement_ingredients (id, supplement_id, name, dosage, dosage_unit, sort_order)
-		VALUES
-			(${SI2A}, ${SUP2}, 'Vitamin A', 800, 'mcg', 0),
-			(${SI2B}, ${SUP2}, 'Vitamin C', 80, 'mg', 1)
+			(${SUP1}, ${U1}, 'Vitamin D', 'daily', 0),
+			(${SUP2}, ${U1}, 'Multivitamin', 'daily', 1)
 	`;
 
 	await db`
-		INSERT INTO supplement_logs (id, supplement_id, user_id, date, taken_at)
+		INSERT INTO supplement_ingredients (id, supplement_id, food_id, servings, sort_order)
 		VALUES
-			(${SL1}, ${SUP1}, ${U1}, CURRENT_DATE, NOW()),
-			(${SL2}, ${SUP2}, ${U1}, CURRENT_DATE, NOW())
+			(${SI1}, ${SUP1}, ${SF1}, 1, 0),
+			(${SI2A}, ${SUP2}, ${SF1}, 1, 0),
+			(${SI2B}, ${SUP2}, ${SF2}, 1, 1)
 	`;
 
 	await db`
@@ -105,6 +112,6 @@ export async function seedData(db: ReturnType<typeof postgres>) {
 	`;
 
 	console.log(
-		'Seeded: 2 users, 1 session, 2 foods, 1 food_entry, 1 recipe, 1 recipe_ingredient, 1 user_goals, 2 supplements (1 with 2 ingredients), 2 supplement_logs, 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
+		'Seeded: 2 users, 1 session, 1 user_preferences, 4 foods (2 supplement-backing), 1 food_entry, 1 recipe, 1 recipe_ingredient, 1 user_goals, 2 supplements (3 ingredients), 1 weight_entry, 1 oauth_client, 1 custom_meal_type'
 	);
 }

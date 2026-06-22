@@ -161,7 +161,7 @@ const mockDeps = {
 		entryCount: entries.length,
 		byMeal: {}
 	}),
-	today: () => '2026-02-10',
+	todayForUser: async () => '2026-02-10',
 	getSupplementChecklist: async () => {
 		const logMap = new Map(mockSupplementLogs.map((l: any) => [l.supplementId, l]));
 		return mockSupplements.map((s: any) => ({

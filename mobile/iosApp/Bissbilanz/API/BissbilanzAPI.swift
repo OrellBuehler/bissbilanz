@@ -480,7 +480,10 @@ final class BissbilanzAPI {
                 if retryHTTP.statusCode == 401 {
                     throw APIError.unauthorized
                 }
-                return try decoder.decode(T.self, from: retryData)
+                // Route the retried response through the same status classification
+                // as the first attempt, so a 4xx/5xx/decode failure on retry surfaces
+                // as the right APIError rather than a raw DecodingError.
+                return try decodeResponse(retryData, retryHTTP)
             }
             // `unauthorized` means "session is dead, prompt to sign in" — a
             // transient refresh failure (offline, 5xx) is just retryable.
@@ -492,20 +495,23 @@ final class BissbilanzAPI {
             }
         }
 
+        return try decodeResponse(data, httpResponse)
+    }
+
+    /// Classifies a response's status code into the right `APIError`
+    /// (notFound / badRequest / serverError) and otherwise decodes the body,
+    /// wrapping decode failures as `.decodingError`. Shared by the first attempt
+    /// and the post-refresh 401 retry so both paths handle errors identically.
+    private func decodeResponse<T: Decodable>(_ data: Data, _ httpResponse: HTTPURLResponse) throws -> T {
         if httpResponse.statusCode == 404 {
             throw APIError.notFound
         }
-
         if httpResponse.statusCode == 400 {
-            let errorMsg = String(data: data, encoding: .utf8)
-            throw APIError.badRequest(errorMsg)
+            throw APIError.badRequest(String(data: data, encoding: .utf8))
         }
-
         if httpResponse.statusCode >= 400 {
-            let errorMsg = String(data: data, encoding: .utf8)
-            throw APIError.serverError(httpResponse.statusCode, errorMsg)
+            throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
         }
-
         do {
             return try decoder.decode(T.self, from: data)
         } catch {

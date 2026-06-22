@@ -5,6 +5,7 @@
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
+	import { parseDecimalInput } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -25,14 +26,24 @@
 
 	const submit = async (e: Event) => {
 		e.preventDefault();
-		const h = Number(hours);
-		const min = Number(minutes);
+		const h = parseDecimalInput(String(hours)) || 0;
+		const min = parseDecimalInput(String(minutes)) || 0;
 		const durationMinutes = h * 60 + min;
-		if (durationMinutes <= 0 || durationMinutes > 24 * 60) return;
+		if (durationMinutes <= 0 || durationMinutes > 24 * 60) {
+			toast.error(m.sleep_invalid_duration());
+			return;
+		}
 		if (!entryDate) return;
 
-		const toIso = (timeStr: string) =>
-			timeStr ? new Date(`${entryDate}T${timeStr}`).toISOString() : null;
+		const toIso = (timeStr: string, dayOffset = 0) => {
+			if (!timeStr) return null;
+			const d = new Date(`${entryDate}T${timeStr}`);
+			if (dayOffset) d.setDate(d.getDate() + dayOffset);
+			return d.toISOString();
+		};
+		// Wake rolls to the next day when it's at/before bedtime (overnight sleep);
+		// otherwise the bedtime→wake interval spans backwards and breaks analytics.
+		const wakeNextDay = bedtime !== '' && wakeTime !== '' && wakeTime <= bedtime;
 
 		saving = true;
 		try {
@@ -41,8 +52,8 @@
 				quality: quality,
 				entryDate,
 				bedtime: toIso(bedtime),
-				wakeTime: toIso(wakeTime),
-				wakeUps: wakeUps !== '' ? Number(wakeUps) : null,
+				wakeTime: toIso(wakeTime, wakeNextDay ? 1 : 0),
+				wakeUps: wakeUps !== '' ? parseDecimalInput(wakeUps) : null,
 				notes: notes || null
 			});
 			hours = 7;

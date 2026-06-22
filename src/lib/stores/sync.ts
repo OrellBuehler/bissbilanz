@@ -142,8 +142,22 @@ export async function refreshPendingCount(): Promise<void> {
 export function startSyncListener(onSynced?: () => void): void {
 	if (!browser || listenerStarted) return;
 	listenerStarted = true;
-	window.addEventListener('online', async () => {
+
+	const drain = async () => {
 		const count = await syncQueue();
 		if (count > 0 && onSynced) onSynced();
+	};
+
+	// Drain anything queued in a previous session. The 'online' event does NOT
+	// fire when the app loads while already connected, so without this an
+	// offline-then-closed write would sit unsent until the next disconnect.
+	// syncQueue() self-guards on offline/already-syncing, so this is safe.
+	void drain();
+
+	window.addEventListener('online', () => void drain());
+
+	// Catch writes queued while the tab was hidden/backgrounded.
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') void drain();
 	});
 }

@@ -1,5 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
-import { parseLocalMinutes } from './meal-timing';
+import { localMinutesOfDay } from './local-time';
 
 export type MealRegularityResult = {
 	meals: {
@@ -14,13 +14,14 @@ export type MealRegularityResult = {
 };
 
 export function computeMealRegularity(
-	entries: { date: string; mealType: string; eatenAt: string | null }[]
+	entries: { date: string; mealType: string; eatenAt: string | null }[],
+	timeZone: string
 ): MealRegularityResult {
 	const byMealDate = new Map<string, Map<string, number>>();
 
 	for (const entry of entries) {
 		if (!entry.eatenAt) continue;
-		const minutes = parseLocalMinutes(entry.eatenAt);
+		const minutes = localMinutesOfDay(entry.eatenAt, timeZone);
 		if (minutes === null) continue;
 
 		if (!byMealDate.has(entry.mealType)) byMealDate.set(entry.mealType, new Map());

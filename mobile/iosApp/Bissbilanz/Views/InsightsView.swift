@@ -19,33 +19,33 @@ struct InsightsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                // Streaks are overall, not range-dependent, so they sit above
+                // the period switcher instead of scrolling inside each range.
+                streaksCard
+                    .padding(.horizontal)
+
                 dateRangePicker
                     .padding(.horizontal)
-                    .padding(.top, 8)
 
-                TabView(selection: $selectedRange) {
-                    rangePage
-                        .tag(7)
-                    rangePage
-                        .tag(30)
-                    rangePage
-                        .tag(90)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                rangeContent
             }
+            .padding(.top, 8)
             .navigationTitle(L10n.insights)
             .task { await loadAll() }
         }
     }
 
-    private var rangePage: some View {
+    /// A single scrolling page of range-dependent cards. This used to be a
+    /// 3-page paging TabView rendering the same heavy charts three times, which
+    /// dropped frames on every swipe; the segmented picker already switches the
+    /// range, so one page is enough and scrolls smoothly.
+    private var rangeContent: some View {
         ScrollView {
             VStack(spacing: 16) {
                 if isLoading {
                     LoadingView()
                 } else {
-                    streaksCard
                     calorieTrendChart
                     macroTrendsCard
                     macroRadarCard
@@ -282,19 +282,21 @@ struct InsightsView: View {
             let fiberHit = dailyStats.filter { $0.fiber >= goals.fiberGoal * 0.9 }.count
 
             CardView {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 14) {
                     Label(L10n.goalAchievement, systemImage: "target")
                         .font(.headline)
 
                     Text("\(L10n.daysWithinGoal) (\(totalDays) \(L10n.dayPeriod))")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    goalBar(L10n.calories, hit: calHit, total: totalDays, color: MacroColors.calories)
-                    goalBar(L10n.protein, hit: proteinHit, total: totalDays, color: MacroColors.protein)
-                    goalBar(L10n.carbs, hit: carbsHit, total: totalDays, color: MacroColors.carbs)
-                    goalBar(L10n.fat, hit: fatHit, total: totalDays, color: MacroColors.fat)
-                    goalBar(L10n.fiber, hit: fiberHit, total: totalDays, color: MacroColors.fiber)
+                    VStack(spacing: 14) {
+                        goalBar(L10n.calories, hit: calHit, total: totalDays, color: MacroColors.calories)
+                        goalBar(L10n.protein, hit: proteinHit, total: totalDays, color: MacroColors.protein)
+                        goalBar(L10n.carbs, hit: carbsHit, total: totalDays, color: MacroColors.carbs)
+                        goalBar(L10n.fat, hit: fatHit, total: totalDays, color: MacroColors.fat)
+                        goalBar(L10n.fiber, hit: fiberHit, total: totalDays, color: MacroColors.fiber)
+                    }
                 }
             }
         }
@@ -303,28 +305,29 @@ struct InsightsView: View {
     private func goalBar(_ label: String, hit: Int, total: Int, color: Color) -> some View {
         let pct = total > 0 ? Double(hit) / Double(total) : 0
 
-        return HStack(spacing: 8) {
+        return HStack(spacing: 10) {
             Text(label)
-                .font(.caption)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(color)
-                .frame(width: 64, alignment: .leading)
+                .frame(width: 76, alignment: .leading)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color(.systemGray5))
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(color)
                         .frame(width: geo.size.width * min(pct, 1))
                 }
             }
-            .frame(height: 8)
+            .frame(height: 14)
 
             Text("\(Int(pct * 100))%")
-                .font(.caption2)
+                .font(.subheadline)
                 .fontWeight(.bold)
-                .frame(width: 36, alignment: .trailing)
+                .monospacedDigit()
+                .frame(width: 44, alignment: .trailing)
         }
     }
 
