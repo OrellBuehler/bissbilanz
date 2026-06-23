@@ -235,6 +235,7 @@ struct LogRecipeSheet: View {
                     DatePicker(L10n.today, selection: $date, displayedComponents: .date)
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(L10n.log)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -68,6 +68,8 @@ struct EntryEditSheet: View {
                 if let errorMessage { Text(errorMessage) }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func save() async {

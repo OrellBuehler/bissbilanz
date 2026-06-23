@@ -102,6 +102,7 @@ struct FoodEditSheet: View {
                     }
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(existingFood != nil ? L10n.editFood : L10n.createFood)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

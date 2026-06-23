@@ -78,6 +78,13 @@ struct MacroRingView: View {
         }
         .onAppear { syncProgress() }
         .onChange(of: progress) { _, _ in syncProgress() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(accessibilityValueText)
+    }
+
+    private var accessibilityValueText: String {
+        goal > 0 ? "\(Int(current)) / \(Int(goal))" : "\(Int(current))"
     }
 
     private func syncProgress() {

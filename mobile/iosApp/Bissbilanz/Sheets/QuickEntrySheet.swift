@@ -39,6 +39,7 @@ struct QuickEntrySheet: View {
                     macroField(L10n.fiber, text: $fiber, unit: "g")
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(L10n.quickEntry)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

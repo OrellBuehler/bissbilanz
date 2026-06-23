@@ -31,6 +31,8 @@ struct MealCard: View {
                 Spacer()
                 Text("\(Int(mealCalories)) cal")
                     .font(.subheadline)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: mealCalories))
                     .foregroundStyle(.secondary)
             }
 
@@ -45,6 +47,7 @@ struct MealCard: View {
                         .foregroundStyle(.secondary)
                     Text("\(Int(entry.totalCalories))")
                         .font(.caption)
+                        .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
             }

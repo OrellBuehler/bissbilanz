@@ -238,6 +238,7 @@ struct WeightView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel(L10n.logWeight)
                 }
             }
             .sheet(isPresented: $showAddSheet) {
@@ -316,6 +317,8 @@ struct WeightView: View {
             Text(String(format: "%.1f kg", entries.first?.weightKg ?? 0))
                 .font(.title2)
                 .fontWeight(.bold)
+                .monospacedDigit()
+                .contentTransition(.numericText(value: entries.first?.weightKg ?? 0))
                 .foregroundStyle(.blue)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -752,6 +755,7 @@ struct AddWeightSheet: View {
                     TextField(L10n.notes, text: $notes)
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(existingEntry != nil ? L10n.edit : L10n.logWeight)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -776,6 +780,8 @@ struct AddWeightSheet: View {
                 if let errorMessage { Text(errorMessage) }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func writeToHealthIfEnabled(kg: Double) async {

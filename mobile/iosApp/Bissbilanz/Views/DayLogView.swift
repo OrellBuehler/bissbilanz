@@ -39,18 +39,21 @@ struct DayLogView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .disabled(isCopying)
+                .accessibilityLabel(L10n.copyYesterday)
 
                 Button {
                     showQuickEntry = true
                 } label: {
                     Image(systemName: "pencil")
                 }
+                .accessibilityLabel(L10n.quickEntry)
 
                 Button {
                     showFoodSearch = true
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel(L10n.addFood)
             }
         }
         .refreshable { await loadEntries() }
@@ -147,6 +150,8 @@ struct DayLogView: View {
                             Text("\(Int(cal)) cal")
                                 .font(.caption)
                                 .fontWeight(.bold)
+                                .monospacedDigit()
+                                .contentTransition(.numericText(value: cal))
                                 .foregroundStyle(MacroColors.calories)
                         }
                         HStack(spacing: 12) {
@@ -155,12 +160,15 @@ struct DayLogView: View {
                             let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
                             Text("P \(Int(p))g")
                                 .font(.caption2)
+                                .monospacedDigit()
                                 .foregroundStyle(MacroColors.protein)
                             Text("C \(Int(c))g")
                                 .font(.caption2)
+                                .monospacedDigit()
                                 .foregroundStyle(MacroColors.carbs)
                             Text("F \(Int(f))g")
                                 .font(.caption2)
+                                .monospacedDigit()
                                 .foregroundStyle(MacroColors.fat)
                         }
                     }
@@ -181,15 +189,18 @@ struct DayLogView: View {
                         .foregroundStyle(.primary)
                     Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
                         .font(.caption)
+                        .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("P\(Int(entry.totalProtein))")
                         .font(.caption2)
+                        .monospacedDigit()
                         .foregroundStyle(MacroColors.protein)
                     Text("C\(Int(entry.totalCarbs)) F\(Int(entry.totalFat))")
                         .font(.caption2)
+                        .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
             }
@@ -216,7 +227,7 @@ struct DayLogView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-        entries = entryRepository.entries(date: date)
+        withAnimation { entries = entryRepository.entries(date: date) }
     }
 
     private func copyYesterday() async {
@@ -225,7 +236,8 @@ struct DayLogView: View {
         let yesterday = viewedDate.adding(days: -1).isoDateString
         do {
             try await entryRepository.copyEntries(fromDate: yesterday, toDate: date)
-            entries = entryRepository.entries(date: date)
+            withAnimation { entries = entryRepository.entries(date: date) }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             errorMessage = error.localizedDescription
         }

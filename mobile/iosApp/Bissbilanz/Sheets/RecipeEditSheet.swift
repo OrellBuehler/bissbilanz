@@ -80,6 +80,7 @@ struct RecipeEditSheet: View {
                     }
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(existingRecipe != nil ? L10n.editRecipe : L10n.createRecipe)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
