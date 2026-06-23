@@ -85,6 +85,7 @@ struct SleepView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel(L10n.logSleep)
                 }
             }
             .sheet(isPresented: $showAddSheet) {
@@ -553,6 +554,7 @@ struct AddSleepSheet: View {
                     TextField(L10n.notes, text: $notes)
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(existingEntry != nil ? L10n.edit : L10n.logSleep)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

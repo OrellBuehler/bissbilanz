@@ -55,6 +55,7 @@ struct FoodSearchView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel(L10n.createFood)
             }
         }
         .navigationDestination(for: Food.self) { food in

@@ -65,6 +65,26 @@ enum L10n {
         localized("done", en: "Done", de: "Fertig")
     }
 
+    static var expand: String {
+        localized("expand", en: "Expand", de: "Erweitern")
+    }
+
+    static var collapse: String {
+        localized("collapse", en: "Collapse", de: "Einklappen")
+    }
+
+    static var more: String {
+        localized("more", en: "More", de: "Mehr")
+    }
+
+    static var addToFavorites: String {
+        localized("add_to_favorites", en: "Add to favorites", de: "Zu Favoriten hinzufügen")
+    }
+
+    static var removeFromFavorites: String {
+        localized("remove_from_favorites", en: "Remove from favorites", de: "Aus Favoriten entfernen")
+    }
+
     static var today: String {
         localized("today", en: "Today", de: "Heute")
     }

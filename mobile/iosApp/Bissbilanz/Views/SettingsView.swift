@@ -386,6 +386,7 @@ struct SettingsView: View {
                     goalField(L10n.fiber + " (g)", text: $editFiber)
                 }
             }
+            .keyboardDismissable()
             .navigationTitle(L10n.editGoals)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -53,12 +53,14 @@ struct SupplementsView: View {
                         } label: {
                             Image(systemName: "clock.arrow.circlepath")
                         }
+                        .accessibilityLabel(L10n.supplementHistory)
 
                         Button {
                             showCreateSheet = true
                         } label: {
                             Image(systemName: "plus")
                         }
+                        .accessibilityLabel(L10n.createSupplement)
                     }
                 }
             }
@@ -96,6 +98,8 @@ struct SupplementsView: View {
                     Spacer()
                     Text("\(takenCount)/\(totalCount)")
                         .font(.subheadline)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: Double(takenCount)))
                         .foregroundStyle(.secondary)
                 }
 
@@ -169,6 +173,8 @@ struct SupplementsView: View {
                     Image(systemName: isTaken ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
                         .foregroundStyle(isTaken ? .green : .secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                        .symbolEffect(.bounce, value: isTaken)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(supplement.name)
@@ -203,8 +209,10 @@ struct SupplementsView: View {
                                 Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(isExpanded ? L10n.collapse : L10n.expand)
                         }
                     }
                 }
@@ -234,6 +242,7 @@ struct SupplementsView: View {
                     }
                 }
                 .padding(.leading, 44)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
@@ -287,6 +296,7 @@ struct SupplementsView: View {
 
     private func toggleSupplement(_ supplement: Supplement, isTaken: Bool) async {
         let dateString = DateFormatting.today
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         do {
             if isTaken {
                 try await supplementRepository.unlogSupplement(id: supplement.id, date: dateString)
@@ -296,7 +306,7 @@ struct SupplementsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-        loggedIds = supplementRepository.loggedSupplementIds(date: dateString)
+        withAnimation { loggedIds = supplementRepository.loggedSupplementIds(date: dateString) }
     }
 
     private func deleteSupplement(_ supplement: Supplement) async {

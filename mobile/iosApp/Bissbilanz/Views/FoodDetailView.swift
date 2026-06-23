@@ -36,8 +36,11 @@ struct FoodDetailView: View {
                     } label: {
                         Image(systemName: food.isFavorite ? "star.fill" : "star")
                             .foregroundStyle(food.isFavorite ? .yellow : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
+                            .symbolEffect(.bounce, value: food.isFavorite)
                     }
                     .disabled(isTogglingFavorite)
+                    .accessibilityLabel(food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites)
 
                     Menu {
                         Button {
@@ -62,6 +65,7 @@ struct FoodDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel(L10n.more)
                 }
             }
         }
@@ -275,6 +279,7 @@ struct FoodDetailView: View {
     private func toggleFavorite() async {
         guard let food else { return }
         isTogglingFavorite = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         do {
             self.food = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
         } catch {

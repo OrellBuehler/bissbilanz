@@ -76,7 +76,10 @@ jobs:
   swift:
     name: Analyze (swift)
     runs-on: macos-14
-    timeout-minutes: 60
+    # CodeQL traces the Swift compiler, so the build runs far slower than a
+    # normal xcodebuild (~2-4 min) — successful runs land at 35-45 min. 60 was
+    # too tight and an occasional slow runner tipped over it; 90 gives headroom.
+    timeout-minutes: 90
     permissions:
       contents: read
       security-events: write
@@ -154,12 +157,20 @@ jobs:
       - name: Build iOS app
         working-directory: mobile/iosApp
         run: |
+          # Use a generic Simulator destination, not a named device: resolving
+          # `name=iPhone 16,OS=latest` makes xcodebuild query/boot a specific
+          # CoreSimulator device, which stalls indefinitely under CodeQL's build
+          # tracer (hit the 60-min timeout). The staged shared.framework is the
+          # arm64 simulator slice and the runner is arm64, so build arm64-only —
+          # otherwise the generic destination also builds x86_64 and can't find a
+          # slice. Mirrors the build in mobile-ios.yml.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4

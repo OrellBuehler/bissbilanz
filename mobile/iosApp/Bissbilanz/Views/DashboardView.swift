@@ -431,6 +431,7 @@ struct DashboardView: View {
                         .frame(width: 44, height: 44)
                 }
                 .circularGlassBackground()
+                .accessibilityLabel(L10n.scanBarcode)
 
                 Button {
                     showQuickEntry = true
@@ -441,6 +442,7 @@ struct DashboardView: View {
                         .frame(width: 44, height: 44)
                 }
                 .circularGlassBackground()
+                .accessibilityLabel(L10n.quickEntry)
 
                 Button {
                     showFoodSearch = true
@@ -453,6 +455,7 @@ struct DashboardView: View {
                         .frame(width: 56, height: 56)
                 }
                 .circularGlassBackground(tint: MacroColors.calories)
+                .accessibilityLabel(L10n.addFood)
             }
             .padding()
         }
@@ -537,7 +540,7 @@ struct DashboardView: View {
             return SupplementChecklist(
                 supplement: entry.supplement,
                 taken: nowTaken,
-                takenAt: nowTaken ? ISO8601DateFormatter().string(from: Date()) : nil
+                takenAt: nowTaken ? DateFormatting.isoDateTimeString(from: Date()) : nil
             )
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
