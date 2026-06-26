@@ -41,6 +41,16 @@
     <string name="sleep_no_entries">Noch keine Schlafeinträge. Tippe +, um Schlaf zu erfassen.</string>
     <string name="sleep_quality_trend">Qualitätsverlauf</string>
     <string name="sleep_avg_quality">Ø Qualität</string>
+    <string name="sleep_duration_trend">Dauerverlauf</string>
+    <string name="sleep_avg_duration">Ø Dauer</string>
+    <string name="sleep_evening_eating_title">Schlaf &amp; Abendessen</string>
+    <string name="sleep_evening_eating_description">Wie Abendkalorien mit deinem Schlaf zusammenhängen</string>
+    <string name="sleep_light_evening">Leichter Abend</string>
+    <string name="sleep_heavy_evening">Schwerer Abend</string>
+    <string name="sleep_delete_content_desc">Schlafeintrag löschen</string>
+    <string name="sleep_delete_dialog_title">Schlafeintrag löschen</string>
+    <string name="sleep_delete_dialog_text">Schlafeintrag vom %1$s löschen?</string>
+    <string name="action_delete">Löschen</string>
     <string name="sleep_log_dialog_title">Schlaf erfassen</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>

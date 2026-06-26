@@ -41,6 +41,16 @@
     <string name="sleep_no_entries">No sleep entries yet. Tap + to log your sleep.</string>
     <string name="sleep_quality_trend">Quality Trend</string>
     <string name="sleep_avg_quality">Avg Quality</string>
+    <string name="sleep_duration_trend">Duration Trend</string>
+    <string name="sleep_avg_duration">Avg Duration</string>
+    <string name="sleep_evening_eating_title">Sleep &amp; Evening Eating</string>
+    <string name="sleep_evening_eating_description">How evening calories relate to your sleep</string>
+    <string name="sleep_light_evening">Light evening</string>
+    <string name="sleep_heavy_evening">Heavy evening</string>
+    <string name="sleep_delete_content_desc">Delete sleep entry</string>
+    <string name="sleep_delete_dialog_title">Delete Sleep Entry</string>
+    <string name="sleep_delete_dialog_text">Delete sleep entry from %1$s?</string>
+    <string name="action_delete">Delete</string>
     <string name="sleep_log_dialog_title">Log Sleep</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
