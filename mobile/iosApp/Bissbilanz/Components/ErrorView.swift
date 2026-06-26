@@ -10,7 +10,7 @@ struct ErrorView: View {
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
 
-            Text("Something went wrong")
+            Text(L10n.somethingWentWrong)
                 .font(.headline)
 
             Text(error.localizedDescription)
@@ -19,7 +19,7 @@ struct ErrorView: View {
                 .multilineTextAlignment(.center)
 
             if let retryAction {
-                Button("Try Again", action: retryAction)
+                Button(L10n.retry, action: retryAction)
                     .buttonStyle(.bordered)
             }
         }

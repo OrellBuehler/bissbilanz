@@ -4,6 +4,8 @@ struct ToastModifier: ViewModifier {
     @Binding var message: String?
     var duration: TimeInterval = 2.0
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .bottom) {
@@ -21,12 +23,12 @@ struct ToastModifier: ViewModifier {
                         .onAppear {
                             Task {
                                 try? await Task.sleep(for: .seconds(duration))
-                                withAnimation(.easeOut(duration: 0.3)) { self.message = nil }
+                                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) { self.message = nil }
                             }
                         }
                 }
             }
-            .animation(.spring(duration: 0.3), value: message)
+            .animation(reduceMotion ? nil : .spring(duration: 0.3), value: message)
     }
 }
 

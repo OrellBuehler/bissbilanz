@@ -20,9 +20,11 @@ struct FoodSearchView: View {
     @State private var errorMessage: String?
     @State private var toastMessage: String?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab.animation()) {
+            Picker("", selection: $selectedTab.animation(reduceMotion ? nil : .default)) {
                 Text(L10n.search).tag(0)
                 Text(L10n.recent).tag(1)
                 Text(L10n.favorites).tag(2)

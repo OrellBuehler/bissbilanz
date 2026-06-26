@@ -16,6 +16,7 @@ struct InsightsView: View {
     @State private var isLoading = true
     @State private var calendarMonth = Date()
     @ScaledMetric(relativeTo: .largeTitle) private var streakNumberSize = 36.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
@@ -64,7 +65,7 @@ struct InsightsView: View {
     // MARK: - Date Range Picker
 
     private var dateRangePicker: some View {
-        Picker(L10n.period, selection: $selectedRange.animation()) {
+        Picker(L10n.period, selection: $selectedRange.animation(reduceMotion ? nil : .default)) {
             Text("7d").tag(7)
             Text("30d").tag(30)
             Text("90d").tag(90)

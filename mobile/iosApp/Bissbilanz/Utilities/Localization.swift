@@ -61,6 +61,54 @@ enum L10n {
         localized("retry", en: "Retry", de: "Erneut versuchen")
     }
 
+    static var name: String {
+        localized("name", en: "Name", de: "Name")
+    }
+
+    static var favorite: String {
+        localized("favorite", en: "Favorite", de: "Favorit")
+    }
+
+    static var active: String {
+        localized("active", en: "Active", de: "Aktiv")
+    }
+
+    static var type: String {
+        localized("type", en: "Type", de: "Typ")
+    }
+
+    static var unit: String {
+        localized("unit", en: "Unit", de: "Einheit")
+    }
+
+    static var dose: String {
+        localized("dose", en: "Dose", de: "Dosis")
+    }
+
+    static var schedule: String {
+        localized("schedule", en: "Schedule", de: "Zeitplan")
+    }
+
+    static var timeOfDay: String {
+        localized("time_of_day", en: "Time of Day", de: "Tageszeit")
+    }
+
+    static var recipeName: String {
+        localized("recipe_name", en: "Recipe Name", de: "Rezeptname")
+    }
+
+    static var selectFood: String {
+        localized("select_food", en: "Select Food", de: "Lebensmittel auswählen")
+    }
+
+    static var somethingWentWrong: String {
+        localized("something_went_wrong", en: "Something went wrong", de: "Etwas ist schiefgelaufen")
+    }
+
+    static var typeToSearchHint: String {
+        localized("type_to_search_hint", en: "Type at least 2 characters", de: "Mindestens 2 Zeichen eingeben")
+    }
+
     static var done: String {
         localized("done", en: "Done", de: "Fertig")
     }

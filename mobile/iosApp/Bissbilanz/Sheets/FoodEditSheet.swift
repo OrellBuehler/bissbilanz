@@ -54,7 +54,7 @@ struct FoodEditSheet: View {
                 }
 
                 Section {
-                    TextField("Name", text: $name)
+                    TextField(L10n.name, text: $name)
                     TextField(L10n.brand, text: $brand)
                     TextField(L10n.barcode, text: $barcode)
                         .keyboardType(.numberPad)
@@ -65,7 +65,7 @@ struct FoodEditSheet: View {
                         TextField("100", text: $servingSize)
                             .keyboardType(.decimalPad)
                             .frame(width: 80)
-                        Picker("Unit", selection: $servingUnit) {
+                        Picker(L10n.unit, selection: $servingUnit) {
                             ForEach(ServingUnit.allCases, id: \.self) { unit in
                                 Text(unit.displayName).tag(unit)
                             }
@@ -91,7 +91,7 @@ struct FoodEditSheet: View {
                 }
 
                 Section {
-                    Toggle("Favorite", isOn: $isFavorite)
+                    Toggle(L10n.favorite, isOn: $isFavorite)
                 }
 
                 if let errorMessage {

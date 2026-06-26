@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -21,9 +22,11 @@ import kotlin.math.abs
 fun NutrientSleepCard(correlations: List<NutrientCorrelation>) {
     CollapsibleCard(title = "Nutrients & Sleep", sectionId = "nutrient_sleep") {
         val filtered =
-            correlations
-                .filter { it.correlation.confidence != ConfidenceLevel.INSUFFICIENT }
-                .sortedByDescending { abs(it.correlation.r) }
+            remember(correlations) {
+                correlations
+                    .filter { it.correlation.confidence != ConfidenceLevel.INSUFFICIENT }
+                    .sortedByDescending { abs(it.correlation.r) }
+            }
         if (filtered.isEmpty()) {
             Text(
                 stringResource(R.string.insights_not_enough_data),

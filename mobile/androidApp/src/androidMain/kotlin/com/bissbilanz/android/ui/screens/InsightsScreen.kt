@@ -68,6 +68,7 @@ import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
 import com.bissbilanz.model.SleepCreate
+import com.bissbilanz.model.SleepEntry
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -447,6 +448,7 @@ fun InsightsScreen() {
                     val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
                     val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
                     var showSleepDialog by remember { mutableStateOf(false) }
+                    var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
 
                     CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
                         Row(
@@ -487,7 +489,11 @@ fun InsightsScreen() {
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                Text("Duration Trend", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.sleep_duration_trend),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 SimpleLineChart(
                                     data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
@@ -523,7 +529,7 @@ fun InsightsScreen() {
                                         fontWeight = FontWeight.Bold,
                                     )
                                     Text(
-                                        "Avg Duration",
+                                        stringResource(R.string.sleep_avg_duration),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -557,10 +563,13 @@ fun InsightsScreen() {
                                         }
                                     }
                                     IconButton(
-                                        onClick = { viewModel.deleteSleepEntry(entry.id) },
-                                        modifier = Modifier.size(32.dp),
+                                        onClick = { sleepEntryToDelete = entry },
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = stringResource(R.string.sleep_delete_content_desc),
+                                            modifier = Modifier.size(16.dp),
+                                        )
                                     }
                                 }
                                 HorizontalDivider()
@@ -571,9 +580,9 @@ fun InsightsScreen() {
                     // Sleep-Food Correlation
                     if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        CollapsibleCard(title = "Sleep & Evening Eating", sectionId = "sleepfood") {
+                        CollapsibleCard(title = stringResource(R.string.sleep_evening_eating_title), sectionId = "sleepfood") {
                             Text(
-                                "How evening calories relate to your sleep",
+                                stringResource(R.string.sleep_evening_eating_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -597,7 +606,7 @@ fun InsightsScreen() {
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Text(
-                                            "Light evening",
+                                            stringResource(R.string.sleep_light_evening),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -615,7 +624,7 @@ fun InsightsScreen() {
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Text(
-                                            "Heavy evening",
+                                            stringResource(R.string.sleep_heavy_evening),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -687,6 +696,28 @@ fun InsightsScreen() {
                                     ),
                                 )
                                 showSleepDialog = false
+                            },
+                        )
+                    }
+
+                    sleepEntryToDelete?.let { entry ->
+                        AlertDialog(
+                            onDismissRequest = { sleepEntryToDelete = null },
+                            title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
+                            text = { Text(stringResource(R.string.sleep_delete_dialog_text, entry.entryDate)) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.deleteSleepEntry(entry.id)
+                                        sleepEntryToDelete = null
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                ) { Text(stringResource(R.string.action_delete)) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { sleepEntryToDelete = null }) {
+                                    Text(stringResource(R.string.dialog_cancel))
+                                }
                             },
                         )
                     }

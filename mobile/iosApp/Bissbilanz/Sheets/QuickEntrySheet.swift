@@ -23,7 +23,7 @@ struct QuickEntrySheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Name", text: $name)
+                    TextField(L10n.name, text: $name)
                     Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
                             Text(L10n.mealName(meal)).tag(meal)

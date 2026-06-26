@@ -31,7 +31,7 @@ struct RecipeEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Recipe Name", text: $name)
+                    TextField(L10n.recipeName, text: $name)
                     HStack {
                         Text(L10n.totalServings)
                         Spacer()
@@ -180,7 +180,7 @@ struct FoodPickerSheet: View {
                     ContentUnavailableView(
                         L10n.search,
                         systemImage: "magnifyingglass",
-                        description: Text("Type at least 2 characters")
+                        description: Text(L10n.typeToSearchHint)
                     )
                 } else if isSearching {
                     LoadingView()
@@ -206,7 +206,7 @@ struct FoodPickerSheet: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Select Food")
+            .navigationTitle(L10n.selectFood)
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: L10n.searchFoods)
             .onChange(of: query) { _, newValue in
