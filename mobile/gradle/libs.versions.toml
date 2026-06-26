@@ -1,7 +1,7 @@
 [versions]
 agp = "9.2.1"
 kotlin = "2.3.21"
-compose-bom = "2026.04.01"
+compose-bom = "2026.06.00"
 compose-navigation = "2.9.8"
 ktor = "3.5.0"
 sqldelight = "2.3.2"
