@@ -24,12 +24,18 @@ struct CalendarView: View {
         Calendar.current.component(.month, from: currentMonth)
     }
 
+    /// Date-string → day, so each grid cell is an O(1) lookup instead of a
+    /// linear scan of `calendarDays` (the grid renders 28–42 cells per month).
+    private var daysByDate: [String: CalendarDay] {
+        Dictionary(calendarDays.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
     private var daysLogged: Int {
-        calendarDays.filter { $0.calories > 0 }.count
+        calendarDays.count { $0.calories > 0 }
     }
 
     private var daysOnTarget: Int {
-        calendarDays.filter(\.metGoal).count
+        calendarDays.count(where: \.metGoal)
     }
 
     private var avgCalories: Double {
@@ -99,6 +105,7 @@ struct CalendarView: View {
             LazyVGrid(columns: columns, spacing: 4) {
                 let offset = currentMonth.weekdayOffset
                 let daysInMonth = currentMonth.daysInMonth
+                let dayMap = daysByDate
 
                 ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
                     if index < offset {
@@ -106,7 +113,7 @@ struct CalendarView: View {
                     } else {
                         let dayNum = index - offset + 1
                         let dateStr = String(format: "%04d-%02d-%02d", year, month, dayNum)
-                        let calDay = calendarDays.first { $0.date == dateStr }
+                        let calDay = dayMap[dateStr]
 
                         let isToday = dateStr == DateFormatting.today
                         NavigationLink(value: dateStr) {

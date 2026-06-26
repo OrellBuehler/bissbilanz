@@ -70,7 +70,7 @@ struct DashboardView: View {
                     ZStack {
                         dayContent
                             .id(dateString)
-                            .transition(.push(from: slideEdge))
+                            .transition(reduceMotion ? .identity : .push(from: slideEdge))
                     }
                 }
                 .padding()
@@ -307,28 +307,6 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Fasting Day Banner
-
-    private var fastingBanner: some View {
-        HStack {
-            Image(systemName: "leaf")
-                .foregroundStyle(.orange)
-            Text(L10n.fastingDay)
-                .font(.subheadline)
-                .fontWeight(.medium)
-            Spacer()
-            Button {
-                Task { await toggleFastingDay() }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-        .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
     // MARK: - Weight Widget
 
     private func weightWidget(_ entry: WeightEntry) -> some View {
@@ -367,7 +345,7 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Spacer()
-                let taken = supplementChecklist.filter(\.taken).count
+                let taken = supplementChecklist.count(where: \.taken)
                 Text("\(taken)/\(supplementChecklist.count)")
                     .font(.caption)
                     .foregroundStyle(taken == supplementChecklist.count ? .green : .secondary)

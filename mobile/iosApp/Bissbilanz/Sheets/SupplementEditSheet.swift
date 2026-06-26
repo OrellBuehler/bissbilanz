@@ -39,11 +39,11 @@ struct SupplementEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Name", text: $name)
+                    TextField(L10n.name, text: $name)
                 }
 
-                Section("Schedule") {
-                    Picker("Type", selection: $scheduleType) {
+                Section(L10n.schedule) {
+                    Picker(L10n.type, selection: $scheduleType) {
                         Text(L10n.daily).tag(ScheduleType.daily)
                         Text(L10n.everyOtherDay).tag(ScheduleType.everyOtherDay)
                         Text(L10n.weekly).tag(ScheduleType.weekly)
@@ -62,18 +62,18 @@ struct SupplementEditSheet: View {
                                 } label: {
                                     Text(weekdays[day])
                                         .font(.caption2)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 6)
+                                        .frame(maxWidth: .infinity, minHeight: 36)
                                         .background(scheduleDays.contains(day) ? Color.accentColor : Color.clear)
                                         .foregroundStyle(scheduleDays.contains(day) ? .white : .primary)
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .contentShape(RoundedRectangle(cornerRadius: 6))
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                     }
 
-                    Picker("Time of Day", selection: $timeOfDay) {
+                    Picker(L10n.timeOfDay, selection: $timeOfDay) {
                         Text(L10n.morning).tag("morning")
                         Text(L10n.noon).tag("noon")
                         Text(L10n.evening).tag("evening")
@@ -82,17 +82,17 @@ struct SupplementEditSheet: View {
                 }
 
                 Section {
-                    Toggle("Active", isOn: $isActive)
+                    Toggle(L10n.active, isOn: $isActive)
                 }
 
                 Section(L10n.ingredients) {
                     ForEach($ingredientRows) { $row in
                         HStack {
-                            TextField("Name", text: $row.name)
-                            TextField("Dose", text: $row.dosage)
+                            TextField(L10n.name, text: $row.name)
+                            TextField(L10n.dose, text: $row.dosage)
                                 .keyboardType(.decimalPad)
                                 .frame(width: 60)
-                            TextField("Unit", text: $row.dosageUnit)
+                            TextField(L10n.unit, text: $row.dosageUnit)
                                 .frame(width: 40)
                         }
                     }
