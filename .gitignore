@@ -75,3 +75,6 @@ mobile/iosApp/build-device/
 # Crawled catalog datasets — never commit (public repo; private data)
 data/catalog/
 tests/fixtures/catalog/bad.jsonl
+
+# Apple provisioning profiles (signing artifacts, never commit)
+*.mobileprovision
