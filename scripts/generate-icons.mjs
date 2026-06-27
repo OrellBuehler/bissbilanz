@@ -220,6 +220,38 @@ async function generateIos() {
 	console.log(`  mobile/iosApp/Bissbilanz/Assets.xcassets/AppIcon.appiconset/Contents.json`);
 }
 
+async function generateWatch() {
+	console.log('\nwatchOS icons:');
+	const assetDir = join(ROOT, 'mobile/iosApp/BissbilanzWatch/Assets.xcassets/AppIcon.appiconset');
+	ensureDir(assetDir);
+
+	// watchOS uses the single-size 1024×1024 app icon (Xcode 14+); actool
+	// derives every on-device size from it. Full-bleed and opaque like iOS —
+	// watchOS applies its own circular mask and rejects alpha.
+	const filename = 'icon-1024.png';
+	await generatePng(1024, join(assetDir, filename), { source: iosSvgBuffer, flatten: true });
+
+	const contents = {
+		images: [
+			{
+				filename,
+				idiom: 'universal',
+				platform: 'watchos',
+				size: '1024x1024'
+			}
+		],
+		info: {
+			author: 'xcode',
+			version: 1
+		}
+	};
+
+	const catalogInfo = { info: { author: 'xcode', version: 1 } };
+	writeFileSync(join(assetDir, '..', 'Contents.json'), JSON.stringify(catalogInfo, null, 2) + '\n');
+	writeFileSync(join(assetDir, 'Contents.json'), JSON.stringify(contents, null, 2) + '\n');
+	console.log(`  mobile/iosApp/BissbilanzWatch/Assets.xcassets/AppIcon.appiconset/Contents.json`);
+}
+
 async function main() {
 	console.log(
 		`Generating icons from: static/icon.svg (web/Android) + mobile/iosApp/AppIcon.svg (iOS)\n`
@@ -228,6 +260,7 @@ async function main() {
 	await generateWeb();
 	await generateAndroid();
 	await generateIos();
+	await generateWatch();
 
 	console.log('\nDone! All icons generated.');
 }
