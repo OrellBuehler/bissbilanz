@@ -2,7 +2,10 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.sentry)
 }
+
+val sentryAuthToken = System.getenv("SENTRY_AUTH_TOKEN")
 
 kotlin {
     androidTarget {
@@ -135,4 +138,14 @@ android {
         androidTestImplementation(libs.test.runner)
         androidTestImplementation(libs.test.rules)
     }
+}
+
+sentry {
+    org.set("orells-organization")
+    projectName.set("bissbilanz")
+    authToken.set(sentryAuthToken)
+    includeProguardMapping.set(true)
+    autoUploadProguardMapping.set(!sentryAuthToken.isNullOrBlank())
+    autoInstallation { enabled.set(false) }
+    tracingInstrumentation { enabled.set(false) }
 }

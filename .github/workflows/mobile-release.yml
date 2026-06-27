@@ -78,6 +78,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           APP_VERSION: ${{ steps.version.outputs.tag }}
         run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN="$SENTRY_DSN" -PAPP_VERSION="$APP_VERSION"
 
