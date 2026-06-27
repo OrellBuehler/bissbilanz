@@ -7,12 +7,16 @@
 	<string>app-store-connect</string>
 	<!-- Manual signing with a self-managed distribution identity. The CI job
 	     imports our Apple Distribution certificate (.p12) into a temporary
-	     keychain and installs these two App Store provisioning profiles before
-	     export; export then re-signs the app + widget with them. This avoids
-	     Xcode's cloud-managed distribution certificate, whose private key lives
-	     in Apple's signing service and intermittently fails to be re-fetched on
-	     ephemeral CI runners (which produced dev-signed IPAs that App Store
-	     Connect rejects). teamID is injected from a secret in CI. -->
+	     keychain and installs these App Store provisioning profiles before
+	     export; export then re-signs the app, widgets and the embedded watch
+	     app + watch widgets with them. This avoids Xcode's cloud-managed
+	     distribution certificate, whose private key lives in Apple's signing
+	     service and intermittently fails to be re-fetched on ephemeral CI
+	     runners (which produced dev-signed IPAs that App Store Connect
+	     rejects). teamID is injected from a secret in CI. Every embedded
+	     bundle needs an entry here — including the watch targets, whose
+	     profiles must carry the App Groups (group.com.bissbilanz.watch)
+	     feature. -->
 	<key>signingStyle</key>
 	<string>manual</string>
 	<key>signingCertificate</key>
@@ -23,6 +27,10 @@
 		<string>Bissbilanz iOS App Store</string>
 		<key>com.bissbilanz.ios.widgets</key>
 		<string>Bissbilanz Widgets App Store</string>
+		<key>com.bissbilanz.ios.watchkitapp</key>
+		<string>Bissbilanz Watch App Store</string>
+		<key>com.bissbilanz.ios.watchkitapp.widgets</key>
+		<string>Bissbilanz Watch Widgets App Store</string>
 	</dict>
 	<!-- The build number is set explicitly in CI (CURRENT_PROJECT_VERSION from
 	     the run number); don't let export rewrite it. -->
