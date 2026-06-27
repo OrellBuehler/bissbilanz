@@ -78,6 +78,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           APP_VERSION: ${{ steps.version.outputs.tag }}
         run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN="$SENTRY_DSN" -PAPP_VERSION="$APP_VERSION"
 
@@ -238,6 +239,8 @@ jobs:
           DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
           PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
           PROFILE_WIDGET_BASE64: ${{ secrets.IOS_PROFILE_WIDGET_BASE64 }}
+          PROFILE_WATCH_BASE64: ${{ secrets.IOS_PROFILE_WATCH_BASE64 }}
+          PROFILE_WATCH_WIDGET_BASE64: ${{ secrets.IOS_PROFILE_WATCH_WIDGET_BASE64 }}
         # Manual export signing needs our Apple Distribution identity in a
         # keychain and the App Store profiles installed where xcodebuild looks.
         # A throwaway keychain keeps the private key off the persistent runner.
@@ -270,6 +273,8 @@ jobs:
           }
           install_profile "$PROFILE_APP_BASE64"
           install_profile "$PROFILE_WIDGET_BASE64"
+          install_profile "$PROFILE_WATCH_BASE64"
+          install_profile "$PROFILE_WATCH_WIDGET_BASE64"
 
           security find-identity -v -p codesigning "$KEYCHAIN"
 
