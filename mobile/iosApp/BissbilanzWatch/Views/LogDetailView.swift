@@ -134,10 +134,10 @@ struct LogDetailView: View {
     /// heuristic.
     private static func defaultMealForNow() -> String {
         switch Calendar.current.component(.hour, from: Date()) {
-        case 5 ..< 11: "breakfast"
-        case 11 ..< 14: "lunch"
-        case 14 ..< 17: "snacks"
-        default: "dinner"
+        case 5 ..< 11: "Breakfast"
+        case 11 ..< 14: "Lunch"
+        case 14 ..< 17: "Snacks"
+        default: "Dinner"
         }
     }
 }

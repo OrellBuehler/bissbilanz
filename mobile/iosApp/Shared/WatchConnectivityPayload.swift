@@ -48,7 +48,7 @@ struct WatchState: Codable {
     static var placeholder: WatchState {
         WatchState(
             snapshot: .placeholder,
-            mealTypes: ["breakfast", "lunch", "dinner", "snacks"],
+            mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
             recents: []
         )
     }

@@ -12,7 +12,7 @@ struct EntryEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
+    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     init(entry: Entry, onSaved: @escaping (Entry) -> Void) {
         self.entry = entry
