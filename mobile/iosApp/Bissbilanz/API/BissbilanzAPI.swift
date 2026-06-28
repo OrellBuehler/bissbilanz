@@ -11,7 +11,11 @@ enum APIError: Error, LocalizedError {
     case conflict(serverNewer: Bool)
     case serverError(Int, String?)
     case networkError(Error)
-    case decodingError(Error)
+    /// The HTTP status and (truncated) body are carried alongside the underlying
+    /// `DecodingError` so telemetry records the real response that failed to
+    /// parse — an envelope/key/field mismatch otherwise surfaces as a bare
+    /// decode error with no status or body.
+    case decodingError(Error, statusCode: Int, body: String?)
 
     var errorDescription: String? {
         switch self {
@@ -22,7 +26,7 @@ enum APIError: Error, LocalizedError {
         case .conflict: "Conflict"
         case let .serverError(code, msg): msg ?? "Server error (\(code))"
         case let .networkError(err): err.localizedDescription
-        case let .decodingError(err): "Failed to parse response: \(err.localizedDescription)"
+        case let .decodingError(err, _, _): "Failed to parse response: \(err.localizedDescription)"
         }
     }
 }
@@ -474,7 +478,10 @@ final class BissbilanzAPI {
     // MARK: - Preferences
 
     func getPreferences() async throws -> Preferences {
-        try await get("/api/preferences")
+        // The server wraps the body as `{ preferences: {...} }` (like every other
+        // endpoint), so decode the envelope rather than a bare `Preferences`.
+        let response: PreferencesResponse = try await get("/api/preferences")
+        return response.preferences
     }
 
     func updatePreferences(
@@ -482,10 +489,11 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> Preferences {
-        try await patch(
+        let response: PreferencesResponse = try await patch(
             "/api/preferences", body: prefs,
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
+        return response.preferences
     }
 
     // MARK: - Meal Types
@@ -506,8 +514,11 @@ final class BissbilanzAPI {
 
     // MARK: - Day Properties
 
+    // The server exposes day properties as a single collection route keyed by a
+    // `date` query parameter (GET/DELETE) and a PUT body — there is no `/{date}`
+    // path segment and no POST handler.
     func getDayProperties(date: String) async throws -> DayProperties? {
-        let response: DayPropertiesResponse = try await get("/api/day-properties/\(date)")
+        let response: DayPropertiesResponse = try await get("/api/day-properties", params: ["date": date])
         return response.properties
     }
 
@@ -517,9 +528,9 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> DayProperties {
-        let body = DayPropertiesSet(isFastingDay: isFastingDay)
-        let response: DayPropertiesResponse = try await post(
-            "/api/day-properties/\(date)", body: body,
+        let body = DayPropertiesSet(date: date, isFastingDay: isFastingDay)
+        let response: DayPropertiesResponse = try await put(
+            "/api/day-properties", body: body,
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
         guard let properties = response.properties else {
@@ -534,7 +545,7 @@ final class BissbilanzAPI {
         clientEditedAt: String? = nil
     ) async throws {
         try await deleteRequest(
-            "/api/day-properties/\(date)",
+            "/api/day-properties?date=\(date)",
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
     }
@@ -586,6 +597,20 @@ final class BissbilanzAPI {
     ) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(body)
+        applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+        return try await performRequest(request)
+    }
+
+    private func put<T: Decodable>(
+        _ path: String,
+        body: some Encodable,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> T {
+        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
         applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
@@ -660,9 +685,12 @@ final class BissbilanzAPI {
             if let message {
                 context["response_body"] = String(message.prefix(500))
             }
-        case let .decodingError(underlying):
-            context["status_code"] = 200
+        case let .decodingError(underlying, statusCode, body):
+            context["status_code"] = statusCode
             context["decoding_error"] = String(describing: underlying)
+            if let body {
+                context["response_body"] = String(body.prefix(500))
+            }
         case .networkError, .notFound, .gone, .conflict, .unauthorized, .none:
             break
         }
@@ -740,10 +768,25 @@ final class BissbilanzAPI {
         if httpResponse.statusCode >= 400 {
             throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
         }
+        // A 204 No Content (every DELETE) or any empty 2xx body carries nothing
+        // to decode. `deleteRequest` asks for `EmptyResponse` here; returning the
+        // sentinel avoids the dataCorrupted ("Unexpected end of file") error that
+        // would otherwise dead-letter every queued delete after maxRetries. Real
+        // typed responses still throw on an empty body — the `as? T` cast only
+        // succeeds for the body-less EmptyResponse.
+        if httpResponse.statusCode == 204 || data.isEmpty {
+            if let empty = EmptyResponse() as? T {
+                return empty
+            }
+        }
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw APIError.decodingError(error)
+            throw APIError.decodingError(
+                error,
+                statusCode: httpResponse.statusCode,
+                body: String(data: data, encoding: .utf8)
+            )
         }
     }
 }

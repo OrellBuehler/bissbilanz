@@ -1,25 +1,19 @@
 import Foundation
 
+// Matches the server's day-properties response object `{ date, isFastingDay }`
+// (camelCase, no userId) — see src/lib/server/validation/responses/day-properties.ts.
 struct DayProperties: Codable {
     let date: String
-    let userId: String
     let isFastingDay: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case date
-        case userId = "user_id"
-        case isFastingDay = "is_fasting_day"
-    }
 }
 
 struct DayPropertiesResponse: Codable {
     let properties: DayProperties?
 }
 
+// PUT /api/day-properties expects `{ date, isFastingDay }` (camelCase) — the date
+// travels in the body, not the URL path. See dayPropertiesSetSchema.
 struct DayPropertiesSet: Codable {
+    let date: String
     let isFastingDay: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case isFastingDay = "is_fasting_day"
-    }
 }

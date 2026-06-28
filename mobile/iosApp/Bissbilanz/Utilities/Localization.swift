@@ -706,6 +706,73 @@ enum L10n {
         )
     }
 
+    // MARK: - Pending changes (sync queue) screen
+
+    static var pendingChanges: String {
+        localized("pending_changes", en: "Pending changes", de: "Ausstehende Änderungen")
+    }
+
+    static var pendingChangesEmpty: String {
+        localized("pending_changes_empty", en: "Everything is synced", de: "Alles synchronisiert")
+    }
+
+    static var pendingChangesEmptyDetail: String {
+        localized(
+            "pending_changes_empty_detail",
+            en: "Changes you make offline appear here until they sync.",
+            de: "Offline vorgenommene Änderungen erscheinen hier, bis sie synchronisiert werden."
+        )
+    }
+
+    static var retryNow: String {
+        localized("retry_now", en: "Retry now", de: "Jetzt erneut versuchen")
+    }
+
+    static var syncWaiting: String {
+        localized("sync_waiting", en: "Waiting", de: "Wartet")
+    }
+
+    static func syncRetryStatus(_ count: Int, _ max: Int) -> String {
+        localized(
+            "sync_retry_status",
+            en: "Retry \(count)/\(max)",
+            de: "Versuch \(count)/\(max)"
+        )
+    }
+
+    /// Human-readable title for a queued sync operation, keyed by its stored
+    /// `typeName` (see `SyncOperation.typeName`).
+    static func pendingChangeTitle(forType type: String) -> String {
+        switch type {
+        case "create_food": localized("sync_create_food", en: "Added food", de: "Lebensmittel hinzugefügt")
+        case "update_food": localized("sync_update_food", en: "Edited food", de: "Lebensmittel bearbeitet")
+        case "delete_food": localized("sync_delete_food", en: "Deleted food", de: "Lebensmittel gelöscht")
+        case "toggle_favorite": localized("sync_toggle_favorite", en: "Changed favorite", de: "Favorit geändert")
+        case "create_entry": localized("sync_create_entry", en: "Logged food", de: "Mahlzeit protokolliert")
+        case "update_entry": localized("sync_update_entry", en: "Edited log entry", de: "Eintrag bearbeitet")
+        case "delete_entry": localized("sync_delete_entry", en: "Deleted log entry", de: "Eintrag gelöscht")
+        case "create_recipe": localized("sync_create_recipe", en: "Added recipe", de: "Rezept hinzugefügt")
+        case "update_recipe": localized("sync_update_recipe", en: "Edited recipe", de: "Rezept bearbeitet")
+        case "delete_recipe": localized("sync_delete_recipe", en: "Deleted recipe", de: "Rezept gelöscht")
+        case "set_goals": localized("sync_set_goals", en: "Updated goals", de: "Ziele aktualisiert")
+        case "create_weight": localized("sync_create_weight", en: "Added weight entry", de: "Gewichtseintrag hinzugefügt")
+        case "update_weight": localized("sync_update_weight", en: "Edited weight entry", de: "Gewichtseintrag bearbeitet")
+        case "delete_weight": localized("sync_delete_weight", en: "Deleted weight entry", de: "Gewichtseintrag gelöscht")
+        case "create_sleep": localized("sync_create_sleep", en: "Added sleep entry", de: "Schlafeintrag hinzugefügt")
+        case "update_sleep": localized("sync_update_sleep", en: "Edited sleep entry", de: "Schlafeintrag bearbeitet")
+        case "delete_sleep": localized("sync_delete_sleep", en: "Deleted sleep entry", de: "Schlafeintrag gelöscht")
+        case "create_supplement": localized("sync_create_supplement", en: "Added supplement", de: "Supplement hinzugefügt")
+        case "update_supplement": localized("sync_update_supplement", en: "Edited supplement", de: "Supplement bearbeitet")
+        case "delete_supplement": localized("sync_delete_supplement", en: "Deleted supplement", de: "Supplement gelöscht")
+        case "log_supplement": localized("sync_log_supplement", en: "Logged supplement", de: "Supplement protokolliert")
+        case "unlog_supplement": localized("sync_unlog_supplement", en: "Unlogged supplement", de: "Supplement-Protokoll entfernt")
+        case "set_day_properties": localized("sync_set_day_properties", en: "Updated fasting day", de: "Fastentag aktualisiert")
+        case "delete_day_properties": localized("sync_delete_day_properties", en: "Cleared fasting day", de: "Fastentag entfernt")
+        case "update_preferences": localized("sync_update_preferences", en: "Updated settings", de: "Einstellungen aktualisiert")
+        default: localized("sync_generic_change", en: "Pending change", de: "Ausstehende Änderung")
+        }
+    }
+
     static var account: String {
         localized("account", en: "Account", de: "Konto")
     }

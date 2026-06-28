@@ -44,7 +44,6 @@ struct MigratorTests {
         harness.context.insert(LocalPreferences(preferences: .defaults))
         harness.context.insert(LocalDayProperties(properties: DayProperties(
             date: "2026-06-01",
-            userId: "",
             isFastingDay: true
         )))
         try harness.context.save()
@@ -77,16 +76,16 @@ struct MigratorTests {
         """)
         harness.stub("POST", "/api/goals", json: "{}")
         harness.stub("PATCH", "/api/preferences", json: """
-        {
+        {"preferences": {
             "showChartWidget": true, "showFavoritesWidget": true, "showSupplementsWidget": true,
             "showWeightWidget": true, "showMealBreakdownWidget": true, "showTopFoodsWidget": true,
-            "showSummaryWidget": true, "showDayLogWidget": true, "showStreakWidget": true,
+            "showSleepWidget": true,
             "widgetOrder": [], "startPage": "dashboard", "favoriteTapAction": "instant",
             "favoriteMealAssignmentMode": "time_based", "visibleNutrients": []
-        }
+        }}
         """)
-        harness.stub("POST", "/api/day-properties/2026-06-01", json: """
-        {"properties": {"date": "2026-06-01", "user_id": "u1", "is_fasting_day": true}}
+        harness.stub("PUT", "/api/day-properties", json: """
+        {"properties": {"date": "2026-06-01", "isFastingDay": true}}
         """)
     }
 
@@ -158,7 +157,7 @@ struct MigratorTests {
             "POST /api/supplements/s-server/log",
             "POST /api/goals",
             "PATCH /api/preferences",
-            "POST /api/day-properties/2026-06-01",
+            "PUT /api/day-properties",
         ])
 
         // The uploaded recipe and entry already carried the server food id.

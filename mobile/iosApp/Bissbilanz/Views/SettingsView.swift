@@ -256,12 +256,16 @@ struct SettingsView: View {
                             }
                         }
                         if syncManager.pendingCount > 0 {
-                            HStack {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .foregroundStyle(.secondary)
-                                Text(L10n.pendingSyncCount(syncManager.pendingCount))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            NavigationLink {
+                                PendingSyncView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .foregroundStyle(.secondary)
+                                    Text(L10n.pendingSyncCount(syncManager.pendingCount))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                         if let syncError = syncManager.errors.last {

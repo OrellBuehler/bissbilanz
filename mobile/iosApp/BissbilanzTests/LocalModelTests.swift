@@ -245,9 +245,7 @@ struct LocalModelTests {
             showWeightWidget: false,
             showMealBreakdownWidget: true,
             showTopFoodsWidget: false,
-            showSummaryWidget: true,
-            showDayLogWidget: true,
-            showStreakWidget: false,
+            showSleepWidget: true,
             widgetOrder: ["chart", "weight"],
             startPage: "dashboard",
             favoriteTapAction: "instant",
@@ -270,7 +268,7 @@ struct LocalModelTests {
 
     @Test("LocalDayProperties round-trips")
     func localDayPropertiesRoundTrip() throws {
-        let properties = DayProperties(date: "2026-06-01", userId: "u1", isFastingDay: true)
+        let properties = DayProperties(date: "2026-06-01", isFastingDay: true)
 
         let local = LocalDayProperties(properties: properties)
         let restored = try #require(local.toDayProperties())
@@ -278,7 +276,6 @@ struct LocalModelTests {
         #expect(local.date == "2026-06-01")
         #expect(local.isFastingDay == true)
         #expect(restored.date == "2026-06-01")
-        #expect(restored.userId == "u1")
         #expect(restored.isFastingDay == true)
     }
 }

@@ -2,7 +2,10 @@ import Foundation
 
 struct Recipe: Codable, Identifiable, Hashable {
     let id: String
-    let userId: String
+    // Optional: the list endpoint (GET /api/recipes) returns summary items
+    // WITHOUT userId, so a non-optional field would fail the whole list decode
+    // and recipes would never pull. It is redundant client-side anyway.
+    let userId: String?
     let name: String
     let totalServings: Double
     let isFavorite: Bool
