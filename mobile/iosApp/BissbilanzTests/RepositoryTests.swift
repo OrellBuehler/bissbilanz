@@ -143,7 +143,7 @@ struct RepositoryTests {
     func dayPropertiesWriteLocallyAndQueue() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.entryRepository
-        harness.stub("POST", "/api/day-properties/2026-06-01", status: 500, json: #"{"error": "boom"}"#)
+        harness.stub("PUT", "/api/day-properties", status: 500, json: #"{"error": "boom"}"#)
 
         try await repo.setDayProperties(date: "2026-06-01", isFastingDay: true)
         await harness.syncManager.drainPendingQueue()

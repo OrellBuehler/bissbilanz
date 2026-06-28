@@ -74,6 +74,6 @@ struct LocalStoreTests {
     }
 
     private func dayProperties(_ date: String, fasting: Bool) -> DayProperties {
-        DayProperties(date: date, userId: "", isFastingDay: fasting)
+        DayProperties(date: date, isFastingDay: fasting)
     }
 }

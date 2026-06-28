@@ -257,7 +257,7 @@ final class EntryRepository {
     }
 
     func setDayProperties(date: String, isFastingDay: Bool) async throws {
-        upsertDayProperties(DayProperties(date: date, userId: "", isFastingDay: isFastingDay))
+        upsertDayProperties(DayProperties(date: date, isFastingDay: isFastingDay))
         save()
         syncManager.enqueue(.setDayProperties(date: date, isFastingDay: isFastingDay))
     }

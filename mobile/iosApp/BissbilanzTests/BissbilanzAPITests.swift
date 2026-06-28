@@ -57,7 +57,7 @@ struct APIErrorTests {
         } catch {
             decodingError = error
         }
-        let apiError = APIError.decodingError(decodingError)
+        let apiError = APIError.decodingError(decodingError, statusCode: 200, body: "{}")
         #expect(apiError.errorDescription?.starts(with: "Failed to parse response") == true)
     }
 }
@@ -241,15 +241,16 @@ struct APIRequestBuildingTests {
         #expect(json["bodyFatChangeRatio"] as? Double == 0.7)
     }
 
-    @Test("DayProperties set uses snake_case keys")
+    @Test("DayProperties set encodes camelCase with date in body")
     func dayPropertiesSetEncoding() throws {
-        let props = DayPropertiesSet(isFastingDay: true)
+        let props = DayPropertiesSet(date: "2026-06-28", isFastingDay: true)
 
         let data = try JSONEncoder().encode(props)
-        let jsonStr = try #require(String(data: data, encoding: .utf8))
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        #expect(jsonStr.contains("is_fasting_day"))
-        #expect(!jsonStr.contains("isFastingDay"))
+        #expect(json["date"] as? String == "2026-06-28")
+        #expect(json["isFastingDay"] as? Bool == true)
+        #expect(json["is_fasting_day"] == nil)
     }
 }
 
@@ -507,14 +508,15 @@ struct APIResponseDecodingTests {
         #expect(response.checklist[1].takenAt == nil)
     }
 
-    @Test("DayProperties response decodes snake_case keys")
+    @Test("DayProperties response decodes the server's camelCase wire shape")
     func dayPropertiesDecoding() throws {
+        // Matches the actual server body: { properties: { date, isFastingDay } }
+        // — camelCase, no userId.
         let json = """
         {
             "properties": {
                 "date": "2026-03-12",
-                "user_id": "u1",
-                "is_fasting_day": true
+                "isFastingDay": true
             }
         }
         """.data(using: .utf8)!
@@ -756,9 +758,7 @@ struct APIResponseDecodingTests {
             showWeightWidget: true,
             showMealBreakdownWidget: false,
             showTopFoodsWidget: true,
-            showSummaryWidget: true,
-            showDayLogWidget: false,
-            showStreakWidget: true,
+            showSleepWidget: false,
             widgetOrder: ["chart", "weight", "supplements"],
             startPage: "dashboard",
             favoriteTapAction: "instant",
@@ -772,10 +772,48 @@ struct APIResponseDecodingTests {
         let decoded = try JSONDecoder().decode(Preferences.self, from: data)
 
         #expect(decoded.showFavoritesWidget == false)
-        #expect(decoded.showDayLogWidget == false)
+        #expect(decoded.showSleepWidget == false)
         #expect(decoded.widgetOrder == ["chart", "weight", "supplements"])
         #expect(decoded.visibleNutrients == ["sugar", "sodium"])
         #expect(decoded.locale == "de")
+    }
+
+    @Test("Preferences decode from the server's wrapped wire shape")
+    func preferencesEnvelopeDecoding() throws {
+        // The server wraps preferences as { preferences: {...} } and the inner
+        // object carries showSleepWidget (NOT showSummary/DayLog/Streak) plus keys
+        // iOS doesn't model (mealOrder, favoriteMealTimeframes, updatedAt) — the
+        // decode must succeed via the envelope and ignore the extras.
+        let json = """
+        {
+            "preferences": {
+                "showChartWidget": true,
+                "showFavoritesWidget": false,
+                "showSupplementsWidget": true,
+                "showWeightWidget": true,
+                "showMealBreakdownWidget": true,
+                "showTopFoodsWidget": true,
+                "showSleepWidget": false,
+                "widgetOrder": ["chart", "sleep"],
+                "mealOrder": ["Breakfast", "Lunch"],
+                "startPage": "dashboard",
+                "favoriteTapAction": "instant",
+                "favoriteMealAssignmentMode": "time_based",
+                "visibleNutrients": ["sugar"],
+                "locale": null,
+                "timeZone": "Europe/Zurich",
+                "updatedAt": "2026-06-28T00:00:00.000Z",
+                "favoriteMealTimeframes": []
+            }
+        }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(PreferencesResponse.self, from: json)
+        #expect(response.preferences.showFavoritesWidget == false)
+        #expect(response.preferences.showSleepWidget == false)
+        #expect(response.preferences.widgetOrder == ["chart", "sleep"])
+        #expect(response.preferences.locale == nil)
+        #expect(response.preferences.timeZone == "Europe/Zurich")
     }
 
     @Test("Daily stats response decodes")

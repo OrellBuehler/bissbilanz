@@ -1,5 +1,11 @@
 import Foundation
 
+// The widget booleans, names and types mirror the server's preferences response
+// schema (src/lib/server/validation/responses/preferences.ts) field-for-field.
+// `summary`, `daylog` and `streaks` are NOT toggles — they are `widgetOrder`
+// section keys server-side, so there are no `showSummary/DayLog/StreakWidget`
+// columns. Keep this in sync with the server contract: a field iOS marks
+// required but the server omits makes the whole response fail to decode.
 struct Preferences: Codable {
     let showChartWidget: Bool
     let showFavoritesWidget: Bool
@@ -7,9 +13,7 @@ struct Preferences: Codable {
     let showWeightWidget: Bool
     let showMealBreakdownWidget: Bool
     let showTopFoodsWidget: Bool
-    let showSummaryWidget: Bool
-    let showDayLogWidget: Bool
-    let showStreakWidget: Bool
+    let showSleepWidget: Bool
     let widgetOrder: [String]
     let startPage: String
     let favoriteTapAction: String
@@ -25,9 +29,7 @@ struct Preferences: Codable {
         showWeightWidget: true,
         showMealBreakdownWidget: true,
         showTopFoodsWidget: true,
-        showSummaryWidget: true,
-        showDayLogWidget: true,
-        showStreakWidget: true,
+        showSleepWidget: true,
         widgetOrder: [],
         startPage: "dashboard",
         favoriteTapAction: "instant",
@@ -38,6 +40,12 @@ struct Preferences: Codable {
     )
 }
 
+/// The server wraps the preferences body as `{ preferences: {...} }` on both GET
+/// and PATCH; decode this envelope, not a bare `Preferences`.
+struct PreferencesResponse: Codable {
+    let preferences: Preferences
+}
+
 struct PreferencesUpdate: Codable {
     var showChartWidget: Bool?
     var showFavoritesWidget: Bool?
@@ -45,9 +53,7 @@ struct PreferencesUpdate: Codable {
     var showWeightWidget: Bool?
     var showMealBreakdownWidget: Bool?
     var showTopFoodsWidget: Bool?
-    var showSummaryWidget: Bool?
-    var showDayLogWidget: Bool?
-    var showStreakWidget: Bool?
+    var showSleepWidget: Bool?
     var widgetOrder: [String]?
     var startPage: String?
     var favoriteTapAction: String?

@@ -36,6 +36,8 @@ final class SyncManager {
     private(set) var lastSyncedAt: Date?
 
     @ObservationIgnored private var isDraining = false
+    /// A pending delayed re-drain scheduled for when the soonest backoff expires.
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
 
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
@@ -136,6 +138,7 @@ final class SyncManager {
         isSyncing = true
         errors = []
         var processed = 0
+        ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
             isDraining = false
@@ -143,22 +146,37 @@ final class SyncManager {
             if processed > 0 {
                 lastSyncedAt = Date()
             }
+            // Recover backed-off ops without waiting for an external trigger.
+            scheduleRetryDrain()
         }
 
         // Re-fetch the head each iteration instead of iterating a start-of-
         // drain snapshot: operations enqueued while an upload is in flight
         // (their `scheduleDrain` is swallowed by the `isDraining` guard) are
         // picked up by this drain instead of waiting for the next trigger.
-        // Every iteration either removes the head row or returns, so the
+        // Every iteration removes the head row, backs it off, or returns, so the
         // loop terminates. Items whose `nextAttemptAt` is in the future are
-        // skipped via `nextDueRow()` (backoff).
+        // skipped via `nextDueRow()` (backoff) — a backed-off op no longer
+        // stalls the ops queued behind it.
         while let row = nextDueRow() {
             guard let operation = row.operation() else {
                 // Unreadable payload — nothing useful can ever be uploaded.
+                // Capture before dropping: this is the most invisible data-loss
+                // path in the drain (a corrupted or schema-changed payload, else
+                // discarded with no error, notice, or telemetry).
+                ErrorReporter.captureWarning(
+                    "Sync op dropped: undecodable payload",
+                    context: ["sync.type": row.type, "sync.seq": row.seq, "sync.outcome": "dropped_undecodable"]
+                )
                 remove(row)
                 continue
             }
             let isDelete = isDeleteOperation(operation)
+            ErrorReporter.addBreadcrumb(
+                "drain \(operation.typeName)",
+                category: "sync",
+                data: ["sync.op": operation.typeName, "sync.retry_count": row.retryCount]
+            )
             do {
                 try await execute(operation, idempotencyKey: row.idempotencyKey, clientEditedAt: row.clientEditedAt)
                 if !row.isDeleted {
@@ -182,6 +200,10 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     errors.append("Failed to sync \(operation.summary): HTTP 409")
+                    ErrorReporter.captureWarning(
+                        "Sync op dropped: validation conflict",
+                        context: dropContext(operation, row, outcome: "dropped_validation_conflict", status: 409)
+                    )
 
                 case .notFound where isDelete:
                     remove(row)
@@ -193,11 +215,19 @@ final class SyncManager {
                     conflictNotices.append(
                         "Offline change to \(operation.summary) was lost: the record was deleted on another device."
                     )
+                    ErrorReporter.captureWarning(
+                        "Sync op lost: record deleted elsewhere",
+                        context: dropContext(operation, row, outcome: "lost_deleted_elsewhere", status: 404)
+                    )
 
                 case let .clientError(status):
                     remove(row)
                     processed += 1
                     errors.append("Failed to sync \(operation.summary): HTTP \(status)")
+                    ErrorReporter.captureWarning(
+                        "Sync op dropped: client error",
+                        context: dropContext(operation, row, outcome: "dropped_client_error", status: status)
+                    )
 
                 case .offline:
                     return processed
@@ -208,10 +238,17 @@ final class SyncManager {
                         remove(row)
                         processed += 1
                         errors.append("Gave up syncing \(operation.summary) after \(Self.maxRetries) retries.")
+                        ErrorReporter.captureWarning(
+                            "Sync op dropped: max retries",
+                            context: dropContext(operation, row, outcome: "dropped_max_retries", status: nil)
+                        )
                     } else {
                         row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
                         save()
-                        return processed
+                        // Skip (not abort): a backed-off op is filtered out by
+                        // `nextDueRow`, so the loop advances to the next due op
+                        // instead of stalling the whole queue behind this one.
+                        continue
                     }
                 }
             }
@@ -456,6 +493,59 @@ final class SyncManager {
 
     private func save() {
         try? context.save()
+    }
+
+    /// Structured context for a permanent-drop Sentry warning so a "changes won't
+    /// sync" report is unambiguous from telemetry alone (which op, how many
+    /// retries, the stable idempotency key, and why it was dropped).
+    private func dropContext(
+        _ operation: SyncOperation,
+        _ row: PendingSyncOperation,
+        outcome: String,
+        status: Int?
+    ) -> [String: Any] {
+        var context: [String: Any] = [
+            "sync.op": operation.typeName,
+            "sync.summary": operation.summary,
+            "sync.retry_count": row.retryCount,
+            "sync.idempotency_key": row.idempotencyKey,
+            "sync.outcome": outcome,
+        ]
+        if let status {
+            context["status_code"] = status
+        }
+        return context
+    }
+
+    /// After a drain leaves backed-off rows behind, schedule a single delayed
+    /// re-drain at the soonest `nextAttemptAt`. `scheduleDrain` otherwise only
+    /// fires on enqueue / connectivity-regained / foreground, none of which is
+    /// guaranteed while a backoff window elapses — so a transient failure would
+    /// leave `pendingCount > 0` until the user happens to trigger another drain.
+    private func scheduleRetryDrain() {
+        guard autoDrain else { return }
+        retryTask?.cancel()
+        let now = Date()
+        guard let soonest = queuedRows().map(\.nextAttemptAt).filter({ $0 > now }).min() else {
+            retryTask = nil
+            return
+        }
+        let delay = max(soonest.timeIntervalSinceNow, 0)
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.scheduleDrain()
+        }
+    }
+
+    /// User-initiated retry from the pending-changes screen: clear all backoff so
+    /// every queued op is due immediately, then drain.
+    func retryNow() {
+        for row in queuedRows() {
+            row.nextAttemptAt = Date.distantPast
+        }
+        save()
+        scheduleDrain()
     }
 
     /// Test seam: resets `nextAttemptAt` on all queued rows so the next drain
