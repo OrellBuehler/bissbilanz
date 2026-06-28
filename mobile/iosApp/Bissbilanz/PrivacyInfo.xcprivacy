@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<!-- Required-reason API declarations. The app reads/writes its own
+	     UserDefaults (CA92.1, e.g. selected_tabs, app_locale, HealthKit sync
+	     toggles) and the shared App Group defaults (1C8F.1, the widget snapshot
+	     in group.com.bissbilanz). The static KMP shared framework's
+	     NSUserDefaults usage (IosPlainStorage) links into this binary, so it is
+	     covered here too. No FileTimestamp/SystemBootTime/DiskSpace/
+	     ActiveKeyboards APIs are used. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
