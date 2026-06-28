@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/server/session';
 import { validateAccessToken } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
@@ -229,4 +229,12 @@ export const handle = sequence(
 	idempotencyHandle
 );
 
-export const handleError = Sentry.handleErrorWithSentry();
+const logUnexpectedError: HandleServerError = ({ error, status }) => {
+	// Don't log noise for unmatched routes / 404s (legacy API paths, scanners).
+	// Sentry already declines to capture 4xx errors; this just silences the
+	// console.error its default handler would otherwise emit.
+	if (status === 404) return;
+	console.error(error instanceof Error ? error.stack : error);
+};
+
+export const handleError = Sentry.handleErrorWithSentry(logUnexpectedError);
