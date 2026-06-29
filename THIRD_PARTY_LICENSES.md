@@ -19,7 +19,7 @@ This file lists all third-party dependencies used in production and their licens
 | (Unlicense OR Apache-2.0) | 1     |
 | CC-BY-4.0                 | 1     |
 | Unlicense                 | 1     |
-| MIT\*                     | 1     |
+| MIT*                      | 1     |
 
 ## Packages
 
@@ -3491,7 +3491,8 @@ SOFTWARE.
 
 ```
 
-## MIT License
+MIT License
+-----------
 
 Copyright (C) 2018-2020 Guy Bedford
 
@@ -5511,7 +5512,8 @@ Install with `npm`:
 $ npm install https-proxy-agent
 ````
 
-## Examples
+Examples
+--------
 
 #### `https` module example
 
@@ -5574,7 +5576,8 @@ socket.on('message', function (data, flags) {
 });
 ```
 
-## API
+API
+---
 
 ### new HttpsProxyAgent(Object options)
 
@@ -5591,7 +5594,8 @@ The `options` argument may either be a string URI of the proxy server to use, or
 - `headers` - Object - Additional HTTP headers to be sent on the HTTP CONNECT method.
 - Any other options given are passed to the `net.connect()`/`tls.connect()` functions.
 
-## License
+License
+-------
 
 (The MIT License)
 
@@ -6491,10 +6495,10 @@ No contributor can revoke this license.
 
 ## No Liability
 
-**_As far as the law allows, this software comes as is,
+_**As far as the law allows, this software comes as is,
 without any warranty or condition, and no contributor
 will be liable to anyone for any damages related to this
-software or this license, under any kind of legal claim._**
+software or this license, under any kind of legal claim.**_
 
 ```
 
@@ -6881,10 +6885,10 @@ No contributor can revoke this license.
 
 ## No Liability
 
-**_As far as the law allows, this software comes as is,
+_**As far as the law allows, this software comes as is,
 without any warranty or condition, and no contributor
 will be liable to anyone for any damages related to this
-software or this license, under any kind of legal claim._**
+software or this license, under any kind of legal claim.**_
 
 ```
 
@@ -7627,10 +7631,10 @@ No contributor can revoke this license.
 
 ## No Liability
 
-**_As far as the law allows, this software comes as is,
+_**As far as the law allows, this software comes as is,
 without any warranty or condition, and no contributor
 will be liable to anyone for any damages related to this
-software or this license, under any kind of legal claim._**
+software or this license, under any kind of legal claim.**_
 
 ```
 
