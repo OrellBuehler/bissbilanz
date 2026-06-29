@@ -663,7 +663,7 @@ class InsightsViewModel(
                             .map { CaffeineEntry(it.date, it.eatenAt, it.caffeine!!) }
                     val sleepDataPoints =
                         sleepEntries.value.map {
-                            SleepDataPoint(it.entryDate, it.quality.toDouble(), it.durationMinutes.toDouble())
+                            SleepDataPoint(it.entryDate, it.quality, it.durationMinutes.toDouble())
                         }
                     _caffeineSleepResult.value = computeCaffeineSleepCutoff(caffeineEntries, sleepDataPoints, deviceTz)
                 }

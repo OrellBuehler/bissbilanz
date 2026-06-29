@@ -87,7 +87,7 @@ class SleepRepository(
                     userId = "",
                     entryDate = entry.entryDate ?: "",
                     durationMinutes = entry.durationMinutes ?: 0,
-                    quality = entry.quality ?: 0,
+                    quality = entry.quality ?: 0.0,
                     bedtime = entry.bedtime,
                     wakeTime = entry.wakeTime,
                     wakeUps = entry.wakeUps,

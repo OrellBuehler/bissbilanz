@@ -46,7 +46,7 @@ data class SleepEntry(
     @SerialName(value = "userId") @Required val userId: kotlin.String,
     @SerialName(value = "entryDate") @Required val entryDate: kotlin.String,
     @SerialName(value = "durationMinutes") @Required val durationMinutes: kotlin.Int,
-    @SerialName(value = "quality") @Required val quality: kotlin.Int,
+    @SerialName(value = "quality") @Required val quality: kotlin.Double,
     @SerialName(value = "bedtime") @Required val bedtime: kotlin.String?,
     @SerialName(value = "wakeTime") @Required val wakeTime: kotlin.String?,
     @SerialName(value = "wakeUps") @Required val wakeUps: kotlin.Int?,

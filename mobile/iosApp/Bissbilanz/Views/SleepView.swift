@@ -8,6 +8,13 @@ func formatSleepDuration(_ minutes: Int) -> String {
     return remainder == 0 ? "\(hours)h" : "\(hours)h \(remainder)m"
 }
 
+/// Sleep quality on the 1–10 scale. Manual entries are whole numbers; synced
+/// sources can carry one decimal (e.g. a 0–100 score mapped to 9.7), so a
+/// fractional value shows one decimal and a round value stays integer.
+func formatSleepQuality(_ quality: Double) -> String {
+    quality == quality.rounded() ? String(Int(quality)) : String(format: "%.1f", quality)
+}
+
 struct SleepView: View {
     @Environment(SleepRepository.self) private var sleepRepository
 
@@ -20,13 +27,12 @@ struct SleepView: View {
 
     /// Imported Health nights carry no subjective rating — they get the
     /// neutral middle of the 1–10 scale, editable afterwards.
-    static let importedQuality = 5
+    static let importedQuality = 5.0
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
         case month = 30
         case quarter = 90
-        case all = 0
 
         var id: Int {
             rawValue
@@ -37,7 +43,6 @@ struct SleepView: View {
             case .week: "7d"
             case .month: "30d"
             case .quarter: "90d"
-            case .all: L10n.history
             }
         }
     }
@@ -364,7 +369,7 @@ struct SleepEntryRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(formatSleepDuration(entry.durationMinutes))
                         .foregroundStyle(.secondary)
-                    Text("\(entry.quality)/10")
+                    Text("\(formatSleepQuality(entry.quality))/10")
                         .font(.caption)
                         .foregroundStyle(.purple)
                 }
@@ -634,7 +639,7 @@ struct AddSleepSheet: View {
         guard let entry = existingEntry else { return }
         hoursText = "\(entry.durationMinutes / 60)"
         minutesText = "\(entry.durationMinutes % 60)"
-        quality = Double(entry.quality)
+        quality = entry.quality
         if let d = DateFormatting.date(from: entry.entryDate) {
             date = d
         }
@@ -664,7 +669,7 @@ struct AddSleepSheet: View {
             if let existing = existingEntry {
                 let update = SleepUpdate(
                     durationMinutes: durationMinutes,
-                    quality: Int(quality),
+                    quality: quality,
                     entryDate: dateStr,
                     bedtime: bedtimeIso,
                     wakeTime: wakeTimeIso,
@@ -675,7 +680,7 @@ struct AddSleepSheet: View {
             } else {
                 let create = SleepCreate(
                     durationMinutes: durationMinutes,
-                    quality: Int(quality),
+                    quality: quality,
                     entryDate: dateStr,
                     bedtime: bedtimeIso,
                     wakeTime: wakeTimeIso,

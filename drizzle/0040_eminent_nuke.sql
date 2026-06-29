@@ -1,0 +1,1 @@
+ALTER TABLE "sleep_entries" ALTER COLUMN "quality" SET DATA TYPE real;

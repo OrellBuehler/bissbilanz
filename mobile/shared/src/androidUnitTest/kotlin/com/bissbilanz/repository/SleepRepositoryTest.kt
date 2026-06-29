@@ -81,7 +81,7 @@ class SleepRepositoryTest {
             coEvery { api.getSleepEntries(any(), any()) } returns listOf(existing)
             repository.refresh()
 
-            val create = SleepCreate(durationMinutes = 480, quality = 8, entryDate = "2024-01-20")
+            val create = SleepCreate(durationMinutes = 480, quality = 8.0, entryDate = "2024-01-20")
 
             repository.createEntry(create)
 
@@ -92,19 +92,19 @@ class SleepRepositoryTest {
     @Test
     fun createEntryReturnsTempEntry() =
         runTest {
-            val create = SleepCreate(durationMinutes = 480, quality = 9, entryDate = "2024-01-20")
+            val create = SleepCreate(durationMinutes = 480, quality = 9.0, entryDate = "2024-01-20")
 
             val result = repository.createEntry(create)
 
             assertTrue(result.id.startsWith("temp_"))
-            assertEquals(9, result.quality)
+            assertEquals(9.0, result.quality)
             assertEquals(480, result.durationMinutes)
         }
 
     @Test
     fun createEntryEnqueuesSyncOperation() =
         runTest {
-            val create = SleepCreate(durationMinutes = 480, quality = 8, entryDate = "2024-01-20")
+            val create = SleepCreate(durationMinutes = 480, quality = 8.0, entryDate = "2024-01-20")
 
             repository.createEntry(create)
 
@@ -136,16 +136,16 @@ class SleepRepositoryTest {
     @Test
     fun updateEntryReplacesInFlow() =
         runTest {
-            val original = sleepEntry("1", quality = 5)
+            val original = sleepEntry("1", quality = 5.0)
             coEvery { api.getSleepEntries(any(), any()) } returns listOf(original)
             repository.refresh()
 
-            val update = SleepUpdate(quality = 8)
+            val update = SleepUpdate(quality = 8.0)
             repository.updateEntry("1", update)
 
             val entries = repository.entries().first()
             assertEquals(1, entries.size)
-            assertEquals(8, entries[0].quality)
+            assertEquals(8.0, entries[0].quality)
         }
 
     @Test
@@ -154,10 +154,10 @@ class SleepRepositoryTest {
             coEvery { api.getSleepEntries(any(), any()) } returns listOf(sleepEntry("1"))
             repository.refresh()
 
-            val update = SleepUpdate(quality = 9)
+            val update = SleepUpdate(quality = 9.0)
             val result = repository.updateEntry("1", update)
 
-            assertEquals(9, result.quality)
+            assertEquals(9.0, result.quality)
         }
 
     @Test
@@ -166,7 +166,7 @@ class SleepRepositoryTest {
             coEvery { api.getSleepEntries(any(), any()) } returns listOf(sleepEntry("1"))
             repository.refresh()
 
-            repository.updateEntry("1", SleepUpdate(quality = 9))
+            repository.updateEntry("1", SleepUpdate(quality = 9.0))
 
             coVerify { syncQueue.enqueue(any()) }
         }
@@ -178,7 +178,7 @@ class SleepRepositoryTest {
             coEvery { api.getSleepEntries(any(), any()) } returns entries
             repository.refresh()
 
-            repository.updateEntry("2", SleepUpdate(quality = 10))
+            repository.updateEntry("2", SleepUpdate(quality = 10.0))
 
             val result = repository.entries().first()
             assertEquals(3, result.size)
@@ -220,7 +220,7 @@ class SleepRepositoryTest {
     companion object {
         fun sleepEntry(
             id: String,
-            quality: Int = 7,
+            quality: Double = 7.0,
         ) = SleepEntry(
             id = id,
             userId = "user-1",

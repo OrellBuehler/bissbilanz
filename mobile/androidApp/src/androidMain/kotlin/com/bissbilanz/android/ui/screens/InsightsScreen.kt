@@ -540,6 +540,12 @@ fun InsightsScreen() {
 
                             // Recent entries list (last 5)
                             sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                                val qStr =
+                                    if (entry.quality % 1.0 == 0.0) {
+                                        entry.quality.toInt().toString()
+                                    } else {
+                                        "%.1f".format(entry.quality)
+                                    }
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -556,7 +562,7 @@ fun InsightsScreen() {
                                         Column {
                                             Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "%.1fh · Quality %d/10".format(entry.durationMinutes / 60.0, entry.quality),
+                                                "%.1fh · Quality $qStr/10".format(entry.durationMinutes / 60.0),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
@@ -1005,7 +1011,7 @@ private fun GoalAdherenceCard(
 @Composable
 private fun SleepLogDialog(
     onDismiss: () -> Unit,
-    onSave: (duration: Int, quality: Int, date: String, notes: String) -> Unit,
+    onSave: (duration: Int, quality: Double, date: String, notes: String) -> Unit,
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var durationHours by remember { mutableStateOf("8") }
@@ -1116,7 +1122,7 @@ private fun SleepLogDialog(
             TextButton(
                 onClick = {
                     if (!durationError) {
-                        onSave(totalMinutes, quality.roundToInt(), date, notes)
+                        onSave(totalMinutes, quality.roundToInt().toDouble(), date, notes)
                     }
                 },
                 enabled = !durationError,

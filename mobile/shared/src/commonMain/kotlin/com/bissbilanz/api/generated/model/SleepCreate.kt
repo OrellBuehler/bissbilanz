@@ -33,7 +33,7 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class SleepCreate(
     @SerialName(value = "durationMinutes") @Required val durationMinutes: kotlin.Int,
-    @SerialName(value = "quality") @Required val quality: kotlin.Int,
+    @SerialName(value = "quality") @Required val quality: kotlin.Double,
     @SerialName(value = "entryDate") @Required val entryDate: kotlin.String,
     @SerialName(value = "bedtime") val bedtime: kotlin.String? = null,
     @SerialName(value = "wakeTime") val wakeTime: kotlin.String? = null,

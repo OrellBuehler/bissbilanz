@@ -143,7 +143,7 @@ class InsightsViewModelTest {
     @Test
     fun createSleepEntryShowsSuccessSnackbar() =
         runTest {
-            val entry = SleepCreate(durationMinutes = 480, quality = 8, entryDate = "2024-01-20")
+            val entry = SleepCreate(durationMinutes = 480, quality = 8.0, entryDate = "2024-01-20")
             coEvery { sleepRepo.createEntry(entry) } returns testSleepEntry("new")
 
             val viewModel = createViewModel()
@@ -155,7 +155,7 @@ class InsightsViewModelTest {
     @Test
     fun createSleepEntryShowsFailureSnackbarOnError() =
         runTest {
-            val entry = SleepCreate(durationMinutes = 480, quality = 8, entryDate = "2024-01-20")
+            val entry = SleepCreate(durationMinutes = 480, quality = 8.0, entryDate = "2024-01-20")
             coEvery { sleepRepo.createEntry(entry) } throws RuntimeException("Network error")
 
             val viewModel = createViewModel()
@@ -405,7 +405,7 @@ class InsightsViewModelTest {
                 userId = "user-1",
                 entryDate = "2024-01-20",
                 durationMinutes = 480,
-                quality = 8,
+                quality = 8.0,
                 bedtime = null,
                 wakeTime = null,
                 wakeUps = null,

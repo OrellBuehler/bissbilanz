@@ -231,14 +231,16 @@ final class LocalSleepEntry {
         id = entry.id
         entryDate = entry.entryDate
         durationMinutes = entry.durationMinutes
-        quality = entry.quality
+        // Denormalized index column only — the source of truth (incl. any
+        // decimal quality) round-trips through `jsonData`.
+        quality = Int(entry.quality)
         jsonData = LocalStoreCoding.encode(entry)
     }
 
     func update(from entry: SleepEntry) {
         entryDate = entry.entryDate
         durationMinutes = entry.durationMinutes
-        quality = entry.quality
+        quality = Int(entry.quality)
         jsonData = LocalStoreCoding.encode(entry)
     }
 
