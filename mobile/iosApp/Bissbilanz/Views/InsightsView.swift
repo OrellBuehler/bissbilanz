@@ -328,7 +328,9 @@ struct InsightsView: View {
                 .font(.subheadline)
                 .fontWeight(.bold)
                 .monospacedDigit()
-                .frame(width: 44, alignment: .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 52, alignment: .trailing)
         }
     }
 
@@ -358,30 +360,38 @@ struct InsightsView: View {
                     }
                 }
 
+                // Headers and day cells share one column set so the weekday
+                // labels line up exactly with the cells beneath them.
+                let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
+
                 // Weekday headers
-                HStack(spacing: 0) {
+                LazyVGrid(columns: gridColumns, spacing: 2) {
                     ForEach(Array(L10n.weekdayHeaders.enumerated()), id: \.offset) { _, header in
                         Text(header)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
                     }
                 }
 
                 // Calendar grid
-                let startOfMonth = calendarMonth.startOfMonth
+                let monthComps = Calendar.current.dateComponents([.year, .month], from: calendarMonth)
+                let year = monthComps.year ?? Calendar.current.component(.year, from: Date())
+                let month = monthComps.month ?? 1
                 let daysInMonth = calendarMonth.daysInMonth
-                let offset = startOfMonth.weekdayOffset
-                let dayMap = Dictionary(uniqueKeysWithValues: calendarDays.map { ($0.date, $0) })
+                let offset = calendarMonth.startOfMonth.weekdayOffset
+                let dayMap = Dictionary(calendarDays.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 2) {
+                LazyVGrid(columns: gridColumns, spacing: 2) {
                     ForEach(0 ..< offset, id: \.self) { _ in
                         Color.clear.frame(height: 28)
                     }
                     ForEach(1 ... daysInMonth, id: \.self) { day in
-                        let date = Calendar.current.date(byAdding: .day, value: day - 1, to: startOfMonth)
-                        let dateStr = date.map { DateFormatting.isoString(from: $0) } ?? ""
+                        // Build the lookup key from calendar components rather than
+                        // date arithmetic + a locale-less formatter, so it always
+                        // matches the server's yyyy-MM-dd and the colors line up
+                        // regardless of the device time zone.
+                        let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
                         let calDay = dayMap[dateStr]
 
                         RoundedRectangle(cornerRadius: 4)
@@ -433,19 +443,21 @@ struct InsightsView: View {
                     Label(L10n.avgComparison, systemImage: "arrow.left.arrow.right")
                         .font(.headline)
 
-                    HStack {
+                    HStack(spacing: 8) {
                         Text("")
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text(L10n.weeklyAvg)
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                         Text(L10n.monthlyAvg)
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                         Text("")
-                            .frame(width: 48)
+                            .frame(width: 52)
                     }
 
                     Divider()
@@ -496,22 +508,32 @@ struct InsightsView: View {
         let arrow = diff > 0 ? "\u{2191}" : (diff < 0 ? "\u{2193}" : "\u{2192}")
         let trendColor: Color = diff > 0 ? MacroColors.fiber : (diff < 0 ? MacroColors.protein : .secondary)
 
-        return HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(color)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        return HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 7, height: 7)
+                Text(label)
+                    .font(.subheadline)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Text("\(Int(weekly)) \(unit)")
-                .font(.caption)
-                .frame(maxWidth: .infinity)
+                .font(.subheadline)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(Int(monthly)) \(unit)")
+                .font(.subheadline)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            Text("\(arrow)\(Int(abs(diffPct)))%")
                 .font(.caption)
-                .frame(maxWidth: .infinity)
-            Text("\(arrow) \(Int(abs(diffPct)))%")
-                .font(.caption2)
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
+                .monospacedDigit()
                 .foregroundStyle(trendColor)
-                .frame(width: 48, alignment: .trailing)
+                .lineLimit(1)
+                .frame(width: 52, alignment: .trailing)
         }
     }
 
