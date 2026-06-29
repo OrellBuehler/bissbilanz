@@ -43,7 +43,7 @@ jobs:
         uses: android-actions/setup-android@v4.0.1
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -117,7 +117,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Cache Homebrew packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/Library/Caches/Homebrew
@@ -142,7 +142,7 @@ jobs:
           java-version: 17
 
       - name: Cache Gradle and Kotlin/Native dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
