@@ -270,14 +270,14 @@ class TempIdCoalescingTest {
     fun sleepCreateThenUpdateRewritesQueuedCreateBody() =
         runTest {
             val repo = sleepRepository()
-            val temp = repo.createEntry(SleepCreate(durationMinutes = 480, quality = 7, entryDate = "2024-01-15"))
+            val temp = repo.createEntry(SleepCreate(durationMinutes = 480, quality = 7.0, entryDate = "2024-01-15"))
 
-            repo.updateEntry(temp.id, SleepUpdate(quality = 9, notes = "slept well"))
+            repo.updateEntry(temp.id, SleepUpdate(quality = 9.0, notes = "slept well"))
 
             val create = syncQueue.drain().single().operation as SyncOperation.CreateSleep
             assertEquals(temp.id, create.localId)
             val body = json.decodeFromString<SleepCreate>(create.body)
-            assertEquals(9, body.quality)
+            assertEquals(9.0, body.quality)
             assertEquals(480, body.durationMinutes)
             assertEquals("2024-01-15", body.entryDate)
             assertEquals("slept well", body.notes)
@@ -287,7 +287,7 @@ class TempIdCoalescingTest {
     fun sleepCreateThenDeleteLeavesQueueEmpty() =
         runTest {
             val repo = sleepRepository()
-            val temp = repo.createEntry(SleepCreate(durationMinutes = 480, quality = 7, entryDate = "2024-01-15"))
+            val temp = repo.createEntry(SleepCreate(durationMinutes = 480, quality = 7.0, entryDate = "2024-01-15"))
 
             repo.deleteEntry(temp.id)
 
@@ -299,7 +299,7 @@ class TempIdCoalescingTest {
         runTest {
             val repo = sleepRepository()
 
-            repo.updateEntry("server-1", SleepUpdate(quality = 8))
+            repo.updateEntry("server-1", SleepUpdate(quality = 8.0))
             repo.deleteEntry("server-2")
 
             val ops = syncQueue.drain().map { it.operation }

@@ -839,7 +839,7 @@ class LocalDataMigratorTest {
             userId = "user-1",
             entryDate = "2024-01-15",
             durationMinutes = 480,
-            quality = 4,
+            quality = 4.0,
             bedtime = null,
             wakeTime = null,
             wakeUps = null,

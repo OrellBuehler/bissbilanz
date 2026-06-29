@@ -461,7 +461,7 @@ struct WeightView: View {
                             .annotation(
                                 position: .top,
                                 spacing: 0,
-                                overflowResolution: .init(x: .fit(to: .chart), y: .disjoint)
+                                overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
                             ) {
                                 VStack(spacing: 2) {
                                     Text(DateFormatting.displayString(from: selected.date))
