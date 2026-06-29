@@ -459,6 +459,8 @@
 	"weight_projection_60d": "60T",
 	"weight_projected": "Prognose",
 	"weight_view_all": "Alle {count} Einträge anzeigen",
+	"pagination_previous": "Zurück",
+	"pagination_next": "Weiter",
 	"weight_history_page_title": "Gewichtsverlauf",
 	"settings_tab_general": "Allgemein",
 	"settings_tab_mcp": "MCP",

@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
 	import { parseDecimalInput } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
@@ -12,6 +15,15 @@
 	import type { DexieSleepEntry } from '$lib/db/types';
 
 	let { entries, onChanged }: { entries: DexieSleepEntry[]; onChanged?: () => void } = $props();
+
+	const PER_PAGE = 10;
+	let page = $state(1);
+	const totalPages = $derived(Math.max(1, Math.ceil(entries.length / PER_PAGE)));
+	const displayed = $derived(entries.slice((page - 1) * PER_PAGE, page * PER_PAGE));
+
+	$effect(() => {
+		if (page > totalPages) page = totalPages;
+	});
 
 	let editingId: string | null = $state(null);
 	let editHours = $state(0);
@@ -78,7 +90,7 @@
 	{#if entries.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.sleep_no_entries()}</p>
 	{:else}
-		{#each entries as entry (entry.id)}
+		{#each displayed as entry (entry.id)}
 			<div class="flex items-center gap-3 rounded-lg border px-3 py-2">
 				{#if editingId === entry.id}
 					<div class="flex flex-1 flex-wrap items-center gap-2">
@@ -140,3 +152,37 @@
 		{/each}
 	{/if}
 </div>
+
+{#if entries.length > PER_PAGE}
+	<Pagination.Root count={entries.length} perPage={PER_PAGE} bind:page class="mt-4">
+		{#snippet children({ pages, currentPage })}
+			<Pagination.Content>
+				<Pagination.Item>
+					<Pagination.PrevButton>
+						<ChevronLeft class="size-4" />
+						<span class="hidden sm:block">{m.pagination_previous()}</span>
+					</Pagination.PrevButton>
+				</Pagination.Item>
+				{#each pages as p (p.key)}
+					{#if p.type === 'ellipsis'}
+						<Pagination.Item>
+							<Pagination.Ellipsis />
+						</Pagination.Item>
+					{:else}
+						<Pagination.Item>
+							<Pagination.Link page={p} isActive={currentPage === p.value}>
+								{p.value}
+							</Pagination.Link>
+						</Pagination.Item>
+					{/if}
+				{/each}
+				<Pagination.Item>
+					<Pagination.NextButton>
+						<span class="hidden sm:block">{m.pagination_next()}</span>
+						<ChevronRight class="size-4" />
+					</Pagination.NextButton>
+				</Pagination.Item>
+			</Pagination.Content>
+		{/snippet}
+	</Pagination.Root>
+{/if}
