@@ -124,10 +124,10 @@ struct FavoritesView: View {
     private func mealForCurrentTime() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5 ..< 11: return "breakfast"
-        case 11 ..< 14: return "lunch"
-        case 14 ..< 17: return "snacks"
-        default: return "dinner"
+        case 5 ..< 11: return "Breakfast"
+        case 11 ..< 14: return "Lunch"
+        case 14 ..< 17: return "Snacks"
+        default: return "Dinner"
         }
     }
 

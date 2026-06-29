@@ -13,11 +13,11 @@ struct QuickEntrySheet: View {
     @State private var carbs = ""
     @State private var fat = ""
     @State private var fiber = ""
-    @State private var mealType = "snacks"
+    @State private var mealType = "Snacks"
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
+    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     var body: some View {
         NavigationStack {

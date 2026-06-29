@@ -12,10 +12,12 @@ import WidgetKit
 enum WidgetSnapshotWriter {
     private static var pendingTask: Task<Void, Never>?
 
-    /// Standard meal types the app always offers, in display order. The watch
-    /// list starts from these and appends any custom meal types found in the
-    /// log (see `watchMealTypes`).
-    private static let standardMealTypes = ["breakfast", "lunch", "dinner", "snacks"]
+    /// Standard meal types the app always offers, in display order. These match
+    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
+    /// entries carry locally, so `watchMealTypes` recognizes them rather than
+    /// re-appending them as "custom". The watch list starts from these and
+    /// appends any custom meal types found in the log (see `watchMealTypes`).
+    private static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     static func scheduleUpdate(context: ModelContext) {
         pendingTask?.cancel()
@@ -101,7 +103,13 @@ enum WidgetSnapshotWriter {
     /// hardcoded-only list, so custom server meal types reach the watch.
     private static func watchMealTypes(context: ModelContext) -> [String] {
         let entries = (try? context.fetch(FetchDescriptor<LocalEntry>())) ?? []
-        let custom = Set(entries.map(\.mealType)).subtracting(standardMealTypes).sorted()
+        // Compare case-insensitively: optimistic, not-yet-synced entries can still
+        // carry a client's lowercase casing, and we don't want those reappearing
+        // as phantom "custom" duplicates of the standard set.
+        let standardKeys = Set(standardMealTypes.map { $0.lowercased() })
+        let custom = Set(entries.map(\.mealType))
+            .filter { !standardKeys.contains($0.lowercased()) }
+            .sorted()
         return standardMealTypes + custom
     }
 

@@ -159,12 +159,12 @@ struct LogRecipeSheet: View {
     let onLogged: () -> Void
 
     @State private var servings = "1"
-    @State private var mealType = "lunch"
+    @State private var mealType = "Lunch"
     @State private var date = Date()
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
+    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     var body: some View {
         NavigationStack {

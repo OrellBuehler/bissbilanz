@@ -224,10 +224,10 @@ struct FoodSearchView: View {
     private func mealForCurrentTime() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5 ..< 11: return "breakfast"
-        case 11 ..< 14: return "lunch"
-        case 14 ..< 17: return "snacks"
-        default: return "dinner"
+        case 5 ..< 11: return "Breakfast"
+        case 11 ..< 14: return "Lunch"
+        case 14 ..< 17: return "Snacks"
+        default: return "Dinner"
         }
     }
 
@@ -258,11 +258,11 @@ struct LogFoodSheet: View {
     let date: String
 
     @State private var servings: Double = 1.0
-    @State private var mealType = "lunch"
+    @State private var mealType = "Lunch"
     @State private var isLogging = false
     @State private var errorMessage: String?
 
-    private let mealTypes = ["breakfast", "lunch", "dinner", "snacks"]
+    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     var body: some View {
         NavigationStack {
