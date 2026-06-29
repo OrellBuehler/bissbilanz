@@ -55,7 +55,7 @@ final class BissbilanzAPI {
     // MARK: - Foods
 
     func searchFoods(query: String) async throws -> [Food] {
-        let response: FoodsResponse = try await get("/api/foods", params: ["search": query])
+        let response: FoodsResponse = try await get("/api/foods", params: ["q": query])
         return response.foods
     }
 
