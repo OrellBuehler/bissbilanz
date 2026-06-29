@@ -57,16 +57,23 @@ struct FoodEditSheet: View {
                 }
 
                 Section(L10n.servingSize) {
-                    HStack {
-                        TextField("100", text: $servingSize)
-                            .keyboardType(.decimalPad)
-                            .frame(width: 80)
-                        Picker(L10n.unit, selection: $servingUnit) {
-                            ForEach(ServingUnit.allCases, id: \.self) { unit in
-                                Text(unit.displayName).tag(unit)
+                    // Split the row 60/40 so the amount gets most of the width
+                    // and the unit picker no longer crowds it out.
+                    GeometryReader { geo in
+                        HStack(spacing: 8) {
+                            TextField("100", text: $servingSize)
+                                .keyboardType(.decimalPad)
+                                .frame(width: max(geo.size.width * 0.6 - 4, 0), alignment: .leading)
+                            Picker(L10n.unit, selection: $servingUnit) {
+                                ForEach(ServingUnit.allCases, id: \.self) { unit in
+                                    Text(unit.displayName).tag(unit)
+                                }
                             }
+                            .labelsHidden()
+                            .frame(width: max(geo.size.width * 0.4 - 4, 0), alignment: .trailing)
                         }
                     }
+                    .frame(height: 34)
                 }
 
                 Section(L10n.mainMacros) {
