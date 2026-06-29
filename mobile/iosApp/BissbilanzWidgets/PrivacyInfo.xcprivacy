@@ -8,9 +8,9 @@
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
-	<!-- The widget extension reads the shared App Group defaults (1C8F.1) for
-	     the WidgetSnapshot in group.com.bissbilanz (Shared/WidgetSnapshot.swift).
-	     CA92.1 covers any access to the extension's own defaults. -->
+	<!-- The widget extension only reads the shared App Group defaults (1C8F.1)
+	     for the WidgetSnapshot in group.com.bissbilanz
+	     (Shared/WidgetSnapshot.swift); it never touches UserDefaults.standard. -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
@@ -18,7 +18,6 @@
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
-				<string>CA92.1</string>
 				<string>1C8F.1</string>
 			</array>
 		</dict>
