@@ -823,7 +823,7 @@ SOFTWARE.
 
 </details>
 
-### @hono/node-server@2.0.4
+### @hono/node-server@2.0.6
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
@@ -1076,7 +1076,7 @@ https://github.com/lovell/sharp-libvips/issues/new
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @inlang/paraglide-js@2.18.2
+### @inlang/paraglide-js@2.20.2
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
@@ -1141,7 +1141,7 @@ SOFTWARE.
 
 </details>
 
-### @inlang/sdk@2.9.3
+### @inlang/sdk@2.10.2
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/inlang
@@ -1492,7 +1492,7 @@ SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @oxc-project/types@0.133.0
+### @oxc-project/types@0.137.0
 
 - **License:** MIT
 - **Repository:** https://github.com/oxc-project/oxc
@@ -1643,7 +1643,7 @@ SOFTWARE.
 
 </details>
 
-### @rolldown/binding-linux-x64-gnu@1.0.3
+### @rolldown/binding-linux-x64-gnu@1.1.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1660,7 +1660,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `@rolldown/binding`
 
 </details>
 
-### @rolldown/binding-linux-x64-musl@1.0.3
+### @rolldown/binding-linux-x64-musl@1.1.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -8103,7 +8103,7 @@ SOFTWARE.
 
 </details>
 
-### rolldown@1.0.3
+### rolldown@1.1.3
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -9531,7 +9531,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### vite@8.0.16
+### vite@8.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
