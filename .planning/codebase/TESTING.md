@@ -82,9 +82,7 @@ const { db, setResult, reset } = createMockDB();
 
 // Mock dependencies FIRST (before importing the module under test)
 vi.mock('$lib/server/env', () => ({
-	config: {
-		/* mock config */
-	}
+	config: {/* mock config */}
 }));
 
 // Then import the module under test

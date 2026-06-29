@@ -64,13 +64,7 @@ export function overallAdherence(
 }
 
 export type HeatmapStatus =
-	| 'on-target'
-	| 'over'
-	| 'over-high'
-	| 'under'
-	| 'under-high'
-	| 'none'
-	| 'no-goal';
+	'on-target' | 'over' | 'over-high' | 'under' | 'under-high' | 'none' | 'no-goal';
 
 export function heatmapStatus(
 	calories: number,
