@@ -7,7 +7,7 @@ const sleepEntrySchema = z
 		userId: z.string().uuid(),
 		entryDate: z.string(),
 		durationMinutes: z.number().int(),
-		quality: z.number().int(),
+		quality: z.number(),
 		bedtime: z.string().nullable(),
 		wakeTime: z.string().nullable(),
 		wakeUps: z.number().int().nullable(),

@@ -5,7 +5,7 @@ struct SleepEntry: Codable, Identifiable {
     let userId: String
     let entryDate: String
     let durationMinutes: Int
-    let quality: Int
+    let quality: Double
     let bedtime: String?
     let wakeTime: String?
     let wakeUps: Int?
@@ -22,7 +22,7 @@ struct SleepEntry: Codable, Identifiable {
 
 struct SleepCreate: Codable {
     let durationMinutes: Int
-    let quality: Int
+    let quality: Double
     let entryDate: String
     var bedtime: String?
     var wakeTime: String?
@@ -32,7 +32,7 @@ struct SleepCreate: Codable {
 
 struct SleepUpdate: Codable {
     var durationMinutes: Int?
-    var quality: Int?
+    var quality: Double?
     var entryDate: String?
     var bedtime: String?
     var wakeTime: String?

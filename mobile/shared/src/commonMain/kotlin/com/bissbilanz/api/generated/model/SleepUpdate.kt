@@ -33,7 +33,7 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class SleepUpdate(
     @SerialName(value = "durationMinutes") val durationMinutes: kotlin.Int? = null,
-    @SerialName(value = "quality") val quality: kotlin.Int? = null,
+    @SerialName(value = "quality") val quality: kotlin.Double? = null,
     @SerialName(value = "entryDate") val entryDate: kotlin.String? = null,
     @SerialName(value = "bedtime") val bedtime: kotlin.String? = null,
     @SerialName(value = "wakeTime") val wakeTime: kotlin.String? = null,

@@ -477,7 +477,9 @@ export const sleepEntries = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		entryDate: date('entry_date').notNull(),
 		durationMinutes: integer('duration_minutes').notNull(),
-		quality: integer('quality').notNull(),
+		// Stored as a float so synced sources (e.g. a 0–100 sleep score mapped to
+		// the 1–10 scale) can carry one decimal; the manual slider stays integer.
+		quality: real('quality').notNull(),
 		bedtime: timestamp('bedtime', { withTimezone: true }),
 		wakeTime: timestamp('wake_time', { withTimezone: true }),
 		wakeUps: integer('wake_ups'),

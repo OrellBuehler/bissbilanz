@@ -5211,7 +5211,7 @@
 						"maximum": 1440
 					},
 					"quality": {
-						"type": "integer",
+						"type": "number",
 						"minimum": 1,
 						"maximum": 10
 					},
@@ -5278,7 +5278,7 @@
 						"maximum": 1440
 					},
 					"quality": {
-						"type": "integer",
+						"type": "number",
 						"minimum": 1,
 						"maximum": 10
 					},
@@ -8734,9 +8734,7 @@
 						"maximum": 9007199254740991
 					},
 					"quality": {
-						"type": "integer",
-						"minimum": -9007199254740991,
-						"maximum": 9007199254740991
+						"type": "number"
 					},
 					"bedtime": {
 						"anyOf": [

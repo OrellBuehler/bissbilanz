@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const sleepCreateSchema = z
 	.object({
 		durationMinutes: z.coerce.number().int().positive().max(1440),
-		quality: z.coerce.number().int().min(1).max(10),
+		quality: z.coerce.number().min(1).max(10),
 		entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 		bedtime: z.string().datetime().optional().nullable(),
 		wakeTime: z.string().datetime().optional().nullable(),
@@ -16,7 +16,7 @@ export const sleepCreateSchema = z
 export const sleepUpdateSchema = z
 	.object({
 		durationMinutes: z.coerce.number().int().positive().max(1440).optional(),
-		quality: z.coerce.number().int().min(1).max(10).optional(),
+		quality: z.coerce.number().min(1).max(10).optional(),
 		entryDate: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)

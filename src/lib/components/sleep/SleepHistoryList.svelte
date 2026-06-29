@@ -84,6 +84,10 @@
 		if (q >= 5) return '#f59e0b';
 		return '#ef4444';
 	};
+
+	// Synced sources can carry a decimal score (e.g. 9.7); manual entries are
+	// whole numbers — show one decimal only when it isn't a round value.
+	const formatQuality = (q: number) => (Number.isInteger(q) ? String(q) : q.toFixed(1));
 </script>
 
 <div class="space-y-2">
@@ -126,7 +130,7 @@
 									class="inline-block size-2 rounded-full"
 									style="background-color: {qualityColor(entry.quality)}"
 								></span>
-								<span class="text-sm tabular-nums">{entry.quality}/10</span>
+								<span class="text-sm tabular-nums">{formatQuality(entry.quality)}/10</span>
 							</div>
 							<span class="text-sm text-muted-foreground">{formatDate(entry.entryDate)}</span>
 							{#if entry.bedtime || entry.wakeTime}
