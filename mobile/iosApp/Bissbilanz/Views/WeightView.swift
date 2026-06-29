@@ -114,6 +114,9 @@ struct WeightView: View {
     @State private var errorMessage: String?
     @State private var showProjection = false
     @State private var projectionDays = 30
+    /// X-position the user is touching on the chart, used to surface the nearest
+    /// data point (Apple Health-style scrubbing).
+    @State private var selectedDate: Date?
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
@@ -208,6 +211,19 @@ struct WeightView: View {
         }
         let padding = max((maxW - minW) * 0.15, 0.5)
         return (minW - padding) ... (maxW + padding)
+    }
+
+    /// The charted entry closest to the touched x-position, or nil when the
+    /// user isn't scrubbing.
+    private var selectedEntry: (date: Date, weightKg: Double)? {
+        guard let selectedDate else { return nil }
+        let dated = chartEntries.compactMap { entry -> (Date, Double)? in
+            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
+            return (date, entry.weightKg)
+        }
+        return dated
+            .min { abs($0.0.timeIntervalSince(selectedDate)) < abs($1.0.timeIntervalSince(selectedDate)) }
+            .map { (date: $0.0, weightKg: $0.1) }
     }
 
     var body: some View {
@@ -438,7 +454,38 @@ struct WeightView: View {
                             .interpolationMethod(.linear)
                         }
                     }
+
+                    if let selected = selectedEntry {
+                        RuleMark(x: .value("Date", selected.date))
+                            .foregroundStyle(.secondary.opacity(0.4))
+                            .annotation(
+                                position: .top,
+                                spacing: 0,
+                                overflowResolution: .init(x: .fit(to: .chart), y: .disjoint)
+                            ) {
+                                VStack(spacing: 2) {
+                                    Text(DateFormatting.displayString(from: selected.date))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text(String(format: "%.1f kg", selected.weightKg))
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.blue)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                            }
+
+                        PointMark(
+                            x: .value("Date", selected.date),
+                            y: .value(L10n.weight, selected.weightKg)
+                        )
+                        .foregroundStyle(.blue)
+                        .symbolSize(80)
+                    }
                 }
+                .chartXSelection(value: $selectedDate)
                 .chartYScale(domain: weightRange)
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
