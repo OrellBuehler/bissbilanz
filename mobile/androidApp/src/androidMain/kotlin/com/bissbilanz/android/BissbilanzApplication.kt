@@ -18,6 +18,7 @@ import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
+import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
@@ -35,6 +36,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import java.io.IOException
 
 class BissbilanzApplication : Application() {
     override fun onCreate() {
@@ -48,6 +50,10 @@ class BissbilanzApplication : Application() {
                 options.isAttachViewHierarchy = true
                 options.tracesSampleRate = 0.2
                 options.environment = if (BuildConfig.DEBUG) "development" else "production"
+                options.setBeforeSend { event, _ ->
+                    val throwable = event.throwable
+                    if (throwable != null && throwable.isAuthOrTransient()) null else event
+                }
             }
         }
 
@@ -130,4 +136,14 @@ class BissbilanzApplication : Application() {
         } catch (_: ClassNotFoundException) {
             false
         }
+}
+
+private fun Throwable.isAuthOrTransient(): Boolean {
+    var current: Throwable? = this
+    while (current != null) {
+        if (current is UnauthorizedException) return true
+        if (current is IOException) return true
+        current = current.cause
+    }
+    return false
 }

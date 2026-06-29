@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
@@ -58,6 +59,7 @@ import org.koin.compose.koinInject
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import androidx.compose.ui.geometry.Size as ComposeSize
 
 enum class ScanState { SCANNING, SEARCHING, NOT_FOUND }
@@ -305,9 +307,15 @@ private fun CameraPreview(
                     ).build(),
             )
         }
+    val disposed = remember { AtomicBoolean(false) }
+    val cameraProviderRef = remember { arrayOfNulls<ProcessCameraProvider>(1) }
+    val imageAnalysisRef = remember { arrayOfNulls<ImageAnalysis>(1) }
 
     DisposableEffect(Unit) {
         onDispose {
+            disposed.set(true)
+            imageAnalysisRef[0]?.clearAnalyzer()
+            cameraProviderRef[0]?.unbindAll()
             analyzerExecutor.shutdown()
             scanner.close()
         }
@@ -319,7 +327,12 @@ private fun CameraPreview(
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
+                if (disposed.get() || lifecycleOwner.lifecycle.currentState == Lifecycle.State.DESTROYED) {
+                    return@addListener
+                }
                 val cameraProvider = cameraProviderFuture.get()
+                cameraProviderRef[0] = cameraProvider
+
                 val preview =
                     Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
@@ -341,9 +354,10 @@ private fun CameraPreview(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setResolutionSelector(resolutionSelector)
                         .build()
+                imageAnalysisRef[0] = imageAnalysis
 
                 imageAnalysis.setAnalyzer(analyzerExecutor) { imageProxy ->
-                    if (!isScanning()) {
+                    if (disposed.get() || !isScanning()) {
                         imageProxy.close()
                         return@setAnalyzer
                     }
@@ -357,13 +371,19 @@ private fun CameraPreview(
                             mediaImage,
                             imageProxy.imageInfo.rotationDegrees,
                         )
-                    scanner
-                        .process(image)
-                        .addOnSuccessListener(analyzerExecutor) { barcodes ->
-                            barcodes.firstOrNull()?.rawValue?.let { value ->
-                                mainHandler.post { onBarcodeScanned(value) }
-                            }
-                        }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
+                    try {
+                        scanner
+                            .process(image)
+                            .addOnSuccessListener(analyzerExecutor) { barcodes ->
+                                if (!disposed.get()) {
+                                    barcodes.firstOrNull()?.rawValue?.let { value ->
+                                        mainHandler.post { onBarcodeScanned(value) }
+                                    }
+                                }
+                            }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
+                    } catch (_: Exception) {
+                        imageProxy.close()
+                    }
                 }
 
                 cameraProvider.unbindAll()
