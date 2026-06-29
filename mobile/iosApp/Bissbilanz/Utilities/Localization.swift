@@ -1006,7 +1006,11 @@ enum L10n {
     }
 
     static var additionalNutrients: String {
-        localized("additional_nutrients", en: "Additional (from label)", de: "Zusätzlich (vom Etikett)")
+        localized("additional_nutrients", en: "Additional Nutrients", de: "Weitere Nährstoffe")
+    }
+
+    static var addNutrient: String {
+        localized("add_nutrient", en: "Add Nutrient", de: "Nährstoff hinzufügen")
     }
 
     static var sugar: String {
