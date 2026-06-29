@@ -282,6 +282,29 @@ struct SettingsView: View {
                         } label: {
                             Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
                         }
+                        // Anchor the confirmation to the sign-out button itself —
+                        // attached to the enclosing List it presents as a popover
+                        // pointing at an unrelated row.
+                        .confirmationDialog(
+                            L10n.signOut + "?",
+                            isPresented: $showLogoutConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button(L10n.signOut, role: .destructive) {
+                                // The local store and pending queue belong to the
+                                // signed-out account — wipe them so nothing leaks
+                                // into the next session (Local mode or another
+                                // account).
+                                migrator.wipeLocalData()
+                                authManager.logout()
+                                // Reset the mode so the next start shows the login
+                                // screen with the mode choice again.
+                                appModeManager.clear()
+                            }
+                            Button(L10n.cancel, role: .cancel) {}
+                        } message: {
+                            Text(L10n.signOutConfirmation)
+                        }
                     }
                 }
 
@@ -304,20 +327,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle(L10n.settings)
-            .confirmationDialog(L10n.signOut + "?", isPresented: $showLogoutConfirmation) {
-                Button(L10n.signOut, role: .destructive) {
-                    // The local store and pending queue belong to the
-                    // signed-out account — wipe them so nothing leaks into
-                    // the next session (Local mode or another account).
-                    migrator.wipeLocalData()
-                    authManager.logout()
-                    // Reset the mode so the next start shows the login screen
-                    // with the mode choice again.
-                    appModeManager.clear()
-                }
-            } message: {
-                Text(L10n.signOutConfirmation)
-            }
             .sheet(isPresented: $isEditingGoals) {
                 goalsEditor
             }
