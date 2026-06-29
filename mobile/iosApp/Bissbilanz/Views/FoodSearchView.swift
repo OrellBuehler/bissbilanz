@@ -292,13 +292,13 @@ struct LogFoodSheet: View {
                     }
                 }
 
-                Section(L10n.meal) {
+                Section {
                     Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
                             Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                 }
 
                 Section(L10n.nutrition) {
