@@ -61,11 +61,14 @@ final class FoodRepository {
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
-        return rows
-            .filter { row in
-                row.name.localizedCaseInsensitiveContains(query)
-                    || (row.brand?.localizedCaseInsensitiveContains(query) ?? false)
-            }
+        let matches = rows.filter { row in
+            row.name.localizedCaseInsensitiveContains(query)
+                || (row.brand?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+        // Rank name matches ahead of brand-only matches; both stay alphabetical.
+        let nameMatches = matches.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        let brandOnly = matches.filter { !$0.name.localizedCaseInsensitiveContains(query) }
+        return (nameMatches + brandOnly)
             .prefix(limit)
             .compactMap { $0.toFood() }
     }

@@ -212,7 +212,7 @@ class FoodRepository(
     private fun searchFoodsCached(query: String): List<Food> {
         val pattern = "%$query%"
         return db.userDataDatabaseQueries
-            .searchFoods(pattern, pattern, 50)
+            .searchFoods(pattern, pattern, pattern, 50)
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
     }

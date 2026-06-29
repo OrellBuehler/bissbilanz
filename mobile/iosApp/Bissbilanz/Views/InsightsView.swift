@@ -15,7 +15,6 @@ struct InsightsView: View {
     @State private var selectedRange = 7
     @State private var isLoading = true
     @State private var calendarMonth = Date()
-    @ScaledMetric(relativeTo: .largeTitle) private var streakNumberSize = 36.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -143,31 +142,28 @@ struct InsightsView: View {
     private var streaksCard: some View {
         if let streaks {
             CardView {
-                VStack(spacing: 12) {
+                HStack(spacing: 16) {
                     Label(L10n.streaks, systemImage: "flame")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    HStack(spacing: 32) {
-                        VStack {
-                            Text("\(streaks.currentStreak)")
-                                .font(.system(size: streakNumberSize, weight: .bold))
-                                .foregroundStyle(MacroColors.calories)
-                            Text(L10n.currentStreak)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        VStack {
-                            Text("\(streaks.longestStreak)")
-                                .font(.system(size: streakNumberSize, weight: .bold))
-                                .foregroundStyle(MacroColors.fiber)
-                            Text(L10n.longestStreak)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    streakStat(streaks.currentStreak, label: L10n.currentStreak, color: MacroColors.calories)
+                    streakStat(streaks.longestStreak, label: L10n.longestStreak, color: MacroColors.fiber)
                 }
             }
+        }
+    }
+
+    private func streakStat(_ value: Int, label: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text("\(value)")
+                .font(.headline)
+                .fontWeight(.bold)
+                .monospacedDigit()
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
