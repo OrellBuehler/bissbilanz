@@ -26,6 +26,21 @@ struct FoodDetailView: View {
                 foodContent(food)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if food != nil, !isLoading, error == nil {
+                Button {
+                    showLogSheet = true
+                } label: {
+                    Label(L10n.logFood, systemImage: "plus.circle.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+        }
         .navigationTitle(food?.name ?? L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -43,12 +58,6 @@ struct FoodDetailView: View {
                     .accessibilityLabel(food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites)
 
                     Menu {
-                        Button {
-                            showLogSheet = true
-                        } label: {
-                            Label(L10n.logFood, systemImage: "plus.circle")
-                        }
-
                         Button {
                             showEditSheet = true
                         } label: {
@@ -124,11 +133,11 @@ struct FoodDetailView: View {
             }
 
             Section(L10n.mainMacros) {
-                NutrientRow(label: L10n.calories, value: food.calories, unit: "kcal", color: MacroColors.calories)
-                NutrientRow(label: L10n.protein, value: food.protein, unit: "g", color: MacroColors.protein)
-                NutrientRow(label: L10n.carbs, value: food.carbs, unit: "g", color: MacroColors.carbs)
-                NutrientRow(label: L10n.fat, value: food.fat, unit: "g", color: MacroColors.fat)
-                NutrientRow(label: L10n.fiber, value: food.fiber, unit: "g", color: MacroColors.fiber)
+                NutrientRow(label: L10n.calories, value: food.calories, unit: "kcal")
+                NutrientRow(label: L10n.protein, value: food.protein, unit: "g")
+                NutrientRow(label: L10n.carbs, value: food.carbs, unit: "g")
+                NutrientRow(label: L10n.fat, value: food.fat, unit: "g")
+                NutrientRow(label: L10n.fiber, value: food.fiber, unit: "g")
             }
 
             NutrientSection(title: L10n.fatBreakdown, nutrients: food.fatBreakdownNutrients)

@@ -16,6 +16,10 @@ struct BarcodeScannerView: View {
     @State private var notFound = false
     @State private var notFoundBarcode: String?
     @State private var showCreateFood = false
+    // Holds a freshly created food until the create sheet has fully dismissed,
+    // so its detail isn't presented mid-dismissal (which races into an empty
+    // sheet).
+    @State private var pendingCreatedFood: Food?
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var isTorchOn = false
 
@@ -126,11 +130,21 @@ struct BarcodeScannerView: View {
         .onChange(of: foundFood) { _, newValue in
             if newValue == nil { resetScanner() }
         }
-        .sheet(isPresented: $showCreateFood) {
+        .sheet(isPresented: $showCreateFood, onDismiss: {
+            // Chain to the new food's detail only after the create sheet has
+            // finished dismissing; presenting during the dismissal animation
+            // surfaces an empty sheet. A dismissal with nothing pending means
+            // the user cancelled — resume scanning.
+            if let created = pendingCreatedFood {
+                pendingCreatedFood = nil
+                foundFood = created
+            } else {
+                resetScanner()
+            }
+        }) {
             NavigationStack {
                 FoodEditSheet(barcode: notFoundBarcode) { food in
-                    foundFood = food
-                    showCreateFood = false
+                    pendingCreatedFood = food
                     scannedBarcode = nil
                     notFoundBarcode = nil
                 }

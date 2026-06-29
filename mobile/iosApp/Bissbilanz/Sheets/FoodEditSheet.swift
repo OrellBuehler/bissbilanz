@@ -21,13 +21,9 @@ struct FoodEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    // Populated by the nutrition-label scanner and only shown once a scan has
-    // happened, so the manual create flow stays unchanged.
-    @State private var sugar = ""
-    @State private var saturatedFat = ""
-    @State private var salt = ""
-    @State private var sodium = ""
-    @State private var didScanLabel = false
+    // Additional nutrients keyed by their FoodCreate field name. The user can
+    // add any supported nutrient here; the label scanner also fills a few.
+    @State private var additionalValues: [String: String] = [:]
     @State private var showLabelScanner = false
 
     let initialBarcode: String?
@@ -81,12 +77,26 @@ struct FoodEditSheet: View {
                     macroField(L10n.fiber, text: $fiber, unit: "g")
                 }
 
-                if didScanLabel {
-                    Section(L10n.additionalNutrients) {
-                        macroField(L10n.sugar, text: $sugar, unit: "g")
-                        macroField(L10n.saturatedFat, text: $saturatedFat, unit: "g")
-                        macroField(L10n.salt, text: $salt, unit: "g")
-                        macroField(L10n.sodium, text: $sodium, unit: "mg")
+                Section(L10n.additionalNutrients) {
+                    ForEach(addedNutrients) { spec in
+                        additionalNutrientField(spec)
+                    }
+                    .onDelete(perform: removeAdditionalNutrients)
+
+                    Menu {
+                        ForEach(Self.nutrientCatalog) { category in
+                            if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
+                                Menu(category.title) {
+                                    ForEach(category.nutrients) { spec in
+                                        if additionalValues[spec.key] == nil {
+                                            Button(spec.label) { additionalValues[spec.key] = "" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(L10n.addNutrient, systemImage: "plus.circle")
                     }
                 }
 
@@ -140,6 +150,25 @@ struct FoodEditSheet: View {
         }
     }
 
+    /// Catalog rows the user has added a value row for, in catalog order.
+    private var addedNutrients: [AdditionalNutrientSpec] {
+        Self.nutrientCatalog.flatMap(\.nutrients).filter { additionalValues[$0.key] != nil }
+    }
+
+    private func additionalNutrientField(_ spec: AdditionalNutrientSpec) -> some View {
+        macroField(spec.label, text: Binding(
+            get: { additionalValues[spec.key] ?? "" },
+            set: { additionalValues[spec.key] = $0 }
+        ), unit: spec.unit)
+    }
+
+    private func removeAdditionalNutrients(at offsets: IndexSet) {
+        let specs = addedNutrients
+        for index in offsets {
+            additionalValues[specs[index].key] = nil
+        }
+    }
+
     private func prefill() {
         if let bc = initialBarcode, existingFood == nil {
             barcode = bc
@@ -156,6 +185,15 @@ struct FoodEditSheet: View {
         fat = "\(food.fat)"
         fiber = "\(food.fiber)"
         isFavorite = food.isFavorite
+
+        // Surface any extended nutrients already stored on the food so they can
+        // be reviewed and edited alongside newly added ones.
+        let encoded = (try? JSONPatch.dictionary(of: food)) ?? [:]
+        for spec in Self.nutrientCatalog.flatMap(\.nutrients) {
+            if let number = encoded[spec.key] as? NSNumber {
+                additionalValues[spec.key] = Self.numberString(number.doubleValue)
+            }
+        }
     }
 
     /// Prefills the editable fields from an OCR'd nutrition label. Values are
@@ -169,15 +207,10 @@ struct FoodEditSheet: View {
         if let value = parsed.carbs { carbs = Self.numberString(value) }
         if let value = parsed.fat { fat = Self.numberString(value) }
         if let value = parsed.fiber { fiber = Self.numberString(value) }
-        if let value = parsed.sugar { sugar = Self.numberString(value) }
-        if let value = parsed.saturatedFat { saturatedFat = Self.numberString(value) }
-        if let value = parsed.salt { salt = Self.numberString(value) }
-        if let value = parsed.sodium { sodium = Self.numberString(value) }
-        didScanLabel = true
-    }
-
-    private func parsedValue(_ text: String) -> Double? {
-        text.isEmpty ? nil : Double.parseUserInput(text)
+        if let value = parsed.sugar { additionalValues["sugar"] = Self.numberString(value) }
+        if let value = parsed.saturatedFat { additionalValues["saturatedFat"] = Self.numberString(value) }
+        if let value = parsed.salt { additionalValues["salt"] = Self.numberString(value) }
+        if let value = parsed.sodium { additionalValues["sodium"] = Self.numberString(value) }
     }
 
     /// Renders a parsed value without a trailing ".0".
@@ -189,7 +222,7 @@ struct FoodEditSheet: View {
         isSaving = true
         errorMessage = nil
 
-        let foodData = FoodCreate(
+        var foodData = FoodCreate(
             name: name,
             brand: brand.isEmpty ? nil : brand,
             servingSize: Double.parseUserInput(servingSize) ?? 100,
@@ -199,13 +232,21 @@ struct FoodEditSheet: View {
             carbs: Double.parseUserInput(carbs) ?? 0,
             fat: Double.parseUserInput(fat) ?? 0,
             fiber: Double.parseUserInput(fiber) ?? 0,
-            saturatedFat: parsedValue(saturatedFat),
-            sugar: parsedValue(sugar),
-            sodium: parsedValue(sodium),
-            salt: parsedValue(salt),
             barcode: barcode.isEmpty ? nil : barcode,
             isFavorite: isFavorite
         )
+
+        // Overlay the additional nutrient values onto the matching FoodCreate
+        // fields by their JSON key. Blank or unparseable rows are skipped.
+        var patch: [String: Any] = [:]
+        for (key, text) in additionalValues {
+            if let value = Double.parseUserInput(text) {
+                patch[key] = value
+            }
+        }
+        if !patch.isEmpty {
+            foodData = (try? JSONPatch.merged(FoodCreate.self, base: foodData, patch: patch)) ?? foodData
+        }
 
         do {
             let saved: Food = if let existing = existingFood {
@@ -220,4 +261,75 @@ struct FoodEditSheet: View {
         }
         isSaving = false
     }
+
+    // Supported extended nutrients, grouped for the "Add Nutrient" menu. Keys
+    // match the FoodCreate JSON fields; units mirror the food detail view.
+    private static let nutrientCatalog: [AdditionalNutrientCategory] = [
+        AdditionalNutrientCategory(title: "Fat Breakdown", nutrients: [
+            AdditionalNutrientSpec(key: "saturatedFat", label: "Saturated Fat", unit: "g"),
+            AdditionalNutrientSpec(key: "monounsaturatedFat", label: "Monounsaturated Fat", unit: "g"),
+            AdditionalNutrientSpec(key: "polyunsaturatedFat", label: "Polyunsaturated Fat", unit: "g"),
+            AdditionalNutrientSpec(key: "transFat", label: "Trans Fat", unit: "g"),
+            AdditionalNutrientSpec(key: "cholesterol", label: "Cholesterol", unit: "mg"),
+            AdditionalNutrientSpec(key: "omega3", label: "Omega-3", unit: "g"),
+            AdditionalNutrientSpec(key: "omega6", label: "Omega-6", unit: "g"),
+        ]),
+        AdditionalNutrientCategory(title: "Sugars & Carbs", nutrients: [
+            AdditionalNutrientSpec(key: "sugar", label: "Sugar", unit: "g"),
+            AdditionalNutrientSpec(key: "addedSugars", label: "Added Sugars", unit: "g"),
+            AdditionalNutrientSpec(key: "sugarAlcohols", label: "Sugar Alcohols", unit: "g"),
+            AdditionalNutrientSpec(key: "starch", label: "Starch", unit: "g"),
+        ]),
+        AdditionalNutrientCategory(title: "Minerals", nutrients: [
+            AdditionalNutrientSpec(key: "sodium", label: "Sodium", unit: "mg"),
+            AdditionalNutrientSpec(key: "potassium", label: "Potassium", unit: "mg"),
+            AdditionalNutrientSpec(key: "calcium", label: "Calcium", unit: "mg"),
+            AdditionalNutrientSpec(key: "iron", label: "Iron", unit: "mg"),
+            AdditionalNutrientSpec(key: "magnesium", label: "Magnesium", unit: "mg"),
+            AdditionalNutrientSpec(key: "phosphorus", label: "Phosphorus", unit: "mg"),
+            AdditionalNutrientSpec(key: "zinc", label: "Zinc", unit: "mg"),
+            AdditionalNutrientSpec(key: "copper", label: "Copper", unit: "mg"),
+            AdditionalNutrientSpec(key: "manganese", label: "Manganese", unit: "mg"),
+            AdditionalNutrientSpec(key: "selenium", label: "Selenium", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "iodine", label: "Iodine", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "fluoride", label: "Fluoride", unit: "mg"),
+            AdditionalNutrientSpec(key: "chromium", label: "Chromium", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "molybdenum", label: "Molybdenum", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "chloride", label: "Chloride", unit: "mg"),
+        ]),
+        AdditionalNutrientCategory(title: "Vitamins", nutrients: [
+            AdditionalNutrientSpec(key: "vitaminA", label: "Vitamin A", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "vitaminC", label: "Vitamin C", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminD", label: "Vitamin D", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "vitaminE", label: "Vitamin E", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminK", label: "Vitamin K", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "vitaminB1", label: "Vitamin B1", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminB2", label: "Vitamin B2", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminB3", label: "Vitamin B3", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminB5", label: "Vitamin B5", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminB6", label: "Vitamin B6", unit: "mg"),
+            AdditionalNutrientSpec(key: "vitaminB7", label: "Vitamin B7", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "vitaminB9", label: "Vitamin B9", unit: "\u{00B5}g"),
+            AdditionalNutrientSpec(key: "vitaminB12", label: "Vitamin B12", unit: "\u{00B5}g"),
+        ]),
+        AdditionalNutrientCategory(title: "Other", nutrients: [
+            AdditionalNutrientSpec(key: "caffeine", label: "Caffeine", unit: "mg"),
+            AdditionalNutrientSpec(key: "alcohol", label: "Alcohol", unit: "g"),
+            AdditionalNutrientSpec(key: "water", label: "Water", unit: "g"),
+            AdditionalNutrientSpec(key: "salt", label: "Salt", unit: "g"),
+        ]),
+    ]
+}
+
+private struct AdditionalNutrientSpec: Identifiable {
+    let key: String
+    let label: String
+    let unit: String
+    var id: String { key }
+}
+
+private struct AdditionalNutrientCategory: Identifiable {
+    let title: String
+    let nutrients: [AdditionalNutrientSpec]
+    var id: String { title }
 }
