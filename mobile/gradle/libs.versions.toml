@@ -11,6 +11,7 @@ serialization = "1.11.0"
 datetime = "0.6.1"
 skie = "0.10.12"
 mlkit-barcode = "17.3.0"
+mlkit-text = "16.0.1"
 camerax = "1.6.1"
 ktlint = "14.2.0"
 mockk = "1.14.11"
@@ -72,6 +73,7 @@ camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.
 camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+mlkit-text = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkit-text" }
 
 # Security
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }

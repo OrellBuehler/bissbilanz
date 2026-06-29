@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -164,7 +166,28 @@ fun DashboardScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .pointerInput(Unit) {
+                            // Swipe right → previous day, swipe left → next day,
+                            // mirroring the iOS dashboard date gesture.
+                            var dragAmount = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dragAmount = 0f },
+                                onDragEnd = {
+                                    val threshold = 64.dp.toPx()
+                                    when {
+                                        dragAmount > threshold -> {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            viewModel.previousDay()
+                                        }
+                                        dragAmount < -threshold -> {
+                                            haptic(HapticFeedbackType.LongPress)
+                                            viewModel.nextDay()
+                                        }
+                                    }
+                                },
+                                onHorizontalDrag = { _, delta -> dragAmount += delta },
+                            )
+                        }.verticalScroll(rememberScrollState())
                         .padding(16.dp),
             ) {
                 Row(

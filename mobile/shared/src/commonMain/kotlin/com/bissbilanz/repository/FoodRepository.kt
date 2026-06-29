@@ -16,6 +16,7 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.mergeOpenFoodFactsOntoFood
+import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -290,6 +291,24 @@ class FoodRepository(
                 cachedFood
             }
         }
+    }
+
+    /**
+     * Resolves a scanned barcode to a usable food: the user's own food first,
+     * then an Open Food Facts hit (created locally so the user lands on its
+     * detail, mirroring iOS), else null. Used by the barcode scanner.
+     */
+    suspend fun findOrCreateByBarcode(barcode: String): Food? {
+        findByBarcode(barcode)?.let { return it }
+        val product =
+            try {
+                lookupOpenFoodFacts(barcode)
+            } catch (e: Exception) {
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                errorReporter.captureException(e)
+                null
+            } ?: return null
+        return createFood(openFoodFactsProductToFoodCreate(product, barcode))
     }
 
     private fun cacheFood(food: Food) {

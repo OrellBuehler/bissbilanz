@@ -6,14 +6,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.label.ParsedNutrition
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
@@ -57,6 +62,7 @@ fun FoodEditSheet(
     var saturatedFat by remember { mutableStateOf("") }
     var sugar by remember { mutableStateOf("") }
     var sodium by remember { mutableStateOf("") }
+    var salt by remember { mutableStateOf("") }
     var potassium by remember { mutableStateOf("") }
     var calcium by remember { mutableStateOf("") }
     var iron by remember { mutableStateOf("") }
@@ -65,6 +71,7 @@ fun FoodEditSheet(
 
     var showAdvanced by remember { mutableStateOf(false) }
     var showUnitDropdown by remember { mutableStateOf(false) }
+    var showLabelScanner by remember { mutableStateOf(false) }
 
     LaunchedEffect(foodId) {
         if (foodId != null) {
@@ -84,6 +91,7 @@ fun FoodEditSheet(
                 saturatedFat = food.saturatedFat?.formatNutrient() ?: ""
                 sugar = food.sugar?.formatNutrient() ?: ""
                 sodium = food.sodium?.formatNutrient() ?: ""
+                salt = food.salt?.formatNutrient() ?: ""
                 potassium = food.potassium?.formatNutrient() ?: ""
                 calcium = food.calcium?.formatNutrient() ?: ""
                 iron = food.iron?.formatNutrient() ?: ""
@@ -136,6 +144,7 @@ fun FoodEditSheet(
                         saturatedFat = saturatedFat.toLocalizedDoubleOrNull(),
                         sugar = sugar.toLocalizedDoubleOrNull(),
                         sodium = sodium.toLocalizedDoubleOrNull(),
+                        salt = salt.toLocalizedDoubleOrNull(),
                         potassium = potassium.toLocalizedDoubleOrNull(),
                         calcium = calcium.toLocalizedDoubleOrNull(),
                         iron = iron.toLocalizedDoubleOrNull(),
@@ -158,6 +167,36 @@ fun FoodEditSheet(
             }
             isSaving = false
         }
+    }
+
+    fun applyParsed(parsed: ParsedNutrition) {
+        // Parsed values are per 100 g (the parser's canonical basis); the user
+        // adjusts the serving and confirms before saving.
+        servingSize = "100"
+        servingUnit = ServingUnit.g
+        parsed.calories?.let { calories = it.formatNutrient() }
+        parsed.protein?.let { protein = it.formatNutrient() }
+        parsed.carbs?.let { carbs = it.formatNutrient() }
+        parsed.fat?.let { fat = it.formatNutrient() }
+        parsed.fiber?.let { fiber = it.formatNutrient() }
+        var hasAdvanced = false
+        parsed.sugar?.let {
+            sugar = it.formatNutrient()
+            hasAdvanced = true
+        }
+        parsed.saturatedFat?.let {
+            saturatedFat = it.formatNutrient()
+            hasAdvanced = true
+        }
+        parsed.sodium?.let {
+            sodium = it.formatNutrient()
+            hasAdvanced = true
+        }
+        parsed.salt?.let {
+            salt = it.formatNutrient()
+            hasAdvanced = true
+        }
+        if (hasAdvanced) showAdvanced = true
     }
 
     ModalBottomSheet(
@@ -186,6 +225,34 @@ fun FoodEditSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
+
+                if (!isEditing) {
+                    OutlinedButton(
+                        onClick = { showLabelScanner = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Default.DocumentScanner, contentDescription = null)
+                        Text(
+                            stringResource(R.string.scan_label),
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.scan_label_footer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (showLabelScanner) {
+                    NutritionLabelScanDialog(
+                        onDismiss = { showLabelScanner = false },
+                        onParsed = {
+                            applyParsed(it)
+                            showLabelScanner = false
+                        },
+                    )
+                }
 
                 // Basic info
                 OutlinedTextField(
@@ -289,6 +356,7 @@ fun FoodEditSheet(
 
                         Text("Minerals", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
                         NutrientTextField("Sodium (mg)", sodium) { sodium = it }
+                        NutrientTextField("Salt (g)", salt) { salt = it }
                         NutrientTextField("Potassium (mg)", potassium) { potassium = it }
                         NutrientTextField("Calcium (mg)", calcium) { calcium = it }
                         NutrientTextField("Iron (mg)", iron) { iron = it }
