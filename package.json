@@ -101,7 +101,6 @@
 		"zod": "^4.4.3"
 	},
 	"overrides": {
-		"@hono/node-server": "^2.0.1",
 		"rollup": "^4.59.0",
 		"axios": "^1.15.0",
 		"effect": "^3.20.0",
