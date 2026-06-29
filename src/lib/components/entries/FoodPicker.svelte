@@ -137,20 +137,18 @@
 		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
 
 	const favoriteFoods = $derived(
-		onlyFavorites(foods).map(
-			(f): FavoriteItem => ({
-				id: f.id,
-				name: f.name,
-				imageUrl: f.imageUrl ?? null,
-				calories: f.calories ?? 0,
-				protein: f.protein ?? 0,
-				carbs: f.carbs ?? 0,
-				fat: f.fat ?? 0,
-				type: 'food',
-				servingSize: f.servingSize,
-				servingUnit: f.servingUnit
-			})
-		)
+		onlyFavorites(foods).map((f): FavoriteItem => ({
+			id: f.id,
+			name: f.name,
+			imageUrl: f.imageUrl ?? null,
+			calories: f.calories ?? 0,
+			protein: f.protein ?? 0,
+			carbs: f.carbs ?? 0,
+			fat: f.fat ?? 0,
+			type: 'food',
+			servingSize: f.servingSize,
+			servingUnit: f.servingUnit
+		}))
 	);
 
 	const allFavorites = $derived([...favoriteFoods, ...favoriteRecipes]);
@@ -177,18 +175,16 @@
 				params: { query: { type: 'recipes' } }
 			});
 			if (data) {
-				favoriteRecipes = (data.recipes ?? []).map(
-					(r: any): FavoriteItem => ({
-						id: r.id,
-						name: r.name,
-						imageUrl: r.imageUrl ?? null,
-						calories: r.calories ?? 0,
-						protein: r.protein ?? 0,
-						carbs: r.carbs ?? 0,
-						fat: r.fat ?? 0,
-						type: 'recipe'
-					})
-				);
+				favoriteRecipes = (data.recipes ?? []).map((r: any): FavoriteItem => ({
+					id: r.id,
+					name: r.name,
+					imageUrl: r.imageUrl ?? null,
+					calories: r.calories ?? 0,
+					protein: r.protein ?? 0,
+					carbs: r.carbs ?? 0,
+					fat: r.fat ?? 0,
+					type: 'recipe'
+				}));
 			}
 		} catch (e) {
 			if (dev) console.warn('Failed to load favorite recipes:', e);

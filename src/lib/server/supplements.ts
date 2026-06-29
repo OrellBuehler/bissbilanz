@@ -33,8 +33,7 @@ type IngredientInput = {
 };
 
 type TxOrDb =
-	| Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0]
-	| ReturnType<typeof getDB>;
+	Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0] | ReturnType<typeof getDB>;
 
 const resolveIngredientFoodId = async (
 	tx: TxOrDb,

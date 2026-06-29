@@ -8,8 +8,7 @@ import { ApiError } from '$lib/server/errors';
  * inside an existing transaction or standalone.
  */
 export type TxOrDb =
-	| Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0]
-	| ReturnType<typeof getDB>;
+	Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0] | ReturnType<typeof getDB>;
 
 /**
  * Verify a food belongs to the user before it can be referenced (e.g. as a log

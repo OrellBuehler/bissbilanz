@@ -153,8 +153,7 @@
 			onEntryLogged={() => entryService.refresh(activeDate)}
 			favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
 			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
-				| 'time_based'
-				| 'ask_meal'}
+				'time_based' | 'ask_meal'}
 			favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
 		/>
 	{:else if sectionKey === 'meal-breakdown' && userPrefs?.showMealBreakdownWidget}
