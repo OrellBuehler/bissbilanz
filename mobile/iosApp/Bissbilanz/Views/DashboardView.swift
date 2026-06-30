@@ -12,6 +12,10 @@ struct DashboardView: View {
     @State private var preferences: Preferences = .defaults
     @State private var selectedDate = Date()
     @State private var isLoading = false
+    /// True when the last entries refresh failed and the day is empty — lets us
+    /// show a retry affordance instead of a misleading "No entries yet" state
+    /// (a swallowed refresh error looks identical to a genuinely empty day).
+    @State private var refreshFailed = false
     @State private var showFoodSearch = false
     @State private var showScanner = false
     @State private var showQuickEntry = false
@@ -135,7 +139,7 @@ struct DashboardView: View {
         VStack(spacing: 16) {
             macroRings
 
-            if totalCalories == 0 {
+            if totalCalories == 0, !refreshFailed {
                 HStack {
                     Image(systemName: "fork.knife")
                         .foregroundStyle(.secondary)
@@ -173,7 +177,11 @@ struct DashboardView: View {
             }
 
             if mealGroups.isEmpty, !isLoading {
-                emptyState
+                if refreshFailed {
+                    refreshErrorState
+                } else {
+                    emptyState
+                }
             } else {
                 ForEach(mealGroups, id: \.0) { meal, mealEntries in
                     NavigationLink(value: dateString) {
@@ -395,6 +403,24 @@ struct DashboardView: View {
         .padding(.vertical, 24)
     }
 
+    /// Shown when the live entries refresh failed and the local store is empty,
+    /// so a swallowed network error isn't mistaken for a day with no food. The
+    /// Retry button re-runs `loadData` directly — a reliable refresh path that
+    /// doesn't depend on the pull-to-refresh gesture.
+    private var refreshErrorState: some View {
+        ContentUnavailableView {
+            Label(L10n.somethingWentWrong, systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(L10n.couldNotRefresh)
+        } actions: {
+            Button(L10n.retry) {
+                Task { await loadData() }
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.vertical, 24)
+    }
+
     // MARK: - FAB
 
     private var fab: some View {
@@ -456,7 +482,9 @@ struct DashboardView: View {
         isLoading = true
         defer { isLoading = false }
 
-        async let entriesTask: Void? = try? entryRepository.refresh(date: dateString)
+        // Track the entries refresh outcome: a failure that leaves the day
+        // empty must surface (retry) rather than masquerade as "No entries yet".
+        async let entriesOk: Bool = refreshEntries()
         async let goalsTask: Void? = try? goalsRepository.refresh()
         async let prefsTask: Void? = try? preferencesRepository.refresh()
         async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
@@ -470,11 +498,27 @@ struct DashboardView: View {
         // Report the device timezone so server-side analytics/MCP use the user's tz.
         async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
 
-        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask)
+        let (entriesRefreshed, _, _, _, _, _, _) = await (
+            entriesOk, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask
+        )
         let checklist = await supplementsTask
 
         loadFromStore()
+        // Only flag the empty-day error case; a failed refresh that still has
+        // cached entries keeps showing them (stale beats blank).
+        refreshFailed = !entriesRefreshed && entries.isEmpty
         if let checklist { supplementChecklist = checklist }
+    }
+
+    /// Pulls the day's entries, returning whether the live refresh succeeded so
+    /// `loadData` can distinguish "server says empty" from "couldn't reach server".
+    private func refreshEntries() async -> Bool {
+        do {
+            try await entryRepository.refresh(date: dateString)
+            return true
+        } catch {
+            return false
+        }
     }
 
     private func copyYesterday() async {

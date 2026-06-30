@@ -105,6 +105,14 @@ enum L10n {
         localized("something_went_wrong", en: "Something went wrong", de: "Etwas ist schiefgelaufen")
     }
 
+    static var couldNotRefresh: String {
+        localized(
+            "could_not_refresh",
+            en: "Couldn't reach the server, so this day may be out of date. Pull to refresh or tap retry.",
+            de: "Server nicht erreichbar – dieser Tag ist evtl. nicht aktuell. Zum Aktualisieren ziehen oder erneut versuchen."
+        )
+    }
+
     static var typeToSearchHint: String {
         localized("type_to_search_hint", en: "Type at least 2 characters", de: "Mindestens 2 Zeichen eingeben")
     }

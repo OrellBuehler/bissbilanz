@@ -572,6 +572,10 @@ final class BissbilanzAPI {
         }
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
+        // Never serve API reads from URLCache: these are per-user, frequently
+        // mutated rows (an entry logged on web/MCP must show on the next pull),
+        // and a stale 200 would silently hide fresh data with no error to debug.
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         return try await performRequest(request)
     }
 
