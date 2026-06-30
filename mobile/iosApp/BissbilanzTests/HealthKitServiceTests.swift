@@ -215,6 +215,8 @@ struct SleepNightAggregationTests {
         // 23:00–01:00 plus 01:20–07:00 — the awake gap doesn't count.
         #expect(night.asleepMinutes == 460)
         #expect(night.wakeUps == 1)
+        // 460 asleep / 480 in bed = 95.8% → 9.58, minus one awakening (0.3).
+        #expect(night.quality == 9.3)
     }
 
     @Test("Overlapping samples from two sources are not double-counted")
@@ -277,6 +279,55 @@ struct SleepNightAggregationTests {
         let nights = HealthKitService.nights(from: samples)
 
         #expect(nights.map(\.entryDate) == ["2026-06-02", "2026-06-03"])
+    }
+}
+
+@Suite("Derived Sleep Quality Tests")
+struct DerivedSleepQualityTests {
+    @Test("97% efficiency with no awakenings maps to 9.7")
+    func highEfficiencyMapsToScore() {
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 97, timeInBedMinutes: 100, wakeUps: 0) == 9.7)
+    }
+
+    @Test("Perfect efficiency caps at 10")
+    func perfectEfficiency() {
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 480, timeInBedMinutes: 480, wakeUps: 0) == 10.0)
+    }
+
+    @Test("Efficiency above 1 is clamped, never exceeding 10")
+    func efficiencyClampedAtOne() {
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 1000, timeInBedMinutes: 800, wakeUps: 0) == 10.0)
+    }
+
+    @Test("A poor, fragmented night never drops below 1")
+    func floorAtOne() {
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 10, timeInBedMinutes: 600, wakeUps: 20) == 1.0)
+    }
+
+    @Test("Each awakening reduces the score, capped at the maximum penalty")
+    func wakeUpPenalty() {
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 100, timeInBedMinutes: 100, wakeUps: 0) == 10.0)
+        // 10 − 2 × 0.3 = 9.4
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 100, timeInBedMinutes: 100, wakeUps: 2) == 9.4)
+        // Penalty capped at 2.0 → 10 − 2 = 8.0
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 100, timeInBedMinutes: 100, wakeUps: 100) == 8.0)
+    }
+
+    @Test("Efficiency and penalty combine and round to one decimal")
+    func combinedRounding() {
+        // 437 / 500 = 87.4% → 8.74, minus one awakening (0.3) = 8.44 → 8.4
+        #expect(HealthKitService.derivedQuality(asleepMinutes: 437, timeInBedMinutes: 500, wakeUps: 1) == 8.4)
+    }
+
+    @Test("Imported nights carry a derived quality, not a flat placeholder")
+    func nightsCarryDerivedQuality() {
+        // A clean 8h night with no awakenings → 100% efficiency → 10.0.
+        let bedtime = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 1, hour: 23))!
+        let wakeTime = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 2, hour: 7))!
+        let samples = [HealthKitService.SleepSample(start: bedtime, end: wakeTime, stage: .asleep)]
+
+        let night = HealthKitService.nights(from: samples).first
+        #expect(night?.quality == 10.0)
     }
 }
 
