@@ -12,9 +12,21 @@ struct DayLogView: View {
     @State private var isCopying = false
     @State private var showQuickEntry = false
     @State private var errorMessage: String?
+    @State private var searchText = ""
+
+    /// Entries narrowed by the search field (matches the displayed name).
+    private var filteredEntries: [Entry] {
+        guard !searchText.isEmpty else { return entries }
+        return entries.filter { $0.displayName.localizedCaseInsensitiveContains(searchText) }
+    }
 
     private var mealGroups: [(String, [Entry])] {
-        MealGrouping.group(entries)
+        MealGrouping.group(filteredEntries)
+    }
+
+    /// Logged-time order within a meal; entries without a timestamp sort last.
+    private func sortedByTime(_ items: [Entry]) -> [Entry] {
+        items.sorted { ($0.loggedAt ?? .distantFuture) < ($1.loggedAt ?? .distantFuture) }
     }
 
     var body: some View {
@@ -123,7 +135,7 @@ struct DayLogView: View {
         List {
             ForEach(mealGroups, id: \.0) { mealType, mealEntries in
                 Section {
-                    ForEach(mealEntries) { entry in
+                    ForEach(sortedByTime(mealEntries)) { entry in
                         entryRow(entry)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
@@ -142,40 +154,35 @@ struct DayLogView: View {
                             }
                     }
                 } header: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(L10n.mealName(mealType))
-                            Spacer()
-                            let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
-                            Text("\(Int(cal)) cal")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .monospacedDigit()
-                                .contentTransition(.numericText(value: cal))
-                                .foregroundStyle(MacroColors.calories)
-                        }
-                        HStack(spacing: 12) {
-                            let p = mealEntries.reduce(0.0) { $0 + $1.totalProtein }
-                            let c = mealEntries.reduce(0.0) { $0 + $1.totalCarbs }
-                            let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
-                            Text("P \(Int(p))g")
-                                .font(.caption2)
-                                .monospacedDigit()
-                                .foregroundStyle(MacroColors.protein)
-                            Text("C \(Int(c))g")
-                                .font(.caption2)
-                                .monospacedDigit()
-                                .foregroundStyle(MacroColors.carbs)
-                            Text("F \(Int(f))g")
-                                .font(.caption2)
-                                .monospacedDigit()
-                                .foregroundStyle(MacroColors.fat)
-                        }
-                    }
+                    mealHeader(mealType, mealEntries)
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .searchable(text: $searchText, prompt: L10n.search)
+        .overlay {
+            if mealGroups.isEmpty, !searchText.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
+        }
+    }
+
+    /// Meal section header: the meal name with the per-meal totals as compact,
+    /// quietly tinted pills instead of a row of bright coloured numbers.
+    private func mealHeader(_ mealType: String, _ mealEntries: [Entry]) -> some View {
+        let cal = mealEntries.reduce(0.0) { $0 + $1.totalCalories }
+        let p = mealEntries.reduce(0.0) { $0 + $1.totalProtein }
+        let c = mealEntries.reduce(0.0) { $0 + $1.totalCarbs }
+        let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.mealName(mealType))
+            HStack(spacing: 6) {
+                MacroPill(value: "\(Int(cal)) cal", color: MacroColors.calories)
+                MacroPill(label: "P", value: "\(Int(p))g", color: MacroColors.protein)
+                MacroPill(label: "C", value: "\(Int(c))g", color: MacroColors.carbs)
+                MacroPill(label: "F", value: "\(Int(f))g", color: MacroColors.fat)
+            }
+        }
     }
 
     private func entryRow(_ entry: Entry) -> some View {
@@ -187,22 +194,24 @@ struct DayLogView: View {
                     Text(entry.displayName)
                         .font(.body)
                         .foregroundStyle(.primary)
-                    Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        if let time = entry.loggedTimeString {
+                            Text(time)
+                            Text("\u{00B7}")
+                        }
+                        Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
+                    }
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("P\(Int(entry.totalProtein))")
-                        .font(.caption2)
-                        .monospacedDigit()
-                        .foregroundStyle(MacroColors.protein)
-                    Text("C\(Int(entry.totalCarbs)) F\(Int(entry.totalFat))")
-                        .font(.caption2)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
+                // Neutral, single-line macro summary — the colour now lives only
+                // in the meal-header pills, so the list reads calmly.
+                Text("P\(Int(entry.totalProtein)) C\(Int(entry.totalCarbs)) F\(Int(entry.totalFat))")
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -242,5 +251,27 @@ struct DayLogView: View {
             errorMessage = error.localizedDescription
         }
         isCopying = false
+    }
+}
+
+/// A compact, quietly tinted capsule for a single macro total — used in the
+/// day-log meal headers to replace the row of bright coloured numbers.
+private struct MacroPill: View {
+    var label: String = ""
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if !label.isEmpty {
+                Text(label).fontWeight(.semibold)
+            }
+            Text(value).monospacedDigit()
+        }
+        .font(.caption2)
+        .foregroundStyle(color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.16), in: Capsule())
     }
 }

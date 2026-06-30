@@ -113,12 +113,29 @@ struct FoodSearchView: View {
         }
     }
 
+    /// The shared search field filters the Recent/Favorites lists too — typing
+    /// here narrows whichever tab is showing, not just the Search tab.
+    private func matches(_ food: Food) -> Bool {
+        query.isEmpty
+            || food.name.localizedCaseInsensitiveContains(query)
+            || (food.brand?.localizedCaseInsensitiveContains(query) ?? false)
+    }
+
     private var recentTab: some View {
-        Group {
-            if recentFoods.isEmpty {
-                ContentUnavailableView(L10n.recent, systemImage: "clock", description: Text(L10n.noRecentFoods))
+        let items = recentFoods.filter(matches)
+        return Group {
+            if items.isEmpty {
+                if query.isEmpty {
+                    ContentUnavailableView(L10n.recent, systemImage: "clock", description: Text(L10n.noRecentFoods))
+                } else {
+                    ContentUnavailableView(
+                        L10n.noResults,
+                        systemImage: "magnifyingglass",
+                        description: Text("\(L10n.noResults): \"\(query)\"")
+                    )
+                }
             } else {
-                List(recentFoods) { food in
+                List(items) { food in
                     foodRow(food)
                 }
                 .listStyle(.plain)
@@ -127,11 +144,24 @@ struct FoodSearchView: View {
     }
 
     private var favoritesTab: some View {
-        Group {
-            if favoriteFoods.isEmpty {
-                ContentUnavailableView(L10n.favorites, systemImage: "star", description: Text(L10n.markFavoritesHint))
+        let items = favoriteFoods.filter(matches)
+        return Group {
+            if items.isEmpty {
+                if query.isEmpty {
+                    ContentUnavailableView(
+                        L10n.favorites,
+                        systemImage: "star",
+                        description: Text(L10n.markFavoritesHint)
+                    )
+                } else {
+                    ContentUnavailableView(
+                        L10n.noResults,
+                        systemImage: "magnifyingglass",
+                        description: Text("\(L10n.noResults): \"\(query)\"")
+                    )
+                }
             } else {
-                List(favoriteFoods) { food in
+                List(items) { food in
                     foodRow(food)
                 }
                 .listStyle(.plain)

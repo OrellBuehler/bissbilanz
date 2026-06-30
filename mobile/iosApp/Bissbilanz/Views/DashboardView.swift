@@ -12,6 +12,10 @@ struct DashboardView: View {
     @State private var preferences: Preferences = .defaults
     @State private var selectedDate = Date()
     @State private var isLoading = false
+    /// True when the last entries refresh failed and the day is empty — lets us
+    /// show a retry affordance instead of a misleading "No entries yet" state
+    /// (a swallowed refresh error looks identical to a genuinely empty day).
+    @State private var refreshFailed = false
     @State private var showFoodSearch = false
     @State private var showScanner = false
     @State private var showQuickEntry = false
@@ -74,6 +78,10 @@ struct DashboardView: View {
                     }
                 }
                 .padding()
+                // Extra bottom room so the floating action buttons never cover
+                // the last meal card's totals — the content can always scroll
+                // clear of the FAB instead of sitting permanently behind it.
+                .padding(.bottom, 104)
             }
             .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
@@ -135,7 +143,7 @@ struct DashboardView: View {
         VStack(spacing: 16) {
             macroRings
 
-            if totalCalories == 0 {
+            if totalCalories == 0, !refreshFailed {
                 HStack {
                     Image(systemName: "fork.knife")
                         .foregroundStyle(.secondary)
@@ -173,7 +181,11 @@ struct DashboardView: View {
             }
 
             if mealGroups.isEmpty, !isLoading {
-                emptyState
+                if refreshFailed {
+                    refreshErrorState
+                } else {
+                    emptyState
+                }
             } else {
                 ForEach(mealGroups, id: \.0) { meal, mealEntries in
                     NavigationLink(value: dateString) {
@@ -395,6 +407,24 @@ struct DashboardView: View {
         .padding(.vertical, 24)
     }
 
+    /// Shown when the live entries refresh failed and the local store is empty,
+    /// so a swallowed network error isn't mistaken for a day with no food. The
+    /// Retry button re-runs `loadData` directly — a reliable refresh path that
+    /// doesn't depend on the pull-to-refresh gesture.
+    private var refreshErrorState: some View {
+        ContentUnavailableView {
+            Label(L10n.somethingWentWrong, systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(L10n.couldNotRefresh)
+        } actions: {
+            Button(L10n.retry) {
+                Task { await loadData() }
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.vertical, 24)
+    }
+
     // MARK: - FAB
 
     private var fab: some View {
@@ -456,7 +486,10 @@ struct DashboardView: View {
         isLoading = true
         defer { isLoading = false }
 
-        async let entriesTask: Void? = try? entryRepository.refresh(date: dateString)
+        // Track the entries refresh outcome: a failure that leaves the day
+        // empty must surface (retry) rather than masquerade as "No entries yet".
+        // `refreshEntries` returns nil on success or a short failure reason.
+        async let entriesFailureReason: String? = refreshEntries()
         async let goalsTask: Void? = try? goalsRepository.refresh()
         async let prefsTask: Void? = try? preferencesRepository.refresh()
         async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
@@ -470,11 +503,52 @@ struct DashboardView: View {
         // Report the device timezone so server-side analytics/MCP use the user's tz.
         async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
 
-        _ = await (entriesTask, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask)
+        let (entriesFailReason, _, _, _, _, _, _) = await (
+            entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask
+        )
         let checklist = await supplementsTask
 
         loadFromStore()
+        // Only flag the empty-day error case; a failed refresh that still has
+        // cached entries keeps showing them (stale beats blank).
+        refreshFailed = entriesFailReason != nil && entries.isEmpty
+        if refreshFailed, let entriesFailReason {
+            // Whenever the user actually sees the "couldn't refresh" state, log
+            // why — at warning level so it bypasses the API layer's noise filter
+            // (offline/401/404), which would otherwise leave the failure invisible.
+            ErrorReporter.captureWarning(
+                "Dashboard entries refresh failed — showing retry",
+                context: [
+                    "date": dateString,
+                    "endpoint": "/api/entries",
+                    "reason": entriesFailReason
+                ]
+            )
+        }
         if let checklist { supplementChecklist = checklist }
+    }
+
+    /// Pulls the day's entries. Returns `nil` on success, or a short failure
+    /// reason (offline / server_error_500 / decoding_error_200 …) so `loadData`
+    /// can distinguish "server says empty" from "couldn't reach server" and
+    /// report *why* when it surfaces the error state. A String (not the Error)
+    /// is returned so it crosses the `async let` boundary as a Sendable value.
+    private func refreshEntries() async -> String? {
+        do {
+            try await entryRepository.refresh(date: dateString)
+            return nil
+        } catch {
+            let reason = ErrorReporter.reason(for: error)
+            // Breadcrumb on every failure (even when stale entries still render),
+            // so any later event carries the trail that led to it.
+            ErrorReporter.addBreadcrumb(
+                "entries refresh failed",
+                category: "sync",
+                level: .warning,
+                data: ["date": dateString, "reason": reason]
+            )
+            return reason
+        }
     }
 
     private func copyYesterday() async {

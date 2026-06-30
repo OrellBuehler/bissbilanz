@@ -129,6 +129,34 @@ enum ErrorReporter {
         SentrySDK.capture(message: "Bissbilanz iOS test event")
     }
 
+    /// Short, stable classification of a failure for telemetry — so a captured
+    /// warning says *why* (offline / timeout / server_error_500 / decoding_error_200
+    /// / unauthorized …) instead of a bare localized string. Use alongside
+    /// `captureWarning` at the point a failure becomes user-visible, since the
+    /// most common causes here (offline, 401, 404) are filtered out of `capture`.
+    static func reason(for error: Error) -> String {
+        if error is CancellationError { return "cancelled" }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed: return "offline"
+            case .timedOut: return "timeout"
+            case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed: return "cannot_reach_host"
+            default: return "url_error_\(urlError.code.rawValue)"
+            }
+        }
+        switch error as? APIError {
+        case .unauthorized: return "unauthorized"
+        case .notFound: return "not_found"
+        case .gone: return "gone"
+        case .conflict: return "conflict"
+        case .badRequest: return "bad_request"
+        case let .serverError(code, _): return "server_error_\(code)"
+        case let .networkError(underlying): return reason(for: underlying)
+        case let .decodingError(_, statusCode, _): return "decoding_error_\(statusCode)"
+        case nil: return "other: \(error.localizedDescription)"
+        }
+    }
+
     private static func shouldIgnore(_ error: Error) -> Bool {
         if error is CancellationError {
             return true

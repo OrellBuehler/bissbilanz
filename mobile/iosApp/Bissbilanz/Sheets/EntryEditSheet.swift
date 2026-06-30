@@ -43,6 +43,7 @@ struct EntryEditSheet: View {
                             Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
             }
             .navigationTitle(L10n.editEntry)

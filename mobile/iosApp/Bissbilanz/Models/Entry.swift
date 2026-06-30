@@ -53,6 +53,20 @@ struct Entry: Codable, Identifiable {
     var totalFiber: Double {
         (fiber ?? quickFiber ?? 0) * servings
     }
+
+    /// When the entry was logged, preferring the user-set eaten time and
+    /// falling back to the row's creation timestamp. `nil` when neither parses.
+    var loggedAt: Date? {
+        if let eatenAt, let date = DateFormatting.isoDateTime(from: eatenAt) { return date }
+        if let createdAt, let date = DateFormatting.isoDateTime(from: createdAt) { return date }
+        return nil
+    }
+
+    /// Short local time-of-day ("1:30 PM") for display, or `nil` when unknown.
+    var loggedTimeString: String? {
+        guard let loggedAt else { return nil }
+        return DateFormatting.timeString(from: loggedAt)
+    }
 }
 
 struct EntryCreate: Codable {

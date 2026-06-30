@@ -105,6 +105,14 @@ enum L10n {
         localized("something_went_wrong", en: "Something went wrong", de: "Etwas ist schiefgelaufen")
     }
 
+    static var couldNotRefresh: String {
+        localized(
+            "could_not_refresh",
+            en: "Couldn't reach the server, so this day may be out of date. Pull to refresh or tap retry.",
+            de: "Server nicht erreichbar – dieser Tag ist evtl. nicht aktuell. Zum Aktualisieren ziehen oder erneut versuchen."
+        )
+    }
+
     static var typeToSearchHint: String {
         localized("type_to_search_hint", en: "Type at least 2 characters", de: "Mindestens 2 Zeichen eingeben")
     }
@@ -424,6 +432,22 @@ enum L10n {
         localized("per_serving", en: "Per Serving", de: "Pro Portion")
     }
 
+    static var per100: String {
+        localized("per_100", en: "Per 100 g", de: "Pro 100 g")
+    }
+
+    static var valuesPer: String {
+        localized("values_per", en: "Values per", de: "Werte pro")
+    }
+
+    static var macroBasisFooter: String {
+        localized(
+            "macro_basis_footer",
+            en: "Enter the macros per serving or per 100 g — the values are converted for you.",
+            de: "Makros pro Portion oder pro 100 g eingeben — die Werte werden für dich umgerechnet."
+        )
+    }
+
     static var totals: String {
         localized("totals", en: "Totals", de: "Gesamt")
     }
@@ -554,6 +578,10 @@ enum L10n {
 
     static var monthlyAvg: String {
         localized("monthly_avg", en: "Monthly Average", de: "Monatsdurchschnitt")
+    }
+
+    static var monthly: String {
+        localized("monthly", en: "Monthly", de: "Monatlich")
     }
 
     static var topFoods: String {
@@ -1336,6 +1364,14 @@ enum L10n {
 
     static var minutes: String {
         localized("minutes", en: "Minutes", de: "Minuten")
+    }
+
+    static var hoursShort: String {
+        localized("hours_short", en: "hr", de: "Std")
+    }
+
+    static var minutesShort: String {
+        localized("minutes_short", en: "min", de: "Min")
     }
 
     // MARK: - Insights (additional)

@@ -474,7 +474,14 @@ struct WeightView: View {
                                 }
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                // Solid background instead of a glass material so
+                                // the values stay legible over the chart lines.
+                                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(.quaternary, lineWidth: 0.5)
+                                }
+                                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
                             }
 
                         PointMark(
