@@ -32,10 +32,32 @@ struct WatchFoodRef: Codable, Identifiable, Hashable {
     }
 }
 
+/// Latest weight plus a glanceable 7-day delta for the watch's Weight tab.
+/// Computed phone-side from the local weight history so it works offline and
+/// in Local mode (the server stats API isn't reachable from the watch).
+struct WatchWeightInfo: Codable {
+    let latestKg: Double?
+    let latestDate: String?
+    /// Latest weight minus the weight ~7 days earlier (kg). Negative = lost.
+    let delta7dKg: Double?
+
+    static let empty = WatchWeightInfo(latestKg: nil, latestDate: nil, delta7dKg: nil)
+}
+
+/// Last night's sleep for the watch's Sleep tab. `quality` is 0–5 to match the
+/// phone's scale; `durationMinutes` is the total time asleep.
+struct WatchSleepInfo: Codable {
+    /// ISO day ("yyyy-MM-dd") the entry refers to.
+    let date: String
+    let durationMinutes: Int
+    let quality: Double
+}
+
 /// The full "today" state the phone mirrors to the watch. Wraps the existing
 /// `WidgetSnapshot` (macros, goals, per-meal totals, favorites, latest weight,
-/// locale) and adds the two things the watch's logging UI needs that the
-/// widgets don't: the server-driven meal-type list and a recents list.
+/// locale) and adds what the watch's tabs need that the widgets don't: the
+/// server-driven meal-type list, a recents list, the weight glance, and last
+/// night's sleep.
 struct WatchState: Codable {
     let snapshot: WidgetSnapshot
     /// Meal-type keys the watch offers in its log picker. Server-driven — the
@@ -44,23 +66,33 @@ struct WatchState: Codable {
     let mealTypes: [String]
     /// Recently logged foods, most recent first.
     let recents: [WatchFoodRef]
+    /// Latest weight + 7-day delta for the Weight tab. Optional so older
+    /// payloads (and empty histories) decode cleanly.
+    var weight: WatchWeightInfo?
+    /// Last night's sleep for the Sleep tab, when one has been logged.
+    var sleep: WatchSleepInfo?
 
     static var placeholder: WatchState {
         WatchState(
             snapshot: .placeholder,
             mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
-            recents: []
+            recents: [],
+            weight: WatchWeightInfo(latestKg: 78.4, latestDate: nil, delta7dKg: -0.3),
+            sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 4)
         )
     }
 
     /// Mirrors `WidgetSnapshot.resetIfStale`: the day-bound macro totals only
     /// hold for the day they were captured, so zero them when rendered on a
-    /// later day while keeping goals and reference data.
+    /// later day while keeping goals and reference data (weight and sleep are
+    /// reference data — carried through unchanged).
     func resetIfStale(on referenceDate: Date) -> WatchState {
         WatchState(
             snapshot: snapshot.resetIfStale(on: referenceDate),
             mealTypes: mealTypes,
-            recents: recents
+            recents: recents,
+            weight: weight,
+            sleep: sleep
         )
     }
 }
@@ -83,14 +115,37 @@ struct WatchLogRequest: Codable {
     var quickFiber: Double?
 }
 
+/// The watch → phone "log my weight" command. Mirrors `WeightCreate`; the phone
+/// runs the real write through `WeightRepository`.
+struct WatchWeightLogRequest: Codable {
+    let weightKg: Double
+    /// ISO day ("yyyy-MM-dd").
+    let date: String
+}
+
+/// The watch → phone "log my sleep" command. Mirrors `SleepCreate`; the phone
+/// runs the real write through `SleepRepository`.
+struct WatchSleepLogRequest: Codable {
+    let durationMinutes: Int
+    /// 0–5 quality, matching the phone's scale.
+    let quality: Double
+    /// ISO day ("yyyy-MM-dd") the sleep is attributed to.
+    let date: String
+}
+
 /// Dictionary keys for the plist-safe `[String: Any]` payloads WCSession
 /// transports. Each value is a JSON `Data` blob (see `WatchPayloadCodec`).
 enum WatchPayloadKey {
-    /// Phone → watch application context: the encoded `WatchState`.
+    /// Phone → watch application context (and weight/sleep log replies): the
+    /// encoded `WatchState`.
     static let state = "state"
     /// Watch → phone message/user-info: the encoded `WatchLogRequest`.
     static let logRequest = "logRequest"
-    /// Phone → watch reply: the refreshed `WidgetSnapshot` after a log.
+    /// Watch → phone message/user-info: the encoded `WatchWeightLogRequest`.
+    static let weightLogRequest = "weightLogRequest"
+    /// Watch → phone message/user-info: the encoded `WatchSleepLogRequest`.
+    static let sleepLogRequest = "sleepLogRequest"
+    /// Phone → watch reply: the refreshed `WidgetSnapshot` after a food log.
     static let snapshot = "snapshot"
 }
 

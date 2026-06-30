@@ -86,15 +86,13 @@ struct BissbilanzApp: App {
         let entryRepo = EntryRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         let foodRepo = FoodRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         let recipeRepo = RecipeRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        let weightRepo = WeightRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        let sleepRepo = SleepRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         _entryRepository = State(wrappedValue: entryRepo)
         _foodRepository = State(wrappedValue: foodRepo)
         _recipeRepository = State(wrappedValue: recipeRepo)
-        _weightRepository = State(wrappedValue: WeightRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        ))
-        _sleepRepository = State(wrappedValue: SleepRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        ))
+        _weightRepository = State(wrappedValue: weightRepo)
+        _sleepRepository = State(wrappedValue: sleepRepo)
         _supplementRepository = State(wrappedValue: SupplementRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
@@ -144,6 +142,21 @@ struct BissbilanzApp: App {
             )
             _ = try? await entryRepo.createEntry(create, food: food)
             return WidgetSnapshotWriter.buildSnapshot(context: context)
+        }
+        // Weight/sleep logs from the watch run through the same offline-first
+        // repositories the UI uses; the reply carries the refreshed WatchState
+        // so the watch's glance updates immediately.
+        PhoneWatchConnectivity.shared.onWeightLog = { request in
+            _ = try? await weightRepo.createEntry(
+                WeightCreate(weightKg: request.weightKg, entryDate: request.date)
+            )
+            return WidgetSnapshotWriter.buildWatchState(context: context)
+        }
+        PhoneWatchConnectivity.shared.onSleepLog = { request in
+            _ = try? await sleepRepo.createEntry(
+                SleepCreate(durationMinutes: request.durationMinutes, quality: request.quality, entryDate: request.date)
+            )
+            return WidgetSnapshotWriter.buildWatchState(context: context)
         }
         PhoneWatchConnectivity.shared.activate()
     }

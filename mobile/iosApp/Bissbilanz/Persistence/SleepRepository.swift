@@ -169,5 +169,6 @@ final class SleepRepository {
 
     private func save() {
         try? context.save()
+        WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }
