@@ -48,13 +48,7 @@ struct FavoritesWidgetView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(tiles) { food in
-                        if let url = WidgetDeepLink.food(food.id) {
-                            Link(destination: url) {
-                                tile(for: food)
-                            }
-                        } else {
-                            tile(for: food)
-                        }
+                        tile(for: food)
                     }
                 }
             }
@@ -74,7 +68,33 @@ struct FavoritesWidgetView: View {
         }
     }
 
+    /// Each tile offers two distinct actions that must not fight each other:
+    /// tapping the tile body navigates to the food's detail screen (`Link`),
+    /// while the "+" button quick-adds it in place (`Button(intent:)`, runs
+    /// in the widget extension process — see `QuickAddFoodIntent`). The two
+    /// are `ZStack` siblings, never nested, so SwiftUI doesn't have to
+    /// arbitrate one gesture recognizer inside another.
     private func tile(for food: WidgetSnapshot.FavoriteFood) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            if let url = WidgetDeepLink.food(food.id) {
+                Link(destination: url) {
+                    tileContent(for: food)
+                }
+            } else {
+                tileContent(for: food)
+            }
+            Button(intent: QuickAddFoodIntent(foodId: food.id, foodName: food.name)) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 20))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, MacroColors.calories)
+            }
+            .buttonStyle(.plain)
+            .padding(6)
+        }
+    }
+
+    private func tileContent(for food: WidgetSnapshot.FavoriteFood) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(food.name)
                 .font(.caption)
@@ -88,7 +108,8 @@ struct FavoritesWidgetView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 22)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
     }
 }

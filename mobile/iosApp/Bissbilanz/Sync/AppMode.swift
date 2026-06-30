@@ -39,6 +39,9 @@ final class AppModeManager {
     func setMode(_ mode: AppMode) {
         defaults.set(mode.rawValue, forKey: Self.key)
         self.mode = mode
+        // Mirror to the App Group so the widget extension (a separate process,
+        // unable to reach `.standard`) can read it via `AppModeSnapshot`.
+        UserDefaults(suiteName: WidgetSnapshotStore.appGroupId)?.set(mode.rawValue, forKey: AppModeSnapshot.key)
     }
 
     /// Clears the persisted mode (used on logout) so the next start shows the
@@ -46,5 +49,6 @@ final class AppModeManager {
     func clear() {
         defaults.removeObject(forKey: Self.key)
         mode = nil
+        UserDefaults(suiteName: WidgetSnapshotStore.appGroupId)?.removeObject(forKey: AppModeSnapshot.key)
     }
 }

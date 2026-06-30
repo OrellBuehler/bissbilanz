@@ -2,22 +2,14 @@ import Foundation
 import SwiftData
 import WidgetKit
 
-/// Builds the compact "today" snapshot the widgets render from and pushes it
-/// to the shared App Group store, then asks WidgetKit to reload timelines. The
-/// same data also feeds the Apple Watch via `PhoneWatchConnectivity`.
-///
-/// Updates are debounced so bursts of writes (e.g. copying a whole day of
-/// entries) produce a single snapshot write and widget reload.
-@MainActor
-enum WidgetSnapshotWriter {
+/// App-only half of `WidgetSnapshotWriter` (PhoneShared/Widgets/WidgetSnapshotWriter.swift):
+/// the parts that depend on `L10n` (`UserDefaults.standard`, unreachable from
+/// the widget extension) and `PhoneWatchConnectivity` (`WCSession`, which
+/// Apple's WatchConnectivity docs prohibit using from app extensions). The
+/// widget extension's `QuickAddFoodIntent` calls the portable
+/// `buildSnapshot(context:localeCode:)`/`saveAndReload(_:)` directly instead.
+extension WidgetSnapshotWriter {
     private static var pendingTask: Task<Void, Never>?
-
-    /// Standard meal types the app always offers, in display order. These match
-    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
-    /// entries carry locally, so `watchMealTypes` recognizes them rather than
-    /// re-appending them as "custom". The watch list starts from these and
-    /// appends any custom meal types found in the log (see `watchMealTypes`).
-    private static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     static func scheduleUpdate(context: ModelContext) {
         pendingTask?.cancel()
@@ -29,68 +21,16 @@ enum WidgetSnapshotWriter {
     }
 
     static func write(context: ModelContext) {
-        let snapshot = buildSnapshot(context: context)
-        WidgetSnapshotStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        let snapshot = buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+        saveAndReload(snapshot)
         PhoneWatchConnectivity.shared.sendState(buildWatchState(context: context, snapshot: snapshot))
-    }
-
-    /// Builds the snapshot from the current store without persisting it. Used
-    /// both for the widget write and to reply to a watch log request with
-    /// fresh totals.
-    static func buildSnapshot(context: ModelContext) -> WidgetSnapshot {
-        let today = DateFormatting.today
-
-        let entryDescriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == today })
-        let entries = ((try? context.fetch(entryDescriptor)) ?? []).compactMap { $0.toEntry() }
-
-        let goals = ((try? context.fetch(FetchDescriptor<LocalGoals>())) ?? [])
-            .first?.toGoals() ?? .defaults
-
-        var weightDescriptor = FetchDescriptor<LocalWeightEntry>(
-            sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
-        )
-        weightDescriptor.fetchLimit = 1
-        let latestWeight = (try? context.fetch(weightDescriptor))?.first
-
-        let favoritesDescriptor = FetchDescriptor<LocalFood>(
-            predicate: #Predicate { $0.isFavorite },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        let favorites = (try? context.fetch(favoritesDescriptor)) ?? []
-
-        let mealTotals = Dictionary(grouping: entries, by: \.mealType)
-            .map { WidgetSnapshot.Meal(mealType: $0.key, calories: $0.value.reduce(0) { $0 + $1.totalCalories }) }
-            .sorted { $0.mealType < $1.mealType }
-
-        return WidgetSnapshot(
-            date: today,
-            localeCode: L10n.currentLocale.rawValue,
-            calories: entries.reduce(0) { $0 + $1.totalCalories },
-            protein: entries.reduce(0) { $0 + $1.totalProtein },
-            carbs: entries.reduce(0) { $0 + $1.totalCarbs },
-            fat: entries.reduce(0) { $0 + $1.totalFat },
-            fiber: entries.reduce(0) { $0 + $1.totalFiber },
-            calorieGoal: goals.calorieGoal,
-            proteinGoal: goals.proteinGoal,
-            carbGoal: goals.carbGoal,
-            fatGoal: goals.fatGoal,
-            fiberGoal: goals.fiberGoal,
-            meals: mealTotals,
-            latestWeightKg: latestWeight?.weightKg,
-            latestWeightDate: latestWeight?.entryDate,
-            favorites: favorites.prefix(12).map {
-                WidgetSnapshot.FavoriteFood(id: $0.id, name: $0.name, calories: $0.calories)
-            },
-            generatedAt: Date()
-        )
     }
 
     /// Assembles the watch payload: the widget snapshot plus what the watch's
     /// tabs need that the widgets don't — the meal-type list, a recents list,
     /// the weight glance (latest + 7-day delta) and last night's sleep.
     static func buildWatchState(context: ModelContext, snapshot: WidgetSnapshot? = nil) -> WatchState {
-        let snapshot = snapshot ?? buildSnapshot(context: context)
+        let snapshot = snapshot ?? buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
         return WatchState(
             snapshot: snapshot,
             mealTypes: watchMealTypes(context: context),
@@ -99,6 +39,13 @@ enum WidgetSnapshotWriter {
             sleep: watchSleep(context: context)
         )
     }
+
+    /// Standard meal types the app always offers, in display order. These match
+    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
+    /// entries carry locally, so `watchMealTypes` recognizes them rather than
+    /// re-appending them as "custom". The watch list starts from these and
+    /// appends any custom meal types found in the log (see `watchMealTypes`).
+    private static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     /// Day-granularity ISO formatter for the on-device 7-day weight delta.
     private static let isoDayFormatter: DateFormatter = {
@@ -122,7 +69,8 @@ enum WidgetSnapshotWriter {
 
         var delta7d: Double?
         if let latestDay = isoDayFormatter.date(from: latest.entryDate),
-           let cutoffDay = Calendar.current.date(byAdding: .day, value: -7, to: latestDay) {
+           let cutoffDay = Calendar.current.date(byAdding: .day, value: -7, to: latestDay)
+        {
             let cutoff = isoDayFormatter.string(from: cutoffDay)
             if let reference = rows.first(where: { $0.entryDate <= cutoff }) {
                 delta7d = latest.weightKg - reference.weightKg

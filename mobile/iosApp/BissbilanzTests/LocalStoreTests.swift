@@ -3,7 +3,6 @@ import Foundation
 import SwiftData
 import Testing
 
-@Suite("Local store")
 @MainActor
 struct LocalStoreTests {
     // MARK: - Cross-device de-duplication
@@ -75,5 +74,28 @@ struct LocalStoreTests {
 
     private func dayProperties(_ date: String, fasting: Bool) -> DayProperties {
         DayProperties(date: date, isFastingDay: fasting)
+    }
+
+    // MARK: - Sync queue sequencing
+
+    @Test("nextSeq returns 1 on an empty queue")
+    func nextSeqEmptyQueue() throws {
+        let container = try LocalStore.makeContainer(inMemory: true)
+        let context = container.mainContext
+
+        #expect(PendingSyncOperation.nextSeq(in: context) == 1)
+        withExtendedLifetime(container) {}
+    }
+
+    @Test("nextSeq returns the highest existing seq plus one")
+    func nextSeqIncrementsFromHighest() throws {
+        let container = try LocalStore.makeContainer(inMemory: true)
+        let context = container.mainContext
+        context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f1")))
+        context.insert(PendingSyncOperation(seq: 5, operation: .deleteFood(id: "f2")))
+        try context.save()
+
+        #expect(PendingSyncOperation.nextSeq(in: context) == 6)
+        withExtendedLifetime(container) {}
     }
 }

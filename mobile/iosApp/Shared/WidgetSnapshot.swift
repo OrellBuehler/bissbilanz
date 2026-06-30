@@ -1,8 +1,15 @@
 import Foundation
 
 /// Compact "today" snapshot the app writes to the shared App Group container
-/// after every data change. The widget extension renders exclusively from
-/// this — it never touches the SwiftData store or the network.
+/// after every data change. Every widget renders from this — this file is
+/// compiled into the phone app, the phone widget extension, the watch app
+/// and the watch widget extension alike (see `Shared/` in project.yml).
+/// The iOS widget extension (`BissbilanzWidgets`) never touches the network,
+/// but it does write to the App Group SwiftData store directly for
+/// interactive quick-add (`QuickAddFoodIntent`, in `PhoneShared/` — phone
+/// targets only), rebuilding and re-caching this snapshot afterward so the
+/// read path here stays unchanged. The watch never touches SwiftData; it
+/// only ever reads this via `WatchState`.
 struct WidgetSnapshot: Codable {
     struct Meal: Codable {
         let mealType: String

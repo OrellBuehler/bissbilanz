@@ -296,7 +296,12 @@ final class SyncManager {
             try await api.deleteFood(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .toggleFavorite(id, isFavorite):
-            _ = try await api.toggleFavorite(foodId: id, isFavorite: isFavorite, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.toggleFavorite(
+                foodId: id,
+                isFavorite: isFavorite,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .createEntry(body, localId):
             let server = try await api.createEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
@@ -315,7 +320,11 @@ final class SyncManager {
             try await api.deleteEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createRecipe(body, localId):
-            let server = try await api.createRecipe(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            let server = try await api.createRecipe(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
             guard LocalRemap.recipeRow(id: localId, in: context) != nil else {
                 enqueue(.deleteRecipe(id: server.id))
                 return
@@ -333,7 +342,11 @@ final class SyncManager {
             _ = try await api.setGoals(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createWeight(body, localId):
-            let server = try await api.createWeightEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            let server = try await api.createWeightEntry(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
             guard LocalRemap.weightRow(id: localId, in: context) != nil else {
                 enqueue(.deleteWeight(id: server.id))
                 return
@@ -342,13 +355,22 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateWeight(id, body):
-            _ = try await api.updateWeightEntry(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.updateWeightEntry(
+                id: id,
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .deleteWeight(id):
             try await api.deleteWeightEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createSleep(body, localId):
-            let server = try await api.createSleepEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            let server = try await api.createSleepEntry(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
             guard LocalRemap.sleepRow(id: localId, in: context) != nil else {
                 enqueue(.deleteSleep(id: server.id))
                 return
@@ -357,13 +379,22 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateSleep(id, body):
-            _ = try await api.updateSleepEntry(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.updateSleepEntry(
+                id: id,
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .deleteSleep(id):
             try await api.deleteSleepEntry(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .createSupplement(body, localId):
-            let server = try await api.createSupplement(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            let server = try await api.createSupplement(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
             guard LocalRemap.supplementRow(id: localId, in: context) != nil else {
                 enqueue(.deleteSupplement(id: server.id))
                 return
@@ -372,22 +403,46 @@ final class SyncManager {
             remapQueuedReferences(from: localId, to: server.id)
 
         case let .updateSupplement(id, body):
-            _ = try await api.updateSupplement(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.updateSupplement(
+                id: id,
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .deleteSupplement(id):
             try await api.deleteSupplement(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
         case let .logSupplement(supplementId, date):
-            _ = try await api.logSupplement(id: supplementId, date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.logSupplement(
+                id: supplementId,
+                date: date,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .unlogSupplement(supplementId, date):
-            try await api.unlogSupplement(id: supplementId, date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            try await api.unlogSupplement(
+                id: supplementId,
+                date: date,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .setDayProperties(date, isFastingDay):
-            _ = try await api.setDayProperties(date: date, isFastingDay: isFastingDay, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            _ = try await api.setDayProperties(
+                date: date,
+                isFastingDay: isFastingDay,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .deleteDayProperties(date):
-            try await api.deleteDayProperties(date: date, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+            try await api.deleteDayProperties(
+                date: date,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .updatePreferences(body):
             _ = try await api.updatePreferences(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
@@ -412,7 +467,7 @@ final class SyncManager {
         switch apiError {
         case .unauthorized:
             return .unauthorized
-        case .conflict(let serverNewer):
+        case let .conflict(serverNewer):
             return .conflict(serverNewer: serverNewer)
         case .notFound:
             return .notFound
@@ -449,9 +504,9 @@ final class SyncManager {
         case .deleteFood, .deleteEntry, .deleteRecipe, .deleteWeight,
              .deleteSupplement, .deleteSleep, .deleteDayProperties,
              .unlogSupplement:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
@@ -485,10 +540,7 @@ final class SyncManager {
     }
 
     private func nextSeq() -> Int {
-        var descriptor = FetchDescriptor<PendingSyncOperation>(sortBy: [SortDescriptor(\.seq, order: .reverse)])
-        descriptor.fetchLimit = 1
-        let highest = (try? context.fetch(descriptor))?.first?.seq ?? 0
-        return highest + 1
+        PendingSyncOperation.nextSeq(in: context)
     }
 
     private func save() {
