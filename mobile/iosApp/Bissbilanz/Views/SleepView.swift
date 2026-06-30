@@ -25,10 +25,6 @@ struct SleepView: View {
     @State private var selectedRange = 30
     @State private var errorMessage: String?
 
-    /// Imported Health nights carry no subjective rating — they get the
-    /// neutral middle of the 1–10 scale, editable afterwards.
-    static let importedQuality = 5.0
-
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
         case month = 30
@@ -296,7 +292,10 @@ struct SleepView: View {
     }
 
     /// Import nights from Apple Health that the app doesn't have yet
-    /// (read-only — never writes back to Health from here).
+    /// (read-only — never writes back to Health from here). Each night carries
+    /// a quality estimated from its sleep efficiency and awakenings
+    /// (`HealthKitService.derivedQuality`), since Apple's Sleep Score isn't
+    /// exposed through public HealthKit; the value stays editable afterwards.
     private func importFromHealthKit() async {
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return }
@@ -308,7 +307,7 @@ struct SleepView: View {
         for night in HealthKitService.nights(from: samples) where !existingDates.contains(night.entryDate) {
             let create = SleepCreate(
                 durationMinutes: night.asleepMinutes,
-                quality: Self.importedQuality,
+                quality: night.quality,
                 entryDate: night.entryDate,
                 bedtime: DateFormatting.isoDateTimeString(from: night.bedtime),
                 wakeTime: DateFormatting.isoDateTimeString(from: night.wakeTime),

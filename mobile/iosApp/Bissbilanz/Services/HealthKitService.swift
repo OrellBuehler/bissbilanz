@@ -268,6 +268,11 @@ final class HealthKitService {
         let wakeTime: Date
         let asleepMinutes: Int
         let wakeUps: Int
+        /// Estimated 1–10 quality. Apple's own Sleep Score isn't exposed
+        /// through public HealthKit, so this is derived from sleep efficiency
+        /// penalised by the awakening count — see `derivedQuality`. It stays a
+        /// real, editable rating instead of a flat placeholder.
+        let quality: Double
     }
 
     /// Writes one sleep session to Health. Only called for entries with known
@@ -344,6 +349,31 @@ final class HealthKitService {
     /// Sessions shorter than this are ignored — micro-naps aren't a night.
     nonisolated static let minimumNightMinutes = 30
 
+    /// Each awakening shaves this much off the 1–10 quality estimate…
+    nonisolated static let wakeUpQualityPenalty = 0.3
+
+    /// …but the combined wake-up penalty never exceeds this, so a fragmented
+    /// night still keeps a score driven mostly by how much of the time in bed
+    /// was actually spent asleep.
+    nonisolated static let maxWakeUpQualityPenalty = 2.0
+
+    /// Estimates a 1–10 quality for an imported night. Apple's own Sleep Score
+    /// isn't readable through public HealthKit (it's a Health-app metric, not a
+    /// sample type), so quality is derived from sleep efficiency — asleep
+    /// minutes over time in bed — scaled onto the 1–10 range and penalised by
+    /// the number of awakenings. The result is clamped to 1.0…10.0 and rounded
+    /// to one decimal so it always satisfies the server's `1..10` CHECK (a 0 or
+    /// >10 value would be rejected and the sync op dropped). Example: 97%
+    /// efficiency with no awakenings maps to 9.7.
+    nonisolated static func derivedQuality(asleepMinutes: Int, timeInBedMinutes: Int, wakeUps: Int) -> Double {
+        let inBed = max(timeInBedMinutes, asleepMinutes, 1)
+        let efficiency = min(Double(asleepMinutes) / Double(inBed), 1.0)
+        let penalty = min(Double(max(wakeUps, 0)) * wakeUpQualityPenalty, maxWakeUpQualityPenalty)
+        let score = efficiency * 10 - penalty
+        let clamped = min(max(score, 1.0), 10.0)
+        return (clamped * 10).rounded() / 10
+    }
+
     /// Groups raw samples into per-night aggregates: samples closer than
     /// `sessionGapSeconds` form a session; each session is keyed by the day it
     /// ends on (the wake day) and the longest session per day wins (the main
@@ -377,12 +407,19 @@ final class HealthKitService {
             let asleepMinutes = asleep.isEmpty ? totalMinutes(of: inBed) : totalMinutes(of: asleep)
             guard asleepMinutes >= minimumNightMinutes else { continue }
 
+            let cappedAsleep = min(asleepMinutes, 1440)
+            let timeInBedMinutes = Int(wakeTime.timeIntervalSince(bedtime) / 60)
             let night = SleepNight(
                 entryDate: DateFormatting.isoString(from: wakeTime),
                 bedtime: bedtime,
                 wakeTime: wakeTime,
-                asleepMinutes: min(asleepMinutes, 1440),
-                wakeUps: awake.count
+                asleepMinutes: cappedAsleep,
+                wakeUps: awake.count,
+                quality: derivedQuality(
+                    asleepMinutes: cappedAsleep,
+                    timeInBedMinutes: timeInBedMinutes,
+                    wakeUps: awake.count
+                )
             )
             if let existing = bestPerDay[night.entryDate], existing.asleepMinutes >= night.asleepMinutes {
                 continue
