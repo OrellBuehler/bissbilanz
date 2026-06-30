@@ -484,7 +484,8 @@ struct DashboardView: View {
 
         // Track the entries refresh outcome: a failure that leaves the day
         // empty must surface (retry) rather than masquerade as "No entries yet".
-        async let entriesOk: Bool = refreshEntries()
+        // `refreshEntries` returns nil on success or a short failure reason.
+        async let entriesFailureReason: String? = refreshEntries()
         async let goalsTask: Void? = try? goalsRepository.refresh()
         async let prefsTask: Void? = try? preferencesRepository.refresh()
         async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
@@ -498,26 +499,51 @@ struct DashboardView: View {
         // Report the device timezone so server-side analytics/MCP use the user's tz.
         async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
 
-        let (entriesRefreshed, _, _, _, _, _, _) = await (
-            entriesOk, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask
+        let (entriesFailReason, _, _, _, _, _, _) = await (
+            entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask
         )
         let checklist = await supplementsTask
 
         loadFromStore()
         // Only flag the empty-day error case; a failed refresh that still has
         // cached entries keeps showing them (stale beats blank).
-        refreshFailed = !entriesRefreshed && entries.isEmpty
+        refreshFailed = entriesFailReason != nil && entries.isEmpty
+        if refreshFailed, let entriesFailReason {
+            // Whenever the user actually sees the "couldn't refresh" state, log
+            // why — at warning level so it bypasses the API layer's noise filter
+            // (offline/401/404), which would otherwise leave the failure invisible.
+            ErrorReporter.captureWarning(
+                "Dashboard entries refresh failed — showing retry",
+                context: [
+                    "date": dateString,
+                    "endpoint": "/api/entries",
+                    "reason": entriesFailReason
+                ]
+            )
+        }
         if let checklist { supplementChecklist = checklist }
     }
 
-    /// Pulls the day's entries, returning whether the live refresh succeeded so
-    /// `loadData` can distinguish "server says empty" from "couldn't reach server".
-    private func refreshEntries() async -> Bool {
+    /// Pulls the day's entries. Returns `nil` on success, or a short failure
+    /// reason (offline / server_error_500 / decoding_error_200 …) so `loadData`
+    /// can distinguish "server says empty" from "couldn't reach server" and
+    /// report *why* when it surfaces the error state. A String (not the Error)
+    /// is returned so it crosses the `async let` boundary as a Sendable value.
+    private func refreshEntries() async -> String? {
         do {
             try await entryRepository.refresh(date: dateString)
-            return true
+            return nil
         } catch {
-            return false
+            let reason = ErrorReporter.reason(for: error)
+            // Breadcrumb on every failure (even when stale entries still render),
+            // so any later event carries the trail that led to it.
+            ErrorReporter.addBreadcrumb(
+                "entries refresh failed",
+                category: "sync",
+                level: .warning,
+                data: ["date": dateString, "reason": reason]
+            )
+            return reason
         }
     }
 
