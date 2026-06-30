@@ -17,8 +17,6 @@ struct SettingsView: View {
     @State private var mealTypes: [MealType] = []
     @State private var isEditingGoals = false
     @State private var showLogoutConfirmation = false
-    @State private var showCreateFood = false
-    @State private var showCreateRecipe = false
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
@@ -118,29 +116,6 @@ struct SettingsView: View {
                             }
                         }
                     }
-                }
-
-                // Quick actions — standalone buttons, no card behind them
-                Section(L10n.quickActions) {
-                    HStack(spacing: 12) {
-                        Button {
-                            showCreateFood = true
-                        } label: {
-                            Label(L10n.foods, systemImage: "plus")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            showCreateRecipe = true
-                        } label: {
-                            Label(L10n.recipes, systemImage: "plus")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
                 }
 
                 // Language section
@@ -329,12 +304,6 @@ struct SettingsView: View {
             .navigationTitle(L10n.settings)
             .sheet(isPresented: $isEditingGoals) {
                 goalsEditor
-            }
-            .sheet(isPresented: $showCreateFood) {
-                FoodEditSheet()
-            }
-            .sheet(isPresented: $showCreateRecipe) {
-                RecipeEditSheet()
             }
             .task { await loadData() }
             .alert(

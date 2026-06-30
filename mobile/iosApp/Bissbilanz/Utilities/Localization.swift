@@ -624,10 +624,6 @@ enum L10n {
         )
     }
 
-    static var quickActions: String {
-        localized("quick_actions", en: "Quick Actions", de: "Schnellaktionen")
-    }
-
     static var favoriteLogging: String {
         localized(
             "favorite_logging",
