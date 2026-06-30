@@ -101,6 +101,22 @@ class LocalModeGatingTest {
         }
 
     @Test
+    fun searchFoodsMatchesBrandAndRanksNameFirst() =
+        runTest {
+            // Name has no "coop"; only the brand does.
+            seedFood(TestFixtures.food(id = "f1", name = "Granola").copy(brand = "Coop"))
+            // Name itself contains "coop".
+            seedFood(TestFixtures.food(id = "f2", name = "Coop Bread"))
+
+            val results = foodRepository.searchFoods("coop")
+
+            assertEquals(2, results.size)
+            // Name match leads the brand-only match.
+            assertEquals("Coop Bread", results[0].name)
+            assertEquals("Granola", results[1].name)
+        }
+
+    @Test
     fun findByBarcodeIsCacheOnly() =
         runTest {
             seedFood(TestFixtures.food(id = "f1", name = "Milk").copy(barcode = "123456"))

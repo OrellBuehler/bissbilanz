@@ -23,10 +23,18 @@ function foodById(id: string) {
 }
 
 function search(query: string) {
+	const q = query.toLowerCase();
+	const matchesName = (f: DexieFood) => f.name.toLowerCase().includes(q);
+	// Match name or brand, then rank name matches ahead of brand-only matches
+	// (the sort is stable, so each group stays alphabetical from orderBy).
 	return liveQuery(() =>
 		db.foods
-			.filter((f) => isRegularFood(f) && f.name.toLowerCase().includes(query.toLowerCase()))
+			.orderBy('name')
+			.filter(
+				(f) => isRegularFood(f) && (matchesName(f) || (f.brand ?? '').toLowerCase().includes(q))
+			)
 			.toArray()
+			.then((rows) => rows.sort((a, b) => Number(matchesName(b)) - Number(matchesName(a))))
 	);
 }
 

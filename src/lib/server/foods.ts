@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipeIngredients, supplementIngredients } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, getTableColumns, ilike, isNotNull } from 'drizzle-orm';
+import { and, count, desc, eq, getTableColumns, ilike, isNotNull, or } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -77,12 +77,22 @@ export const listFoods = async (
 		?.replace(/\\/g, '\\\\')
 		.replace(/%/g, '\\%')
 		.replace(/_/g, '\\_');
+	const pattern = escapedQuery ? `%${escapedQuery}%` : undefined;
 	const kindFilter = options?.includeSupplements ? undefined : eq(foods.kind, 'food');
-	const whereClause = escapedQuery
-		? and(eq(foods.userId, userId), ilike(foods.name, `%${escapedQuery}%`), kindFilter)
-		: and(eq(foods.userId, userId), kindFilter);
+	// Match the query against the name OR the brand so a brand search (e.g.
+	// "Coop", "Migros") surfaces its products, then rank name matches ahead of
+	// brand-only matches so the most relevant rows lead the list.
+	const matchClause = pattern
+		? or(ilike(foods.name, pattern), ilike(foods.brand, pattern))
+		: undefined;
+	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter);
 
-	const q = db.select().from(foods).where(whereClause).orderBy(foods.name);
+	const q = db.select().from(foods).where(whereClause);
+	if (pattern) {
+		q.orderBy(desc(ilike(foods.name, pattern)), foods.name);
+	} else {
+		q.orderBy(foods.name);
+	}
 	if (options?.limit !== undefined) q.limit(options.limit);
 
 	const [items, countResult] = await Promise.all([

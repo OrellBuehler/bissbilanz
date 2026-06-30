@@ -150,7 +150,7 @@ selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
 searchFoods:
-SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY name LIMIT ?;
+SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY (name LIKE ?) DESC, name LIMIT ?;
 
 -- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
 selectRecentFoods:
