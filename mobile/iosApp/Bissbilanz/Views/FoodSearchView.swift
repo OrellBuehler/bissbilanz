@@ -17,6 +17,7 @@ struct FoodSearchView: View {
     @State private var editingFood: Food?
     @State private var showLogSheet = false
     @State private var showCreateFood = false
+    @State private var showCreateRecipe = false
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
@@ -53,12 +54,24 @@ struct FoodSearchView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showCreateFood = true
+                // A single + presents a menu: foods and recipes are both
+                // created from here, so the Settings "quick actions" duplicates
+                // are gone and the Foods tab is the one place to add either.
+                Menu {
+                    Button {
+                        showCreateFood = true
+                    } label: {
+                        Label(L10n.createFood, systemImage: "fork.knife")
+                    }
+                    Button {
+                        showCreateRecipe = true
+                    } label: {
+                        Label(L10n.createRecipe, systemImage: "book")
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }
-                .accessibilityLabel(L10n.createFood)
+                .accessibilityLabel(L10n.create)
             }
         }
         .searchable(text: $query, prompt: L10n.searchFoods)
@@ -88,6 +101,9 @@ struct FoodSearchView: View {
             FoodEditSheet { _ in
                 Task { await loadRecent() }
             }
+        }
+        .sheet(isPresented: $showCreateRecipe) {
+            RecipeEditSheet()
         }
         .task {
             await loadRecent()
