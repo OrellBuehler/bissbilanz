@@ -325,8 +325,10 @@ struct InsightsView: View {
                 .fontWeight(.bold)
                 .monospacedDigit()
                 .lineLimit(1)
+                // Wide enough that "100%" renders at full size like the rest, so
+                // the column never wraps to a second line or shrinks at 100%.
                 .minimumScaleFactor(0.8)
-                .frame(width: 52, alignment: .trailing)
+                .frame(width: 60, alignment: .trailing)
         }
     }
 
@@ -441,19 +443,21 @@ struct InsightsView: View {
 
                     HStack(spacing: 8) {
                         Text("")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(L10n.weeklyAvg)
+                            .frame(width: 88, alignment: .leading)
+                        Text(L10n.weekly)
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .trailing)
-                        Text(L10n.monthlyAvg)
+                        Text(L10n.monthly)
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                         Text("")
-                            .frame(width: 52)
+                            .frame(width: 54)
                     }
 
                     Divider()
@@ -512,16 +516,21 @@ struct InsightsView: View {
                 Text(label)
                     .font(.subheadline)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // Fixed label column so the two value columns get equal, generous
+            // room and never crowd into a wrap or a hyphenated truncation.
+            .frame(width: 88, alignment: .leading)
             Text("\(Int(weekly)) \(unit)")
                 .font(.subheadline)
                 .monospacedDigit()
+                .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(Int(monthly)) \(unit)")
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(arrow)\(Int(abs(diffPct)))%")
                 .font(.caption)
@@ -529,7 +538,7 @@ struct InsightsView: View {
                 .monospacedDigit()
                 .foregroundStyle(trendColor)
                 .lineLimit(1)
-                .frame(width: 52, alignment: .trailing)
+                .frame(width: 54, alignment: .trailing)
         }
     }
 

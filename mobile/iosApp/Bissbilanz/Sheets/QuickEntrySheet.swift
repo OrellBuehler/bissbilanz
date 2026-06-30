@@ -29,6 +29,7 @@ struct QuickEntrySheet: View {
                             Text(L10n.mealName(meal)).tag(meal)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
 
                 Section(L10n.nutrition) {

@@ -78,6 +78,10 @@ struct DashboardView: View {
                     }
                 }
                 .padding()
+                // Extra bottom room so the floating action buttons never cover
+                // the last meal card's totals — the content can always scroll
+                // clear of the FAB instead of sitting permanently behind it.
+                .padding(.bottom, 104)
             }
             .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)

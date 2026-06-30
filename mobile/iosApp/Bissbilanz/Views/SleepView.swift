@@ -469,8 +469,8 @@ struct AddSleepSheet: View {
     let existingEntry: SleepEntry?
     let onSaved: () -> Void
 
-    @State private var hoursText = "7"
-    @State private var minutesText = "30"
+    @State private var hours = 7
+    @State private var minutes = 30
     @State private var quality = 7.0
     @State private var date = Date()
     @State private var timesEnabled = false
@@ -491,7 +491,7 @@ struct AddSleepSheet: View {
     }
 
     private var durationMinutes: Int {
-        (Int(hoursText) ?? 0) * 60 + (Int(minutesText) ?? 0)
+        hours * 60 + minutes
     }
 
     private var isValid: Bool {
@@ -502,18 +502,26 @@ struct AddSleepSheet: View {
         NavigationStack {
             Form {
                 Section(L10n.sleepDuration) {
-                    HStack {
-                        TextField("7", text: $hoursText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                        Text(L10n.hours)
-                            .foregroundStyle(.secondary)
-                        TextField("30", text: $minutesText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                        Text(L10n.minutes)
-                            .foregroundStyle(.secondary)
+                    // Clock-style hour/minute wheels (like the Apple Clock timer)
+                    // instead of free-text fields.
+                    HStack(spacing: 0) {
+                        Picker(L10n.hours, selection: $hours) {
+                            ForEach(0 ..< 24, id: \.self) { hour in
+                                Text("\(hour) \(L10n.hoursShort)").tag(hour)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxWidth: .infinity)
+
+                        Picker(L10n.minutes, selection: $minutes) {
+                            ForEach(0 ..< 60, id: \.self) { minute in
+                                Text("\(minute) \(L10n.minutesShort)").tag(minute)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxWidth: .infinity)
                     }
+                    .frame(height: 160)
                 }
 
                 Section {
@@ -616,9 +624,9 @@ struct AddSleepSheet: View {
 
     private func syncDurationFromTimes() {
         guard let (bed, wake) = resolvedTimes() else { return }
-        let minutes = Int(wake.timeIntervalSince(bed) / 60)
-        hoursText = "\(minutes / 60)"
-        minutesText = "\(minutes % 60)"
+        let total = Int(wake.timeIntervalSince(bed) / 60)
+        hours = min(total / 60, 23)
+        minutes = total % 60
     }
 
     // MARK: - Health write-back
@@ -637,8 +645,8 @@ struct AddSleepSheet: View {
 
     private func prefill() {
         guard let entry = existingEntry else { return }
-        hoursText = "\(entry.durationMinutes / 60)"
-        minutesText = "\(entry.durationMinutes % 60)"
+        hours = min(entry.durationMinutes / 60, 23)
+        minutes = entry.durationMinutes % 60
         quality = entry.quality
         if let d = DateFormatting.date(from: entry.entryDate) {
             date = d

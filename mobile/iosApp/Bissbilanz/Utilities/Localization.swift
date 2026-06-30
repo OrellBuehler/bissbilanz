@@ -432,6 +432,22 @@ enum L10n {
         localized("per_serving", en: "Per Serving", de: "Pro Portion")
     }
 
+    static var per100: String {
+        localized("per_100", en: "Per 100 g", de: "Pro 100 g")
+    }
+
+    static var valuesPer: String {
+        localized("values_per", en: "Values per", de: "Werte pro")
+    }
+
+    static var macroBasisFooter: String {
+        localized(
+            "macro_basis_footer",
+            en: "Enter the macros per serving or per 100 g — the values are converted for you.",
+            de: "Makros pro Portion oder pro 100 g eingeben — die Werte werden für dich umgerechnet."
+        )
+    }
+
     static var totals: String {
         localized("totals", en: "Totals", de: "Gesamt")
     }
@@ -562,6 +578,14 @@ enum L10n {
 
     static var monthlyAvg: String {
         localized("monthly_avg", en: "Monthly Average", de: "Monatsdurchschnitt")
+    }
+
+    static var weekly: String {
+        localized("weekly", en: "Weekly", de: "Woche")
+    }
+
+    static var monthly: String {
+        localized("monthly", en: "Monthly", de: "Monat")
     }
 
     static var topFoods: String {
@@ -1344,6 +1368,14 @@ enum L10n {
 
     static var minutes: String {
         localized("minutes", en: "Minutes", de: "Minuten")
+    }
+
+    static var hoursShort: String {
+        localized("hours_short", en: "hr", de: "Std")
+    }
+
+    static var minutesShort: String {
+        localized("minutes_short", en: "min", de: "Min")
     }
 
     // MARK: - Insights (additional)

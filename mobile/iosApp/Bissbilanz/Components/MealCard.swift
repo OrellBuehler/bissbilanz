@@ -38,9 +38,16 @@ struct MealCard: View {
 
             ForEach(entries) { entry in
                 HStack {
-                    Text(entry.displayName)
-                        .font(.subheadline)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(entry.displayName)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        if let time = entry.loggedTimeString {
+                            Text(time)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                     Spacer()
                     Text("\(entry.servings, specifier: "%.1g")x")
                         .font(.caption)
