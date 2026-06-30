@@ -580,12 +580,8 @@ enum L10n {
         localized("monthly_avg", en: "Monthly Average", de: "Monatsdurchschnitt")
     }
 
-    static var weekly: String {
-        localized("weekly", en: "Weekly", de: "Woche")
-    }
-
     static var monthly: String {
-        localized("monthly", en: "Monthly", de: "Monat")
+        localized("monthly", en: "Monthly", de: "Monatlich")
     }
 
     static var topFoods: String {
