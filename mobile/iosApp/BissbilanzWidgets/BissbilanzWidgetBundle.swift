@@ -11,5 +11,6 @@ struct BissbilanzWidgetBundle: WidgetBundle {
         FavoritesWidget()
         QuickScanWidget()
         QuickWeightWidget()
+        QuickAddWidget()
     }
 }

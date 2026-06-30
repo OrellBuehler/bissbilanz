@@ -1,11 +1,11 @@
 import Foundation
 
-// The widget booleans, names and types mirror the server's preferences response
-// schema (src/lib/server/validation/responses/preferences.ts) field-for-field.
-// `summary`, `daylog` and `streaks` are NOT toggles — they are `widgetOrder`
-// section keys server-side, so there are no `showSummary/DayLog/StreakWidget`
-// columns. Keep this in sync with the server contract: a field iOS marks
-// required but the server omits makes the whole response fail to decode.
+/// The widget booleans, names and types mirror the server's preferences response
+/// schema (src/lib/server/validation/responses/preferences.ts) field-for-field.
+/// `summary`, `daylog` and `streaks` are NOT toggles — they are `widgetOrder`
+/// section keys server-side, so there are no `showSummary/DayLog/StreakWidget`
+/// columns. Keep this in sync with the server contract: a field iOS marks
+/// required but the server omits makes the whole response fail to decode.
 struct Preferences: Codable {
     let showChartWidget: Bool
     let showFavoritesWidget: Bool

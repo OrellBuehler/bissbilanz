@@ -65,7 +65,7 @@ struct BissbilanzApp: App {
         // once at launch, so toggling it takes effect on the next launch.
         let container = LocalStore.makeContainerWithFallback(
             cloudKitEnabled: appMode.isLocal,
-            onError: { ErrorReporter.capture($0, context: ["phase": "store_init"]) }
+            onError: { error, context in ErrorReporter.capture(error, context: context) }
         )
         modelContainer = container
         let context = container.mainContext
@@ -141,7 +141,7 @@ struct BissbilanzApp: App {
                 quickFiber: request.quickFiber
             )
             _ = try? await entryRepo.createEntry(create, food: food)
-            return WidgetSnapshotWriter.buildSnapshot(context: context)
+            return WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
         }
         // Weight/sleep logs from the watch run through the same offline-first
         // repositories the UI uses; the reply carries the refreshed WatchState
@@ -228,6 +228,14 @@ struct BissbilanzApp: App {
                         foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
                         recipes: recipeRepository.favoriteRecipes()
                     )
+                    // Surface any widget-extension quick-add failures (the
+                    // extension has no Sentry of its own — see QuickAddDiagnostics).
+                    for entry in QuickAddDiagnostics.drain() {
+                        ErrorReporter.captureWarning(
+                            "Quick add (widget extension): \(entry.phase)",
+                            context: ["details": entry.message, "timestamp": entry.timestamp.description]
+                        )
+                    }
                 }
             }
         }

@@ -64,3 +64,19 @@ final class PendingSyncOperation {
         affectedId = operation.affectedId
     }
 }
+
+extension PendingSyncOperation {
+    /// Next FIFO sequence number for a new queue row (highest existing `seq` + 1,
+    /// or 1 on an empty queue). `seq` has no uniqueness constraint — it's a sort
+    /// hint, not row identity (`id: UUID` is that). Two processes racing this
+    /// read-then-insert (the app and the widget extension enqueuing
+    /// near-simultaneously) can compute the same value for two different rows;
+    /// that's benign — the two ops just drain in either relative order, no worse
+    /// than ops from two physical devices already are, and the server dedupes
+    /// retries via `idempotencyKey` regardless.
+    static func nextSeq(in context: ModelContext) -> Int {
+        var descriptor = FetchDescriptor<PendingSyncOperation>(sortBy: [SortDescriptor(\.seq, order: .reverse)])
+        descriptor.fetchLimit = 1
+        return ((try? context.fetch(descriptor))?.first?.seq ?? 0) + 1
+    }
+}

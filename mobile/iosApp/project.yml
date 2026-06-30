@@ -35,10 +35,17 @@ targets:
     type: application
     platform: iOS
     sources:
-      # Shared/ is compiled into both the app and the widget extension —
-      # snapshot model, App Group store and macro colors.
+      # Shared/ also compiles into the watch targets — snapshot model, macro
+      # colors, WCSession payload types only (no App Group access, the watch
+      # has its own). PhoneShared/ is the phone-only counterpart: App Group
+      # SwiftData store, sync queue, domain models and QuickAddFoodIntent,
+      # compiled into the app and the widget extension but NOT the watch.
+      # Kept free of app-only deps (BissbilanzAPI, AuthManager, L10n,
+      # PhoneWatchConnectivity) so it builds standalone in the widget
+      # extension's process.
       - path: Bissbilanz
       - path: Shared
+      - path: PhoneShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios
@@ -110,6 +117,7 @@ targets:
     sources:
       - path: BissbilanzWidgets
       - path: Shared
+      - path: PhoneShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.widgets
@@ -124,9 +132,19 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.bissbilanz
+        # Lets a widget-extension quick-add (QuickAddFoodIntent, opens its own
+        # ModelContainer against the App Group store) participate in the same
+        # CloudKit mirroring as the main app's container in Local mode — see
+        # the App Group store migration in LocalStore.swift.
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.bissbilanz.ios
+        com.apple.developer.icloud-services:
+          - CloudKit
     dependencies:
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
+      # QuickAddFoodIntent (interactive Button(intent:) quick-add).
+      - sdk: AppIntents.framework
 
   # Apple Watch companion app (Phase 1). Modern SwiftUI App lifecycle — a
   # single watchOS application target (not the legacy WatchKit storyboard
