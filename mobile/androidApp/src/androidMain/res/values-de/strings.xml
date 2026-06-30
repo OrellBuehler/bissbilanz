@@ -54,4 +54,31 @@
     <string name="sleep_log_dialog_title">Schlaf erfassen</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>
+
+    <!-- Nutrition label scanner -->
+    <string name="scan_label">Etikett scannen</string>
+    <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
+    <string name="scan_label_title">Nährwert-Etikett scannen</string>
+    <string name="scan_label_hint">Richte die Kamera auf die Nährwerttabelle. Werte werden pro 100 g gelesen – passe danach die Portion an.</string>
+    <string name="scan_label_take_photo">Foto aufnehmen</string>
+    <string name="scan_label_choose_photo">Foto auswählen</string>
+    <string name="scan_label_scanning">Etikett wird gelesen…</string>
+    <string name="scan_label_cancel">Abbrechen</string>
+    <string name="scan_label_no_data">Keine Nährwerte erkannt. Versuche ein schärferes, frontales Foto.</string>
+    <string name="scan_label_failed">Bild konnte nicht verarbeitet werden.</string>
+
+    <!-- Barcode scanner -->
+    <string name="scan_barcode_title">Barcode scannen</string>
+    <string name="scan_barcode_close">Schließen</string>
+    <string name="scan_barcode_flash_on">Blitz einschalten</string>
+    <string name="scan_barcode_flash_off">Blitz ausschalten</string>
+    <string name="scan_barcode_hint">Auf einen Barcode richten</string>
+    <string name="scan_barcode_focus_hint">Zum Fokussieren tippen</string>
+    <string name="scan_barcode_searching">Suche…</string>
+    <string name="scan_barcode_not_found">Lebensmittel nicht gefunden</string>
+    <string name="scan_barcode_value">Barcode: %1$s</string>
+    <string name="scan_barcode_scan_again">Erneut scannen</string>
+    <string name="scan_barcode_create_food">Lebensmittel erstellen</string>
+    <string name="scan_barcode_permission_required">Kameraberechtigung erforderlich</string>
+    <string name="scan_barcode_grant_permission">Berechtigung erteilen</string>
 </resources>

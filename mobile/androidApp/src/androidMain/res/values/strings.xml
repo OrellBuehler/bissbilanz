@@ -54,4 +54,31 @@
     <string name="sleep_log_dialog_title">Log Sleep</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
+
+    <!-- Nutrition label scanner -->
+    <string name="scan_label">Scan Label</string>
+    <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
+    <string name="scan_label_title">Scan nutrition label</string>
+    <string name="scan_label_hint">Point at the nutrition facts panel. Values are read per 100 g — adjust the serving after.</string>
+    <string name="scan_label_take_photo">Take Photo</string>
+    <string name="scan_label_choose_photo">Choose Photo</string>
+    <string name="scan_label_scanning">Reading label…</string>
+    <string name="scan_label_cancel">Cancel</string>
+    <string name="scan_label_no_data">Couldn\'t read nutrition values. Try a clearer, straight-on photo.</string>
+    <string name="scan_label_failed">Couldn\'t process the image.</string>
+
+    <!-- Barcode scanner -->
+    <string name="scan_barcode_title">Scan Barcode</string>
+    <string name="scan_barcode_close">Close</string>
+    <string name="scan_barcode_flash_on">Turn flash on</string>
+    <string name="scan_barcode_flash_off">Turn flash off</string>
+    <string name="scan_barcode_hint">Point at a barcode</string>
+    <string name="scan_barcode_focus_hint">Tap to focus</string>
+    <string name="scan_barcode_searching">Searching…</string>
+    <string name="scan_barcode_not_found">Food not found</string>
+    <string name="scan_barcode_value">Barcode: %1$s</string>
+    <string name="scan_barcode_scan_again">Scan again</string>
+    <string name="scan_barcode_create_food">Create food</string>
+    <string name="scan_barcode_permission_required">Camera permission required</string>
+    <string name="scan_barcode_grant_permission">Grant permission</string>
 </resources>

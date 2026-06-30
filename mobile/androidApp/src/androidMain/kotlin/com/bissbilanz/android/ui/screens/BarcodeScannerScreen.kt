@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -102,10 +104,10 @@ fun BarcodeScannerScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scan Barcode") },
+                title = { Text(stringResource(R.string.scan_barcode_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.Close, "Close")
+                        Icon(Icons.Default.Close, stringResource(R.string.scan_barcode_close))
                     }
                 },
                 actions = {
@@ -113,7 +115,12 @@ fun BarcodeScannerScreen(navController: NavController) {
                         IconButton(onClick = { torchOn = !torchOn }) {
                             Icon(
                                 if (torchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                                contentDescription = if (torchOn) "Turn flash off" else "Turn flash on",
+                                contentDescription =
+                                    if (torchOn) {
+                                        stringResource(R.string.scan_barcode_flash_off)
+                                    } else {
+                                        stringResource(R.string.scan_barcode_flash_on)
+                                    },
                             )
                         }
                     }
@@ -141,7 +148,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                             scanState = ScanState.SEARCHING
                             scope.launch {
                                 try {
-                                    val food = foodRepo.findByBarcode(barcode)
+                                    val food = foodRepo.findOrCreateByBarcode(barcode)
                                     if (food != null) {
                                         navController.navigate("food/${food.id}") {
                                             popUpTo("scanner") { inclusive = true }
@@ -205,13 +212,13 @@ fun BarcodeScannerScreen(navController: NavController) {
                     when (scanState) {
                         ScanState.SCANNING -> {
                             Text(
-                                "Point at a barcode",
+                                stringResource(R.string.scan_barcode_hint),
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                             )
                             Text(
-                                "Tap to focus",
+                                stringResource(R.string.scan_barcode_focus_hint),
                                 color = Color.White.copy(alpha = 0.7f),
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -221,7 +228,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Searching...",
+                                stringResource(R.string.scan_barcode_searching),
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
@@ -229,13 +236,13 @@ fun BarcodeScannerScreen(navController: NavController) {
 
                         ScanState.NOT_FOUND -> {
                             Text(
-                                "Food not found",
+                                stringResource(R.string.scan_barcode_not_found),
                                 color = Color.White,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "Barcode: ${scannedBarcode ?: ""}",
+                                stringResource(R.string.scan_barcode_value, scannedBarcode ?: ""),
                                 color = Color.White.copy(alpha = 0.7f),
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -248,7 +255,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                                     },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                 ) {
-                                    Text("Scan again")
+                                    Text(stringResource(R.string.scan_barcode_scan_again))
                                 }
                                 Button(
                                     onClick = {
@@ -258,7 +265,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                                         navController.popBackStack()
                                     },
                                 ) {
-                                    Text("Create food")
+                                    Text(stringResource(R.string.scan_barcode_create_food))
                                 }
                             }
                         }
@@ -268,13 +275,13 @@ fun BarcodeScannerScreen(navController: NavController) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "Camera permission required",
+                            stringResource(R.string.scan_barcode_permission_required),
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                            Text("Grant permission")
+                            Text(stringResource(R.string.scan_barcode_grant_permission))
                         }
                     }
                 }
