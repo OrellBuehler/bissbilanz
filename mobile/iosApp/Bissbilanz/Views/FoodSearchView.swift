@@ -122,7 +122,7 @@ struct FoodSearchView: View {
     }
 
     private var recentTab: some View {
-        let items = recentFoods.filter(matches)
+        let items = recentFoods.filter { matches($0) }
         return Group {
             if items.isEmpty {
                 if query.isEmpty {
@@ -144,7 +144,7 @@ struct FoodSearchView: View {
     }
 
     private var favoritesTab: some View {
-        let items = favoriteFoods.filter(matches)
+        let items = favoriteFoods.filter { matches($0) }
         return Group {
             if items.isEmpty {
                 if query.isEmpty {
