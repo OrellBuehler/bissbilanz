@@ -14,6 +14,7 @@ struct FoodSearchView: View {
     @State private var selectedTab = 0
     @State private var isSearching = false
     @State private var selectedFood: Food?
+    @State private var editingFood: Food?
     @State private var showLogSheet = false
     @State private var showCreateFood = false
     @State private var searchTask: Task<Void, Never>?
@@ -60,9 +61,6 @@ struct FoodSearchView: View {
                 .accessibilityLabel(L10n.createFood)
             }
         }
-        .navigationDestination(for: Food.self) { food in
-            FoodDetailView(foodId: food.id)
-        }
         .searchable(text: $query, prompt: L10n.searchFoods)
         .onChange(of: query) { _, newValue in
             searchTask?.cancel()
@@ -80,6 +78,11 @@ struct FoodSearchView: View {
         .toast(message: $toastMessage)
         .sheet(item: $selectedFood) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
+        }
+        .sheet(item: $editingFood) { food in
+            FoodEditSheet(food: food) { updated in
+                foodUpdated(updated)
+            }
         }
         .sheet(isPresented: $showCreateFood) {
             FoodEditSheet { _ in
@@ -171,9 +174,7 @@ struct FoodSearchView: View {
 
     private func foodRow(_ food: Food) -> some View {
         Button {
-            if date != nil {
-                selectedFood = food
-            }
+            selectedFood = food
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -215,12 +216,24 @@ struct FoodSearchView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                NavigationLink(value: food) {
-                    EmptyView()
-                }
-                .frame(width: 0)
-                .opacity(0)
             }
+        }
+        .onLongPressGesture {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            editingFood = food
+        }
+    }
+
+    /// Reflects an edit back into whichever list(s) currently show this food.
+    private func foodUpdated(_ updated: Food) {
+        for index in searchResults.indices where searchResults[index].id == updated.id {
+            searchResults[index] = updated
+        }
+        for index in recentFoods.indices where recentFoods[index].id == updated.id {
+            recentFoods[index] = updated
+        }
+        for index in favoriteFoods.indices where favoriteFoods[index].id == updated.id {
+            favoriteFoods[index] = updated
         }
     }
 

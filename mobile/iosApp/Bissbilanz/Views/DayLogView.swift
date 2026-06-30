@@ -214,6 +214,9 @@ struct DayLogView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // List otherwise tints Button labels with the accent color, overriding
+        // the explicit .primary/.secondary colors set above.
+        .buttonStyle(.plain)
     }
 
     private func loadEntries(showSpinner: Bool = false) async {
