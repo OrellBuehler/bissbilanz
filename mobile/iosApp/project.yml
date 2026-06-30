@@ -132,14 +132,21 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.bissbilanz
-        # Lets a widget-extension quick-add (QuickAddFoodIntent, opens its own
-        # ModelContainer against the App Group store) participate in the same
-        # CloudKit mirroring as the main app's container in Local mode — see
-        # the App Group store migration in LocalStore.swift.
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.bissbilanz.ios
-        com.apple.developer.icloud-services:
-          - CloudKit
+        # NOT adding com.apple.developer.icloud-container-identifiers here:
+        # automatic signing can't provision a profile for a capability the App
+        # ID doesn't already have enabled in the Apple Developer Portal, and
+        # this extension's App ID (com.bissbilanz.ios.widgets) doesn't have
+        # iCloud enabled — adding it broke the v1.24.1 Archive step
+        # ("Provisioning profile ... doesn't match the entitlements file's
+        # value for the com.apple.developer.icloud-container-identifiers
+        # entitlement"). Without it, a widget-extension quick-add
+        # (QuickAddFoodIntent) in Local mode writes locally but its
+        # LocalStore.makeContainerWithFallback call falls back to a plain
+        # on-disk (non-CloudKit) configuration — the entry is never lost, it
+        # just doesn't propagate to the user's other Apple devices until the
+        # main app next runs and rewrites the snapshot. Re-add this (and
+        # enable iCloud for the App ID in the portal first) if that gap needs
+        # closing.
     dependencies:
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
