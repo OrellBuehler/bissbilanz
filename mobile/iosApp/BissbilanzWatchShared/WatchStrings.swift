@@ -68,6 +68,57 @@ struct WatchStrings {
         isGerman ? "Keine Daten — App auf dem iPhone öffnen" : "No data — open the app on your iPhone"
     }
 
+    var weight: String {
+        isGerman ? "Gewicht" : "Weight"
+    }
+
+    var sleep: String {
+        isGerman ? "Schlaf" : "Sleep"
+    }
+
+    var lastNight: String {
+        isGerman ? "Letzte Nacht" : "Last night"
+    }
+
+    var quality: String {
+        isGerman ? "Qualität" : "Quality"
+    }
+
+    var byMeal: String {
+        isGerman ? "Nach Mahlzeit" : "By meal"
+    }
+
+    var sevenDayTrend: String {
+        isGerman ? "7-Tage-Trend" : "7-day trend"
+    }
+
+    var noWeight: String {
+        isGerman ? "Noch kein Gewicht" : "No weight logged yet"
+    }
+
+    var noSleep: String {
+        isGerman ? "Noch kein Schlaf" : "No sleep logged yet"
+    }
+
+    var logged: String {
+        isGerman ? "Eingetragen" : "Logged"
+    }
+
+    /// Compact "7h 32m" style duration for the sleep glance and logger.
+    func sleepDuration(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0, mins > 0 { return "\(hours)h \(mins)m" }
+        if hours > 0 { return "\(hours)h" }
+        return "\(mins)m"
+    }
+
+    /// Signed kilogram delta, e.g. "−0.3 kg" / "+0.4 kg".
+    func signedKg(_ value: Double) -> String {
+        let sign = value > 0 ? "+" : (value < 0 ? "−" : "")
+        return "\(sign)\(String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), abs(value))) kg"
+    }
+
     func mealName(_ key: String) -> String {
         switch key.lowercased() {
         case "breakfast": isGerman ? "Frühstück" : "Breakfast"

@@ -82,6 +82,48 @@ final class WatchConnectivityManager: NSObject {
         }
     }
 
+    /// Sends a weight log to the phone. Mirrors `log(_:)`: confirmed when the
+    /// phone replies (and the refreshed state is applied), queued otherwise.
+    func logWeight(_ request: WatchWeightLogRequest) async -> LogOutcome {
+        await relayLog(request, key: WatchPayloadKey.weightLogRequest)
+    }
+
+    /// Sends a sleep log to the phone. See `logWeight(_:)`.
+    func logSleep(_ request: WatchSleepLogRequest) async -> LogOutcome {
+        await relayLog(request, key: WatchPayloadKey.sleepLogRequest)
+    }
+
+    /// Shared relay for weight/sleep logs. The phone replies with a refreshed
+    /// `WatchState` so the glance updates immediately; the unreachable path
+    /// queues the request (guaranteed FIFO) and the next state push reconciles.
+    private func relayLog(_ request: some Encodable, key: String) async -> LogOutcome {
+        guard let session,
+              let payload = WatchPayloadCodec.encode(request, key: key)
+        else { return .failed }
+
+        guard session.isReachable else {
+            session.transferUserInfo(payload)
+            return .queued
+        }
+
+        return await withCheckedContinuation { continuation in
+            session.sendMessage(
+                payload,
+                replyHandler: { reply in
+                    let state = WatchPayloadCodec.decode(WatchState.self, from: reply, key: WatchPayloadKey.state)
+                    Task { @MainActor in
+                        if let state { self.apply(state) }
+                    }
+                    continuation.resume(returning: .confirmed)
+                },
+                errorHandler: { _ in
+                    session.transferUserInfo(payload)
+                    continuation.resume(returning: .queued)
+                }
+            )
+        }
+    }
+
     // MARK: - State application (main actor)
 
     private func apply(_ state: WatchState) {

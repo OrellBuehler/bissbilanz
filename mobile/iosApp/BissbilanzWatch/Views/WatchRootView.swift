@@ -1,30 +1,42 @@
 import SwiftUI
 
-/// Two vertically-paged screens: today's rings and the quick-log list. The
-/// `bissbilanz://log` deep link (opened by tapping a complication) jumps
-/// straight to the log screen.
+/// Four horizontally-paged tabs — Insights, Log, Weight, Sleep. Each tab that
+/// needs more than one screen of content nests a vertically-paged `TabView`
+/// (the at-a-glance view first, detail/logging below). Complication deep links
+/// (`bissbilanz://log`, `…://weight`, `…://sleep`) jump straight to a tab.
 struct WatchRootView: View {
     private enum Tab: Hashable {
-        case today
+        case insights
         case log
+        case weight
+        case sleep
     }
 
-    @State private var selection: Tab = .today
+    @State private var selection: Tab = .insights
 
     var body: some View {
         TabView(selection: $selection) {
-            TodayView()
-                .tag(Tab.today)
+            InsightsView()
+                .tag(Tab.insights)
 
             NavigationStack {
                 LogListView()
             }
             .tag(Tab.log)
+
+            WeightView()
+                .tag(Tab.weight)
+
+            SleepView()
+                .tag(Tab.sleep)
         }
-        .tabViewStyle(.verticalPage)
+        .tabViewStyle(.page)
         .onOpenURL { url in
-            if url.host == "log" {
-                selection = .log
+            switch url.host {
+            case "log": selection = .log
+            case "weight": selection = .weight
+            case "sleep": selection = .sleep
+            default: selection = .insights
             }
         }
     }

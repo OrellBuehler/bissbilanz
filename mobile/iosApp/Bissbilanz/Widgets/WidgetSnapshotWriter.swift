@@ -86,15 +86,64 @@ enum WidgetSnapshotWriter {
         )
     }
 
-    /// Assembles the watch payload: the widget snapshot plus the two things the
-    /// watch's logging UI needs that the widgets don't — the meal-type list and
-    /// a recents list.
+    /// Assembles the watch payload: the widget snapshot plus what the watch's
+    /// tabs need that the widgets don't — the meal-type list, a recents list,
+    /// the weight glance (latest + 7-day delta) and last night's sleep.
     static func buildWatchState(context: ModelContext, snapshot: WidgetSnapshot? = nil) -> WatchState {
         let snapshot = snapshot ?? buildSnapshot(context: context)
         return WatchState(
             snapshot: snapshot,
             mealTypes: watchMealTypes(context: context),
-            recents: watchRecents(context: context)
+            recents: watchRecents(context: context),
+            weight: watchWeight(context: context),
+            sleep: watchSleep(context: context)
+        )
+    }
+
+    /// Day-granularity ISO formatter for the on-device 7-day weight delta.
+    private static let isoDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    /// Latest weight plus the change versus ~7 days ago, computed from the local
+    /// weight history so it works offline and in Local mode. `entryDate` strings
+    /// ("yyyy-MM-dd") sort chronologically, so the newest row at or before the
+    /// cutoff is the reference point.
+    private static func watchWeight(context: ModelContext) -> WatchWeightInfo {
+        var descriptor = FetchDescriptor<LocalWeightEntry>(
+            sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = 60
+        let rows = (try? context.fetch(descriptor)) ?? []
+        guard let latest = rows.first else { return .empty }
+
+        var delta7d: Double?
+        if let latestDay = isoDayFormatter.date(from: latest.entryDate),
+           let cutoffDay = Calendar.current.date(byAdding: .day, value: -7, to: latestDay) {
+            let cutoff = isoDayFormatter.string(from: cutoffDay)
+            if let reference = rows.first(where: { $0.entryDate <= cutoff }) {
+                delta7d = latest.weightKg - reference.weightKg
+            }
+        }
+        return WatchWeightInfo(latestKg: latest.weightKg, latestDate: latest.entryDate, delta7dKg: delta7d)
+    }
+
+    /// Last night's sleep (the most recent entry), or `nil` when none is logged.
+    /// Decoded through `toSleepEntry()` so the decimal quality is preserved (the
+    /// index column is an `Int`).
+    private static func watchSleep(context: ModelContext) -> WatchSleepInfo? {
+        var descriptor = FetchDescriptor<LocalSleepEntry>(
+            sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        guard let entry = (try? context.fetch(descriptor))?.first?.toSleepEntry() else { return nil }
+        return WatchSleepInfo(
+            date: entry.entryDate,
+            durationMinutes: entry.durationMinutes,
+            quality: entry.quality
         )
     }
 
