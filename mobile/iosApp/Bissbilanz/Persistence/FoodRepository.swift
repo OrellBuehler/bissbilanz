@@ -58,6 +58,15 @@ final class FoodRepository {
             .compactMap { food(id: $0.key) }
     }
 
+    /// Alphabetical slice of the whole local catalog — the last-resort pool
+    /// for intent suggestions when favorites and recents are both empty.
+    func localFoods(limit: Int = 50) -> [Food] {
+        var descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        descriptor.fetchLimit = limit
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.compactMap { $0.toFood() }
+    }
+
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []

@@ -600,38 +600,7 @@ struct WeightView: View {
 
         isLoading = false
 
-        if UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey) {
-            await importFromHealthKit()
-        }
-    }
-
-    /// Import weights from Apple Health that the app doesn't have yet
-    /// (read-only — never writes back to Health from here).
-    private func importFromHealthKit() async {
-        let healthKit = HealthKitService.shared
-        guard healthKit.isAvailable else { return }
-        let since = Date().adding(days: -90)
-        guard let samples = try? await healthKit.fetchWeights(since: since), !samples.isEmpty else { return }
-
-        let existingDates = Set(entries.map(\.entryDate))
-        // Latest sample per day wins
-        var latestPerDay: [String: HealthKitService.WeightSample] = [:]
-        for sample in samples {
-            let day = DateFormatting.isoString(from: sample.date)
-            if let current = latestPerDay[day], current.date > sample.date { continue }
-            latestPerDay[day] = sample
-        }
-
-        var imported = false
-        for (day, sample) in latestPerDay where !existingDates.contains(day) {
-            let kg = (sample.weightKg * 100).rounded() / 100
-            let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
-            if await (try? weightRepository.createEntry(create)) != nil {
-                imported = true
-            }
-        }
-
-        if imported {
+        if await HealthKitImporter.importWeightsIfEnabled(into: weightRepository) {
             entries = weightRepository.entries()
             if !appModeManager.isLocal {
                 weightStats = await (try? api.getWeightStats()) ?? weightStats

@@ -370,6 +370,10 @@ enum L10n {
         localized("meal", en: "Meal", de: "Mahlzeit")
     }
 
+    static var time: String {
+        localized("time", en: "Time", de: "Uhrzeit")
+    }
+
     static var quickEntry: String {
         localized("quick_entry", en: "Quick Entry", de: "Schnelleintrag")
     }
