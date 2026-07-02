@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { UPLOAD_DIR } from '$lib/server/images';
 import { getDB } from '$lib/server/db';
-import { foods, recipes } from '$lib/server/schema';
+import { foods, recipes, aiTasks } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 
 const FILENAME_PATTERN = /^[a-f0-9-]+\.webp$/;
@@ -33,6 +33,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				.select({ id: recipes.id })
 				.from(recipes)
 				.where(and(eq(recipes.imageUrl, imageUrl), eq(recipes.userId, userId)))
+		)
+		.union(
+			db
+				.select({ id: aiTasks.id })
+				.from(aiTasks)
+				.where(and(eq(aiTasks.photoUrl, imageUrl), eq(aiTasks.userId, userId)))
 		)
 		.limit(1);
 

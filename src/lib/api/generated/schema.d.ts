@@ -635,6 +635,59 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/ai-tasks': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List AI task queue entries, optionally filtered by status. */
+		get: operations['listAiTasks'];
+		put?: never;
+		/** @description Capture a new AI task (description and/or photo) for later processing. */
+		post: operations['createAiTask'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/ai-tasks/photo': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Upload a photo for an AI task. */
+		post: operations['uploadAiTaskPhoto'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/ai-tasks/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete an AI task. */
+		delete: operations['deleteAiTask'];
+		options?: never;
+		head?: never;
+		/** @description Update an AI task (status, result, description, date, or meal type). */
+		patch: operations['updateAiTask'];
+		trace?: never;
+	};
 	'/api/sleep': {
 		parameters: {
 			query?: never;
@@ -1227,6 +1280,23 @@ export interface components {
 		MealTypeUpdate: {
 			name?: string;
 			sortOrder?: number;
+		};
+		AiTaskCreate: {
+			description?: string | null;
+			photoUrl?: string | null;
+			date: string;
+			mealType?: string;
+			/** @enum {string} */
+			source?: 'web' | 'ios' | 'android';
+		};
+		AiTaskUpdate: {
+			/** @enum {string} */
+			status?: 'pending' | 'completed' | 'dismissed';
+			resultSummary?: string | null;
+			createdEntryIds?: string[] | null;
+			description?: string | null;
+			date?: string;
+			mealType?: string;
 		};
 		SleepCreate: {
 			durationMinutes: number;
@@ -1883,6 +1953,34 @@ export interface components {
 		};
 		ImageUploadResponse: {
 			imageUrl: string;
+		};
+		AiTasksResponse: {
+			tasks: components['schemas']['AiTask'][];
+			total: number;
+		};
+		AiTask: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			/** @enum {string} */
+			status: 'pending' | 'completed' | 'dismissed';
+			description: string | null;
+			photoUrl: string | null;
+			date: string;
+			mealType: string | null;
+			source: string | null;
+			resultSummary: string | null;
+			createdEntryIds: string[] | null;
+			completedAt: string | null;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		AiTaskResponse: {
+			task: components['schemas']['AiTask'];
+		};
+		AiTaskPhotoResponse: {
+			photoUrl: string;
 		};
 		SleepEntriesResponse: {
 			entries: components['schemas']['SleepEntry'][];
@@ -3388,6 +3486,130 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listAiTasks: {
+		parameters: {
+			query?: {
+				status?: 'pending' | 'completed' | 'dismissed';
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTasksResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createAiTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AiTaskCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	uploadAiTaskPhoto: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					/** Format: binary */
+					photo: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskPhotoResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	deleteAiTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	updateAiTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AiTaskUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	listSleepEntries: {

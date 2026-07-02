@@ -6,13 +6,18 @@ import { ApiError } from './errors';
 
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 
-export const processImage = async (file: File): Promise<string> => {
+export const processImage = async (
+	file: File,
+	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
+): Promise<string> => {
 	const buffer = Buffer.from(await file.arrayBuffer());
+	const maxDim = opts?.maxDim ?? 400;
+	const fit = opts?.fit ?? 'cover';
 
 	let processed: Buffer;
 	try {
 		processed = await sharp(buffer)
-			.resize(400, 400, { fit: 'cover', withoutEnlargement: true })
+			.resize(maxDim, maxDim, { fit, withoutEnlargement: true })
 			.webp({ quality: 80 })
 			.toBuffer();
 	} catch {

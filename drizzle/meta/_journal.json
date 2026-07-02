@@ -288,6 +288,13 @@
       "when": 1782760517924,
       "tag": "0040_eminent_nuke",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783019126456,
+      "tag": "0041_talented_the_executioner",
+      "breakpoints": true
     }
   ]
 }

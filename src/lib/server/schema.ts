@@ -30,6 +30,10 @@ export const foodKindValues = ['food', 'supplement'] as const;
 export type FoodKind = (typeof foodKindValues)[number];
 export const foodKindEnum = pgEnum('food_kind', foodKindValues);
 
+export const aiTaskStatusValues = ['pending', 'completed', 'dismissed'] as const;
+export type AiTaskStatus = (typeof aiTaskStatusValues)[number];
+export const aiTaskStatusEnum = pgEnum('ai_task_status', aiTaskStatusValues);
+
 // Users (from Infomaniak OIDC)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -507,6 +511,42 @@ export const sleepEntries = pgTable(
 
 export type SleepEntry = typeof sleepEntries.$inferSelect;
 export type NewSleepEntry = typeof sleepEntries.$inferInsert;
+
+// AI Task Queue — user-captured meal-logging tasks (description and/or photo)
+// picked up later by an MCP client for automated processing.
+export const aiTasks = pgTable(
+	'ai_tasks',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		status: aiTaskStatusEnum('status').notNull().default('pending'),
+		description: text('description'),
+		photoUrl: text('photo_url'),
+		date: date('date').notNull(),
+		mealType: text('meal_type'),
+		source: text('source'),
+		resultSummary: text('result_summary'),
+		// Informational only — deliberately no FK, so a later entry deletion
+		// doesn't need to touch completed task history.
+		createdEntryIds: text('created_entry_ids').array(),
+		completedAt: timestamp('completed_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_ai_tasks_user_status').on(table.userId, table.status),
+		index('idx_ai_tasks_created_at').on(table.createdAt),
+		check(
+			'ai_tasks_has_content',
+			sql`${table.description} IS NOT NULL OR ${table.photoUrl} IS NOT NULL`
+		)
+	]
+);
+
+export type AiTask = typeof aiTasks.$inferSelect;
+export type NewAiTask = typeof aiTasks.$inferInsert;
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(
