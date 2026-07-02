@@ -370,6 +370,10 @@ enum L10n {
         localized("meal", en: "Meal", de: "Mahlzeit")
     }
 
+    static var time: String {
+        localized("time", en: "Time", de: "Uhrzeit")
+    }
+
     static var quickEntry: String {
         localized("quick_entry", en: "Quick Entry", de: "Schnelleintrag")
     }
@@ -436,6 +440,10 @@ enum L10n {
         localized("per_100", en: "Per 100 g", de: "Pro 100 g")
     }
 
+    static var per100Ml: String {
+        localized("per_100_ml", en: "Per 100 ml", de: "Pro 100 ml")
+    }
+
     static var valuesPer: String {
         localized("values_per", en: "Values per", de: "Werte pro")
     }
@@ -443,8 +451,8 @@ enum L10n {
     static var macroBasisFooter: String {
         localized(
             "macro_basis_footer",
-            en: "Enter the macros per serving or per 100 g — the values are converted for you.",
-            de: "Makros pro Portion oder pro 100 g eingeben — die Werte werden für dich umgerechnet."
+            en: "Enter the macros per serving or per 100 g/ml — the values are converted for you.",
+            de: "Makros pro Portion oder pro 100 g/ml eingeben — die Werte werden für dich umgerechnet."
         )
     }
 

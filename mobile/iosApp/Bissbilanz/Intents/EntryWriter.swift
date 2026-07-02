@@ -52,7 +52,9 @@ final class EntryWriter {
     }
 
     /// Favorites first, then recently logged foods — what Siri / Shortcuts show
-    /// before the user types. Local store only, so it stays instant.
+    /// before the user types. Local store only, so it stays instant. Falls back
+    /// to the whole cached catalog so the picker is never empty while the store
+    /// has any foods at all.
     func suggestedFoods(limit: Int = 12) -> [Food] {
         var seen = Set<String>()
         var result: [Food] = []
@@ -62,7 +64,7 @@ final class EntryWriter {
             }
             if result.count >= limit { break }
         }
-        return result
+        return result.isEmpty ? foodRepository.localFoods(limit: limit) : result
     }
 
     // MARK: - Recipe reads
