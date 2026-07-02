@@ -3318,7 +3318,7 @@
 			},
 			"ServingUnit": {
 				"type": "string",
-				"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+				"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 			},
 			"FoodMerge": {
 				"type": "object",
@@ -5501,7 +5501,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -6100,7 +6100,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -6917,7 +6917,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"sortOrder": {
 						"type": "integer",
@@ -7956,7 +7956,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"

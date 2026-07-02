@@ -156,6 +156,7 @@ struct ServingUnitTests {
         #expect(ServingUnit.g.displayName == "g")
         #expect(ServingUnit.kg.displayName == "kg")
         #expect(ServingUnit.ml.displayName == "ml")
+        #expect(ServingUnit.cl.displayName == "cl")
         #expect(ServingUnit.l.displayName == "L")
         #expect(ServingUnit.flOz.displayName == "fl oz")
         #expect(ServingUnit.cup.displayName == "cup")
@@ -163,7 +164,7 @@ struct ServingUnitTests {
 
     @Test("All cases covered")
     func allCases() {
-        #expect(ServingUnit.allCases.count == 10)
+        #expect(ServingUnit.allCases.count == 11)
     }
 }
 

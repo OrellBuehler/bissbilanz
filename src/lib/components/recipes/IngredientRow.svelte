@@ -10,6 +10,7 @@
 		g: () => m.food_form_unit_g(),
 		kg: () => m.food_form_unit_kg(),
 		ml: () => m.food_form_unit_ml(),
+		cl: () => m.food_form_unit_cl(),
 		l: () => m.food_form_unit_l(),
 		oz: () => m.food_form_unit_oz(),
 		lb: () => m.food_form_unit_lb(),

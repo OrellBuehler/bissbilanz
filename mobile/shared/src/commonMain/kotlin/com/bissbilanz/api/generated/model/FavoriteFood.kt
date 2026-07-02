@@ -159,7 +159,7 @@ data class FavoriteFood(
     /**
      *
      *
-     * Values: g,kg,ml,l,oz,lb,fl_oz,cup,tbsp,tsp
+     * Values: g,kg,ml,cl,l,oz,lb,fl_oz,cup,tbsp,tsp
      */
     @Serializable
     enum class ServingUnit(
@@ -173,6 +173,9 @@ data class FavoriteFood(
 
         @SerialName(value = "ml")
         ml("ml"),
+
+        @SerialName(value = "cl")
+        cl("cl"),
 
         @SerialName(value = "l")
         l("l"),
