@@ -286,40 +286,7 @@ struct SleepView: View {
 
         isLoading = false
 
-        if UserDefaults.standard.bool(forKey: HealthKitService.readSleepEnabledKey) {
-            await importFromHealthKit()
-        }
-    }
-
-    /// Import nights from Apple Health that the app doesn't have yet
-    /// (read-only — never writes back to Health from here). Each night carries
-    /// a quality estimated from its sleep efficiency and awakenings
-    /// (`HealthKitService.derivedQuality`), since Apple's Sleep Score isn't
-    /// exposed through public HealthKit; the value stays editable afterwards.
-    private func importFromHealthKit() async {
-        let healthKit = HealthKitService.shared
-        guard healthKit.isAvailable else { return }
-        let since = Date().adding(days: -90)
-        guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return }
-
-        let existingDates = Set(entries.map(\.entryDate))
-        var imported = false
-        for night in HealthKitService.nights(from: samples) where !existingDates.contains(night.entryDate) {
-            let create = SleepCreate(
-                durationMinutes: night.asleepMinutes,
-                quality: night.quality,
-                entryDate: night.entryDate,
-                bedtime: DateFormatting.isoDateTimeString(from: night.bedtime),
-                wakeTime: DateFormatting.isoDateTimeString(from: night.wakeTime),
-                wakeUps: night.wakeUps,
-                notes: nil
-            )
-            if await (try? sleepRepository.createEntry(create)) != nil {
-                imported = true
-            }
-        }
-
-        if imported {
+        if await HealthKitImporter.importSleepIfEnabled(into: sleepRepository) {
             entries = sleepRepository.entries()
         }
     }

@@ -228,6 +228,22 @@ struct BissbilanzApp: App {
                         foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
                         recipes: recipeRepository.favoriteRecipes()
                     )
+                    // Publish current Food/Recipe values for the App Shortcut
+                    // phrases ("Log \(food) with Bissbilanz"). Without this the
+                    // system's shortcut registry has no parameter values, and
+                    // tapping Log Food / Log Recipe in Spotlight shows an empty
+                    // picker card.
+                    BissbilanzShortcuts.updateAppShortcutParameters()
+                    // Pull any new Apple Health weight/sleep data on every
+                    // activation (not only when those pages are visited) so it
+                    // reaches the local store and the queued backend upload
+                    // immediately.
+                    Task {
+                        await HealthKitImporter.importAllIfEnabled(
+                            weightRepository: weightRepository,
+                            sleepRepository: sleepRepository
+                        )
+                    }
                     // Surface any widget-extension quick-add failures (the
                     // extension has no Sentry of its own — see QuickAddDiagnostics).
                     for entry in QuickAddDiagnostics.drain() {

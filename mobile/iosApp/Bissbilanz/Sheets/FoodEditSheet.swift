@@ -84,7 +84,7 @@ struct FoodEditSheet: View {
                 Section {
                     Picker(L10n.valuesPer, selection: $perHundredBasis) {
                         Text(L10n.perServing).tag(false)
-                        Text(L10n.per100).tag(true)
+                        Text(servingUnit.isVolume ? L10n.per100Ml : L10n.per100).tag(true)
                     }
                     .pickerStyle(.segmented)
                     macroField(L10n.calories, text: $calories, unit: "kcal")
@@ -248,9 +248,11 @@ struct FoodEditSheet: View {
 
         let serving = Double.parseUserInput(servingSize) ?? 100
         // The food record stores per-serving values. When the user entered the
-        // per-100 g basis, scale everything by serving/100; per-serving entries
-        // are stored as-is (factor 1).
-        let factor = perHundredBasis && serving > 0 ? serving / 100 : 1
+        // per-100 g/ml basis, normalize the serving to grams/milliliters first
+        // (e.g. 33 cl = 330 ml) and scale by servingInBase/100; per-serving
+        // entries are stored as-is (factor 1).
+        let servingInBase = serving * servingUnit.baseUnitsPerUnit
+        let factor = perHundredBasis && servingInBase > 0 ? servingInBase / 100 : 1
 
         var foodData = FoodCreate(
             name: name,

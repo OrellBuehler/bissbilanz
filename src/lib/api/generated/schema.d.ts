@@ -1003,7 +1003,7 @@ export interface components {
 			imageUrl?: string | null;
 		};
 		/** @enum {string} */
-		ServingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+		ServingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 		FoodMerge: {
 			/** Format: uuid */
 			keeperId: string;
@@ -1359,7 +1359,7 @@ export interface components {
 			brand: string | null;
 			servingSize: number;
 			/** @enum {string} */
-			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			calories: number;
 			protein: number;
 			carbs: number;
@@ -1434,7 +1434,7 @@ export interface components {
 			brand: string | null;
 			servingSize: number;
 			/** @enum {string} */
-			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			calories: number;
 			protein: number;
 			carbs: number;
@@ -1590,7 +1590,7 @@ export interface components {
 			foodId: string;
 			quantity: number;
 			/** @enum {string} */
-			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			sortOrder: number;
 		};
 		SupplementsListResponse: {
@@ -1846,7 +1846,7 @@ export interface components {
 			brand: string | null;
 			servingSize: number;
 			/** @enum {string} */
-			servingUnit: 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			calories: number;
 			protein: number;
 			carbs: number;

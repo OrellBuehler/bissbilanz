@@ -40,6 +40,14 @@ else
   exit 1
 fi
 
+# Drop models the generator can't emit as valid Kotlin: the catalog endpoints
+# use free-form additionalProperties schemas, which become `Map<String, Any>`
+# properties (no kotlinx serializer) on a class extending final HashMap. The
+# mobile apps don't call the catalog endpoints, so skip these models entirely.
+rm -f "$OUTPUT_DIR"/CatalogByBarcode200Response.kt \
+  "$OUTPUT_DIR"/CatalogByBarcode404Response.kt \
+  "$OUTPUT_DIR"/CatalogSearch200Response.kt
+
 # Fix duplicate @Serializable annotation (openapi-generator multiplatform bug)
 # and strip JVM-only imports. Use `sed -i.bak` (portable across GNU + BSD/macOS),
 # then remove the backups.
