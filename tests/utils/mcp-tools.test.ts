@@ -33,7 +33,9 @@ const READ_ONLY_TOOLS = [
 	'list_meal_types',
 	'get_supplement_history',
 	'get_day_properties',
-	'get_calendar_stats'
+	'get_calendar_stats',
+	'list_ai_tasks',
+	'get_ai_task'
 ] as const;
 
 const WRITE_TOOLS = [
@@ -55,7 +57,9 @@ const UPDATE_TOOLS = [
 	'update_supplement',
 	'update_weight',
 	'update_sleep',
-	'set_day_properties'
+	'set_day_properties',
+	'complete_ai_task',
+	'dismiss_ai_task'
 ] as const;
 
 const DESTRUCTIVE_TOOLS = [
@@ -117,9 +121,9 @@ describe('tool annotations', () => {
 		}
 	});
 
-	test('all 55 tools are classified', () => {
+	test('all 59 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(55);
+		expect(all).toHaveLength(59);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -183,11 +187,15 @@ describe('toolNames', () => {
 			'get_day_properties',
 			'set_day_properties',
 			'delete_day_properties',
-			'get_calendar_stats'
+			'get_calendar_stats',
+			'list_ai_tasks',
+			'get_ai_task',
+			'complete_ai_task',
+			'dismiss_ai_task'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(55);
+		expect(toolNames).toHaveLength(59);
 	});
 });

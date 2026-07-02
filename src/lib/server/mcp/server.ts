@@ -10,6 +10,7 @@ import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { scheduleTypeValues } from '$lib/supplement-units';
+import { aiTaskStatusValues } from '$lib/server/schema';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -65,7 +66,11 @@ import {
 	handleGetDayProperties,
 	handleSetDayProperties,
 	handleDeleteDayProperties,
-	handleGetCalendarStats
+	handleGetCalendarStats,
+	handleListAiTasks,
+	handleGetAiTask,
+	handleCompleteAiTask,
+	handleDismissAiTask
 } from './handlers';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 
@@ -1032,6 +1037,81 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: READ_ONLY
 		},
 		safe((args) => handleGetCalendarStats(userId, args))
+	);
+
+	// AI task queue
+	server.registerTool(
+		'list_ai_tasks',
+		{
+			description:
+				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes the meal photo if present) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary.",
+			inputSchema: {
+				status: z
+					.enum(aiTaskStatusValues)
+					.optional()
+					.describe('Filter by status. Defaults to pending.'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(200)
+					.optional()
+					.describe('Max results to return. Defaults to 100.'),
+				offset: z
+					.number()
+					.int()
+					.min(0)
+					.optional()
+					.describe('Number of results to skip for pagination.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleListAiTasks(userId, args))
+	);
+
+	server.registerTool(
+		'get_ai_task',
+		{
+			description:
+				'Get full details for a specific AI task, including the meal photo as an image when present.',
+			inputSchema: {
+				id: z.string().describe('ID of the AI task')
+			},
+			annotations: READ_ONLY
+		},
+		({ id }) => handleGetAiTask(userId, id)
+	);
+
+	server.registerTool(
+		'complete_ai_task',
+		{
+			description:
+				"Mark an AI task as completed after logging its food entries with log_food. Pass the created entry IDs so the task's history links back to the diary.",
+			inputSchema: {
+				id: z.string().uuid().describe('ID of the AI task to complete'),
+				resultSummary: z.string().describe('Short human-readable summary of what was logged'),
+				entryIds: z
+					.array(z.string())
+					.optional()
+					.describe('IDs of the food entries created for this task')
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleCompleteAiTask(userId, args))
+	);
+
+	server.registerTool(
+		'dismiss_ai_task',
+		{
+			description:
+				'Dismiss an AI task without logging any entries, e.g. if it is a duplicate or not actionable.',
+			inputSchema: {
+				id: z.string().uuid().describe('ID of the AI task to dismiss'),
+				reason: z.string().optional().describe('Optional reason for dismissing the task')
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleDismissAiTask(userId, args))
 	);
 
 	// Static resources

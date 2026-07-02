@@ -87,7 +87,13 @@ import type {
 	getFastingDays
 } from '$lib/server/day-properties';
 import type { getCalendarStats } from '$lib/server/stats';
+import type { listAiTasks, getAiTask, updateAiTask } from '$lib/server/ai-tasks';
+import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import { isZodError } from '$lib/server/errors';
+import { asText, type McpResult } from './safe';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { UPLOAD_DIR } from '$lib/server/images';
 
 export type HandlerDeps = {
 	// Foods
@@ -166,6 +172,10 @@ export type HandlerDeps = {
 	deleteDayProperties: typeof deleteDayProperties;
 	// Calendar stats
 	getCalendarStats: typeof getCalendarStats;
+	// AI tasks
+	listAiTasks: typeof listAiTasks;
+	getAiTask: typeof getAiTask;
+	updateAiTask: typeof updateAiTask;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	// Resolves "today" in the user's stored timezone (server-side day bucketing).
@@ -1070,6 +1080,109 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	// AI task queue handlers
+	const AI_TASK_PHOTO_FILENAME_RE = /^[a-f0-9-]+\.webp$/;
+
+	const serializeAiTask = (task: AiTask) => ({
+		id: task.id,
+		status: task.status,
+		description: task.description,
+		hasPhoto: Boolean(task.photoUrl),
+		date: task.date,
+		mealType: task.mealType,
+		source: task.source,
+		resultSummary: task.resultSummary,
+		createdEntryIds: task.createdEntryIds,
+		createdAt: task.createdAt,
+		completedAt: task.completedAt
+	});
+
+	const handleListAiTasks = async (
+		userId: string,
+		args: { status?: AiTaskStatus; limit?: number; offset?: number }
+	) => {
+		try {
+			const { tasks, total } = await d.listAiTasks(userId, {
+				status: args.status ?? 'pending',
+				limit: args.limit,
+				offset: args.offset
+			});
+			return { tasks: tasks.map(serializeAiTask), total };
+		} catch (e) {
+			wrapError('list ai tasks', e);
+		}
+	};
+
+	const handleGetAiTask = async (userId: string, id: string): Promise<McpResult> => {
+		try {
+			const task = await d.getAiTask(userId, id);
+			if (!task) {
+				return { ...asText({ error: 'AI task not found' }), isError: true };
+			}
+
+			const content: McpResult['content'] = [
+				{ type: 'text', text: JSON.stringify(serializeAiTask(task), null, 2) }
+			];
+
+			if (task.photoUrl) {
+				const filename = task.photoUrl.replace(/^\/uploads\//, '');
+				if (AI_TASK_PHOTO_FILENAME_RE.test(filename)) {
+					try {
+						const buffer = await readFile(join(UPLOAD_DIR, filename));
+						content.push({
+							type: 'image',
+							data: buffer.toString('base64'),
+							mimeType: 'image/webp'
+						});
+					} catch {
+						content.push({ type: 'text', text: 'Photo is unavailable.' });
+					}
+				} else {
+					content.push({ type: 'text', text: 'Photo is unavailable.' });
+				}
+			}
+
+			return { content };
+		} catch (e) {
+			return {
+				...asText({ error: e instanceof Error ? e.message : 'Unexpected error' }),
+				isError: true
+			};
+		}
+	};
+
+	const handleCompleteAiTask = async (
+		userId: string,
+		args: { id: string; resultSummary: string; entryIds?: string[] }
+	) => {
+		try {
+			const result = await d.updateAiTask(userId, args.id, {
+				status: 'completed',
+				resultSummary: args.resultSummary,
+				createdEntryIds: args.entryIds
+			});
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'AI task not found' };
+			return { success: true, task: serializeAiTask(result.data) };
+		} catch (e) {
+			wrapError('complete ai task', e);
+		}
+	};
+
+	const handleDismissAiTask = async (userId: string, args: { id: string; reason?: string }) => {
+		try {
+			const result = await d.updateAiTask(userId, args.id, {
+				status: 'dismissed',
+				resultSummary: args.reason
+			});
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'AI task not found' };
+			return { success: true, task: serializeAiTask(result.data) };
+		} catch (e) {
+			wrapError('dismiss ai task', e);
+		}
+	};
+
 	return {
 		handleGetDailyStatus,
 		handleSearchFoods,
@@ -1125,6 +1238,10 @@ export function createHandlers(d: HandlerDeps) {
 		handleGetDayProperties,
 		handleSetDayProperties,
 		handleDeleteDayProperties,
-		handleGetCalendarStats
+		handleGetCalendarStats,
+		handleListAiTasks,
+		handleGetAiTask,
+		handleCompleteAiTask,
+		handleDismissAiTask
 	};
 }

@@ -70,6 +70,28 @@ let mockCalendarStats: any = null;
 let mockComputedAverages: any = null;
 let mockDateRangeEntries: any[] = [];
 let mockFastingDays: Set<string> = new Set();
+let mockAiTasks: any[] = [];
+let mockAiTasksTotal = 0;
+let mockListAiTasksArgs: any = null;
+let mockAiTask: any = null;
+let mockUpdateAiTaskResult: any = null;
+let mockUpdateAiTaskCalls: any[] = [];
+
+const TEST_AI_TASK = {
+	id: 'ai-task-1',
+	userId: TEST_USER.id,
+	status: 'pending' as const,
+	description: 'Chicken salad for lunch',
+	photoUrl: '/uploads/10000000-0000-4000-8000-000000000099.webp',
+	date: '2026-02-10',
+	mealType: 'Lunch',
+	source: 'ios',
+	resultSummary: null,
+	createdEntryIds: null,
+	completedAt: null,
+	createdAt: new Date('2026-02-10T08:00:00Z'),
+	updatedAt: new Date('2026-02-10T08:00:00Z')
+};
 
 const mockDeps = {
 	listFoods: async () => ({ items: mockFoods, total: mockFoods.length }),
@@ -197,7 +219,16 @@ const mockDeps = {
 	getCalendarStats: async () => mockCalendarStats,
 	computeAverages: () => mockComputedAverages,
 	listEntriesByDateRange: async () => mockDateRangeEntries,
-	getFastingDays: async () => mockFastingDays
+	getFastingDays: async () => mockFastingDays,
+	listAiTasks: async (userId: string, options: any) => {
+		mockListAiTasksArgs = options;
+		return { tasks: mockAiTasks, total: mockAiTasksTotal };
+	},
+	getAiTask: async () => mockAiTask,
+	updateAiTask: async (userId: string, id: string, payload: any) => {
+		mockUpdateAiTaskCalls.push({ userId, id, payload });
+		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
+	}
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
@@ -255,7 +286,11 @@ const {
 	handleGetDayProperties,
 	handleSetDayProperties,
 	handleDeleteDayProperties,
-	handleGetCalendarStats
+	handleGetCalendarStats,
+	handleListAiTasks,
+	handleGetAiTask,
+	handleCompleteAiTask,
+	handleDismissAiTask
 } = createHandlers(mockDeps);
 
 describe('MCP handlers', () => {
@@ -318,6 +353,12 @@ describe('MCP handlers', () => {
 		mockComputedAverages = null;
 		mockDateRangeEntries = [];
 		mockFastingDays = new Set();
+		mockAiTasks = [];
+		mockAiTasksTotal = 0;
+		mockListAiTasksArgs = null;
+		mockAiTask = null;
+		mockUpdateAiTaskResult = null;
+		mockUpdateAiTaskCalls = [];
 	});
 
 	describe('handleSearchFoods', () => {
@@ -1453,6 +1494,141 @@ describe('MCP handlers', () => {
 			mockRecentFoods = [];
 			const result = await handleSearchFoods(TEST_USER.id, 'Oats', 10, 5);
 			expect(result.foods).toHaveLength(0);
+		});
+	});
+
+	describe('handleListAiTasks', () => {
+		test('serializes tasks and hides the raw photoUrl behind hasPhoto', async () => {
+			mockAiTasks = [TEST_AI_TASK, { ...TEST_AI_TASK, id: 'ai-task-2', photoUrl: null }];
+			mockAiTasksTotal = 2;
+			const result = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.total).toBe(2);
+			expect(result.tasks).toHaveLength(2);
+			expect(result.tasks[0]).not.toHaveProperty('photoUrl');
+			expect(result.tasks[0].hasPhoto).toBe(true);
+			expect(result.tasks[1].hasPhoto).toBe(false);
+			expect(result.tasks[0].id).toBe(TEST_AI_TASK.id);
+			expect(result.tasks[0].status).toBe('pending');
+		});
+
+		test('defaults status to pending when not provided', async () => {
+			await handleListAiTasks(TEST_USER.id, {});
+			expect(mockListAiTasksArgs.status).toBe('pending');
+		});
+
+		test('passes through an explicit status, limit, and offset', async () => {
+			await handleListAiTasks(TEST_USER.id, { status: 'completed', limit: 10, offset: 5 });
+			expect(mockListAiTasksArgs).toEqual({ status: 'completed', limit: 10, offset: 5 });
+		});
+
+		test('returns empty list when there are no tasks', async () => {
+			mockAiTasks = [];
+			mockAiTasksTotal = 0;
+			const result = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.tasks).toEqual([]);
+			expect(result.total).toBe(0);
+		});
+	});
+
+	describe('handleGetAiTask', () => {
+		test('returns an isError result when the task is not found', async () => {
+			mockAiTask = null;
+			const result = await handleGetAiTask(TEST_USER.id, 'nonexistent');
+			expect(result.isError).toBe(true);
+			expect(result.content[0].type).toBe('text');
+			expect((result.content[0] as { text: string }).text).toContain('not found');
+		});
+
+		test('returns a single text block with no photo', async () => {
+			mockAiTask = { ...TEST_AI_TASK, photoUrl: null };
+			const result = await handleGetAiTask(TEST_USER.id, TEST_AI_TASK.id);
+			expect(result.isError).toBeUndefined();
+			expect(result.content).toHaveLength(1);
+			expect(result.content[0].type).toBe('text');
+			const payload = JSON.parse((result.content[0] as { text: string }).text);
+			expect(payload.hasPhoto).toBe(false);
+			expect(payload).not.toHaveProperty('photoUrl');
+		});
+
+		test('appends an unavailable note when the photo file is missing', async () => {
+			mockAiTask = TEST_AI_TASK;
+			const result = await handleGetAiTask(TEST_USER.id, TEST_AI_TASK.id);
+			expect(result.isError).toBeUndefined();
+			expect(result.content).toHaveLength(2);
+			expect(result.content[0].type).toBe('text');
+			const payload = JSON.parse((result.content[0] as { text: string }).text);
+			expect(payload.hasPhoto).toBe(true);
+			expect(result.content[1].type).toBe('text');
+			expect((result.content[1] as { text: string }).text).toContain('unavailable');
+		});
+	});
+
+	describe('handleCompleteAiTask', () => {
+		test('stamps status completed with resultSummary and entryIds', async () => {
+			mockUpdateAiTaskResult = {
+				...TEST_AI_TASK,
+				status: 'completed',
+				resultSummary: 'Logged chicken salad',
+				createdEntryIds: ['entry-1', 'entry-2']
+			};
+			const result: any = await handleCompleteAiTask(TEST_USER.id, {
+				id: TEST_AI_TASK.id,
+				resultSummary: 'Logged chicken salad',
+				entryIds: ['entry-1', 'entry-2']
+			});
+			expect(result.success).toBe(true);
+			expect(result.task.status).toBe('completed');
+			expect(result.task.resultSummary).toBe('Logged chicken salad');
+			expect(result.task.createdEntryIds).toEqual(['entry-1', 'entry-2']);
+			expect(mockUpdateAiTaskCalls).toHaveLength(1);
+			expect(mockUpdateAiTaskCalls[0].payload).toEqual({
+				status: 'completed',
+				resultSummary: 'Logged chicken salad',
+				createdEntryIds: ['entry-1', 'entry-2']
+			});
+		});
+
+		test('returns error when task not found', async () => {
+			mockUpdateAiTaskResult = null;
+			const result: any = await handleCompleteAiTask(TEST_USER.id, {
+				id: 'nonexistent',
+				resultSummary: 'Logged something'
+			});
+			expect(result.error).toBe('AI task not found');
+		});
+	});
+
+	describe('handleDismissAiTask', () => {
+		test('stamps status dismissed with the given reason', async () => {
+			mockUpdateAiTaskResult = {
+				...TEST_AI_TASK,
+				status: 'dismissed',
+				resultSummary: 'Duplicate task'
+			};
+			const result: any = await handleDismissAiTask(TEST_USER.id, {
+				id: TEST_AI_TASK.id,
+				reason: 'Duplicate task'
+			});
+			expect(result.success).toBe(true);
+			expect(result.task.status).toBe('dismissed');
+			expect(result.task.resultSummary).toBe('Duplicate task');
+			expect(mockUpdateAiTaskCalls[0].payload).toEqual({
+				status: 'dismissed',
+				resultSummary: 'Duplicate task'
+			});
+		});
+
+		test('dismisses without a reason', async () => {
+			mockUpdateAiTaskResult = { ...TEST_AI_TASK, status: 'dismissed' };
+			const result: any = await handleDismissAiTask(TEST_USER.id, { id: TEST_AI_TASK.id });
+			expect(result.success).toBe(true);
+			expect(mockUpdateAiTaskCalls[0].payload.status).toBe('dismissed');
+		});
+
+		test('returns error when task not found', async () => {
+			mockUpdateAiTaskResult = null;
+			const result: any = await handleDismissAiTask(TEST_USER.id, { id: 'nonexistent' });
+			expect(result.error).toBe('AI task not found');
 		});
 	});
 });

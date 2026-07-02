@@ -58,5 +58,10 @@ export const toolNames = [
 	'set_day_properties',
 	'delete_day_properties',
 	// Calendar stats
-	'get_calendar_stats'
+	'get_calendar_stats',
+	// AI task queue
+	'list_ai_tasks',
+	'get_ai_task',
+	'complete_ai_task',
+	'dismiss_ai_task'
 ] as const;
