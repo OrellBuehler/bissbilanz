@@ -6,4 +6,7 @@ enum MacroColors {
     static let carbs = Color(red: 0.976, green: 0.451, blue: 0.086) // #F97316
     static let fat = Color(red: 0.918, green: 0.702, blue: 0.031) // #EAB308
     static let fiber = Color(red: 0.133, green: 0.773, blue: 0.369) // #22C55E
+    // Not a macro, but part of the same fixed color language: fasting surfaces
+    // (tracker screen, dashboard card, Live Activity) all tint with this.
+    static let fasting = Color(red: 0.388, green: 0.400, blue: 0.945) // #6366F1
 }

@@ -1254,6 +1254,92 @@ enum L10n {
         )
     }
 
+    // MARK: - Fasting Tracker
+
+    static var fasting: String {
+        localized("fasting", en: "Fasting", de: "Fasten")
+    }
+
+    static var startFast: String {
+        localized("start_fast", en: "Start Fast", de: "Fasten starten")
+    }
+
+    static var endFast: String {
+        localized("end_fast", en: "End Fast", de: "Fasten beenden")
+    }
+
+    static var fastingProtocol: String {
+        localized("fasting_protocol", en: "Protocol", de: "Protokoll")
+    }
+
+    static var fastingStarted: String {
+        localized("fasting_started", en: "Started", de: "Gestartet")
+    }
+
+    static var fastingEnds: String {
+        localized("fasting_ends", en: "Ends", de: "Endet")
+    }
+
+    static var fastingChangeTarget: String {
+        localized("fasting_change_target", en: "Change Target", de: "Ziel ändern")
+    }
+
+    static var fastingTargetReached: String {
+        localized("fasting_target_reached", en: "Target reached", de: "Ziel erreicht")
+    }
+
+    static var fastingNoHistory: String {
+        localized("fasting_no_history", en: "No fasts yet", de: "Noch kein Fasten")
+    }
+
+    static var fastingNotRunning: String {
+        localized(
+            "fasting_not_running",
+            en: "Pick a protocol and start your fast",
+            de: "Wähle ein Protokoll und starte dein Fasten"
+        )
+    }
+
+    static var fastingLiveActivityHint: String {
+        localized(
+            "fasting_live_activity_hint",
+            en: "Enable Live Activities in Settings to see the timer on your Lock Screen",
+            de: "Aktiviere Live-Aktivitäten in den Einstellungen, um den Timer auf dem Sperrbildschirm zu sehen"
+        )
+    }
+
+    static var fastingEndConfirmation: String {
+        localized(
+            "fasting_end_confirmation",
+            en: "End your fast? Today will be marked as a fasting day.",
+            de: "Fasten beenden? Heute wird als Fastentag markiert."
+        )
+    }
+
+    static func fastingTargetHours(_ hours: Int) -> String {
+        localized("fasting_target_hours", en: "\(hours) h target", de: "\(hours) h Ziel")
+    }
+
+    static func fastingOfTargetHours(_ hours: Int) -> String {
+        localized("fasting_of_target_hours", en: "of \(hours) h", de: "von \(hours) h")
+    }
+
+    static func fastingProtocolDescription(fasting: Int, eating: Int) -> String {
+        localized(
+            "fasting_protocol_description",
+            en: "Fast for \(fasting) h, eat within \(eating) h",
+            de: "\(fasting) h fasten, innerhalb von \(eating) h essen"
+        )
+    }
+
+    static func fastingCustomDescription(_ hours: Int) -> String {
+        localized(
+            "fasting_custom_description",
+            en: "Fast for \(hours) h",
+            de: "\(hours) h fasten"
+        )
+    }
+
     // MARK: - Weight (additional)
 
     static var latestWeight: String {
