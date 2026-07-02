@@ -11,6 +11,7 @@ struct DayLogView: View {
     @State private var editingEntry: Entry?
     @State private var isCopying = false
     @State private var showQuickEntry = false
+    @State private var showAIMeal = false
     @State private var errorMessage: String?
     @State private var searchText = ""
 
@@ -46,6 +47,13 @@ struct DayLogView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    showAIMeal = true
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+                .accessibilityLabel(L10n.aiMealEstimate)
+
+                Button {
                     Task { await copyYesterday() }
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -79,6 +87,11 @@ struct DayLogView: View {
         }
         .sheet(isPresented: $showQuickEntry) {
             QuickEntrySheet(date: date) {
+                Task { await loadEntries() }
+            }
+        }
+        .sheet(isPresented: $showAIMeal) {
+            AIMealSheet(date: date) { _ in
                 Task { await loadEntries() }
             }
         }
