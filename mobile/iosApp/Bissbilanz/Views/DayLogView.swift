@@ -13,6 +13,7 @@ struct DayLogView: View {
     @State private var showQuickEntry = false
     @State private var showAIMeal = false
     @State private var errorMessage: String?
+    @State private var toastMessage: String?
     @State private var searchText = ""
 
     /// Entries narrowed by the search field (matches the displayed name).
@@ -91,9 +92,11 @@ struct DayLogView: View {
             }
         }
         .sheet(isPresented: $showAIMeal) {
-            AIMealSheet(date: date) { _ in
+            AIMealSheet(date: date, onLogged: { _ in
                 Task { await loadEntries() }
-            }
+            }, onQueued: {
+                toastMessage = L10n.aiTaskQueued
+            })
         }
         .sheet(item: $editingEntry) { entry in
             // PATCH responses are raw DB rows without resolved macros — reload instead
@@ -102,6 +105,7 @@ struct DayLogView: View {
             }
         }
         .task { await loadEntries(showSpinner: true) }
+        .toast(message: $toastMessage)
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}
         } message: {

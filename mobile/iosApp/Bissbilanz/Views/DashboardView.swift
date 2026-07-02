@@ -112,10 +112,12 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showAIMeal) {
-                AIMealSheet(date: dateString) { count in
+                AIMealSheet(date: dateString, onLogged: { count in
                     toastMessage = L10n.aiMealItemsLogged(count)
                     Task { await loadData() }
-                }
+                }, onQueued: {
+                    toastMessage = L10n.aiTaskQueued
+                })
             }
             .confirmationDialog(L10n.copyYesterday, isPresented: $showCopyConfirmation) {
                 Button(L10n.copyYesterday) {

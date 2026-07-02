@@ -78,7 +78,7 @@ struct NutritionLabelScanView: View {
                 }
             }
             .fullScreenCover(isPresented: $showCamera) {
-                CameraImagePicker(
+                CameraPicker(
                     onImage: { image in
                         showCamera = false
                         process(image)
@@ -150,51 +150,5 @@ private extension UIImage {
             draw(in: CGRect(origin: .zero, size: size))
         }
         return upright.jpegData(compressionQuality: 0.9)
-    }
-}
-
-/// Minimal still-photo camera capture. `PhotosPicker` covers the library; this
-/// covers live capture, which `PhotosPicker` cannot do.
-private struct CameraImagePicker: UIViewControllerRepresentable {
-    let onImage: (UIImage) -> Void
-    let onCancel: () -> Void
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_: UIImagePickerController, context _: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onImage: onImage, onCancel: onCancel)
-    }
-
-    @MainActor
-    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        private let onImage: (UIImage) -> Void
-        private let onCancel: () -> Void
-
-        init(onImage: @escaping (UIImage) -> Void, onCancel: @escaping () -> Void) {
-            self.onImage = onImage
-            self.onCancel = onCancel
-        }
-
-        func imagePickerController(
-            _: UIImagePickerController,
-            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
-        ) {
-            if let image = info[.originalImage] as? UIImage {
-                onImage(image)
-            } else {
-                onCancel()
-            }
-        }
-
-        func imagePickerControllerDidCancel(_: UIImagePickerController) {
-            onCancel()
-        }
     }
 }
