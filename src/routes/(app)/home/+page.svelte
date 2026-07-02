@@ -17,6 +17,7 @@
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
 	import SleepWidget from '$lib/components/dashboard/SleepWidget.svelte';
+	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
@@ -29,6 +30,7 @@
 	import { ScanBarcode } from '@lucide/svelte';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 	import Target from '@lucide/svelte/icons/target';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 
 	let { data } = $props();
 	const activeDate = $derived(data.date);
@@ -50,6 +52,7 @@
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
+	let aiTaskCaptureOpen = $state(false);
 
 	const isToday = $derived(activeDate === today());
 	const order = $derived(
@@ -179,16 +182,27 @@
 	<div>
 		<div class="flex min-w-0 items-start justify-between gap-2">
 			<DateNavigator date={activeDate} />
-			<Button
-				variant="outline"
-				size="sm"
-				class="hidden md:inline-flex"
-				onclick={() => (scanModalOpen = true)}
-			>
-				<ScanBarcode class="h-4 w-4" />
-				{m.dashboard_scan()}
-			</Button>
+			<div class="hidden items-center gap-2 md:flex">
+				<Button variant="outline" size="sm" onclick={() => (aiTaskCaptureOpen = true)}>
+					<Sparkles class="h-4 w-4" />
+					{m.ai_tasks_capture_button()}
+				</Button>
+				<Button variant="outline" size="sm" onclick={() => (scanModalOpen = true)}>
+					<ScanBarcode class="h-4 w-4" />
+					{m.dashboard_scan()}
+				</Button>
+			</div>
 		</div>
+
+		<!-- Mobile FAB for AI task capture -->
+		<button
+			type="button"
+			class="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-6 z-50 flex size-12 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-lg active:scale-95 md:hidden"
+			onclick={() => (aiTaskCaptureOpen = true)}
+			aria-label={m.ai_tasks_capture_button()}
+		>
+			<Sparkles class="size-5" />
+		</button>
 
 		<!-- Mobile FAB for barcode scanner -->
 		<button
@@ -199,6 +213,8 @@
 		>
 			<ScanBarcode class="size-6" />
 		</button>
+
+		<AiTaskCaptureModal bind:open={aiTaskCaptureOpen} />
 
 		{#if isLg}
 			<!-- Desktop: main + sidebar -->

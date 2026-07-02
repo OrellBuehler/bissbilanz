@@ -27,7 +27,8 @@
 		insights: () => m.nav_insights(),
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
-		mcp: () => 'MCP'
+		mcp: () => 'MCP',
+		'ai-tasks': () => m.nav_ai_tasks()
 	};
 
 	const UUID_RE = /^[0-9a-f]{8}-/i;
