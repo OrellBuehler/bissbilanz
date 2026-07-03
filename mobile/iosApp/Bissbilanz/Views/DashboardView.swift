@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(SupplementRepository.self) private var supplementRepository
     @Environment(WeightRepository.self) private var weightRepository
     @Environment(SleepRepository.self) private var sleepRepository
+    @Environment(FastingTimerManager.self) private var fastingManager
 
     @State private var entries: [Entry] = []
     @State private var goals: Goals = .defaults
@@ -151,6 +152,10 @@ struct DashboardView: View {
     private var dayContent: some View {
         VStack(spacing: 16) {
             macroRings
+
+            if selectedDate.isToday {
+                fastingCard
+            }
 
             if totalCalories == 0, !refreshFailed {
                 HStack {
@@ -342,6 +347,51 @@ struct DashboardView: View {
                 animationDelay: 0.2
             )
         }
+    }
+
+    // MARK: - Fasting Card
+
+    /// Entry point to the fasting tracker; only rendered on today (a fast is
+    /// a "now" concept, not tied to the browsed date). Shows the live elapsed
+    /// timer while a fast is running.
+    private var fastingCard: some View {
+        NavigationLink {
+            FastingView()
+        } label: {
+            HStack {
+                Image(systemName: "timer")
+                    .foregroundStyle(MacroColors.fasting)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.fasting)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let session = fastingManager.session {
+                        Text(timerInterval: session.elapsedRange, countsDown: false)
+                            .font(.headline)
+                            .monospacedDigit()
+                            // Date-relative Text is greedy about width — cap it
+                            // so the trailing target label isn't squeezed out.
+                            .frame(maxWidth: 100, alignment: .leading)
+                    } else {
+                        Text(L10n.startFast)
+                            .font(.headline)
+                    }
+                }
+                Spacer()
+                if let session = fastingManager.session {
+                    Text(L10n.fastingTargetHours(session.targetHours))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Weight Widget
