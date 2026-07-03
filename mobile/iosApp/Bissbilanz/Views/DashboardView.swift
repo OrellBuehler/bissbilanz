@@ -22,6 +22,7 @@ struct DashboardView: View {
     @State private var showFoodSearch = false
     @State private var showScanner = false
     @State private var showQuickEntry = false
+    @State private var showAIMeal = false
     @State private var showCopyConfirmation = false
     @State private var toastMessage: String?
     @State private var isFastingDay = false
@@ -111,6 +112,12 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showQuickEntry) {
                 QuickEntrySheet(date: dateString) {
+                    Task { await loadData() }
+                }
+            }
+            .sheet(isPresented: $showAIMeal) {
+                AIMealSheet(date: dateString) { count in
+                    toastMessage = L10n.aiMealItemsLogged(count)
                     Task { await loadData() }
                 }
             }
@@ -539,6 +546,17 @@ struct DashboardView: View {
         FloatingControlGroup {
             VStack(spacing: 12) {
                 Button {
+                    showAIMeal = true
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .circularGlassBackground()
+                .accessibilityLabel(L10n.aiMealEstimate)
+
+                Button {
                     showScanner = true
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 } label: {
@@ -630,7 +648,7 @@ struct DashboardView: View {
                 context: [
                     "date": dateString,
                     "endpoint": "/api/entries",
-                    "reason": entriesFailReason
+                    "reason": entriesFailReason,
                 ]
             )
         }

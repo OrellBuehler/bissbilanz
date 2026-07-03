@@ -787,20 +787,60 @@ enum L10n {
         case "update_recipe": localized("sync_update_recipe", en: "Edited recipe", de: "Rezept bearbeitet")
         case "delete_recipe": localized("sync_delete_recipe", en: "Deleted recipe", de: "Rezept gelöscht")
         case "set_goals": localized("sync_set_goals", en: "Updated goals", de: "Ziele aktualisiert")
-        case "create_weight": localized("sync_create_weight", en: "Added weight entry", de: "Gewichtseintrag hinzugefügt")
-        case "update_weight": localized("sync_update_weight", en: "Edited weight entry", de: "Gewichtseintrag bearbeitet")
-        case "delete_weight": localized("sync_delete_weight", en: "Deleted weight entry", de: "Gewichtseintrag gelöscht")
+        case "create_weight": localized(
+                "sync_create_weight",
+                en: "Added weight entry",
+                de: "Gewichtseintrag hinzugefügt"
+            )
+        case "update_weight": localized(
+                "sync_update_weight",
+                en: "Edited weight entry",
+                de: "Gewichtseintrag bearbeitet"
+            )
+        case "delete_weight": localized(
+                "sync_delete_weight",
+                en: "Deleted weight entry",
+                de: "Gewichtseintrag gelöscht"
+            )
         case "create_sleep": localized("sync_create_sleep", en: "Added sleep entry", de: "Schlafeintrag hinzugefügt")
         case "update_sleep": localized("sync_update_sleep", en: "Edited sleep entry", de: "Schlafeintrag bearbeitet")
         case "delete_sleep": localized("sync_delete_sleep", en: "Deleted sleep entry", de: "Schlafeintrag gelöscht")
-        case "create_supplement": localized("sync_create_supplement", en: "Added supplement", de: "Supplement hinzugefügt")
-        case "update_supplement": localized("sync_update_supplement", en: "Edited supplement", de: "Supplement bearbeitet")
-        case "delete_supplement": localized("sync_delete_supplement", en: "Deleted supplement", de: "Supplement gelöscht")
+        case "create_supplement": localized(
+                "sync_create_supplement",
+                en: "Added supplement",
+                de: "Supplement hinzugefügt"
+            )
+        case "update_supplement": localized(
+                "sync_update_supplement",
+                en: "Edited supplement",
+                de: "Supplement bearbeitet"
+            )
+        case "delete_supplement": localized(
+                "sync_delete_supplement",
+                en: "Deleted supplement",
+                de: "Supplement gelöscht"
+            )
         case "log_supplement": localized("sync_log_supplement", en: "Logged supplement", de: "Supplement protokolliert")
-        case "unlog_supplement": localized("sync_unlog_supplement", en: "Unlogged supplement", de: "Supplement-Protokoll entfernt")
-        case "set_day_properties": localized("sync_set_day_properties", en: "Updated fasting day", de: "Fastentag aktualisiert")
-        case "delete_day_properties": localized("sync_delete_day_properties", en: "Cleared fasting day", de: "Fastentag entfernt")
-        case "update_preferences": localized("sync_update_preferences", en: "Updated settings", de: "Einstellungen aktualisiert")
+        case "unlog_supplement": localized(
+                "sync_unlog_supplement",
+                en: "Unlogged supplement",
+                de: "Supplement-Protokoll entfernt"
+            )
+        case "set_day_properties": localized(
+                "sync_set_day_properties",
+                en: "Updated fasting day",
+                de: "Fastentag aktualisiert"
+            )
+        case "delete_day_properties": localized(
+                "sync_delete_day_properties",
+                en: "Cleared fasting day",
+                de: "Fastentag entfernt"
+            )
+        case "update_preferences": localized(
+                "sync_update_preferences",
+                en: "Updated settings",
+                de: "Einstellungen aktualisiert"
+            )
         default: localized("sync_generic_change", en: "Pending change", de: "Ausstehende Änderung")
         }
     }
@@ -1686,6 +1726,144 @@ enum L10n {
         case 4: novaUltraProcessed
         default: localized("nova_unknown", en: "Unknown", de: "Unbekannt")
         }
+    }
+
+    // MARK: - AI Meal Estimation
+
+    static var date: String {
+        localized("date", en: "Date", de: "Datum")
+    }
+
+    static var aiMealEstimate: String {
+        localized("ai_meal_estimate", en: "AI Meal Estimate", de: "KI-Mahlzeitenschätzung")
+    }
+
+    static var aiMealWhatDidYouEat: String {
+        localized("ai_meal_what_did_you_eat", en: "What did you eat?", de: "Was hast du gegessen?")
+    }
+
+    static var aiMealDescriptionPlaceholder: String {
+        localized(
+            "ai_meal_description_placeholder",
+            en: "Describe your meal, e.g. \"2 eggs and a slice of toast\"",
+            de: "Beschreibe deine Mahlzeit, z. B. \"2 Eier und eine Scheibe Toast\""
+        )
+    }
+
+    static var aiMealEstimateButton: String {
+        localized("ai_meal_estimate_button", en: "Estimate", de: "Schätzen")
+    }
+
+    static var aiMealEstimating: String {
+        localized("ai_meal_estimating", en: "Estimating...", de: "Wird geschätzt...")
+    }
+
+    static var aiMealDeviceNotEligible: String {
+        localized(
+            "ai_meal_device_not_eligible",
+            en: "This device doesn't support Apple Intelligence.",
+            de: "Dieses Gerät unterstützt Apple Intelligence nicht."
+        )
+    }
+
+    static var aiMealAppleIntelligenceDisabled: String {
+        localized(
+            "ai_meal_apple_intelligence_disabled",
+            en: "Enable Apple Intelligence in Settings to use this feature.",
+            de: "Aktiviere Apple Intelligence in den Einstellungen, um diese Funktion zu nutzen."
+        )
+    }
+
+    static var aiMealModelNotReady: String {
+        localized(
+            "ai_meal_model_not_ready",
+            en: "The on-device model is still downloading. Try again soon.",
+            de: "Das Modell auf dem Gerät wird noch heruntergeladen. Versuche es bald erneut."
+        )
+    }
+
+    static var aiMealOsUnsupported: String {
+        localized(
+            "ai_meal_os_unsupported",
+            en: "This feature requires iOS 26 or later.",
+            de: "Diese Funktion benötigt iOS 26 oder neuer."
+        )
+    }
+
+    static var aiMealGuardrailError: String {
+        localized(
+            "ai_meal_guardrail_error",
+            en: "Couldn't process that description. Try rephrasing it.",
+            de: "Diese Beschreibung konnte nicht verarbeitet werden. Formuliere sie anders."
+        )
+    }
+
+    static var aiMealContextWindowError: String {
+        localized(
+            "ai_meal_context_window_error",
+            en: "That description is too long. Try a shorter one.",
+            de: "Diese Beschreibung ist zu lang. Versuche eine kürzere."
+        )
+    }
+
+    static var aiMealUnsupportedLanguageError: String {
+        localized(
+            "ai_meal_unsupported_language_error",
+            en: "Try describing your meal in English or German.",
+            de: "Beschreibe deine Mahlzeit auf Englisch oder Deutsch."
+        )
+    }
+
+    static var aiMealGenerationError: String {
+        localized(
+            "ai_meal_generation_error",
+            en: "Couldn't estimate this meal. Try again.",
+            de: "Diese Mahlzeit konnte nicht geschätzt werden. Versuche es erneut."
+        )
+    }
+
+    static var aiMealReviewTitle: String {
+        localized("ai_meal_review_title", en: "Review Estimate", de: "Schätzung überprüfen")
+    }
+
+    static var aiMealDisclaimer: String {
+        localized(
+            "ai_meal_disclaimer",
+            en: "AI estimate — verify before logging.",
+            de: "KI-Schätzung — vor dem Eintragen überprüfen."
+        )
+    }
+
+    static func aiMealMatched(_ foodName: String) -> String {
+        localized("ai_meal_matched", en: "Matched: \(foodName)", de: "Zugeordnet: \(foodName)")
+    }
+
+    static var aiMealLowConfidence: String {
+        localized("ai_meal_low_confidence", en: "Low confidence", de: "Geringe Sicherheit")
+    }
+
+    static var aiMealNoItemsFound: String {
+        localized(
+            "ai_meal_no_items_found",
+            en: "No items were found in that description",
+            de: "In dieser Beschreibung wurden keine Einträge gefunden"
+        )
+    }
+
+    static func aiMealLogItems(_ count: Int) -> String {
+        localized(
+            "ai_meal_log_items",
+            en: count == 1 ? "Log 1 Item" : "Log \(count) Items",
+            de: count == 1 ? "1 Eintrag protokollieren" : "\(count) Einträge protokollieren"
+        )
+    }
+
+    static func aiMealItemsLogged(_ count: Int) -> String {
+        localized(
+            "ai_meal_items_logged",
+            en: count == 1 ? "1 item logged" : "\(count) items logged",
+            de: count == 1 ? "1 Eintrag protokolliert" : "\(count) Einträge protokolliert"
+        )
     }
 
     // MARK: - Weekday Abbreviations
