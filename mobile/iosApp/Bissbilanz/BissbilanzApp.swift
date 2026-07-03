@@ -49,6 +49,7 @@ struct BissbilanzApp: App {
     @State private var preferencesRepository: PreferencesRepository
     @State private var deepLinkRouter: DeepLinkRouter
     @State private var mealEstimator: MealEstimator
+    @State private var fastingManager: FastingTimerManager
     private let modelContainer: ModelContainer
 
     init() {
@@ -107,6 +108,7 @@ struct BissbilanzApp: App {
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
+        _fastingManager = State(wrappedValue: FastingTimerManager(entryRepository: entryRepo))
 
         // App Intents (Siri / Spotlight / Shortcuts) run in a separate launch of
         // the app — outside the SwiftUI environment the views use — so resolve
@@ -191,6 +193,7 @@ struct BissbilanzApp: App {
             .environment(preferencesRepository)
             .environment(deepLinkRouter)
             .environment(mealEstimator)
+            .environment(fastingManager)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {
@@ -217,6 +220,10 @@ struct BissbilanzApp: App {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     syncManager.scheduleDrain()
+                    // Pick up fasts ended from the lock screen and re-request
+                    // the Live Activity if the system expired it mid-fast
+                    // (~8h cap) while the fast is still running.
+                    fastingManager.refresh()
                     // Collapse any cross-device duplicates CloudKit delivered
                     // while we were away (Local mode only — see LocalDedup).
                     if appModeManager.isLocal {
@@ -231,6 +238,22 @@ struct BissbilanzApp: App {
                         foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
                         recipes: recipeRepository.favoriteRecipes()
                     )
+                    // Publish current Food/Recipe values for the App Shortcut
+                    // phrases ("Log \(food) with Bissbilanz"). Without this the
+                    // system's shortcut registry has no parameter values, and
+                    // tapping Log Food / Log Recipe in Spotlight shows an empty
+                    // picker card.
+                    BissbilanzShortcuts.updateAppShortcutParameters()
+                    // Pull any new Apple Health weight/sleep data on every
+                    // activation (not only when those pages are visited) so it
+                    // reaches the local store and the queued backend upload
+                    // immediately.
+                    Task {
+                        await HealthKitImporter.importAllIfEnabled(
+                            weightRepository: weightRepository,
+                            sleepRepository: sleepRepository
+                        )
+                    }
                     // Surface any widget-extension quick-add failures (the
                     // extension has no Sentry of its own — see QuickAddDiagnostics).
                     for entry in QuickAddDiagnostics.drain() {

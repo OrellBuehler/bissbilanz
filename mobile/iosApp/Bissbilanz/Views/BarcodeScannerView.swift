@@ -124,7 +124,11 @@ struct BarcodeScannerView: View {
         }
         .sheet(item: $foundFood) { food in
             NavigationStack {
-                FoodDetailView(foodId: food.id)
+                // After a successful log the whole flow collapses — log sheet,
+                // this detail sheet and the scanner itself — back to where the
+                // scan started. Closing the detail sheet manually (no log)
+                // still returns to the scanner for the next item.
+                FoodDetailView(foodId: food.id, onLogged: { dismiss() })
             }
         }
         .onChange(of: foundFood) { _, newValue in

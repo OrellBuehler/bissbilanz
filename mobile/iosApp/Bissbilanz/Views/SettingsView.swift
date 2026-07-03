@@ -159,6 +159,7 @@ struct SettingsView: View {
                     Toggle(L10n.favorites, isOn: widgetBinding(\.showFavoritesWidget, key: "showFavoritesWidget"))
                     Toggle(L10n.supplements, isOn: widgetBinding(\.showSupplementsWidget, key: "showSupplementsWidget"))
                     Toggle(L10n.weight, isOn: widgetBinding(\.showWeightWidget, key: "showWeightWidget"))
+                    Toggle(L10n.sleep, isOn: widgetBinding(\.showSleepWidget, key: "showSleepWidget"))
                     Toggle(
                         L10n.mealBreakdown,
                         isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget")
@@ -330,6 +331,7 @@ struct SettingsView: View {
                     case "showFavoritesWidget": update.showFavoritesWidget = newValue
                     case "showSupplementsWidget": update.showSupplementsWidget = newValue
                     case "showWeightWidget": update.showWeightWidget = newValue
+                    case "showSleepWidget": update.showSleepWidget = newValue
                     case "showMealBreakdownWidget": update.showMealBreakdownWidget = newValue
                     case "showTopFoodsWidget": update.showTopFoodsWidget = newValue
                     default: break

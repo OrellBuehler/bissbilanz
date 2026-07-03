@@ -130,12 +130,13 @@ class FoodSerializationTest {
 
     @Test
     fun deserializeAllServingUnits() {
-        val units = listOf("g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp")
+        val units = listOf("g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp")
         val expected =
             listOf(
                 Food.ServingUnit.g,
                 Food.ServingUnit.kg,
                 Food.ServingUnit.ml,
+                Food.ServingUnit.cl,
                 Food.ServingUnit.l,
                 Food.ServingUnit.oz,
                 Food.ServingUnit.lb,

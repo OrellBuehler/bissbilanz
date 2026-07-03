@@ -77,6 +77,10 @@ targets:
         # non-exempt encryption — TestFlight then skips the per-build
         # export-compliance prompt that would otherwise block each upload.
         ITSAppUsesNonExemptEncryption: false
+        # Fasting tracker Live Activity — without this Activity.request throws.
+        # Timers are date-relative and advance on-device, so frequent-updates
+        # (NSSupportsLiveActivitiesFrequentUpdates) is not needed.
+        NSSupportsLiveActivities: true
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
@@ -102,6 +106,8 @@ targets:
       # indexing of FoodEntity/RecipeEntity.
       - sdk: AppIntents.framework
       - sdk: CoreSpotlight.framework
+      # Fasting Live Activity (FastingTimerManager / EndFastIntent).
+      - sdk: ActivityKit.framework
       - package: Sentry
       - target: BissbilanzWidgets
         embed: true
@@ -152,6 +158,8 @@ targets:
       - sdk: SwiftUI.framework
       # QuickAddFoodIntent (interactive Button(intent:) quick-add).
       - sdk: AppIntents.framework
+      # FastingLiveActivity (ActivityConfiguration + FastingActivityAttributes).
+      - sdk: ActivityKit.framework
 
   # Apple Watch companion app (Phase 1). Modern SwiftUI App lifecycle — a
   # single watchOS application target (not the legacy WatchKit storyboard
