@@ -12,6 +12,7 @@ import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
 import { isCrossOriginEndpoint, isOriginMismatch } from '$lib/server/csrf';
 import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
+import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
 import { env } from '$env/dynamic/public';
 
@@ -46,6 +47,7 @@ export async function init() {
 	const runCleanup = () => {
 		cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
 		cleanupIdempotencyKeys().catch((err) => console.error('[idempotency-cleanup] Error:', err));
+		cleanupAiTasks().catch((err) => console.error('[ai-tasks-cleanup] Error:', err));
 	};
 	runCleanup();
 	setInterval(runCleanup, 3600000);
@@ -167,7 +169,10 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		const userId = event.locals.user.id;
 		try {
 			if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-				if (pathname.startsWith('/api/images/upload')) {
+				if (
+					pathname.startsWith('/api/images/upload') ||
+					pathname.startsWith('/api/ai-tasks/photo')
+				) {
 					rateLimitUpload(userId);
 				} else {
 					rateLimitApi(userId);

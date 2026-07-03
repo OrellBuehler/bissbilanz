@@ -5,6 +5,9 @@ struct FoodDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     let foodId: String
+    /// Forwarded to `LogFoodSheet` — set by flows (barcode scanner) that
+    /// should collapse entirely once a log succeeds.
+    var onLogged: (() -> Void)?
 
     @State private var food: Food?
     @State private var isLoading = true
@@ -87,7 +90,7 @@ struct FoodDetailView: View {
         }
         .sheet(isPresented: $showLogSheet) {
             if let food {
-                LogFoodSheet(food: food, date: DateFormatting.today)
+                LogFoodSheet(food: food, date: DateFormatting.today, onLogged: onLogged)
             }
         }
         .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {

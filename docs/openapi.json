@@ -1956,6 +1956,206 @@
 				}
 			}
 		},
+		"/api/ai-tasks": {
+			"get": {
+				"operationId": "listAiTasks",
+				"tags": ["AiTasks"],
+				"description": "List AI task queue entries, optionally filtered by status.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"schema": {
+							"type": "string",
+							"enum": ["pending", "completed", "dismissed"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					},
+					{
+						"in": "query",
+						"name": "offset",
+						"schema": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTasksResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createAiTask",
+				"tags": ["AiTasks"],
+				"description": "Capture a new AI task (description and/or photo) for later processing.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AiTaskCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/ai-tasks/photo": {
+			"post": {
+				"operationId": "uploadAiTaskPhoto",
+				"tags": ["AiTasks"],
+				"description": "Upload a photo for an AI task.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"photo": {
+										"type": "string",
+										"format": "binary"
+									}
+								},
+								"required": ["photo"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskPhotoResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/ai-tasks/{id}": {
+			"patch": {
+				"operationId": "updateAiTask",
+				"tags": ["AiTasks"],
+				"description": "Update an AI task (status, result, description, date, or meal type).",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AiTaskUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteAiTask",
+				"tags": ["AiTasks"],
+				"description": "Delete an AI task.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/sleep": {
 			"get": {
 				"operationId": "listSleepEntries",
@@ -3318,7 +3518,7 @@
 			},
 			"ServingUnit": {
 				"type": "string",
-				"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+				"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 			},
 			"FoodMerge": {
 				"type": "object",
@@ -5202,6 +5402,102 @@
 					}
 				}
 			},
+			"AiTaskCreate": {
+				"type": "object",
+				"properties": {
+					"description": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"photoUrl": {
+						"anyOf": [
+							{
+								"type": "string",
+								"pattern": "^\\/uploads\\/[a-f0-9-]+\\.webp$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"mealType": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"source": {
+						"type": "string",
+						"enum": ["web", "ios", "android"]
+					}
+				},
+				"required": ["date"]
+			},
+			"AiTaskUpdate": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["pending", "completed", "dismissed"]
+					},
+					"resultSummary": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdEntryIds": {
+						"anyOf": [
+							{
+								"maxItems": 50,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"minLength": 1
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"mealType": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 50
+					}
+				}
+			},
 			"SleepCreate": {
 				"type": "object",
 				"properties": {
@@ -5501,7 +5797,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -6100,7 +6396,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -6917,7 +7213,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"sortOrder": {
 						"type": "integer",
@@ -7956,7 +8252,7 @@
 					},
 					"servingUnit": {
 						"type": "string",
-						"enum": ["g", "kg", "ml", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 					},
 					"calories": {
 						"type": "number"
@@ -8697,6 +8993,159 @@
 					}
 				},
 				"required": ["imageUrl"],
+				"additionalProperties": false
+			},
+			"AiTasksResponse": {
+				"type": "object",
+				"properties": {
+					"tasks": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AiTask"
+						}
+					},
+					"total": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["tasks", "total"],
+				"additionalProperties": false
+			},
+			"AiTask": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["pending", "completed", "dismissed"]
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"photoUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"date": {
+						"type": "string"
+					},
+					"mealType": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"source": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"resultSummary": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdEntryIds": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"completedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"status",
+					"description",
+					"photoUrl",
+					"date",
+					"mealType",
+					"source",
+					"resultSummary",
+					"createdEntryIds",
+					"completedAt"
+				],
+				"additionalProperties": false
+			},
+			"AiTaskResponse": {
+				"type": "object",
+				"properties": {
+					"task": {
+						"$ref": "#/components/schemas/AiTask"
+					}
+				},
+				"required": ["task"],
+				"additionalProperties": false
+			},
+			"AiTaskPhotoResponse": {
+				"type": "object",
+				"properties": {
+					"photoUrl": {
+						"type": "string"
+					}
+				},
+				"required": ["photoUrl"],
 				"additionalProperties": false
 			},
 			"SleepEntriesResponse": {

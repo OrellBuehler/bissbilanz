@@ -6,6 +6,7 @@ export const servingUnitValues = [
 	'g',
 	'kg',
 	'ml',
+	'cl',
 	'l',
 	'oz',
 	'lb',

@@ -14,7 +14,7 @@ import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
 
-const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
+export const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
 	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
 	const db = getDB();
 	const [found] = await db

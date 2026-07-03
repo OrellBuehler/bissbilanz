@@ -380,26 +380,32 @@ struct InsightsView: View {
                 let offset = calendarMonth.startOfMonth.weekdayOffset
                 let dayMap = Dictionary(calendarDays.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
 
+                // A single ForEach keeps every cell ID unique — a separate
+                // spacer ForEach reuses the low Int IDs and SwiftUI then drops
+                // the day cells that collide with them (day 1 vanished in any
+                // month that doesn't start on Monday).
                 LazyVGrid(columns: gridColumns, spacing: 2) {
-                    ForEach(0 ..< offset, id: \.self) { _ in
-                        Color.clear.frame(height: 28)
-                    }
-                    ForEach(1 ... daysInMonth, id: \.self) { day in
-                        // Build the lookup key from calendar components rather than
-                        // date arithmetic + a locale-less formatter, so it always
-                        // matches the server's yyyy-MM-dd and the colors line up
-                        // regardless of the device time zone.
-                        let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
-                        let calDay = dayMap[dateStr]
+                    ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
+                        if index < offset {
+                            Color.clear.frame(height: 28)
+                        } else {
+                            let day = index - offset + 1
+                            // Build the lookup key from calendar components rather than
+                            // date arithmetic + a locale-less formatter, so it always
+                            // matches the server's yyyy-MM-dd and the colors line up
+                            // regardless of the device time zone.
+                            let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
+                            let calDay = dayMap[dateStr]
 
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(calendarDayColor(calDay))
-                            .frame(height: 28)
-                            .overlay {
-                                Text("\(day)")
-                                    .font(.caption2)
-                                    .foregroundStyle(calDay != nil ? .white : .primary)
-                            }
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(calendarDayColor(calDay))
+                                .frame(height: 28)
+                                .overlay {
+                                    Text("\(day)")
+                                        .font(.caption2)
+                                        .foregroundStyle(calDay != nil ? .white : .primary)
+                                }
+                        }
                     }
                 }
 

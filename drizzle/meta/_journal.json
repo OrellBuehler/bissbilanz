@@ -288,6 +288,20 @@
       "when": 1782760517924,
       "tag": "0040_eminent_nuke",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783002564260,
+      "tag": "0041_same_red_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1783025593521,
+      "tag": "0042_gifted_grandmaster",
+      "breakpoints": true
     }
   ]
 }

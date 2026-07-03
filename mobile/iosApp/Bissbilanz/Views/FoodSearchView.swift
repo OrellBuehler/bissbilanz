@@ -89,7 +89,17 @@ struct FoodSearchView: View {
             if let errorMessage { Text(errorMessage) }
         }
         .toast(message: $toastMessage)
-        .sheet(item: $selectedFood) { food in
+        .sheet(item: $selectedFood, onDismiss: {
+            // The search field's keyboard survives the sheet's presentation and
+            // pops back up over the results when it closes — drop first
+            // responder so the list (and the field itself) stays readable.
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+        }) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
         }
         .sheet(item: $editingFood) { food in
@@ -315,9 +325,14 @@ struct LogFoodSheet: View {
 
     let food: Food
     let date: String
+    /// Fired after a successful log, once this sheet has dismissed itself —
+    /// lets a presenting flow (e.g. the barcode scanner) collapse its own
+    /// sheet stack instead of leaving the user on an intermediate screen.
+    var onLogged: (() -> Void)?
 
     @State private var servings: Double = 1.0
     @State private var mealType = "Lunch"
+    @State private var eatenTime = Date()
     @State private var isLogging = false
     @State private var errorMessage: String?
 
@@ -358,6 +373,7 @@ struct LogFoodSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
 
                 Section(L10n.nutrition) {
@@ -409,14 +425,31 @@ struct LogFoodSheet: View {
             foodId: food.id,
             mealType: mealType,
             servings: servings,
-            date: date
+            date: date,
+            eatenAt: eatenAtString()
         )
         do {
             try await entryRepository.createEntry(entry, food: food)
             dismiss()
+            onLogged?()
         } catch {
             errorMessage = error.localizedDescription
         }
         isLogging = false
+    }
+
+    /// The picked time-of-day on the sheet's log date, as the UTC ISO-8601
+    /// `eatenAt` wire value. `nil` (log time falls back to `createdAt`) only if
+    /// the date string doesn't parse.
+    private func eatenAtString() -> String? {
+        guard let day = DateFormatting.date(from: date) else { return nil }
+        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
+        guard let combined = Calendar.current.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: day
+        ) else { return nil }
+        return DateFormatting.isoDateTimeString(from: combined)
     }
 }

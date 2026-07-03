@@ -82,6 +82,32 @@ struct WidgetStrings {
         }
     }
 
+    // MARK: - Fasting Live Activity
+
+    var fasting: String {
+        isGerman ? "Fasten" : "Fasting"
+    }
+
+    var endFast: String {
+        isGerman ? "Beenden" : "End Fast"
+    }
+
+    var elapsed: String {
+        isGerman ? "Verstrichen" : "Elapsed"
+    }
+
+    var remaining: String {
+        isGerman ? "Verbleibend" : "Remaining"
+    }
+
+    func fastingTarget(_ hours: Int) -> String {
+        isGerman ? "Ziel: \(hours) h" : "Target: \(hours) h"
+    }
+
+    func fastingEndsAt(_ date: Date) -> String {
+        isGerman ? "Endet um \(time(from: date))" : "Ends \(time(from: date))"
+    }
+
     // MARK: - Formatting
 
     func integer(_ value: Double) -> String {
@@ -94,6 +120,14 @@ struct WidgetStrings {
 
     func weightKg(_ value: Double) -> String {
         String(format: "%.1f kg", locale: Locale(identifier: "en_US_POSIX"), value)
+    }
+
+    func time(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 
     func shortDate(fromIso isoDate: String) -> String? {

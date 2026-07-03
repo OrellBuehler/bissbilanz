@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct DashboardView: View {
@@ -6,6 +7,8 @@ struct DashboardView: View {
     @Environment(PreferencesRepository.self) private var preferencesRepository
     @Environment(SupplementRepository.self) private var supplementRepository
     @Environment(WeightRepository.self) private var weightRepository
+    @Environment(SleepRepository.self) private var sleepRepository
+    @Environment(FastingTimerManager.self) private var fastingManager
 
     @State private var entries: [Entry] = []
     @State private var goals: Goals = .defaults
@@ -35,6 +38,7 @@ struct DashboardView: View {
     // Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
     @State private var latestWeight: WeightEntry?
+    @State private var latestSleep: SleepEntry?
 
     private var dateString: String {
         selectedDate.isoDateString
@@ -141,6 +145,12 @@ struct DashboardView: View {
                 }
                 trackedToday = newToday
             }
+            // The on-activation Apple Health import (BissbilanzApp) finishes
+            // after this view is already showing — re-read the store so the
+            // weight/sleep cards pick up freshly imported entries.
+            .onReceive(NotificationCenter.default.publisher(for: HealthKitImporter.didImportNotification)) { _ in
+                loadFromStore()
+            }
         }
     }
 
@@ -151,6 +161,10 @@ struct DashboardView: View {
     private var dayContent: some View {
         VStack(spacing: 16) {
             macroRings
+
+            if selectedDate.isToday {
+                fastingCard
+            }
 
             if totalCalories == 0, !refreshFailed {
                 HStack {
@@ -176,13 +190,29 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
-            if preferences.showWeightWidget, let weight = latestWeight {
-                NavigationLink {
-                    WeightView()
-                } label: {
-                    weightWidget(weight)
+            if (preferences.showWeightWidget && latestWeight != nil) || preferences.showSleepWidget {
+                // Weight and sleep share one row at half width each; a lone
+                // card stretches to the full width. `fixedSize` + `maxHeight`
+                // keeps the two cards equal-height when their content differs.
+                HStack(spacing: 16) {
+                    if preferences.showWeightWidget, let weight = latestWeight {
+                        NavigationLink {
+                            WeightView()
+                        } label: {
+                            weightWidget(weight)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if preferences.showSleepWidget {
+                        NavigationLink {
+                            SleepView()
+                        } label: {
+                            sleepWidget
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
@@ -328,20 +358,65 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Fasting Card
+
+    /// Entry point to the fasting tracker; only rendered on today (a fast is
+    /// a "now" concept, not tied to the browsed date). Shows the live elapsed
+    /// timer while a fast is running.
+    private var fastingCard: some View {
+        NavigationLink {
+            FastingView()
+        } label: {
+            HStack {
+                Image(systemName: "timer")
+                    .foregroundStyle(MacroColors.fasting)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.fasting)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let session = fastingManager.session {
+                        Text(timerInterval: session.elapsedRange, countsDown: false)
+                            .font(.headline)
+                            .monospacedDigit()
+                            // Date-relative Text is greedy about width — cap it
+                            // so the trailing target label isn't squeezed out.
+                            .frame(maxWidth: 100, alignment: .leading)
+                    } else {
+                        Text(L10n.startFast)
+                            .font(.headline)
+                    }
+                }
+                Spacer()
+                if let session = fastingManager.session {
+                    Text(L10n.fastingTargetHours(session.targetHours))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Weight Widget
 
     private func weightWidget(_ entry: WeightEntry) -> some View {
-        HStack {
-            Image(systemName: "scalemass")
-                .foregroundStyle(.blue)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "scalemass")
+                    .foregroundStyle(.blue)
                 Text(L10n.weight)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("\(entry.weightKg, specifier: "%.1f") kg")
-                    .font(.headline)
+                Spacer()
             }
-            Spacer()
+            Text("\(entry.weightKg, specifier: "%.1f") kg")
+                .font(.headline)
             if let dateStr = entry.loggedAt ?? entry.createdAt,
                let date = DateFormatting.date(from: String(dateStr.prefix(10)))
             {
@@ -351,6 +426,39 @@ struct DashboardView: View {
             }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Sleep Widget
+
+    /// Last night's sleep (a night is keyed by its wake day, so "last night"
+    /// means an entry dated today) or a log prompt when there is none yet.
+    private var sleepWidget: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "bed.double")
+                    .foregroundStyle(.indigo)
+                Text(L10n.sleep)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            if let sleep = latestSleep, sleep.entryDate == DateFormatting.today {
+                Text(formatSleepDuration(sleep.durationMinutes))
+                    .font(.headline)
+                Text("\(formatSleepQuality(sleep.quality))/10")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(L10n.logSleep)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -499,6 +607,7 @@ struct DashboardView: View {
         isFastingDay = entryRepository.isFastingDay(date: dateString)
         supplementChecklist = supplementRepository.localChecklist(date: dateString)
         latestWeight = weightRepository.latest()
+        latestSleep = sleepRepository.latest()
     }
 
     private func loadData() async {
