@@ -1,17 +1,23 @@
+import PhotosUI
 import SwiftUI
 
-/// Entry point for on-device AI meal estimation: a free-text description goes
-/// to `MealEstimator`, and a successful estimate opens `AIMealReviewView` as a
-/// nested sheet. Only available on Apple Intelligence devices running iOS 26+
-/// (see `MealEstimatorAvailability`) — other devices see an explanation here
-/// instead of the estimate button. A queue-based fallback for those devices is
-/// a later PR.
+/// Entry point for AI-assisted meal logging: a free-text description (and
+/// optionally a photo) can either be estimated on-device via `MealEstimator`
+/// — opening `AIMealReviewView` as a nested sheet — or queued as an
+/// `AiTask` for the MCP assistant to pick up later. On-device estimation only
+/// runs on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`);
+/// queueing needs only a server connection, so it's shown in Synced mode as a
+/// secondary action where estimation is available and as the only action where
+/// it isn't. Local (anonymous) mode has no server, so queueing is hidden there.
 struct AIMealSheet: View {
     @Environment(MealEstimator.self) private var mealEstimator
+    @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
     let date: String
     var onLogged: (Int) -> Void = { _ in }
+    var onQueued: () -> Void = {}
 
     @State private var description = ""
     @State private var mealType: String
@@ -19,11 +25,18 @@ struct AIMealSheet: View {
     @State private var errorMessage: String?
     @State private var estimate: MealEstimate?
 
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var attachedImage: UIImage?
+    @State private var showCamera = false
+    @State private var isSendingToAssistant = false
+    @State private var pendingTaskCount: Int?
+
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
-    init(date: String, onLogged: @escaping (Int) -> Void = { _ in }) {
+    init(date: String, onLogged: @escaping (Int) -> Void = { _ in }, onQueued: @escaping () -> Void = {}) {
         self.date = date
         self.onLogged = onLogged
+        self.onQueued = onQueued
         _mealType = State(initialValue: Self.mealForCurrentTime())
     }
 
@@ -44,6 +57,12 @@ struct AIMealSheet: View {
                         .lineLimit(4 ... 8)
                 }
 
+                if !appMode.isLocal {
+                    Section(L10n.aiTaskPhotoSectionTitle) {
+                        photoAttachmentRow
+                    }
+                }
+
                 if mealEstimator.availability == .available {
                     Section {
                         Button {
@@ -60,7 +79,7 @@ struct AIMealSheet: View {
                                 Spacer()
                             }
                         }
-                        .disabled(trimmedDescription.isEmpty || isEstimating)
+                        .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
                         .buttonStyle(.borderedProminent)
                     }
                 } else {
@@ -71,6 +90,18 @@ struct AIMealSheet: View {
                             Image(systemName: "sparkles")
                         }
                         .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !appMode.isLocal {
+                    Section {
+                        sendToAssistantButton
+
+                        if let pendingTaskCount, pendingTaskCount > 0 {
+                            Text(L10n.aiTaskPendingCount(pendingTaskCount))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -100,13 +131,100 @@ struct AIMealSheet: View {
                     }
                 }
             }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker(
+                    onImage: { image in
+                        showCamera = false
+                        attachedImage = image
+                    },
+                    onCancel: { showCamera = false }
+                )
+                .ignoresSafeArea()
+            }
+            .onChange(of: selectedPhotoItem) { _, item in
+                guard let item else { return }
+                loadPhoto(item)
+            }
             .onAppear { mealEstimator.prewarm() }
+            .task { await loadPendingCount() }
         }
         .presentationDetents([.medium, .large])
     }
 
+    /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
+    /// distinct concrete types, so the style can't be chosen with a ternary —
+    /// branching the whole button through `@ViewBuilder` is the pattern that
+    /// type-checks.
+    @ViewBuilder
+    private var sendToAssistantButton: some View {
+        let button = Button {
+            Task { await sendToAssistant() }
+        } label: {
+            HStack {
+                Spacer()
+                if isSendingToAssistant {
+                    ProgressView()
+                    Text(L10n.aiTaskSending)
+                } else {
+                    Text(L10n.aiTaskSendButton)
+                }
+                Spacer()
+            }
+        }
+        .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating)
+
+        if mealEstimator.availability == .available {
+            button.buttonStyle(.bordered)
+        } else {
+            button.buttonStyle(.borderedProminent)
+        }
+    }
+
+    @ViewBuilder
+    private var photoAttachmentRow: some View {
+        if let attachedImage {
+            HStack {
+                Image(uiImage: attachedImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipped()
+                Spacer()
+                Button(role: .destructive) {
+                    self.attachedImage = nil
+                    selectedPhotoItem = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            HStack(spacing: 12) {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button {
+                        showCamera = true
+                    } label: {
+                        Label(L10n.takePhoto, systemImage: "camera")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
     private var trimmedDescription: String {
         description.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSendToAssistant: Bool {
+        !trimmedDescription.isEmpty || attachedImage != nil
     }
 
     private var availabilityMessage: String {
@@ -130,6 +248,48 @@ struct AIMealSheet: View {
             errorMessage = error.localizedDescription
         }
         isEstimating = false
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem) {
+        Task {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data)
+            else { return }
+            attachedImage = image
+        }
+    }
+
+    private func loadPendingCount() async {
+        guard !appMode.isLocal else { return }
+        pendingTaskCount = try? await api.listAiTasks(status: "pending", limit: 1).total
+    }
+
+    private func sendToAssistant() async {
+        isSendingToAssistant = true
+        errorMessage = nil
+        do {
+            var photoUrl: String?
+            if let attachedImage, let data = attachedImage.downscaledJPEGData(maxDimension: 1600, quality: 0.8) {
+                photoUrl = try await api.uploadAiTaskPhoto(data, filename: "meal.jpg")
+            }
+            let task = AiTaskCreate(
+                description: trimmedDescription.isEmpty ? nil : trimmedDescription,
+                photoUrl: photoUrl,
+                date: date,
+                mealType: mealType,
+                source: "ios"
+            )
+            _ = try await api.createAiTask(task, idempotencyKey: UUID().uuidString)
+            isSendingToAssistant = false
+            onQueued()
+            dismiss()
+        } catch let error as APIError {
+            isSendingToAssistant = false
+            errorMessage = error.localizedDescription
+        } catch {
+            isSendingToAssistant = false
+            errorMessage = error.localizedDescription
+        }
     }
 
     private static func mealForCurrentTime() -> String {

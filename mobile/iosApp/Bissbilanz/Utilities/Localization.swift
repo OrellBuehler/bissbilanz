@@ -1866,6 +1866,36 @@ enum L10n {
         )
     }
 
+    // MARK: - AI Task Queue
+
+    static var aiTaskPhotoSectionTitle: String {
+        localized("ai_task_photo_section_title", en: "Attach a Photo", de: "Foto anhängen")
+    }
+
+    static var aiTaskSendButton: String {
+        localized("ai_task_send_button", en: "Send to My Assistant", de: "An meinen Assistenten senden")
+    }
+
+    static var aiTaskSending: String {
+        localized("ai_task_sending", en: "Sending...", de: "Wird gesendet...")
+    }
+
+    static var aiTaskQueued: String {
+        localized(
+            "ai_task_queued",
+            en: "Queued — your assistant will log it later",
+            de: "In Warteschlange — dein Assistent trägt es später ein"
+        )
+    }
+
+    static func aiTaskPendingCount(_ count: Int) -> String {
+        localized(
+            "ai_task_pending_count",
+            en: count == 1 ? "1 task waiting" : "\(count) tasks waiting",
+            de: count == 1 ? "1 Aufgabe wartet" : "\(count) Aufgaben warten"
+        )
+    }
+
     // MARK: - Weekday Abbreviations
 
     static var weekdayHeaders: [String] {

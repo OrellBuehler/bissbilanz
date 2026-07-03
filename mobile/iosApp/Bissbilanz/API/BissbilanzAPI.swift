@@ -563,6 +563,30 @@ final class BissbilanzAPI {
         return response?.food
     }
 
+    // MARK: - AI Tasks
+
+    func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
+        let response: AiTaskResponse = try await post(
+            "/api/ai-tasks", body: task, idempotencyKey: idempotencyKey
+        )
+        return response.task
+    }
+
+    func listAiTasks(status: String? = nil, limit: Int? = nil) async throws -> (tasks: [AiTask], total: Int) {
+        var params: [String: String] = [:]
+        if let status { params["status"] = status }
+        if let limit { params["limit"] = "\(limit)" }
+        let response: AiTasksResponse = try await get("/api/ai-tasks", params: params)
+        return (response.tasks, response.total)
+    }
+
+    func uploadAiTaskPhoto(_ data: Data, filename: String) async throws -> String {
+        let response: AiTaskPhotoResponse = try await postMultipart(
+            "/api/ai-tasks/photo", data: data, fieldName: "photo", filename: filename
+        )
+        return response.photoUrl
+    }
+
     // MARK: - HTTP helpers
 
     private func get<T: Decodable>(_ path: String, params: [String: String] = [:]) async throws -> T {
@@ -619,6 +643,47 @@ final class BissbilanzAPI {
         request.httpBody = try encoder.encode(body)
         applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         return try await performRequest(request)
+    }
+
+    /// The server's manual CSRF check (`isOriginMismatch` in `hooks.server.ts`)
+    /// blocks any `multipart/form-data` POST that arrives without an `Origin`
+    /// header — browsers always send one, but `URLSession` doesn't, so it must
+    /// be set explicitly here or every multipart upload 403s.
+    private func postMultipart<T: Decodable>(
+        _ path: String,
+        data: Data,
+        fieldName: String,
+        filename: String,
+        mimeType: String = "image/jpeg"
+    ) async throws -> T {
+        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        request.httpMethod = "POST"
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(baseURL, forHTTPHeaderField: "Origin")
+        request.httpBody = Self.multipartBody(
+            boundary: boundary, fieldName: fieldName, filename: filename, mimeType: mimeType, data: data
+        )
+        return try await performRequest(request)
+    }
+
+    private static func multipartBody(
+        boundary: String,
+        fieldName: String,
+        filename: String,
+        mimeType: String,
+        data: Data
+    ) -> Data {
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append(
+            "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(filename)\"\r\n"
+                .data(using: .utf8)!
+        )
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
     }
 
     private func deleteRequest(
