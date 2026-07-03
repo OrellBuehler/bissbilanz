@@ -1,7 +1,7 @@
 import { ResultValidationError } from '$lib/server/errors';
 
-type McpResult = {
-	content: { type: 'text'; text: string }[];
+export type McpResult = {
+	content: ({ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string })[];
 	isError?: true;
 };
 

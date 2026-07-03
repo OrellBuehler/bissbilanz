@@ -79,6 +79,7 @@ import {
 	getFastingDays
 } from '$lib/server/day-properties';
 import { getCalendarStats } from '$lib/server/stats';
+import { listAiTasks, getAiTask, updateAiTask } from '$lib/server/ai-tasks';
 import { createHandlers } from './create-handlers';
 
 export { createHandlers, type HandlerDeps } from './create-handlers';
@@ -138,7 +139,11 @@ export const {
 	handleGetDayProperties,
 	handleSetDayProperties,
 	handleDeleteDayProperties,
-	handleGetCalendarStats
+	handleGetCalendarStats,
+	handleListAiTasks,
+	handleGetAiTask,
+	handleCompleteAiTask,
+	handleDismissAiTask
 } = createHandlers({
 	listFoods,
 	createFood,
@@ -204,5 +209,8 @@ export const {
 	getDayProperties,
 	setDayProperties,
 	deleteDayProperties,
-	getCalendarStats
+	getCalendarStats,
+	listAiTasks,
+	getAiTask,
+	updateAiTask
 });
