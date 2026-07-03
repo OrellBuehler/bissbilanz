@@ -81,6 +81,13 @@ import {
 	weightFoodResponseSchema
 } from './validation/responses/analytics';
 import { analyticsDateRangeSchema } from './validation/analytics';
+import { aiTaskCreateSchema, aiTaskUpdateSchema } from './validation/ai-tasks';
+import { aiTaskStatusValues } from './schema';
+import {
+	aiTaskResponseSchema,
+	aiTasksResponseSchema,
+	aiTaskPhotoResponseSchema
+} from './validation/responses/ai-tasks';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -1094,6 +1101,106 @@ export function generateSpec() {
 							content: { 'application/json': { schema: imageUploadResponseSchema } }
 						},
 						'400': res400,
+						'401': res401
+					}
+				}
+			},
+
+			// ── AI Tasks ──────────────────────────────────────────
+			'/api/ai-tasks': {
+				get: {
+					operationId: 'listAiTasks',
+					tags: ['AiTasks'],
+					description: 'List AI task queue entries, optionally filtered by status.',
+					requestParams: {
+						query: z.object({
+							status: z.enum(aiTaskStatusValues).optional(),
+							limit: z.number().int().optional(),
+							offset: z.number().int().optional()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: aiTasksResponseSchema } }
+						},
+						'401': res401
+					}
+				},
+				post: {
+					operationId: 'createAiTask',
+					tags: ['AiTasks'],
+					description: 'Capture a new AI task (description and/or photo) for later processing.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: aiTaskCreateSchema } }
+					},
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: aiTaskResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/ai-tasks/photo': {
+				post: {
+					operationId: 'uploadAiTaskPhoto',
+					tags: ['AiTasks'],
+					description: 'Upload a photo for an AI task.',
+					requestBody: {
+						required: true,
+						content: {
+							'multipart/form-data': {
+								schema: {
+									type: 'object' as const,
+									properties: {
+										photo: { type: 'string' as const, format: 'binary' }
+									},
+									required: ['photo']
+								}
+							}
+						}
+					},
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: aiTaskPhotoResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/ai-tasks/{id}': {
+				patch: {
+					operationId: 'updateAiTask',
+					tags: ['AiTasks'],
+					description: 'Update an AI task (status, result, description, date, or meal type).',
+					requestParams: { path: uuidPathId },
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: aiTaskUpdateSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: aiTaskResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'409': res409
+					}
+				},
+				delete: {
+					operationId: 'deleteAiTask',
+					tags: ['AiTasks'],
+					description: 'Delete an AI task.',
+					requestParams: { path: uuidPathId },
+					responses: {
+						'204': res204,
 						'401': res401
 					}
 				}
