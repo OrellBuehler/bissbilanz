@@ -225,20 +225,15 @@ struct APIRequestBuildingTests {
         #expect(json["showChartWidget"] == nil)
     }
 
-    @Test("Maintenance request encoding")
-    func maintenanceRequestEncoding() throws {
-        let request = MaintenanceRequest(
-            startDate: "2026-01-01",
-            endDate: "2026-03-01",
-            bodyFatChangeRatio: 0.7
-        )
+    @Test("Meal type create encodes name and sortOrder")
+    func mealTypeCreateEncoding() throws {
+        let request = MealTypeCreate(name: "Second Breakfast", sortOrder: 5)
 
         let data = try JSONEncoder().encode(request)
         let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        #expect(json["startDate"] as? String == "2026-01-01")
-        #expect(json["endDate"] as? String == "2026-03-01")
-        #expect(json["bodyFatChangeRatio"] as? Double == 0.7)
+        #expect(json["name"] as? String == "Second Breakfast")
+        #expect(json["sortOrder"] as? Int == 5)
     }
 
     @Test("DayProperties set encodes camelCase with date in body")
@@ -422,43 +417,40 @@ struct APIResponseDecodingTests {
         #expect(response.goals == nil)
     }
 
-    @Test("Weight stats response decodes snake_case keys")
-    func weightStatsDecoding() throws {
-        let json = """
-        {
-            "latest": 75.5,
-            "trend": 75.2,
-            "delta_7d": -0.3,
-            "projected_14d": 74.9,
-            "projected_30d": 74.3,
-            "projected_60d": 73.1,
-            "entry_count": 28
+    @Test("Weight stats project a linear trend from local entries")
+    func weightStatsComputed() throws {
+        // 1 kg lost per 10 days, perfectly linear.
+        let entries = (0 ..< 10).map { i in
+            WeightEntry(
+                id: "w\(i)", userId: "u1", weightKg: 80.0 - Double(i) * 0.1,
+                entryDate: String(format: "2026-06-%02d", i + 1),
+                loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+            )
         }
-        """.data(using: .utf8)!
 
-        let response = try JSONDecoder().decode(WeightStatsResponse.self, from: json)
-        #expect(response.latest == 75.5)
-        #expect(response.trend == 75.2)
-        #expect(response.delta7d == -0.3)
-        #expect(response.projected14d == 74.9)
-        #expect(response.projected30d == 74.3)
-        #expect(response.projected60d == 73.1)
-        #expect(response.entryCount == 28)
+        let stats = try #require(WeightStats.computed(from: entries))
+        #expect(stats.projected14d == 77.7) // 79.1 on day 9 → -1.4 over 14 days
+        #expect(stats.projected30d == 76.1)
+        #expect(stats.projected60d == 73.1)
     }
 
-    @Test("Weight stats with null optionals decodes")
-    func weightStatsNullsDecoding() throws {
-        let json = """
-        {
-            "entry_count": 0
-        }
-        """.data(using: .utf8)!
+    @Test("Weight stats need at least three dated entries")
+    func weightStatsInsufficientData() {
+        let entries = [
+            WeightEntry(
+                id: "w1", userId: "u1", weightKg: 80,
+                entryDate: "2026-06-01",
+                loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+            ),
+            WeightEntry(
+                id: "w2", userId: "u1", weightKg: 79.5,
+                entryDate: "2026-06-05",
+                loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+            ),
+        ]
 
-        let response = try JSONDecoder().decode(WeightStatsResponse.self, from: json)
-        #expect(response.latest == nil)
-        #expect(response.trend == nil)
-        #expect(response.delta7d == nil)
-        #expect(response.entryCount == 0)
+        #expect(WeightStats.computed(from: entries) == nil)
+        #expect(WeightStats.computed(from: []) == nil)
     }
 
     @Test("Streaks response decodes")
@@ -620,21 +612,22 @@ struct APIResponseDecodingTests {
 
     @Test("Calendar response decodes")
     func calendarDecoding() throws {
+        // Mirrors the real GET /api/stats/calendar payload: a date-keyed map,
+        // not an array — the array shape was an invented contract that made
+        // the calendar silently empty.
         let json = """
         {
-            "data": [
-                {"date": "2026-03-01", "calories": 2100, "hasGoal": true, "metGoal": true},
-                {"date": "2026-03-02", "calories": 1800, "hasGoal": true, "metGoal": false},
-                {"date": "2026-03-03", "calories": 0, "hasGoal": true, "metGoal": false}
-            ]
+            "days": {
+                "2026-03-01": {"calories": 2100, "hasEntries": true},
+                "2026-03-02": {"calories": 1800, "hasEntries": true}
+            }
         }
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(CalendarResponse.self, from: json)
-        #expect(response.data.count == 3)
-        #expect(response.data[0].metGoal == true)
-        #expect(response.data[1].metGoal == false)
-        #expect(response.data[2].calories == 0)
+        #expect(response.days.count == 2)
+        #expect(response.days["2026-03-01"]?.calories == 2100)
+        #expect(response.days["2026-03-02"]?.hasEntries == true)
     }
 
     @Test("Meal breakdown response decodes")

@@ -324,17 +324,23 @@ struct LogFoodSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let food: Food
-    let date: String
     /// Fired after a successful log, once this sheet has dismissed itself —
     /// lets a presenting flow (e.g. the barcode scanner) collapse its own
     /// sheet stack instead of leaving the user on an intermediate screen.
     var onLogged: (() -> Void)?
 
+    @State private var logDate: Date
     @State private var servings: Double = 1.0
     @State private var mealType = "Lunch"
     @State private var eatenTime = Date()
     @State private var isLogging = false
     @State private var errorMessage: String?
+
+    init(food: Food, date: String, onLogged: (() -> Void)? = nil) {
+        self.food = food
+        self.onLogged = onLogged
+        _logDate = State(initialValue: DateFormatting.date(from: date) ?? Date())
+    }
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
@@ -373,6 +379,7 @@ struct LogFoodSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    DatePicker(L10n.date, selection: $logDate, displayedComponents: .date)
                     DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
 
@@ -425,7 +432,7 @@ struct LogFoodSheet: View {
             foodId: food.id,
             mealType: mealType,
             servings: servings,
-            date: date,
+            date: logDate.isoDateString,
             eatenAt: eatenAtString()
         )
         do {
@@ -438,17 +445,16 @@ struct LogFoodSheet: View {
         isLogging = false
     }
 
-    /// The picked time-of-day on the sheet's log date, as the UTC ISO-8601
+    /// The picked time-of-day on the picked log date, as the UTC ISO-8601
     /// `eatenAt` wire value. `nil` (log time falls back to `createdAt`) only if
-    /// the date string doesn't parse.
+    /// the components can't be combined.
     private func eatenAtString() -> String? {
-        guard let day = DateFormatting.date(from: date) else { return nil }
         let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
         guard let combined = Calendar.current.date(
             bySettingHour: time.hour ?? 0,
             minute: time.minute ?? 0,
             second: 0,
-            of: day
+            of: logDate
         ) else { return nil }
         return DateFormatting.isoDateTimeString(from: combined)
     }

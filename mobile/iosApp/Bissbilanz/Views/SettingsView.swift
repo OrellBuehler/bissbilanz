@@ -440,7 +440,7 @@ struct SettingsView: View {
         let name = newMealTypeName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         do {
-            let mealType = try await api.createMealType(name: name)
+            let mealType = try await api.createMealType(name: name, sortOrder: mealTypes.count + 1)
             mealTypes.append(mealType)
             newMealTypeName = ""
         } catch {

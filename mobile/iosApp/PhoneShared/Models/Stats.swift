@@ -73,14 +73,29 @@ struct CalendarDay: Codable {
     let metGoal: Bool
 }
 
-struct CalendarResponse: Codable {
-    let data: [CalendarDay]
+/// Wire format of GET /api/stats/calendar: a map keyed by yyyy-MM-dd holding
+/// only calories and hasEntries — goal state is computed client-side.
+struct CalendarDayData: Codable {
+    let calories: Double
+    let hasEntries: Bool
 }
 
-struct MaintenanceRequest: Codable {
-    let startDate: String
-    let endDate: String
-    let bodyFatChangeRatio: Double?
+struct CalendarResponse: Codable {
+    let days: [String: CalendarDayData]
+}
+
+extension CalendarDay {
+    static func days(from wire: [String: CalendarDayData], calorieGoal: Double?) -> [CalendarDay] {
+        wire.map { date, day in
+            CalendarDay(
+                date: date,
+                calories: day.calories,
+                hasGoal: calorieGoal != nil,
+                metGoal: calorieGoal.map { day.calories > 0 && day.calories <= $0 } ?? false
+            )
+        }
+        .sorted { $0.date < $1.date }
+    }
 }
 
 struct MaintenanceResponse: Codable {
@@ -119,6 +134,7 @@ typealias SupplementHistoryEntry = SupplementHistoryItem
 
 struct MealTypeCreate: Codable {
     let name: String
+    let sortOrder: Int
 }
 
 struct MealTypesResponse: Codable {

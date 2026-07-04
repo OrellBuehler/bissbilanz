@@ -106,7 +106,7 @@ struct WeightView: View {
     @Environment(AppModeManager.self) private var appModeManager
 
     @State private var entries: [WeightEntry] = []
-    @State private var weightStats: WeightStatsResponse?
+    @State private var weightStats: WeightStats?
     @State private var isLoading = true
     @State private var showAddSheet = false
     @State private var editingEntry: WeightEntry?
@@ -285,10 +285,8 @@ struct WeightView: View {
 
     // MARK: - Summary Cards
 
-    /// The trend card prefers the server's smoothed 7-day delta and falls
-    /// back to the local computation in Local mode or offline.
     private var trend: WeightTrend {
-        WeightTrend.from(delta: weightStats?.delta7d ?? WeightTrend.localDelta7d(entries: entries))
+        WeightTrend.from(delta: WeightTrend.localDelta7d(entries: entries))
     }
 
     /// Top row: latest weight and trend direction side by side as floating
@@ -593,18 +591,14 @@ struct WeightView: View {
         if showSpinner { isLoading = entries.isEmpty }
 
         try? await weightRepository.refresh()
-        if !appModeManager.isLocal {
-            weightStats = try? await api.getWeightStats()
-        }
         entries = weightRepository.entries()
+        weightStats = WeightStats.computed(from: entries)
 
         isLoading = false
 
         if await HealthKitImporter.importWeightsIfEnabled(into: weightRepository) {
             entries = weightRepository.entries()
-            if !appModeManager.isLocal {
-                weightStats = await (try? api.getWeightStats()) ?? weightStats
-            }
+            weightStats = WeightStats.computed(from: entries)
         }
     }
 
