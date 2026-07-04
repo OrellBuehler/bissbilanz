@@ -417,8 +417,8 @@ final class BissbilanzAPI {
 
     func getSupplementHistory(startDate: String, endDate: String) async throws -> [SupplementHistoryEntry] {
         let response: SupplementHistoryResponse = try await get("/api/supplements/history", params: [
-            "startDate": startDate,
-            "endDate": endDate,
+            "from": startDate,
+            "to": endDate,
         ])
         return response.history
     }
@@ -471,12 +471,6 @@ final class BissbilanzAPI {
         return response.data
     }
 
-    // MARK: - Maintenance
-
-    func calculateMaintenance(_ request: MaintenanceRequest) async throws -> MaintenanceResponse {
-        try await post("/api/maintenance", body: request)
-    }
-
     // MARK: - Preferences
 
     func getPreferences() async throws -> Preferences {
@@ -505,8 +499,11 @@ final class BissbilanzAPI {
         return response.mealTypes
     }
 
-    func createMealType(name: String) async throws -> MealType {
-        let response: MealTypeResponse = try await post("/api/meal-types", body: MealTypeCreate(name: name))
+    func createMealType(name: String, sortOrder: Int) async throws -> MealType {
+        let response: MealTypeResponse = try await post(
+            "/api/meal-types",
+            body: MealTypeCreate(name: name, sortOrder: sortOrder)
+        )
         return response.mealType
     }
 
@@ -552,17 +549,36 @@ final class BissbilanzAPI {
         )
     }
 
-    // MARK: - Weight Stats
-
-    func getWeightStats() async throws -> WeightStatsResponse {
-        try await get("/api/weight/stats")
-    }
-
     // MARK: - Open Food Facts proxy
 
+    /// The proxy returns `{product: {...}}` — the `Food` prefill shape minus
+    /// the user-scoped fields (`userId`, `isFavorite`) and with nullable
+    /// serving info, so the gaps are patched in before decoding, mirroring
+    /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
+    /// or unparseable responses.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
-        let response: FoodResponse? = try? await get("/api/openfoodfacts/\(barcode)")
-        return response?.food
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/openfoodfacts/\(barcode)")!)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        guard let (data, httpResponse) = try? await executeRequestData(request),
+              httpResponse.statusCode == 200,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var product = root["product"] as? [String: Any]
+        else { return nil }
+
+        product["userId"] = ""
+        product["isFavorite"] = false
+        if !(product["servingSize"] is NSNumber) {
+            product["servingSize"] = 100
+        }
+        let unit = product["servingUnit"] as? String
+        if ServingUnit(rawValue: unit ?? "") == nil {
+            product["servingUnit"] = "g"
+        }
+        if !(product["barcode"] is String) {
+            product["barcode"] = barcode
+        }
+        return try? JSONPatch.decode(Food.self, from: product)
     }
 
     // MARK: - AI Tasks
@@ -769,6 +785,15 @@ final class BissbilanzAPI {
     }
 
     private func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        // Both the first attempt and the post-refresh 401 retry come back
+        // through the same status classification + decode, so a 4xx/5xx/decode
+        // failure on retry surfaces as the right APIError rather than a raw
+        // DecodingError.
+        let (data, httpResponse) = try await executeRequestData(request)
+        return try decodeResponse(data, httpResponse)
+    }
+
+    private func executeRequestData(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         var req = request
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -799,10 +824,7 @@ final class BissbilanzAPI {
                 if retryHTTP.statusCode == 401 {
                     throw APIError.unauthorized
                 }
-                // Route the retried response through the same status classification
-                // as the first attempt, so a 4xx/5xx/decode failure on retry surfaces
-                // as the right APIError rather than a raw DecodingError.
-                return try decodeResponse(retryData, retryHTTP)
+                return (retryData, retryHTTP)
             }
             // `unauthorized` means "session is dead, prompt to sign in" — a
             // transient refresh failure (offline, 5xx) is just retryable.
@@ -814,7 +836,7 @@ final class BissbilanzAPI {
             }
         }
 
-        return try decodeResponse(data, httpResponse)
+        return (data, httpResponse)
     }
 
     /// Classifies a response's status code into the right `APIError`

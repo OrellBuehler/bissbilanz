@@ -98,12 +98,6 @@ extension CalendarDay {
     }
 }
 
-struct MaintenanceRequest: Codable {
-    let startDate: String
-    let endDate: String
-    let bodyFatChangeRatio: Double?
-}
-
 struct MaintenanceResponse: Codable {
     let maintenanceCalories: Double
     let avgDailyCalories: Double
@@ -140,6 +134,7 @@ typealias SupplementHistoryEntry = SupplementHistoryItem
 
 struct MealTypeCreate: Codable {
     let name: String
+    let sortOrder: Int
 }
 
 struct MealTypesResponse: Codable {
