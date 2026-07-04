@@ -82,6 +82,70 @@ struct WidgetStrings {
         }
     }
 
+    // MARK: - Widget Gallery
+
+    var caloriesWidgetDescription: String {
+        isGerman
+            ? "Heutige Kalorien im Vergleich zum Tagesziel."
+            : "Today's calories against your daily goal."
+    }
+
+    var proteinWidgetDescription: String {
+        isGerman
+            ? "Heutiges Eiweiß im Vergleich zum Tagesziel."
+            : "Today's protein against your daily goal."
+    }
+
+    var quickWeightWidgetDescription: String {
+        isGerman ? "Gewicht heute anzeigen und erfassen." : "See today's weight and log it."
+    }
+
+    var quickScanWidgetDisplayName: String {
+        isGerman ? "Schnell-Scan" : "Quick Scan"
+    }
+
+    var quickScanWidgetDescription: String {
+        isGerman ? "Tippen, um den Barcode-Scanner zu öffnen." : "Tap to open the barcode scanner."
+    }
+
+    var dayOverviewWidgetDisplayName: String {
+        isGerman ? "Tagesübersicht" : "Day Overview"
+    }
+
+    var dayOverviewWidgetDescription: String {
+        isGerman ? "Mahlzeiten, Makros und schnelles Eintragen." : "Meals, macros and quick logging."
+    }
+
+    var macroSummaryWidgetDisplayName: String {
+        isGerman ? "Makros" : "Macros"
+    }
+
+    var macroSummaryWidgetDescription: String {
+        isGerman
+            ? "Tägliche Fortschrittsringe für Kalorien, Eiweiß, Kohlenhydrate und Fett."
+            : "Daily progress rings for calories, protein, carbs and fat."
+    }
+
+    var favoritesWidgetDisplayName: String {
+        isGerman ? "Favoriten" : "Favorites"
+    }
+
+    var favoritesWidgetDescription: String {
+        isGerman
+            ? "Lieblingsgerichte mit einem Tippen öffnen und eintragen."
+            : "Open and log favorite foods with one tap."
+    }
+
+    var quickAddWidgetDisplayName: String {
+        isGerman ? "Schnell eintragen" : "Quick Add"
+    }
+
+    var quickAddWidgetDescription: String {
+        isGerman
+            ? "Favoriten mit einem Tippen eintragen — ohne die App zu öffnen."
+            : "Log a favorite with one tap — without opening the app."
+    }
+
     // MARK: - Fasting Live Activity
 
     var fasting: String {

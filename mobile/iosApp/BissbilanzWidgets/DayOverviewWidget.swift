@@ -9,12 +9,8 @@ struct DayOverviewWidget: Widget {
         return StaticConfiguration(kind: "DayOverviewWidget", provider: SnapshotProvider()) { entry in
             DayOverviewWidgetView(entry: entry)
         }
-        .configurationDisplayName(strings.localeCode == "de" ? "Tagesübersicht" : "Day Overview")
-        .description(
-            strings.localeCode == "de"
-                ? "Mahlzeiten, Makros und schnelles Eintragen."
-                : "Meals, macros and quick logging."
-        )
+        .configurationDisplayName(strings.dayOverviewWidgetDisplayName)
+        .description(strings.dayOverviewWidgetDescription)
         .supportedFamilies([.systemLarge])
     }
 }
