@@ -80,72 +80,65 @@
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-green-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_micronutrient_gaps()}
-		headline={m.analytics_micronutrient_gaps_headline()}
-		{confidence}
-		{sampleSize}
-		borderColor="border-green-500"
-	>
-		{#snippet children()}
-			{@const nutrients = displayNutrients}
-			{#if nutrients.length > 0}
-				<div class="space-y-2">
-					{#each nutrients as nutrient (nutrient.key)}
-						{@const isDeficient = nutrient.pct < 80}
-						{@const trafficColor =
-							nutrient.pct >= 80
-								? 'bg-green-500'
-								: nutrient.pct >= 50
-									? 'bg-amber-400'
-									: 'bg-red-500'}
-						{@const textColor =
-							nutrient.pct >= 80
-								? 'text-green-600 dark:text-green-400'
-								: nutrient.pct >= 50
-									? 'text-amber-600 dark:text-amber-400'
-									: 'text-red-600 dark:text-red-400'}
-						<div class="flex items-center gap-2">
-							<div class="w-3 h-3 rounded-full shrink-0 {trafficColor}"></div>
-							<span
-								class="w-28 shrink-0 text-xs truncate {isDeficient
-									? 'font-medium'
-									: 'text-muted-foreground'}"
-							>
-								{nutrient.label}
-							</span>
-							<div class="relative flex-1 h-3 bg-muted/40 rounded overflow-hidden">
-								<div
-									class="h-full rounded {trafficColor} opacity-60"
-									style="width: {Math.min(nutrient.pct, 100)}%"
-								></div>
-							</div>
-							<span class="w-10 shrink-0 text-right text-xs tabular-nums {textColor}">
-								{nutrient.pct}%
-							</span>
-							<span
-								class="w-12 shrink-0 text-right text-[10px] tabular-nums {nutrient.r < 0
-									? 'text-green-600 dark:text-green-400'
-									: 'text-red-500 dark:text-red-400'}"
-							>
-								r={nutrient.r.toFixed(2)}
-							</span>
+<InsightCard
+	{loading}
+	title={m.analytics_micronutrient_gaps()}
+	headline={m.analytics_micronutrient_gaps_headline()}
+	{confidence}
+	{sampleSize}
+	borderColor="border-green-500"
+>
+	{#snippet children()}
+		{@const nutrients = displayNutrients}
+		{#if nutrients.length > 0}
+			<div class="space-y-2">
+				{#each nutrients as nutrient (nutrient.key)}
+					{@const isDeficient = nutrient.pct < 80}
+					{@const trafficColor =
+						nutrient.pct >= 80
+							? 'bg-green-500'
+							: nutrient.pct >= 50
+								? 'bg-amber-400'
+								: 'bg-red-500'}
+					{@const textColor =
+						nutrient.pct >= 80
+							? 'text-green-600 dark:text-green-400'
+							: nutrient.pct >= 50
+								? 'text-amber-600 dark:text-amber-400'
+								: 'text-red-600 dark:text-red-400'}
+					<div class="flex items-center gap-2">
+						<div class="w-3 h-3 rounded-full shrink-0 {trafficColor}"></div>
+						<span
+							class="w-28 shrink-0 text-xs truncate {isDeficient
+								? 'font-medium'
+								: 'text-muted-foreground'}"
+						>
+							{nutrient.label}
+						</span>
+						<div class="relative flex-1 h-3 bg-muted/40 rounded overflow-hidden">
+							<div
+								class="h-full rounded {trafficColor} opacity-60"
+								style="width: {Math.min(nutrient.pct, 100)}%"
+							></div>
 						</div>
-					{/each}
-					<p class="text-[11px] text-muted-foreground pt-1">
-						{m.analytics_correlation_disclaimer()}
-					</p>
-				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+						<span class="w-10 shrink-0 text-right text-xs tabular-nums {textColor}">
+							{nutrient.pct}%
+						</span>
+						<span
+							class="w-12 shrink-0 text-right text-[10px] tabular-nums {nutrient.r < 0
+								? 'text-green-600 dark:text-green-400'
+								: 'text-red-500 dark:text-red-400'}"
+						>
+							r={nutrient.r.toFixed(2)}
+						</span>
+					</div>
+				{/each}
+				<p class="text-[11px] text-muted-foreground pt-1">
+					{m.analytics_correlation_disclaimer()}
+				</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

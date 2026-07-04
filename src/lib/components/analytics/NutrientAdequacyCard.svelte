@@ -42,65 +42,59 @@
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-green-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-48 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_nutrient_adequacy()}
-		headline={m.analytics_nutrient_adequacy_headline()}
-		{confidence}
-		{sampleSize}
-		borderColor="border-green-500"
-	>
-		{#snippet children()}
-			{@const nutrients = adequacyData}
-			{#if nutrients.length > 0}
-				<div class="space-y-1.5">
-					{#each nutrients as nutrient (nutrient.key)}
-						{@const barColor =
-							nutrient.pct >= 80
-								? 'bg-green-500'
-								: nutrient.pct >= 50
-									? 'bg-amber-400'
-									: 'bg-red-500'}
-						{@const textColor =
-							nutrient.pct >= 80
-								? 'text-green-600 dark:text-green-400'
-								: nutrient.pct >= 50
-									? 'text-amber-600 dark:text-amber-400'
-									: 'text-red-600 dark:text-red-400'}
-						<div class="flex items-center gap-2">
-							<span
-								class="w-28 shrink-0 text-xs truncate text-muted-foreground"
-								title={nutrient.label}
-							>
-								{nutrient.label}
-							</span>
-							<div class="relative flex-1 h-3 bg-muted/40 rounded overflow-hidden">
-								<div
-									class="h-full rounded {barColor} opacity-70"
-									style="width: {Math.min(nutrient.pct, 100)}%"
-								></div>
-								{#if nutrient.pct > 100}
-									<div class="absolute right-0 top-0 h-full w-0.5 bg-border"></div>
-								{/if}
-							</div>
-							<span class="w-10 shrink-0 text-right text-xs tabular-nums {textColor}">
-								{nutrient.pct}%
-							</span>
+<InsightCard
+	{loading}
+	title={m.analytics_nutrient_adequacy()}
+	headline={m.analytics_nutrient_adequacy_headline()}
+	{confidence}
+	{sampleSize}
+	borderColor="border-green-500"
+	skeletonClass="h-48"
+>
+	{#snippet children()}
+		{@const nutrients = adequacyData}
+		{#if nutrients.length > 0}
+			<div class="space-y-1.5">
+				{#each nutrients as nutrient (nutrient.key)}
+					{@const barColor =
+						nutrient.pct >= 80
+							? 'bg-green-500'
+							: nutrient.pct >= 50
+								? 'bg-amber-400'
+								: 'bg-red-500'}
+					{@const textColor =
+						nutrient.pct >= 80
+							? 'text-green-600 dark:text-green-400'
+							: nutrient.pct >= 50
+								? 'text-amber-600 dark:text-amber-400'
+								: 'text-red-600 dark:text-red-400'}
+					<div class="flex items-center gap-2">
+						<span
+							class="w-28 shrink-0 text-xs truncate text-muted-foreground"
+							title={nutrient.label}
+						>
+							{nutrient.label}
+						</span>
+						<div class="relative flex-1 h-3 bg-muted/40 rounded overflow-hidden">
+							<div
+								class="h-full rounded {barColor} opacity-70"
+								style="width: {Math.min(nutrient.pct, 100)}%"
+							></div>
+							{#if nutrient.pct > 100}
+								<div class="absolute right-0 top-0 h-full w-0.5 bg-border"></div>
+							{/if}
 						</div>
-					{/each}
-					<p class="text-[11px] text-muted-foreground pt-1">
-						{m.analytics_rda_basis({ days: sampleSize.toString() })}
-					</p>
-				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+						<span class="w-10 shrink-0 text-right text-xs tabular-nums {textColor}">
+							{nutrient.pct}%
+						</span>
+					</div>
+				{/each}
+				<p class="text-[11px] text-muted-foreground pt-1">
+					{m.analytics_rda_basis({ days: sampleSize.toString() })}
+				</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

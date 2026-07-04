@@ -43,26 +43,19 @@
 	});
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-indigo-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_tef()}
-		headline={m.analytics_tef_headline({ kcal: Math.round(result?.avgDailyTEF ?? 0).toString() })}
-		confidence={result?.confidence ?? 'insufficient'}
-		sampleSize={result?.sampleSize ?? 0}
-		borderColor="border-indigo-500"
-	>
-		{#snippet children()}
-			{#if result}
-				<p class="text-sm text-muted-foreground">
-					{m.analytics_tef_pct({ pct: (Math.round(result.avgTEFPercent * 10) / 10).toFixed(1) })}
-				</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+<InsightCard
+	{loading}
+	title={m.analytics_tef()}
+	headline={m.analytics_tef_headline({ kcal: Math.round(result?.avgDailyTEF ?? 0).toString() })}
+	confidence={result?.confidence ?? 'insufficient'}
+	sampleSize={result?.sampleSize ?? 0}
+	borderColor="border-indigo-500"
+>
+	{#snippet children()}
+		{#if result}
+			<p class="text-sm text-muted-foreground">
+				{m.analytics_tef_pct({ pct: (Math.round(result.avgTEFPercent * 10) / 10).toFixed(1) })}
+			</p>
+		{/if}
+	{/snippet}
+</InsightCard>
