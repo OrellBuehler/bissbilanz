@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import * as m from '$lib/paraglide/messages';
 	import type { components } from '$lib/api/generated/schema';
 
@@ -56,7 +57,8 @@
 			{#if groups.length > previewGroups.length}
 				<div class="flex justify-end">
 					<Button size="sm" variant="ghost" onclick={() => goto('/foods/duplicates')}>
-						{m.foods_duplicates_view_all()} →
+						{m.foods_duplicates_view_all()}
+						<ChevronRight class="size-4" />
 					</Button>
 				</div>
 			{/if}

@@ -1,6 +1,12 @@
+<script lang="ts">
+	import * as m from '$lib/paraglide/messages';
+</script>
+
 <div class="mx-auto max-w-2xl px-6 py-12">
-	<h1 class="mb-2 text-3xl font-bold">Privacy Policy for Bissbilanz</h1>
-	<p class="mb-8 text-sm text-muted-foreground">Effective date: March 15, 2026</p>
+	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
+	<p class="mb-8 text-sm text-muted-foreground">
+		{m.privacy_effective_date({ date: 'March 15, 2026' })}
+	</p>
 
 	<p class="mb-6">
 		Bissbilanz is a personal calorie and macro tracking app built by a solo hobbyist developer. This
