@@ -157,7 +157,7 @@ struct AIMealReviewView: View {
 
     private static func formatted(_ value: Double?) -> String {
         guard let value else { return "" }
-        return String(format: "%.0f", value)
+        return MacroFormat.kcal(value)
     }
 
     private func logAll() async {

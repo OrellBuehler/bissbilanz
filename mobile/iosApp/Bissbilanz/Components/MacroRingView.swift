@@ -55,14 +55,14 @@ struct MacroRingView: View {
                     .shadow(color: ringColor.opacity(colorScheme == .dark ? 0.4 : 0.25), radius: 3)
 
                 VStack(spacing: 0) {
-                    Text("\(Int(current))")
+                    Text(MacroFormat.kcal(current))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .monospacedDigit()
                         .contentTransition(.numericText(value: current))
                         .foregroundStyle(isOver ? .red : color)
                     if showGoal {
-                        Text("/\(Int(goal))")
+                        Text("/\(MacroFormat.kcal(goal))")
                             .font(.system(size: 8))
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
@@ -84,7 +84,7 @@ struct MacroRingView: View {
     }
 
     private var accessibilityValueText: String {
-        goal > 0 ? "\(Int(current)) / \(Int(goal))" : "\(Int(current))"
+        goal > 0 ? "\(MacroFormat.kcal(current)) / \(MacroFormat.kcal(goal))" : MacroFormat.kcal(current)
     }
 
     private func syncProgress() {
