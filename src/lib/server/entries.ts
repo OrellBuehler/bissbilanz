@@ -225,7 +225,11 @@ export const updateEntry = async (
 
 export const deleteEntry = async (userId: string, id: string) => {
 	const db = getDB();
-	await db.delete(foodEntries).where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)));
+	const [deleted] = await db
+		.delete(foodEntries)
+		.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
+		.returning({ id: foodEntries.id, date: foodEntries.date });
+	return deleted ?? null;
 };
 
 export const listEntriesByDateRange = async (
