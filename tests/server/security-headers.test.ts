@@ -1,29 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { securityHeaders } from '../../src/lib/server/security';
+import svelteConfig from '../../svelte.config.js';
 
 describe('securityHeaders', () => {
-	test('includes CSP and HSTS', () => {
+	test('includes HSTS', () => {
 		const headers = securityHeaders();
-		expect(headers['content-security-policy']).toBeTruthy();
 		expect(headers['strict-transport-security']).toBeTruthy();
 	});
 
-	test('CSP img-src allows openfoodfacts domains', () => {
-		const csp = securityHeaders()['content-security-policy'];
-		expect(csp).toContain('https://images.openfoodfacts.net');
-		expect(csp).toContain('https://images.openfoodfacts.org');
-	});
-
-	test('CSP script-src allows unsafe-inline and wasm-unsafe-eval', () => {
-		const csp = securityHeaders()['content-security-policy'];
-		const scriptSrc = csp.split('; ').find((d) => d.startsWith('script-src'));
-		expect(scriptSrc).toContain("'unsafe-inline'");
-		expect(scriptSrc).toContain("'wasm-unsafe-eval'");
-	});
-
-	test('CSP connect-src allows Sentry ingest', () => {
-		const csp = securityHeaders()['content-security-policy'];
-		expect(csp).toContain('https://*.ingest.de.sentry.io');
+	test('does not set content-security-policy directly (owned by svelte.config.js kit.csp)', () => {
+		const headers: Record<string, string> = securityHeaders();
+		expect(headers['content-security-policy']).toBeUndefined();
 	});
 
 	test('X-Frame-Options is DENY', () => {
@@ -43,5 +30,22 @@ describe('securityHeaders', () => {
 		expect(policy).toContain('camera=(self)');
 		expect(policy).toContain('microphone=()');
 		expect(policy).toContain('geolocation=()');
+	});
+});
+
+describe('kit.csp (svelte.config.js)', () => {
+	const directives = svelteConfig.kit!.csp!.directives!;
+
+	test('script-src has no unsafe-inline', () => {
+		expect(directives['script-src']).not.toContain('unsafe-inline');
+	});
+
+	test('img-src allows openfoodfacts domains', () => {
+		expect(directives['img-src']).toContain('https://images.openfoodfacts.net');
+		expect(directives['img-src']).toContain('https://images.openfoodfacts.org');
+	});
+
+	test('connect-src allows Sentry ingest', () => {
+		expect(directives['connect-src']).toContain('https://*.ingest.de.sentry.io');
 	});
 });

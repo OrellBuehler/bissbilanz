@@ -16,6 +16,27 @@ const config = {
 		// Manual CSRF origin checking is applied in hooks.server.ts for non-exempt routes.
 		csrf: {
 			trustedOrigins: ['*']
+		},
+		// script-src has no 'unsafe-inline' — SvelteKit adds a nonce/hash for its own
+		// inline scripts (mode: 'auto'). Other security headers stay in security.ts.
+		csp: {
+			mode: 'auto',
+			directives: {
+				'default-src': ['self'],
+				'img-src': [
+					'self',
+					'data:',
+					'https://images.openfoodfacts.net',
+					'https://images.openfoodfacts.org',
+					'https://avatar.storage.infomaniak.com'
+				],
+				'style-src': ['self', 'unsafe-inline'],
+				'script-src': ['self', 'wasm-unsafe-eval', 'https://a.orellbuehler.ch'],
+				'connect-src': ['self', 'https://a.orellbuehler.ch', 'https://*.ingest.de.sentry.io'],
+				'base-uri': ['self'],
+				'form-action': ['self'],
+				'frame-ancestors': ['none']
+			}
 		}
 	}
 };

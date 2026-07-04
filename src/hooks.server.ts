@@ -19,8 +19,8 @@ import { env } from '$env/dynamic/public';
 if (env.PUBLIC_SENTRY_DSN) {
 	Sentry.init({
 		dsn: env.PUBLIC_SENTRY_DSN,
-		tracesSampleRate: 1.0,
-		enableLogs: true
+		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
+		enableLogs: import.meta.env.DEV
 	});
 }
 
