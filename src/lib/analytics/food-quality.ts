@@ -1,4 +1,13 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
+import {
+	DII_COEFFICIENTS,
+	DII_GLOBAL_MEAN,
+	DII_GLOBAL_SD,
+	ZERO_VALID_NUTRIENTS,
+	OMEGA_RATIO_OPTIMAL_MAX,
+	OMEGA_RATIO_ELEVATED_MAX,
+	OMEGA_RATIO_HIGH_MAX
+} from './constants.generated';
 
 export type NOVAResult = {
 	ultraProcessedPct: number;
@@ -73,9 +82,9 @@ export function computeOmegaRatio(
 	const ratio = avgOmega3 > 0 ? avgOmega6 / avgOmega3 : null;
 
 	let status: OmegaResult['status'];
-	if (ratio === null || ratio <= 4) status = 'optimal';
-	else if (ratio <= 10) status = 'elevated';
-	else if (ratio <= 20) status = 'high';
+	if (ratio === null || ratio <= OMEGA_RATIO_OPTIMAL_MAX) status = 'optimal';
+	else if (ratio <= OMEGA_RATIO_ELEVATED_MAX) status = 'elevated';
+	else if (ratio <= OMEGA_RATIO_HIGH_MAX) status = 'high';
 	else status = 'critical';
 
 	return {
@@ -87,45 +96,6 @@ export function computeOmegaRatio(
 		sampleSize
 	};
 }
-
-const DII_COEFFICIENTS: Record<string, number> = {
-	fiber: -0.663,
-	omega3: -0.436,
-	vitaminC: -0.299,
-	vitaminD: -0.446,
-	vitaminE: -0.419,
-	saturatedFat: 0.373,
-	transFat: 0.229,
-	alcohol: 0.407,
-	caffeine: -0.11,
-	sodium: 0.269
-};
-
-const DII_GLOBAL_MEAN: Record<string, number> = {
-	fiber: 18.8,
-	omega3: 1.3,
-	vitaminC: 108,
-	vitaminD: 6,
-	vitaminE: 8.7,
-	saturatedFat: 28.6,
-	transFat: 3.15,
-	alcohol: 13.98,
-	caffeine: 220,
-	sodium: 3446
-};
-
-const DII_GLOBAL_SD: Record<string, number> = {
-	fiber: 8.0,
-	omega3: 1.0,
-	vitaminC: 85,
-	vitaminD: 5.0,
-	vitaminE: 5.0,
-	saturatedFat: 12,
-	transFat: 2.0,
-	alcohol: 20,
-	caffeine: 150,
-	sodium: 1200
-};
 
 export type DIIResult = {
 	score: number;
@@ -166,7 +136,7 @@ export function computeDIIScore(dailyNutrients: DIIInput[]): DIIResult {
 	const nutrientMeans: Record<string, number> = {};
 	const nutrientCoverage: Record<string, number> = {};
 
-	const zeroValidNutrients = new Set(['alcohol', 'transFat', 'caffeine']);
+	const zeroValidNutrients = new Set(ZERO_VALID_NUTRIENTS);
 	for (const nutrient of nutrients) {
 		const isZeroValid = zeroValidNutrients.has(nutrient);
 		const values = dailyNutrients
