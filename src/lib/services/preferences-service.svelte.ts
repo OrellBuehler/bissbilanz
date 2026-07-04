@@ -2,8 +2,7 @@ import { browser } from '$app/environment';
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
-import { urlToMeta } from '$lib/utils/api';
+import { withOfflineFallback } from './base';
 import type { DexieUserPreferences } from '$lib/db/types';
 import type { paths } from '$lib/api/generated/schema';
 
@@ -63,18 +62,21 @@ async function update(prefs: PreferencesPatchBody): Promise<boolean> {
 		await db.userPreferences.put({ ...existing, ...prefs } as DexieUserPreferences);
 	}
 
-	if (browser && !navigator.onLine) {
-		const meta = urlToMeta('/api/preferences');
-		await enqueue('PATCH', '/api/preferences', prefs as Record<string, unknown>, meta);
-		return true;
-	}
-
-	try {
-		const { error } = await api.PATCH('/api/preferences', { body: prefs });
-		return !error;
-	} catch {
-		return false;
-	}
+	let ok = true;
+	await withOfflineFallback(
+		async () => {
+			const result = await api.PATCH('/api/preferences', { body: prefs });
+			if (result.error) ok = false;
+			return result;
+		},
+		{
+			method: 'PATCH',
+			url: '/api/preferences',
+			body: prefs as Record<string, unknown>,
+			affectedTable: 'userPreferences'
+		}
+	);
+	return ok;
 }
 
 // Reports the device's IANA timezone to the server so server-side analytics/MCP

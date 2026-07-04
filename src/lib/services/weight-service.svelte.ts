@@ -2,7 +2,6 @@ import { liveQuery } from 'dexie';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
-import { isQueued } from '$lib/utils/api';
 import { refreshTable, withOfflineFallback } from './base';
 import type { DexieWeightEntry } from '$lib/db/types';
 
@@ -45,17 +44,18 @@ async function create(entry: {
 	};
 	await db.weightEntries.put(tempEntry);
 
-	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.POST('/api/weight', { body: entry });
-			if (isQueued(response)) return;
-			if (data && 'entry' in data) {
+	await withOfflineFallback(() => api.POST('/api/weight', { body: entry }), {
+		onSuccess: async (data) => {
+			if ('entry' in data) {
 				await db.weightEntries.delete(tempId);
 				await db.weightEntries.put(data.entry as DexieWeightEntry);
 			}
 		},
-		{ method: 'POST', url: '/api/weight', body: entry, affectedTable: 'weightEntries' }
-	);
+		method: 'POST',
+		url: '/api/weight',
+		body: entry,
+		affectedTable: 'weightEntries'
+	});
 }
 
 async function update(
@@ -66,17 +66,17 @@ async function update(
 	await db.weightEntries.update(id, { ...entry, updatedAt: now });
 
 	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.PATCH('/api/weight/{id}', {
+		() =>
+			api.PATCH('/api/weight/{id}', {
 				params: { path: { id } },
 				body: entry
-			});
-			if (isQueued(response)) return;
-			if (data && 'entry' in data) {
-				await db.weightEntries.put(data.entry as DexieWeightEntry);
-			}
-		},
+			}),
 		{
+			onSuccess: async (data) => {
+				if ('entry' in data) {
+					await db.weightEntries.put(data.entry as DexieWeightEntry);
+				}
+			},
 			method: 'PATCH',
 			url: `/api/weight/${id}`,
 			body: entry,
@@ -90,11 +90,10 @@ async function deleteEntry(id: string): Promise<void> {
 	await db.weightEntries.delete(id);
 
 	await withOfflineFallback(
-		async () => {
-			await api.DELETE('/api/weight/{id}', {
+		() =>
+			api.DELETE('/api/weight/{id}', {
 				params: { path: { id } }
-			});
-		},
+			}),
 		{
 			method: 'DELETE',
 			url: `/api/weight/${id}`,

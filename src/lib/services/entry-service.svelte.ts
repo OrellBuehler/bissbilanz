@@ -1,8 +1,7 @@
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
-import { urlToMeta } from '$lib/utils/api';
+import { withOfflineFallback } from './base';
 import type { DexieFoodEntry } from '$lib/db/types';
 
 function entriesByDate(date: string) {
@@ -116,13 +115,15 @@ async function create(entry: {
 		createdAt: now
 	});
 
-	try {
-		await api.POST('/api/entries', { body: entry });
-		refresh(entry.date).catch(() => {});
-	} catch {
-		const url = '/api/entries';
-		await enqueue('POST', url, entry, urlToMeta(url));
-	}
+	await withOfflineFallback(() => api.POST('/api/entries', { body: entry }), {
+		onSuccess: () => {
+			refresh(entry.date).catch(() => {});
+		},
+		method: 'POST',
+		url: '/api/entries',
+		body: entry,
+		affectedTable: 'foodEntries'
+	});
 }
 
 async function update(
@@ -177,16 +178,23 @@ async function update(
 
 	await db.foodEntries.update(id, dexieUpdate);
 
-	try {
-		await api.PATCH('/api/entries/{id}', {
-			params: { path: { id } },
-			body: entry
-		});
-		refresh(date).catch(() => {});
-	} catch {
-		const url = `/api/entries/${id}`;
-		await enqueue('PATCH', url, entry, urlToMeta(url));
-	}
+	await withOfflineFallback(
+		() =>
+			api.PATCH('/api/entries/{id}', {
+				params: { path: { id } },
+				body: entry
+			}),
+		{
+			onSuccess: () => {
+				refresh(date).catch(() => {});
+			},
+			method: 'PATCH',
+			url: `/api/entries/${id}`,
+			body: entry,
+			affectedTable: 'foodEntries',
+			affectedId: id
+		}
+	);
 }
 
 async function del(id: string) {
@@ -195,15 +203,22 @@ async function del(id: string) {
 
 	await db.foodEntries.delete(id);
 
-	try {
-		await api.DELETE('/api/entries/{id}', {
-			params: { path: { id } }
-		});
-		refresh(date).catch(() => {});
-	} catch {
-		const url = `/api/entries/${id}`;
-		await enqueue('DELETE', url, {}, urlToMeta(url));
-	}
+	await withOfflineFallback(
+		() =>
+			api.DELETE('/api/entries/{id}', {
+				params: { path: { id } }
+			}),
+		{
+			onSuccess: () => {
+				refresh(date).catch(() => {});
+			},
+			method: 'DELETE',
+			url: `/api/entries/${id}`,
+			body: {},
+			affectedTable: 'foodEntries',
+			affectedId: id
+		}
+	);
 }
 
 async function copyEntries(fromDate: string, toDate: string) {
