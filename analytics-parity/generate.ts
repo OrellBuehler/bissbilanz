@@ -21,6 +21,10 @@ import {
 } from '../src/lib/analytics/aggregation';
 import { calculateMaintenance, type MaintenanceInput } from '../src/lib/utils/maintenance';
 import { computeTEF } from '../src/lib/analytics/food-quality';
+import { extractMealTimingPatterns } from '../src/lib/analytics/meal-timing';
+import { computeCalorieFrontLoading } from '../src/lib/analytics/calorie-patterns';
+import { computeCaffeineSleepCutoff } from '../src/lib/analytics/caffeine-sleep';
+import { computeMealRegularity } from '../src/lib/analytics/meal-regularity';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -267,6 +271,157 @@ function round(v: number, dp: number): number {
 	];
 	add('computeTEF', 'varying_calories', { dailyNutrients: tefDays }, computeTEF(tefDays));
 	add('computeTEF', 'empty', { dailyNutrients: [] }, computeTEF([]));
+}
+
+// --- extractMealTimingPatterns ------------------------------------------------
+{
+	// Europe/Zurich spans the 2025-03-30 spring-forward (CET +01:00 → CEST +02:00
+	// at 01:00 UTC), so the same UTC clock time maps to different local hours
+	// across the set. Includes a late-night meal (local hour ≥ 21), an
+	// offset-bearing timestamp, a null eatenAt and an unparseable timestamp
+	// (both skipped on both platforms).
+	const entries = [
+		{ date: '2025-03-29', eatenAt: '2025-03-29T07:30:00Z', calories: 450 }, // 08:30 CET
+		{ date: '2025-03-29', eatenAt: '2025-03-29T11:45:00Z', calories: 700 }, // 12:45 CET
+		{ date: '2025-03-29', eatenAt: '2025-03-29T20:15:00Z', calories: 300 }, // 21:15 CET → late night
+		{ date: '2025-03-29', eatenAt: null, calories: 120 },
+		{ date: '2025-03-30', eatenAt: '2025-03-30T00:30:00Z', calories: 90 }, // 01:30 CET (pre-transition)
+		{ date: '2025-03-30', eatenAt: '2025-03-30T06:30:00Z', calories: 520 }, // 08:30 CEST
+		{ date: '2025-03-30', eatenAt: '2025-03-30T19:45:00Z', calories: 610 }, // 21:45 CEST → late night
+		{ date: '2025-03-31', eatenAt: '2025-03-31T07:58:59+02:00', calories: 480 }, // offset-bearing, 07:58 CEST
+		{ date: '2025-03-31', eatenAt: '2025-03-31T18:20:00Z', calories: 650 }, // 20:20 CEST
+		{ date: '2025-03-31', eatenAt: 'not-a-timestamp', calories: 999 }
+	];
+	add(
+		'extractMealTimingPatterns',
+		'zurich_dst_multi_day',
+		{ entries, timeZone: 'Europe/Zurich' },
+		extractMealTimingPatterns(entries, 'Europe/Zurich')
+	);
+
+	add(
+		'extractMealTimingPatterns',
+		'empty',
+		{ entries: [], timeZone: 'UTC' },
+		extractMealTimingPatterns([], 'UTC')
+	);
+}
+
+// --- computeCalorieFrontLoading -----------------------------------------------
+{
+	// Local-hour boundary at the default cutoff 14: in CET (+01:00), 12:59Z is
+	// 13:59 local (morning) while 13:00Z is 14:00 local (not morning).
+	const entries = [
+		{ date: '2025-01-10', eatenAt: '2025-01-10T06:30:00Z', calories: 600 }, // 07:30 local
+		{ date: '2025-01-10', eatenAt: '2025-01-10T12:59:00Z', calories: 400 }, // 13:59 local → morning
+		{ date: '2025-01-10', eatenAt: '2025-01-10T13:00:00Z', calories: 500 }, // 14:00 local → afternoon
+		{ date: '2025-01-11', eatenAt: '2025-01-11T17:00:00Z', calories: 900 }, // 18:00 local
+		{ date: '2025-01-11', eatenAt: '2025-01-11T20:30:00Z', calories: 700 }, // 21:30 local
+		{ date: '2025-01-12', eatenAt: '2025-01-12T07:15:00Z', calories: 0 }, // zero-total day
+		{ date: '2025-01-13', eatenAt: null, calories: 800 } // skipped → day never counted
+	];
+	add(
+		'computeCalorieFrontLoading',
+		'zurich_default_cutoff',
+		{ entries, timeZone: 'Europe/Zurich' },
+		computeCalorieFrontLoading(entries, 'Europe/Zurich')
+	);
+
+	// Negative-UTC-offset zone with an explicit cutoff: 15:30Z is 10:30 local
+	// in America/New_York (EST −05:00).
+	const nyEntries = [
+		{ date: '2025-02-01', eatenAt: '2025-02-01T15:30:00Z', calories: 550 }, // 10:30 local → morning
+		{ date: '2025-02-01', eatenAt: '2025-02-01T17:00:00Z', calories: 650 }, // 12:00 local → afternoon
+		{ date: '2025-02-02', eatenAt: '2025-02-02T13:45:00Z', calories: 300 }, // 08:45 local
+		{ date: '2025-02-02', eatenAt: '2025-02-02T23:10:00Z', calories: 450 } // 18:10 local
+	];
+	add(
+		'computeCalorieFrontLoading',
+		'new_york_cutoff12',
+		{ entries: nyEntries, timeZone: 'America/New_York', cutoffHour: 12 },
+		computeCalorieFrontLoading(nyEntries, 'America/New_York', 12)
+	);
+}
+
+// --- computeCaffeineSleepCutoff -------------------------------------------------
+{
+	// Early-caffeine days (last dose ≤ 13:xx local) precede good sleep, late days
+	// (≥ 16:xx local) precede poor sleep → a cutoff is detected. Crosses a month
+	// boundary (2025-03-31 → 2025-04-01 sleep) to exercise next-date math.
+	// Zurich local hour = UTC+1 (CET) for the March dates before the 30th.
+	const caffeineEntries = [
+		{ date: '2025-03-03', eatenAt: '2025-03-03T06:30:00Z', caffeine: 80 }, // 07:30 → last hour 10 below
+		{ date: '2025-03-03', eatenAt: '2025-03-03T09:15:00Z', caffeine: 95 }, // 10:15 local
+		{ date: '2025-03-04', eatenAt: '2025-03-04T10:40:00Z', caffeine: 80 }, // 11:40 local
+		{ date: '2025-03-05', eatenAt: '2025-03-05T11:20:00Z', caffeine: 120 }, // 12:20 local
+		{ date: '2025-03-06', eatenAt: '2025-03-06T12:05:00Z', caffeine: 60 }, // 13:05 local
+		{ date: '2025-03-07', eatenAt: '2025-03-07T15:30:00Z', caffeine: 90 }, // 16:30 local
+		{ date: '2025-03-08', eatenAt: '2025-03-08T16:45:00Z', caffeine: 85 }, // 17:45 local
+		{ date: '2025-03-09', eatenAt: '2025-03-09T17:10:00Z', caffeine: 100 }, // 18:10 local
+		{ date: '2025-03-31', eatenAt: '2025-03-31T17:20:00Z', caffeine: 75 }, // 19:20 CEST, sleep next month
+		{ date: '2025-03-10', eatenAt: '2025-03-10T08:00:00Z', caffeine: 0 }, // zero caffeine → skipped
+		{ date: '2025-03-11', eatenAt: null, caffeine: 200 }, // no timestamp → skipped
+		{ date: '2025-03-12', eatenAt: '2025-03-12T07:00:00Z', caffeine: 90 } // no next-day sleep → ignored
+	];
+	const sleepData = [
+		{ date: '2025-03-04', sleepQuality: 8.5, sleepDurationMinutes: 470 },
+		{ date: '2025-03-05', sleepQuality: 8.0, sleepDurationMinutes: 455 },
+		{ date: '2025-03-06', sleepQuality: 8.2, sleepDurationMinutes: 480 },
+		{ date: '2025-03-07', sleepQuality: 7.9, sleepDurationMinutes: 445 },
+		{ date: '2025-03-08', sleepQuality: 6.1, sleepDurationMinutes: 380 },
+		{ date: '2025-03-09', sleepQuality: 5.8, sleepDurationMinutes: 365 },
+		{ date: '2025-03-10', sleepQuality: 6.4, sleepDurationMinutes: 395 },
+		{ date: '2025-04-01', sleepQuality: 5.5, sleepDurationMinutes: 350 },
+		{ date: '2025-03-13', sleepQuality: null, sleepDurationMinutes: 400 } // incomplete → skipped
+	];
+	add(
+		'computeCaffeineSleepCutoff',
+		'cutoff_detected',
+		{ caffeineEntries, sleepData, timeZone: 'Europe/Zurich' },
+		computeCaffeineSleepCutoff(caffeineEntries, sleepData, 'Europe/Zurich')
+	);
+
+	const sparse = [{ date: '2025-05-01', eatenAt: '2025-05-01T07:00:00Z', caffeine: 90 }];
+	const sparseSleep = [{ date: '2025-05-02', sleepQuality: 7.0, sleepDurationMinutes: 430 }];
+	add(
+		'computeCaffeineSleepCutoff',
+		'insufficient_no_cutoff',
+		{ caffeineEntries: sparse, sleepData: sparseSleep, timeZone: 'Europe/Zurich' },
+		computeCaffeineSleepCutoff(sparse, sparseSleep, 'Europe/Zurich')
+	);
+}
+
+// --- computeMealRegularity ------------------------------------------------------
+{
+	// breakfast is tight (stddev < 30 → high), lunch drifts (30–60 → medium),
+	// dinner swings (> 60 → low). Two breakfast entries share 2025-04-02 — the
+	// earlier one wins. One null-eatenAt entry is skipped.
+	const entries = [
+		{ date: '2025-04-01', mealType: 'Breakfast', eatenAt: '2025-04-01T05:30:00Z' }, // 07:30 CEST
+		{ date: '2025-04-02', mealType: 'Breakfast', eatenAt: '2025-04-02T05:50:00Z' }, // 07:50
+		{ date: '2025-04-02', mealType: 'Breakfast', eatenAt: '2025-04-02T06:40:00Z' }, // later dup, ignored
+		{ date: '2025-04-03', mealType: 'Breakfast', eatenAt: '2025-04-03T05:40:00Z' }, // 07:40
+		{ date: '2025-04-01', mealType: 'Lunch', eatenAt: '2025-04-01T10:00:00Z' }, // 12:00
+		{ date: '2025-04-02', mealType: 'Lunch', eatenAt: '2025-04-02T11:10:00Z' }, // 13:10
+		{ date: '2025-04-03', mealType: 'Lunch', eatenAt: '2025-04-03T10:35:00Z' }, // 12:35
+		{ date: '2025-04-01', mealType: 'Dinner', eatenAt: '2025-04-01T16:30:00Z' }, // 18:30
+		{ date: '2025-04-02', mealType: 'Dinner', eatenAt: '2025-04-02T19:45:00Z' }, // 21:45
+		{ date: '2025-04-03', mealType: 'Dinner', eatenAt: '2025-04-03T17:00:00Z' }, // 19:00
+		{ date: '2025-04-04', mealType: 'Snacks', eatenAt: null } // skipped
+	];
+	add(
+		'computeMealRegularity',
+		'three_meal_spread',
+		{ entries, timeZone: 'Europe/Zurich' },
+		computeMealRegularity(entries, 'Europe/Zurich')
+	);
+
+	add(
+		'computeMealRegularity',
+		'empty',
+		{ entries: [], timeZone: 'UTC' },
+		computeMealRegularity([], 'UTC')
+	);
 }
 
 const out = {
