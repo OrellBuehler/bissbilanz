@@ -1,11 +1,5 @@
 import { getDB } from '$lib/server/db';
-import {
-	foodEntries,
-	foods,
-	recipes,
-	recipeIngredients,
-	customMealTypes
-} from '$lib/server/schema';
+import { foodEntries, foods, recipes, customMealTypes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
@@ -13,6 +7,7 @@ import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
+import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
 
 export const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
 	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
@@ -24,41 +19,6 @@ export const validateMealType = async (userId: string, mealType: string): Promis
 		.limit(1);
 	return !!found;
 };
-
-const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>, userId: string) =>
-	db.$with('recipe_macros').as(
-		db
-			.select({
-				recipeId: recipeIngredients.recipeId,
-				rmCalories:
-					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_calories'
-					),
-				rmProtein:
-					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_protein'
-					),
-				rmCarbs:
-					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_carbs'
-					),
-				rmFat:
-					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_fat'
-					),
-				rmFiber:
-					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_fiber'
-					)
-			})
-			.from(recipeIngredients)
-			.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
-			.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
-			.where(eq(recipes.userId, userId))
-			.groupBy(recipeIngredients.recipeId, recipes.totalServings)
-	);
-
-type RecipeMacrosCte = ReturnType<typeof buildRecipeMacrosCte>;
 
 const entryMacroColumns = (rm: RecipeMacrosCte) => ({
 	foodName: sql<

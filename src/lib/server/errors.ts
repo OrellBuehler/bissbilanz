@@ -1,7 +1,8 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { ZodError } from 'zod';
+import { ZodError, type ZodType } from 'zod';
 import { readClientEditedAt } from '$lib/server/sync/headers';
+import type { Result } from '$lib/server/types';
 
 /**
  * Narrow type for postgres.js server errors exposed as `Error.cause`.
@@ -188,6 +189,29 @@ export class ResultValidationError extends Error {
 	constructor(public zodError: ZodError) {
 		super('Validation failed');
 		this.name = 'ResultValidationError';
+	}
+}
+
+/**
+ * Wraps the parse-then-try/catch boilerplate shared by service create/update
+ * functions: validates `payload` against `schema`, then runs `fn` with the
+ * parsed data, catching any thrown error into the Result union.
+ */
+export async function withValidation<S, T>(
+	schema: ZodType<S>,
+	payload: unknown,
+	fn: (data: S) => Promise<T>
+): Promise<Result<T>> {
+	const parsed = schema.safeParse(payload);
+	if (!parsed.success) {
+		return { success: false, error: parsed.error };
+	}
+
+	try {
+		const data = await fn(parsed.data);
+		return { success: true, data };
+	} catch (error) {
+		return { success: false, error: error as Error };
 	}
 }
 

@@ -18,27 +18,6 @@ import type { CalendarDay } from '$lib/utils/insights';
 export type { CalendarDay };
 export type CalendarStats = { days: Record<string, CalendarDay> };
 
-const groupEntriesByDate = (
-	entries: Array<{
-		date: string;
-		servings: number;
-		calories: number | null;
-		protein: number | null;
-		carbs: number | null;
-		fat: number | null;
-		fiber: number | null;
-	}>
-): MacroTotals[] => {
-	const groups: Record<string, MacroTotals> = {};
-	for (const entry of entries) {
-		if (!groups[entry.date]) {
-			groups[entry.date] = emptyTotals();
-		}
-		groups[entry.date] = addTotals(groups[entry.date], calculateEntryMacros(entry));
-	}
-	return Object.values(groups);
-};
-
 const groupEntriesByDateWithFasting = (
 	entries: Array<{
 		date: string;

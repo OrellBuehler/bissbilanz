@@ -4,37 +4,25 @@ import { logSupplement } from '$lib/server/supplements';
 import { supplementLogSchema } from '$lib/server/validation';
 import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
-import {
-	handleApiError,
-	requireAuth,
-	requireUuid,
-	validationError,
-	parseJsonBody
-} from '$lib/server/errors';
+import { validationError, parseJsonBody, withAuthedResource } from '$lib/server/errors';
 
-export const POST: RequestHandler = async ({ locals, params, request }) => {
-	try {
-		const userId = requireAuth(locals);
-		const body = await parseJsonBody(request).catch(() => ({}));
+export const POST: RequestHandler = withAuthedResource(async ({ userId, id, request }) => {
+	const body = await parseJsonBody(request).catch(() => ({}));
 
-		const parsed = supplementLogSchema.safeParse(body);
-		if (!parsed.success) {
-			return validationError(parsed.error);
-		}
-
-		const id = requireUuid(params.id);
-		const date = parsed.data.date ?? todayInTimeZone(await getUserTimeZone(userId));
-		const result = await logSupplement(userId, id, date);
-
-		if (!result.success) {
-			if (result.error.message === 'Supplement not found') {
-				return json({ error: 'Supplement not found' }, { status: 404 });
-			}
-			throw result.error;
-		}
-
-		return json({ log: result.data }, { status: 201 });
-	} catch (error) {
-		return handleApiError(error);
+	const parsed = supplementLogSchema.safeParse(body);
+	if (!parsed.success) {
+		return validationError(parsed.error);
 	}
-};
+
+	const date = parsed.data.date ?? todayInTimeZone(await getUserTimeZone(userId));
+	const result = await logSupplement(userId, id, date);
+
+	if (!result.success) {
+		if (result.error.message === 'Supplement not found') {
+			return json({ error: 'Supplement not found' }, { status: 404 });
+		}
+		throw result.error;
+	}
+
+	return json({ log: result.data }, { status: 201 });
+});

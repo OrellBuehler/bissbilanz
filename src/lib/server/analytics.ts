@@ -9,40 +9,7 @@ import {
 	sleepEntries
 } from '$lib/server/schema';
 import { and, eq, gte, lte, sql, asc } from 'drizzle-orm';
-
-const buildRecipeMacrosCte = (db: ReturnType<typeof getDB>) =>
-	db.$with('recipe_macros').as(
-		db
-			.select({
-				recipeId: recipeIngredients.recipeId,
-				rmCalories:
-					sql<number>`SUM(${foods.calories} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_calories'
-					),
-				rmProtein:
-					sql<number>`SUM(${foods.protein} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_protein'
-					),
-				rmCarbs:
-					sql<number>`SUM(${foods.carbs} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_carbs'
-					),
-				rmFat:
-					sql<number>`SUM(${foods.fat} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_fat'
-					),
-				rmFiber:
-					sql<number>`SUM(${foods.fiber} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
-						'rm_fiber'
-					)
-			})
-			.from(recipeIngredients)
-			.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
-			.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
-			.groupBy(recipeIngredients.recipeId, recipes.totalServings)
-	);
-
-type RecipeMacrosCte = ReturnType<typeof buildRecipeMacrosCte>;
+import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
 
 const buildRecipeExtendedCte = (db: ReturnType<typeof getDB>) =>
 	db.$with('recipe_extended').as(
@@ -130,7 +97,7 @@ const fiberExpr = (rm: RecipeMacrosCte) =>
 
 export const getWeightFoodSeries = async (userId: string, startDate: string, endDate: string) => {
 	const db = getDB();
-	const rm = buildRecipeMacrosCte(db);
+	const rm = buildRecipeMacrosCte(db, userId);
 
 	const calorieRows = await db
 		.with(rm)
@@ -202,7 +169,7 @@ export const getDailyNutrientTotals = async (
 	endDate: string
 ) => {
 	const db = getDB();
-	const rm = buildRecipeMacrosCte(db);
+	const rm = buildRecipeMacrosCte(db, userId);
 	const re = buildRecipeExtendedCte(db);
 
 	const rows = await db
@@ -281,7 +248,7 @@ export const getDailyNutrientTotals = async (
 
 export const getMealTimingData = async (userId: string, startDate: string, endDate: string) => {
 	const db = getDB();
-	const rm = buildRecipeMacrosCte(db);
+	const rm = buildRecipeMacrosCte(db, userId);
 
 	const rows = await db
 		.with(rm)
@@ -330,7 +297,7 @@ export const getSleepFoodCorrelationData = async (
 	const tz = timezone ?? (await getUserTimeZone(userId));
 	const db = getDB();
 
-	const rm = buildRecipeMacrosCte(db);
+	const rm = buildRecipeMacrosCte(db, userId);
 
 	const eveningEntries = await db
 		.with(rm)
@@ -393,7 +360,7 @@ export const getExtendedNutrientEntries = async (
 	endDate: string
 ) => {
 	const db = getDB();
-	const rm = buildRecipeMacrosCte(db);
+	const rm = buildRecipeMacrosCte(db, userId);
 	const re = buildRecipeExtendedCte(db);
 
 	const rows = await db
