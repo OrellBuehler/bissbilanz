@@ -5,6 +5,7 @@
 	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { api } from '$lib/api/client';
 
 	type CaffeineEntry = {
 		date: string;
@@ -27,15 +28,14 @@
 		const startDate = shiftDate(endDate, -89);
 		try {
 			const [extRes, sfRes] = await Promise.all([
-				fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`)
+				api.GET('/api/analytics/nutrients-extended', { params: { query: { startDate, endDate } } }),
+				api.GET('/api/analytics/sleep-food', { params: { query: { startDate, endDate } } })
 			]);
-			if (extRes.ok) {
-				const all = (await extRes.json()).data ?? [];
-				caffeineEntries = all.filter((e: CaffeineEntry) => e.caffeine !== null && e.caffeine > 0);
+			if (extRes.data) {
+				caffeineEntries = extRes.data.data.filter((e) => e.caffeine !== null && e.caffeine > 0);
 			}
-			if (sfRes.ok) {
-				sleepData = (await sfRes.json()).data ?? [];
+			if (sfRes.data) {
+				sleepData = sfRes.data.data;
 			}
 		} catch {
 			// card shows no-data state

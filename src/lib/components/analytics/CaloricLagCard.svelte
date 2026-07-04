@@ -4,6 +4,7 @@
 	import { computeCaloricLag } from '$lib/analytics/caloric-lag';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
@@ -67,10 +68,9 @@
 
 	onMount(async () => {
 		try {
-			const prefsRes = await fetch('/api/preferences');
-			if (prefsRes.ok) {
-				const prefsJson = await prefsRes.json();
-				const saved = prefsJson.preferences?.caloricLagDaysOverride ?? null;
+			const { data } = await api.GET('/api/preferences');
+			if (data) {
+				const saved = data.preferences.caloricLagDaysOverride ?? null;
 				overrideLag = saved;
 				initialOverride = saved;
 			}

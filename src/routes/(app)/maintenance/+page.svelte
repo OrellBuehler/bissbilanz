@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
+	import { api } from '$lib/api/client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -92,16 +93,12 @@
 
 		try {
 			const ratio = muscleRatio / 100;
-			// Uses bare fetch instead of apiFetch intentionally: maintenance calculation
-			// requires server-side computation across weight + food entry data and is not
-			// suitable for offline use.
-			const res = await fetch(
-				`/api/maintenance?startDate=${startDate}&endDate=${endDate}&muscleRatio=${ratio}`
-			);
-			const data = await res.json();
+			const { data, error: apiError } = await api.GET('/api/maintenance', {
+				params: { query: { startDate, endDate, muscleRatio: ratio } }
+			});
 
-			if (!res.ok) {
-				error = data.message || data.error;
+			if (apiError) {
+				error = apiError.error;
 				return;
 			}
 

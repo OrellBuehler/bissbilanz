@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { api } from '$lib/api/client';
 	import NOVAScoreCard from './NOVAScoreCard.svelte';
 	import OmegaRatioCard from './OmegaRatioCard.svelte';
 	import ProteinDistributionCard from './ProteinDistributionCard.svelte';
@@ -59,18 +60,23 @@
 		(async () => {
 			try {
 				const [nRes, mRes, dRes] = await Promise.all([
-					fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`, {
+					api.GET('/api/analytics/nutrients-extended', {
+						params: { query: { startDate, endDate } },
 						signal
 					}),
-					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/food-diversity?startDate=${startDate}&endDate=${endDate}`, {
+					api.GET('/api/analytics/meal-timing', {
+						params: { query: { startDate, endDate } },
+						signal
+					}),
+					api.GET('/api/analytics/food-diversity', {
+						params: { query: { startDate, endDate } },
 						signal
 					})
 				]);
 				if (signal.aborted) return;
-				if (nRes.ok) nutrientEntries = (await nRes.json()).data ?? [];
-				if (mRes.ok) mealEntries = (await mRes.json()).data ?? [];
-				if (dRes.ok) diversityData = (await dRes.json()).data ?? [];
+				if (nRes.data) nutrientEntries = nRes.data.data;
+				if (mRes.data) mealEntries = mRes.data.data;
+				if (dRes.data) diversityData = dRes.data.data;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {
