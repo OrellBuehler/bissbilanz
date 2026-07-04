@@ -17,8 +17,11 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -26,8 +29,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 // The server-side SupplementLog no longer carries a row id — it's derived from
 // food_entries keyed by (supplementId, date). The local SQLDelight cache still
@@ -72,7 +73,7 @@ class SupplementRepository(
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
         cacheSupplement(temp)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, supplement)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
@@ -82,7 +83,7 @@ class SupplementRepository(
 
     suspend fun deleteSupplement(id: String) {
         db.userDataDatabaseQueries.deleteSupplement(id)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("supplements", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
@@ -100,9 +101,9 @@ class SupplementRepository(
         tempId: String,
         supplement: SupplementCreate,
     ) {
-        for (req in syncQueue.findByAffected("supplements", tempId)) {
-            val create = req.operation as? SyncOperation.CreateSupplement ?: continue
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(supplement)))
+        syncQueue.rewriteQueuedCreate("supplements", tempId) { op ->
+            val create = op as? SyncOperation.CreateSupplement ?: return@rewriteQueuedCreate null
+            create.copy(body = json.encodeToString(supplement))
         }
     }
 
@@ -148,7 +149,6 @@ class SupplementRepository(
                 )
             }
 
-    @OptIn(ExperimentalUuidApi::class)
     suspend fun logSupplement(
         supplementId: String,
         date: String?,
@@ -270,10 +270,9 @@ class SupplementRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun supplementCreateToSupplement(
         supplement: SupplementCreate,
-        id: String = "temp_${Uuid.random()}",
+        id: String = newTempId(),
     ): Supplement =
         Supplement(
             id = id,
@@ -298,18 +297,17 @@ class SupplementRepository(
      * local food rows. The embedded copy is what the migrator uses to recreate inline
      * backing foods when uploading a locally created supplement.
      */
-    @OptIn(ExperimentalUuidApi::class)
     private fun SupplementIngredientInput.toSupplementIngredient(
         supplementId: String,
         index: Int,
     ): SupplementIngredient {
-        val resolvedFoodId = foodId ?: "temp_${Uuid.random()}"
+        val resolvedFoodId = foodId ?: newTempId()
         val backingFood =
             food?.toBackingFood(resolvedFoodId)
                 ?: localBackingFood(resolvedFoodId)
                 ?: placeholderBackingFood(resolvedFoodId)
         return SupplementIngredient(
-            id = "temp_${Uuid.random()}",
+            id = newTempId(),
             supplementId = supplementId,
             foodId = resolvedFoodId,
             servings = servings ?: 1.0,

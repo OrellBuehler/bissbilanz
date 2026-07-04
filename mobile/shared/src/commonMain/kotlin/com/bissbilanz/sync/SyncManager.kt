@@ -7,6 +7,7 @@ import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.isTempId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -227,7 +228,7 @@ class SyncManager(
                         idempotencyKey,
                         clientEditedAt,
                     )
-                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
                     replaceLocalFood(tempId, server)
                     TempIdRemap(tempId, server.id)
                 }
@@ -256,7 +257,7 @@ class SyncManager(
             is SyncOperation.CreateRecipe -> {
                 val server =
                     api.createRecipe(json.decodeFromString<RecipeCreate>(op.body), idempotencyKey, clientEditedAt)
-                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
                     replaceLocalRecipe(tempId, server)
                     TempIdRemap(tempId, server.id)
                 }
@@ -298,7 +299,7 @@ class SyncManager(
                         idempotencyKey,
                         clientEditedAt,
                     )
-                return op.localId?.takeIf { it.startsWith(TEMP_PREFIX) }?.let { tempId ->
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
                     replaceLocalSupplement(tempId, server)
                     TempIdRemap(tempId, server.id)
                 }
@@ -489,7 +490,6 @@ class SyncManager(
 
     companion object {
         private const val MAX_RETRIES = 5
-        private const val TEMP_PREFIX = "temp_"
         private const val BACKOFF_BASE_MS = 2_000L
         private const val BACKOFF_CAP_MS = 5 * 60 * 1_000L
         private const val BACKOFF_JITTER_MS = 500L

@@ -19,9 +19,9 @@ import org.koin.dsl.module
 
 val sharedModule =
     module {
-        single { AuthManager(get<String>(named("baseUrl")), get()) }
-        single { BissbilanzApi(get<String>(named("baseUrl")), get()) }
-        single { OpenFoodFactsClient() }
+        single { AuthManager(get<String>(named("baseUrl")), get(), get()) }
+        single { BissbilanzApi(get<String>(named("baseUrl")), get(), get()) }
+        single { OpenFoodFactsClient(json = get()) }
         single { AppModeManager(get<PlainStorage>()) }
         // Two database files: bissbilanz.db (sync queue + server cache, excluded from
         // Android Auto Backup) and userdata.db (the user's data, included in backups).

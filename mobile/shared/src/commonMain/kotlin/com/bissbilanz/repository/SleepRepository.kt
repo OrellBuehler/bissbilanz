@@ -12,8 +12,11 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -21,8 +24,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class SleepRepository(
     private val api: BissbilanzApi,
@@ -99,7 +100,7 @@ class SleepRepository(
                     notes = entry.notes,
                 )
             }
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, entry)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry)))
@@ -109,7 +110,7 @@ class SleepRepository(
 
     suspend fun deleteEntry(id: String) {
         db.userDataDatabaseQueries.deleteSleepEntry(id)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("sleep", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteSleep(id))
@@ -125,9 +126,9 @@ class SleepRepository(
         tempId: String,
         update: SleepUpdate,
     ) {
-        for (req in syncQueue.findByAffected("sleep", tempId)) {
-            val create = req.operation as? SyncOperation.CreateSleep ?: continue
-            val body = json.decodeOrNull<SleepCreate>(create.body) ?: continue
+        syncQueue.rewriteQueuedCreate("sleep", tempId) { op ->
+            val create = op as? SyncOperation.CreateSleep ?: return@rewriteQueuedCreate null
+            val body = json.decodeOrNull<SleepCreate>(create.body) ?: return@rewriteQueuedCreate null
             val merged =
                 body.copy(
                     durationMinutes = update.durationMinutes ?: body.durationMinutes,
@@ -138,7 +139,7 @@ class SleepRepository(
                     wakeUps = update.wakeUps ?: body.wakeUps,
                     notes = update.notes ?: body.notes,
                 )
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+            create.copy(body = json.encodeToString(merged))
         }
     }
 
@@ -199,10 +200,9 @@ class SleepRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun sleepCreateToEntry(entry: SleepCreate): SleepEntry =
         SleepEntry(
-            id = "temp_${Uuid.random()}",
+            id = newTempId(),
             userId = "",
             entryDate = entry.entryDate,
             durationMinutes = entry.durationMinutes,

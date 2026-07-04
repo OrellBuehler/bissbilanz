@@ -101,14 +101,13 @@ class ApiException(
 class BissbilanzApi(
     private val baseUrl: String,
     private val authManager: AuthManager,
-) {
-    private val json =
+    private val json: Json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
             isLenient = true
-        }
-
+        },
+) {
     private val client =
         HttpClient(createHttpEngine()) {
             install(ContentNegotiation) {

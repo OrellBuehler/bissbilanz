@@ -10,8 +10,11 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -20,8 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class EntryRepository(
     private val api: BissbilanzApi,
@@ -94,7 +95,7 @@ class EntryRepository(
                 )
             }
         syncNutritionForCurrentDate()
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, entry)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
@@ -106,7 +107,7 @@ class EntryRepository(
     suspend fun deleteEntry(id: String) {
         db.userDataDatabaseQueries.deleteEntry(id)
         syncNutritionForCurrentDate()
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("entries", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteEntry(id))
@@ -123,11 +124,11 @@ class EntryRepository(
         tempId: String,
         update: EntryUpdate,
     ) {
-        for (req in syncQueue.findByAffected("entries", tempId)) {
-            val create = req.operation as? SyncOperation.CreateEntry ?: continue
-            val body = json.decodeOrNull<EntryCreate>(create.body) ?: continue
+        syncQueue.rewriteQueuedCreate("entries", tempId) { op ->
+            val create = op as? SyncOperation.CreateEntry ?: return@rewriteQueuedCreate null
+            val body = json.decodeOrNull<EntryCreate>(create.body) ?: return@rewriteQueuedCreate null
             val merged = applyUpdate(body, update)
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+            create.copy(body = json.encodeToString(merged))
         }
     }
 
@@ -265,14 +266,13 @@ class EntryRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun entryCreateToEntry(
         entry: EntryCreate,
         food: Food? = null,
         recipe: Recipe? = null,
     ): Entry =
         Entry(
-            id = "temp_${Uuid.random()}",
+            id = newTempId(),
             userId = "",
             foodId = entry.foodId,
             recipeId = entry.recipeId,

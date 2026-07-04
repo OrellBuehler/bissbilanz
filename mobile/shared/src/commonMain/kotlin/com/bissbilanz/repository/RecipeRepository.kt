@@ -14,9 +14,12 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -24,8 +27,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class RecipeRepository(
     private val api: BissbilanzApi,
@@ -145,7 +146,7 @@ class RecipeRepository(
                     ingredients = recipe.ingredients?.toRecipeIngredients() ?: emptyList(),
                 ).withRecomputedMacros()
             }
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, recipe)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe)))
@@ -155,7 +156,7 @@ class RecipeRepository(
 
     suspend fun deleteRecipe(id: String) {
         db.userDataDatabaseQueries.deleteRecipe(id)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
@@ -171,9 +172,9 @@ class RecipeRepository(
         tempId: String,
         update: RecipeUpdate,
     ) {
-        for (req in syncQueue.findByAffected("recipes", tempId)) {
-            val create = req.operation as? SyncOperation.CreateRecipe ?: continue
-            val body = json.decodeOrNull<RecipeCreate>(create.body) ?: continue
+        syncQueue.rewriteQueuedCreate("recipes", tempId) { op ->
+            val create = op as? SyncOperation.CreateRecipe ?: return@rewriteQueuedCreate null
+            val body = json.decodeOrNull<RecipeCreate>(create.body) ?: return@rewriteQueuedCreate null
             val merged =
                 body.copy(
                     name = update.name ?: body.name,
@@ -182,7 +183,7 @@ class RecipeRepository(
                     isFavorite = update.isFavorite ?: body.isFavorite,
                     imageUrl = update.imageUrl ?: body.imageUrl,
                 )
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+            create.copy(body = json.encodeToString(merged))
         }
     }
 
@@ -201,10 +202,9 @@ class RecipeRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun recipeCreateToRecipe(recipe: RecipeCreate): RecipeDetail =
         RecipeDetail(
-            id = "temp_${Uuid.random()}",
+            id = newTempId(),
             userId = "",
             name = recipe.name,
             totalServings = recipe.totalServings,

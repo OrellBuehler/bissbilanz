@@ -13,8 +13,11 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -22,8 +25,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class WeightRepository(
     private val api: BissbilanzApi,
@@ -95,7 +96,7 @@ class WeightRepository(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, entry)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
@@ -113,16 +114,16 @@ class WeightRepository(
         tempId: String,
         update: WeightUpdate,
     ) {
-        for (req in syncQueue.findByAffected("weight", tempId)) {
-            val create = req.operation as? SyncOperation.CreateWeight ?: continue
-            val body = json.decodeOrNull<WeightCreate>(create.body) ?: continue
+        syncQueue.rewriteQueuedCreate("weight", tempId) { op ->
+            val create = op as? SyncOperation.CreateWeight ?: return@rewriteQueuedCreate null
+            val body = json.decodeOrNull<WeightCreate>(create.body) ?: return@rewriteQueuedCreate null
             val merged =
                 body.copy(
                     weightKg = update.weightKg ?: body.weightKg,
                     entryDate = update.entryDate ?: body.entryDate,
                     notes = update.notes ?: body.notes,
                 )
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(merged)))
+            create.copy(body = json.encodeToString(merged))
         }
     }
 
@@ -154,7 +155,7 @@ class WeightRepository(
 
     suspend fun deleteEntry(id: String) {
         db.userDataDatabaseQueries.deleteWeightEntry(id)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("weight", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteWeight(id))
@@ -184,10 +185,9 @@ class WeightRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun weightCreateToEntry(entry: WeightCreate): WeightEntry =
         WeightEntry(
-            id = "temp_${Uuid.random()}",
+            id = newTempId(),
             userId = "",
             weightKg = entry.weightKg,
             entryDate = entry.entryDate,
