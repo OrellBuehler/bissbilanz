@@ -157,19 +157,20 @@ struct WeightView: View {
         let sorted = chartEntries
         guard sorted.count >= 2 else { return [] }
 
-        // 7-point trailing average (with partial leading windows) computed by the
-        // shared KMP analytics; the chart only assembles the dates around it.
-        let averages = WeightChartAnalyticsKt.weightMovingAverage(
-            values: sorted.map(\.weightKg).asKotlin,
-            window: 7
-        ).asDoubles
+        // 7-calendar-day trailing average (same-date entries collapse to the
+        // latest loggedAt) computed by the shared KMP analytics; the chart only
+        // assembles the dates around it.
+        let points = WeightChartAnalyticsKt.weightMovingAverage(
+            entries: sorted.map { entry in
+                WeightChartInput(date: entry.entryDate, weightKg: entry.weightKg, loggedAt: entry.loggedAt)
+            },
+            windowDays: 7
+        )
 
-        var result: [(date: Date, average: Double)] = []
-        for (index, entry) in sorted.enumerated() {
-            guard let date = DateFormatting.date(from: entry.entryDate) else { continue }
-            result.append((date: date, average: averages[index]))
+        return points.compactMap { point in
+            guard let date = DateFormatting.date(from: point.date) else { return nil }
+            return (date: date, average: point.movingAvg)
         }
-        return result
     }
 
     private var projectionData: [(date: Date, weight: Double)] {

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { pearsonCorrelation } from '../../src/lib/analytics/correlation';
-import { movingAverage } from '../../src/lib/analytics/moving-average';
+import { movingAverage, weightMovingAverage } from '../../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib/analytics/tdee';
 import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
 import { calculateMaintenance } from '../../src/lib/utils/maintenance';
@@ -33,6 +33,8 @@ function runFn(fn: string, input: any): unknown {
 			return pearsonCorrelation(input.x, input.y);
 		case 'movingAverage':
 			return movingAverage(input.series, input.windowSize);
+		case 'weightMovingAverage':
+			return weightMovingAverage(input.entries, input.windowDays);
 		case 'computeAdaptiveTDEE':
 			return computeAdaptiveTDEE(input.weightSeries, input.calorieSeries, input.windowDays);
 		case 'detectPlateau':

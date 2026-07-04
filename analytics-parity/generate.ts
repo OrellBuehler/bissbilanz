@@ -11,7 +11,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { pearsonCorrelation } from '../src/lib/analytics/correlation';
-import { movingAverage } from '../src/lib/analytics/moving-average';
+import { movingAverage, weightMovingAverage } from '../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../src/lib/analytics/tdee';
 import {
 	aggregateDailyNutrientTotals,
@@ -82,6 +82,60 @@ function round(v: number, dp: number): number {
 
 	const s2 = [1, null, 3, null, 5, 6, null, 8, 9, 10];
 	add('movingAverage', 'window3_with_nulls', { series: s2, windowSize: 3 }, movingAverage(s2, 3));
+}
+
+// --- weightMovingAverage ------------------------------------------------------
+{
+	// Dense daily series: every window is fully populated after day 7.
+	const dense = Array.from({ length: 10 }, (_, i) => ({
+		date: isoDay(i),
+		weightKg: round(80 - 0.1 * i, 4)
+	}));
+	add(
+		'weightMovingAverage',
+		'dense_daily_7d',
+		{ entries: dense, windowDays: 7 },
+		weightMovingAverage(dense, 7)
+	);
+	add(
+		'weightMovingAverage',
+		'dense_daily_3d',
+		{ entries: dense, windowDays: 3 },
+		weightMovingAverage(dense, 3)
+	);
+
+	// Calendar gaps: the 14-day hole between Feb 6 and Feb 20 exceeds the
+	// window, so the average resets instead of smearing across the gap the way
+	// a row-based window would.
+	const gapped = [
+		{ date: '2025-02-01', weightKg: 82.4 },
+		{ date: '2025-02-03', weightKg: 82.1 },
+		{ date: '2025-02-06', weightKg: 81.9 },
+		{ date: '2025-02-20', weightKg: 81.2 },
+		{ date: '2025-02-22', weightKg: 81.0 }
+	];
+	add(
+		'weightMovingAverage',
+		'calendar_gap_reset',
+		{ entries: gapped, windowDays: 7 },
+		weightMovingAverage(gapped, 7)
+	);
+
+	// Same-date collapse: latest loggedAt wins; a missing loggedAt loses to a
+	// present one; out-of-order input; an unparseable date is skipped.
+	const dupes = [
+		{ date: '2025-03-02', weightKg: 79.8, loggedAt: '2025-03-02T07:10:00Z' },
+		{ date: '2025-03-01', weightKg: 80.6, loggedAt: '2025-03-01T21:40:00Z' },
+		{ date: '2025-03-01', weightKg: 80.2, loggedAt: '2025-03-01T06:30:00Z' },
+		{ date: '2025-03-02', weightKg: 79.4, loggedAt: null },
+		{ date: 'not-a-date', weightKg: 99.9 }
+	];
+	add(
+		'weightMovingAverage',
+		'same_date_collapse',
+		{ entries: dupes, windowDays: 7 },
+		weightMovingAverage(dupes, 7)
+	);
 }
 
 // --- computeAdaptiveTDEE ----------------------------------------------------
