@@ -69,6 +69,9 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
 import com.bissbilanz.model.SleepCreate
 import com.bissbilanz.model.SleepEntry
+import com.bissbilanz.util.formatAsInt
+import com.bissbilanz.util.formatDecimal1
+import com.bissbilanz.util.formatNutrient
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -213,7 +216,7 @@ fun InsightsScreen() {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 val avgCal = dailyStats.map { it.calories }.average()
                                 Text(
-                                    "Avg: ${avgCal.roundToInt()} cal",
+                                    "Avg: ${avgCal.formatAsInt()} cal",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -323,7 +326,7 @@ fun InsightsScreen() {
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         Text(
-                                            "${f.calories.roundToInt()} cal",
+                                            "${f.calories.formatAsInt()} cal",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -510,7 +513,7 @@ fun InsightsScreen() {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "%.1f".format(avgQuality),
+                                        avgQuality.formatDecimal1(),
                                         style = MaterialTheme.typography.titleLarge,
                                         color = MaterialTheme.colorScheme.tertiary,
                                         fontWeight = FontWeight.Bold,
@@ -523,7 +526,7 @@ fun InsightsScreen() {
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "%.1fh".format(avgDuration / 60.0),
+                                        "${(avgDuration / 60.0).formatDecimal1()}h",
                                         style = MaterialTheme.typography.titleLarge,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold,
@@ -540,12 +543,7 @@ fun InsightsScreen() {
 
                             // Recent entries list (last 5)
                             sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
-                                val qStr =
-                                    if (entry.quality % 1.0 == 0.0) {
-                                        entry.quality.toInt().toString()
-                                    } else {
-                                        "%.1f".format(entry.quality)
-                                    }
+                                val qStr = entry.quality.formatNutrient()
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -562,7 +560,7 @@ fun InsightsScreen() {
                                         Column {
                                             Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "%.1fh · Quality $qStr/10".format(entry.durationMinutes / 60.0),
+                                                "${(entry.durationMinutes / 60.0).formatDecimal1()}h · Quality $qStr/10",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
@@ -606,7 +604,7 @@ fun InsightsScreen() {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
-                                            "%.1f".format(lowCalAvgQuality),
+                                            lowCalAvgQuality.formatDecimal1(),
                                             style = MaterialTheme.typography.titleMedium,
                                             color = FiberGreen,
                                             fontWeight = FontWeight.Bold,
@@ -617,14 +615,14 @@ fun InsightsScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
-                                            "< ${avgCalories.roundToInt()} cal",
+                                            "< ${avgCalories.formatAsInt()} cal",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
-                                            "%.1f".format(highCalAvgQuality),
+                                            highCalAvgQuality.formatDecimal1(),
                                             style = MaterialTheme.typography.titleMedium,
                                             color = CarbsOrange,
                                             fontWeight = FontWeight.Bold,
@@ -635,7 +633,7 @@ fun InsightsScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
-                                            "> ${avgCalories.roundToInt()} cal",
+                                            "> ${avgCalories.formatAsInt()} cal",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -778,10 +776,10 @@ private fun ComparisonRow(
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, color = color, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text("${weekly.roundToInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text("${monthly.roundToInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text("${weekly.formatAsInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text("${monthly.formatAsInt()} $unit", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Text(
-                "$trendArrow ${abs(diffPercent).roundToInt()}%",
+                "$trendArrow ${abs(diffPercent).formatAsInt()}%",
                 color = trendColor,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
@@ -841,7 +839,7 @@ private fun MacroTrendRow(
             Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
             val avg = if (data.isNotEmpty()) data.average() else 0.0
             Text(
-                "Avg: ${avg.roundToInt()} $unit",
+                "Avg: ${avg.formatAsInt()} $unit",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -862,7 +860,7 @@ private fun MealBreakdownLegend(
     totalCalories: Double,
 ) {
     entries.forEachIndexed { index, entry ->
-        val pct = (entry.calories / totalCalories * 100).roundToInt()
+        val pct = (entry.calories / totalCalories * 100).formatAsInt()
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -881,7 +879,7 @@ private fun MealBreakdownLegend(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "${entry.calories.roundToInt()} kcal ($pct%)",
+                "${entry.calories.formatAsInt()} kcal ($pct%)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -988,14 +986,14 @@ private fun GoalAdherenceCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "${(tolerantPct * 100).roundToInt()}%",
+                        "${(tolerantPct * 100).formatAsInt()}%",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(36.dp),
                         textAlign = TextAlign.End,
                     )
                     Text(
-                        "${(strictPct * 100).roundToInt()}% strict",
+                        "${(strictPct * 100).formatAsInt()}% strict",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(60.dp),
@@ -1101,7 +1099,7 @@ private fun SleepLogDialog(
                     )
                 }
 
-                Text("Quality: ${quality.roundToInt()}/10", style = MaterialTheme.typography.labelMedium)
+                Text("Quality: ${quality.formatAsInt()}/10", style = MaterialTheme.typography.labelMedium)
                 Slider(
                     value = quality,
                     onValueChange = { quality = it },

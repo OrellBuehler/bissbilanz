@@ -24,7 +24,7 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.ProteinRed
-import kotlin.math.roundToInt
+import com.bissbilanz.util.formatAsInt
 
 @Composable
 fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
@@ -47,7 +47,7 @@ fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
         Spacer(modifier = Modifier.height(8.dp))
         val deltaSign = if (result.calorieDelta > 0) "+" else ""
         Text(
-            "${deltaSign}${result.calorieDelta.roundToInt()} kcal on weekends (${deltaSign}${result.calorieDeltaPct.roundToInt()}%)",
+            "${deltaSign}${result.calorieDelta.formatAsInt()} kcal on weekends (${deltaSign}${result.calorieDeltaPct.formatAsInt()}%)",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -68,10 +68,10 @@ private fun DayStatsColumn(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(4.dp))
-        MacroStatRow(value = "${stats.avgCalories.roundToInt()}", unit = "kcal", color = CaloriesBlue)
-        MacroStatRow(value = "${stats.avgProtein.roundToInt()}", unit = "g protein", color = ProteinRed)
-        MacroStatRow(value = "${stats.avgCarbs.roundToInt()}", unit = "g carbs", color = CarbsOrange)
-        MacroStatRow(value = "${stats.avgFat.roundToInt()}", unit = "g fat", color = FatYellow)
+        MacroStatRow(value = stats.avgCalories.formatAsInt(), unit = "kcal", color = CaloriesBlue)
+        MacroStatRow(value = stats.avgProtein.formatAsInt(), unit = "g protein", color = ProteinRed)
+        MacroStatRow(value = stats.avgCarbs.formatAsInt(), unit = "g carbs", color = CarbsOrange)
+        MacroStatRow(value = stats.avgFat.formatAsInt(), unit = "g fat", color = FatYellow)
     }
 }
 

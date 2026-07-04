@@ -16,10 +16,11 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.repository.AnalyticsRepository
+import com.bissbilanz.util.formatAsInt
+import com.bissbilanz.util.formatDecimal1
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -191,7 +192,7 @@ fun MaintenanceScreen(navController: NavController) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    "${r.maintenanceCalories.roundToInt()}",
+                                    r.maintenanceCalories.formatAsInt(),
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = CaloriesBlue,
@@ -209,22 +210,22 @@ fun MaintenanceScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Details
-                        MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.roundToInt()} kcal")
+                        MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.formatAsInt()} kcal")
                         MaintenanceRow(
                             "Daily deficit/surplus",
-                            "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.roundToInt()} kcal",
+                            "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.formatAsInt()} kcal",
                         )
                         MaintenanceRow(
                             "Weight change",
-                            "${"%.1f".format(r.weightChangeKg)} kg",
+                            "${r.weightChangeKg.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
                             "Fat mass change",
-                            "${"%.1f".format(r.fatMassKg)} kg",
+                            "${r.fatMassKg.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
                             "Muscle mass change",
-                            "${"%.1f".format(r.muscleMassKg)} kg",
+                            "${r.muscleMassKg.formatDecimal1()} kg",
                         )
                     }
                 }
@@ -248,11 +249,11 @@ fun MaintenanceScreen(navController: NavController) {
                         )
                         MaintenanceRow(
                             "Start weight",
-                            "${"%.1f".format(m.firstWeight)} kg",
+                            "${m.firstWeight.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
                             "End weight",
-                            "${"%.1f".format(m.lastWeight)} kg",
+                            "${m.lastWeight.formatDecimal1()} kg",
                         )
 
                         if (m.coverage < 0.7) {

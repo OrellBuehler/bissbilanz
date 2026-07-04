@@ -13,13 +13,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
+import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.util.toDisplayString
-import kotlin.math.roundToInt
 
 @Composable
 fun MealCard(
@@ -51,7 +51,7 @@ fun MealCard(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = "${totalCalories.roundToInt()} cal",
+                    text = "${totalCalories.formatAsInt()} cal",
                     style = MaterialTheme.typography.titleMedium,
                     color = CaloriesBlue,
                     fontWeight = FontWeight.Bold,
@@ -62,14 +62,12 @@ fun MealCard(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Row(
+            MacroChipRow(
+                protein = totalProtein,
+                carbs = totalCarbs,
+                fat = totalFat,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("P ${totalProtein.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                Text("C ${totalCarbs.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                Text("F ${totalFat.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
-            }
+            )
 
             if (entries.isEmpty()) {
                 Text(
@@ -107,7 +105,7 @@ fun MealCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${cal.roundToInt()}",
+                        cal.formatAsInt(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
