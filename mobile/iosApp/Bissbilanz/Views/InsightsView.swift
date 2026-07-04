@@ -373,28 +373,14 @@ struct InsightsView: View {
                 }
 
                 // Calendar grid
-                let monthComps = Calendar.current.dateComponents([.year, .month], from: calendarMonth)
-                let year = monthComps.year ?? Calendar.current.component(.year, from: Date())
-                let month = monthComps.month ?? 1
-                let daysInMonth = calendarMonth.daysInMonth
-                let offset = calendarMonth.startOfMonth.weekdayOffset
                 let dayMap = Dictionary(calendarDays.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
 
-                // A single ForEach keeps every cell ID unique — a separate
-                // spacer ForEach reuses the low Int IDs and SwiftUI then drops
-                // the day cells that collide with them (day 1 vanished in any
-                // month that doesn't start on Monday).
                 LazyVGrid(columns: gridColumns, spacing: 2) {
-                    ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
-                        if index < offset {
+                    ForEach(CalendarGrid.cells(for: calendarMonth)) { cell in
+                        switch cell {
+                        case .spacer:
                             Color.clear.frame(height: 28)
-                        } else {
-                            let day = index - offset + 1
-                            // Build the lookup key from calendar components rather than
-                            // date arithmetic + a locale-less formatter, so it always
-                            // matches the server's yyyy-MM-dd and the colors line up
-                            // regardless of the device time zone.
-                            let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
+                        case let .day(day, dateStr):
                             let calDay = dayMap[dateStr]
 
                             RoundedRectangle(cornerRadius: 4)
@@ -635,10 +621,11 @@ struct InsightsView: View {
 
     private func loadCalendar() async {
         let components = Calendar.current.dateComponents([.month, .year], from: calendarMonth)
-        calendarDays = await (try? api.getCalendarStats(
+        let wire = await (try? api.getCalendarStats(
             month: components.month ?? 1,
             year: components.year ?? Calendar.current.component(.year, from: Date())
-        )) ?? []
+        )) ?? [:]
+        calendarDays = CalendarDay.days(from: wire, calorieGoal: goals?.calorieGoal)
     }
 }
 

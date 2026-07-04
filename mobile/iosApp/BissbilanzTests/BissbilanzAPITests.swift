@@ -620,21 +620,22 @@ struct APIResponseDecodingTests {
 
     @Test("Calendar response decodes")
     func calendarDecoding() throws {
+        // Mirrors the real GET /api/stats/calendar payload: a date-keyed map,
+        // not an array — the array shape was an invented contract that made
+        // the calendar silently empty.
         let json = """
         {
-            "data": [
-                {"date": "2026-03-01", "calories": 2100, "hasGoal": true, "metGoal": true},
-                {"date": "2026-03-02", "calories": 1800, "hasGoal": true, "metGoal": false},
-                {"date": "2026-03-03", "calories": 0, "hasGoal": true, "metGoal": false}
-            ]
+            "days": {
+                "2026-03-01": {"calories": 2100, "hasEntries": true},
+                "2026-03-02": {"calories": 1800, "hasEntries": true}
+            }
         }
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(CalendarResponse.self, from: json)
-        #expect(response.data.count == 3)
-        #expect(response.data[0].metGoal == true)
-        #expect(response.data[1].metGoal == false)
-        #expect(response.data[2].calories == 0)
+        #expect(response.days.count == 2)
+        #expect(response.days["2026-03-01"]?.calories == 2100)
+        #expect(response.days["2026-03-02"]?.hasEntries == true)
     }
 
     @Test("Meal breakdown response decodes")

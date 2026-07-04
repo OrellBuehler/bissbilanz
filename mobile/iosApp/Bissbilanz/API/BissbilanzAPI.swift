@@ -454,17 +454,19 @@ final class BissbilanzAPI {
         ])
     }
 
-    func getCalendarStats(month: Int, year: Int) async throws -> [CalendarDay] {
+    func getCalendarStats(month: Int, year: Int) async throws -> [String: CalendarDayData] {
         let response: CalendarResponse = try await get("/api/stats/calendar", params: [
-            "month": "\(month)",
-            "year": "\(year)",
+            "month": String(format: "%04d-%02d", year, month),
         ])
-        return response.data
+        return response.days
     }
 
     func getMealBreakdown(days: Int = 7) async throws -> [MealBreakdownEntry] {
+        let end = Date()
+        let start = end.adding(days: -(days - 1))
         let response: MealBreakdownResponse = try await get("/api/stats/meal-breakdown", params: [
-            "days": "\(days)",
+            "startDate": DateFormatting.isoString(from: start),
+            "endDate": DateFormatting.isoString(from: end),
         ])
         return response.data
     }

@@ -103,21 +103,19 @@ struct CalendarView: View {
 
             // Day cells
             LazyVGrid(columns: columns, spacing: 4) {
-                let offset = currentMonth.weekdayOffset
-                let daysInMonth = currentMonth.daysInMonth
                 let dayMap = daysByDate
 
-                ForEach(0 ..< (offset + daysInMonth), id: \.self) { index in
-                    if index < offset {
+                ForEach(CalendarGrid.cells(for: currentMonth)) { cell in
+                    switch cell {
+                    case .spacer:
                         Color.clear.frame(height: 52)
-                    } else {
-                        let dayNum = index - offset + 1
-                        let dateStr = String(format: "%04d-%02d-%02d", year, month, dayNum)
-                        let calDay = dayMap[dateStr]
-
-                        let isToday = dateStr == DateFormatting.today
+                    case let .day(dayNum, dateStr):
                         NavigationLink(value: dateStr) {
-                            dayCell(dayNum: dayNum, calendarDay: calDay, isToday: isToday)
+                            dayCell(
+                                dayNum: dayNum,
+                                calendarDay: dayMap[dateStr],
+                                isToday: dateStr == DateFormatting.today
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -212,7 +210,12 @@ struct CalendarView: View {
             )
         } else {
             do {
-                calendarDays = try await api.getCalendarStats(month: month, year: year)
+                try? await goalsRepository.refresh()
+                let days = try await api.getCalendarStats(month: month, year: year)
+                calendarDays = CalendarDay.days(
+                    from: days,
+                    calorieGoal: goalsRepository.goals()?.calorieGoal
+                )
             } catch {
                 calendarDays = []
             }
