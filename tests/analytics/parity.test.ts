@@ -8,6 +8,10 @@ import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib
 import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
 import { calculateMaintenance } from '../../src/lib/utils/maintenance';
 import { computeTEF } from '../../src/lib/analytics/food-quality';
+import { extractMealTimingPatterns } from '../../src/lib/analytics/meal-timing';
+import { computeCalorieFrontLoading } from '../../src/lib/analytics/calorie-patterns';
+import { computeCaffeineSleepCutoff } from '../../src/lib/analytics/caffeine-sleep';
+import { computeMealRegularity } from '../../src/lib/analytics/meal-regularity';
 
 /**
  * Cross-language golden-vector parity. The same frozen fixtures are asserted by
@@ -46,6 +50,14 @@ function runFn(fn: string, input: any): unknown {
 			return aggregateDailyNutrientTotals(input.entries, input.foods, input.recipes);
 		case 'computeTEF':
 			return computeTEF(input.dailyNutrients);
+		case 'extractMealTimingPatterns':
+			return extractMealTimingPatterns(input.entries, input.timeZone);
+		case 'computeCalorieFrontLoading':
+			return computeCalorieFrontLoading(input.entries, input.timeZone, input.cutoffHour);
+		case 'computeCaffeineSleepCutoff':
+			return computeCaffeineSleepCutoff(input.caffeineEntries, input.sleepData, input.timeZone);
+		case 'computeMealRegularity':
+			return computeMealRegularity(input.entries, input.timeZone);
 		default:
 			throw new Error(`Unknown fn in fixtures: ${fn}`);
 	}

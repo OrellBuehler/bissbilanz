@@ -1350,6 +1350,514 @@
 				"confidence": "insufficient",
 				"sampleSize": 0
 			}
+		},
+		{
+			"fn": "extractMealTimingPatterns",
+			"name": "zurich_dst_multi_day",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-03-29",
+						"eatenAt": "2025-03-29T07:30:00Z",
+						"calories": 450
+					},
+					{
+						"date": "2025-03-29",
+						"eatenAt": "2025-03-29T11:45:00Z",
+						"calories": 700
+					},
+					{
+						"date": "2025-03-29",
+						"eatenAt": "2025-03-29T20:15:00Z",
+						"calories": 300
+					},
+					{
+						"date": "2025-03-29",
+						"eatenAt": null,
+						"calories": 120
+					},
+					{
+						"date": "2025-03-30",
+						"eatenAt": "2025-03-30T00:30:00Z",
+						"calories": 90
+					},
+					{
+						"date": "2025-03-30",
+						"eatenAt": "2025-03-30T06:30:00Z",
+						"calories": 520
+					},
+					{
+						"date": "2025-03-30",
+						"eatenAt": "2025-03-30T19:45:00Z",
+						"calories": 610
+					},
+					{
+						"date": "2025-03-31",
+						"eatenAt": "2025-03-31T07:58:59+02:00",
+						"calories": 480
+					},
+					{
+						"date": "2025-03-31",
+						"eatenAt": "2025-03-31T18:20:00Z",
+						"calories": 650
+					},
+					{
+						"date": "2025-03-31",
+						"eatenAt": "not-a-timestamp",
+						"calories": 999
+					}
+				],
+				"timeZone": "Europe/Zurich"
+			},
+			"expected": {
+				"dailyWindows": [
+					{
+						"date": "2025-03-29",
+						"firstMealTime": "08:30",
+						"lastMealTime": "21:15",
+						"windowMinutes": 765,
+						"mealCount": 3,
+						"lateNightMeals": 1
+					},
+					{
+						"date": "2025-03-30",
+						"firstMealTime": "01:30",
+						"lastMealTime": "21:45",
+						"windowMinutes": 1215,
+						"mealCount": 3,
+						"lateNightMeals": 1
+					},
+					{
+						"date": "2025-03-31",
+						"firstMealTime": "07:58",
+						"lastMealTime": "20:20",
+						"windowMinutes": 742,
+						"mealCount": 2,
+						"lateNightMeals": 0
+					}
+				],
+				"avgWindowMinutes": 907.3333333333334,
+				"avgFirstMealTime": "05:59",
+				"avgLastMealTime": "21:07",
+				"lateNightFrequency": 66.66666666666666,
+				"hourlyDistribution": [
+					0, 1, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0
+				]
+			}
+		},
+		{
+			"fn": "extractMealTimingPatterns",
+			"name": "empty",
+			"input": {
+				"entries": [],
+				"timeZone": "UTC"
+			},
+			"expected": {
+				"dailyWindows": [],
+				"avgWindowMinutes": 0,
+				"avgFirstMealTime": "00:00",
+				"avgLastMealTime": "00:00",
+				"lateNightFrequency": 0,
+				"hourlyDistribution": [
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+				]
+			}
+		},
+		{
+			"fn": "computeCalorieFrontLoading",
+			"name": "zurich_default_cutoff",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-01-10",
+						"eatenAt": "2025-01-10T06:30:00Z",
+						"calories": 600
+					},
+					{
+						"date": "2025-01-10",
+						"eatenAt": "2025-01-10T12:59:00Z",
+						"calories": 400
+					},
+					{
+						"date": "2025-01-10",
+						"eatenAt": "2025-01-10T13:00:00Z",
+						"calories": 500
+					},
+					{
+						"date": "2025-01-11",
+						"eatenAt": "2025-01-11T17:00:00Z",
+						"calories": 900
+					},
+					{
+						"date": "2025-01-11",
+						"eatenAt": "2025-01-11T20:30:00Z",
+						"calories": 700
+					},
+					{
+						"date": "2025-01-12",
+						"eatenAt": "2025-01-12T07:15:00Z",
+						"calories": 0
+					},
+					{
+						"date": "2025-01-13",
+						"eatenAt": null,
+						"calories": 800
+					}
+				],
+				"timeZone": "Europe/Zurich"
+			},
+			"expected": {
+				"avgMorningPct": 22.222222222222218,
+				"daysAbove50Pct": 1,
+				"totalDays": 3,
+				"confidence": "insufficient",
+				"sampleSize": 3
+			}
+		},
+		{
+			"fn": "computeCalorieFrontLoading",
+			"name": "new_york_cutoff12",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-02-01",
+						"eatenAt": "2025-02-01T15:30:00Z",
+						"calories": 550
+					},
+					{
+						"date": "2025-02-01",
+						"eatenAt": "2025-02-01T17:00:00Z",
+						"calories": 650
+					},
+					{
+						"date": "2025-02-02",
+						"eatenAt": "2025-02-02T13:45:00Z",
+						"calories": 300
+					},
+					{
+						"date": "2025-02-02",
+						"eatenAt": "2025-02-02T23:10:00Z",
+						"calories": 450
+					}
+				],
+				"timeZone": "America/New_York",
+				"cutoffHour": 12
+			},
+			"expected": {
+				"avgMorningPct": 42.916666666666664,
+				"daysAbove50Pct": 0,
+				"totalDays": 2,
+				"confidence": "insufficient",
+				"sampleSize": 2
+			}
+		},
+		{
+			"fn": "computeCaffeineSleepCutoff",
+			"name": "cutoff_detected",
+			"input": {
+				"caffeineEntries": [
+					{
+						"date": "2025-03-03",
+						"eatenAt": "2025-03-03T06:30:00Z",
+						"caffeine": 80
+					},
+					{
+						"date": "2025-03-03",
+						"eatenAt": "2025-03-03T09:15:00Z",
+						"caffeine": 95
+					},
+					{
+						"date": "2025-03-04",
+						"eatenAt": "2025-03-04T10:40:00Z",
+						"caffeine": 80
+					},
+					{
+						"date": "2025-03-05",
+						"eatenAt": "2025-03-05T11:20:00Z",
+						"caffeine": 120
+					},
+					{
+						"date": "2025-03-06",
+						"eatenAt": "2025-03-06T12:05:00Z",
+						"caffeine": 60
+					},
+					{
+						"date": "2025-03-07",
+						"eatenAt": "2025-03-07T15:30:00Z",
+						"caffeine": 90
+					},
+					{
+						"date": "2025-03-08",
+						"eatenAt": "2025-03-08T16:45:00Z",
+						"caffeine": 85
+					},
+					{
+						"date": "2025-03-09",
+						"eatenAt": "2025-03-09T17:10:00Z",
+						"caffeine": 100
+					},
+					{
+						"date": "2025-03-31",
+						"eatenAt": "2025-03-31T17:20:00Z",
+						"caffeine": 75
+					},
+					{
+						"date": "2025-03-10",
+						"eatenAt": "2025-03-10T08:00:00Z",
+						"caffeine": 0
+					},
+					{
+						"date": "2025-03-11",
+						"eatenAt": null,
+						"caffeine": 200
+					},
+					{
+						"date": "2025-03-12",
+						"eatenAt": "2025-03-12T07:00:00Z",
+						"caffeine": 90
+					}
+				],
+				"sleepData": [
+					{
+						"date": "2025-03-04",
+						"sleepQuality": 8.5,
+						"sleepDurationMinutes": 470
+					},
+					{
+						"date": "2025-03-05",
+						"sleepQuality": 8,
+						"sleepDurationMinutes": 455
+					},
+					{
+						"date": "2025-03-06",
+						"sleepQuality": 8.2,
+						"sleepDurationMinutes": 480
+					},
+					{
+						"date": "2025-03-07",
+						"sleepQuality": 7.9,
+						"sleepDurationMinutes": 445
+					},
+					{
+						"date": "2025-03-08",
+						"sleepQuality": 6.1,
+						"sleepDurationMinutes": 380
+					},
+					{
+						"date": "2025-03-09",
+						"sleepQuality": 5.8,
+						"sleepDurationMinutes": 365
+					},
+					{
+						"date": "2025-03-10",
+						"sleepQuality": 6.4,
+						"sleepDurationMinutes": 395
+					},
+					{
+						"date": "2025-04-01",
+						"sleepQuality": 5.5,
+						"sleepDurationMinutes": 350
+					},
+					{
+						"date": "2025-03-13",
+						"sleepQuality": null,
+						"sleepDurationMinutes": 400
+					}
+				],
+				"timeZone": "Europe/Zurich"
+			},
+			"expected": {
+				"estimatedCutoffHour": 14,
+				"hourlyImpact": [
+					{
+						"hour": 10,
+						"avgQuality": 8.5,
+						"avgDuration": 470,
+						"count": 1
+					},
+					{
+						"hour": 11,
+						"avgQuality": 8,
+						"avgDuration": 455,
+						"count": 1
+					},
+					{
+						"hour": 12,
+						"avgQuality": 8.2,
+						"avgDuration": 480,
+						"count": 1
+					},
+					{
+						"hour": 13,
+						"avgQuality": 7.9,
+						"avgDuration": 445,
+						"count": 1
+					},
+					{
+						"hour": 16,
+						"avgQuality": 6.1,
+						"avgDuration": 380,
+						"count": 1
+					},
+					{
+						"hour": 17,
+						"avgQuality": 5.8,
+						"avgDuration": 365,
+						"count": 1
+					},
+					{
+						"hour": 18,
+						"avgQuality": 6.4,
+						"avgDuration": 395,
+						"count": 1
+					},
+					{
+						"hour": 19,
+						"avgQuality": 5.5,
+						"avgDuration": 350,
+						"count": 1
+					}
+				],
+				"confidence": "low",
+				"sampleSize": 8
+			}
+		},
+		{
+			"fn": "computeCaffeineSleepCutoff",
+			"name": "insufficient_no_cutoff",
+			"input": {
+				"caffeineEntries": [
+					{
+						"date": "2025-05-01",
+						"eatenAt": "2025-05-01T07:00:00Z",
+						"caffeine": 90
+					}
+				],
+				"sleepData": [
+					{
+						"date": "2025-05-02",
+						"sleepQuality": 7,
+						"sleepDurationMinutes": 430
+					}
+				],
+				"timeZone": "Europe/Zurich"
+			},
+			"expected": {
+				"estimatedCutoffHour": null,
+				"hourlyImpact": [
+					{
+						"hour": 9,
+						"avgQuality": 7,
+						"avgDuration": 430,
+						"count": 1
+					}
+				],
+				"confidence": "insufficient",
+				"sampleSize": 1
+			}
+		},
+		{
+			"fn": "computeMealRegularity",
+			"name": "three_meal_spread",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-04-01",
+						"mealType": "Breakfast",
+						"eatenAt": "2025-04-01T05:30:00Z"
+					},
+					{
+						"date": "2025-04-02",
+						"mealType": "Breakfast",
+						"eatenAt": "2025-04-02T05:50:00Z"
+					},
+					{
+						"date": "2025-04-02",
+						"mealType": "Breakfast",
+						"eatenAt": "2025-04-02T06:40:00Z"
+					},
+					{
+						"date": "2025-04-03",
+						"mealType": "Breakfast",
+						"eatenAt": "2025-04-03T05:40:00Z"
+					},
+					{
+						"date": "2025-04-01",
+						"mealType": "Lunch",
+						"eatenAt": "2025-04-01T10:00:00Z"
+					},
+					{
+						"date": "2025-04-02",
+						"mealType": "Lunch",
+						"eatenAt": "2025-04-02T11:10:00Z"
+					},
+					{
+						"date": "2025-04-03",
+						"mealType": "Lunch",
+						"eatenAt": "2025-04-03T10:35:00Z"
+					},
+					{
+						"date": "2025-04-01",
+						"mealType": "Dinner",
+						"eatenAt": "2025-04-01T16:30:00Z"
+					},
+					{
+						"date": "2025-04-02",
+						"mealType": "Dinner",
+						"eatenAt": "2025-04-02T19:45:00Z"
+					},
+					{
+						"date": "2025-04-03",
+						"mealType": "Dinner",
+						"eatenAt": "2025-04-03T17:00:00Z"
+					},
+					{
+						"date": "2025-04-04",
+						"mealType": "Snacks",
+						"eatenAt": null
+					}
+				],
+				"timeZone": "Europe/Zurich"
+			},
+			"expected": {
+				"meals": [
+					{
+						"mealType": "Breakfast",
+						"avgMinute": 460,
+						"stddevMinutes": 8.16496580927726,
+						"regularity": "high"
+					},
+					{
+						"mealType": "Lunch",
+						"avgMinute": 755,
+						"stddevMinutes": 28.577380332470412,
+						"regularity": "high"
+					},
+					{
+						"mealType": "Dinner",
+						"avgMinute": 1185,
+						"stddevMinutes": 85.73214099741124,
+						"regularity": "low"
+					}
+				],
+				"overallScore": 65.97930912801141,
+				"confidence": "insufficient",
+				"sampleSize": 3
+			}
+		},
+		{
+			"fn": "computeMealRegularity",
+			"name": "empty",
+			"input": {
+				"entries": [],
+				"timeZone": "UTC"
+			},
+			"expected": {
+				"meals": [],
+				"overallScore": 0,
+				"confidence": "insufficient",
+				"sampleSize": 0
+			}
 		}
 	]
 }
