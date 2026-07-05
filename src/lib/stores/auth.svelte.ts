@@ -1,5 +1,5 @@
 import type { UserProfile } from '$lib/server/types';
-import { clearAllData } from '$lib/db';
+import { clearAllData, clearCacheStorage } from '$lib/db';
 
 interface AuthState {
 	user: UserProfile | null;
@@ -57,8 +57,9 @@ export function login(): void {
 export async function logout(): Promise<void> {
 	try {
 		await fetch('/api/auth/logout', { method: 'POST' });
-		// Clear all cached data from Dexie to prevent data leaking between users
+		// Clear all cached data from Dexie and Cache Storage to prevent data leaking between users
 		await clearAllData().catch(() => {});
+		await clearCacheStorage().catch(() => {});
 		state.user = null;
 		state.isAuthenticated = false;
 		window.location.href = '/login';

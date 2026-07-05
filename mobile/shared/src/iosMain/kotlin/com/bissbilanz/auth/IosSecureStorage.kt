@@ -21,6 +21,8 @@ import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
 import platform.Security.errSecSuccess
+import platform.Security.kSecAttrAccessible
+import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 import platform.Security.kSecAttrAccount
 import platform.Security.kSecAttrService
 import platform.Security.kSecClass
@@ -43,11 +45,12 @@ actual class SecureStorage {
         val retainedService = CFBridgingRetain(serviceName)
         val retainedKey = CFBridgingRetain(key)
         val retainedData = CFBridgingRetain(data)
-        val query = CFDictionaryCreateMutable(null, 4, null, null)
+        val query = CFDictionaryCreateMutable(null, 5, null, null)
         CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword)
         CFDictionaryAddValue(query, kSecAttrService, retainedService)
         CFDictionaryAddValue(query, kSecAttrAccount, retainedKey)
         CFDictionaryAddValue(query, kSecValueData, retainedData)
+        CFDictionaryAddValue(query, kSecAttrAccessible, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
         SecItemAdd(query as CFDictionaryRef?, null)
         CFBridgingRelease(query)
         CFBridgingRelease(retainedService)

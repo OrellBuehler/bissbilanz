@@ -95,18 +95,6 @@ export default defineConfig({
 						}
 					},
 					{
-						urlPattern: /^\/api\/auth\/me$/,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'auth-cache',
-							networkTimeoutSeconds: 5,
-							expiration: {
-								maxEntries: 1,
-								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-							}
-						}
-					},
-					{
 						urlPattern:
 							/\/api\/(foods|recipes|entries|goals|stats|supplements|meal-types|preferences|weight|favorites|openfoodfacts|sleep|analytics)/,
 						handler: 'NetworkFirst',
