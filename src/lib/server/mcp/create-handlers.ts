@@ -424,8 +424,9 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleDeleteEntry = async (userId: string, entryId: string, date?: string) => {
 		try {
-			await d.deleteEntry(userId, entryId);
-			const targetDate = date ?? (await d.todayForUser(userId));
+			const deleted = await d.deleteEntry(userId, entryId);
+			if (!deleted) return { error: 'Entry not found' };
+			const targetDate = date ?? deleted.date;
 			const dailyStatus = await getDailyStatusForDate(userId, targetDate);
 			return { success: true, dailyStatus };
 		} catch (e) {

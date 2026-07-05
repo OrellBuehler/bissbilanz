@@ -29,6 +29,7 @@ let mockFood: any = null;
 let mockRecipe: any = null;
 let mockFavFoods: any[] = [];
 let mockFavRecipes: any[] = [];
+let mockDeleteEntryResult: any = null;
 let mockCreateWeightResult: any = null;
 let mockUpdateWeightResult: any = null;
 let mockDeleteWeightResult: any = true;
@@ -127,7 +128,7 @@ const mockDeps = {
 		mockUpdateEntryResult
 			? { success: true, data: mockUpdateEntryResult }
 			: { success: false, error: new Error('Update failed') },
-	deleteEntry: async () => {},
+	deleteEntry: async () => mockDeleteEntryResult,
 	copyEntries: async () => mockCopyResult,
 	getGoals: async () => mockGoals,
 	upsertGoals: async () =>
@@ -313,6 +314,7 @@ describe('MCP handlers', () => {
 		mockRecipe = null;
 		mockFavFoods = [];
 		mockFavRecipes = [];
+		mockDeleteEntryResult = { id: TEST_ENTRY.id, date: TEST_ENTRY.date };
 		mockCreateWeightResult = null;
 		mockUpdateWeightResult = null;
 		mockDeleteWeightResult = true;
@@ -538,6 +540,13 @@ describe('MCP handlers', () => {
 			const result = await handleDeleteEntry(TEST_USER.id, TEST_ENTRY.id);
 			expect(result.success).toBe(true);
 			expect(result.dailyStatus).toBeDefined();
+		});
+
+		test('returns error when no entry matches', async () => {
+			mockDeleteEntryResult = null;
+			const result = await handleDeleteEntry(TEST_USER.id, TEST_ENTRY.id);
+			expect(result.error).toBe('Entry not found');
+			expect(result.success).toBeUndefined();
 		});
 	});
 
