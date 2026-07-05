@@ -13,10 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
@@ -62,6 +64,9 @@ fun RecipeEditSheet(
     var isSearching by remember { mutableStateOf(false) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
+    val loadFailedMessage = stringResource(R.string.recipe_edit_load_failed)
+    val saveFailedMessage = stringResource(R.string.recipe_edit_save_failed)
+
     LaunchedEffect(recipeId) {
         if (recipeId != null) {
             try {
@@ -82,7 +87,7 @@ fun RecipeEditSheet(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
                 errorReporter.captureException(e)
-                errorMessage = "Failed to load recipe"
+                errorMessage = loadFailedMessage
             }
             isLoading = false
         }
@@ -91,7 +96,7 @@ fun RecipeEditSheet(
     if (showFoodPicker) {
         AlertDialog(
             onDismissRequest = { showFoodPicker = false },
-            title = { Text("Add Ingredient") },
+            title = { Text(stringResource(R.string.recipe_edit_add_ingredient)) },
             text = {
                 Column {
                     OutlinedTextField(
@@ -116,8 +121,8 @@ fun RecipeEditSheet(
                                     }
                             }
                         },
-                        label = { Text("Search food") },
-                        leadingIcon = { Icon(Icons.Default.Search, "Search") },
+                        label = { Text(stringResource(R.string.recipe_edit_search_food)) },
+                        leadingIcon = { Icon(Icons.Default.Search, stringResource(R.string.food_search_icon_desc)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -153,7 +158,7 @@ fun RecipeEditSheet(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showFoodPicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showFoodPicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -180,7 +185,7 @@ fun RecipeEditSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    if (isEditing) "Edit Recipe" else "Create Recipe",
+                    if (isEditing) stringResource(R.string.recipe_edit_edit_title) else stringResource(R.string.recipe_edit_create_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -188,14 +193,14 @@ fun RecipeEditSheet(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Recipe name *") },
+                    label = { Text(stringResource(R.string.recipe_edit_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = totalServings,
                     onValueChange = { totalServings = it },
-                    label = { Text("Total servings") },
+                    label = { Text(stringResource(R.string.recipe_edit_total_servings)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -204,7 +209,7 @@ fun RecipeEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Favorite")
+                    Text(stringResource(R.string.action_favorite))
                     Switch(checked = isFavorite, onCheckedChange = { isFavorite = it })
                 }
 
@@ -217,14 +222,14 @@ fun RecipeEditSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Ingredients (${ingredients.size})",
+                        stringResource(R.string.recipe_edit_ingredients_count, ingredients.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     FilledTonalButton(onClick = { showFoodPicker = true }) {
-                        Icon(Icons.Default.Add, "Add", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add")
+                        Text(stringResource(R.string.action_add))
                     }
                 }
 
@@ -237,7 +242,7 @@ fun RecipeEditSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    ingredient.food?.name ?: "Food",
+                                    ingredient.food?.name ?: stringResource(R.string.food_detail_default_title),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f),
@@ -252,7 +257,7 @@ fun RecipeEditSheet(
                                 ) {
                                     Icon(
                                         Icons.Default.Close,
-                                        "Remove",
+                                        stringResource(R.string.recipe_edit_remove),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -266,7 +271,7 @@ fun RecipeEditSheet(
                                                 set(index, ingredient.copy(quantity = newQty))
                                             }
                                     },
-                                    label = { Text("Amount") },
+                                    label = { Text(stringResource(R.string.recipe_edit_amount)) },
                                     keyboardOptions =
                                         KeyboardOptions(
                                             keyboardType = KeyboardType.Decimal,
@@ -286,7 +291,7 @@ fun RecipeEditSheet(
 
                 if (ingredients.isEmpty()) {
                     Text(
-                        "No ingredients added yet.\nTap Add to search for foods.",
+                        stringResource(R.string.recipe_edit_no_ingredients),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -310,7 +315,7 @@ fun RecipeEditSheet(
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.dialog_cancel))
                     }
                     Button(
                         onClick = {
@@ -358,7 +363,7 @@ fun RecipeEditSheet(
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("RecipeEditSheet", "Failed to save recipe", e)
                                     errorReporter.captureException(e)
-                                    errorMessage = "Failed to save recipe"
+                                    errorMessage = saveFailedMessage
                                 }
                                 isSaving = false
                             }
@@ -366,7 +371,7 @@ fun RecipeEditSheet(
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving && name.isNotBlank() && ingredients.isNotEmpty(),
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.weight_save))
                     }
                 }
 

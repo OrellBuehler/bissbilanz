@@ -26,7 +26,7 @@ import kotlin.math.roundToInt
 @Composable
 fun FoodDiversityCard(result: FoodDiversityResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Food Diversity", sectionId = "food_diversity") {
+        CollapsibleCard(title = stringResource(R.string.insights_food_diversity_title), sectionId = "food_diversity") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -35,12 +35,19 @@ fun FoodDiversityCard(result: FoodDiversityResult) {
         }
         return
     }
-    CollapsibleCard(title = "Food Diversity", sectionId = "food_diversity") {
+    CollapsibleCard(title = stringResource(R.string.insights_food_diversity_title), sectionId = "food_diversity") {
         val trendColor =
             when (result.trend) {
                 "increasing" -> FiberGreen
                 "stable" -> CaloriesBlue
                 else -> CarbsOrange
+            }
+        val trendLabel =
+            when (result.trend) {
+                "increasing" -> stringResource(R.string.insights_diversity_increasing)
+                "stable" -> stringResource(R.string.insights_diversity_stable)
+                "decreasing" -> stringResource(R.string.insights_diversity_decreasing)
+                else -> result.trend.replaceFirstChar { it.uppercase() }
             }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -55,13 +62,13 @@ fun FoodDiversityCard(result: FoodDiversityResult) {
                     color = CaloriesBlue,
                 )
                 Text(
-                    "unique foods / week",
+                    stringResource(R.string.insights_unique_foods_per_week),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Text(
-                result.trend.replaceFirstChar { it.uppercase() },
+                trendLabel,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = trendColor,
@@ -69,7 +76,7 @@ fun FoodDiversityCard(result: FoodDiversityResult) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "Based on ${result.sampleSize} food entries",
+            stringResource(R.string.insights_diversity_based_on, result.sampleSize),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

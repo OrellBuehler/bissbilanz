@@ -79,6 +79,9 @@ android {
 
     lint {
         disable += "NullSafeMutableLiveData"
+        // HardcodedText is promoted to error in lint.xml (i18n sweep, issue #337) — keep
+        // failing the build on lint errors so it's actually enforced.
+        abortOnError = true
     }
 
     compileOptions {

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.DashboardSkeleton
@@ -37,6 +39,7 @@ import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.util.displayName
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
@@ -89,12 +92,10 @@ fun DashboardScreen(navController: NavController) {
 
     val dateLabel =
         when (selectedDate) {
-            today -> "Today"
-            today.minus(1, DateTimeUnit.DAY) -> "Yesterday"
-            today.plus(1, DateTimeUnit.DAY) -> "Tomorrow"
-            else -> "${selectedDate.dayOfMonth} ${selectedDate.month.name.lowercase().replaceFirstChar {
-                it.uppercase()
-            }} ${selectedDate.year}"
+            today -> stringResource(R.string.weight_widget_today)
+            today.minus(1, DateTimeUnit.DAY) -> stringResource(R.string.dashboard_yesterday)
+            today.plus(1, DateTimeUnit.DAY) -> stringResource(R.string.dashboard_tomorrow)
+            else -> "${selectedDate.dayOfMonth} ${selectedDate.month.displayName()} ${selectedDate.year}"
         }
 
     Scaffold(
@@ -107,7 +108,7 @@ fun DashboardScreen(navController: NavController) {
                     },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
-                    Icon(Icons.Default.QrCodeScanner, "Scan barcode")
+                    Icon(Icons.Default.QrCodeScanner, stringResource(R.string.scan_widget_content_desc))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 FloatingActionButton(
@@ -116,7 +117,7 @@ fun DashboardScreen(navController: NavController) {
                         showQuickAddSheet = true
                     },
                 ) {
-                    Icon(Icons.Default.Add, "Add entry")
+                    Icon(Icons.Default.Add, stringResource(R.string.dashboard_add_entry))
                 }
             }
         },
@@ -199,7 +200,7 @@ fun DashboardScreen(navController: NavController) {
                         haptic(HapticFeedbackType.LongPress)
                         viewModel.previousDay()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous day")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.dashboard_previous_day))
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(dateLabel, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -217,14 +218,14 @@ fun DashboardScreen(navController: NavController) {
                                         },
                                     ),
                         ) {
-                            Text("Go to today")
+                            Text(stringResource(R.string.dashboard_go_to_today))
                         }
                     }
                     IconButton(onClick = {
                         haptic(HapticFeedbackType.LongPress)
                         viewModel.nextDay()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next day")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.dashboard_next_day))
                     }
                 }
 
@@ -235,7 +236,7 @@ fun DashboardScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     MacroRing(
-                        "Calories",
+                        stringResource(R.string.macro_calories),
                         totalCalories,
                         goals?.calorieGoal ?: DefaultGoals.CALORIES,
                         CaloriesBlue,
@@ -252,7 +253,7 @@ fun DashboardScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
                     MacroRing(
-                        "Protein",
+                        stringResource(R.string.macro_protein),
                         totalProtein,
                         goals?.proteinGoal ?: DefaultGoals.PROTEIN,
                         ProteinRed,
@@ -261,7 +262,7 @@ fun DashboardScreen(navController: NavController) {
                         showGoal = true,
                     )
                     MacroRing(
-                        "Carbs",
+                        stringResource(R.string.macro_carbs),
                         totalCarbs,
                         goals?.carbGoal ?: DefaultGoals.CARBS,
                         CarbsOrange,
@@ -270,7 +271,7 @@ fun DashboardScreen(navController: NavController) {
                         showGoal = true,
                     )
                     MacroRing(
-                        "Fat",
+                        stringResource(R.string.macro_fat),
                         totalFat,
                         goals?.fatGoal ?: DefaultGoals.FAT,
                         FatYellow,
@@ -279,7 +280,7 @@ fun DashboardScreen(navController: NavController) {
                         showGoal = true,
                     )
                     MacroRing(
-                        "Fiber",
+                        stringResource(R.string.macro_fiber),
                         totalFiber,
                         goals?.fiberGoal ?: DefaultGoals.FIBER,
                         FiberGreen,
@@ -324,9 +325,13 @@ fun DashboardScreen(navController: NavController) {
                                     onClick = { viewModel.copyEntriesFromYesterday() },
                                     modifier = Modifier.align(Alignment.CenterHorizontally),
                                 ) {
-                                    Icon(Icons.Default.ContentCopy, "Copy", modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        stringResource(R.string.dashboard_copy),
+                                        modifier = Modifier.size(18.dp),
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Copy from yesterday")
+                                    Text(stringResource(R.string.dashboard_copy_from_yesterday))
                                 }
                             }
 

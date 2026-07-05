@@ -27,7 +27,7 @@ import kotlin.math.roundToInt
 @Composable
 fun NOVAScoreCard(result: NOVAResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "NOVA Score", sectionId = "nova_score") {
+        CollapsibleCard(title = stringResource(R.string.insights_nova_score_title), sectionId = "nova_score") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -36,7 +36,7 @@ fun NOVAScoreCard(result: NOVAResult) {
         }
         return
     }
-    CollapsibleCard(title = "NOVA Score", sectionId = "nova_score") {
+    CollapsibleCard(title = stringResource(R.string.insights_nova_score_title), sectionId = "nova_score") {
         val headlineColor =
             when {
                 result.ultraProcessedPct < 30 -> FiberGreen
@@ -56,30 +56,30 @@ fun NOVAScoreCard(result: NOVAResult) {
                     color = headlineColor,
                 )
                 Text(
-                    "ultra-processed",
+                    stringResource(R.string.insights_nova_ultra_processed_label),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Text(
-                "${result.coveragePct.roundToInt()}% tagged",
+                stringResource(R.string.insights_nova_tagged_pct, result.coveragePct.roundToInt()),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Based on ${result.sampleSize} food entries (${result.coveragePct.roundToInt()}% tagged)",
+            stringResource(R.string.insights_nova_based_on, result.sampleSize, result.coveragePct.roundToInt()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         val groupLabels =
             mapOf(
-                1 to Pair("Unprocessed / Minimally processed", FiberGreen),
-                2 to Pair("Processed culinary ingredients", CaloriesBlue),
-                3 to Pair("Processed foods", CarbsOrange),
-                4 to Pair("Ultra-processed foods", ProteinRed),
+                1 to Pair(stringResource(R.string.insights_nova_group_1), FiberGreen),
+                2 to Pair(stringResource(R.string.food_detail_nova_2), CaloriesBlue),
+                3 to Pair(stringResource(R.string.food_detail_nova_3), CarbsOrange),
+                4 to Pair(stringResource(R.string.insights_nova_group_4), ProteinRed),
             )
         val totalKcal = result.groupDistribution.values.sum()
         for (group in 1..4) {
@@ -91,7 +91,7 @@ fun NOVAScoreCard(result: NOVAResult) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "NOVA $group · $label",
+                    stringResource(R.string.insights_nova_row_format, group, label),
                     style = MaterialTheme.typography.bodySmall,
                     color = color,
                     modifier = Modifier.weight(1f),

@@ -5,9 +5,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.android.R
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 
@@ -16,7 +18,7 @@ import kotlinx.coroutines.launch
 fun MealPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (mealType: String, servings: Double) -> Unit,
-    title: String = "Log Food",
+    title: String = stringResource(R.string.meal_picker_log_food),
     showMealPicker: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
@@ -39,7 +41,7 @@ fun MealPickerSheet(
             )
 
             if (showMealPicker) {
-                Text("Meal", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.meal_picker_meal_label), style = MaterialTheme.typography.labelLarge)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     mealTypes.forEachIndexed { index, meal ->
                         SegmentedButton(
@@ -48,7 +50,7 @@ fun MealPickerSheet(
                             shape = SegmentedButtonDefaults.itemShape(index, mealTypes.size),
                         ) {
                             Text(
-                                meal.replaceFirstChar { it.uppercase() },
+                                mealTypeDisplayName(meal),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
@@ -59,7 +61,7 @@ fun MealPickerSheet(
             OutlinedTextField(
                 value = servingsText,
                 onValueChange = { servingsText = it },
-                label = { Text("Servings") },
+                label = { Text(stringResource(R.string.meal_picker_servings_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -75,7 +77,7 @@ fun MealPickerSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.dialog_cancel))
                 }
                 Button(
                     onClick = {
@@ -88,7 +90,7 @@ fun MealPickerSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (showMealPicker) "Log" else "Confirm")
+                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm))
                 }
             }
         }

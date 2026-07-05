@@ -57,6 +57,7 @@ import com.bissbilanz.android.ui.components.insights.SodiumWeightCard
 import com.bissbilanz.android.ui.components.insights.TEFCard
 import com.bissbilanz.android.ui.components.insights.WeekdayWeekendCard
 import com.bissbilanz.android.ui.components.insights.WeightForecastCard
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
@@ -104,12 +105,23 @@ fun InsightsScreen() {
 
     val isLocalMode = viewModel.isLocalMode
 
-    val ranges = listOf("7 Days", "30 Days", "90 Days")
+    val ranges =
+        listOf(
+            stringResource(R.string.insights_range_7_days),
+            stringResource(R.string.insights_range_30_days),
+            stringResource(R.string.insights_range_90_days),
+        )
 
     // Nutrition, Weight and Sleep analytics are now computed on-device from the
     // local DB (AnalyticsRepository -> LocalAnalytics), so every tab works in both
     // modes. Pairs of (ViewModel tab index, title).
-    val tabs = listOf(0 to "Overview", 1 to "Nutrition", 2 to "Weight", 3 to "Sleep")
+    val tabs =
+        listOf(
+            0 to stringResource(R.string.insights_tab_overview),
+            1 to stringResource(R.string.insights_tab_nutrition),
+            2 to stringResource(R.string.weight_widget_title),
+            3 to stringResource(R.string.sleep_section_title),
+        )
 
     PullToRefreshWrapper(
         onRefresh = {
@@ -127,7 +139,11 @@ fun InsightsScreen() {
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
         ) {
-            Text("Insights", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.settings_nav_insights),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(modifier = Modifier.height(12.dp))
 
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -165,7 +181,11 @@ fun InsightsScreen() {
                     streaks?.let { s ->
                         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(20.dp)) {
-                                Text("Streaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.insights_streaks),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -176,7 +196,7 @@ fun InsightsScreen() {
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Text(
-                                            "Current",
+                                            stringResource(R.string.insights_streaks_current),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -189,7 +209,7 @@ fun InsightsScreen() {
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Text(
-                                            "Longest",
+                                            stringResource(R.string.insights_streaks_longest),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -203,41 +223,50 @@ fun InsightsScreen() {
 
                     // 1. Trends
                     if (dailyStats.isNotEmpty()) {
-                        CollapsibleCard(title = "Trends", sectionId = "trends") {
-                            Text("Calorie Trend", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        CollapsibleCard(title = stringResource(R.string.insights_trends), sectionId = "trends") {
+                            Text(
+                                stringResource(R.string.insights_calorie_trend),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             SimpleLineChart(
                                 data = dailyStats.map { it.calories.toFloat() },
                                 color = CaloriesBlue,
                                 modifier = Modifier.fillMaxWidth().height(120.dp),
-                                unit = "cal",
+                                unit = stringResource(R.string.insights_cal_unit),
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 val avgCal = dailyStats.map { it.calories }.average()
+                                val calUnit = stringResource(R.string.insights_cal_unit)
                                 Text(
-                                    "Avg: ${avgCal.formatAsInt()} cal",
+                                    stringResource(R.string.insights_avg_value_unit, avgCal.formatAsInt(), calUnit),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    "${dailyStats.size} days",
+                                    stringResource(R.string.insights_days_count, dailyStats.size),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Macro Trends", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.insights_macro_trends),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            MacroTrendRow("Protein", dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
+                            MacroTrendRow(stringResource(R.string.macro_protein), dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
                             Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow("Carbs", dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
+                            MacroTrendRow(stringResource(R.string.macro_carbs), dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
                             Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow("Fat", dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
+                            MacroTrendRow(stringResource(R.string.macro_fat), dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
                             Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow("Fiber", dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
+                            MacroTrendRow(stringResource(R.string.macro_fiber), dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
                         }
                     }
 
@@ -251,7 +280,7 @@ fun InsightsScreen() {
 
                     // 3. Calendar Heatmap
                     if (goals != null) {
-                        CollapsibleCard(title = "Calendar Heatmap", sectionId = "calendar") {
+                        CollapsibleCard(title = stringResource(R.string.insights_calendar_heatmap), sectionId = "calendar") {
                             CalendarHeatmap(
                                 days = calendarDays,
                                 calorieGoal = goals!!.calorieGoal,
@@ -267,7 +296,7 @@ fun InsightsScreen() {
 
                     // 4. Macro Balance Radar
                     if (goals != null && dailyStats.isNotEmpty()) {
-                        CollapsibleCard(title = "Macro Balance", sectionId = "radar") {
+                        CollapsibleCard(title = stringResource(R.string.insights_macro_balance), sectionId = "radar") {
                             val g = goals!!
                             val avgCal = dailyStats.map { it.calories }.average()
                             val avgPro = dailyStats.map { it.protein }.average()
@@ -277,11 +306,31 @@ fun InsightsScreen() {
 
                             val radarAxes =
                                 listOf(
-                                    RadarAxis("Cal", (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(), CaloriesBlue),
-                                    RadarAxis("Protein", (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(), ProteinRed),
-                                    RadarAxis("Carbs", (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(), CarbsOrange),
-                                    RadarAxis("Fat", (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(), FatYellow),
-                                    RadarAxis("Fiber", (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(), FiberGreen),
+                                    RadarAxis(
+                                        stringResource(R.string.insights_radar_cal),
+                                        (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(),
+                                        CaloriesBlue,
+                                    ),
+                                    RadarAxis(
+                                        stringResource(R.string.macro_protein),
+                                        (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(),
+                                        ProteinRed,
+                                    ),
+                                    RadarAxis(
+                                        stringResource(R.string.macro_carbs),
+                                        (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(),
+                                        CarbsOrange,
+                                    ),
+                                    RadarAxis(
+                                        stringResource(R.string.macro_fat),
+                                        (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(),
+                                        FatYellow,
+                                    ),
+                                    RadarAxis(
+                                        stringResource(R.string.macro_fiber),
+                                        (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(),
+                                        FiberGreen,
+                                    ),
                                 )
                             MacroRadarChart(axes = radarAxes)
                         }
@@ -292,7 +341,7 @@ fun InsightsScreen() {
                     if (mealBreakdown.isNotEmpty()) {
                         val totalCalories = mealBreakdown.sumOf { it.calories }
                         if (totalCalories > 0) {
-                            CollapsibleCard(title = "Meal Distribution", sectionId = "meals") {
+                            CollapsibleCard(title = stringResource(R.string.insights_meal_distribution), sectionId = "meals") {
                                 SimplePieChart(
                                     entries = mealBreakdown,
                                     modifier = Modifier.fillMaxWidth().height(180.dp),
@@ -306,7 +355,7 @@ fun InsightsScreen() {
 
                     // 6. Top Foods
                     if (topFoods.isNotEmpty()) {
-                        CollapsibleCard(title = "Top Foods", sectionId = "topfoods") {
+                        CollapsibleCard(title = stringResource(R.string.insights_top_foods), sectionId = "topfoods") {
                             topFoods.forEachIndexed { i, f ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -324,9 +373,13 @@ fun InsightsScreen() {
                                         Text(f.foodName, modifier = Modifier.weight(1f))
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
-                                        Text("${f.count}x", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         Text(
-                                            "${f.calories.formatAsInt()} cal",
+                                            stringResource(R.string.insights_count_x, f.count),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            stringResource(R.string.format_kcal, f.calories.formatAsInt()),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -560,7 +613,11 @@ fun InsightsScreen() {
                                         Column {
                                             Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
                                             Text(
-                                                "${(entry.durationMinutes / 60.0).formatDecimal1()}h · Quality $qStr/10",
+                                                stringResource(
+                                                    R.string.insights_sleep_entry_summary,
+                                                    (entry.durationMinutes / 60.0).formatDecimal1(),
+                                                    qStr,
+                                                ),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
@@ -615,7 +672,7 @@ fun InsightsScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
-                                            "< ${avgCalories.formatAsInt()} cal",
+                                            stringResource(R.string.insights_below_avg_cal, avgCalories.formatAsInt()),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -633,7 +690,7 @@ fun InsightsScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
-                                            "> ${avgCalories.formatAsInt()} cal",
+                                            stringResource(R.string.insights_above_avg_cal, avgCalories.formatAsInt()),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -643,11 +700,13 @@ fun InsightsScreen() {
                                 val delta = lowCalAvgQuality - highCalAvgQuality
                                 if (kotlin.math.abs(delta) > 0.3) {
                                     Spacer(modifier = Modifier.height(8.dp))
+                                    val lighterTemplate = stringResource(R.string.insights_lighter_evening_correlation)
+                                    val heavierTemplate = stringResource(R.string.insights_heavier_evening_correlation)
                                     val message =
                                         if (delta > 0) {
-                                            "Lighter evening meals correlate with better sleep quality (+%.1f)".format(delta)
+                                            lighterTemplate.format(delta)
                                         } else {
-                                            "Heavier evening meals correlate with better sleep quality (+%.1f)".format(-delta)
+                                            heavierTemplate.format(-delta)
                                         }
                                     Text(
                                         message,
@@ -657,7 +716,7 @@ fun InsightsScreen() {
                                 }
                             } else {
                                 Text(
-                                    "Need more data with evening food entries to show correlations.",
+                                    stringResource(R.string.insights_need_more_evening_data),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -731,7 +790,7 @@ fun InsightsScreen() {
             if (isLocalMode) {
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    "More insights available with an account",
+                    stringResource(R.string.insights_more_with_account),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
@@ -839,7 +898,7 @@ private fun MacroTrendRow(
             Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
             val avg = if (data.isNotEmpty()) data.average() else 0.0
             Text(
-                "Avg: ${avg.formatAsInt()} $unit",
+                stringResource(R.string.insights_avg_value_unit, avg.formatAsInt(), unit),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -874,12 +933,12 @@ private fun MealBreakdownLegend(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                entry.mealType.replaceFirstChar { it.uppercase() },
+                mealTypeDisplayName(entry.mealType),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "${entry.calories.formatAsInt()} kcal ($pct%)",
+                stringResource(R.string.insights_meal_pct_format, entry.calories.formatAsInt(), pct),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -905,7 +964,7 @@ private fun GoalAdherenceCard(
     val stats =
         listOf(
             GoalStat(
-                "Calories",
+                stringResource(R.string.macro_calories),
                 strictDays = dailyStats.count { it.calories <= goals.calorieGoal },
                 tolerantDays =
                     dailyStats.count {
@@ -914,34 +973,34 @@ private fun GoalAdherenceCard(
                 CaloriesBlue,
             ),
             GoalStat(
-                "Protein",
+                stringResource(R.string.macro_protein),
                 strictDays = dailyStats.count { it.protein >= goals.proteinGoal },
                 tolerantDays = dailyStats.count { it.protein >= goals.proteinGoal * 0.9 },
                 ProteinRed,
             ),
             GoalStat(
-                "Carbs",
+                stringResource(R.string.macro_carbs),
                 strictDays = dailyStats.count { it.carbs <= goals.carbGoal },
                 tolerantDays = dailyStats.count { it.carbs <= goals.carbGoal * 1.1 },
                 CarbsOrange,
             ),
             GoalStat(
-                "Fat",
+                stringResource(R.string.macro_fat),
                 strictDays = dailyStats.count { it.fat <= goals.fatGoal },
                 tolerantDays = dailyStats.count { it.fat <= goals.fatGoal * 1.1 },
                 FatYellow,
             ),
             GoalStat(
-                "Fiber",
+                stringResource(R.string.macro_fiber),
                 strictDays = dailyStats.count { it.fiber >= goals.fiberGoal },
                 tolerantDays = dailyStats.count { it.fiber >= goals.fiberGoal * 0.9 },
                 FiberGreen,
             ),
         )
 
-    CollapsibleCard(title = "Goal Adherence", sectionId = "goals") {
+    CollapsibleCard(title = stringResource(R.string.insights_goal_adherence), sectionId = "goals") {
         Text(
-            "Days within goal range ($totalDays day period)",
+            stringResource(R.string.insights_days_within_goal_range, totalDays),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -986,14 +1045,14 @@ private fun GoalAdherenceCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "${(tolerantPct * 100).formatAsInt()}%",
+                        stringResource(R.string.insights_goal_pct, (tolerantPct * 100).formatAsInt()),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(36.dp),
                         textAlign = TextAlign.End,
                     )
                     Text(
-                        "${(strictPct * 100).formatAsInt()}% strict",
+                        stringResource(R.string.insights_goal_pct_strict, (strictPct * 100).formatAsInt()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(60.dp),
@@ -1060,24 +1119,24 @@ private fun SleepLogDialog(
                     value = date,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Date") },
+                    label = { Text(stringResource(R.string.insights_sleep_date_label)) },
                     trailingIcon = {
                         IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, contentDescription = "Pick date")
+                            Icon(Icons.Default.CalendarToday, contentDescription = stringResource(R.string.insights_sleep_pick_date))
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
-                Text("Duration", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.insights_sleep_duration_label), style = MaterialTheme.typography.labelMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = durationHours,
                         onValueChange = { durationHours = it.filter { c -> c.isDigit() } },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        suffix = { Text("h") },
+                        suffix = { Text(stringResource(R.string.insights_hours_unit)) },
                         isError = durationError,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
@@ -1086,20 +1145,23 @@ private fun SleepLogDialog(
                         onValueChange = { durationMinutes = it.filter { c -> c.isDigit() } },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        suffix = { Text("min") },
+                        suffix = { Text(stringResource(R.string.insights_minutes_unit)) },
                         isError = durationError,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                 }
                 if (durationError) {
                     Text(
-                        "Duration must be greater than 0",
+                        stringResource(R.string.insights_sleep_duration_error),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                Text("Quality: ${quality.formatAsInt()}/10", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    stringResource(R.string.insights_sleep_quality_label, quality.formatAsInt()),
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 Slider(
                     value = quality,
                     onValueChange = { quality = it },
@@ -1110,7 +1172,7 @@ private fun SleepLogDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
+                    label = { Text(stringResource(R.string.weight_notes_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
                 )

@@ -7,6 +7,7 @@
     <string name="weight_widget_title">Weight</string>
     <string name="weight_widget_today">Today</string>
     <string name="weight_widget_tap_to_log">Tap to log</string>
+    <string name="weight_widget_preview_value">82.3 kg</string>
     <string name="weight_log_title">Log Weight</string>
     <string name="weight_edit_title">Edit Weight</string>
     <string name="weight_input_label">Weight (kg)</string>
@@ -81,4 +82,645 @@
     <string name="scan_barcode_create_food">Create food</string>
     <string name="scan_barcode_permission_required">Camera permission required</string>
     <string name="scan_barcode_grant_permission">Grant permission</string>
+
+    <!-- Common actions -->
+    <string name="app_name">Bissbilanz</string>
+    <string name="action_back">Back</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_add">Add</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_favorite">Favorite</string>
+
+    <!-- Macros -->
+    <string name="macro_calories">Calories</string>
+    <string name="macro_protein">Protein</string>
+    <string name="macro_carbs">Carbs</string>
+    <string name="macro_fat">Fat</string>
+    <string name="macro_fiber">Fiber</string>
+
+    <!-- Login -->
+    <string name="login_tagline">Track your nutrition</string>
+    <string name="login_sign_in">Sign in</string>
+    <string name="login_continue_without_account">Continue without account</string>
+    <string name="login_local_mode_description">Your data stays on this device. Sign in later anytime to sync.</string>
+    <string name="session_expired_message">Session expired, please sign in again</string>
+
+    <!-- Maintenance calculator -->
+    <string name="maintenance_title">Maintenance Calculator</string>
+    <string name="maintenance_range_weeks">%1$d Weeks</string>
+    <string name="maintenance_analysis_period">Analysis Period</string>
+    <string name="maintenance_body_composition">Body Composition</string>
+    <string name="maintenance_muscle_fat_ratio">Muscle/Fat ratio: %1$d%% muscle / %2$d%% fat</string>
+    <string name="maintenance_ratio_hint">Adjusts how weight change is split between muscle and fat gain/loss</string>
+    <string name="maintenance_calculate">Calculate</string>
+    <string name="maintenance_error">Could not calculate. Ensure you have enough weight entries and food logs in the selected range.</string>
+    <string name="maintenance_results">Results</string>
+    <string name="maintenance_estimated_calories">Estimated maintenance calories</string>
+    <string name="maintenance_avg_daily_calories">Avg daily calories</string>
+    <string name="maintenance_daily_deficit_surplus">Daily deficit/surplus</string>
+    <string name="maintenance_weight_change">Weight change</string>
+    <string name="maintenance_fat_mass_change">Fat mass change</string>
+    <string name="maintenance_muscle_mass_change">Muscle mass change</string>
+    <string name="maintenance_data_coverage">Data Coverage</string>
+    <string name="maintenance_period">Period</string>
+    <string name="maintenance_period_range">%1$s to %2$s</string>
+    <string name="maintenance_total_days">Total days</string>
+    <string name="maintenance_weight_entries">Weight entries</string>
+    <string name="maintenance_food_entry_days">Food entry days</string>
+    <string name="maintenance_coverage">Coverage</string>
+    <string name="maintenance_start_weight">Start weight</string>
+    <string name="maintenance_end_weight">End weight</string>
+    <string name="maintenance_low_coverage_warning">Low data coverage (%1$d%%). Results may be less accurate. Aim for &gt;70%% coverage.</string>
+
+    <!-- Migration -->
+    <string name="migration_discard_title">Discard local data?</string>
+    <string name="migration_discard_text">All foods, recipes, log entries and other data stored on this device will be permanently deleted. The data in your account is kept.</string>
+    <string name="migration_account_has_data">Your account already has data</string>
+    <string name="migration_upload_or_discard">You can upload the data stored on this device to your account, or discard it and continue with your account data only.</string>
+    <string name="migration_upload_button">Upload local data (%1$d items)</string>
+    <string name="migration_start_fresh">Start fresh (discard local data)</string>
+    <string name="migration_uploading_title">Uploading your data</string>
+    <string name="migration_progress_label">%1$s (%2$d/%3$d)…</string>
+    <string name="migration_upload_failed_title">Upload failed</string>
+    <string name="migration_upload_failed_body">Your local data is safe — already uploaded items are not lost and the upload continues where it stopped.</string>
+    <string name="migration_step_preparing">Preparing</string>
+    <string name="migration_step_uploading_foods">Uploading foods</string>
+    <string name="migration_step_uploading_recipes">Uploading recipes</string>
+    <string name="migration_step_uploading_entries">Uploading entries</string>
+    <string name="migration_step_uploading_weights">Uploading weight entries</string>
+    <string name="migration_step_uploading_sleep">Uploading sleep entries</string>
+    <string name="migration_step_uploading_supplements">Uploading supplements</string>
+    <string name="migration_step_uploading_supplement_logs">Uploading supplement logs</string>
+    <string name="migration_step_uploading_goals">Uploading goals</string>
+    <string name="migration_step_uploading_preferences">Uploading preferences</string>
+    <string name="migration_step_uploading_day_properties">Uploading day properties</string>
+    <string name="migration_step_uploading">Uploading</string>
+
+    <!-- Calendar (history) -->
+    <string name="calendar_title">History</string>
+    <string name="calendar_previous_month">Previous month</string>
+    <string name="calendar_next_month">Next month</string>
+    <string name="calendar_legend">Legend</string>
+    <string name="calendar_goal_met">Goal met</string>
+    <string name="calendar_has_entries">Has entries</string>
+    <string name="calendar_days_logged">Days logged</string>
+    <string name="calendar_goals_met">Goals met</string>
+    <string name="calendar_avg_cal">Avg cal</string>
+    <string name="calendar_heatmap_on_target">On target</string>
+    <string name="calendar_heatmap_over">Over</string>
+    <string name="calendar_heatmap_under">Under</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_yesterday">Yesterday</string>
+    <string name="dashboard_tomorrow">Tomorrow</string>
+    <string name="dashboard_add_entry">Add entry</string>
+    <string name="dashboard_previous_day">Previous day</string>
+    <string name="dashboard_go_to_today">Go to today</string>
+    <string name="dashboard_next_day">Next day</string>
+    <string name="dashboard_copy">Copy</string>
+    <string name="dashboard_copy_from_yesterday">Copy from yesterday</string>
+
+    <!-- Shared formats -->
+    <string name="format_kcal">%1$s kcal</string>
+
+    <!-- Meal types -->
+    <string name="meal_type_breakfast">Breakfast</string>
+    <string name="meal_type_lunch">Lunch</string>
+    <string name="meal_type_dinner">Dinner</string>
+    <string name="meal_type_snack">Snack</string>
+
+    <!-- Meal card -->
+    <string name="meal_card_add_food">Add food</string>
+    <string name="meal_card_no_entries">No entries</string>
+
+    <!-- Macro chip abbreviations -->
+    <string name="macro_chip_protein">P</string>
+    <string name="macro_chip_carbs">C</string>
+    <string name="macro_chip_fat">F</string>
+    <string name="macro_chip_fiber">Fi</string>
+
+    <!-- Day log -->
+    <string name="daylog_copy_dialog_text">This will copy all entries from %1$s to %2$s. Existing entries will not be affected.</string>
+    <string name="daylog_copied_entries">Copied %1$d entries</string>
+    <string name="daylog_no_entries_to_copy">No entries to copy</string>
+    <string name="daylog_quick_add">Quick add</string>
+    <string name="daylog_no_entries_for_day">No entries for this day</string>
+    <string name="daylog_delete_entry">Delete entry</string>
+    <string name="daylog_entry_summary">%1$sx  ·  %2$s kcal  ·  P %3$sg</string>
+
+    <!-- Favorites -->
+    <string name="favorites_title">Favorites</string>
+    <string name="favorites_tab_foods">Foods (%1$d)</string>
+    <string name="favorites_tab_recipes">Recipes (%1$d)</string>
+    <string name="favorites_select_servings">Select Servings</string>
+    <string name="favorites_no_foods">No favorite foods yet.\nMark foods as favorite to see them here.</string>
+    <string name="favorites_no_recipes">No favorite recipes yet.\nMark recipes as favorite to see them here.</string>
+
+    <!-- Meal picker sheet -->
+    <string name="meal_picker_log_food">Log Food</string>
+    <string name="meal_picker_meal_label">Meal</string>
+    <string name="meal_picker_servings_label">Servings</string>
+    <string name="meal_picker_log">Log</string>
+    <string name="meal_picker_confirm">Confirm</string>
+
+    <!-- Extended nutrient names (bare, no unit — unit is supplied separately) -->
+    <string name="nutrient_saturated_fat">Saturated Fat</string>
+    <string name="nutrient_monounsaturated_fat">Monounsat. Fat</string>
+    <string name="nutrient_polyunsaturated_fat">Polyunsat. Fat</string>
+    <string name="nutrient_trans_fat">Trans Fat</string>
+    <string name="nutrient_cholesterol">Cholesterol</string>
+    <string name="nutrient_omega3">Omega-3</string>
+    <string name="nutrient_omega6">Omega-6</string>
+    <string name="nutrient_sugar">Sugar</string>
+    <string name="nutrient_added_sugars">Added Sugars</string>
+    <string name="nutrient_sugar_alcohols">Sugar Alcohols</string>
+    <string name="nutrient_starch">Starch</string>
+    <string name="nutrient_sodium">Sodium</string>
+    <string name="nutrient_potassium">Potassium</string>
+    <string name="nutrient_calcium">Calcium</string>
+    <string name="nutrient_iron">Iron</string>
+    <string name="nutrient_magnesium">Magnesium</string>
+    <string name="nutrient_phosphorus">Phosphorus</string>
+    <string name="nutrient_zinc">Zinc</string>
+    <string name="nutrient_copper">Copper</string>
+    <string name="nutrient_manganese">Manganese</string>
+    <string name="nutrient_selenium">Selenium</string>
+    <string name="nutrient_iodine">Iodine</string>
+    <string name="nutrient_fluoride">Fluoride</string>
+    <string name="nutrient_chromium">Chromium</string>
+    <string name="nutrient_molybdenum">Molybdenum</string>
+    <string name="nutrient_chloride">Chloride</string>
+    <string name="nutrient_vitamin_a">Vitamin A</string>
+    <string name="nutrient_vitamin_c">Vitamin C</string>
+    <string name="nutrient_vitamin_d">Vitamin D</string>
+    <string name="nutrient_vitamin_e">Vitamin E</string>
+    <string name="nutrient_vitamin_k">Vitamin K</string>
+    <string name="nutrient_vitamin_b1">Vitamin B1</string>
+    <string name="nutrient_vitamin_b2">Vitamin B2</string>
+    <string name="nutrient_vitamin_b3">Vitamin B3</string>
+    <string name="nutrient_vitamin_b5">Vitamin B5</string>
+    <string name="nutrient_vitamin_b6">Vitamin B6</string>
+    <string name="nutrient_vitamin_b7">Vitamin B7</string>
+    <string name="nutrient_vitamin_b9">Vitamin B9</string>
+    <string name="nutrient_vitamin_b12">Vitamin B12</string>
+    <string name="nutrient_caffeine">Caffeine</string>
+    <string name="nutrient_alcohol">Alcohol</string>
+    <string name="nutrient_water">Water</string>
+    <string name="nutrient_salt">Salt</string>
+
+    <!-- Nutrient category headers -->
+    <string name="nutrient_category_fat_breakdown">Fat Breakdown</string>
+    <string name="nutrient_category_sugar_carb">Sugar &amp; Carbs</string>
+    <string name="nutrient_category_mineral">Minerals</string>
+    <string name="nutrient_category_vitamin">Vitamins</string>
+    <string name="nutrient_category_other">Other</string>
+
+    <!-- Food edit sheet -->
+    <string name="food_edit_title">Edit Food</string>
+    <string name="food_create_title">Create Food</string>
+    <string name="food_form_name">Name *</string>
+    <string name="food_form_brand">Brand</string>
+    <string name="food_form_serving_size">Serving size</string>
+    <string name="food_form_unit">Unit</string>
+    <string name="food_form_barcode">Barcode</string>
+    <string name="food_form_macros">Macros</string>
+    <string name="food_form_calories_required">Calories (kcal) *</string>
+    <string name="food_form_protein_required">Protein (g) *</string>
+    <string name="food_form_carbs_required">Carbs (g) *</string>
+    <string name="food_form_fat_required">Fat (g) *</string>
+    <string name="food_form_fiber_optional">Fiber (g)</string>
+    <string name="food_form_show_advanced">Show advanced nutrients</string>
+    <string name="food_form_hide_advanced">Hide advanced nutrients</string>
+    <string name="food_form_load_failed">Failed to load food</string>
+    <string name="food_form_name_required_error">Name is required</string>
+    <string name="food_form_required_fields_error">Calories, protein, carbs, fat, and serving size are required</string>
+    <string name="food_form_save_failed">Failed to save food</string>
+    <string name="food_form_nutrient_saturated_fat">Saturated Fat (g)</string>
+    <string name="food_form_nutrient_sugar">Sugar (g)</string>
+    <string name="food_form_nutrient_sodium">Sodium (mg)</string>
+    <string name="food_form_nutrient_salt">Salt (g)</string>
+    <string name="food_form_nutrient_potassium">Potassium (mg)</string>
+    <string name="food_form_nutrient_calcium">Calcium (mg)</string>
+    <string name="food_form_nutrient_iron">Iron (mg)</string>
+    <string name="food_form_nutrient_vitamin_c">Vitamin C (mg)</string>
+    <string name="food_form_nutrient_vitamin_d">Vitamin D (mcg)</string>
+
+    <!-- Food detail screen -->
+    <string name="food_detail_load_failed">Failed to load food details</string>
+    <string name="food_detail_log_failed">Failed to log food</string>
+    <string name="food_detail_delete_failed">Failed to delete food</string>
+    <string name="food_detail_enrich_success">Food enriched with Open Food Facts data</string>
+    <string name="food_detail_enrich_failed">Failed to enrich food</string>
+    <string name="food_detail_refresh_failed">Failed to refresh food</string>
+    <string name="food_detail_logged">Logged %1$s</string>
+    <string name="food_detail_delete_title">Delete Food</string>
+    <string name="food_detail_delete_text">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
+    <string name="food_detail_default_title">Food</string>
+    <string name="food_detail_enrich">Enrich</string>
+    <string name="food_detail_log">Log</string>
+    <string name="food_detail_log_this_food">Log this food</string>
+    <string name="food_detail_serving_size">Per %1$s %2$s</string>
+    <string name="food_detail_quality">Food Quality</string>
+    <string name="food_detail_nutriscore">Nutri-Score</string>
+    <string name="food_detail_nova_group">NOVA Group</string>
+    <string name="food_detail_nova_1">Unprocessed or minimally processed</string>
+    <string name="food_detail_nova_2">Processed culinary ingredients</string>
+    <string name="food_detail_nova_3">Processed foods</string>
+    <string name="food_detail_nova_4">Ultra-processed</string>
+    <string name="food_detail_additives">Additives</string>
+    <string name="food_detail_ingredients">Ingredients</string>
+    <string name="food_detail_collapse">Collapse</string>
+    <string name="food_detail_expand">Expand</string>
+
+    <!-- Food search screen -->
+    <string name="food_search_create_food">Create food</string>
+    <string name="food_search_placeholder">Search foods…</string>
+    <string name="food_search_icon_desc">Search</string>
+    <string name="food_search_no_results">No foods found for \"%1$s\"</string>
+    <string name="food_search_tab_recent">Recent</string>
+    <string name="food_search_tab_all">All</string>
+    <string name="food_search_no_recent">No recent foods</string>
+    <string name="food_search_no_foods">No foods yet</string>
+    <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>
+    <string name="food_search_quick_log">Quick log</string>
+
+    <!-- Recipe list screen -->
+    <string name="recipe_list_title">Recipes</string>
+    <string name="recipe_list_create">Create recipe</string>
+    <string name="recipe_list_load_failed">Failed to load recipes</string>
+    <string name="recipe_list_log_failed">Failed to log recipe</string>
+    <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
+    <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
+    <string name="recipe_list_log_content_desc">Log recipe</string>
+
+    <!-- Recipe detail screen -->
+    <string name="recipe_detail_load_failed">Failed to load recipe</string>
+    <string name="recipe_detail_refresh_failed">Failed to refresh recipe</string>
+    <string name="recipe_detail_delete_failed">Failed to delete recipe</string>
+    <string name="recipe_detail_delete_title">Delete Recipe</string>
+    <string name="recipe_detail_delete_text">Are you sure you want to delete \"%1$s\"?</string>
+    <string name="recipe_detail_default_title">Recipe</string>
+    <string name="recipe_detail_log_recipe">Log recipe</string>
+    <string name="recipe_detail_servings">%1$d servings</string>
+
+    <!-- Recipe edit sheet -->
+    <string name="recipe_edit_load_failed">Failed to load recipe</string>
+    <string name="recipe_edit_save_failed">Failed to save recipe</string>
+    <string name="recipe_edit_add_ingredient">Add Ingredient</string>
+    <string name="recipe_edit_search_food">Search food</string>
+    <string name="recipe_edit_edit_title">Edit Recipe</string>
+    <string name="recipe_edit_create_title">Create Recipe</string>
+    <string name="recipe_edit_name">Recipe name *</string>
+    <string name="recipe_edit_total_servings">Total servings</string>
+    <string name="recipe_edit_ingredients_count">Ingredients (%1$d)</string>
+    <string name="recipe_edit_remove">Remove</string>
+    <string name="recipe_edit_amount">Amount</string>
+    <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
+
+    <!-- Supplements screen -->
+    <string name="supplements_add">Add supplement</string>
+    <string name="supplements_load_failed">Failed to load supplements</string>
+    <string name="supplements_update_failed">Failed to update supplement</string>
+    <string name="supplements_empty">No supplements yet.\nTap + to add a supplement.</string>
+    <string name="supplements_today_checklist">Today\'s Checklist</string>
+    <string name="supplements_taken_count">%1$d / %2$d taken</string>
+    <string name="supplements_inactive">Inactive</string>
+    <string name="supplements_edit">Edit supplement</string>
+    <string name="supplements_taken">Supplement taken</string>
+    <string name="supplements_ingredient_count">%1$d ingredients</string>
+
+    <!-- Supplement display helpers -->
+    <string name="supplement_time_morning">Morning</string>
+    <string name="supplement_time_noon">Noon</string>
+    <string name="supplement_time_evening">Evening</string>
+    <string name="supplement_time_anytime">Anytime</string>
+    <string name="supplement_unit_drops">drops</string>
+    <string name="supplement_unit_capsules">capsules</string>
+    <string name="supplement_unit_tablets">tablets</string>
+
+    <!-- Supplement edit sheet -->
+    <string name="supplement_edit_load_failed">Failed to load supplement</string>
+    <string name="supplement_edit_save_failed">Failed to save supplement</string>
+    <string name="supplement_edit_edit_title">Edit Supplement</string>
+    <string name="supplement_edit_add_title">Add Supplement</string>
+    <string name="supplement_edit_active">Active</string>
+    <string name="supplement_edit_schedule">Schedule</string>
+    <string name="supplement_edit_frequency">Frequency</string>
+    <string name="supplement_edit_daily">Daily</string>
+    <string name="supplement_edit_every_2_days">Every 2d</string>
+    <string name="supplement_edit_time_of_day">Time of day</string>
+    <string name="supplement_edit_ingredient_number">Ingredient %1$d</string>
+    <string name="supplement_edit_ingredient_name">Name</string>
+    <string name="supplement_edit_dosage">Dosage</string>
+
+    <!-- Supplement history screen -->
+    <string name="supplement_history_load_failed">Failed to load history</string>
+    <string name="supplement_history_title">Supplement History</string>
+    <string name="supplement_history_from">From</string>
+    <string name="supplement_history_to">To</string>
+    <string name="supplement_history_filter">Filter</string>
+    <string name="supplement_history_empty">No supplement data for this period.</string>
+    <string name="supplement_history_taken">Taken</string>
+    <string name="supplement_history_missed">Missed</string>
+    <string name="supplement_history_toggle_ingredients">Toggle ingredients</string>
+
+    <!-- Weight screen -->
+    <string name="weight_range_all">All</string>
+    <string name="weight_projection_off">Off</string>
+    <string name="weight_logged_success">Weight logged</string>
+    <string name="weight_log_failed">Failed to log weight</string>
+    <string name="weight_update_success">Weight updated</string>
+    <string name="weight_update_failed">Failed to update weight</string>
+    <string name="weight_screen_title">Weight Log</string>
+    <string name="weight_add_content_desc">Add weight</string>
+    <string name="weight_empty">No weight entries yet.\nTap + to log your weight.</string>
+    <string name="weight_delete_title">Delete Weight Entry</string>
+    <string name="weight_delete_text">Delete entry from %1$s?</string>
+    <string name="weight_kg_value">%1$s kg</string>
+    <string name="weight_kg_unit">kg</string>
+    <string name="weight_edit_content_desc">Edit weight entry</string>
+    <string name="weight_delete_content_desc">Delete weight entry</string>
+    <string name="weight_stats_trend">Trend %1$s kg</string>
+    <string name="weight_stats_delta">Δ %1$s kg</string>
+    <string name="weight_stats_projected">Projected %1$s kg</string>
+
+    <!-- Extra nutrient full names (settings nutrient toggle list) -->
+    <string name="nutrient_monounsaturated_fat_full">Monounsaturated Fat</string>
+    <string name="nutrient_polyunsaturated_fat_full">Polyunsaturated Fat</string>
+
+    <!-- Settings screen -->
+    <string name="settings_add_meal_type_title">Add Custom Meal Type</string>
+    <string name="settings_meal_type_name">Meal type name</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_nav_calendar">Calendar</string>
+    <string name="settings_nav_insights">Insights</string>
+    <string name="settings_nav_tabs">Navigation Tabs</string>
+    <string name="settings_nav_tabs_desc">Choose 3 tabs for the bottom navigation</string>
+    <string name="settings_tab_foods">Foods</string>
+    <string name="settings_select_exactly_3_tabs">Select exactly 3 tabs (%1$d/3)</string>
+    <string name="settings_daily_goals">Daily Goals</string>
+    <string name="settings_calories_kcal">Calories (kcal)</string>
+    <string name="settings_protein_pct_grams">Protein: %1$d%% - %2$dg</string>
+    <string name="settings_carbs_pct_grams">Carbs: %1$d%% - %2$dg</string>
+    <string name="settings_fat_auto">Fat (auto)</string>
+    <string name="settings_fat_unit_pct">g (%1$d%%)</string>
+    <string name="settings_fiber_grams">Fiber: %1$dg</string>
+    <string name="settings_total_pct">Total: %1$d%%</string>
+    <string name="settings_health_connect">Health Connect</string>
+    <string name="settings_health_connect_unavailable">Health Connect is not available on this device</string>
+    <string name="settings_sync_health_connect">Sync to Health Connect</string>
+    <string name="settings_permissions_granted">Permissions granted</string>
+    <string name="settings_permissions">Permissions</string>
+    <string name="settings_grant_permissions">Grant Permissions</string>
+    <string name="settings_custom_meal_types">Custom Meal Types</string>
+    <string name="settings_add_meal_type">Add meal type</string>
+    <string name="settings_default_meals_only">Default meals only (Breakfast, Lunch, Dinner, Snack)</string>
+    <string name="settings_dashboard_widgets">Dashboard Widgets</string>
+    <string name="settings_widget_chart">Chart</string>
+    <string name="settings_widget_meal_breakdown">Meal Breakdown</string>
+    <string name="settings_widget_top_foods">Top Foods</string>
+    <string name="settings_favorite_logging">Favorite Logging</string>
+    <string name="settings_auto_assign_by_time">Auto-assign by time</string>
+    <string name="settings_always_ask">Always ask</string>
+    <string name="settings_visible_nutrients">Visible Nutrients</string>
+    <string name="settings_visible_nutrients_desc">Choose which nutrients to display on food detail pages</string>
+    <string name="settings_select_all">Select All</string>
+    <string name="settings_deselect_all">Deselect All</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_local_mode_desc">Local mode — data only on this device</string>
+    <string name="settings_sign_in_to_sync">Sign in to sync</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_nav_go">Go</string>
+
+    <!-- Add food sheet -->
+    <string name="add_food_tab_search">Search</string>
+    <string name="add_food_tab_quick">Quick</string>
+    <string name="add_food_title">Add to %1$s</string>
+    <string name="add_food_no_favorites">No favorites yet</string>
+    <string name="add_food_no_recipes">No recipes yet</string>
+    <string name="add_food_quick_calories">Calories (kcal)</string>
+    <string name="add_food_quick_protein">Protein (g)</string>
+    <string name="add_food_quick_carbs">Carbs (g)</string>
+    <string name="add_food_quick_fat">Fat (g)</string>
+
+    <!-- Entry edit sheet -->
+    <string name="entry_edit_unknown">Unknown</string>
+    <string name="entry_edit_delete_failed">Failed to delete entry</string>
+    <string name="entry_edit_save_failed">Failed to save entry</string>
+    <string name="entry_edit_delete_title">Delete Entry</string>
+    <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
+    <string name="entry_edit_title">Edit Entry</string>
+    <string name="entry_edit_quick_add_title">Quick Add</string>
+    <string name="entry_edit_meal_type_label">Meal Type</string>
+
+    <!-- Supplements widget -->
+    <string name="supplements_widget_multi_ingredient">%1$s (%2$d ingredients)</string>
+
+    <!-- Shared loading/empty states -->
+    <string name="loading_message">Loading…</string>
+
+    <!-- Insights screen -->
+    <string name="insights_range_7_days">7 Days</string>
+    <string name="insights_range_30_days">30 Days</string>
+    <string name="insights_range_90_days">90 Days</string>
+    <string name="insights_tab_overview">Overview</string>
+    <string name="insights_tab_nutrition">Nutrition</string>
+    <string name="insights_streaks">Streaks</string>
+    <string name="insights_streaks_current">Current</string>
+    <string name="insights_streaks_longest">Longest</string>
+    <string name="insights_trends">Trends</string>
+    <string name="insights_calorie_trend">Calorie Trend</string>
+    <string name="insights_avg_value_unit">Avg: %1$s %2$s</string>
+    <string name="insights_days_count">%1$d days</string>
+    <string name="insights_kcal_unit">kcal</string>
+    <string name="insights_cal_unit">cal</string>
+    <string name="insights_hours_unit">h</string>
+    <string name="insights_minutes_unit">min</string>
+    <string name="insights_macro_trends">Macro Trends</string>
+    <string name="insights_calendar_heatmap">Calendar Heatmap</string>
+    <string name="insights_macro_balance">Macro Balance</string>
+    <string name="insights_radar_cal">Cal</string>
+    <string name="insights_meal_distribution">Meal Distribution</string>
+    <string name="insights_top_foods">Top Foods</string>
+    <string name="insights_count_x">%1$dx</string>
+    <string name="insights_more_with_account">More insights available with an account</string>
+    <string name="insights_below_avg_cal">&lt; %1$s kcal</string>
+    <string name="insights_above_avg_cal">&gt; %1$s kcal</string>
+    <string name="insights_lighter_evening_correlation">Lighter evening meals correlate with better sleep quality (+%.1f)</string>
+    <string name="insights_heavier_evening_correlation">Heavier evening meals correlate with better sleep quality (+%.1f)</string>
+    <string name="insights_need_more_evening_data">Need more data with evening food entries to show correlations.</string>
+    <string name="insights_meal_pct_format">%1$s kcal (%2$d%%)</string>
+    <string name="insights_goal_adherence">Goal Adherence</string>
+    <string name="insights_days_within_goal_range">Days within goal range (%1$d day period)</string>
+    <string name="insights_goal_pct">%1$s%%</string>
+    <string name="insights_goal_pct_strict">%1$s%% strict</string>
+    <string name="insights_sleep_date_label">Date</string>
+    <string name="insights_sleep_pick_date">Pick date</string>
+    <string name="insights_sleep_duration_label">Duration</string>
+    <string name="insights_sleep_duration_error">Duration must be greater than 0</string>
+    <string name="insights_sleep_quality_label">Quality: %1$s/10</string>
+    <string name="insights_sleep_entry_summary">%1$sh · Quality %2$s/10</string>
+
+    <!-- Insights: NOVA score card -->
+    <string name="insights_nova_score_title">NOVA Score</string>
+    <string name="insights_nova_ultra_processed_label">ultra-processed</string>
+    <string name="insights_nova_tagged_pct">%1$d%% tagged</string>
+    <string name="insights_nova_based_on">Based on %1$d food entries (%2$d%% tagged)</string>
+    <string name="insights_nova_group_1">Unprocessed / Minimally processed</string>
+    <string name="insights_nova_group_4">Ultra-processed foods</string>
+    <string name="insights_nova_row_format">NOVA %1$d · %2$s</string>
+
+    <!-- Insights: omega ratio card -->
+    <string name="insights_omega_ratio_title">Omega Ratio</string>
+    <string name="insights_omega_ratio_label">Omega-6 : Omega-3</string>
+    <string name="insights_omega_optimal">Optimal</string>
+    <string name="insights_omega_elevated">Elevated</string>
+    <string name="insights_omega_high">High</string>
+    <string name="insights_omega_critical">Critical</string>
+    <string name="insights_grams_per_day">%1$s g/day</string>
+    <string name="insights_omega_ideal_ratio">Ideal ratio is 4:1 or lower</string>
+
+    <!-- Insights: DII score card -->
+    <string name="insights_dii_title">Dietary Inflammatory Index</string>
+    <string name="insights_dii_anti_inflammatory">Anti-inflammatory</string>
+    <string name="insights_dii_mildly_pro_inflammatory">Mildly pro-inflammatory</string>
+    <string name="insights_dii_pro_inflammatory">Pro-inflammatory</string>
+    <string name="insights_dii_neutral">Neutral</string>
+    <string name="insights_dii_score_label">DII score</string>
+    <string name="insights_dii_top_contributors">Top contributors</string>
+
+    <!-- Insights: calorie cycling card -->
+    <string name="insights_calorie_cycling_title">Calorie Cycling</string>
+    <string name="insights_cycling_consistent">Consistent</string>
+    <string name="insights_cycling_moderate">Moderate cycling</string>
+    <string name="insights_cycling_high">High cycling</string>
+    <string name="insights_avg_daily">avg daily</string>
+    <string name="insights_std_deviation">std deviation</string>
+    <string name="insights_high_days">%1$d high days</string>
+    <string name="insights_low_days">%1$d low days</string>
+
+    <!-- Insights: weekday vs weekend card -->
+    <string name="insights_weekday_weekend_title">Weekday vs Weekend</string>
+    <string name="insights_weekday">Weekday</string>
+    <string name="insights_weekend">Weekend</string>
+    <string name="insights_weekend_delta">%1$s%2$s kcal on weekends (%3$s%4$s%%)</string>
+    <string name="insights_g_protein">g protein</string>
+    <string name="insights_g_carbs">g carbs</string>
+    <string name="insights_g_fat">g fat</string>
+
+    <!-- Insights: sodium & weight card -->
+    <string name="insights_sodium_weight_title">Sodium &amp; Weight</string>
+    <string name="insights_sodium_correlation_label">correlation (sodium vs weight)</string>
+    <string name="insights_sodium_avg">Avg sodium</string>
+    <string name="insights_mg_per_day">%1$d mg/day</string>
+    <string name="insights_sodium_high_days">High sodium days</string>
+    <string name="insights_sodium_weight_delta">%1$s%2$s kg avg next-day weight after high sodium</string>
+
+    <!-- Insights: adaptive TDEE card -->
+    <string name="insights_tdee_title">Adaptive TDEE</string>
+    <string name="insights_tdee_insufficient_weight_data">Insufficient weight data to estimate TDEE</string>
+    <string name="insights_trend_gain">Gain</string>
+    <string name="insights_trend_loss">Loss</string>
+    <string name="insights_trend_maintenance">Maintenance</string>
+    <string name="insights_avg_intake">Avg intake</string>
+    <string name="insights_kcal_per_day">%1$d kcal/day</string>
+    <string name="insights_weekly_rate">Weekly rate</string>
+    <string name="insights_kg_per_week">%1$s%2$s kg/week</string>
+
+    <!-- Insights: plateau detection card -->
+    <string name="insights_plateau_title">Plateau Detection</string>
+    <string name="insights_plateau_detected">Plateau detected</string>
+    <string name="insights_plateau_none">No plateau</string>
+    <string name="insights_plateau_cause_intake_variance">Intake variance</string>
+    <string name="insights_plateau_cause_water_retention">Water retention</string>
+    <string name="insights_plateau_cause_adaptive_metabolism">Adaptive metabolism</string>
+    <string name="insights_plateau_cause_none">None</string>
+    <string name="insights_plateau_days">Plateau days</string>
+    <string name="insights_plateau_est_deficit">Est. deficit</string>
+
+    <!-- Insights: weight forecast card -->
+    <string name="insights_weight_forecast_title">Weight Forecast</string>
+    <string name="insights_no_recent_weight_entries">No recent weight entries</string>
+    <string name="insights_forecast_30_days">30 days</string>
+    <string name="insights_forecast_60_days">60 days</string>
+    <string name="insights_forecast_90_days">90 days</string>
+
+    <!-- Insights: caloric lag card -->
+    <string name="insights_caloric_lag_title">Caloric Lag</string>
+    <string name="insights_caloric_lag_none">No significant lag pattern found</string>
+    <string name="insights_caloric_lag_days">%1$d day lag</string>
+    <string name="insights_caloric_lag_day">Day %1$d</string>
+
+    <!-- Insights: macro impact on weight card -->
+    <string name="insights_macro_impact_title">Macro Impact on Weight</string>
+    <string name="insights_impact_weight_suffix">weight</string>
+
+    <!-- Insights: meal timing card -->
+    <string name="insights_meal_timing_title">Meal Timing</string>
+    <string name="insights_hour_window">%1$dh window</string>
+    <string name="insights_avg_eating_window">avg eating window</string>
+    <string name="insights_first_meal">First meal</string>
+    <string name="insights_last_meal">Last meal</string>
+    <string name="insights_late_night_pct">%1$d%% of days with late-night meals</string>
+
+    <!-- Insights: nutrient adequacy card -->
+    <string name="insights_nutrient_adequacy_title">Nutrient Adequacy</string>
+
+    <!-- Insights: food & sleep card -->
+    <string name="insights_food_sleep_title">Food &amp; Sleep</string>
+    <string name="insights_overall_avg_quality">Overall avg quality</string>
+    <string name="insights_quality_out_of_10">%1$s/10</string>
+    <string name="insights_better_sleep">Better sleep</string>
+    <string name="insights_worse_sleep">Worse sleep</string>
+    <string name="insights_nights_count">%1$s · %2$d nights</string>
+
+    <!-- Insights: nutrients & sleep card -->
+    <string name="insights_nutrient_sleep_title">Nutrients &amp; Sleep</string>
+    <string name="insights_sleep_quality_suffix">sleep quality</string>
+
+    <!-- Insights: pre-sleep eating window card -->
+    <string name="insights_pre_sleep_window_title">Pre-Sleep Eating Window</string>
+    <string name="insights_last_meal_value">Last meal: %1$s</string>
+    <string name="insights_eating_window">Eating window</string>
+    <string name="insights_hour_window_decimal">%1$sh window</string>
+    <string name="insights_late_night_eating">Late-night eating</string>
+    <string name="insights_pct_of_days">%1$d%% of days</string>
+
+    <!-- Insights: caffeine & sleep card -->
+    <string name="insights_caffeine_sleep_title">Caffeine &amp; Sleep</string>
+    <string name="insights_caffeine_cutoff">Cut off at %1$d:00</string>
+    <string name="insights_caffeine_no_cutoff">No clear cutoff found</string>
+
+    <!-- Insights: TEF card -->
+    <string name="insights_tef_title">Thermic Effect of Food</string>
+    <string name="insights_tef_pct">%1$d%% of calories burned in digestion</string>
+    <string name="insights_tef_explanation">TEF is calories burned digesting food. High protein diets increase it.</string>
+
+    <!-- Insights: protein distribution card -->
+    <string name="insights_protein_distribution_title">Protein Distribution</string>
+    <string name="insights_distribution_score">distribution score</string>
+    <string name="insights_avg_per_meal">avg per meal</string>
+    <string name="insights_meals_below_threshold">meals below threshold</string>
+
+    <!-- Insights: calorie front-loading card -->
+    <string name="insights_front_loading_title">Calorie Front-Loading</string>
+    <string name="insights_front_loading_before_2pm">of calories before 2pm</string>
+    <string name="insights_front_loading_days">%1$d of %2$d days front-loaded</string>
+
+    <!-- Insights: food diversity card -->
+    <string name="insights_food_diversity_title">Food Diversity</string>
+    <string name="insights_unique_foods_per_week">unique foods / week</string>
+    <string name="insights_diversity_increasing">Increasing</string>
+    <string name="insights_diversity_stable">Stable</string>
+    <string name="insights_diversity_decreasing">Decreasing</string>
+    <string name="insights_diversity_based_on">Based on %1$d food entries</string>
+
+    <!-- Insights: meal regularity card -->
+    <string name="insights_meal_regularity_title">Meal Regularity</string>
+    <string name="insights_overall_regularity_score">overall regularity score</string>
+    <string name="insights_regularity_high">High</string>
+    <string name="insights_regularity_medium">Medium</string>
+    <string name="insights_regularity_low">Low</string>
 </resources>

@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -26,6 +27,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.BuildConfig
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -91,12 +93,12 @@ fun SettingsScreen(navController: NavController) {
         var newMealName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showMealTypeDialog = false },
-            title = { Text("Add Custom Meal Type") },
+            title = { Text(stringResource(R.string.settings_add_meal_type_title)) },
             text = {
                 OutlinedTextField(
                     value = newMealName,
                     onValueChange = { newMealName = it },
-                    label = { Text("Meal type name") },
+                    label = { Text(stringResource(R.string.settings_meal_type_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -107,10 +109,10 @@ fun SettingsScreen(navController: NavController) {
                         viewModel.addMealType(newMealName.trim())
                     }
                     showMealTypeDialog = false
-                }) { Text("Add") }
+                }) { Text(stringResource(R.string.action_add)) }
             },
             dismissButton = {
-                TextButton(onClick = { showMealTypeDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showMealTypeDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -129,13 +131,13 @@ fun SettingsScreen(navController: NavController) {
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
             ) {
-                Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Navigation items
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
-                        SettingsNavItem("Weight Log", Icons.Default.MonitorWeight) {
+                        SettingsNavItem(stringResource(R.string.weight_screen_title), Icons.Default.MonitorWeight) {
                             if ("weight" in selectedTabs) {
                                 navController.navigate("weight") {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -147,7 +149,7 @@ fun SettingsScreen(navController: NavController) {
                             }
                         }
                         HorizontalDivider()
-                        SettingsNavItem("Supplements", Icons.Default.Medication) {
+                        SettingsNavItem(stringResource(R.string.chart_supplements), Icons.Default.Medication) {
                             if ("supplements" in selectedTabs) {
                                 navController.navigate("supplements") {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -159,21 +161,21 @@ fun SettingsScreen(navController: NavController) {
                             }
                         }
                         HorizontalDivider()
-                        SettingsNavItem("Recipes", Icons.Default.MenuBook) {
+                        SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.Default.MenuBook) {
                             navController.navigate("recipes")
                         }
                         HorizontalDivider()
-                        SettingsNavItem("Calendar", Icons.Default.CalendarMonth) {
+                        SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) {
                             navController.navigate("calendar")
                         }
                         if (!isLocalMode) {
                             HorizontalDivider()
-                            SettingsNavItem("Maintenance Calculator", Icons.Default.Calculate) {
+                            SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
                                 navController.navigate("maintenance")
                             }
                         }
                         HorizontalDivider()
-                        SettingsNavItem("Insights", Icons.Default.BarChart) {
+                        SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) {
                             if ("insights" in selectedTabs) {
                                 navController.navigate("insights") {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -193,13 +195,13 @@ fun SettingsScreen(navController: NavController) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "Navigation Tabs",
+                            stringResource(R.string.settings_nav_tabs),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Choose 3 tabs for the bottom navigation",
+                            stringResource(R.string.settings_nav_tabs_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -207,11 +209,11 @@ fun SettingsScreen(navController: NavController) {
 
                         val tabOptions =
                             listOf(
-                                "foods" to "Foods",
-                                "favorites" to "Favorites",
-                                "insights" to "Insights",
-                                "weight" to "Weight",
-                                "supplements" to "Supplements",
+                                "foods" to stringResource(R.string.settings_tab_foods),
+                                "favorites" to stringResource(R.string.favorites_title),
+                                "insights" to stringResource(R.string.settings_nav_insights),
+                                "weight" to stringResource(R.string.weight_widget_title),
+                                "supplements" to stringResource(R.string.chart_supplements),
                             )
 
                         tabOptions.forEach { (route, label) ->
@@ -239,7 +241,7 @@ fun SettingsScreen(navController: NavController) {
                         }
                         if (selectedTabs.size != 3) {
                             Text(
-                                "Select exactly 3 tabs (${selectedTabs.size}/3)",
+                                stringResource(R.string.settings_select_exactly_3_tabs, selectedTabs.size),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 4.dp),
@@ -253,7 +255,11 @@ fun SettingsScreen(navController: NavController) {
                 // Goals section
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Daily Goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(R.string.settings_daily_goals),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
 
                         fun calcGrams(
@@ -298,7 +304,7 @@ fun SettingsScreen(navController: NavController) {
                         OutlinedTextField(
                             value = editCalories,
                             onValueChange = { editCalories = it },
-                            label = { Text("Calories (kcal)") },
+                            label = { Text(stringResource(R.string.settings_calories_kcal)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -306,7 +312,10 @@ fun SettingsScreen(navController: NavController) {
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("Protein: $editProteinPct% - ${proteinG}g", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.settings_protein_pct_grams, editProteinPct, proteinG),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Slider(
                             value = editProteinPct.toFloat(),
                             onValueChange = { editProteinPct = it.roundToInt() },
@@ -317,7 +326,10 @@ fun SettingsScreen(navController: NavController) {
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text("Carbs: $editCarbsPct% - ${carbsG}g", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.settings_carbs_pct_grams, editCarbsPct, carbsG),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Slider(
                             value = editCarbsPct.toFloat(),
                             onValueChange = { editCarbsPct = it.roundToInt() },
@@ -328,11 +340,15 @@ fun SettingsScreen(navController: NavController) {
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        GoalRow("Fat (auto)", fatG.toDouble(), "g ($fatPct%)")
+                        GoalRow(
+                            stringResource(R.string.settings_fat_auto),
+                            fatG.toDouble(),
+                            stringResource(R.string.settings_fat_unit_pct, fatPct),
+                        )
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text("Fiber: ${editFiberG}g", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.settings_fiber_grams, editFiberG), style = MaterialTheme.typography.bodyMedium)
                         Slider(
                             value = editFiberG.toFloat(),
                             onValueChange = { editFiberG = it.roundToInt() },
@@ -357,7 +373,7 @@ fun SettingsScreen(navController: NavController) {
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    "Total: $totalPct%",
+                                    stringResource(R.string.settings_total_pct, totalPct),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                 )
@@ -376,7 +392,7 @@ fun SettingsScreen(navController: NavController) {
                                 },
                                 enabled = isValid,
                             ) {
-                                Text("Save")
+                                Text(stringResource(R.string.weight_save))
                             }
                         }
                     }
@@ -388,14 +404,14 @@ fun SettingsScreen(navController: NavController) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "Health Connect",
+                            stringResource(R.string.settings_health_connect),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         if (!healthAvailable) {
                             Text(
-                                "Health Connect is not available on this device",
+                                stringResource(R.string.settings_health_connect_unavailable),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -405,7 +421,7 @@ fun SettingsScreen(navController: NavController) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("Sync to Health Connect")
+                                Text(stringResource(R.string.settings_sync_health_connect))
                                 Switch(
                                     checked = healthSyncEnabled,
                                     onCheckedChange = { enabled ->
@@ -418,7 +434,7 @@ fun SettingsScreen(navController: NavController) {
                             Spacer(modifier = Modifier.height(8.dp))
                             if (healthPermGranted) {
                                 Text(
-                                    "Permissions granted",
+                                    stringResource(R.string.settings_permissions_granted),
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
@@ -429,9 +445,13 @@ fun SettingsScreen(navController: NavController) {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Icon(Icons.Default.HealthAndSafety, "Permissions", modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        Icons.Default.HealthAndSafety,
+                                        stringResource(R.string.settings_permissions),
+                                        modifier = Modifier.size(18.dp),
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Grant Permissions")
+                                    Text(stringResource(R.string.settings_grant_permissions))
                                 }
                             }
                         }
@@ -449,17 +469,17 @@ fun SettingsScreen(navController: NavController) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    "Custom Meal Types",
+                                    stringResource(R.string.settings_custom_meal_types),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 IconButton(onClick = { showMealTypeDialog = true }) {
-                                    Icon(Icons.Default.Add, "Add meal type")
+                                    Icon(Icons.Default.Add, stringResource(R.string.settings_add_meal_type))
                                 }
                             }
                             if (customMealTypes.isEmpty()) {
                                 Text(
-                                    "Default meals only (Breakfast, Lunch, Dinner, Snack)",
+                                    stringResource(R.string.settings_default_meals_only),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
@@ -484,27 +504,27 @@ fun SettingsScreen(navController: NavController) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Dashboard Widgets",
+                                stringResource(R.string.settings_dashboard_widgets),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            WidgetToggle("Chart", p.showChartWidget) { value ->
+                            WidgetToggle(stringResource(R.string.settings_widget_chart), p.showChartWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showChartWidget = value))
                             }
-                            WidgetToggle("Favorites", p.showFavoritesWidget) { value ->
+                            WidgetToggle(stringResource(R.string.favorites_title), p.showFavoritesWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showFavoritesWidget = value))
                             }
-                            WidgetToggle("Supplements", p.showSupplementsWidget) { value ->
+                            WidgetToggle(stringResource(R.string.chart_supplements), p.showSupplementsWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showSupplementsWidget = value))
                             }
-                            WidgetToggle("Weight", p.showWeightWidget) { value ->
+                            WidgetToggle(stringResource(R.string.weight_widget_title), p.showWeightWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showWeightWidget = value))
                             }
-                            WidgetToggle("Meal Breakdown", p.showMealBreakdownWidget) { value ->
+                            WidgetToggle(stringResource(R.string.settings_widget_meal_breakdown), p.showMealBreakdownWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showMealBreakdownWidget = value))
                             }
-                            WidgetToggle("Top Foods", p.showTopFoodsWidget) { value ->
+                            WidgetToggle(stringResource(R.string.settings_widget_top_foods), p.showTopFoodsWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showTopFoodsWidget = value))
                             }
                         }
@@ -516,7 +536,7 @@ fun SettingsScreen(navController: NavController) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Favorite Logging",
+                                stringResource(R.string.settings_favorite_logging),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -534,7 +554,7 @@ fun SettingsScreen(navController: NavController) {
                                     },
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Auto-assign by time")
+                                Text(stringResource(R.string.settings_auto_assign_by_time))
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -549,7 +569,7 @@ fun SettingsScreen(navController: NavController) {
                                     },
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Always ask")
+                                Text(stringResource(R.string.settings_always_ask))
                             }
                         }
                     }
@@ -560,13 +580,13 @@ fun SettingsScreen(navController: NavController) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Visible Nutrients",
+                                stringResource(R.string.settings_visible_nutrients),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "Choose which nutrients to display on food detail pages",
+                                stringResource(R.string.settings_visible_nutrients_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -581,18 +601,18 @@ fun SettingsScreen(navController: NavController) {
                                         nutrientsDirty = true
                                     },
                                     modifier = Modifier.weight(1f),
-                                ) { Text("Select All") }
+                                ) { Text(stringResource(R.string.settings_select_all)) }
                                 OutlinedButton(
                                     onClick = {
                                         editedNutrients = emptySet()
                                         nutrientsDirty = true
                                     },
                                     modifier = Modifier.weight(1f),
-                                ) { Text("Deselect All") }
+                                ) { Text(stringResource(R.string.settings_deselect_all)) }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             editedNutrients?.let { selected ->
-                                NUTRIENT_CATEGORIES.forEach { (category, nutrients) ->
+                                nutrientCategories().forEach { (category, nutrients) ->
                                     Text(
                                         category,
                                         style = MaterialTheme.typography.labelLarge,
@@ -625,7 +645,7 @@ fun SettingsScreen(navController: NavController) {
                                         nutrientsDirty = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text("Save") }
+                                ) { Text(stringResource(R.string.weight_save)) }
                             }
                         }
                     }
@@ -636,11 +656,15 @@ fun SettingsScreen(navController: NavController) {
                 // Account
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(R.string.settings_account),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                         if (isLocalMode) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Local mode — data only on this device",
+                                stringResource(R.string.settings_local_mode_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -649,7 +673,7 @@ fun SettingsScreen(navController: NavController) {
                                 onClick = { launchLoginFlow(context, authManager) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text("Sign in to sync")
+                                Text(stringResource(R.string.settings_sign_in_to_sync))
                             }
                         } else {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -658,7 +682,7 @@ fun SettingsScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             ) {
-                                Text("Sign out")
+                                Text(stringResource(R.string.settings_sign_out))
                             }
                         }
                     }
@@ -666,7 +690,7 @@ fun SettingsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Version ${BuildConfig.VERSION_NAME}",
+                    stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
@@ -701,7 +725,13 @@ fun SettingsNavItem(
     ListItem(
         headlineContent = { Text(title) },
         leadingContent = { Icon(icon, title, tint = MaterialTheme.colorScheme.primary) },
-        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Go", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+        trailingContent = {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                stringResource(R.string.settings_nav_go),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
@@ -776,64 +806,65 @@ val ALL_NUTRIENT_KEYS =
         "salt",
     )
 
-val NUTRIENT_CATEGORIES =
+@Composable
+fun nutrientCategories() =
     listOf(
-        "Fat Breakdown" to
+        stringResource(R.string.nutrient_category_fat_breakdown) to
             listOf(
-                "saturatedFat" to "Saturated Fat",
-                "monounsaturatedFat" to "Monounsaturated Fat",
-                "polyunsaturatedFat" to "Polyunsaturated Fat",
-                "transFat" to "Trans Fat",
-                "cholesterol" to "Cholesterol",
-                "omega3" to "Omega-3",
-                "omega6" to "Omega-6",
+                "saturatedFat" to stringResource(R.string.nutrient_saturated_fat),
+                "monounsaturatedFat" to stringResource(R.string.nutrient_monounsaturated_fat_full),
+                "polyunsaturatedFat" to stringResource(R.string.nutrient_polyunsaturated_fat_full),
+                "transFat" to stringResource(R.string.nutrient_trans_fat),
+                "cholesterol" to stringResource(R.string.nutrient_cholesterol),
+                "omega3" to stringResource(R.string.nutrient_omega3),
+                "omega6" to stringResource(R.string.nutrient_omega6),
             ),
-        "Sugar & Carbs" to
+        stringResource(R.string.nutrient_category_sugar_carb) to
             listOf(
-                "sugar" to "Sugar",
-                "addedSugars" to "Added Sugars",
-                "sugarAlcohols" to "Sugar Alcohols",
-                "starch" to "Starch",
+                "sugar" to stringResource(R.string.nutrient_sugar),
+                "addedSugars" to stringResource(R.string.nutrient_added_sugars),
+                "sugarAlcohols" to stringResource(R.string.nutrient_sugar_alcohols),
+                "starch" to stringResource(R.string.nutrient_starch),
             ),
-        "Minerals" to
+        stringResource(R.string.nutrient_category_mineral) to
             listOf(
-                "sodium" to "Sodium",
-                "potassium" to "Potassium",
-                "calcium" to "Calcium",
-                "iron" to "Iron",
-                "magnesium" to "Magnesium",
-                "phosphorus" to "Phosphorus",
-                "zinc" to "Zinc",
-                "copper" to "Copper",
-                "manganese" to "Manganese",
-                "selenium" to "Selenium",
-                "iodine" to "Iodine",
-                "fluoride" to "Fluoride",
-                "chromium" to "Chromium",
-                "molybdenum" to "Molybdenum",
-                "chloride" to "Chloride",
+                "sodium" to stringResource(R.string.nutrient_sodium),
+                "potassium" to stringResource(R.string.nutrient_potassium),
+                "calcium" to stringResource(R.string.nutrient_calcium),
+                "iron" to stringResource(R.string.nutrient_iron),
+                "magnesium" to stringResource(R.string.nutrient_magnesium),
+                "phosphorus" to stringResource(R.string.nutrient_phosphorus),
+                "zinc" to stringResource(R.string.nutrient_zinc),
+                "copper" to stringResource(R.string.nutrient_copper),
+                "manganese" to stringResource(R.string.nutrient_manganese),
+                "selenium" to stringResource(R.string.nutrient_selenium),
+                "iodine" to stringResource(R.string.nutrient_iodine),
+                "fluoride" to stringResource(R.string.nutrient_fluoride),
+                "chromium" to stringResource(R.string.nutrient_chromium),
+                "molybdenum" to stringResource(R.string.nutrient_molybdenum),
+                "chloride" to stringResource(R.string.nutrient_chloride),
             ),
-        "Vitamins" to
+        stringResource(R.string.nutrient_category_vitamin) to
             listOf(
-                "vitaminA" to "Vitamin A",
-                "vitaminC" to "Vitamin C",
-                "vitaminD" to "Vitamin D",
-                "vitaminE" to "Vitamin E",
-                "vitaminK" to "Vitamin K",
-                "vitaminB1" to "Vitamin B1",
-                "vitaminB2" to "Vitamin B2",
-                "vitaminB3" to "Vitamin B3",
-                "vitaminB5" to "Vitamin B5",
-                "vitaminB6" to "Vitamin B6",
-                "vitaminB7" to "Vitamin B7",
-                "vitaminB9" to "Vitamin B9",
-                "vitaminB12" to "Vitamin B12",
+                "vitaminA" to stringResource(R.string.nutrient_vitamin_a),
+                "vitaminC" to stringResource(R.string.nutrient_vitamin_c),
+                "vitaminD" to stringResource(R.string.nutrient_vitamin_d),
+                "vitaminE" to stringResource(R.string.nutrient_vitamin_e),
+                "vitaminK" to stringResource(R.string.nutrient_vitamin_k),
+                "vitaminB1" to stringResource(R.string.nutrient_vitamin_b1),
+                "vitaminB2" to stringResource(R.string.nutrient_vitamin_b2),
+                "vitaminB3" to stringResource(R.string.nutrient_vitamin_b3),
+                "vitaminB5" to stringResource(R.string.nutrient_vitamin_b5),
+                "vitaminB6" to stringResource(R.string.nutrient_vitamin_b6),
+                "vitaminB7" to stringResource(R.string.nutrient_vitamin_b7),
+                "vitaminB9" to stringResource(R.string.nutrient_vitamin_b9),
+                "vitaminB12" to stringResource(R.string.nutrient_vitamin_b12),
             ),
-        "Other" to
+        stringResource(R.string.nutrient_category_other) to
             listOf(
-                "caffeine" to "Caffeine",
-                "alcohol" to "Alcohol",
-                "water" to "Water",
-                "salt" to "Salt",
+                "caffeine" to stringResource(R.string.nutrient_caffeine),
+                "alcohol" to stringResource(R.string.nutrient_alcohol),
+                "water" to stringResource(R.string.nutrient_water),
+                "salt" to stringResource(R.string.nutrient_salt),
             ),
     )

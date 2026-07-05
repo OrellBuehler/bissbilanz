@@ -25,7 +25,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 
 @Composable
 fun OmegaRatioCard(result: OmegaResult) {
-    CollapsibleCard(title = "Omega Ratio", sectionId = "omega_ratio") {
+    CollapsibleCard(title = stringResource(R.string.insights_omega_ratio_title), sectionId = "omega_ratio") {
         if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -41,6 +41,13 @@ fun OmegaRatioCard(result: OmegaResult) {
                 "high" -> CarbsOrange
                 else -> ProteinRed
             }
+        val statusLabel =
+            when (result.status) {
+                "optimal" -> stringResource(R.string.insights_omega_optimal)
+                "elevated" -> stringResource(R.string.insights_omega_elevated)
+                "high" -> stringResource(R.string.insights_omega_high)
+                else -> stringResource(R.string.insights_omega_critical)
+            }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -54,13 +61,13 @@ fun OmegaRatioCard(result: OmegaResult) {
                     color = statusColor,
                 )
                 Text(
-                    "Omega-6 : Omega-3",
+                    stringResource(R.string.insights_omega_ratio_label),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Text(
-                result.status.replaceFirstChar { it.uppercase() },
+                statusLabel,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = statusColor,
@@ -73,26 +80,26 @@ fun OmegaRatioCard(result: OmegaResult) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "${"%.1f".format(result.avgOmega3)} g/day",
+                    stringResource(R.string.insights_grams_per_day, "%.1f".format(result.avgOmega3)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = FiberGreen,
                 )
                 Text(
-                    "Omega-3",
+                    stringResource(R.string.nutrient_omega3),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "${"%.1f".format(result.avgOmega6)} g/day",
+                    stringResource(R.string.insights_grams_per_day, "%.1f".format(result.avgOmega6)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = CarbsOrange,
                 )
                 Text(
-                    "Omega-6",
+                    stringResource(R.string.nutrient_omega6),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -100,7 +107,7 @@ fun OmegaRatioCard(result: OmegaResult) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "Ideal ratio is 4:1 or lower",
+            stringResource(R.string.insights_omega_ideal_ratio),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

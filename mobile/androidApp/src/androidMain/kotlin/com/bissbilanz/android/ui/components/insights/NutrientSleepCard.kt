@@ -20,7 +20,7 @@ import kotlin.math.abs
 
 @Composable
 fun NutrientSleepCard(correlations: List<NutrientCorrelation>) {
-    CollapsibleCard(title = "Nutrients & Sleep", sectionId = "nutrient_sleep") {
+    CollapsibleCard(title = stringResource(R.string.insights_nutrient_sleep_title), sectionId = "nutrient_sleep") {
         val filtered =
             remember(correlations) {
                 correlations
@@ -38,15 +38,13 @@ fun NutrientSleepCard(correlations: List<NutrientCorrelation>) {
         filtered.forEach { nc ->
             val r = nc.correlation.r
             val rColor = if (r >= 0) FiberGreen else ProteinRed
-            val direction = if (r >= 0) "↑ sleep quality" else "↓ sleep quality"
-            val label =
-                when (nc.nutrientKey) {
-                    "protein" -> "Protein"
-                    "carbs" -> "Carbs"
-                    "fat" -> "Fat"
-                    "fiber" -> "Fiber"
-                    else -> nc.nutrientKey.replaceFirstChar { it.uppercase() }
+            val direction =
+                if (r >= 0) {
+                    "↑ ${stringResource(R.string.insights_sleep_quality_suffix)}"
+                } else {
+                    "↓ ${stringResource(R.string.insights_sleep_quality_suffix)}"
                 }
+            val label = nutrientDisplayName(nc.nutrientKey)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     label,

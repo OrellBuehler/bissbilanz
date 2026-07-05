@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 @Composable
 fun CalorieFrontLoadingCard(result: FrontLoadingResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Calorie Front-Loading", sectionId = "calorie_front") {
+        CollapsibleCard(title = stringResource(R.string.insights_front_loading_title), sectionId = "calorie_front") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -28,7 +28,7 @@ fun CalorieFrontLoadingCard(result: FrontLoadingResult) {
         }
         return
     }
-    CollapsibleCard(title = "Calorie Front-Loading", sectionId = "calorie_front") {
+    CollapsibleCard(title = stringResource(R.string.insights_front_loading_title), sectionId = "calorie_front") {
         Text(
             "${result.avgMorningPct.roundToInt()}%",
             style = MaterialTheme.typography.displaySmall,
@@ -36,13 +36,13 @@ fun CalorieFrontLoadingCard(result: FrontLoadingResult) {
             color = CaloriesBlue,
         )
         Text(
-            "of calories before 2pm",
+            stringResource(R.string.insights_front_loading_before_2pm),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "${result.daysAbove50Pct} of ${result.totalDays} days front-loaded",
+            stringResource(R.string.insights_front_loading_days, result.daysAbove50Pct, result.totalDays),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

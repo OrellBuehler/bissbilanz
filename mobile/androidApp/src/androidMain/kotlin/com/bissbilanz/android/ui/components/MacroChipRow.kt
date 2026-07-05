@@ -6,7 +6,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
@@ -29,11 +31,27 @@ fun MacroChipRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("P ${protein.formatAsInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-        Text("C ${carbs.formatAsInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-        Text("F ${fat.formatAsInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
+        Text(
+            "${stringResource(R.string.macro_chip_protein)} ${protein.formatAsInt()}g",
+            style = MaterialTheme.typography.labelSmall,
+            color = ProteinRed,
+        )
+        Text(
+            "${stringResource(R.string.macro_chip_carbs)} ${carbs.formatAsInt()}g",
+            style = MaterialTheme.typography.labelSmall,
+            color = CarbsOrange,
+        )
+        Text(
+            "${stringResource(R.string.macro_chip_fat)} ${fat.formatAsInt()}g",
+            style = MaterialTheme.typography.labelSmall,
+            color = FatYellow,
+        )
         if (fiber != null) {
-            Text("Fi ${fiber.formatAsInt()}g", style = MaterialTheme.typography.labelSmall, color = FiberGreen)
+            Text(
+                "${stringResource(R.string.macro_chip_fiber)} ${fiber.formatAsInt()}g",
+                style = MaterialTheme.typography.labelSmall,
+                color = FiberGreen,
+            )
         }
     }
 }

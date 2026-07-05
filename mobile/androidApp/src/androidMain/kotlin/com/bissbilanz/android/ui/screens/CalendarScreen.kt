@@ -15,16 +15,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.util.displayName
 import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.GoalsRepository
@@ -77,10 +80,10 @@ fun CalendarScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History") },
+                title = { Text(stringResource(R.string.calendar_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -114,10 +117,10 @@ fun CalendarScreen(navController: NavController) {
                             currentMonth = Month(currentMonth.value - 1)
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous month")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.calendar_previous_month))
                     }
                     Text(
-                        "${currentMonth.name.lowercase().replaceFirstChar { it.uppercase() }} $currentYear",
+                        "${currentMonth.displayName()} $currentYear",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
@@ -129,7 +132,7 @@ fun CalendarScreen(navController: NavController) {
                             currentMonth = Month(currentMonth.value + 1)
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next month")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.calendar_next_month))
                     }
                 }
 
@@ -140,7 +143,7 @@ fun CalendarScreen(navController: NavController) {
                 } else {
                     // Day of week headers
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
+                        DayOfWeek.entries.map { it.displayName() }.forEach { day ->
                             Text(
                                 day,
                                 modifier = Modifier.weight(1f),
@@ -276,7 +279,7 @@ fun CalendarScreen(navController: NavController) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Legend",
+                                stringResource(R.string.calendar_legend),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -292,7 +295,7 @@ fun CalendarScreen(navController: NavController) {
                                             .clip(CircleShape)
                                             .background(FiberGreen.copy(alpha = 0.3f)),
                                 )
-                                Text("Goal met")
+                                Text(stringResource(R.string.calendar_goal_met))
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(
@@ -306,7 +309,7 @@ fun CalendarScreen(navController: NavController) {
                                             .clip(CircleShape)
                                             .background(CaloriesBlue.copy(alpha = 0.2f)),
                                 )
-                                Text("Has entries")
+                                Text(stringResource(R.string.calendar_has_entries))
                             }
 
                             // Summary stats
@@ -335,7 +338,7 @@ fun CalendarScreen(navController: NavController) {
                                         fontWeight = FontWeight.Bold,
                                         color = CaloriesBlue,
                                     )
-                                    Text("Days logged", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.calendar_days_logged), style = MaterialTheme.typography.labelSmall)
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
@@ -344,7 +347,7 @@ fun CalendarScreen(navController: NavController) {
                                         fontWeight = FontWeight.Bold,
                                         color = FiberGreen,
                                     )
-                                    Text("Goals met", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.calendar_goals_met), style = MaterialTheme.typography.labelSmall)
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
@@ -352,7 +355,7 @@ fun CalendarScreen(navController: NavController) {
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
-                                    Text("Avg cal", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.calendar_avg_cal), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }

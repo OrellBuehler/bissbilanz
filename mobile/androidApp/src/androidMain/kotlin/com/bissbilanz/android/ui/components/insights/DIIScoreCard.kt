@@ -25,7 +25,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 @Composable
 fun DIIScoreCard(result: DIIResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Dietary Inflammatory Index", sectionId = "dii_score") {
+        CollapsibleCard(title = stringResource(R.string.insights_dii_title), sectionId = "dii_score") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -34,14 +34,14 @@ fun DIIScoreCard(result: DIIResult) {
         }
         return
     }
-    CollapsibleCard(title = "Dietary Inflammatory Index", sectionId = "dii_score") {
+    CollapsibleCard(title = stringResource(R.string.insights_dii_title), sectionId = "dii_score") {
         val scoreColor = if (result.score < 0) FiberGreen else ProteinRed
         val classificationLabel =
             when (result.classification) {
-                "anti-inflammatory", "anti_inflammatory" -> "Anti-inflammatory"
-                "mildly_pro_inflammatory" -> "Mildly pro-inflammatory"
-                "pro-inflammatory", "pro_inflammatory" -> "Pro-inflammatory"
-                else -> "Neutral"
+                "anti-inflammatory", "anti_inflammatory" -> stringResource(R.string.insights_dii_anti_inflammatory)
+                "mildly_pro_inflammatory" -> stringResource(R.string.insights_dii_mildly_pro_inflammatory)
+                "pro-inflammatory", "pro_inflammatory" -> stringResource(R.string.insights_dii_pro_inflammatory)
+                else -> stringResource(R.string.insights_dii_neutral)
             }
         val classificationColor =
             when (result.classification) {
@@ -63,7 +63,7 @@ fun DIIScoreCard(result: DIIResult) {
                     color = scoreColor,
                 )
                 Text(
-                    "DII score",
+                    stringResource(R.string.insights_dii_score_label),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -78,7 +78,7 @@ fun DIIScoreCard(result: DIIResult) {
         Spacer(modifier = Modifier.height(8.dp))
         if (result.contributors.isNotEmpty()) {
             Text(
-                "Top contributors",
+                stringResource(R.string.insights_dii_top_contributors),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -91,7 +91,7 @@ fun DIIScoreCard(result: DIIResult) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        contributor.nutrient.replaceFirstChar { it.uppercase() },
+                        nutrientDisplayName(contributor.nutrient),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -29,7 +29,7 @@ import com.bissbilanz.util.formatAsInt
 @Composable
 fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Weekday vs Weekend", sectionId = "weekday_weekend") {
+        CollapsibleCard(title = stringResource(R.string.insights_weekday_weekend_title), sectionId = "weekday_weekend") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -38,16 +38,22 @@ fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
         }
         return
     }
-    CollapsibleCard(title = "Weekday vs Weekend", sectionId = "weekday_weekend") {
+    CollapsibleCard(title = stringResource(R.string.insights_weekday_weekend_title), sectionId = "weekday_weekend") {
         Row(modifier = Modifier.fillMaxWidth()) {
-            DayStatsColumn(label = "Weekday", stats = result.weekday, modifier = Modifier.weight(1f))
+            DayStatsColumn(label = stringResource(R.string.insights_weekday), stats = result.weekday, modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.width(16.dp))
-            DayStatsColumn(label = "Weekend", stats = result.weekend, modifier = Modifier.weight(1f))
+            DayStatsColumn(label = stringResource(R.string.insights_weekend), stats = result.weekend, modifier = Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(8.dp))
         val deltaSign = if (result.calorieDelta > 0) "+" else ""
         Text(
-            "${deltaSign}${result.calorieDelta.formatAsInt()} kcal on weekends (${deltaSign}${result.calorieDeltaPct.formatAsInt()}%)",
+            stringResource(
+                R.string.insights_weekend_delta,
+                deltaSign,
+                result.calorieDelta.formatAsInt(),
+                deltaSign,
+                result.calorieDeltaPct.formatAsInt(),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -68,10 +74,10 @@ private fun DayStatsColumn(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(4.dp))
-        MacroStatRow(value = stats.avgCalories.formatAsInt(), unit = "kcal", color = CaloriesBlue)
-        MacroStatRow(value = stats.avgProtein.formatAsInt(), unit = "g protein", color = ProteinRed)
-        MacroStatRow(value = stats.avgCarbs.formatAsInt(), unit = "g carbs", color = CarbsOrange)
-        MacroStatRow(value = stats.avgFat.formatAsInt(), unit = "g fat", color = FatYellow)
+        MacroStatRow(value = stats.avgCalories.formatAsInt(), unit = stringResource(R.string.insights_kcal_unit), color = CaloriesBlue)
+        MacroStatRow(value = stats.avgProtein.formatAsInt(), unit = stringResource(R.string.insights_g_protein), color = ProteinRed)
+        MacroStatRow(value = stats.avgCarbs.formatAsInt(), unit = stringResource(R.string.insights_g_carbs), color = CarbsOrange)
+        MacroStatRow(value = stats.avgFat.formatAsInt(), unit = stringResource(R.string.insights_g_fat), color = FatYellow)
     }
 }
 

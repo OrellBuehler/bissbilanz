@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun NutrientAdequacyCard(adequacy: List<Pair<RdaEntry, Double>>) {
-    CollapsibleCard(title = "Nutrient Adequacy", sectionId = "nutrient_adequacy") {
+    CollapsibleCard(title = stringResource(R.string.insights_nutrient_adequacy_title), sectionId = "nutrient_adequacy") {
         if (adequacy.isEmpty()) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -45,7 +45,7 @@ fun NutrientAdequacyCard(adequacy: List<Pair<RdaEntry, Double>>) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    entry.label,
+                    nutrientDisplayName(entry.nutrientKey),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

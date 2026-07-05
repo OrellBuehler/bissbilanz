@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 @Composable
 fun TEFCard(result: TEFResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Thermic Effect of Food", sectionId = "tef") {
+        CollapsibleCard(title = stringResource(R.string.insights_tef_title), sectionId = "tef") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -28,21 +28,21 @@ fun TEFCard(result: TEFResult) {
         }
         return
     }
-    CollapsibleCard(title = "Thermic Effect of Food", sectionId = "tef") {
+    CollapsibleCard(title = stringResource(R.string.insights_tef_title), sectionId = "tef") {
         Text(
-            "${result.avgTEF.roundToInt()} kcal/day",
+            stringResource(R.string.insights_kcal_per_day, result.avgTEF.roundToInt()),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = CaloriesBlue,
         )
         Text(
-            "${result.avgTEFPct.roundToInt()}% of calories burned in digestion",
+            stringResource(R.string.insights_tef_pct, result.avgTEFPct.roundToInt()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "TEF is calories burned digesting food. High protein diets increase it.",
+            stringResource(R.string.insights_tef_explanation),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

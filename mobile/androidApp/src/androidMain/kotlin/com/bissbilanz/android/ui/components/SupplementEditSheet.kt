@@ -12,10 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
@@ -75,6 +77,9 @@ fun SupplementEditSheet(
         mutableStateOf(listOf(SupplementIngredientRow()))
     }
 
+    val loadFailedMessage = stringResource(R.string.supplement_edit_load_failed)
+    val saveFailedMessage = stringResource(R.string.supplement_edit_save_failed)
+
     LaunchedEffect(supplementId) {
         if (supplementId != null) {
             try {
@@ -101,7 +106,7 @@ fun SupplementEditSheet(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("SupplementEditSheet", "Failed to load supplement", e)
                 errorReporter.captureException(e)
-                errorMessage = "Failed to load supplement"
+                errorMessage = loadFailedMessage
             }
             isLoading = false
         }
@@ -139,7 +144,13 @@ fun SupplementEditSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    if (isEditing) "Edit Supplement" else "Add Supplement",
+                    if (isEditing) {
+                        stringResource(
+                            R.string.supplement_edit_edit_title,
+                        )
+                    } else {
+                        stringResource(R.string.supplement_edit_add_title)
+                    },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -147,7 +158,7 @@ fun SupplementEditSheet(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name *") },
+                    label = { Text(stringResource(R.string.food_form_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -155,7 +166,7 @@ fun SupplementEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Active")
+                    Text(stringResource(R.string.supplement_edit_active))
                     Switch(checked = isActive, onCheckedChange = { isActive = it })
                 }
 
@@ -163,16 +174,16 @@ fun SupplementEditSheet(
 
                 // Schedule
                 Text(
-                    "Schedule",
+                    stringResource(R.string.supplement_edit_schedule),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text("Frequency", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.supplement_edit_frequency), style = MaterialTheme.typography.labelLarge)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     val displayOptions =
                         listOf(
-                            "Daily" to ScheduleType.daily,
-                            "Every 2d" to ScheduleType.every_other_day,
+                            stringResource(R.string.supplement_edit_daily) to ScheduleType.daily,
+                            stringResource(R.string.supplement_edit_every_2_days) to ScheduleType.every_other_day,
                         )
                     displayOptions.forEachIndexed { index, (label, type) ->
                         SegmentedButton(
@@ -189,7 +200,7 @@ fun SupplementEditSheet(
                     }
                 }
 
-                Text("Time of day", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.supplement_edit_time_of_day), style = MaterialTheme.typography.labelLarge)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     timeOptions.forEachIndexed { index, option ->
                         SegmentedButton(
@@ -201,7 +212,7 @@ fun SupplementEditSheet(
                             onClick = { timeOfDay = option },
                             selected = timeOfDay == option,
                         ) {
-                            Text(option.replaceFirstChar { it.uppercase() })
+                            Text(timeOfDayDisplayName(option))
                         }
                     }
                 }
@@ -215,16 +226,16 @@ fun SupplementEditSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Ingredients (${ingredients.size})",
+                        stringResource(R.string.recipe_edit_ingredients_count, ingredients.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     FilledTonalButton(onClick = {
                         ingredients = ingredients + SupplementIngredientRow()
                     }) {
-                        Icon(Icons.Default.Add, "Add", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add")
+                        Text(stringResource(R.string.action_add))
                     }
                 }
 
@@ -243,7 +254,7 @@ fun SupplementEditSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    "Ingredient ${index + 1}",
+                                    stringResource(R.string.supplement_edit_ingredient_number, index + 1),
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                                 IconButton(
@@ -259,7 +270,7 @@ fun SupplementEditSheet(
                                 ) {
                                     Icon(
                                         Icons.Default.Close,
-                                        "Remove",
+                                        stringResource(R.string.recipe_edit_remove),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -272,7 +283,7 @@ fun SupplementEditSheet(
                                             set(index, ingredient.copy(name = newName))
                                         }
                                 },
-                                label = { Text("Name") },
+                                label = { Text(stringResource(R.string.supplement_edit_ingredient_name)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                             )
@@ -285,7 +296,7 @@ fun SupplementEditSheet(
                                                 set(index, ingredient.copy(dosage = newDosage))
                                             }
                                     },
-                                    label = { Text("Dosage") },
+                                    label = { Text(stringResource(R.string.supplement_edit_dosage)) },
                                     keyboardOptions =
                                         KeyboardOptions(
                                             keyboardType = KeyboardType.Decimal,
@@ -300,10 +311,10 @@ fun SupplementEditSheet(
                                     modifier = Modifier.weight(0.6f),
                                 ) {
                                     OutlinedTextField(
-                                        value = ingredient.dosageUnit,
+                                        value = dosageUnitDisplayName(ingredient.dosageUnit),
                                         onValueChange = {},
                                         readOnly = true,
-                                        label = { Text("Unit") },
+                                        label = { Text(stringResource(R.string.food_form_unit)) },
                                         trailingIcon = {
                                             ExposedDropdownMenuDefaults.TrailingIcon(
                                                 expanded = showUnitMenu,
@@ -318,7 +329,7 @@ fun SupplementEditSheet(
                                     ) {
                                         unitOptions.forEach { unit ->
                                             DropdownMenuItem(
-                                                text = { Text(unit) },
+                                                text = { Text(dosageUnitDisplayName(unit)) },
                                                 onClick = {
                                                     ingredients =
                                                         ingredients.toMutableList().apply {
@@ -353,7 +364,7 @@ fun SupplementEditSheet(
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.dialog_cancel))
                     }
                     Button(
                         onClick = {
@@ -415,7 +426,7 @@ fun SupplementEditSheet(
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     Log.e("SupplementEditSheet", "Failed to save supplement", e)
                                     errorReporter.captureException(e)
-                                    errorMessage = "Failed to save supplement"
+                                    errorMessage = saveFailedMessage
                                 }
                                 isSaving = false
                             }
@@ -423,7 +434,7 @@ fun SupplementEditSheet(
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving && isValid,
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.weight_save))
                     }
                 }
 

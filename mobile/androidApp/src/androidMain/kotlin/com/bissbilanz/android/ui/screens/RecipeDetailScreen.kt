@@ -11,10 +11,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -49,6 +51,12 @@ fun RecipeDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val loadFailedMessage = stringResource(R.string.recipe_detail_load_failed)
+    val refreshFailedMessage = stringResource(R.string.recipe_detail_refresh_failed)
+    val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
+    val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
+    val deleteFailedMessage = stringResource(R.string.recipe_detail_delete_failed)
+
     LaunchedEffect(recipeId) {
         isLoading = true
         try {
@@ -56,7 +64,7 @@ fun RecipeDetailScreen(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar("Failed to load recipe")
+            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
     }
@@ -73,7 +81,7 @@ fun RecipeDetailScreen(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to refresh recipe")
+                        snackbarHostState.showSnackbar(refreshFailedMessage)
                     }
                 }
             },
@@ -91,11 +99,11 @@ fun RecipeDetailScreen(
                             EntryCreate(recipeId = recipe!!.id, mealType = meal, servings = servings, date = today),
                             recipe = recipe,
                         )
-                        snackbarHostState.showSnackbar("Logged ${recipe!!.name}")
+                        snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipe!!.name))
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to log recipe")
+                        snackbarHostState.showSnackbar(logFailedMessage)
                     }
                 }
                 showLogDialog = false
@@ -106,8 +114,8 @@ fun RecipeDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Recipe") },
-            text = { Text("Are you sure you want to delete \"${recipe?.name}\"?") },
+            title = { Text(stringResource(R.string.recipe_detail_delete_title)) },
+            text = { Text(stringResource(R.string.recipe_detail_delete_text, recipe?.name ?: "")) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -118,16 +126,16 @@ fun RecipeDetailScreen(
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("Failed to delete recipe")
+                                snackbarHostState.showSnackbar(deleteFailedMessage)
                             }
                         }
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -135,19 +143,19 @@ fun RecipeDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(recipe?.name ?: "Recipe") },
+                title = { Text(recipe?.name ?: stringResource(R.string.recipe_detail_default_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     if (recipe != null) {
                         IconButton(onClick = { showEditSheet = true }) {
-                            Icon(Icons.Default.Edit, "Edit")
+                            Icon(Icons.Default.Edit, stringResource(R.string.action_edit))
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -157,8 +165,8 @@ fun RecipeDetailScreen(
             if (recipe != null) {
                 ExtendedFloatingActionButton(
                     onClick = { showLogDialog = true },
-                    icon = { Icon(Icons.Default.Add, "Log") },
-                    text = { Text("Log recipe") },
+                    icon = { Icon(Icons.Default.Add, stringResource(R.string.food_detail_log)) },
+                    text = { Text(stringResource(R.string.recipe_detail_log_recipe)) },
                 )
             }
         },
@@ -175,7 +183,7 @@ fun RecipeDetailScreen(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to refresh recipe")
+                        snackbarHostState.showSnackbar(refreshFailedMessage)
                     }
                 },
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -189,7 +197,7 @@ fun RecipeDetailScreen(
                                 .padding(16.dp),
                     ) {
                         Text(
-                            "${r.totalServings.toInt()} servings",
+                            stringResource(R.string.recipe_detail_servings, r.totalServings.toInt()),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -201,7 +209,11 @@ fun RecipeDetailScreen(
                             // Ingredients list
                             Card(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Ingredients", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        stringResource(R.string.food_detail_ingredients),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     ingredients.sortedBy { it.sortOrder }.forEach { ing ->
                                         val qty = ing.quantity.toDisplayString()

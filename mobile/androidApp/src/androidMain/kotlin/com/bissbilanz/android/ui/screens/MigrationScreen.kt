@@ -24,10 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.viewmodels.MigrationUiState
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.migration.LocalDataMigrator
@@ -47,21 +49,18 @@ fun MigrationScreen() {
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard local data?") },
+            title = { Text(stringResource(R.string.migration_discard_title)) },
             text = {
-                Text(
-                    "All foods, recipes, log entries and other data stored on this device " +
-                        "will be permanently deleted. The data in your account is kept.",
-                )
+                Text(stringResource(R.string.migration_discard_text))
             },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
                     viewModel.startFresh()
-                }) { Text("Discard") }
+                }) { Text(stringResource(R.string.action_discard)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -112,24 +111,23 @@ private fun ChoiceCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
-                "Your account already has data",
+                stringResource(R.string.migration_account_has_data),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "You can upload the data stored on this device to your account, " +
-                    "or discard it and continue with your account data only.",
+                stringResource(R.string.migration_upload_or_discard),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onUpload, modifier = Modifier.fillMaxWidth()) {
-                Text("Upload local data ($localItemCount items)")
+                Text(stringResource(R.string.migration_upload_button, localItemCount))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = onStartFresh, modifier = Modifier.fillMaxWidth()) {
-                Text("Start fresh (discard local data)")
+                Text(stringResource(R.string.migration_start_fresh))
             }
         }
     }
@@ -147,7 +145,7 @@ private fun ProgressCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "Uploading your data",
+                stringResource(R.string.migration_uploading_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -158,7 +156,7 @@ private fun ProgressCard(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "${stepLabel(step)} ($done/$total)…",
+                stringResource(R.string.migration_progress_label, stepLabel(step), done, total),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -176,14 +174,13 @@ private fun FailureCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
-                "Upload failed",
+                stringResource(R.string.migration_upload_failed_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Your local data is safe — already uploaded items are not lost and the " +
-                    "upload continues where it stopped.",
+                stringResource(R.string.migration_upload_failed_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -195,28 +192,29 @@ private fun FailureCard(
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-                Text("Retry")
+                Text(stringResource(R.string.action_retry))
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(onClick = onContinueWithoutAccount, modifier = Modifier.fillMaxWidth()) {
-                Text("Continue without account")
+                Text(stringResource(R.string.login_continue_without_account))
             }
         }
     }
 }
 
+@Composable
 private fun stepLabel(step: String): String =
     when (step) {
-        LocalDataMigrator.STEP_PREPARE -> "Preparing"
-        LocalDataMigrator.STEP_FOODS -> "Uploading foods"
-        LocalDataMigrator.STEP_RECIPES -> "Uploading recipes"
-        LocalDataMigrator.STEP_ENTRIES -> "Uploading entries"
-        LocalDataMigrator.STEP_WEIGHTS -> "Uploading weight entries"
-        LocalDataMigrator.STEP_SLEEP -> "Uploading sleep entries"
-        LocalDataMigrator.STEP_SUPPLEMENTS -> "Uploading supplements"
-        LocalDataMigrator.STEP_SUPPLEMENT_LOGS -> "Uploading supplement logs"
-        LocalDataMigrator.STEP_GOALS -> "Uploading goals"
-        LocalDataMigrator.STEP_PREFERENCES -> "Uploading preferences"
-        LocalDataMigrator.STEP_DAY_PROPERTIES -> "Uploading day properties"
-        else -> "Uploading"
+        LocalDataMigrator.STEP_PREPARE -> stringResource(R.string.migration_step_preparing)
+        LocalDataMigrator.STEP_FOODS -> stringResource(R.string.migration_step_uploading_foods)
+        LocalDataMigrator.STEP_RECIPES -> stringResource(R.string.migration_step_uploading_recipes)
+        LocalDataMigrator.STEP_ENTRIES -> stringResource(R.string.migration_step_uploading_entries)
+        LocalDataMigrator.STEP_WEIGHTS -> stringResource(R.string.migration_step_uploading_weights)
+        LocalDataMigrator.STEP_SLEEP -> stringResource(R.string.migration_step_uploading_sleep)
+        LocalDataMigrator.STEP_SUPPLEMENTS -> stringResource(R.string.migration_step_uploading_supplements)
+        LocalDataMigrator.STEP_SUPPLEMENT_LOGS -> stringResource(R.string.migration_step_uploading_supplement_logs)
+        LocalDataMigrator.STEP_GOALS -> stringResource(R.string.migration_step_uploading_goals)
+        LocalDataMigrator.STEP_PREFERENCES -> stringResource(R.string.migration_step_uploading_preferences)
+        LocalDataMigrator.STEP_DAY_PROPERTIES -> stringResource(R.string.migration_step_uploading_day_properties)
+        else -> stringResource(R.string.migration_step_uploading)
     }

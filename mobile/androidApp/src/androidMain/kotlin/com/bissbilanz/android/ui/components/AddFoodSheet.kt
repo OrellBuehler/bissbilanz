@@ -45,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.FoodListItem
 import com.bissbilanz.android.ui.screens.RecipeListItem
 import com.bissbilanz.android.ui.theme.CaloriesBlue
@@ -89,7 +91,14 @@ fun AddFoodSheet(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabLabels = listOf("Search", "Favorites", "Recent", "Recipes", "Quick")
+    val tabLabels =
+        listOf(
+            stringResource(R.string.add_food_tab_search),
+            stringResource(R.string.favorites_title),
+            stringResource(R.string.food_search_tab_recent),
+            stringResource(R.string.recipe_list_title),
+            stringResource(R.string.add_food_tab_quick),
+        )
 
     var selectedFood by remember { mutableStateOf<Food?>(null) }
     var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
@@ -137,7 +146,7 @@ fun AddFoodSheet(
                         selectedRecipe = null
                         servingsText = "1"
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                     Text(
                         name,
@@ -150,7 +159,7 @@ fun AddFoodSheet(
                 OutlinedTextField(
                     value = servingsText,
                     onValueChange = { servingsText = it },
-                    label = { Text("Servings") },
+                    label = { Text(stringResource(R.string.meal_picker_servings_label)) },
                     keyboardOptions =
                         KeyboardOptions(
                             keyboardType = KeyboardType.Decimal,
@@ -175,7 +184,7 @@ fun AddFoodSheet(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving,
-                    ) { Text("Cancel") }
+                    ) { Text(stringResource(R.string.dialog_cancel)) }
                     Button(
                         onClick = {
                             val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
@@ -187,12 +196,12 @@ fun AddFoodSheet(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving,
-                    ) { Text("Log") }
+                    ) { Text(stringResource(R.string.food_detail_log)) }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
                 Text(
-                    "Add to ${mealType.replaceFirstChar { it.uppercase() }}",
+                    stringResource(R.string.add_food_title, mealTypeDisplayName(mealType)),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 8.dp),
@@ -299,7 +308,7 @@ private fun SearchTab(
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.updateQuery(it) },
-            placeholder = { Text("Search foods...") },
+            placeholder = { Text(stringResource(R.string.food_search_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -310,7 +319,7 @@ private fun SearchTab(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             } else if (searchResults.isEmpty()) {
-                EmptyState("No foods found for \"$query\"")
+                EmptyState(stringResource(R.string.food_search_no_results, query))
             } else {
                 LazyColumn(modifier = Modifier.fillMaxHeight()) {
                     items(searchResults, key = { it.id }) { food ->
@@ -336,7 +345,7 @@ private fun FavoritesTab(
     onSelectRecipe: (Recipe) -> Unit,
 ) {
     if (favoriteFoods.isEmpty() && favoriteRecipes.isEmpty()) {
-        EmptyState("No favorites yet")
+        EmptyState(stringResource(R.string.add_food_no_favorites))
     } else {
         LazyColumn(modifier = Modifier.fillMaxHeight()) {
             items(favoriteFoods, key = { "food-${it.id}" }) { food ->
@@ -365,7 +374,7 @@ private fun RecentTab(
     onSelect: (Food) -> Unit,
 ) {
     if (recentFoods.isEmpty()) {
-        EmptyState("No recent foods")
+        EmptyState(stringResource(R.string.food_search_no_recent))
     } else {
         LazyColumn(modifier = Modifier.fillMaxHeight()) {
             items(recentFoods, key = { it.id }) { food ->
@@ -386,7 +395,7 @@ private fun RecipesTab(
     onSelect: (Recipe) -> Unit,
 ) {
     if (recipes.isEmpty()) {
-        EmptyState("No recipes yet")
+        EmptyState(stringResource(R.string.add_food_no_recipes))
     } else {
         LazyColumn(modifier = Modifier.fillMaxHeight()) {
             items(recipes, key = { it.id }) { recipe ->
@@ -426,19 +435,19 @@ private fun QuickTab(
         OutlinedTextField(
             value = name,
             onValueChange = onNameChange,
-            label = { Text("Name *") },
+            label = { Text(stringResource(R.string.food_form_name)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
-        NutrientTextField("Calories (kcal)", calories, CaloriesBlue, onCaloriesChange)
-        NutrientTextField("Protein (g)", protein, ProteinRed, onProteinChange)
-        NutrientTextField("Carbs (g)", carbs, CarbsOrange, onCarbsChange)
-        NutrientTextField("Fat (g)", fat, FatYellow, onFatChange)
-        NutrientTextField("Fiber (g)", fiber, FiberGreen, onFiberChange)
+        NutrientTextField(stringResource(R.string.add_food_quick_calories), calories, CaloriesBlue, onCaloriesChange)
+        NutrientTextField(stringResource(R.string.add_food_quick_protein), protein, ProteinRed, onProteinChange)
+        NutrientTextField(stringResource(R.string.add_food_quick_carbs), carbs, CarbsOrange, onCarbsChange)
+        NutrientTextField(stringResource(R.string.add_food_quick_fat), fat, FatYellow, onFatChange)
+        NutrientTextField(stringResource(R.string.food_form_fiber_optional), fiber, FiberGreen, onFiberChange)
         OutlinedTextField(
             value = notes,
             onValueChange = onNotesChange,
-            label = { Text("Notes (optional)") },
+            label = { Text(stringResource(R.string.weight_notes_label)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4,
@@ -450,7 +459,7 @@ private fun QuickTab(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
             enabled = name.isNotBlank() && !isSaving,
-        ) { Text("Save") }
+        ) { Text(stringResource(R.string.weight_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

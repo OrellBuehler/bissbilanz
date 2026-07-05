@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -85,6 +87,14 @@ fun FoodDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val loadFailedMessage = stringResource(R.string.food_detail_load_failed)
+    val logFailedMessage = stringResource(R.string.food_detail_log_failed)
+    val deleteFailedMessage = stringResource(R.string.food_detail_delete_failed)
+    val enrichSuccessMessage = stringResource(R.string.food_detail_enrich_success)
+    val enrichFailedMessage = stringResource(R.string.food_detail_enrich_failed)
+    val refreshFailedMessage = stringResource(R.string.food_detail_refresh_failed)
+    val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
+
     LaunchedEffect(foodId) {
         isLoading = true
         try {
@@ -93,7 +103,7 @@ fun FoodDetailScreen(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar("Failed to load food details")
+            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
     }
@@ -114,11 +124,11 @@ fun FoodDetailScreen(
                             ),
                             food = food,
                         )
-                        snackbarHostState.showSnackbar("Logged ${food!!.name}")
+                        snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, food!!.name))
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to log food")
+                        snackbarHostState.showSnackbar(logFailedMessage)
                     }
                 }
                 showLogDialog = false
@@ -140,8 +150,8 @@ fun FoodDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Food") },
-            text = { Text("Are you sure you want to delete \"${food?.name}\"? This cannot be undone.") },
+            title = { Text(stringResource(R.string.food_detail_delete_title)) },
+            text = { Text(stringResource(R.string.food_detail_delete_text, food?.name ?: "")) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -152,16 +162,16 @@ fun FoodDetailScreen(
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("Failed to delete food")
+                                snackbarHostState.showSnackbar(deleteFailedMessage)
                             }
                         }
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -177,13 +187,13 @@ fun FoodDetailScreen(
                         if (food?.isFavorite == true) {
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(R.string.action_favorite),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         Text(
-                            food?.name ?: "Food",
+                            food?.name ?: stringResource(R.string.food_detail_default_title),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -191,7 +201,7 @@ fun FoodDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -204,11 +214,11 @@ fun FoodDetailScreen(
                                         scope.launch {
                                             try {
                                                 food = foodRepo.enrichFood(foodId, food!!.barcode!!)
-                                                snackbarHostState.showSnackbar("Food enriched with Open Food Facts data")
+                                                snackbarHostState.showSnackbar(enrichSuccessMessage)
                                             } catch (e: Exception) {
                                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                                 errorReporter.captureException(e)
-                                                snackbarHostState.showSnackbar("Failed to enrich food")
+                                                snackbarHostState.showSnackbar(enrichFailedMessage)
                                             }
                                             isEnriching = false
                                         }
@@ -222,15 +232,15 @@ fun FoodDetailScreen(
                                         strokeWidth = 2.dp,
                                     )
                                 } else {
-                                    Icon(Icons.Default.AutoAwesome, "Enrich")
+                                    Icon(Icons.Default.AutoAwesome, stringResource(R.string.food_detail_enrich))
                                 }
                             }
                         }
                         IconButton(onClick = { showEditSheet = true }) {
-                            Icon(Icons.Default.Edit, "Edit")
+                            Icon(Icons.Default.Edit, stringResource(R.string.action_edit))
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -240,8 +250,8 @@ fun FoodDetailScreen(
             if (food != null) {
                 ExtendedFloatingActionButton(
                     onClick = { showLogDialog = true },
-                    icon = { Icon(Icons.Default.Add, "Log") },
-                    text = { Text("Log this food") },
+                    icon = { Icon(Icons.Default.Add, stringResource(R.string.food_detail_log)) },
+                    text = { Text(stringResource(R.string.food_detail_log_this_food)) },
                 )
             }
         },
@@ -258,7 +268,7 @@ fun FoodDetailScreen(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to refresh food")
+                        snackbarHostState.showSnackbar(refreshFailedMessage)
                     }
                 },
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -293,14 +303,18 @@ fun FoodDetailScreen(
                         }
 
                         Text(
-                            "Per ${f.servingSize.toDisplayString()} ${f.servingUnit.name.lowercase()}",
+                            stringResource(
+                                R.string.food_detail_serving_size,
+                                f.servingSize.toDisplayString(),
+                                f.servingUnit.name.lowercase(),
+                            ),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
                         f.barcode?.let {
                             Text(
-                                "Barcode: $it",
+                                stringResource(R.string.scan_barcode_value, it),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -311,61 +325,65 @@ fun FoodDetailScreen(
                         // Main macros card
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Macros", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.food_form_macros),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
-                                MacroRow("Calories", f.calories, "kcal", CaloriesBlue)
-                                MacroRow("Protein", f.protein, "g", ProteinRed)
-                                MacroRow("Carbs", f.carbs, "g", CarbsOrange)
-                                MacroRow("Fat", f.fat, "g", FatYellow)
-                                MacroRow("Fiber", f.fiber, "g", FiberGreen)
+                                MacroRow(stringResource(R.string.macro_calories), f.calories, "kcal", CaloriesBlue)
+                                MacroRow(stringResource(R.string.macro_protein), f.protein, "g", ProteinRed)
+                                MacroRow(stringResource(R.string.macro_carbs), f.carbs, "g", CarbsOrange)
+                                MacroRow(stringResource(R.string.macro_fat), f.fat, "g", FatYellow)
+                                MacroRow(stringResource(R.string.macro_fiber), f.fiber, "g", FiberGreen)
                             }
                         }
 
                         val nutrientKeyMap =
                             mapOf(
-                                "Saturated Fat" to "saturatedFat",
-                                "Monounsat. Fat" to "monounsaturatedFat",
-                                "Polyunsat. Fat" to "polyunsaturatedFat",
-                                "Trans Fat" to "transFat",
-                                "Cholesterol" to "cholesterol",
-                                "Omega-3" to "omega3",
-                                "Omega-6" to "omega6",
-                                "Sugar" to "sugar",
-                                "Added Sugars" to "addedSugars",
-                                "Sugar Alcohols" to "sugarAlcohols",
-                                "Starch" to "starch",
-                                "Sodium" to "sodium",
-                                "Potassium" to "potassium",
-                                "Calcium" to "calcium",
-                                "Iron" to "iron",
-                                "Magnesium" to "magnesium",
-                                "Phosphorus" to "phosphorus",
-                                "Zinc" to "zinc",
-                                "Copper" to "copper",
-                                "Manganese" to "manganese",
-                                "Selenium" to "selenium",
-                                "Iodine" to "iodine",
-                                "Fluoride" to "fluoride",
-                                "Chromium" to "chromium",
-                                "Molybdenum" to "molybdenum",
-                                "Chloride" to "chloride",
-                                "Vitamin A" to "vitaminA",
-                                "Vitamin C" to "vitaminC",
-                                "Vitamin D" to "vitaminD",
-                                "Vitamin E" to "vitaminE",
-                                "Vitamin K" to "vitaminK",
-                                "Vitamin B1" to "vitaminB1",
-                                "Vitamin B2" to "vitaminB2",
-                                "Vitamin B3" to "vitaminB3",
-                                "Vitamin B5" to "vitaminB5",
-                                "Vitamin B6" to "vitaminB6",
-                                "Vitamin B7" to "vitaminB7",
-                                "Vitamin B9" to "vitaminB9",
-                                "Vitamin B12" to "vitaminB12",
-                                "Caffeine" to "caffeine",
-                                "Alcohol" to "alcohol",
-                                "Water" to "water",
-                                "Salt" to "salt",
+                                stringResource(R.string.nutrient_saturated_fat) to "saturatedFat",
+                                stringResource(R.string.nutrient_monounsaturated_fat) to "monounsaturatedFat",
+                                stringResource(R.string.nutrient_polyunsaturated_fat) to "polyunsaturatedFat",
+                                stringResource(R.string.nutrient_trans_fat) to "transFat",
+                                stringResource(R.string.nutrient_cholesterol) to "cholesterol",
+                                stringResource(R.string.nutrient_omega3) to "omega3",
+                                stringResource(R.string.nutrient_omega6) to "omega6",
+                                stringResource(R.string.nutrient_sugar) to "sugar",
+                                stringResource(R.string.nutrient_added_sugars) to "addedSugars",
+                                stringResource(R.string.nutrient_sugar_alcohols) to "sugarAlcohols",
+                                stringResource(R.string.nutrient_starch) to "starch",
+                                stringResource(R.string.nutrient_sodium) to "sodium",
+                                stringResource(R.string.nutrient_potassium) to "potassium",
+                                stringResource(R.string.nutrient_calcium) to "calcium",
+                                stringResource(R.string.nutrient_iron) to "iron",
+                                stringResource(R.string.nutrient_magnesium) to "magnesium",
+                                stringResource(R.string.nutrient_phosphorus) to "phosphorus",
+                                stringResource(R.string.nutrient_zinc) to "zinc",
+                                stringResource(R.string.nutrient_copper) to "copper",
+                                stringResource(R.string.nutrient_manganese) to "manganese",
+                                stringResource(R.string.nutrient_selenium) to "selenium",
+                                stringResource(R.string.nutrient_iodine) to "iodine",
+                                stringResource(R.string.nutrient_fluoride) to "fluoride",
+                                stringResource(R.string.nutrient_chromium) to "chromium",
+                                stringResource(R.string.nutrient_molybdenum) to "molybdenum",
+                                stringResource(R.string.nutrient_chloride) to "chloride",
+                                stringResource(R.string.nutrient_vitamin_a) to "vitaminA",
+                                stringResource(R.string.nutrient_vitamin_c) to "vitaminC",
+                                stringResource(R.string.nutrient_vitamin_d) to "vitaminD",
+                                stringResource(R.string.nutrient_vitamin_e) to "vitaminE",
+                                stringResource(R.string.nutrient_vitamin_k) to "vitaminK",
+                                stringResource(R.string.nutrient_vitamin_b1) to "vitaminB1",
+                                stringResource(R.string.nutrient_vitamin_b2) to "vitaminB2",
+                                stringResource(R.string.nutrient_vitamin_b3) to "vitaminB3",
+                                stringResource(R.string.nutrient_vitamin_b5) to "vitaminB5",
+                                stringResource(R.string.nutrient_vitamin_b6) to "vitaminB6",
+                                stringResource(R.string.nutrient_vitamin_b7) to "vitaminB7",
+                                stringResource(R.string.nutrient_vitamin_b9) to "vitaminB9",
+                                stringResource(R.string.nutrient_vitamin_b12) to "vitaminB12",
+                                stringResource(R.string.nutrient_caffeine) to "caffeine",
+                                stringResource(R.string.nutrient_alcohol) to "alcohol",
+                                stringResource(R.string.nutrient_water) to "water",
+                                stringResource(R.string.nutrient_salt) to "salt",
                             )
 
                         fun List<Pair<String, Pair<Double, String>>>.filterVisible() =
@@ -378,94 +396,94 @@ fun FoodDetailScreen(
                         // Fat Breakdown
                         val fatNutrients =
                             listOfNotNull(
-                                f.saturatedFat?.let { "Saturated Fat" to Pair(it, "g") },
-                                f.monounsaturatedFat?.let { "Monounsat. Fat" to Pair(it, "g") },
-                                f.polyunsaturatedFat?.let { "Polyunsat. Fat" to Pair(it, "g") },
-                                f.transFat?.let { "Trans Fat" to Pair(it, "g") },
-                                f.cholesterol?.let { "Cholesterol" to Pair(it, "mg") },
-                                f.omega3?.let { "Omega-3" to Pair(it, "mg") },
-                                f.omega6?.let { "Omega-6" to Pair(it, "mg") },
+                                f.saturatedFat?.let { stringResource(R.string.nutrient_saturated_fat) to Pair(it, "g") },
+                                f.monounsaturatedFat?.let { stringResource(R.string.nutrient_monounsaturated_fat) to Pair(it, "g") },
+                                f.polyunsaturatedFat?.let { stringResource(R.string.nutrient_polyunsaturated_fat) to Pair(it, "g") },
+                                f.transFat?.let { stringResource(R.string.nutrient_trans_fat) to Pair(it, "g") },
+                                f.cholesterol?.let { stringResource(R.string.nutrient_cholesterol) to Pair(it, "mg") },
+                                f.omega3?.let { stringResource(R.string.nutrient_omega3) to Pair(it, "mg") },
+                                f.omega6?.let { stringResource(R.string.nutrient_omega6) to Pair(it, "mg") },
                             )
                         val filteredFatNutrients = fatNutrients.filterVisible()
                         if (filteredFatNutrients.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard("Fat Breakdown", filteredFatNutrients)
+                            NutrientCategoryCard(stringResource(R.string.nutrient_category_fat_breakdown), filteredFatNutrients)
                         }
 
                         // Sugar & Carbs
                         val sugarNutrients =
                             listOfNotNull(
-                                f.sugar?.let { "Sugar" to Pair(it, "g") },
-                                f.addedSugars?.let { "Added Sugars" to Pair(it, "g") },
-                                f.sugarAlcohols?.let { "Sugar Alcohols" to Pair(it, "g") },
-                                f.starch?.let { "Starch" to Pair(it, "g") },
+                                f.sugar?.let { stringResource(R.string.nutrient_sugar) to Pair(it, "g") },
+                                f.addedSugars?.let { stringResource(R.string.nutrient_added_sugars) to Pair(it, "g") },
+                                f.sugarAlcohols?.let { stringResource(R.string.nutrient_sugar_alcohols) to Pair(it, "g") },
+                                f.starch?.let { stringResource(R.string.nutrient_starch) to Pair(it, "g") },
                             )
                         val filteredSugarNutrients = sugarNutrients.filterVisible()
                         if (filteredSugarNutrients.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard("Sugar & Carbs", filteredSugarNutrients)
+                            NutrientCategoryCard(stringResource(R.string.nutrient_category_sugar_carb), filteredSugarNutrients)
                         }
 
                         // Minerals
                         val mineralNutrients =
                             listOfNotNull(
-                                f.sodium?.let { "Sodium" to Pair(it, "mg") },
-                                f.potassium?.let { "Potassium" to Pair(it, "mg") },
-                                f.calcium?.let { "Calcium" to Pair(it, "mg") },
-                                f.iron?.let { "Iron" to Pair(it, "mg") },
-                                f.magnesium?.let { "Magnesium" to Pair(it, "mg") },
-                                f.phosphorus?.let { "Phosphorus" to Pair(it, "mg") },
-                                f.zinc?.let { "Zinc" to Pair(it, "mg") },
-                                f.copper?.let { "Copper" to Pair(it, "mg") },
-                                f.manganese?.let { "Manganese" to Pair(it, "mg") },
-                                f.selenium?.let { "Selenium" to Pair(it, "mcg") },
-                                f.iodine?.let { "Iodine" to Pair(it, "mcg") },
-                                f.fluoride?.let { "Fluoride" to Pair(it, "mg") },
-                                f.chromium?.let { "Chromium" to Pair(it, "mcg") },
-                                f.molybdenum?.let { "Molybdenum" to Pair(it, "mcg") },
-                                f.chloride?.let { "Chloride" to Pair(it, "mg") },
+                                f.sodium?.let { stringResource(R.string.nutrient_sodium) to Pair(it, "mg") },
+                                f.potassium?.let { stringResource(R.string.nutrient_potassium) to Pair(it, "mg") },
+                                f.calcium?.let { stringResource(R.string.nutrient_calcium) to Pair(it, "mg") },
+                                f.iron?.let { stringResource(R.string.nutrient_iron) to Pair(it, "mg") },
+                                f.magnesium?.let { stringResource(R.string.nutrient_magnesium) to Pair(it, "mg") },
+                                f.phosphorus?.let { stringResource(R.string.nutrient_phosphorus) to Pair(it, "mg") },
+                                f.zinc?.let { stringResource(R.string.nutrient_zinc) to Pair(it, "mg") },
+                                f.copper?.let { stringResource(R.string.nutrient_copper) to Pair(it, "mg") },
+                                f.manganese?.let { stringResource(R.string.nutrient_manganese) to Pair(it, "mg") },
+                                f.selenium?.let { stringResource(R.string.nutrient_selenium) to Pair(it, "mcg") },
+                                f.iodine?.let { stringResource(R.string.nutrient_iodine) to Pair(it, "mcg") },
+                                f.fluoride?.let { stringResource(R.string.nutrient_fluoride) to Pair(it, "mg") },
+                                f.chromium?.let { stringResource(R.string.nutrient_chromium) to Pair(it, "mcg") },
+                                f.molybdenum?.let { stringResource(R.string.nutrient_molybdenum) to Pair(it, "mcg") },
+                                f.chloride?.let { stringResource(R.string.nutrient_chloride) to Pair(it, "mg") },
                             )
                         val filteredMineralNutrients = mineralNutrients.filterVisible()
                         if (filteredMineralNutrients.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard("Minerals", filteredMineralNutrients)
+                            NutrientCategoryCard(stringResource(R.string.nutrient_category_mineral), filteredMineralNutrients)
                         }
 
                         // Vitamins
                         val vitaminNutrients =
                             listOfNotNull(
-                                f.vitaminA?.let { "Vitamin A" to Pair(it, "mcg") },
-                                f.vitaminC?.let { "Vitamin C" to Pair(it, "mg") },
-                                f.vitaminD?.let { "Vitamin D" to Pair(it, "mcg") },
-                                f.vitaminE?.let { "Vitamin E" to Pair(it, "mg") },
-                                f.vitaminK?.let { "Vitamin K" to Pair(it, "mcg") },
-                                f.vitaminB1?.let { "Vitamin B1" to Pair(it, "mg") },
-                                f.vitaminB2?.let { "Vitamin B2" to Pair(it, "mg") },
-                                f.vitaminB3?.let { "Vitamin B3" to Pair(it, "mg") },
-                                f.vitaminB5?.let { "Vitamin B5" to Pair(it, "mg") },
-                                f.vitaminB6?.let { "Vitamin B6" to Pair(it, "mg") },
-                                f.vitaminB7?.let { "Vitamin B7" to Pair(it, "mcg") },
-                                f.vitaminB9?.let { "Vitamin B9" to Pair(it, "mcg") },
-                                f.vitaminB12?.let { "Vitamin B12" to Pair(it, "mcg") },
+                                f.vitaminA?.let { stringResource(R.string.nutrient_vitamin_a) to Pair(it, "mcg") },
+                                f.vitaminC?.let { stringResource(R.string.nutrient_vitamin_c) to Pair(it, "mg") },
+                                f.vitaminD?.let { stringResource(R.string.nutrient_vitamin_d) to Pair(it, "mcg") },
+                                f.vitaminE?.let { stringResource(R.string.nutrient_vitamin_e) to Pair(it, "mg") },
+                                f.vitaminK?.let { stringResource(R.string.nutrient_vitamin_k) to Pair(it, "mcg") },
+                                f.vitaminB1?.let { stringResource(R.string.nutrient_vitamin_b1) to Pair(it, "mg") },
+                                f.vitaminB2?.let { stringResource(R.string.nutrient_vitamin_b2) to Pair(it, "mg") },
+                                f.vitaminB3?.let { stringResource(R.string.nutrient_vitamin_b3) to Pair(it, "mg") },
+                                f.vitaminB5?.let { stringResource(R.string.nutrient_vitamin_b5) to Pair(it, "mg") },
+                                f.vitaminB6?.let { stringResource(R.string.nutrient_vitamin_b6) to Pair(it, "mg") },
+                                f.vitaminB7?.let { stringResource(R.string.nutrient_vitamin_b7) to Pair(it, "mcg") },
+                                f.vitaminB9?.let { stringResource(R.string.nutrient_vitamin_b9) to Pair(it, "mcg") },
+                                f.vitaminB12?.let { stringResource(R.string.nutrient_vitamin_b12) to Pair(it, "mcg") },
                             )
                         val filteredVitaminNutrients = vitaminNutrients.filterVisible()
                         if (filteredVitaminNutrients.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard("Vitamins", filteredVitaminNutrients)
+                            NutrientCategoryCard(stringResource(R.string.nutrient_category_vitamin), filteredVitaminNutrients)
                         }
 
                         // Other
                         val otherNutrients =
                             listOfNotNull(
-                                f.caffeine?.let { "Caffeine" to Pair(it, "mg") },
-                                f.alcohol?.let { "Alcohol" to Pair(it, "g") },
-                                f.water?.let { "Water" to Pair(it, "ml") },
-                                f.salt?.let { "Salt" to Pair(it, "g") },
+                                f.caffeine?.let { stringResource(R.string.nutrient_caffeine) to Pair(it, "mg") },
+                                f.alcohol?.let { stringResource(R.string.nutrient_alcohol) to Pair(it, "g") },
+                                f.water?.let { stringResource(R.string.nutrient_water) to Pair(it, "ml") },
+                                f.salt?.let { stringResource(R.string.nutrient_salt) to Pair(it, "g") },
                             )
                         val filteredOtherNutrients = otherNutrients.filterVisible()
                         if (filteredOtherNutrients.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard("Other", filteredOtherNutrients)
+                            NutrientCategoryCard(stringResource(R.string.nutrient_category_other), filteredOtherNutrients)
                         }
 
                         // Food Quality
@@ -527,7 +545,11 @@ fun FoodQualityCard(food: Food) {
     Spacer(modifier = Modifier.height(12.dp))
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Food Quality", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                stringResource(R.string.food_detail_quality),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
             Spacer(modifier = Modifier.height(12.dp))
 
             food.nutriScore?.let { score ->
@@ -564,7 +586,7 @@ private fun NutriScoreBadge(score: String) {
 
     Column {
         Text(
-            "Nutri-Score",
+            stringResource(R.string.food_detail_nutriscore),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -604,16 +626,16 @@ private fun NutriScoreBadge(score: String) {
 private fun NovaGroupBadge(group: Int) {
     val novaInfo =
         when (group) {
-            1 -> Pair("Unprocessed or minimally processed", NovaGreen)
-            2 -> Pair("Processed culinary ingredients", NovaYellow)
-            3 -> Pair("Processed foods", NovaOrange)
-            4 -> Pair("Ultra-processed", NovaRed)
+            1 -> Pair(stringResource(R.string.food_detail_nova_1), NovaGreen)
+            2 -> Pair(stringResource(R.string.food_detail_nova_2), NovaYellow)
+            3 -> Pair(stringResource(R.string.food_detail_nova_3), NovaOrange)
+            4 -> Pair(stringResource(R.string.food_detail_nova_4), NovaRed)
             else -> return
         }
 
     Column {
         Text(
-            "NOVA Group",
+            stringResource(R.string.food_detail_nova_group),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -655,7 +677,7 @@ private fun AdditivesSection(additives: List<String>) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "Additives",
+                stringResource(R.string.food_detail_additives),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -715,14 +737,14 @@ private fun IngredientsSection(text: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "Ingredients",
+                stringResource(R.string.food_detail_ingredients),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (isLong) {
                 Icon(
                     if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = stringResource(if (expanded) R.string.food_detail_collapse else R.string.food_detail_expand),
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

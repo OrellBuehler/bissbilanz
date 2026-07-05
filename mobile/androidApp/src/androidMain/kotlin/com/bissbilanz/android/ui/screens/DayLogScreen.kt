@@ -30,6 +30,7 @@ import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
@@ -41,6 +42,7 @@ import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
+import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -97,8 +99,8 @@ fun DayLogScreen(
         val yesterday = parsedDate.minus(1, DateTimeUnit.DAY).toString()
         AlertDialog(
             onDismissRequest = { showCopyDialog = false },
-            title = { Text("Copy from yesterday") },
-            text = { Text("This will copy all entries from $yesterday to $date. Existing entries will not be affected.") },
+            title = { Text(stringResource(R.string.dashboard_copy_from_yesterday)) },
+            text = { Text(stringResource(R.string.daylog_copy_dialog_text, yesterday, date)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -106,21 +108,21 @@ fun DayLogScreen(
                         scope.launch {
                             try {
                                 val count = entryRepo.copyEntries(yesterday, date)
-                                snackbarHostState.showSnackbar("Copied $count entries")
+                                snackbarHostState.showSnackbar(context.getString(R.string.daylog_copied_entries, count))
                                 viewModel.loadEntries(date, force = true)
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("No entries to copy")
+                                snackbarHostState.showSnackbar(context.getString(R.string.daylog_no_entries_to_copy))
                             }
                         }
                     },
                 ) {
-                    Text("Copy")
+                    Text(stringResource(R.string.dashboard_copy))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCopyDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showCopyDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -131,15 +133,15 @@ fun DayLogScreen(
                 title = { Text(date) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showCopyDialog = true }) {
-                        Icon(Icons.Default.ContentCopy, "Copy from yesterday")
+                        Icon(Icons.Default.ContentCopy, stringResource(R.string.dashboard_copy_from_yesterday))
                     }
                     IconButton(onClick = { showQuickAddSheet = true }) {
-                        Icon(Icons.Default.Edit, "Quick add")
+                        Icon(Icons.Default.Edit, stringResource(R.string.daylog_quick_add))
                     }
                 },
             )
@@ -151,7 +153,7 @@ fun DayLogScreen(
                     navController.navigate("foods")
                 },
             ) {
-                Icon(Icons.Default.Add, "Add entry")
+                Icon(Icons.Default.Add, stringResource(R.string.dashboard_add_entry))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -243,7 +245,7 @@ fun DayLogScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No entries for this day",
+                                    stringResource(R.string.daylog_no_entries_for_day),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -266,12 +268,12 @@ fun DayLogScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        meal.replaceFirstChar { it.uppercase() },
+                                        mealTypeDisplayName(meal),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "${mealCalories.formatAsInt()} cal",
+                                        stringResource(R.string.format_kcal, mealCalories.formatAsInt()),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = CaloriesBlue,
                                         fontWeight = FontWeight.Bold,
@@ -362,7 +364,7 @@ fun SwipeToDismissEntry(
                         .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(Icons.Default.Delete, "Delete entry", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
             }
         },
         enableDismissFromStartToEnd = false,
@@ -387,7 +389,14 @@ fun EntryListItem(
         ListItem(
             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
-                Text("${entry.servings}x  ·  ${calories.formatAsInt()} cal  ·  P ${protein.formatAsInt()}g")
+                Text(
+                    stringResource(
+                        R.string.daylog_entry_summary,
+                        entry.servings.toDisplayString(),
+                        calories.formatAsInt(),
+                        protein.formatAsInt(),
+                    ),
+                )
             },
             trailingContent = {
                 entry.food?.brand?.let {

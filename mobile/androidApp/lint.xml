@@ -2,4 +2,8 @@
 <lint>
     <!-- False positive: remember { list.sumOf { ... } } is flagged as returning Unit -->
     <issue id="RememberReturnType" severity="ignore" />
+
+    <!-- Enforce the i18n sweep (issue #337): all user-facing Compose UI text must go
+         through stringResource(...) / strings.xml so it can be translated (en/de). -->
+    <issue id="HardcodedText" severity="error" />
 </lint>

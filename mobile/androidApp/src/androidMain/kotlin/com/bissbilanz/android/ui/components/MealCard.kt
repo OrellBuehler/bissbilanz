@@ -8,9 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
 import com.bissbilanz.util.formatAsInt
@@ -45,19 +47,19 @@ fun MealCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = mealType.replaceFirstChar { it.uppercase() },
+                    text = mealTypeDisplayName(mealType),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = "${totalCalories.formatAsInt()} cal",
+                    text = stringResource(R.string.format_kcal, totalCalories.formatAsInt()),
                     style = MaterialTheme.typography.titleMedium,
                     color = CaloriesBlue,
                     fontWeight = FontWeight.Bold,
                 )
                 IconButton(onClick = onAddClick) {
-                    Icon(Icons.Default.Add, contentDescription = "Add food")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.meal_card_add_food))
                 }
             }
 
@@ -71,7 +73,7 @@ fun MealCard(
 
             if (entries.isEmpty()) {
                 Text(
-                    "No entries",
+                    stringResource(R.string.meal_card_no_entries),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

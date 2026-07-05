@@ -10,9 +10,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.R
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
@@ -59,13 +61,13 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Bissbilanz",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Track your nutrition",
+                text = stringResource(R.string.login_tagline),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -74,7 +76,7 @@ fun LoginScreen(
                 onClick = { launchLoginFlow(context, authManager) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Sign in")
+                Text(stringResource(R.string.login_sign_in))
             }
             if (showContinueWithoutAccount(mode)) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -82,11 +84,11 @@ fun LoginScreen(
                     onClick = { appModeManager.setMode(AppMode.LOCAL) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Continue without account")
+                    Text(stringResource(R.string.login_continue_without_account))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Your data stays on this device. Sign in later anytime to sync.",
+                    text = stringResource(R.string.login_local_mode_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

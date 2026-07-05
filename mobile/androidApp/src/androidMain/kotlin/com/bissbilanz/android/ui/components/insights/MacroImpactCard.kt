@@ -20,7 +20,7 @@ import kotlin.math.abs
 
 @Composable
 fun MacroImpactCard(correlations: List<NutrientCorrelation>) {
-    CollapsibleCard(title = "Macro Impact on Weight", sectionId = "macro_impact") {
+    CollapsibleCard(title = stringResource(R.string.insights_macro_impact_title), sectionId = "macro_impact") {
         val filtered =
             remember(correlations) {
                 correlations
@@ -43,14 +43,7 @@ fun MacroImpactCard(correlations: List<NutrientCorrelation>) {
                     abs(r) < 0.5 -> CarbsOrange
                     else -> ProteinRed
                 }
-            val label =
-                when (nc.nutrientKey) {
-                    "protein" -> "Protein"
-                    "carbs" -> "Carbs"
-                    "fat" -> "Fat"
-                    "fiber" -> "Fiber"
-                    else -> nc.nutrientKey.replaceFirstChar { it.uppercase() }
-                }
+            val label = nutrientDisplayName(nc.nutrientKey)
             val arrow = if (r > 0) "↑" else "↓"
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
@@ -66,7 +59,7 @@ fun MacroImpactCard(correlations: List<NutrientCorrelation>) {
                         color = rColor,
                     )
                     Text(
-                        " $arrow weight",
+                        " $arrow ${stringResource(R.string.insights_impact_weight_suffix)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = rColor,
                     )

@@ -8,11 +8,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.toLocalizedDoubleOrNull
@@ -30,6 +32,7 @@ fun WeightWidget(
     val allEntries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
     val scope = rememberCoroutineScope()
     var weightInput by remember { mutableStateOf("") }
+    val logFailedMessage = stringResource(R.string.weight_log_failed)
 
     val latestEntry = allEntries.maxByOrNull { it.entryDate }
     val todayEntry = allEntries.find { it.entryDate == date }
@@ -48,25 +51,25 @@ fun WeightWidget(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.MonitorWeight,
-                        contentDescription = "Weight",
+                        contentDescription = stringResource(R.string.weight_widget_title),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Weight",
+                        stringResource(R.string.weight_widget_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 TextButton(onClick = onViewAll) {
-                    Text("View All")
+                    Text(stringResource(R.string.chart_view_all))
                 }
             }
 
             if (latestEntry != null) {
                 Text(
-                    "${"%.1f".format(latestEntry.weightKg)} kg",
+                    stringResource(R.string.weight_kg_value, "%.1f".format(latestEntry.weightKg)),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -87,7 +90,7 @@ fun WeightWidget(
                     OutlinedTextField(
                         value = weightInput,
                         onValueChange = { weightInput = it },
-                        label = { Text("kg") },
+                        label = { Text(stringResource(R.string.weight_kg_unit)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -103,14 +106,14 @@ fun WeightWidget(
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e
                                         errorReporter.captureException(e)
-                                        onError("Failed to log weight")
+                                        onError(logFailedMessage)
                                     }
                                 }
                             }
                         },
                         enabled = weightInput.toLocalizedDoubleOrNull() != null,
                     ) {
-                        Text("Log")
+                        Text(stringResource(R.string.food_detail_log))
                     }
                 }
             }

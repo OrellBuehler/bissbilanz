@@ -11,11 +11,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -45,6 +47,9 @@ fun RecipeListScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
     var showCreateSheet by remember { mutableStateOf(false) }
+    val loadFailedMessage = stringResource(R.string.recipe_list_load_failed)
+    val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
+    val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -53,7 +58,7 @@ fun RecipeListScreen(navController: NavController) {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar("Failed to load recipes")
+            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
     }
@@ -69,11 +74,11 @@ fun RecipeListScreen(navController: NavController) {
                             EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today),
                             recipe = recipeToLog,
                         )
-                        snackbarHostState.showSnackbar("Logged ${recipeToLog!!.name}")
+                        snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipeToLog!!.name))
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to log recipe")
+                        snackbarHostState.showSnackbar(logFailedMessage)
                     }
                 }
                 recipeToLog = null
@@ -95,17 +100,17 @@ fun RecipeListScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recipes") },
+                title = { Text(stringResource(R.string.recipe_list_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateSheet = true }) {
-                Icon(Icons.Default.Add, "Create recipe")
+                Icon(Icons.Default.Add, stringResource(R.string.recipe_list_create))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -118,7 +123,7 @@ fun RecipeListScreen(navController: NavController) {
                 if (loading) {
                     LoadingScreen()
                 } else if (recipes.isEmpty()) {
-                    EmptyState("No recipes yet.\nTap + to create one.")
+                    EmptyState(stringResource(R.string.recipe_list_empty))
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -156,16 +161,20 @@ fun RecipeListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 Text(
-                    "${recipe.totalServings.toInt()} servings  ·  ${recipe.ingredients?.size ?: 0} ingredients",
+                    stringResource(R.string.recipe_list_item_summary, recipe.totalServings.toInt(), recipe.ingredients?.size ?: 0),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (recipe.isFavorite) {
-                    Text("Favorite", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        stringResource(R.string.action_favorite),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
             IconButton(onClick = onQuickLog) {
-                Icon(Icons.Default.Add, "Log recipe", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.Add, stringResource(R.string.recipe_list_log_content_desc), tint = MaterialTheme.colorScheme.primary)
             }
         }
     }

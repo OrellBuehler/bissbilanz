@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.repository.AnalyticsRepository
@@ -33,15 +35,10 @@ fun MaintenanceScreen(navController: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    val rangeOptions =
-        listOf(
-            "2 Weeks" to 14,
-            "4 Weeks" to 28,
-            "8 Weeks" to 56,
-            "12 Weeks" to 84,
-        )
+    val rangeOptions = listOf(14, 28, 56, 84)
     var selectedRange by remember { mutableIntStateOf(28) }
     var muscleRatio by remember { mutableFloatStateOf(0.3f) }
+    val errorMessage = stringResource(R.string.maintenance_error)
 
     fun calculate() {
         isLoading = true
@@ -52,11 +49,11 @@ fun MaintenanceScreen(navController: NavController) {
                 val startDate = today.minus(selectedRange, DateTimeUnit.DAY).toString()
                 val response = analyticsRepo.getMaintenance(startDate, endDate, muscleRatio.toDouble())
                 if (response == null) {
-                    error = "Could not calculate. Ensure you have enough weight entries and food logs in the selected range."
+                    error = errorMessage
                 }
                 result = response
             } catch (e: Exception) {
-                error = "Could not calculate. Ensure you have enough weight entries and food logs in the selected range."
+                error = errorMessage
                 result = null
             }
             isLoading = false
@@ -66,10 +63,10 @@ fun MaintenanceScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Maintenance Calculator") },
+                title = { Text(stringResource(R.string.maintenance_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -89,19 +86,19 @@ fun MaintenanceScreen(navController: NavController) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Analysis Period",
+                        stringResource(R.string.maintenance_analysis_period),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        rangeOptions.forEachIndexed { index, (label, days) ->
+                        rangeOptions.forEachIndexed { index, days ->
                             SegmentedButton(
                                 shape = SegmentedButtonDefaults.itemShape(index, rangeOptions.size),
                                 onClick = { selectedRange = days },
                                 selected = selectedRange == days,
                             ) {
-                                Text(label)
+                                Text(stringResource(R.string.maintenance_range_weeks, days / 7))
                             }
                         }
                     }
@@ -112,13 +109,17 @@ fun MaintenanceScreen(navController: NavController) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Body Composition",
+                        stringResource(R.string.maintenance_body_composition),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Muscle/Fat ratio: ${(muscleRatio * 100).toInt()}% muscle / ${((1 - muscleRatio) * 100).toInt()}% fat",
+                        stringResource(
+                            R.string.maintenance_muscle_fat_ratio,
+                            (muscleRatio * 100).toInt(),
+                            ((1 - muscleRatio) * 100).toInt(),
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Slider(
@@ -128,7 +129,7 @@ fun MaintenanceScreen(navController: NavController) {
                         steps = 9,
                     )
                     Text(
-                        "Adjusts how weight change is split between muscle and fat gain/loss",
+                        stringResource(R.string.maintenance_ratio_hint),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -149,9 +150,9 @@ fun MaintenanceScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Icon(Icons.Default.Calculate, "Calculate")
+                Icon(Icons.Default.Calculate, stringResource(R.string.maintenance_calculate))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Calculate")
+                Text(stringResource(R.string.maintenance_calculate))
             }
 
             // Error
@@ -179,7 +180,7 @@ fun MaintenanceScreen(navController: NavController) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "Results",
+                            stringResource(R.string.maintenance_results),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
@@ -198,7 +199,7 @@ fun MaintenanceScreen(navController: NavController) {
                                     color = CaloriesBlue,
                                 )
                                 Text(
-                                    "Estimated maintenance calories",
+                                    stringResource(R.string.maintenance_estimated_calories),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -210,21 +211,21 @@ fun MaintenanceScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Details
-                        MaintenanceRow("Avg daily calories", "${r.avgDailyCalories.formatAsInt()} kcal")
+                        MaintenanceRow(stringResource(R.string.maintenance_avg_daily_calories), "${r.avgDailyCalories.formatAsInt()} kcal")
                         MaintenanceRow(
-                            "Daily deficit/surplus",
+                            stringResource(R.string.maintenance_daily_deficit_surplus),
                             "${if (r.dailyDeficit >= 0) "+" else ""}${r.dailyDeficit.formatAsInt()} kcal",
                         )
                         MaintenanceRow(
-                            "Weight change",
+                            stringResource(R.string.maintenance_weight_change),
                             "${r.weightChangeKg.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
-                            "Fat mass change",
+                            stringResource(R.string.maintenance_fat_mass_change),
                             "${r.fatMassKg.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
-                            "Muscle mass change",
+                            stringResource(R.string.maintenance_muscle_mass_change),
                             "${r.muscleMassKg.formatDecimal1()} kg",
                         )
                     }
@@ -234,25 +235,28 @@ fun MaintenanceScreen(navController: NavController) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "Data Coverage",
+                            stringResource(R.string.maintenance_data_coverage),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        MaintenanceRow("Period", "${m.startDate} to ${m.endDate}")
-                        MaintenanceRow("Total days", "${m.totalDays}")
-                        MaintenanceRow("Weight entries", "${m.weightEntries}")
-                        MaintenanceRow("Food entry days", "${m.foodEntryDays}")
                         MaintenanceRow(
-                            "Coverage",
+                            stringResource(R.string.maintenance_period),
+                            stringResource(R.string.maintenance_period_range, m.startDate, m.endDate),
+                        )
+                        MaintenanceRow(stringResource(R.string.maintenance_total_days), "${m.totalDays}")
+                        MaintenanceRow(stringResource(R.string.maintenance_weight_entries), "${m.weightEntries}")
+                        MaintenanceRow(stringResource(R.string.maintenance_food_entry_days), "${m.foodEntryDays}")
+                        MaintenanceRow(
+                            stringResource(R.string.maintenance_coverage),
                             "${(m.coverage * 100).toInt()}%",
                         )
                         MaintenanceRow(
-                            "Start weight",
+                            stringResource(R.string.maintenance_start_weight),
                             "${m.firstWeight.formatDecimal1()} kg",
                         )
                         MaintenanceRow(
-                            "End weight",
+                            stringResource(R.string.maintenance_end_weight),
                             "${m.lastWeight.formatDecimal1()} kg",
                         )
 
@@ -265,7 +269,7 @@ fun MaintenanceScreen(navController: NavController) {
                                     ),
                             ) {
                                 Text(
-                                    "Low data coverage (${(m.coverage * 100).toInt()}%). Results may be less accurate. Aim for >70% coverage.",
+                                    stringResource(R.string.maintenance_low_coverage_warning, (m.coverage * 100).toInt()),
                                     modifier = Modifier.padding(12.dp),
                                     style = MaterialTheme.typography.bodySmall,
                                 )

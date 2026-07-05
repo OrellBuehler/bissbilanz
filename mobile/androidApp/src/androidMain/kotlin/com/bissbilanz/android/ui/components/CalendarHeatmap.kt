@@ -49,10 +49,12 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.util.displayName
 import com.bissbilanz.model.CalendarDay
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
+import java.time.format.TextStyle
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -74,7 +76,7 @@ fun CalendarHeatmap(
         revealFraction.animateTo(1f, animationSpec = tween(400, easing = EaseOutCubic))
     }
 
-    val monthName = Month(month).name.lowercase().replaceFirstChar { it.uppercase() }
+    val monthName = Month(month).displayName()
 
     Column(modifier = modifier) {
         Row(
@@ -83,7 +85,7 @@ fun CalendarHeatmap(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onPrevMonth) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_previous_month))
             }
             Text(
                 "$monthName $year",
@@ -91,7 +93,7 @@ fun CalendarHeatmap(
                 fontWeight = FontWeight.SemiBold,
             )
             IconButton(onClick = onNextMonth) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.calendar_next_month))
             }
         }
 
@@ -112,7 +114,7 @@ fun CalendarHeatmap(
         val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
         val density = LocalDensity.current
 
-        val dayHeaders = listOf("M", "T", "W", "T", "F", "S", "S")
+        val dayHeaders = DayOfWeek.entries.map { it.displayName(TextStyle.NARROW) }
         val totalRows = ((offset + daysInMonth + 6) / 7)
         val headerHeight = with(density) { 20.dp.toPx() }
         val cellPadding = with(density) { 2.dp.toPx() }
@@ -287,13 +289,13 @@ fun CalendarHeatmap(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LegendDot(color = FiberGreen, label = "On target")
+            LegendDot(color = FiberGreen, label = stringResource(R.string.calendar_heatmap_on_target))
             Spacer(modifier = Modifier.width(12.dp))
-            LegendDot(color = ProteinRed, label = "Over")
+            LegendDot(color = ProteinRed, label = stringResource(R.string.calendar_heatmap_over))
             Spacer(modifier = Modifier.width(12.dp))
-            LegendDot(color = CaloriesBlue, label = "Under")
+            LegendDot(color = CaloriesBlue, label = stringResource(R.string.calendar_heatmap_under))
             Spacer(modifier = Modifier.width(12.dp))
-            LegendDot(color = Color.Gray.copy(alpha = 0.3f), label = "No data")
+            LegendDot(color = Color.Gray.copy(alpha = 0.3f), label = stringResource(R.string.chart_no_data))
         }
     }
 }

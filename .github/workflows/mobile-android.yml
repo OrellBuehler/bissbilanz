@@ -96,7 +96,6 @@ jobs:
 
       - name: Run Android lint
         run: ./gradlew androidApp:lintDebug
-        continue-on-error: true
 
       - name: Run shared module tests
         run: ./gradlew shared:allTests

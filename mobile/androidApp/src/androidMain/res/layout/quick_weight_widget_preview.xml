@@ -11,7 +11,7 @@
         android:layout_width="28dp"
         android:layout_height="28dp"
         android:src="@drawable/ic_widget_scale"
-        android:contentDescription="Weight" />
+        android:contentDescription="@string/weight_widget_title" />
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -22,14 +22,14 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="82.3 kg"
+            android:text="@string/weight_widget_preview_value"
             android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Tap to log"
+            android:text="@string/weight_widget_tap_to_log"
             android:textSize="12sp" />
 
     </LinearLayout>

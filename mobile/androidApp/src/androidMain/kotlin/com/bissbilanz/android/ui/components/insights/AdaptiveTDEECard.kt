@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun AdaptiveTDEECard(result: TDEEResult) {
-    CollapsibleCard(title = "Adaptive TDEE", sectionId = "adaptive_tdee") {
+    CollapsibleCard(title = stringResource(R.string.insights_tdee_title), sectionId = "adaptive_tdee") {
         if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -34,13 +34,13 @@ fun AdaptiveTDEECard(result: TDEEResult) {
             val tdee = result.estimatedTDEE
             if (tdee == null) {
                 Text(
-                    "Insufficient weight data to estimate TDEE",
+                    stringResource(R.string.insights_tdee_insufficient_weight_data),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Text(
-                    "${tdee.roundToInt()} kcal",
+                    stringResource(R.string.format_kcal, tdee.roundToInt().toString()),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     color = CaloriesBlue,
@@ -53,8 +53,15 @@ fun AdaptiveTDEECard(result: TDEEResult) {
                     "loss" -> FiberGreen
                     else -> CaloriesBlue
                 }
+            val trendLabel =
+                when (result.trend) {
+                    "gain" -> stringResource(R.string.insights_trend_gain)
+                    "loss" -> stringResource(R.string.insights_trend_loss)
+                    "maintenance" -> stringResource(R.string.insights_trend_maintenance)
+                    else -> result.trend.replaceFirstChar { it.uppercase() }
+                }
             Text(
-                result.trend.replaceFirstChar { it.uppercase() },
+                trendLabel,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = trendColor,
@@ -62,25 +69,25 @@ fun AdaptiveTDEECard(result: TDEEResult) {
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Avg intake",
+                    stringResource(R.string.insights_avg_intake),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "${result.avgIntake.roundToInt()} kcal/day",
+                    stringResource(R.string.insights_kcal_per_day, result.avgIntake.roundToInt()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Weekly rate",
+                    stringResource(R.string.insights_weekly_rate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 val sign = if (result.weeklyRate >= 0) "+" else ""
                 Text(
-                    "${sign}${"%.2f".format(result.weeklyRate)} kg/week",
+                    stringResource(R.string.insights_kg_per_week, sign, "%.2f".format(result.weeklyRate)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

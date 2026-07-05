@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SodiumWeightCard(result: SodiumWeightResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Sodium & Weight", sectionId = "sodium_weight") {
+        CollapsibleCard(title = stringResource(R.string.insights_sodium_weight_title), sectionId = "sodium_weight") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -34,7 +34,7 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
         }
         return
     }
-    CollapsibleCard(title = "Sodium & Weight", sectionId = "sodium_weight") {
+    CollapsibleCard(title = stringResource(R.string.insights_sodium_weight_title), sectionId = "sodium_weight") {
         val r = result.correlation.r
         val rColor =
             when {
@@ -50,26 +50,26 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
             color = rColor,
         )
         Text(
-            "correlation (sodium vs weight)",
+            stringResource(R.string.insights_sodium_correlation_label),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Avg sodium",
+                stringResource(R.string.insights_sodium_avg),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "${result.avgSodium.roundToInt()} mg/day",
+                stringResource(R.string.insights_mg_per_day, result.avgSodium.roundToInt()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "High sodium days",
+                stringResource(R.string.insights_sodium_high_days),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -84,7 +84,7 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
             val sign = if (delta >= 0) "+" else ""
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "${sign}${"%.2f".format(delta)} kg avg next-day weight after high sodium",
+                stringResource(R.string.insights_sodium_weight_delta, sign, "%.2f".format(delta)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
