@@ -10,11 +10,7 @@ struct QuickWeightWidget: Widget {
             QuickWeightWidgetView(entry: entry)
         }
         .configurationDisplayName(strings.weight)
-        .description(
-            strings.localeCode == "de"
-                ? "Gewicht heute anzeigen und erfassen."
-                : "See today's weight and log it."
-        )
+        .description(strings.quickWeightWidgetDescription)
         .supportedFamilies([.systemSmall])
     }
 }

@@ -11,17 +11,10 @@ struct NutrientRow: View {
             Text(label)
                 .foregroundStyle(color)
             Spacer()
-            Text("\(formattedValue) \(unit)")
+            Text("\(MacroFormat.nutrient(value)) \(unit)")
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
-    }
-
-    private var formattedValue: String {
-        if value == value.rounded(), value < 10000 {
-            return "\(Int(value))"
-        }
-        return String(format: "%.1f", value)
     }
 }
 

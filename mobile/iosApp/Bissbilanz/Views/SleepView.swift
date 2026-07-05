@@ -12,7 +12,7 @@ func formatSleepDuration(_ minutes: Int) -> String {
 /// sources can carry one decimal (e.g. a 0–100 score mapped to 9.7), so a
 /// fractional value shows one decimal and a round value stays integer.
 func formatSleepQuality(_ quality: Double) -> String {
-    quality == quality.rounded() ? String(Int(quality)) : String(format: "%.1f", quality)
+    MacroFormat.nutrient(quality)
 }
 
 struct SleepView: View {
@@ -202,7 +202,7 @@ struct SleepView: View {
                 Text(L10n.trend)
                     .font(.headline)
 
-                Picker("Range", selection: $selectedRange) {
+                Picker(L10n.range, selection: $selectedRange) {
                     ForEach(RangeOption.allCases) { option in
                         Text(option.label).tag(option.rawValue)
                     }

@@ -10,12 +10,8 @@ struct MacroSummaryWidget: Widget {
         return StaticConfiguration(kind: "MacroSummaryWidget", provider: SnapshotProvider()) { entry in
             MacroSummaryWidgetView(entry: entry)
         }
-        .configurationDisplayName(strings.localeCode == "de" ? "Makros" : "Macros")
-        .description(
-            strings.localeCode == "de"
-                ? "Tägliche Fortschrittsringe für Kalorien, Eiweiß, Kohlenhydrate und Fett."
-                : "Daily progress rings for calories, protein, carbs and fat."
-        )
+        .configurationDisplayName(strings.macroSummaryWidgetDisplayName)
+        .description(strings.macroSummaryWidgetDescription)
         .supportedFamilies([.systemMedium])
     }
 }
