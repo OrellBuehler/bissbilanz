@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { weightService } from '$lib/services/weight-service.svelte';
-	import { round2, parseDecimalInput, formatKg } from '$lib/utils/number';
+	import { round2, formatKg } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieWeightEntry } from '$lib/db/types';
@@ -20,11 +21,11 @@
 	const displayed = $derived(limit != null ? entries.slice(0, limit) : entries);
 
 	let editingId: string | null = $state(null);
-	let editWeight = $state('');
+	let editWeight = $state<number | null>(null);
 	let editNotes = $state('');
 	const startEdit = (entry: DexieWeightEntry) => {
 		editingId = entry.id;
-		editWeight = String(round2(entry.weightKg));
+		editWeight = round2(entry.weightKg);
 		editNotes = entry.notes ?? '';
 	};
 
@@ -34,8 +35,8 @@
 
 	const saveEdit = async () => {
 		if (!editingId) return;
-		const kg = parseDecimalInput(editWeight);
-		if (isNaN(kg) || kg < 20 || kg > 500) return;
+		const kg = editWeight;
+		if (kg == null || kg < 20 || kg > 500) return;
 
 		await weightService.update(editingId, { weightKg: kg, notes: editNotes || undefined });
 		editingId = null;
@@ -63,14 +64,7 @@
 			<div class="flex items-center gap-3 rounded-lg border px-3 py-2">
 				{#if editingId === entry.id}
 					<div class="flex flex-1 items-center gap-2">
-						<Input
-							type="number"
-							step="0.1"
-							min="20"
-							max="500"
-							class="w-24"
-							bind:value={editWeight}
-						/>
+						<NumberInput class="w-24" bind:value={editWeight} />
 						<span class="text-sm text-muted-foreground">kg</span>
 						<Input
 							type="text"

@@ -4,13 +4,14 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import AmountInput from '$lib/components/entries/AmountInput.svelte';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Check from '@lucide/svelte/icons/check';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
-	import { round2, parseDecimalInput } from '$lib/utils/number';
+	import { round2 } from '$lib/utils/number';
 	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
@@ -64,24 +65,23 @@
 	let editTime = $state('');
 
 	let editQuickName = $state('');
-	let editQuickCalories = $state('');
-	let editQuickProtein = $state('');
-	let editQuickCarbs = $state('');
-	let editQuickFat = $state('');
-	let editQuickFiber = $state('');
+	let editQuickCalories = $state<number | null>(null);
+	let editQuickProtein = $state<number | null>(null);
+	let editQuickCarbs = $state<number | null>(null);
+	let editQuickFat = $state<number | null>(null);
+	let editQuickFiber = $state<number | null>(null);
 
 	const isQuickEntry = $derived(entry?.quickCalories != null);
 
 	let editMacroCalories = $derived(
-		(parseDecimalInput(editQuickProtein) || 0) * 4 +
-			(parseDecimalInput(editQuickCarbs) || 0) * 4 +
-			(parseDecimalInput(editQuickFat) || 0) * 9
+		(editQuickProtein ?? 0) * 4 + (editQuickCarbs ?? 0) * 4 + (editQuickFat ?? 0) * 9
 	);
 	let editHasMacros = $derived(
-		(!!editQuickProtein || !!editQuickCarbs || !!editQuickFat) && !!editQuickCalories
+		(editQuickProtein != null || editQuickCarbs != null || editQuickFat != null) &&
+			editQuickCalories != null
 	);
 	let editMacrosMatch = $derived(
-		Math.round(editMacroCalories) === Math.round(parseDecimalInput(editQuickCalories) || 0)
+		Math.round(editMacroCalories) === Math.round(editQuickCalories ?? 0)
 	);
 
 	$effect(() => {
@@ -91,11 +91,11 @@
 			editTime = formatTime24h(entry.eatenAt);
 			if (entry.quickCalories != null) {
 				editQuickName = entry.quickName ?? '';
-				editQuickCalories = String(entry.quickCalories);
-				editQuickProtein = entry.quickProtein != null ? String(entry.quickProtein) : '';
-				editQuickCarbs = entry.quickCarbs != null ? String(entry.quickCarbs) : '';
-				editQuickFat = entry.quickFat != null ? String(entry.quickFat) : '';
-				editQuickFiber = entry.quickFiber != null ? String(entry.quickFiber) : '';
+				editQuickCalories = entry.quickCalories;
+				editQuickProtein = entry.quickProtein ?? null;
+				editQuickCarbs = entry.quickCarbs ?? null;
+				editQuickFat = entry.quickFat ?? null;
+				editQuickFiber = entry.quickFiber ?? null;
 			}
 		}
 	});
@@ -104,7 +104,7 @@
 		if (!entry) return;
 		const eatenAt = timeToIsoString(editTime, date) ?? undefined;
 		if (isQuickEntry) {
-			const cal = parseDecimalInput(editQuickCalories);
+			const cal = editQuickCalories;
 			if (!cal || cal < 0) return;
 			onSave({
 				id: entry.id,
@@ -113,10 +113,10 @@
 				eatenAt,
 				quickName: editQuickName.trim() || null,
 				quickCalories: cal,
-				quickProtein: editQuickProtein ? parseDecimalInput(editQuickProtein) : null,
-				quickCarbs: editQuickCarbs ? parseDecimalInput(editQuickCarbs) : null,
-				quickFat: editQuickFat ? parseDecimalInput(editQuickFat) : null,
-				quickFiber: editQuickFiber ? parseDecimalInput(editQuickFiber) : null
+				quickProtein: editQuickProtein,
+				quickCarbs: editQuickCarbs,
+				quickFat: editQuickFat,
+				quickFiber: editQuickFiber
 			});
 		} else {
 			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
@@ -147,24 +147,24 @@
 				</div>
 				<div class="grid gap-1.5">
 					<Label>{m.quick_log_calories()}</Label>
-					<Input type="number" inputmode="decimal" min="0" bind:value={editQuickCalories} />
+					<NumberInput bind:value={editQuickCalories} />
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div class="grid gap-1.5">
 						<Label class="text-xs">{m.quick_log_protein()}</Label>
-						<Input type="number" inputmode="decimal" min="0" bind:value={editQuickProtein} />
+						<NumberInput bind:value={editQuickProtein} />
 					</div>
 					<div class="grid gap-1.5">
 						<Label class="text-xs">{m.quick_log_carbs()}</Label>
-						<Input type="number" inputmode="decimal" min="0" bind:value={editQuickCarbs} />
+						<NumberInput bind:value={editQuickCarbs} />
 					</div>
 					<div class="grid gap-1.5">
 						<Label class="text-xs">{m.quick_log_fat()}</Label>
-						<Input type="number" inputmode="decimal" min="0" bind:value={editQuickFat} />
+						<NumberInput bind:value={editQuickFat} />
 					</div>
 					<div class="grid gap-1.5">
 						<Label class="text-xs">{m.quick_log_fiber()}</Label>
-						<Input type="number" inputmode="decimal" min="0" bind:value={editQuickFiber} />
+						<NumberInput bind:value={editQuickFiber} />
 					</div>
 				</div>
 				{#if editHasMacros}
@@ -230,8 +230,7 @@
 				<Button
 					class="flex-1 sm:flex-none"
 					aria-label={m.edit_entry_save()}
-					disabled={isQuickEntry &&
-						(!editQuickCalories || parseDecimalInput(editQuickCalories) <= 0)}
+					disabled={isQuickEntry && (editQuickCalories == null || editQuickCalories <= 0)}
 					onclick={handleSave}
 				>
 					<Check class="size-4" />
