@@ -111,6 +111,309 @@
 			"expected": [null, null, 2, 3, 4, 5.5, 5.5, 7, 8.5, 9]
 		},
 		{
+			"fn": "weightMovingAverage",
+			"name": "dense_daily_7d",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-01-01",
+						"weightKg": 80
+					},
+					{
+						"date": "2025-01-02",
+						"weightKg": 79.9
+					},
+					{
+						"date": "2025-01-03",
+						"weightKg": 79.8
+					},
+					{
+						"date": "2025-01-04",
+						"weightKg": 79.7
+					},
+					{
+						"date": "2025-01-05",
+						"weightKg": 79.6
+					},
+					{
+						"date": "2025-01-06",
+						"weightKg": 79.5
+					},
+					{
+						"date": "2025-01-07",
+						"weightKg": 79.4
+					},
+					{
+						"date": "2025-01-08",
+						"weightKg": 79.3
+					},
+					{
+						"date": "2025-01-09",
+						"weightKg": 79.2
+					},
+					{
+						"date": "2025-01-10",
+						"weightKg": 79.1
+					}
+				],
+				"windowDays": 7
+			},
+			"expected": [
+				{
+					"date": "2025-01-01",
+					"weightKg": 80,
+					"movingAvg": 80
+				},
+				{
+					"date": "2025-01-02",
+					"weightKg": 79.9,
+					"movingAvg": 79.95
+				},
+				{
+					"date": "2025-01-03",
+					"weightKg": 79.8,
+					"movingAvg": 79.89999999999999
+				},
+				{
+					"date": "2025-01-04",
+					"weightKg": 79.7,
+					"movingAvg": 79.85
+				},
+				{
+					"date": "2025-01-05",
+					"weightKg": 79.6,
+					"movingAvg": 79.8
+				},
+				{
+					"date": "2025-01-06",
+					"weightKg": 79.5,
+					"movingAvg": 79.75
+				},
+				{
+					"date": "2025-01-07",
+					"weightKg": 79.4,
+					"movingAvg": 79.7
+				},
+				{
+					"date": "2025-01-08",
+					"weightKg": 79.3,
+					"movingAvg": 79.6
+				},
+				{
+					"date": "2025-01-09",
+					"weightKg": 79.2,
+					"movingAvg": 79.5
+				},
+				{
+					"date": "2025-01-10",
+					"weightKg": 79.1,
+					"movingAvg": 79.4
+				}
+			]
+		},
+		{
+			"fn": "weightMovingAverage",
+			"name": "dense_daily_3d",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-01-01",
+						"weightKg": 80
+					},
+					{
+						"date": "2025-01-02",
+						"weightKg": 79.9
+					},
+					{
+						"date": "2025-01-03",
+						"weightKg": 79.8
+					},
+					{
+						"date": "2025-01-04",
+						"weightKg": 79.7
+					},
+					{
+						"date": "2025-01-05",
+						"weightKg": 79.6
+					},
+					{
+						"date": "2025-01-06",
+						"weightKg": 79.5
+					},
+					{
+						"date": "2025-01-07",
+						"weightKg": 79.4
+					},
+					{
+						"date": "2025-01-08",
+						"weightKg": 79.3
+					},
+					{
+						"date": "2025-01-09",
+						"weightKg": 79.2
+					},
+					{
+						"date": "2025-01-10",
+						"weightKg": 79.1
+					}
+				],
+				"windowDays": 3
+			},
+			"expected": [
+				{
+					"date": "2025-01-01",
+					"weightKg": 80,
+					"movingAvg": 80
+				},
+				{
+					"date": "2025-01-02",
+					"weightKg": 79.9,
+					"movingAvg": 79.95
+				},
+				{
+					"date": "2025-01-03",
+					"weightKg": 79.8,
+					"movingAvg": 79.89999999999999
+				},
+				{
+					"date": "2025-01-04",
+					"weightKg": 79.7,
+					"movingAvg": 79.8
+				},
+				{
+					"date": "2025-01-05",
+					"weightKg": 79.6,
+					"movingAvg": 79.7
+				},
+				{
+					"date": "2025-01-06",
+					"weightKg": 79.5,
+					"movingAvg": 79.60000000000001
+				},
+				{
+					"date": "2025-01-07",
+					"weightKg": 79.4,
+					"movingAvg": 79.5
+				},
+				{
+					"date": "2025-01-08",
+					"weightKg": 79.3,
+					"movingAvg": 79.39999999999999
+				},
+				{
+					"date": "2025-01-09",
+					"weightKg": 79.2,
+					"movingAvg": 79.3
+				},
+				{
+					"date": "2025-01-10",
+					"weightKg": 79.1,
+					"movingAvg": 79.2
+				}
+			]
+		},
+		{
+			"fn": "weightMovingAverage",
+			"name": "calendar_gap_reset",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-02-01",
+						"weightKg": 82.4
+					},
+					{
+						"date": "2025-02-03",
+						"weightKg": 82.1
+					},
+					{
+						"date": "2025-02-06",
+						"weightKg": 81.9
+					},
+					{
+						"date": "2025-02-20",
+						"weightKg": 81.2
+					},
+					{
+						"date": "2025-02-22",
+						"weightKg": 81
+					}
+				],
+				"windowDays": 7
+			},
+			"expected": [
+				{
+					"date": "2025-02-01",
+					"weightKg": 82.4,
+					"movingAvg": 82.4
+				},
+				{
+					"date": "2025-02-03",
+					"weightKg": 82.1,
+					"movingAvg": 82.25
+				},
+				{
+					"date": "2025-02-06",
+					"weightKg": 81.9,
+					"movingAvg": 82.13333333333334
+				},
+				{
+					"date": "2025-02-20",
+					"weightKg": 81.2,
+					"movingAvg": 81.2
+				},
+				{
+					"date": "2025-02-22",
+					"weightKg": 81,
+					"movingAvg": 81.1
+				}
+			]
+		},
+		{
+			"fn": "weightMovingAverage",
+			"name": "same_date_collapse",
+			"input": {
+				"entries": [
+					{
+						"date": "2025-03-02",
+						"weightKg": 79.8,
+						"loggedAt": "2025-03-02T07:10:00Z"
+					},
+					{
+						"date": "2025-03-01",
+						"weightKg": 80.6,
+						"loggedAt": "2025-03-01T21:40:00Z"
+					},
+					{
+						"date": "2025-03-01",
+						"weightKg": 80.2,
+						"loggedAt": "2025-03-01T06:30:00Z"
+					},
+					{
+						"date": "2025-03-02",
+						"weightKg": 79.4,
+						"loggedAt": null
+					},
+					{
+						"date": "not-a-date",
+						"weightKg": 99.9
+					}
+				],
+				"windowDays": 7
+			},
+			"expected": [
+				{
+					"date": "2025-03-01",
+					"weightKg": 80.6,
+					"movingAvg": 80.6
+				},
+				{
+					"date": "2025-03-02",
+					"weightKg": 79.8,
+					"movingAvg": 80.19999999999999
+				}
+			]
+		},
+		{
 			"fn": "computeAdaptiveTDEE",
 			"name": "loss_21d",
 			"input": {

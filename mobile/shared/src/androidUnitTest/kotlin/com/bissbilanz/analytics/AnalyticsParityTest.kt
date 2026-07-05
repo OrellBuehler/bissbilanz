@@ -72,6 +72,15 @@ class AnalyticsParityTest {
                 ).let { result -> JsonArray(result.map { it?.let(::JsonPrimitive) ?: JsonNull }) }
             }
 
+            "weightMovingAverage" -> {
+                weightMovingAverage(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        WeightChartInput(date = o.str("date"), weightKg = o.dbl("weightKg"), loggedAt = o.optStr("loggedAt"))
+                    },
+                    input.optInt("windowDays") ?: 7,
+                ).let { result -> JsonArray(result.map { it.toJson() }) }
+            }
+
             "computeAdaptiveTDEE" -> {
                 computeAdaptiveTDEE(
                     weightSeriesFrom(input.getValue("weightSeries")),
@@ -234,6 +243,13 @@ class AnalyticsParityTest {
             put("avgTEFPercent", avgTEFPct)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
+        }
+
+    private fun WeightChartPoint.toJson() =
+        buildJsonObject {
+            put("date", date)
+            put("weightKg", weightKg)
+            put("movingAvg", movingAvg)
         }
 
     private fun MealTimingSummary.toJson() =

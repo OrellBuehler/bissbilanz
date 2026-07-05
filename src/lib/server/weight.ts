@@ -5,6 +5,7 @@ import { and, eq, desc, gte, lte, asc, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { weightMovingAverage } from '$lib/analytics/moving-average';
 
 export const createWeightEntry = (
 	userId: string,
@@ -79,31 +80,26 @@ export const getWeightEntries = async (userId: string) => {
 export const getWeightWithTrend = async (userId: string, from: string, to: string) => {
 	const db = getDB();
 	const result = await db.execute(sql`
-		WITH daily AS (
-			SELECT DISTINCT ON (entry_date)
-				entry_date,
-				weight_kg
-			FROM weight_entries
-			WHERE user_id = ${userId}
-				AND entry_date >= ${from}
-				AND entry_date <= ${to}
-			ORDER BY entry_date, logged_at DESC
-		)
-		SELECT
+		SELECT DISTINCT ON (entry_date)
 			entry_date,
-			weight_kg,
-			AVG(weight_kg) OVER (
-				ORDER BY entry_date
-				ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-			) AS moving_avg
-		FROM daily
-		ORDER BY entry_date ASC
+			weight_kg
+		FROM weight_entries
+		WHERE user_id = ${userId}
+			AND entry_date >= ${from}
+			AND entry_date <= ${to}
+		ORDER BY entry_date ASC, logged_at DESC
 	`);
-	return result as unknown as {
+	const daily = result as unknown as {
 		entry_date: string;
 		weight_kg: number;
-		moving_avg: number | null;
 	}[];
+	return weightMovingAverage(
+		daily.map((row) => ({ date: row.entry_date, weightKg: Number(row.weight_kg) }))
+	).map((point) => ({
+		entry_date: point.date,
+		weight_kg: point.weightKg,
+		moving_avg: point.movingAvg
+	}));
 };
 
 export const getLatestWeight = async (userId: string) => {
