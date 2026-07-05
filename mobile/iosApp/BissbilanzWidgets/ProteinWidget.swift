@@ -9,11 +9,7 @@ struct ProteinWidget: Widget {
             ProteinWidgetView(entry: entry)
         }
         .configurationDisplayName(strings.protein)
-        .description(
-            strings.localeCode == "de"
-                ? "Heutiges Eiweiß im Vergleich zum Tagesziel."
-                : "Today's protein against your daily goal."
-        )
+        .description(strings.proteinWidgetDescription)
         .supportedFamilies([.systemSmall, .accessoryCircular])
     }
 }
@@ -22,7 +18,6 @@ struct ProteinWidgetView: View {
     let entry: SnapshotTimelineEntry
 
     @Environment(\.widgetFamily) private var family
-    @Environment(\.colorScheme) private var colorScheme
 
     private var snapshot: WidgetSnapshot {
         entry.snapshot
@@ -35,14 +30,6 @@ struct ProteinWidgetView: View {
     private var progress: Double {
         guard snapshot.proteinGoal > 0 else { return 0 }
         return min(snapshot.protein / snapshot.proteinGoal, 1.0)
-    }
-
-    private var isOver: Bool {
-        snapshot.proteinGoal > 0 && snapshot.protein > snapshot.proteinGoal
-    }
-
-    private var ringColor: Color {
-        isOver ? .red : MacroColors.protein
     }
 
     var body: some View {
@@ -58,36 +45,13 @@ struct ProteinWidgetView: View {
     }
 
     private var small: some View {
-        ZStack {
-            Circle()
-                .stroke(MacroColors.protein.opacity(colorScheme == .dark ? 0.2 : 0.12), lineWidth: 8)
-
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [ringColor.opacity(0.65), ringColor]),
-                        center: .center,
-                        startAngle: .degrees(0),
-                        endAngle: .degrees(360)
-                    ),
-                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-
-            VStack(spacing: 2) {
-                Text(strings.integer(snapshot.protein))
-                    .font(.system(.title2, design: .rounded))
-                    .fontWeight(.semibold)
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                    .foregroundStyle(isOver ? .red : MacroColors.protein)
-                Text(strings.gProtein)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(14)
-        }
+        WidgetRingGauge(
+            value: snapshot.protein,
+            goal: snapshot.proteinGoal,
+            color: MacroColors.protein,
+            valueLabel: strings.gProtein,
+            strings: strings
+        )
     }
 
     private var circular: some View {

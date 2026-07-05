@@ -69,11 +69,11 @@ struct MaintenanceView: View {
                 }
 
                 HStack {
-                    Text("\(Int(bodyFatRatio * 100))% fat")
+                    Text("\(MacroFormat.percent(bodyFatRatio * 100)) fat")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(Int((1 - bodyFatRatio) * 100))% muscle")
+                    Text("\(MacroFormat.percent((1 - bodyFatRatio) * 100)) muscle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -104,7 +104,7 @@ struct MaintenanceView: View {
                 Text(L10n.maintenanceCalories)
                     .font(.headline)
 
-                Text("\(Int(result.maintenanceCalories))")
+                Text(MacroFormat.kcal(result.maintenanceCalories))
                     .font(.system(size: heroNumberSize, weight: .bold))
                     .foregroundStyle(MacroColors.calories)
 
@@ -115,14 +115,14 @@ struct MaintenanceView: View {
                 Divider()
 
                 VStack(spacing: 8) {
-                    resultRow(L10n.avgDailyIntake, value: "\(Int(result.avgDailyCalories)) kcal")
-                    resultRow(L10n.dailyDeficitSurplus, value: "\(Int(result.dailyDeficitSurplus)) kcal")
-                    resultRow(L10n.weightChange, value: String(format: "%.1f kg", result.weightChange))
+                    resultRow(L10n.avgDailyIntake, value: "\(MacroFormat.kcal(result.avgDailyCalories)) kcal")
+                    resultRow(L10n.dailyDeficitSurplus, value: "\(MacroFormat.kcal(result.dailyDeficitSurplus)) kcal")
+                    resultRow(L10n.weightChange, value: MacroFormat.kg(result.weightChange))
                     if let fatChange = result.fatChange {
-                        resultRow(L10n.fatChange, value: String(format: "%.1f kg", fatChange))
+                        resultRow(L10n.fatChange, value: MacroFormat.kg(fatChange))
                     }
                     if let muscleChange = result.muscleChange {
-                        resultRow(L10n.muscleChange, value: String(format: "%.1f kg", muscleChange))
+                        resultRow(L10n.muscleChange, value: MacroFormat.kg(muscleChange))
                     }
                 }
             }
@@ -138,9 +138,9 @@ struct MaintenanceView: View {
                 resultRow(L10n.totalDays, value: "\(result.totalDays)")
                 resultRow(L10n.weightEntries, value: "\(result.weightEntryCount)")
                 resultRow(L10n.foodEntryDays, value: "\(result.foodEntryDays)")
-                resultRow(L10n.coverage, value: "\(Int(result.coveragePercent))%")
-                resultRow(L10n.startWeight, value: String(format: "%.1f kg", result.startWeight))
-                resultRow(L10n.endWeight, value: String(format: "%.1f kg", result.endWeight))
+                resultRow(L10n.coverage, value: MacroFormat.percent(result.coveragePercent))
+                resultRow(L10n.startWeight, value: MacroFormat.kg(result.startWeight))
+                resultRow(L10n.endWeight, value: MacroFormat.kg(result.endWeight))
 
                 if result.coveragePercent < 70 {
                     HStack {

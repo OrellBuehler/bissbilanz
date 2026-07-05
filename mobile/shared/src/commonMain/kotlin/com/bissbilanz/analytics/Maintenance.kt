@@ -3,22 +3,6 @@ package com.bissbilanz.analytics
 import kotlin.math.abs
 import kotlin.math.floor
 
-/**
- * Energy-balance maintenance-calorie estimator. Pure port of the server's
- * `src/lib/utils/maintenance.ts` so the mobile apps can compute maintenance
- * on-device (local/anonymous users) and online users can compute it from the
- * synced local DB without an API round-trip. The golden-vector parity suite
- * (analytics-parity/) keeps this in lockstep with the TS source.
- *
- * The model splits an observed weight change into fat and muscle mass using a
- * fixed muscle ratio, prices each at its energy density, and converts the total
- * energy imbalance over the window into a daily deficit/surplus relative to the
- * average intake.
- */
-const val KCAL_PER_KG_FAT = 7700.0
-const val KCAL_PER_KG_MUSCLE = 1800.0
-const val DEFAULT_MUSCLE_RATIO = 0.3
-
 /** Inputs to [calculateMaintenance]; mirrors the TS `MaintenanceInput`. */
 data class MaintenanceInput(
     val weightChangeKg: Double,
@@ -51,6 +35,12 @@ data class MaintenanceResult(
  * maintenance, so the daily deficit is added back to the average to recover
  * maintenance; a gain subtracts. All public numbers are rounded the same way
  * the TS does (JS `Math.round`, i.e. round-half-up — see [jsRound]).
+ *
+ * Pure port of the server's `src/lib/utils/maintenance.ts` so the mobile apps
+ * can compute maintenance on-device (local/anonymous users) and online users
+ * can compute it from the synced local DB without an API round-trip. The
+ * golden-vector parity suite (analytics-parity/) keeps this in lockstep with
+ * the TS source.
  */
 fun calculateMaintenance(input: MaintenanceInput): MaintenanceResult? {
     val weightChangeKg = input.weightChangeKg

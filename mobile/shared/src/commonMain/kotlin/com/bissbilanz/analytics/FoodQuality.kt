@@ -52,50 +52,6 @@ data class TEFResult(
     val sampleSize: Int,
 )
 
-private val DII_COEFFICIENTS =
-    mapOf(
-        "fiber" to -0.663,
-        "omega3" to -0.436,
-        "vitaminC" to -0.299,
-        "vitaminD" to -0.446,
-        "vitaminE" to -0.419,
-        "saturatedFat" to 0.373,
-        "transFat" to 0.229,
-        "alcohol" to 0.407,
-        "caffeine" to -0.11,
-        "sodium" to 0.269,
-    )
-
-private val DII_GLOBAL_MEAN =
-    mapOf(
-        "fiber" to 18.8,
-        "omega3" to 1.3,
-        "vitaminC" to 108.0,
-        "vitaminD" to 6.0,
-        "vitaminE" to 8.7,
-        "saturatedFat" to 28.6,
-        "transFat" to 3.15,
-        "alcohol" to 13.98,
-        "caffeine" to 220.0,
-        "sodium" to 3446.0,
-    )
-
-private val DII_GLOBAL_SD =
-    mapOf(
-        "fiber" to 8.0,
-        "omega3" to 1.0,
-        "vitaminC" to 85.0,
-        "vitaminD" to 5.0,
-        "vitaminE" to 5.0,
-        "saturatedFat" to 12.0,
-        "transFat" to 2.0,
-        "alcohol" to 20.0,
-        "caffeine" to 150.0,
-        "sodium" to 1200.0,
-    )
-
-private val ZERO_VALID_NUTRIENTS = setOf("alcohol", "transFat", "caffeine")
-
 fun computeNOVAScore(entries: List<Pair<Double, Int?>>): NOVAResult {
     val sampleSize = entries.size
     if (sampleSize == 0) {
@@ -152,9 +108,9 @@ fun computeOmegaRatio(dailyNutrients: List<Triple<String, Double, Double>>): Ome
     val ratio = if (avgOmega3 > 0) avgOmega6 / avgOmega3 else 0.0
     val status =
         when {
-            ratio <= 4.0 -> "optimal"
-            ratio <= 10.0 -> "elevated"
-            ratio <= 20.0 -> "high"
+            ratio <= OMEGA_RATIO_OPTIMAL_MAX -> "optimal"
+            ratio <= OMEGA_RATIO_ELEVATED_MAX -> "elevated"
+            ratio <= OMEGA_RATIO_HIGH_MAX -> "high"
             else -> "critical"
         }
     return OmegaResult(

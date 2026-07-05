@@ -1,5 +1,7 @@
 package com.bissbilanz.analytics
 
+import kotlinx.datetime.LocalDate
+
 /**
  * Direction of a recent weight change, for the on-device trend indicator.
  * Lives in the shared module so the iOS and Android trend cards classify
@@ -22,24 +24,56 @@ fun classifyWeightTrend(
         else -> WeightTrendDirection.STEADY
     }
 
+/** One dated weight measurement feeding the chart smoothing. */
+data class WeightChartInput(
+    val date: String,
+    val weightKg: Double,
+    val loggedAt: String? = null,
+)
+
+/** A collapsed per-day weight with its trailing calendar-day moving average. */
+data class WeightChartPoint(
+    val date: String,
+    val weightKg: Double,
+    val movingAvg: Double,
+)
+
 /**
- * Trailing moving average with partial leading windows: position `i` is the
- * average of the up-to-[window] values ending at `i`, so the first `window - 1`
- * positions average fewer points instead of being undefined. This keeps a value
- * at every point, which is what the weight chart's smoothing line draws.
- *
- * Note this differs from [movingAverage], which leaves the leading positions
- * null — that variant is for series where a partial window would be misleading.
+ * The canonical weight-chart smoothing shared across server, web, Android and
+ * iOS: same-date measurements collapse to the latest [WeightChartInput.loggedAt]
+ * (later input order wins ties or missing timestamps), then each day gets the
+ * average of the collapsed weights within the trailing [windowDays]-calendar-day
+ * window ending on it. Days with sparse history average fewer points, so every
+ * point has a value; a gap wider than the window resets the average rather than
+ * smearing over it like a row-based window would. Mirrors the TS
+ * `weightMovingAverage` and is locked by the golden parity vectors.
  */
 fun weightMovingAverage(
-    values: List<Double>,
-    window: Int,
-): List<Double> {
-    require(window >= 1) { "window must be >= 1, was $window" }
-    return values.indices.map { i ->
-        val start = maxOf(0, i - window + 1)
-        val slice = values.subList(start, i + 1)
-        slice.sum() / slice.size
+    entries: List<WeightChartInput>,
+    windowDays: Int = 7,
+): List<WeightChartPoint> {
+    require(windowDays >= 1) { "windowDays must be >= 1, was $windowDays" }
+    val byDate = LinkedHashMap<String, WeightChartInput>()
+    for (entry in entries) {
+        runCatching { LocalDate.parse(entry.date) }.getOrNull() ?: continue
+        val current = byDate[entry.date]
+        if (current == null || (entry.loggedAt ?: "") >= (current.loggedAt ?: "")) {
+            byDate[entry.date] = entry
+        }
+    }
+    val daily = byDate.values.sortedBy { it.date }
+    val epochDays = daily.map { LocalDate.parse(it.date).toEpochDays() }
+    return daily.mapIndexed { i, entry ->
+        val windowStart = epochDays[i] - (windowDays - 1)
+        var sum = 0.0
+        var count = 0
+        var j = i
+        while (j >= 0 && epochDays[j] >= windowStart) {
+            sum += daily[j].weightKg
+            count++
+            j--
+        }
+        WeightChartPoint(date = entry.date, weightKg = entry.weightKg, movingAvg = sum / count)
     }
 }
 

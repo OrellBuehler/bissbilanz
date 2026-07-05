@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
@@ -28,6 +29,7 @@ class InsightsViewModel(
     private val errorReporter: ErrorReporter,
     private val analyticsRepo: AnalyticsRepository,
     appModeManager: AppModeManager,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     /**
      * True when the app runs in anonymous Local mode. Server-only insights (weekly/monthly
@@ -64,17 +66,24 @@ class InsightsViewModel(
     private val _snackbarMessage = MutableStateFlow<Int?>(null)
     val snackbarMessage: StateFlow<Int?> = _snackbarMessage.asStateFlow()
 
-    private val _selectedRange = MutableStateFlow(0)
-    val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
+    // Range, tab and calendar position are backed by SavedStateHandle so they
+    // survive process death.
+    val selectedRange: StateFlow<Int> = savedStateHandle.getStateFlow(KEY_SELECTED_RANGE, 0)
 
     private val _calendarDays = MutableStateFlow<List<CalendarDay>>(emptyList())
     val calendarDays: StateFlow<List<CalendarDay>> = _calendarDays.asStateFlow()
 
-    private val _calendarMonth = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()).monthNumber)
-    val calendarMonth: StateFlow<Int> = _calendarMonth.asStateFlow()
+    val calendarMonth: StateFlow<Int> =
+        savedStateHandle.getStateFlow(
+            KEY_CALENDAR_MONTH,
+            Clock.System.todayIn(TimeZone.currentSystemDefault()).monthNumber,
+        )
 
-    private val _calendarYear = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()).year)
-    val calendarYear: StateFlow<Int> = _calendarYear.asStateFlow()
+    val calendarYear: StateFlow<Int> =
+        savedStateHandle.getStateFlow(
+            KEY_CALENDAR_YEAR,
+            Clock.System.todayIn(TimeZone.currentSystemDefault()).year,
+        )
 
     // Sleep
     val sleepEntries: StateFlow<List<SleepEntry>> =
@@ -86,8 +95,7 @@ class InsightsViewModel(
     val sleepFoodCorrelation: StateFlow<List<SleepFoodCorrelationEntry>> = _sleepFoodCorrelation.asStateFlow()
 
     // Tab navigation
-    private val _selectedTab = MutableStateFlow(0)
-    val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
+    val selectedTab: StateFlow<Int> = savedStateHandle.getStateFlow(KEY_SELECTED_TAB, 0)
 
     // Loading
     private val _nutritionLoading = MutableStateFlow(false)
@@ -175,10 +183,15 @@ class InsightsViewModel(
         loadData()
         loadCalendarStats()
         loadSleepData()
+        // After process death the restored tab's analytics have not been loaded
+        // in this instance yet — re-trigger its load.
+        if (selectedTab.value != 0) {
+            selectTab(selectedTab.value)
+        }
     }
 
     fun selectTab(index: Int) {
-        _selectedTab.value = index
+        savedStateHandle[KEY_SELECTED_TAB] = index
         if (index !in loadedTabs) {
             loadedTabs.add(index)
             when (index) {
@@ -190,22 +203,22 @@ class InsightsViewModel(
     }
 
     fun selectRange(index: Int) {
-        _selectedRange.value = index
+        savedStateHandle[KEY_SELECTED_RANGE] = index
         loadedTabs.clear()
         loadedTabs.add(0)
         cachedExtendedNutrients = null
         cachedMealTiming = null
         cachedDailyNutrients = null
         loadData()
-        if (_selectedTab.value != 0) {
-            selectTab(_selectedTab.value)
+        if (selectedTab.value != 0) {
+            selectTab(selectedTab.value)
         }
     }
 
     private fun dateRange(): Pair<String, String> {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val days =
-            when (_selectedRange.value) {
+            when (selectedRange.value) {
                 0 -> 7
                 1 -> 30
                 else -> 90
@@ -216,32 +229,32 @@ class InsightsViewModel(
     }
 
     fun prevMonth() {
-        var m = _calendarMonth.value - 1
-        var y = _calendarYear.value
+        var m = calendarMonth.value - 1
+        var y = calendarYear.value
         if (m < 1) {
             m = 12
             y--
         }
-        _calendarMonth.value = m
-        _calendarYear.value = y
+        savedStateHandle[KEY_CALENDAR_MONTH] = m
+        savedStateHandle[KEY_CALENDAR_YEAR] = y
         loadCalendarStats()
     }
 
     fun nextMonth() {
-        var m = _calendarMonth.value + 1
-        var y = _calendarYear.value
+        var m = calendarMonth.value + 1
+        var y = calendarYear.value
         if (m > 12) {
             m = 1
             y++
         }
-        _calendarMonth.value = m
-        _calendarYear.value = y
+        savedStateHandle[KEY_CALENDAR_MONTH] = m
+        savedStateHandle[KEY_CALENDAR_YEAR] = y
         loadCalendarStats()
     }
 
     fun loadCalendarStats() {
         viewModelScope.launch {
-            val monthStr = "%04d-%02d".format(_calendarYear.value, _calendarMonth.value)
+            val monthStr = "%04d-%02d".format(calendarYear.value, calendarMonth.value)
             try {
                 _calendarDays.value = statsRepo.getCalendarStats(monthStr)
             } catch (e: Exception) {
@@ -301,7 +314,7 @@ class InsightsViewModel(
         viewModelScope.launch {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             val days =
-                when (_selectedRange.value) {
+                when (selectedRange.value) {
                     0 -> 7
                     1 -> 30
                     else -> 90
@@ -678,5 +691,12 @@ class InsightsViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    companion object {
+        private const val KEY_SELECTED_RANGE = "selectedRange"
+        private const val KEY_SELECTED_TAB = "selectedTab"
+        private const val KEY_CALENDAR_MONTH = "calendarMonth"
+        private const val KEY_CALENDAR_YEAR = "calendarYear"
     }
 }

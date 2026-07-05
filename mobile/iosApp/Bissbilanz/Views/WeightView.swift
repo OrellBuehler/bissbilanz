@@ -157,19 +157,20 @@ struct WeightView: View {
         let sorted = chartEntries
         guard sorted.count >= 2 else { return [] }
 
-        // 7-point trailing average (with partial leading windows) computed by the
-        // shared KMP analytics; the chart only assembles the dates around it.
-        let averages = WeightChartAnalyticsKt.weightMovingAverage(
-            values: sorted.map(\.weightKg).asKotlin,
-            window: 7
-        ).asDoubles
+        // 7-calendar-day trailing average (same-date entries collapse to the
+        // latest loggedAt) computed by the shared KMP analytics; the chart only
+        // assembles the dates around it.
+        let points = WeightChartAnalyticsKt.weightMovingAverage(
+            entries: sorted.map { entry in
+                WeightChartInput(date: entry.entryDate, weightKg: entry.weightKg, loggedAt: entry.loggedAt)
+            },
+            windowDays: 7
+        )
 
-        var result: [(date: Date, average: Double)] = []
-        for (index, entry) in sorted.enumerated() {
-            guard let date = DateFormatting.date(from: entry.entryDate) else { continue }
-            result.append((date: date, average: averages[index]))
+        return points.compactMap { point in
+            guard let date = DateFormatting.date(from: point.date) else { return nil }
+            return (date: date, average: point.movingAvg)
         }
-        return result
     }
 
     private var projectionData: [(date: Date, weight: Double)] {
@@ -306,13 +307,13 @@ struct WeightView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         if let p14 = stats.projected14d {
-                            statChip(L10n.projection14d, value: String(format: "%.1f kg", p14), color: .purple)
+                            statChip(L10n.projection14d, value: MacroFormat.kg(p14), color: .purple)
                         }
                         if let p30 = stats.projected30d {
-                            statChip(L10n.projection30d, value: String(format: "%.1f kg", p30), color: .purple)
+                            statChip(L10n.projection30d, value: MacroFormat.kg(p30), color: .purple)
                         }
                         if let p60 = stats.projected60d {
-                            statChip(L10n.projection60d, value: String(format: "%.1f kg", p60), color: .purple)
+                            statChip(L10n.projection60d, value: MacroFormat.kg(p60), color: .purple)
                         }
                     }
                     .padding(.horizontal, 4)
@@ -328,7 +329,7 @@ struct WeightView: View {
             Text(L10n.latestWeight)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(String(format: "%.1f kg", entries.first?.weightKg ?? 0))
+            Text(MacroFormat.kg(entries.first?.weightKg ?? 0))
                 .font(.title2)
                 .fontWeight(.bold)
                 .monospacedDigit()
@@ -369,7 +370,7 @@ struct WeightView: View {
             .foregroundStyle(trend.color)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            Text(trend.delta.map { L10n.deltaPerWeek(String(format: "%+.1f kg", $0)) } ?? "—")
+            Text(trend.delta.map { L10n.deltaPerWeek(MacroFormat.kg($0, signed: true)) } ?? "—")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -403,7 +404,7 @@ struct WeightView: View {
                 Text(L10n.trend)
                     .font(.headline)
 
-                Picker("Range", selection: $selectedRange) {
+                Picker(L10n.range, selection: $selectedRange) {
                     ForEach(RangeOption.allCases) { option in
                         Text(option.label).tag(option.rawValue)
                     }
@@ -465,7 +466,7 @@ struct WeightView: View {
                                     Text(DateFormatting.displayString(from: selected.date))
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
-                                    Text(String(format: "%.1f kg", selected.weightKg))
+                                    Text(MacroFormat.kg(selected.weightKg))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundStyle(.blue)

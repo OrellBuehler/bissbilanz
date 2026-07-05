@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import Check from '@lucide/svelte/icons/check';
+	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	const permissions = [
-		'View your food database and recipes',
-		'Log food entries to your daily diary',
-		'Create new foods and recipes',
-		'View your nutrition goals and progress'
+		m.oauth_consent_permission_1,
+		m.oauth_consent_permission_2,
+		m.oauth_consent_permission_3,
+		m.oauth_consent_permission_4
 	];
 </script>
 
@@ -19,8 +21,8 @@
 			<Card.Header>
 				<div class="flex items-center gap-3 mb-2">
 					<div>
-						<Card.Title class="text-xl">Authorize MCP Access</Card.Title>
-						<Card.Description>Grant access to your Bissbilanz data</Card.Description>
+						<Card.Title class="text-xl">{m.oauth_consent_title()}</Card.Title>
+						<Card.Description>{m.oauth_consent_desc()}</Card.Description>
 					</div>
 				</div>
 			</Card.Header>
@@ -29,26 +31,14 @@
 				<div class="space-y-4">
 					<div>
 						<p class="text-sm text-slate-600 mb-3">
-							<strong>{data.clientName ?? 'An application'}</strong> is requesting access to your account
-							with the following permissions:
+							<strong>{data.clientName ?? m.oauth_consent_default_app()}</strong>
+							{m.oauth_consent_requesting_access()}
 						</p>
 						<ul class="space-y-2">
 							{#each permissions as permission}
 								<li class="flex items-start gap-2 text-sm">
-									<svg
-										class="size-5 text-green-600 flex-shrink-0 mt-0.5"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									<span class="text-slate-700">{permission}</span>
+									<Check class="size-5 text-green-600 flex-shrink-0 mt-0.5" />
+									<span class="text-slate-700">{permission()}</span>
 								</li>
 							{/each}
 						</ul>
@@ -56,9 +46,7 @@
 
 					<div class="pt-4 border-t">
 						<p class="text-xs text-slate-500">
-							By approving, you allow this application to access your Bissbilanz data on your
-							behalf. You can revoke access at any time from your
-							<a href="/settings/mcp" class="underline hover:text-slate-700">MCP settings</a>.
+							{@html m.oauth_consent_footer()}
 						</p>
 					</div>
 				</div>
@@ -69,7 +57,7 @@
 					<input type="hidden" name="client_id" value={data.clientId} />
 					<input type="hidden" name="redirect_uri" value={data.redirectUri} />
 					<input type="hidden" name="state" value={data.state} />
-					<Button type="submit" variant="outline" class="w-full">Deny</Button>
+					<Button type="submit" variant="outline" class="w-full">{m.oauth_consent_deny()}</Button>
 				</form>
 
 				<form method="POST" action="?/approve" class="flex-1">
@@ -78,7 +66,7 @@
 					<input type="hidden" name="state" value={data.state} />
 					<input type="hidden" name="code_challenge" value={data.codeChallenge} />
 					<input type="hidden" name="code_challenge_method" value={data.codeChallengeMethod} />
-					<Button type="submit" class="w-full">Approve</Button>
+					<Button type="submit" class="w-full">{m.oauth_consent_approve()}</Button>
 				</form>
 			</div>
 		</Card.Root>

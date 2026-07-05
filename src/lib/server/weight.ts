@@ -3,50 +3,48 @@ import { weightEntries } from '$lib/server/schema';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation';
 import { and, eq, desc, gte, lte, asc, sql } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { weightMovingAverage } from '$lib/analytics/moving-average';
 
-export const createWeightEntry = async (
+export const createWeightEntry = (
 	userId: string,
 	payload: unknown
-): Promise<Result<typeof weightEntries.$inferSelect>> => {
-	const result = weightCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
-		const db = getDB();
-		const now = new Date();
-		const [created] = await db
-			.insert(weightEntries)
-			.values({
-				userId,
-				weightKg: result.data.weightKg,
-				entryDate: result.data.entryDate,
-				loggedAt: now,
-				notes: result.data.notes ?? null
-			})
-			.onConflictDoUpdate({
-				target: [weightEntries.userId, weightEntries.entryDate],
-				set: {
-					weightKg: result.data.weightKg,
+): Promise<Result<typeof weightEntries.$inferSelect>> =>
+	withValidation(weightCreateSchema, payload, async (data) => {
+		try {
+			const db = getDB();
+			const now = new Date();
+			const [created] = await db
+				.insert(weightEntries)
+				.values({
+					userId,
+					weightKg: data.weightKg,
+					entryDate: data.entryDate,
 					loggedAt: now,
-					notes: result.data.notes ?? null,
-					updatedAt: now
-				}
-			})
-			.returning();
+					notes: data.notes ?? null
+				})
+				.onConflictDoUpdate({
+					target: [weightEntries.userId, weightEntries.entryDate],
+					set: {
+						weightKg: data.weightKg,
+						loggedAt: now,
+						notes: data.notes ?? null,
+						updatedAt: now
+					}
+				})
+				.returning();
 
-		if (!created) {
-			return { success: false, error: new Error('Failed to create weight entry') };
+			if (!created) {
+				throw new Error('Failed to create weight entry');
+			}
+			return created;
+		} catch (error) {
+			const err = error as Error & { cause?: Error };
+			const msg = err.cause?.message ? `${err.message} — ${err.cause.message}` : err.message;
+			throw new Error(msg);
 		}
-		return { success: true, data: created };
-	} catch (error) {
-		const err = error as Error & { cause?: Error };
-		const msg = err.cause?.message ? `${err.message} — ${err.cause.message}` : err.message;
-		return { success: false, error: new Error(msg) };
-	}
-};
+	});
 
 export const getWeightEntriesByDateRange = async (
 	userId: string,
@@ -82,31 +80,26 @@ export const getWeightEntries = async (userId: string) => {
 export const getWeightWithTrend = async (userId: string, from: string, to: string) => {
 	const db = getDB();
 	const result = await db.execute(sql`
-		WITH daily AS (
-			SELECT DISTINCT ON (entry_date)
-				entry_date,
-				weight_kg
-			FROM weight_entries
-			WHERE user_id = ${userId}
-				AND entry_date >= ${from}
-				AND entry_date <= ${to}
-			ORDER BY entry_date, logged_at DESC
-		)
-		SELECT
+		SELECT DISTINCT ON (entry_date)
 			entry_date,
-			weight_kg,
-			AVG(weight_kg) OVER (
-				ORDER BY entry_date
-				ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-			) AS moving_avg
-		FROM daily
-		ORDER BY entry_date ASC
+			weight_kg
+		FROM weight_entries
+		WHERE user_id = ${userId}
+			AND entry_date >= ${from}
+			AND entry_date <= ${to}
+		ORDER BY entry_date ASC, logged_at DESC
 	`);
-	return result as unknown as {
+	const daily = result as unknown as {
 		entry_date: string;
 		weight_kg: number;
-		moving_avg: number | null;
 	}[];
+	return weightMovingAverage(
+		daily.map((row) => ({ date: row.entry_date, weightKg: Number(row.weight_kg) }))
+	).map((point) => ({
+		entry_date: point.date,
+		weight_kg: point.weightKg,
+		moving_avg: point.movingAvg
+	}));
 };
 
 export const getLatestWeight = async (userId: string) => {
@@ -120,22 +113,17 @@ export const getLatestWeight = async (userId: string) => {
 	return entry ?? null;
 };
 
-export const updateWeightEntry = async (
+export const updateWeightEntry = (
 	userId: string,
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof weightEntries.$inferSelect | undefined>> => {
-	const result = weightUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof weightEntries.$inferSelect | undefined>> =>
+	withValidation(weightUpdateSchema, payload, async (data) => {
 		const db = getDB();
 		const [updated] = await db
 			.update(weightEntries)
-			.set({ ...result.data, updatedAt: lwwStamp(clientEditedAt) })
+			.set({ ...data, updatedAt: lwwStamp(clientEditedAt) })
 			.where(
 				and(
 					eq(weightEntries.id, id),
@@ -144,11 +132,8 @@ export const updateWeightEntry = async (
 				)
 			)
 			.returning();
-		return { success: true, data: updated };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return updated;
+	});
 
 export const deleteWeightEntry = async (userId: string, id: string) => {
 	const db = getDB();

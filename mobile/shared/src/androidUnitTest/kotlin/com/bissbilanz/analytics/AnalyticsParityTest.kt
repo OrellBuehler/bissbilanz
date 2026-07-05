@@ -72,6 +72,15 @@ class AnalyticsParityTest {
                 ).let { result -> JsonArray(result.map { it?.let(::JsonPrimitive) ?: JsonNull }) }
             }
 
+            "weightMovingAverage" -> {
+                weightMovingAverage(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        WeightChartInput(date = o.str("date"), weightKg = o.dbl("weightKg"), loggedAt = o.optStr("loggedAt"))
+                    },
+                    input.optInt("windowDays") ?: 7,
+                ).let { result -> JsonArray(result.map { it.toJson() }) }
+            }
+
             "computeAdaptiveTDEE" -> {
                 computeAdaptiveTDEE(
                     weightSeriesFrom(input.getValue("weightSeries")),
@@ -110,6 +119,42 @@ class AnalyticsParityTest {
 
             "computeTEF" -> {
                 computeTEF(tefInputsFrom(input.getValue("dailyNutrients"))).toJson()
+            }
+
+            "computeDIIScore" -> {
+                computeDIIScore(diiInputsFrom(input.getValue("dailyNutrients"))).toJson()
+            }
+
+            "extractMealTimingPatterns" -> {
+                extractMealTimingPatterns(
+                    mealEntriesFrom(input.getValue("entries")),
+                    input.str("timeZone"),
+                ).toJson()
+            }
+
+            "computeCalorieFrontLoading" -> {
+                computeCalorieFrontLoading(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        Triple(o.str("date"), o.optStr("eatenAt"), o.dbl("calories"))
+                    },
+                    input.str("timeZone"),
+                    input.optInt("cutoffHour") ?: 14,
+                ).toJson()
+            }
+
+            "computeCaffeineSleepCutoff" -> {
+                computeCaffeineSleepCutoff(
+                    caffeineEntriesFrom(input.getValue("caffeineEntries")),
+                    sleepDataFrom(input.getValue("sleepData")),
+                    input.str("timeZone"),
+                ).toJson()
+            }
+
+            "computeMealRegularity" -> {
+                computeMealRegularity(
+                    regularityEntriesFrom(input.getValue("entries")),
+                    input.str("timeZone"),
+                ).toJson()
             }
 
             else -> {
@@ -202,6 +247,89 @@ class AnalyticsParityTest {
             put("avgTEFPercent", avgTEFPct)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
+        }
+
+    private fun DIIResult.toJson() =
+        buildJsonObject {
+            put("score", score)
+            put("classification", classification)
+            put("contributors", JsonArray(contributors.map { it.toJson() }))
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun DIIContributor.toJson() =
+        buildJsonObject {
+            put("nutrient", nutrient)
+            put("impact", impact)
+        }
+
+    private fun WeightChartPoint.toJson() =
+        buildJsonObject {
+            put("date", date)
+            put("weightKg", weightKg)
+            put("movingAvg", movingAvg)
+        }
+
+    private fun MealTimingSummary.toJson() =
+        buildJsonObject {
+            put("dailyWindows", JsonArray(dailyWindows.map { it.toJson() }))
+            put("avgWindowMinutes", avgWindowMinutes)
+            put("avgFirstMealTime", avgFirstMealTime)
+            put("avgLastMealTime", avgLastMealTime)
+            put("lateNightFrequency", lateNightFrequency)
+            put("hourlyDistribution", JsonArray(hourlyDistribution.map(::JsonPrimitive)))
+        }
+
+    private fun DailyEatingWindow.toJson() =
+        buildJsonObject {
+            put("date", date)
+            put("firstMealTime", firstMealTime)
+            put("lastMealTime", lastMealTime)
+            put("windowMinutes", windowMinutes)
+            put("mealCount", mealCount)
+            put("lateNightMeals", lateNightMeals)
+        }
+
+    private fun FrontLoadingResult.toJson() =
+        buildJsonObject {
+            put("avgMorningPct", avgMorningPct)
+            put("daysAbove50Pct", daysAbove50Pct)
+            put("totalDays", totalDays)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun CaffeineSleepResult.toJson() =
+        buildJsonObject {
+            put("estimatedCutoffHour", estimatedCutoffHour?.let(::JsonPrimitive) ?: JsonNull)
+            put("hourlyImpact", JsonArray(hourlyImpact.map { it.toJson() }))
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun HourlyImpact.toJson() =
+        buildJsonObject {
+            put("hour", hour)
+            put("avgQuality", avgQuality)
+            put("avgDuration", avgDuration)
+            put("count", count)
+        }
+
+    private fun MealRegularityResult.toJson() =
+        buildJsonObject {
+            put("meals", JsonArray(meals.map { it.toJson() }))
+            put("overallScore", overallScore)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun MealRegularityEntry.toJson() =
+        buildJsonObject {
+            put("mealType", mealType)
+            put("avgMinute", avgMinute)
+            put("stddevMinutes", stddevMinutes)
+            put("regularity", regularity)
         }
 
     // TS encodes ConfidenceLevel as a lowercase string.
@@ -303,6 +431,46 @@ class AnalyticsParityTest {
                 quickFat = o.optDouble("quickFat"),
                 quickFiber = o.optDouble("quickFiber"),
             )
+        }
+
+    private fun diiInputsFrom(el: JsonElement): List<DIIInput> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            DIIInput(
+                fiber = o.optDouble("fiber"),
+                omega3 = o.optDouble("omega3"),
+                vitaminC = o.optDouble("vitaminC"),
+                vitaminD = o.optDouble("vitaminD"),
+                vitaminE = o.optDouble("vitaminE"),
+                saturatedFat = o.optDouble("saturatedFat"),
+                transFat = o.optDouble("transFat"),
+                alcohol = o.optDouble("alcohol"),
+                caffeine = o.optDouble("caffeine"),
+                sodium = o.optDouble("sodium"),
+            )
+        }
+
+    private fun mealEntriesFrom(el: JsonElement): List<MealEntry> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            MealEntry(date = o.str("date"), eatenAt = o.optStr("eatenAt"), calories = o.dbl("calories"))
+        }
+
+    private fun caffeineEntriesFrom(el: JsonElement): List<CaffeineEntry> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            CaffeineEntry(date = o.str("date"), eatenAt = o.optStr("eatenAt"), caffeine = o.dbl("caffeine"))
+        }
+
+    private fun sleepDataFrom(el: JsonElement): List<SleepDataPoint> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            SleepDataPoint(
+                date = o.str("date"),
+                sleepQuality = o.optDouble("sleepQuality"),
+                sleepDurationMinutes = o.optDouble("sleepDurationMinutes"),
+            )
+        }
+
+    private fun regularityEntriesFrom(el: JsonElement): List<RegularityInputEntry> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            RegularityInputEntry(date = o.str("date"), mealType = o.str("mealType"), eatenAt = o.optStr("eatenAt"))
         }
 
     private fun JsonObject.str(key: String): String = getValue(key).jsonPrimitive.content

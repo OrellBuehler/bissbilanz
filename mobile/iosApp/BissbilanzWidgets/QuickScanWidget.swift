@@ -10,12 +10,8 @@ struct QuickScanWidget: Widget {
         return StaticConfiguration(kind: "QuickScanWidget", provider: SnapshotProvider()) { entry in
             QuickScanWidgetView(entry: entry)
         }
-        .configurationDisplayName(strings.localeCode == "de" ? "Schnell-Scan" : "Quick Scan")
-        .description(
-            strings.localeCode == "de"
-                ? "Tippen, um den Barcode-Scanner zu öffnen."
-                : "Tap to open the barcode scanner."
-        )
+        .configurationDisplayName(strings.quickScanWidgetDisplayName)
+        .description(strings.quickScanWidgetDescription)
         .supportedFamilies([.systemSmall, .accessoryCircular])
     }
 }

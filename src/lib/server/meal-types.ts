@@ -1,5 +1,5 @@
 import { getDB } from '$lib/server/db';
-import { ApiError } from '$lib/server/errors';
+import { ApiError, withValidation } from '$lib/server/errors';
 import { customMealTypes } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from '$lib/server/validation';
@@ -22,52 +22,36 @@ export const listMealTypes = async (userId: string) => {
 		.orderBy(customMealTypes.sortOrder);
 };
 
-export const createMealType = async (
+export const createMealType = (
 	userId: string,
 	payload: unknown
-): Promise<Result<typeof customMealTypes.$inferSelect>> => {
-	const result = mealTypeCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof customMealTypes.$inferSelect>> =>
+	withValidation(mealTypeCreateSchema, payload, async (data) => {
 		const db = getDB();
 		const [created] = await db
 			.insert(customMealTypes)
-			.values(toMealTypeInsert(userId, result.data))
+			.values(toMealTypeInsert(userId, data))
 			.returning();
 		if (!created) {
-			return { success: false, error: new Error('Failed to create meal type') };
+			throw new Error('Failed to create meal type');
 		}
-		return { success: true, data: created };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return created;
+	});
 
-export const updateMealType = async (
+export const updateMealType = (
 	userId: string,
 	id: string,
 	payload: unknown
-): Promise<Result<typeof customMealTypes.$inferSelect | undefined>> => {
-	const result = mealTypeUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof customMealTypes.$inferSelect | undefined>> =>
+	withValidation(mealTypeUpdateSchema, payload, async (data) => {
 		const db = getDB();
 		const [updated] = await db
 			.update(customMealTypes)
-			.set({ ...result.data })
+			.set({ ...data })
 			.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)))
 			.returning();
-		return { success: true, data: updated };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return updated;
+	});
 
 export const deleteMealType = async (userId: string, id: string) => {
 	const db = getDB();

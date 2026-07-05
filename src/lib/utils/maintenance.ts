@@ -1,8 +1,11 @@
 import { round2 } from '$lib/utils/number';
+import {
+	KCAL_PER_KG_FAT,
+	KCAL_PER_KG_MUSCLE,
+	DEFAULT_MUSCLE_RATIO
+} from '../analytics/constants.generated';
 
-export const KCAL_PER_KG_FAT = 7700;
-export const KCAL_PER_KG_MUSCLE = 1800;
-export const DEFAULT_MUSCLE_RATIO = 0.3;
+export { KCAL_PER_KG_FAT, KCAL_PER_KG_MUSCLE, DEFAULT_MUSCLE_RATIO };
 
 export type MaintenanceInput = {
 	weightChangeKg: number;
