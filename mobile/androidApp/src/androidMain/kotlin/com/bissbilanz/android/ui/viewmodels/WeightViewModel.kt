@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
@@ -21,6 +22,7 @@ import kotlinx.datetime.todayIn
 class WeightViewModel(
     private val weightRepo: WeightRepository,
     private val errorReporter: ErrorReporter,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _trendData = MutableStateFlow<List<WeightTrendEntry>>(emptyList())
     val trendData: StateFlow<List<WeightTrendEntry>> = _trendData.asStateFlow()
@@ -30,11 +32,10 @@ class WeightViewModel(
             .entries()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _selectedRange = MutableStateFlow(1) // default 30d
-    val selectedRange: StateFlow<Int> = _selectedRange.asStateFlow()
+    // Backed by SavedStateHandle so range/projection survive process death.
+    val selectedRange: StateFlow<Int> = savedStateHandle.getStateFlow(KEY_SELECTED_RANGE, 1) // default 30d
 
-    private val _projectionDays = MutableStateFlow(0)
-    val projectionDays: StateFlow<Int> = _projectionDays.asStateFlow()
+    val projectionDays: StateFlow<Int> = savedStateHandle.getStateFlow(KEY_PROJECTION_DAYS, 0)
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -47,12 +48,12 @@ class WeightViewModel(
     }
 
     fun selectRange(index: Int) {
-        _selectedRange.value = index
+        savedStateHandle[KEY_SELECTED_RANGE] = index
         loadTrend()
     }
 
     fun setProjectionDays(days: Int) {
-        _projectionDays.value = days
+        savedStateHandle[KEY_PROJECTION_DAYS] = days
     }
 
     fun refresh() {
@@ -72,7 +73,7 @@ class WeightViewModel(
 
     private fun rangeStartDate(): kotlinx.datetime.LocalDate {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        return when (_selectedRange.value) {
+        return when (selectedRange.value) {
             0 -> today.minus(7, DateTimeUnit.DAY)
             1 -> today.minus(30, DateTimeUnit.DAY)
             2 -> today.minus(90, DateTimeUnit.DAY)
@@ -103,5 +104,10 @@ class WeightViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    companion object {
+        private const val KEY_SELECTED_RANGE = "selectedRange"
+        private const val KEY_PROJECTION_DAYS = "projectionDays"
     }
 }
