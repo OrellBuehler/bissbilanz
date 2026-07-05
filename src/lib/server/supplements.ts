@@ -7,6 +7,7 @@ import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
+import { withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type SupplementRow = typeof supplements.$inferSelect;
@@ -208,20 +209,15 @@ export const getSupplementById = async (
 	return { ...supplement, ingredients };
 };
 
-export const createSupplement = async (
+export const createSupplement = (
 	userId: string,
 	payload: unknown
-): Promise<Result<SupplementWithIngredients>> => {
-	const result = supplementCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<SupplementWithIngredients>> =>
+	withValidation(supplementCreateSchema, payload, async (parsed) => {
 		const db = getDB();
-		const { ingredients: ingredientsData, ...data } = result.data;
+		const { ingredients: ingredientsData, ...data } = parsed;
 
-		return await db.transaction(async (tx) => {
+		return db.transaction(async (tx) => {
 			const [created] = await tx
 				.insert(supplements)
 				.values({
@@ -244,29 +240,21 @@ export const createSupplement = async (
 			await insertIngredients(tx, userId, created.id, ingredientsData);
 			const ingredients = await loadIngredientsForSupplement(tx, created.id);
 
-			return { success: true as const, data: { ...created, ingredients } };
+			return { ...created, ingredients };
 		});
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+	});
 
-export const updateSupplement = async (
+export const updateSupplement = (
 	userId: string,
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<SupplementWithIngredients | undefined>> => {
-	const result = supplementUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<SupplementWithIngredients | undefined>> =>
+	withValidation(supplementUpdateSchema, payload, async (parsed) => {
 		const db = getDB();
-		const { ingredients: ingredientsData, ...data } = result.data;
+		const { ingredients: ingredientsData, ...data } = parsed;
 
-		return await db.transaction(async (tx) => {
+		return db.transaction(async (tx) => {
 			const [updated] = await tx
 				.update(supplements)
 				.set({ ...data, updatedAt: lwwStamp(clientEditedAt) })
@@ -280,7 +268,7 @@ export const updateSupplement = async (
 				.returning();
 
 			if (!updated) {
-				return { success: true as const, data: undefined };
+				return undefined;
 			}
 
 			if (ingredientsData !== undefined) {
@@ -301,12 +289,9 @@ export const updateSupplement = async (
 			}
 
 			const ingredients = await loadIngredientsForSupplement(tx, id);
-			return { success: true as const, data: { ...updated, ingredients } };
+			return { ...updated, ingredients };
 		});
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+	});
 
 export const deleteSupplement = async (userId: string, id: string) => {
 	const db = getDB();

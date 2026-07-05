@@ -80,9 +80,13 @@ import {
 	sleepFoodCorrelationResponseSchema,
 	weightFoodResponseSchema
 } from './validation/responses/analytics';
-import { analyticsDateRangeSchema } from './validation/analytics';
-import { aiTaskCreateSchema, aiTaskUpdateSchema } from './validation/ai-tasks';
-import { aiTaskStatusValues } from './schema';
+import { analyticsDateRangeSchema, dateRangeShape } from './validation/analytics';
+import { paginationSchema } from './validation/pagination';
+import {
+	aiTaskCreateSchema,
+	aiTaskUpdateSchema,
+	aiTaskListQuerySchema
+} from './validation/ai-tasks';
 import {
 	aiTaskResponseSchema,
 	aiTasksResponseSchema,
@@ -183,8 +187,7 @@ export function generateSpec() {
 						query: z.object({
 							q: z.string().optional(),
 							barcode: z.string().optional(),
-							limit: z.number().int().optional(),
-							offset: z.number().int().optional()
+							...paginationSchema.shape
 						})
 					},
 					responses: {
@@ -372,10 +375,7 @@ export function generateSpec() {
 					tags: ['Entries'],
 					description: 'Get diary entries for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -424,10 +424,7 @@ export function generateSpec() {
 					tags: ['Recipes'],
 					description: 'List recipes.',
 					requestParams: {
-						query: z.object({
-							limit: z.number().int().optional(),
-							offset: z.number().int().optional()
-						})
+						query: paginationSchema
 					},
 					responses: {
 						'200': {
@@ -762,10 +759,7 @@ export function generateSpec() {
 					tags: ['Stats'],
 					description: 'Get daily nutrition totals for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1059,8 +1053,7 @@ export function generateSpec() {
 					description: 'Calculate maintenance calories for a date range.',
 					requestParams: {
 						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date(),
+							...dateRangeShape,
 							muscleRatio: z.number().optional()
 						})
 					},
@@ -1113,11 +1106,7 @@ export function generateSpec() {
 					tags: ['AiTasks'],
 					description: 'List AI task queue entries, optionally filtered by status.',
 					requestParams: {
-						query: z.object({
-							status: z.enum(aiTaskStatusValues).optional(),
-							limit: z.number().int().optional(),
-							offset: z.number().int().optional()
-						})
+						query: aiTaskListQuerySchema
 					},
 					responses: {
 						'200': {
@@ -1282,10 +1271,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get food diversity data for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1303,10 +1289,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get meal timing data for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1324,10 +1307,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get daily nutrient totals for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1345,10 +1325,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get extended nutrient entries for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1366,10 +1343,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get weight and food data correlation for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
@@ -1387,10 +1361,7 @@ export function generateSpec() {
 					tags: ['Analytics'],
 					description: 'Get sleep-food correlation data for a date range.',
 					requestParams: {
-						query: z.object({
-							startDate: z.string().date(),
-							endDate: z.string().date()
-						})
+						query: analyticsDateRangeSchema
 					},
 					responses: {
 						'200': {
