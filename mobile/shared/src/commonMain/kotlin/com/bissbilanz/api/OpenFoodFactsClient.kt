@@ -25,9 +25,8 @@ import kotlin.math.round
  */
 class OpenFoodFactsClient(
     engine: HttpClientEngine = createHttpEngine(),
+    private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
-
     private val client =
         HttpClient(engine) {
             install(HttpTimeout) {

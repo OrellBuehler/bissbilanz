@@ -28,11 +28,13 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
+import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
@@ -43,7 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import kotlin.math.roundToInt
 
 @Suppress("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -270,20 +271,18 @@ fun DayLogScreen(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "${mealCalories.roundToInt()} cal",
+                                        "${mealCalories.formatAsInt()} cal",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = CaloriesBlue,
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                MacroChipRow(
+                                    protein = mealProtein,
+                                    carbs = mealCarbs,
+                                    fat = mealFat,
                                     modifier = Modifier.padding(bottom = 4.dp),
-                                ) {
-                                    Text("P ${mealProtein.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = ProteinRed)
-                                    Text("C ${mealCarbs.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = CarbsOrange)
-                                    Text("F ${mealFat.roundToInt()}g", style = MaterialTheme.typography.labelSmall, color = FatYellow)
-                                }
+                                )
                             }
                             items(mealEntries, key = { it.id }) { entry ->
                                 Box(modifier = Modifier.animateItem().padding(vertical = 2.dp)) {
@@ -388,7 +387,7 @@ fun EntryListItem(
         ListItem(
             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
-                Text("${entry.servings}x  ·  ${calories.roundToInt()} cal  ·  P ${protein.roundToInt()}g")
+                Text("${entry.servings}x  ·  ${calories.formatAsInt()} cal  ·  P ${protein.formatAsInt()}g")
             },
             trailingContent = {
                 entry.food?.brand?.let {

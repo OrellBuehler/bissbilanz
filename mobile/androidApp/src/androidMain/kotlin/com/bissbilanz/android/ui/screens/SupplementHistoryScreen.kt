@@ -15,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -24,6 +23,7 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.model.ScheduleType
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
@@ -409,7 +409,7 @@ private fun HistorySupplementRow(
             Icon(
                 imageVector = if (taken) Icons.Default.Check else Icons.Default.Close,
                 contentDescription = if (taken) "Taken" else "Missed",
-                tint = if (taken) FiberGreen else Color(0xFFEF4444),
+                tint = if (taken) FiberGreen else ProteinRed,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))

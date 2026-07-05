@@ -13,9 +13,12 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.mergeOpenFoodFactsOntoFood
+import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -29,8 +32,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class FoodRepository(
     private val api: BissbilanzApi,
@@ -163,7 +164,7 @@ class FoodRepository(
     ): Food {
         val tempFood = foodCreateToFood(food, id)
         cacheFood(tempFood)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             coalesceQueuedCreate(id, food)
         } else {
             syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
@@ -174,7 +175,7 @@ class FoodRepository(
 
     suspend fun deleteFood(id: String) {
         db.userDataDatabaseQueries.deleteFood(id)
-        if (id.startsWith("temp_")) {
+        if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteFood(id))
@@ -192,9 +193,9 @@ class FoodRepository(
         tempId: String,
         food: FoodCreate,
     ) {
-        for (req in syncQueue.findByAffected("foods", tempId)) {
-            val create = req.operation as? SyncOperation.CreateFood ?: continue
-            syncQueue.replaceOperation(req.id, create.copy(body = json.encodeToString(food)))
+        syncQueue.rewriteQueuedCreate("foods", tempId) { op ->
+            val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
+            create.copy(body = json.encodeToString(food))
         }
     }
 
@@ -338,10 +339,9 @@ class FoodRepository(
         )
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     private fun foodCreateToFood(
         food: FoodCreate,
-        id: String = "temp_${Uuid.random()}",
+        id: String = newTempId(),
     ): Food =
         Food(
             id = id,

@@ -39,6 +39,7 @@ data class TokenResponse(
 class AuthManager(
     private val baseUrl: String,
     private val secureStorage: SecureStorage,
+    private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -46,7 +47,7 @@ class AuthManager(
     private val client =
         HttpClient(com.bissbilanz.createHttpEngine()) {
             install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+                json(this@AuthManager.json)
             }
         }
 

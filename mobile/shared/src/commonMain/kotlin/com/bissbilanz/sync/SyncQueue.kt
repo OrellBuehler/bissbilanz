@@ -198,3 +198,24 @@ class SyncQueue(
             db.bissbilanzDatabaseQueries.clearSyncQueue()
         }
 }
+
+/**
+ * Rewrites the still-queued Create operation(s) for [tempId] on [table] so the eventual
+ * upload carries edits made while the create is still offline. [transform] receives the
+ * queued operation and returns the rewritten one, or null to skip (e.g. wrong operation
+ * type, or the body could not be decoded) — matching the previous per-repository
+ * `coalesceQueuedCreate` behavior of leaving unmatched/undecodable entries untouched.
+ *
+ * If the create has already drained (no queued op found for [tempId]), this is a no-op —
+ * the temp id is unknown server-side by then.
+ */
+suspend fun SyncQueue.rewriteQueuedCreate(
+    table: String,
+    tempId: String,
+    transform: (SyncOperation) -> SyncOperation?,
+) {
+    for (req in findByAffected(table, tempId)) {
+        val rewritten = transform(req.operation) ?: continue
+        replaceOperation(req.id, rewritten)
+    }
+}

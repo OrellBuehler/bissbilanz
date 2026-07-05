@@ -31,6 +31,8 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.CachedEntry
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,8 +40,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 /** What would be uploaded by [LocalDataMigrator.migrate], counted from the local cache. */
 data class MigrationPlan(
@@ -227,7 +227,7 @@ class LocalDataMigrator(
 
     private fun normalizeFoods() {
         for (row in queries.selectAllFoods().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val food = json.decodeOrNull<Food>(row.jsonData)?.copy(id = newId)
             queries.deleteFood(row.id)
@@ -250,7 +250,7 @@ class LocalDataMigrator(
 
     private fun normalizeRecipes() {
         for (row in queries.selectAllRecipes().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val recipe = json.decodeOrNull<RecipeDetail>(row.jsonData)?.copy(id = newId)
             queries.deleteRecipe(row.id)
@@ -272,7 +272,7 @@ class LocalDataMigrator(
 
     private fun normalizeSupplements() {
         for (row in queries.selectAllSupplements().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val supplement = json.decodeOrNull<Supplement>(row.jsonData)?.copy(id = newId)
             queries.deleteSupplement(row.id)
@@ -289,7 +289,7 @@ class LocalDataMigrator(
 
     private fun normalizeEntries() {
         for (row in queries.selectAllEntries().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val entry = json.decodeOrNull<Entry>(row.jsonData)?.copy(id = newId)
             queries.deleteEntry(row.id)
@@ -299,7 +299,7 @@ class LocalDataMigrator(
 
     private fun normalizeWeights() {
         for (row in queries.selectAllWeightEntries().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val entry = json.decodeOrNull<WeightEntry>(row.jsonData)?.copy(id = newId)
             queries.deleteWeightEntry(row.id)
@@ -315,7 +315,7 @@ class LocalDataMigrator(
 
     private fun normalizeSleep() {
         for (row in queries.selectAllSleepEntries().executeAsList()) {
-            if (row.id.startsWith(TEMP_PREFIX)) continue
+            if (row.id.isTempId()) continue
             val newId = newTempId()
             val entry = json.decodeOrNull<SleepEntry>(row.jsonData)?.copy(id = newId)
             queries.deleteSleepEntry(row.id)
@@ -454,13 +454,13 @@ class LocalDataMigrator(
 
     /** Items already carrying server ids from a previous partial run. */
     private fun uploadedCount(): Int =
-        queries.selectAllFoods().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllRecipes().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllEntries().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllWeightEntries().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllSleepEntries().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllSupplements().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) } +
-            queries.selectAllSupplementLogs().executeAsList().count { !it.id.startsWith(TEMP_PREFIX) }
+        queries.selectAllFoods().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllRecipes().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllEntries().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllWeightEntries().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllSleepEntries().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllSupplements().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllSupplementLogs().executeAsList().count { !it.id.isTempId() }
 
     private fun progress(
         done: Int,
@@ -476,7 +476,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_FOODS)
-        for (row in queries.selectAllFoods().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllFoods().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<Food>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local food \"${row.name}\"")
@@ -509,14 +509,14 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_RECIPES)
-        for (row in queries.selectAllRecipes().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllRecipes().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<RecipeDetail>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local recipe \"${row.name}\"")
             val ingredients =
                 cached.ingredients
                     // Dangling food references (food deleted locally) are dropped.
-                    .filterNot { it.foodId.startsWith(TEMP_PREFIX) }
+                    .filterNot { it.foodId.isTempId() }
                     .map {
                         RecipeIngredientInput(
                             foodId = it.foodId,
@@ -568,7 +568,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_ENTRIES)
-        for (row in queries.selectAllEntries().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllEntries().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<Entry>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local entry from ${row.date}")
@@ -595,7 +595,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_WEIGHTS)
-        for (row in queries.selectAllWeightEntries().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllWeightEntries().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<WeightEntry>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local weight entry from ${row.entryDate}")
@@ -624,7 +624,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_SLEEP)
-        for (row in queries.selectAllSleepEntries().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllSleepEntries().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<SleepEntry>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local sleep entry from ${row.entryDate}")
@@ -662,7 +662,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_SUPPLEMENTS)
-        for (row in queries.selectAllSupplements().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
+        for (row in queries.selectAllSupplements().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<Supplement>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local supplement \"${row.name}\"")
@@ -709,8 +709,8 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_SUPPLEMENT_LOGS)
-        for (row in queries.selectAllSupplementLogs().executeAsList().filter { it.id.startsWith(TEMP_PREFIX) }) {
-            if (row.supplementId.startsWith(TEMP_PREFIX)) {
+        for (row in queries.selectAllSupplementLogs().executeAsList().filter { it.id.isTempId() }) {
+            if (row.supplementId.isTempId()) {
                 // Orphan log (supplement deleted locally) — nothing to log it against.
                 queries.deleteSupplementLogById(row.id)
                 progress(++done, total, STEP_SUPPLEMENT_LOGS)
@@ -790,7 +790,7 @@ class LocalDataMigrator(
      * Returns null only when nothing usable is left (blank backing food name).
      */
     private fun SupplementIngredient.toIngredientInput(): SupplementIngredientInput? {
-        if (!foodId.startsWith(TEMP_PREFIX)) {
+        if (!foodId.isTempId()) {
             return SupplementIngredientInput(foodId = foodId, servings = servings, sortOrder = sortOrder)
         }
         if (food.name.isBlank()) return null
@@ -880,8 +880,8 @@ class LocalDataMigrator(
      * from the cached display values so the log line survives the migration.
      */
     private fun Entry.toEntryCreate(): EntryCreate {
-        val resolvedFoodId = foodId?.takeUnless { it.startsWith(TEMP_PREFIX) }
-        val resolvedRecipeId = recipeId?.takeUnless { it.startsWith(TEMP_PREFIX) }
+        val resolvedFoodId = foodId?.takeUnless { it.isTempId() }
+        val resolvedRecipeId = recipeId?.takeUnless { it.isTempId() }
         val orphan = (foodId != null && resolvedFoodId == null) || (recipeId != null && resolvedRecipeId == null)
         return EntryCreate(
             mealType = mealType,
@@ -940,11 +940,7 @@ class LocalDataMigrator(
             caloricLagDaysOverride = caloricLagDaysOverride,
         )
 
-    @OptIn(ExperimentalUuidApi::class)
-    private fun newTempId(): String = "$TEMP_PREFIX${Uuid.random()}"
-
     companion object {
-        private const val TEMP_PREFIX = "temp_"
         private const val NORMALIZED_MARKER = "migration_normalized"
 
         const val STEP_PREPARE = "prepare"
