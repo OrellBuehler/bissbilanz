@@ -121,6 +121,10 @@ class AnalyticsParityTest {
                 computeTEF(tefInputsFrom(input.getValue("dailyNutrients"))).toJson()
             }
 
+            "computeDIIScore" -> {
+                computeDIIScore(diiInputsFrom(input.getValue("dailyNutrients"))).toJson()
+            }
+
             "extractMealTimingPatterns" -> {
                 extractMealTimingPatterns(
                     mealEntriesFrom(input.getValue("entries")),
@@ -243,6 +247,21 @@ class AnalyticsParityTest {
             put("avgTEFPercent", avgTEFPct)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
+        }
+
+    private fun DIIResult.toJson() =
+        buildJsonObject {
+            put("score", score)
+            put("classification", classification)
+            put("contributors", JsonArray(contributors.map { it.toJson() }))
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun DIIContributor.toJson() =
+        buildJsonObject {
+            put("nutrient", nutrient)
+            put("impact", impact)
         }
 
     private fun WeightChartPoint.toJson() =
@@ -411,6 +430,22 @@ class AnalyticsParityTest {
                 quickCarbs = o.optDouble("quickCarbs"),
                 quickFat = o.optDouble("quickFat"),
                 quickFiber = o.optDouble("quickFiber"),
+            )
+        }
+
+    private fun diiInputsFrom(el: JsonElement): List<DIIInput> =
+        el.jsonArray.map { it.jsonObject }.map { o ->
+            DIIInput(
+                fiber = o.optDouble("fiber"),
+                omega3 = o.optDouble("omega3"),
+                vitaminC = o.optDouble("vitaminC"),
+                vitaminD = o.optDouble("vitaminD"),
+                vitaminE = o.optDouble("vitaminE"),
+                saturatedFat = o.optDouble("saturatedFat"),
+                transFat = o.optDouble("transFat"),
+                alcohol = o.optDouble("alcohol"),
+                caffeine = o.optDouble("caffeine"),
+                sodium = o.optDouble("sodium"),
             )
         }
 

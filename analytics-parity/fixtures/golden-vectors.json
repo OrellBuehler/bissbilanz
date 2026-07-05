@@ -1655,6 +1655,172 @@
 			}
 		},
 		{
+			"fn": "computeDIIScore",
+			"name": "varied_coverage",
+			"input": {
+				"dailyNutrients": [
+					{
+						"fiber": 14,
+						"omega3": 0.6,
+						"saturatedFat": 22,
+						"sodium": 2800,
+						"vitaminC": 60,
+						"vitaminD": 4.5,
+						"vitaminE": 8.7,
+						"alcohol": 0,
+						"transFat": 0,
+						"caffeine": 180
+					},
+					{
+						"fiber": 17,
+						"omega3": 1,
+						"saturatedFat": 26,
+						"sodium": 3150,
+						"vitaminC": 70,
+						"vitaminD": 4.5,
+						"vitaminE": 8.7,
+						"alcohol": 0,
+						"transFat": 0
+					},
+					{
+						"fiber": 20,
+						"omega3": 1.4,
+						"saturatedFat": 30,
+						"sodium": 3500,
+						"vitaminC": 80,
+						"vitaminD": 4.5,
+						"vitaminE": 8.7,
+						"alcohol": 0,
+						"transFat": 0,
+						"caffeine": 210
+					},
+					{
+						"fiber": 23,
+						"omega3": 0.6,
+						"saturatedFat": 34,
+						"sodium": 3850,
+						"vitaminC": 90,
+						"vitaminE": 8.7,
+						"alcohol": 0,
+						"transFat": 0
+					},
+					{
+						"fiber": 14,
+						"omega3": 1,
+						"saturatedFat": 38,
+						"sodium": 2800,
+						"vitaminC": 100,
+						"vitaminE": 0,
+						"alcohol": 0,
+						"transFat": 0,
+						"caffeine": 240
+					},
+					{
+						"fiber": 17,
+						"omega3": 1.4,
+						"saturatedFat": 22,
+						"sodium": 3150,
+						"vitaminC": 110,
+						"vitaminE": 0,
+						"alcohol": 0,
+						"transFat": 0
+					},
+					{
+						"fiber": 20,
+						"omega3": 0.6,
+						"saturatedFat": 26,
+						"sodium": 3500,
+						"vitaminE": 0,
+						"alcohol": 0,
+						"transFat": 0,
+						"caffeine": 270
+					},
+					{
+						"fiber": 23,
+						"omega3": 1,
+						"saturatedFat": 30,
+						"sodium": 3850,
+						"vitaminE": 0,
+						"alcohol": 0,
+						"transFat": 0
+					},
+					{
+						"fiber": 14,
+						"omega3": 1.4,
+						"saturatedFat": 34,
+						"sodium": 2800,
+						"vitaminE": 0,
+						"alcohol": 15,
+						"transFat": 0,
+						"caffeine": 300
+					},
+					{
+						"fiber": 17,
+						"omega3": 0.6,
+						"saturatedFat": 38,
+						"sodium": 3150,
+						"vitaminE": 0,
+						"alcohol": 15,
+						"transFat": 0
+					}
+				]
+			},
+			"expected": {
+				"score": -0.29435045098039203,
+				"classification": "neutral",
+				"contributors": [
+					{
+						"nutrient": "transFat",
+						"impact": -0.360675
+					},
+					{
+						"nutrient": "alcohol",
+						"impact": -0.223443
+					},
+					{
+						"nutrient": "omega3",
+						"impact": 0.14824000000000004
+					},
+					{
+						"nutrient": "vitaminC",
+						"impact": 0.08090588235294117
+					},
+					{
+						"nutrient": "fiber",
+						"impact": 0.07458750000000018
+					},
+					{
+						"nutrient": "saturatedFat",
+						"impact": 0.04351666666666662
+					},
+					{
+						"nutrient": "sodium",
+						"impact": -0.04281583333333334
+					},
+					{
+						"nutrient": "caffeine",
+						"impact": -0.014666666666666666
+					}
+				],
+				"confidence": "low",
+				"sampleSize": 10
+			}
+		},
+		{
+			"fn": "computeDIIScore",
+			"name": "empty",
+			"input": {
+				"dailyNutrients": []
+			},
+			"expected": {
+				"score": 0,
+				"classification": "neutral",
+				"contributors": [],
+				"confidence": "insufficient",
+				"sampleSize": 0
+			}
+		},
+		{
 			"fn": "extractMealTimingPatterns",
 			"name": "zurich_dst_multi_day",
 			"input": {

@@ -40,6 +40,9 @@ jobs:
       - name: Format check (prettier)
         run: bunx prettier --check .
 
+      - name: Shared analytics constants up to date
+        run: bun run constants:check
+
       - name: Unit tests
         run: bun run test
 

@@ -20,7 +20,7 @@ import {
 	type AggRecipe
 } from '../src/lib/analytics/aggregation';
 import { calculateMaintenance, type MaintenanceInput } from '../src/lib/utils/maintenance';
-import { computeTEF } from '../src/lib/analytics/food-quality';
+import { computeTEF, computeDIIScore } from '../src/lib/analytics/food-quality';
 import { extractMealTimingPatterns } from '../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../src/lib/analytics/calorie-patterns';
 import { computeCaffeineSleepCutoff } from '../src/lib/analytics/caffeine-sleep';
@@ -325,6 +325,29 @@ function round(v: number, dp: number): number {
 	];
 	add('computeTEF', 'varying_calories', { dailyNutrients: tefDays }, computeTEF(tefDays));
 	add('computeTEF', 'empty', { dailyNutrients: [] }, computeTEF([]));
+}
+
+// --- computeDIIScore ------------------------------------------------------------
+{
+	// Locks the generated DII coefficient/mean/SD tables behaviorally. Exercises
+	// the coverage cutoff (vitaminD present on 3/10 days → excluded), the
+	// zero-valid semantics (alcohol/transFat zeros count; vitaminE zeros are
+	// filtered → 0.4 coverage → excluded) and the |impact| contributor ordering.
+	const days = Array.from({ length: 10 }, (_, i) => ({
+		fiber: 14 + (i % 4) * 3,
+		omega3: 0.6 + (i % 3) * 0.4,
+		saturatedFat: 22 + (i % 5) * 4,
+		sodium: 2800 + (i % 4) * 350,
+		vitaminC: i < 6 ? 60 + i * 10 : undefined,
+		vitaminD: i < 3 ? 4.5 : undefined,
+		vitaminE: i < 4 ? 8.7 : 0,
+		alcohol: i >= 8 ? 15 : 0,
+		transFat: 0,
+		caffeine: i % 2 === 0 ? 180 + i * 15 : undefined
+	}));
+	add('computeDIIScore', 'varied_coverage', { dailyNutrients: days }, computeDIIScore(days));
+
+	add('computeDIIScore', 'empty', { dailyNutrients: [] }, computeDIIScore([]));
 }
 
 // --- extractMealTimingPatterns ------------------------------------------------

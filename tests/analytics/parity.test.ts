@@ -7,7 +7,7 @@ import { movingAverage, weightMovingAverage } from '../../src/lib/analytics/movi
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib/analytics/tdee';
 import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
 import { calculateMaintenance } from '../../src/lib/utils/maintenance';
-import { computeTEF } from '../../src/lib/analytics/food-quality';
+import { computeTEF, computeDIIScore } from '../../src/lib/analytics/food-quality';
 import { extractMealTimingPatterns } from '../../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../../src/lib/analytics/calorie-patterns';
 import { computeCaffeineSleepCutoff } from '../../src/lib/analytics/caffeine-sleep';
@@ -52,6 +52,8 @@ function runFn(fn: string, input: any): unknown {
 			return aggregateDailyNutrientTotals(input.entries, input.foods, input.recipes);
 		case 'computeTEF':
 			return computeTEF(input.dailyNutrients);
+		case 'computeDIIScore':
+			return computeDIIScore(input.dailyNutrients);
 		case 'extractMealTimingPatterns':
 			return extractMealTimingPatterns(input.entries, input.timeZone);
 		case 'computeCalorieFrontLoading':
