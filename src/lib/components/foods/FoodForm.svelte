@@ -12,9 +12,10 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Check from '@lucide/svelte/icons/check';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
-	import { round2, parseDecimalInput } from '$lib/utils/number';
+	import { round2 } from '$lib/utils/number';
 	import {
 		ALL_NUTRIENTS,
 		CATEGORY_ORDER,
@@ -222,7 +223,10 @@
 	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 		<div class="grid gap-1.5">
 			<Label for="servingSize">{m.food_form_serving_size()}</Label>
-			<Input id="servingSize" type="number" bind:value={form.servingSize} />
+			<NumberInput
+				id="servingSize"
+				bind:value={() => form.servingSize, (v) => (form.servingSize = v ?? 0)}
+			/>
 		</div>
 		<div class="grid gap-1.5">
 			<Label>{m.food_form_unit()}</Label>
@@ -241,23 +245,26 @@
 	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 		<div class="grid gap-1.5">
 			<Label for="calories">{m.food_form_calories()}</Label>
-			<Input id="calories" type="number" bind:value={form.calories} />
+			<NumberInput
+				id="calories"
+				bind:value={() => form.calories, (v) => (form.calories = v ?? 0)}
+			/>
 		</div>
 		<div class="grid gap-1.5">
 			<Label for="protein">{m.food_form_protein()}</Label>
-			<Input id="protein" type="number" bind:value={form.protein} />
+			<NumberInput id="protein" bind:value={() => form.protein, (v) => (form.protein = v ?? 0)} />
 		</div>
 		<div class="grid gap-1.5">
 			<Label for="carbs">{m.food_form_carbs()}</Label>
-			<Input id="carbs" type="number" bind:value={form.carbs} />
+			<NumberInput id="carbs" bind:value={() => form.carbs, (v) => (form.carbs = v ?? 0)} />
 		</div>
 		<div class="grid gap-1.5">
 			<Label for="fat">{m.food_form_fat()}</Label>
-			<Input id="fat" type="number" bind:value={form.fat} />
+			<NumberInput id="fat" bind:value={() => form.fat, (v) => (form.fat = v ?? 0)} />
 		</div>
 		<div class="grid gap-1.5">
 			<Label for="fiber">{m.food_form_fiber()}</Label>
-			<Input id="fiber" type="number" bind:value={form.fiber} />
+			<NumberInput id="fiber" bind:value={() => form.fiber, (v) => (form.fiber = v ?? 0)} />
 		</div>
 	</div>
 
@@ -294,14 +301,11 @@
 									{#each nutrients as nutrient}
 										<div class="grid gap-1.5">
 											<Label for={nutrient.key}>{nutrientLabel(nutrient)}</Label>
-											<Input
+											<NumberInput
 												id={nutrient.key}
-												type="number"
-												value={form[nutrient.key] as number | null}
-												oninput={(e) => {
-													const val = (e.currentTarget as HTMLInputElement).value;
-													form[nutrient.key] = val === '' ? null : parseDecimalInput(val);
-												}}
+												bind:value={
+													() => form[nutrient.key] as number | null, (v) => (form[nutrient.key] = v)
+												}
 											/>
 										</div>
 									{/each}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeAdaptiveTDEE } from '$lib/analytics/tdee';
+	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
@@ -22,7 +23,7 @@
 	const headline = $derived.by(() => {
 		const t = tdee;
 		if (!t || t.estimatedTDEE === null) return m.analytics_tdee_no_data();
-		return m.analytics_tdee_headline({ kcal: Math.round(t.estimatedTDEE).toString() });
+		return m.analytics_tdee_headline({ kcal: formatKcal(t.estimatedTDEE) });
 	});
 
 	const trendArrow = $derived.by(() => {
@@ -61,7 +62,7 @@
 			<div class="space-y-3">
 				<div class="flex items-center gap-2">
 					<span class="text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
-						{Math.round(tdee.estimatedTDEE)}
+						{formatKcal(tdee.estimatedTDEE)}
 					</span>
 					<span class="text-sm text-muted-foreground">kcal</span>
 					<span class="ml-auto text-lg font-semibold {trendColor}">{trendArrow}</span>
@@ -70,7 +71,7 @@
 				<div class="space-y-2">
 					<div class="flex justify-between text-xs text-muted-foreground">
 						<span>{m.analytics_tdee_intake()}</span>
-						<span class="tabular-nums">{Math.round(tdee.avgIntake)} kcal</span>
+						<span class="tabular-nums">{formatKcal(tdee.avgIntake)} kcal</span>
 					</div>
 					<div class="h-2 w-full overflow-hidden rounded-full bg-muted/40">
 						<div
@@ -80,7 +81,7 @@
 					</div>
 					<div class="flex justify-between text-xs text-muted-foreground">
 						<span>{m.analytics_tdee_expenditure()}</span>
-						<span class="tabular-nums">{Math.round(tdee.estimatedTDEE)} kcal</span>
+						<span class="tabular-nums">{formatKcal(tdee.estimatedTDEE)} kcal</span>
 					</div>
 				</div>
 

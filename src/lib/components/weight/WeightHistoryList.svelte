@@ -6,7 +6,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { weightService } from '$lib/services/weight-service.svelte';
-	import { round2, parseDecimalInput } from '$lib/utils/number';
+	import { round2, parseDecimalInput, formatKg } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieWeightEntry } from '$lib/db/types';
@@ -88,7 +88,7 @@
 				{:else}
 					<div class="flex-1 min-w-0">
 						<div class="flex items-baseline gap-2">
-							<span class="font-medium tabular-nums">{entry.weightKg.toFixed(1)} kg</span>
+							<span class="font-medium tabular-nums">{formatKg(entry.weightKg)} kg</span>
 							<span class="text-sm text-muted-foreground">{formatDate(entry.entryDate)}</span>
 							<span class="text-xs text-muted-foreground">{formatTime(entry.loggedAt)}</span>
 						</div>

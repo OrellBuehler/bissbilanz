@@ -2,7 +2,7 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { parseDecimalInput } from '$lib/utils/number';
+	import { parseDecimalInput, round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -113,7 +113,7 @@
 		{#if previewKcal}
 			<span class="text-xs text-muted-foreground">
 				{m.amount_preview_equals({
-					amount: String(Math.round(servings * 100) / 100),
+					amount: String(round2(servings)),
 					unit: ` ${m.amount_mode_servings().toLowerCase()}`
 				})}
 				({previewKcal})

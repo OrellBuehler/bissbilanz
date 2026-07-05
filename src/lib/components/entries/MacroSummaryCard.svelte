@@ -1,6 +1,13 @@
 <script lang="ts">
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
+	import {
+		MACRO_TEXT_CLASS,
+		MACRO_LABEL_CLASS,
+		MACRO_CARD_BG_CLASS,
+		type MacroKey
+	} from '$lib/utils/colors';
+	import { formatKcal, formatGrams } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 
@@ -9,49 +16,47 @@
 	};
 
 	let { totals }: Props = $props();
+
+	const rows: { key: MacroKey; label: string; value: string; size: string }[] = $derived([
+		{
+			key: 'calories',
+			label: m.macro_calories(),
+			value: formatKcal(totals.calories),
+			size: 'text-lg'
+		},
+		{
+			key: 'protein',
+			label: m.macro_protein(),
+			value: `${formatGrams(totals.protein)}g`,
+			size: 'text-base'
+		},
+		{
+			key: 'carbs',
+			label: m.macro_carbs(),
+			value: `${formatGrams(totals.carbs)}g`,
+			size: 'text-base'
+		},
+		{ key: 'fat', label: m.macro_fat(), value: `${formatGrams(totals.fat)}g`, size: 'text-base' },
+		{
+			key: 'fiber',
+			label: m.macro_fiber(),
+			value: `${formatGrams(totals.fiber)}g`,
+			size: 'text-base'
+		}
+	]);
 </script>
 
 <DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="tertiary" class="@container">
 	<div class="grid grid-cols-2 gap-2 text-sm @lg:grid-cols-5">
-		<div class="rounded-2xl bg-blue-50/60 px-3 py-2.5 dark:bg-blue-950/20">
-			<div class="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80">
-				{m.macro_calories()}
+		{#each rows as row (row.key)}
+			<div class="rounded-2xl px-3 py-2.5 {MACRO_CARD_BG_CLASS[row.key]}">
+				<div class="text-[11px] font-medium {MACRO_LABEL_CLASS[row.key]}">
+					{row.label}
+				</div>
+				<div class="mt-1 {row.size} font-bold tabular-nums {MACRO_TEXT_CLASS[row.key]}">
+					{row.value}
+				</div>
 			</div>
-			<div class="mt-1 text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400">
-				{Math.round(totals.calories)}
-			</div>
-		</div>
-		<div class="rounded-2xl bg-red-50/60 px-3 py-2.5 dark:bg-red-950/20">
-			<div class="text-[11px] font-medium text-red-700/80 dark:text-red-300/80">
-				{m.macro_protein()}
-			</div>
-			<div class="mt-1 text-base font-bold tabular-nums text-red-600 dark:text-red-400">
-				{Math.round(totals.protein)}g
-			</div>
-		</div>
-		<div class="rounded-2xl bg-orange-50/60 px-3 py-2.5 dark:bg-orange-950/20">
-			<div class="text-[11px] font-medium text-orange-700/80 dark:text-orange-300/80">
-				{m.macro_carbs()}
-			</div>
-			<div class="mt-1 text-base font-bold tabular-nums text-orange-600 dark:text-orange-400">
-				{Math.round(totals.carbs)}g
-			</div>
-		</div>
-		<div class="rounded-2xl bg-yellow-50/60 px-3 py-2.5 dark:bg-yellow-950/20">
-			<div class="text-[11px] font-medium text-yellow-700/80 dark:text-yellow-300/80">
-				{m.macro_fat()}
-			</div>
-			<div class="mt-1 text-base font-bold tabular-nums text-yellow-700 dark:text-yellow-300">
-				{Math.round(totals.fat)}g
-			</div>
-		</div>
-		<div class="rounded-2xl bg-green-50/60 px-3 py-2.5 dark:bg-green-950/20">
-			<div class="text-[11px] font-medium text-green-700/80 dark:text-green-300/80">
-				{m.macro_fiber()}
-			</div>
-			<div class="mt-1 text-base font-bold tabular-nums text-green-600 dark:text-green-400">
-				{Math.round(totals.fiber)}g
-			</div>
-		</div>
+		{/each}
 	</div>
 </DashboardCard>

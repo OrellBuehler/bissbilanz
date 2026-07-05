@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import X from '@lucide/svelte/icons/x';
 	import { servingUnitValues } from '$lib/units';
@@ -50,13 +50,10 @@
 			{/each}
 		</Select.Content>
 	</Select.Root>
-	<Input
+	<NumberInput
 		class="w-20"
-		type="number"
 		placeholder={m.recipe_form_qty()}
-		bind:value={ingredient.quantity}
-		min="0.1"
-		step="0.1"
+		bind:value={() => ingredient.quantity, (v) => (ingredient.quantity = v ?? 0.1)}
 	/>
 	<Select.Root
 		type="single"

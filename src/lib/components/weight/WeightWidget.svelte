@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { today } from '$lib/utils/dates';
-	import { parseDecimalInput } from '$lib/utils/number';
+	import { parseDecimalInput, formatKg } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
 	import Weight from '@lucide/svelte/icons/weight';
 	import * as m from '$lib/paraglide/messages';
@@ -46,7 +46,7 @@
 	{/snippet}
 	{#if weightKg != null}
 		<p class="text-3xl font-bold tabular-nums">
-			{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}
+			{m.dashboard_weight_latest({ value: formatKg(weightKg) })}
 		</p>
 	{:else}
 		<p class="text-muted-foreground text-sm">{m.dashboard_weight_no_entries()}</p>

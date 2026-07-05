@@ -10,6 +10,7 @@
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import SwipeableEntry from '$lib/components/entries/SwipeableEntry.svelte';
 	import { formatTime } from '$lib/utils/dates';
+	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -125,7 +126,7 @@
 							{/if}
 						</div>
 						<span class="shrink-0 tabular-nums text-muted-foreground"
-							>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
+							>{formatKcal((entry.calories ?? 0) * entry.servings)} kcal</span
 						>
 					</div>
 				</SwipeableEntry>
@@ -151,7 +152,7 @@
 						{/if}
 					</div>
 					<span class="shrink-0 text-muted-foreground"
-						>{Math.round((entry.calories ?? 0) * entry.servings)} kcal</span
+						>{formatKcal((entry.calories ?? 0) * entry.servings)} kcal</span
 					>
 				</li>
 			{/if}

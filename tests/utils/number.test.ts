@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { round2, parseDecimalInput } from '../../src/lib/utils/number';
+import {
+	round2,
+	roundMacroValue,
+	parseDecimalInput,
+	formatKcal,
+	formatGrams,
+	formatKg,
+	formatNutrient
+} from '../../src/lib/utils/number';
 
 describe('round2', () => {
 	test('rounds positive numbers to 2 decimal places', () => {
@@ -73,5 +81,71 @@ describe('parseDecimalInput', () => {
 
 	test('trims surrounding whitespace', () => {
 		expect(parseDecimalInput('  2,5  ')).toBe(2.5);
+	});
+});
+
+describe('roundMacroValue', () => {
+	test('rounds calories to the nearest whole number', () => {
+		expect(roundMacroValue('calories', 123.6)).toBe(124);
+		expect(roundMacroValue('calories', 123.4)).toBe(123);
+	});
+
+	test('rounds other macro fields to 1 decimal', () => {
+		expect(roundMacroValue('protein', 12.34)).toBe(12.3);
+		expect(roundMacroValue('carbs', 12.36)).toBe(12.4);
+		expect(roundMacroValue('fat', 5)).toBe(5);
+		expect(roundMacroValue('fiber', 5)).toBe(5);
+	});
+
+	test('treats unknown keys like non-calorie macros', () => {
+		expect(roundMacroValue('servingSize', 99.96)).toBe(100);
+		expect(roundMacroValue('somethingElse', 1.23)).toBe(1.2);
+	});
+});
+
+describe('formatKcal', () => {
+	test('rounds to the nearest whole number', () => {
+		expect(formatKcal(1234.6)).toBe('1235');
+		expect(formatKcal(1234.4)).toBe('1234');
+	});
+
+	test('handles zero and negative values', () => {
+		expect(formatKcal(0)).toBe('0');
+		expect(formatKcal(-12.6)).toBe('-13');
+	});
+});
+
+describe('formatGrams', () => {
+	test('shows 1 decimal below 10g, stripping trailing zeros', () => {
+		expect(formatGrams(4.24)).toBe('4.2');
+		expect(formatGrams(4.0)).toBe('4');
+		expect(formatGrams(0)).toBe('0');
+	});
+
+	test('rounds to a whole number at/above 10g', () => {
+		expect(formatGrams(10)).toBe('10');
+		expect(formatGrams(145.6)).toBe('146');
+		expect(formatGrams(9.96)).toBe('10');
+	});
+
+	test('handles the negative magnitude boundary', () => {
+		expect(formatGrams(-4.24)).toBe('-4.2');
+		expect(formatGrams(-12.6)).toBe('-13');
+	});
+});
+
+describe('formatKg', () => {
+	test('always shows exactly 1 decimal', () => {
+		expect(formatKg(70)).toBe('70.0');
+		expect(formatKg(70.04)).toBe('70.0');
+		expect(formatKg(70.06)).toBe('70.1');
+	});
+});
+
+describe('formatNutrient', () => {
+	test('appends the unit to the formatted grams value', () => {
+		expect(formatNutrient(4.24, 'g')).toBe('4.2g');
+		expect(formatNutrient(150, 'mg')).toBe('150mg');
+		expect(formatNutrient(0, 'µg')).toBe('0µg');
 	});
 });

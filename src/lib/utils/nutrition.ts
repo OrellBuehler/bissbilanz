@@ -1,3 +1,5 @@
+import { roundMacroValue } from '$lib/utils/number';
+
 export type MacroTotals = {
 	calories: number;
 	protein: number;
@@ -23,11 +25,11 @@ export const addTotals = (a: MacroTotals, b: MacroTotals): MacroTotals => ({
 });
 
 export const roundTotals = (t: MacroTotals): MacroTotals => ({
-	calories: Math.round(t.calories),
-	protein: Math.round(t.protein * 10) / 10,
-	carbs: Math.round(t.carbs * 10) / 10,
-	fat: Math.round(t.fat * 10) / 10,
-	fiber: Math.round(t.fiber * 10) / 10
+	calories: roundMacroValue('calories', t.calories),
+	protein: roundMacroValue('protein', t.protein),
+	carbs: roundMacroValue('carbs', t.carbs),
+	fat: roundMacroValue('fat', t.fat),
+	fiber: roundMacroValue('fiber', t.fiber)
 });
 
 export const scaleTotals = (t: MacroTotals, factor: number): MacroTotals => ({

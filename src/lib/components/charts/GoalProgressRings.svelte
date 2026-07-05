@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { MACRO_COLORS } from '$lib/colors';
+	import { roundMacroValue, formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
@@ -21,7 +22,7 @@
 			? [
 					{
 						label: m.macro_calories(),
-						consumed: Math.round(totals.calories),
+						consumed: roundMacroValue('calories', totals.calories),
 						goal: goals.calorieGoal,
 						color: MACRO_COLORS.calories,
 						bg: `${MACRO_COLORS.calories}20`,
@@ -29,7 +30,7 @@
 					},
 					{
 						label: m.macro_protein(),
-						consumed: Math.round(totals.protein * 10) / 10,
+						consumed: roundMacroValue('protein', totals.protein),
 						goal: goals.proteinGoal,
 						color: MACRO_COLORS.protein,
 						bg: `${MACRO_COLORS.protein}20`,
@@ -37,7 +38,7 @@
 					},
 					{
 						label: m.macro_carbs(),
-						consumed: Math.round(totals.carbs * 10) / 10,
+						consumed: roundMacroValue('carbs', totals.carbs),
 						goal: goals.carbGoal,
 						color: MACRO_COLORS.carbs,
 						bg: `${MACRO_COLORS.carbs}20`,
@@ -45,7 +46,7 @@
 					},
 					{
 						label: m.macro_fat(),
-						consumed: Math.round(totals.fat * 10) / 10,
+						consumed: roundMacroValue('fat', totals.fat),
 						goal: goals.fatGoal,
 						color: MACRO_COLORS.fat,
 						bg: `${MACRO_COLORS.fat}20`,
@@ -53,7 +54,7 @@
 					},
 					{
 						label: m.macro_fiber(),
-						consumed: Math.round(totals.fiber * 10) / 10,
+						consumed: roundMacroValue('fiber', totals.fiber),
 						goal: goals.fiberGoal,
 						color: MACRO_COLORS.fiber,
 						bg: `${MACRO_COLORS.fiber}20`,
@@ -128,7 +129,7 @@
 		<div class="absolute inset-0 flex items-center justify-center text-center">
 			<div>
 				<span class="text-xl font-bold tabular-nums text-foreground"
-					>{Math.round(totals.calories)}</span
+					>{formatKcal(totals.calories)}</span
 				>
 				<span class="block text-[10px] text-muted-foreground">{m.foods_kcal()}</span>
 			</div>

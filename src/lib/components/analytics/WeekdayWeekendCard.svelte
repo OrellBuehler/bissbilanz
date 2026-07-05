@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeWeekdayWeekendSplit } from '$lib/analytics/weekday-weekend';
+	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
@@ -59,7 +60,7 @@
 	{loading}
 	title={m.analytics_weekday_weekend()}
 	headline={m.analytics_weekday_weekend_headline({
-		delta: Math.abs(Math.round(result?.calorieDelta ?? 0)).toString()
+		delta: formatKcal(Math.abs(result?.calorieDelta ?? 0))
 	})}
 	confidence={result?.confidence ?? 'insufficient'}
 	sampleSize={result?.sampleSize ?? 0}
@@ -74,7 +75,7 @@
 							{m.analytics_weekday_label()}
 						</p>
 						<p class="text-base font-bold tabular-nums">
-							{Math.round(result.weekday.avgCalories)}
+							{formatKcal(result.weekday.avgCalories)}
 						</p>
 						<p class="text-[10px] text-muted-foreground">kcal · {result.weekday.days}d</p>
 					</div>
@@ -83,13 +84,13 @@
 							{m.analytics_weekend_label()}
 						</p>
 						<p class="text-base font-bold tabular-nums">
-							{Math.round(result.weekend.avgCalories)}
+							{formatKcal(result.weekend.avgCalories)}
 						</p>
 						<p class="text-[10px] text-muted-foreground">kcal · {result.weekend.days}d</p>
 					</div>
 				</div>
 				<p class="text-xs {deltaColor} font-medium tabular-nums">
-					{deltaSign}{Math.round(result.calorieDelta)} kcal ({deltaSign}{Math.round(
+					{deltaSign}{formatKcal(result.calorieDelta)} kcal ({deltaSign}{Math.round(
 						result.calorieDeltaPct
 					)}%)
 				</p>

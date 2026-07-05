@@ -13,6 +13,7 @@
 	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { formatKcal } from '$lib/utils/number';
 
 	type DuplicateGroup = components['schemas']['FoodDuplicateGroup'];
 	type Food = components['schemas']['Food'];
@@ -107,7 +108,7 @@
 								</div>
 								{#if full}
 									<div class="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-										{Math.round(full.calories)} kcal
+										{formatKcal(full.calories)} kcal
 									</div>
 								{/if}
 							</div>
