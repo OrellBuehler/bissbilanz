@@ -1,6 +1,7 @@
 import type { EntityTable, Table } from 'dexie';
 import { db } from '$lib/db';
 import { enqueue } from '$lib/stores/offline-queue';
+import { isQueued } from '$lib/utils/api';
 
 type RefreshTableOpts<T extends { id: string }> = {
 	table: EntityTable<T, 'id'>;
@@ -43,20 +44,25 @@ export async function refreshTable<T extends { id: string }>(
 	}
 }
 
-type WithOfflineFallbackOpts = {
+type WithOfflineFallbackOpts<T> = {
 	method: 'POST' | 'PATCH' | 'DELETE';
 	url: string;
 	body: object;
 	affectedTable: string;
 	affectedId?: string;
+	onSuccess?: (data: T) => Promise<void> | void;
 };
 
-export async function withOfflineFallback(
-	apiCall: () => Promise<void>,
-	opts: WithOfflineFallbackOpts
+export async function withOfflineFallback<T>(
+	apiCall: () => Promise<{ data?: T; response: Response }>,
+	opts: WithOfflineFallbackOpts<T>
 ): Promise<void> {
 	try {
-		await apiCall();
+		const { data, response } = await apiCall();
+		if (isQueued(response)) return;
+		// response.ok (not `data`) is the success signal — some endpoints (e.g. a
+		// 204 DELETE) succeed with no body, so onSuccess must still run for those.
+		if (response.ok && opts.onSuccess) await opts.onSuccess(data as T);
 	} catch {
 		await enqueue(opts.method, opts.url, opts.body, {
 			affectedTable: opts.affectedTable,

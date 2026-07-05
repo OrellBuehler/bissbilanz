@@ -55,52 +55,45 @@
 	const deltaSign = $derived.by(() => ((result?.calorieDelta ?? 0) > 0 ? '+' : ''));
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-purple-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_weekday_weekend()}
-		headline={m.analytics_weekday_weekend_headline({
-			delta: Math.abs(Math.round(result?.calorieDelta ?? 0)).toString()
-		})}
-		confidence={result?.confidence ?? 'insufficient'}
-		sampleSize={result?.sampleSize ?? 0}
-		borderColor="border-purple-500"
-	>
-		{#snippet children()}
-			{#if result}
-				<div class="space-y-3">
-					<div class="grid grid-cols-2 gap-3">
-						<div class="rounded-lg border p-3">
-							<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
-								{m.analytics_weekday_label()}
-							</p>
-							<p class="text-base font-bold tabular-nums">
-								{Math.round(result.weekday.avgCalories)}
-							</p>
-							<p class="text-[10px] text-muted-foreground">kcal · {result.weekday.days}d</p>
-						</div>
-						<div class="rounded-lg border p-3">
-							<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
-								{m.analytics_weekend_label()}
-							</p>
-							<p class="text-base font-bold tabular-nums">
-								{Math.round(result.weekend.avgCalories)}
-							</p>
-							<p class="text-[10px] text-muted-foreground">kcal · {result.weekend.days}d</p>
-						</div>
+<InsightCard
+	{loading}
+	title={m.analytics_weekday_weekend()}
+	headline={m.analytics_weekday_weekend_headline({
+		delta: Math.abs(Math.round(result?.calorieDelta ?? 0)).toString()
+	})}
+	confidence={result?.confidence ?? 'insufficient'}
+	sampleSize={result?.sampleSize ?? 0}
+	borderColor="border-purple-500"
+>
+	{#snippet children()}
+		{#if result}
+			<div class="space-y-3">
+				<div class="grid grid-cols-2 gap-3">
+					<div class="rounded-lg border p-3">
+						<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
+							{m.analytics_weekday_label()}
+						</p>
+						<p class="text-base font-bold tabular-nums">
+							{Math.round(result.weekday.avgCalories)}
+						</p>
+						<p class="text-[10px] text-muted-foreground">kcal · {result.weekday.days}d</p>
 					</div>
-					<p class="text-xs {deltaColor} font-medium tabular-nums">
-						{deltaSign}{Math.round(result.calorieDelta)} kcal ({deltaSign}{Math.round(
-							result.calorieDeltaPct
-						)}%)
-					</p>
+					<div class="rounded-lg border p-3">
+						<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
+							{m.analytics_weekend_label()}
+						</p>
+						<p class="text-base font-bold tabular-nums">
+							{Math.round(result.weekend.avgCalories)}
+						</p>
+						<p class="text-[10px] text-muted-foreground">kcal · {result.weekend.days}d</p>
+					</div>
 				</div>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+				<p class="text-xs {deltaColor} font-medium tabular-nums">
+					{deltaSign}{Math.round(result.calorieDelta)} kcal ({deltaSign}{Math.round(
+						result.calorieDeltaPct
+					)}%)
+				</p>
+			</div>
+		{/if}
+	{/snippet}
+</InsightCard>

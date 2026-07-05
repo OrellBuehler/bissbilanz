@@ -80,65 +80,58 @@
 	});
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-amber-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_meal_timing_weight()}
-		headline={m.analytics_meal_timing_headline({ hours: avgWindowHours.toString() })}
-		{confidence}
-		{sampleSize}
-		borderColor="border-amber-500"
-	>
-		{#snippet children()}
-			{@const analysis = timingAnalysis}
-			{#if analysis}
-				{@const startPct = (firstMealHour / 24) * 100}
-				{@const widthPct = ((lastMealHour - firstMealHour) / 24) * 100}
-				<div class="space-y-3">
-					<div class="space-y-1">
-						<p class="text-xs text-muted-foreground">{m.analytics_avg_eating_window_24h()}</p>
-						<div class="relative h-6 bg-muted/40 rounded overflow-hidden">
-							<div
-								class="absolute h-full rounded bg-amber-400/70 dark:bg-amber-600/50"
-								style="left: {startPct}%; width: {Math.max(widthPct, 2)}%"
-							></div>
-						</div>
-						<div class="flex justify-between text-[10px] text-muted-foreground tabular-nums">
-							<span>0h</span>
-							<span class="text-amber-600 dark:text-amber-400 font-medium">
-								{analysis.avgFirstMealTime} – {analysis.avgLastMealTime}
-								({avgWindowHours}h window)
-							</span>
-							<span>24h</span>
-						</div>
+<InsightCard
+	{loading}
+	title={m.analytics_meal_timing_weight()}
+	headline={m.analytics_meal_timing_headline({ hours: avgWindowHours.toString() })}
+	{confidence}
+	{sampleSize}
+	borderColor="border-amber-500"
+>
+	{#snippet children()}
+		{@const analysis = timingAnalysis}
+		{#if analysis}
+			{@const startPct = (firstMealHour / 24) * 100}
+			{@const widthPct = ((lastMealHour - firstMealHour) / 24) * 100}
+			<div class="space-y-3">
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">{m.analytics_avg_eating_window_24h()}</p>
+					<div class="relative h-6 bg-muted/40 rounded overflow-hidden">
+						<div
+							class="absolute h-full rounded bg-amber-400/70 dark:bg-amber-600/50"
+							style="left: {startPct}%; width: {Math.max(widthPct, 2)}%"
+						></div>
 					</div>
-
-					{#if correlationResult}
-						<div class="rounded-lg bg-muted/30 p-3 text-xs">
-							<span class="text-muted-foreground">{m.analytics_window_vs_weight()}</span>
-							<span
-								class="font-semibold tabular-nums {correlationResult!.r < 0
-									? 'text-green-600 dark:text-green-400'
-									: 'text-red-600 dark:text-red-400'}"
-							>
-								r = {correlationResult!.r.toFixed(2)}
-							</span>
-							<span class="text-muted-foreground ml-1 text-[10px]">
-								{m.analytics_window_vs_weight_hint()}
-							</span>
-						</div>
-					{/if}
-
-					<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+					<div class="flex justify-between text-[10px] text-muted-foreground tabular-nums">
+						<span>0h</span>
+						<span class="text-amber-600 dark:text-amber-400 font-medium">
+							{analysis.avgFirstMealTime} – {analysis.avgLastMealTime}
+							({avgWindowHours}h window)
+						</span>
+						<span>24h</span>
+					</div>
 				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+
+				{#if correlationResult}
+					<div class="rounded-lg bg-muted/30 p-3 text-xs">
+						<span class="text-muted-foreground">{m.analytics_window_vs_weight()}</span>
+						<span
+							class="font-semibold tabular-nums {correlationResult!.r < 0
+								? 'text-green-600 dark:text-green-400'
+								: 'text-red-600 dark:text-red-400'}"
+						>
+							r = {correlationResult!.r.toFixed(2)}
+						</span>
+						<span class="text-muted-foreground ml-1 text-[10px]">
+							{m.analytics_window_vs_weight_hint()}
+						</span>
+					</div>
+				{/if}
+
+				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

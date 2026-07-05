@@ -79,54 +79,47 @@
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-blue-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_macro_impact()}
-		headline={m.analytics_macro_impact_headline()}
-		{confidence}
-		{sampleSize}
-		borderColor="border-blue-500"
-	>
-		{#snippet children()}
-			{@const correlations = macroCorrelations}
-			{#if correlations.length > 0}
-				<div class="space-y-2">
-					{#each correlations as macro (macro.key)}
-						{@const absR = Math.abs(macro.r)}
-						{@const barPct = absR * 100}
-						{@const isPositive = macro.r >= 0}
-						<div class="flex items-center gap-3">
-							<span class="w-14 shrink-0 text-xs font-medium" style="color: {macro.color}">
-								{macro.label}
-							</span>
-							<div class="relative flex-1 h-5 bg-muted/40 rounded overflow-hidden">
-								<div
-									class="h-full rounded transition-all"
-									style="width: {barPct}%; background-color: {macro.color}; opacity: 0.7"
-								></div>
-							</div>
-							<span
-								class="w-12 shrink-0 text-right text-xs tabular-nums font-medium {isPositive
-									? 'text-red-600 dark:text-red-400'
-									: 'text-green-600 dark:text-green-400'}"
-							>
-								{macro.r > 0 ? '+' : ''}{macro.r.toFixed(2)}
-							</span>
+<InsightCard
+	{loading}
+	title={m.analytics_macro_impact()}
+	headline={m.analytics_macro_impact_headline()}
+	{confidence}
+	{sampleSize}
+	borderColor="border-blue-500"
+>
+	{#snippet children()}
+		{@const correlations = macroCorrelations}
+		{#if correlations.length > 0}
+			<div class="space-y-2">
+				{#each correlations as macro (macro.key)}
+					{@const absR = Math.abs(macro.r)}
+					{@const barPct = absR * 100}
+					{@const isPositive = macro.r >= 0}
+					<div class="flex items-center gap-3">
+						<span class="w-14 shrink-0 text-xs font-medium" style="color: {macro.color}">
+							{macro.label}
+						</span>
+						<div class="relative flex-1 h-5 bg-muted/40 rounded overflow-hidden">
+							<div
+								class="h-full rounded transition-all"
+								style="width: {barPct}%; background-color: {macro.color}; opacity: 0.7"
+							></div>
 						</div>
-					{/each}
-					<p class="text-[11px] text-muted-foreground pt-1">
-						{m.analytics_correlation_disclaimer()}
-					</p>
-				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+						<span
+							class="w-12 shrink-0 text-right text-xs tabular-nums font-medium {isPositive
+								? 'text-red-600 dark:text-red-400'
+								: 'text-green-600 dark:text-green-400'}"
+						>
+							{macro.r > 0 ? '+' : ''}{macro.r.toFixed(2)}
+						</span>
+					</div>
+				{/each}
+				<p class="text-[11px] text-muted-foreground pt-1">
+					{m.analytics_correlation_disclaimer()}
+				</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

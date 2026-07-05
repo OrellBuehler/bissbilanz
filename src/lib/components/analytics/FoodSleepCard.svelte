@@ -67,64 +67,57 @@
 	);
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-purple-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_food_sleep()}
-		headline={m.analytics_food_sleep_headline()}
-		{confidence}
-		{sampleSize}
-		borderColor="border-purple-500"
-	>
-		{#snippet children()}
-			{@const better = betterSleep}
-			{@const worse = worseSleep}
-			{#if better.length > 0 || worse.length > 0}
-				<div class="space-y-3">
-					{#if better.length > 0}
-						<div>
-							<p class="text-xs font-medium text-green-600 dark:text-green-400 mb-1.5">
-								{m.analytics_food_sleep_helps()}
-							</p>
-							<div class="flex flex-wrap gap-1.5">
-								{#each better as food (food.foodId)}
-									<span
-										class="rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2.5 py-0.5 text-xs font-medium"
-									>
-										{food.foodName}
-										<span class="opacity-70">(+{food.delta.toFixed(1)})</span>
-									</span>
-								{/each}
-							</div>
+<InsightCard
+	{loading}
+	title={m.analytics_food_sleep()}
+	headline={m.analytics_food_sleep_headline()}
+	{confidence}
+	{sampleSize}
+	borderColor="border-purple-500"
+>
+	{#snippet children()}
+		{@const better = betterSleep}
+		{@const worse = worseSleep}
+		{#if better.length > 0 || worse.length > 0}
+			<div class="space-y-3">
+				{#if better.length > 0}
+					<div>
+						<p class="text-xs font-medium text-green-600 dark:text-green-400 mb-1.5">
+							{m.analytics_food_sleep_helps()}
+						</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each better as food (food.foodId)}
+								<span
+									class="rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2.5 py-0.5 text-xs font-medium"
+								>
+									{food.foodName}
+									<span class="opacity-70">(+{food.delta.toFixed(1)})</span>
+								</span>
+							{/each}
 						</div>
-					{/if}
-					{#if worse.length > 0}
-						<div>
-							<p class="text-xs font-medium text-red-600 dark:text-red-400 mb-1.5">
-								{m.analytics_food_sleep_hurts()}
-							</p>
-							<div class="flex flex-wrap gap-1.5">
-								{#each worse as food (food.foodId)}
-									<span
-										class="rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2.5 py-0.5 text-xs font-medium"
-									>
-										{food.foodName}
-										<span class="opacity-70">({food.delta.toFixed(1)})</span>
-									</span>
-								{/each}
-							</div>
+					</div>
+				{/if}
+				{#if worse.length > 0}
+					<div>
+						<p class="text-xs font-medium text-red-600 dark:text-red-400 mb-1.5">
+							{m.analytics_food_sleep_hurts()}
+						</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each worse as food (food.foodId)}
+								<span
+									class="rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2.5 py-0.5 text-xs font-medium"
+								>
+									{food.foodName}
+									<span class="opacity-70">({food.delta.toFixed(1)})</span>
+								</span>
+							{/each}
 						</div>
-					{/if}
-					<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
-				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+					</div>
+				{/if}
+				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

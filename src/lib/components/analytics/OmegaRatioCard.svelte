@@ -55,47 +55,40 @@
 	});
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-green-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_omega()}
-		headline={result?.ratio != null
-			? m.analytics_omega_headline({ ratio: (Math.round(result.ratio * 10) / 10).toString() })
-			: m.analytics_omega_no_data()}
-		confidence={result?.confidence ?? 'insufficient'}
-		sampleSize={result?.sampleSize ?? 0}
-		borderColor="border-green-500"
-	>
-		{#snippet children()}
-			{#if result?.ratio != null}
-				<div class="space-y-3">
-					<div class="flex items-center gap-2">
-						<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {statusClass}">
-							{statusLabel}
-						</span>
-					</div>
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-3</p>
-							<p class="text-sm font-semibold tabular-nums">
-								{(Math.round(result.avgOmega3 * 10) / 10).toFixed(1)}g
-							</p>
-						</div>
-						<div>
-							<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-6</p>
-							<p class="text-sm font-semibold tabular-nums">
-								{(Math.round(result.avgOmega6 * 10) / 10).toFixed(1)}g
-							</p>
-						</div>
-					</div>
-					<p class="text-xs text-muted-foreground">{m.analytics_omega_target()}</p>
+<InsightCard
+	{loading}
+	title={m.analytics_omega()}
+	headline={result?.ratio != null
+		? m.analytics_omega_headline({ ratio: (Math.round(result.ratio * 10) / 10).toString() })
+		: m.analytics_omega_no_data()}
+	confidence={result?.confidence ?? 'insufficient'}
+	sampleSize={result?.sampleSize ?? 0}
+	borderColor="border-green-500"
+>
+	{#snippet children()}
+		{#if result?.ratio != null}
+			<div class="space-y-3">
+				<div class="flex items-center gap-2">
+					<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {statusClass}">
+						{statusLabel}
+					</span>
 				</div>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-3</p>
+						<p class="text-sm font-semibold tabular-nums">
+							{(Math.round(result.avgOmega3 * 10) / 10).toFixed(1)}g
+						</p>
+					</div>
+					<div>
+						<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-6</p>
+						<p class="text-sm font-semibold tabular-nums">
+							{(Math.round(result.avgOmega6 * 10) / 10).toFixed(1)}g
+						</p>
+					</div>
+				</div>
+				<p class="text-xs text-muted-foreground">{m.analytics_omega_target()}</p>
+			</div>
+		{/if}
+	{/snippet}
+</InsightCard>

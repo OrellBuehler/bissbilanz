@@ -38,44 +38,37 @@
 	};
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-violet-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_regularity()}
-		headline={m.analytics_regularity_headline({
-			score: Math.round(result?.overallScore ?? 0).toString()
-		})}
-		confidence={result?.confidence ?? 'insufficient'}
-		sampleSize={result?.sampleSize ?? 0}
-		borderColor="border-violet-500"
-	>
-		{#snippet children()}
-			{#if result && result.meals.length > 0}
-				<div class="space-y-2">
-					{#each result.meals as meal (meal.mealType)}
-						<div class="flex items-center justify-between gap-2">
-							<span class="text-xs text-muted-foreground truncate">{meal.mealType}</span>
-							<div class="flex items-center gap-2">
-								<span class="text-xs tabular-nums text-muted-foreground"
-									>{formatTime(meal.avgMinute)}</span
-								>
-								<span
-									class="rounded-full px-1.5 py-0.5 text-[10px] font-medium {regularityColor(
-										meal.regularity
-									)}"
-								>
-									{regularityLabel(meal.regularity)}
-								</span>
-							</div>
+<InsightCard
+	{loading}
+	title={m.analytics_regularity()}
+	headline={m.analytics_regularity_headline({
+		score: Math.round(result?.overallScore ?? 0).toString()
+	})}
+	confidence={result?.confidence ?? 'insufficient'}
+	sampleSize={result?.sampleSize ?? 0}
+	borderColor="border-violet-500"
+>
+	{#snippet children()}
+		{#if result && result.meals.length > 0}
+			<div class="space-y-2">
+				{#each result.meals as meal (meal.mealType)}
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-xs text-muted-foreground truncate">{meal.mealType}</span>
+						<div class="flex items-center gap-2">
+							<span class="text-xs tabular-nums text-muted-foreground"
+								>{formatTime(meal.avgMinute)}</span
+							>
+							<span
+								class="rounded-full px-1.5 py-0.5 text-[10px] font-medium {regularityColor(
+									meal.regularity
+								)}"
+							>
+								{regularityLabel(meal.regularity)}
+							</span>
 						</div>
-					{/each}
-				</div>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{/snippet}
+</InsightCard>

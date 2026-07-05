@@ -8,6 +8,8 @@
 	import SleepHistoryList from './SleepHistoryList.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
+	import { api } from '$lib/api/client';
+	import type { components } from '$lib/api/generated/schema';
 	import type { DexieSleepEntry } from '$lib/db/types';
 	import FoodSleepCard from '$lib/components/analytics/FoodSleepCard.svelte';
 	import NutrientSleepCard from '$lib/components/analytics/NutrientSleepCard.svelte';
@@ -43,6 +45,8 @@
 		[key: string]: number | string;
 	};
 
+	type SleepEntry = components['schemas']['SleepEntry'];
+
 	const live = useLiveQuery(() => sleepService.entries(), [] as DexieSleepEntry[]);
 	const entries = $derived(live.value);
 
@@ -58,17 +62,18 @@
 		const startDate = shiftDate(endDate, -59);
 		try {
 			const [sfRes, mRes, nRes, sleepRes] = await Promise.all([
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/sleep?from=${startDate}&to=${endDate}`)
+				api.GET('/api/analytics/sleep-food', { params: { query: { startDate, endDate } } }),
+				api.GET('/api/analytics/meal-timing', { params: { query: { startDate, endDate } } }),
+				api.GET('/api/analytics/nutrients-daily', { params: { query: { startDate, endDate } } }),
+				api.GET('/api/sleep', { params: { query: { from: startDate, to: endDate } } })
 			]);
-			if (sfRes.ok) sleepFoodData = (await sfRes.json()).data ?? [];
-			if (mRes.ok) mealEntries = (await mRes.json()).data ?? [];
-			if (nRes.ok) nutrientSeries = (await nRes.json()).data ?? [];
-			if (sleepRes.ok) {
-				const all = (await sleepRes.json()).entries ?? [];
-				sleepWithBedtime = all.filter((e: { bedtime: string | null }) => e.bedtime !== null);
+			if (sfRes.data) sleepFoodData = sfRes.data.data;
+			if (mRes.data) mealEntries = mRes.data.data;
+			if (nRes.data) nutrientSeries = nRes.data.data;
+			if (sleepRes.data) {
+				sleepWithBedtime = sleepRes.data.entries.filter(
+					(e): e is SleepEntry & { bedtime: string } => e.bedtime !== null
+				);
 			}
 		} catch {
 			// analytics cards will show no-data state

@@ -81,45 +81,39 @@
 	});
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-purple-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-16 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_presleep_window()}
-		headline={m.analytics_presleep_headline({ hours: bestGap.toString() })}
-		{confidence}
-		{sampleSize}
-		borderColor="border-purple-500"
-	>
-		{#snippet children()}
-			{@const a = analysis}
-			{#if a}
-				<div class="space-y-2">
-					<div class="rounded-lg bg-muted/30 p-3 text-xs space-y-1">
-						<div class="flex justify-between">
-							<span class="text-muted-foreground">{m.analytics_presleep_avg_gap()}</span>
-							<span class="font-semibold tabular-nums">{a.avgGap}h</span>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-muted-foreground">{m.analytics_presleep_correlation()}</span>
-							<span
-								class="font-semibold tabular-nums {a.corr.r > 0
-									? 'text-green-600 dark:text-green-400'
-									: 'text-red-600 dark:text-red-400'}"
-							>
-								r = {a.corr.r > 0 ? '+' : ''}{a.corr.r.toFixed(2)}
-							</span>
-						</div>
+<InsightCard
+	{loading}
+	title={m.analytics_presleep_window()}
+	headline={m.analytics_presleep_headline({ hours: bestGap.toString() })}
+	{confidence}
+	{sampleSize}
+	borderColor="border-purple-500"
+	skeletonClass="h-16"
+>
+	{#snippet children()}
+		{@const a = analysis}
+		{#if a}
+			<div class="space-y-2">
+				<div class="rounded-lg bg-muted/30 p-3 text-xs space-y-1">
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">{m.analytics_presleep_avg_gap()}</span>
+						<span class="font-semibold tabular-nums">{a.avgGap}h</span>
 					</div>
-					<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">{m.analytics_presleep_correlation()}</span>
+						<span
+							class="font-semibold tabular-nums {a.corr.r > 0
+								? 'text-green-600 dark:text-green-400'
+								: 'text-red-600 dark:text-red-400'}"
+						>
+							r = {a.corr.r > 0 ? '+' : ''}{a.corr.r.toFixed(2)}
+						</span>
+					</div>
 				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

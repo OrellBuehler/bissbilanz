@@ -5,6 +5,7 @@
 	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { api } from '$lib/api/client';
 
 	type CaffeineEntry = {
 		date: string;
@@ -27,15 +28,14 @@
 		const startDate = shiftDate(endDate, -89);
 		try {
 			const [extRes, sfRes] = await Promise.all([
-				fetch(`/api/analytics/nutrients-extended?startDate=${startDate}&endDate=${endDate}`),
-				fetch(`/api/analytics/sleep-food?startDate=${startDate}&endDate=${endDate}`)
+				api.GET('/api/analytics/nutrients-extended', { params: { query: { startDate, endDate } } }),
+				api.GET('/api/analytics/sleep-food', { params: { query: { startDate, endDate } } })
 			]);
-			if (extRes.ok) {
-				const all = (await extRes.json()).data ?? [];
-				caffeineEntries = all.filter((e: CaffeineEntry) => e.caffeine !== null && e.caffeine > 0);
+			if (extRes.data) {
+				caffeineEntries = extRes.data.data.filter((e) => e.caffeine !== null && e.caffeine > 0);
 			}
-			if (sfRes.ok) {
-				sleepData = (await sfRes.json()).data ?? [];
+			if (sfRes.data) {
+				sleepData = sfRes.data.data;
 			}
 		} catch {
 			// card shows no-data state
@@ -71,56 +71,49 @@
 	);
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-amber-600 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_caffeine_sleep()}
-		{headline}
-		{confidence}
-		{sampleSize}
-		borderColor="border-amber-600"
-	>
-		{#snippet children()}
-			{#if hourlyImpact.length > 0}
-				<div class="space-y-1.5">
-					<p class="text-[11px] font-medium text-muted-foreground mb-2">
-						{m.analytics_caffeine_quality()}
-					</p>
-					{#each hourlyImpact as bucket (bucket.hour)}
-						{@const pct = maxQuality > 0 ? (bucket.avgQuality / maxQuality) * 100 : 0}
-						{@const isAfterCutoff =
-							result?.estimatedCutoffHour !== null &&
-							result?.estimatedCutoffHour !== undefined &&
-							bucket.hour >= result.estimatedCutoffHour}
-						<div class="flex items-center gap-2">
-							<span class="w-10 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-								{m.analytics_caffeine_hour({ hour: bucket.hour.toString() })}
-							</span>
-							<div class="flex-1 rounded-full bg-muted h-2 overflow-hidden">
-								<div
-									class="h-2 rounded-full transition-all {isAfterCutoff
-										? 'bg-amber-500'
-										: 'bg-green-500'}"
-									style="width: {pct}%"
-								></div>
-							</div>
-							<span class="w-8 shrink-0 text-[11px] tabular-nums text-muted-foreground">
-								{bucket.avgQuality.toFixed(1)}
-							</span>
+<InsightCard
+	{loading}
+	title={m.analytics_caffeine_sleep()}
+	{headline}
+	{confidence}
+	{sampleSize}
+	borderColor="border-amber-600"
+>
+	{#snippet children()}
+		{#if hourlyImpact.length > 0}
+			<div class="space-y-1.5">
+				<p class="text-[11px] font-medium text-muted-foreground mb-2">
+					{m.analytics_caffeine_quality()}
+				</p>
+				{#each hourlyImpact as bucket (bucket.hour)}
+					{@const pct = maxQuality > 0 ? (bucket.avgQuality / maxQuality) * 100 : 0}
+					{@const isAfterCutoff =
+						result?.estimatedCutoffHour !== null &&
+						result?.estimatedCutoffHour !== undefined &&
+						bucket.hour >= result.estimatedCutoffHour}
+					<div class="flex items-center gap-2">
+						<span class="w-10 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+							{m.analytics_caffeine_hour({ hour: bucket.hour.toString() })}
+						</span>
+						<div class="flex-1 rounded-full bg-muted h-2 overflow-hidden">
+							<div
+								class="h-2 rounded-full transition-all {isAfterCutoff
+									? 'bg-amber-500'
+									: 'bg-green-500'}"
+								style="width: {pct}%"
+							></div>
 						</div>
-					{/each}
-					<p class="text-[11px] text-muted-foreground mt-2">
-						{m.analytics_correlation_disclaimer()}
-					</p>
-				</div>
-			{:else}
-				<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+						<span class="w-8 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+							{bucket.avgQuality.toFixed(1)}
+						</span>
+					</div>
+				{/each}
+				<p class="text-[11px] text-muted-foreground mt-2">
+					{m.analytics_correlation_disclaimer()}
+				</p>
+			</div>
+		{:else}
+			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
+		{/if}
+	{/snippet}
+</InsightCard>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { api } from '$lib/api/client';
 	import CaloricLagCard from './CaloricLagCard.svelte';
 	import MacroImpactCard from './MacroImpactCard.svelte';
 	import MealTimingWeightCard from './MealTimingWeightCard.svelte';
@@ -21,16 +22,23 @@
 		(async () => {
 			try {
 				const [wfRes, ndRes, mtRes] = await Promise.all([
-					fetch(`/api/analytics/weight-food?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, {
+					api.GET('/api/analytics/weight-food', {
+						params: { query: { startDate, endDate } },
 						signal
 					}),
-					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal })
+					api.GET('/api/analytics/nutrients-daily', {
+						params: { query: { startDate, endDate } },
+						signal
+					}),
+					api.GET('/api/analytics/meal-timing', {
+						params: { query: { startDate, endDate } },
+						signal
+					})
 				]);
 				if (signal.aborted) return;
-				if (wfRes.ok) weightFoodData = (await wfRes.json()).data ?? [];
-				if (ndRes.ok) nutrientDailyData = (await ndRes.json()).data ?? [];
-				if (mtRes.ok) mealTimingData = (await mtRes.json()).data ?? [];
+				if (wfRes.data) weightFoodData = wfRes.data.data;
+				if (ndRes.data) nutrientDailyData = ndRes.data.data;
+				if (mtRes.data) mealTimingData = mtRes.data.data;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {
