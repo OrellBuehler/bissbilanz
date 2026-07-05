@@ -93,51 +93,44 @@
 	});
 </script>
 
-{#if loading}
-	<div class="rounded-lg border bg-card overflow-hidden">
-		<div class="border-l-4 border-rose-500 p-4 sm:p-5">
-			<div class="bg-muted/50 h-24 animate-pulse rounded-lg"></div>
-		</div>
-	</div>
-{:else}
-	<InsightCard
-		title={m.analytics_dii()}
-		headline={m.analytics_dii_headline({
-			score: (Math.round((result?.score ?? 0) * 10) / 10).toFixed(1)
-		})}
-		confidence={result?.confidence ?? 'insufficient'}
-		sampleSize={result?.sampleSize ?? 0}
-		borderColor="border-rose-500"
-	>
-		{#snippet children()}
-			{#if result}
-				<div class="space-y-3">
-					<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {classColor}">
-						{classLabel}
-					</span>
-					{#if result.contributors.length > 0}
-						<div>
-							<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
-								{m.analytics_dii_contributors()}
-							</p>
-							<div class="space-y-1">
-								{#each result.contributors.slice(0, 3) as c (c.nutrient)}
-									<div class="flex items-center justify-between text-xs">
-										<span class="text-muted-foreground capitalize">{c.nutrient}</span>
-										<span
-											class="tabular-nums font-medium {c.impact < 0
-												? 'text-green-600 dark:text-green-400'
-												: 'text-red-600 dark:text-red-400'}"
-										>
-											{c.impact > 0 ? '+' : ''}{(Math.round(c.impact * 100) / 100).toFixed(2)}
-										</span>
-									</div>
-								{/each}
-							</div>
+<InsightCard
+	{loading}
+	title={m.analytics_dii()}
+	headline={m.analytics_dii_headline({
+		score: (Math.round((result?.score ?? 0) * 10) / 10).toFixed(1)
+	})}
+	confidence={result?.confidence ?? 'insufficient'}
+	sampleSize={result?.sampleSize ?? 0}
+	borderColor="border-rose-500"
+>
+	{#snippet children()}
+		{#if result}
+			<div class="space-y-3">
+				<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {classColor}">
+					{classLabel}
+				</span>
+				{#if result.contributors.length > 0}
+					<div>
+						<p class="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
+							{m.analytics_dii_contributors()}
+						</p>
+						<div class="space-y-1">
+							{#each result.contributors.slice(0, 3) as c (c.nutrient)}
+								<div class="flex items-center justify-between text-xs">
+									<span class="text-muted-foreground capitalize">{c.nutrient}</span>
+									<span
+										class="tabular-nums font-medium {c.impact < 0
+											? 'text-green-600 dark:text-green-400'
+											: 'text-red-600 dark:text-red-400'}"
+									>
+										{c.impact > 0 ? '+' : ''}{(Math.round(c.impact * 100) / 100).toFixed(2)}
+									</span>
+								</div>
+							{/each}
 						</div>
-					{/if}
-				</div>
-			{/if}
-		{/snippet}
-	</InsightCard>
-{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
+	{/snippet}
+</InsightCard>

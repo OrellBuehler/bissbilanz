@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -28,9 +30,22 @@ class DashboardViewModel(
     private val prefsRepo: PreferencesRepository,
     private val refreshManager: RefreshManager,
     private val errorReporter: ErrorReporter,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val _selectedDate = MutableStateFlow(Clock.System.todayIn(TimeZone.currentSystemDefault()))
-    val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
+    // Backed by SavedStateHandle so the selected day survives process death.
+    private val selectedDateString =
+        savedStateHandle.getStateFlow(
+            KEY_SELECTED_DATE,
+            Clock.System.todayIn(TimeZone.currentSystemDefault()).toString(),
+        )
+    val selectedDate: StateFlow<LocalDate> =
+        selectedDateString
+            .map(LocalDate::parse)
+            .stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                LocalDate.parse(selectedDateString.value),
+            )
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -65,22 +80,26 @@ class DashboardViewModel(
     }
 
     fun previousDay() {
-        _selectedDate.value = _selectedDate.value.minus(1, DateTimeUnit.DAY)
+        setSelectedDate(LocalDate.parse(selectedDateString.value).minus(1, DateTimeUnit.DAY))
         loadData()
     }
 
     fun nextDay() {
-        _selectedDate.value = _selectedDate.value.plus(1, DateTimeUnit.DAY)
+        setSelectedDate(LocalDate.parse(selectedDateString.value).plus(1, DateTimeUnit.DAY))
         loadData()
     }
 
     fun goToToday() {
-        _selectedDate.value = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        setSelectedDate(Clock.System.todayIn(TimeZone.currentSystemDefault()))
         loadData()
     }
 
+    private fun setSelectedDate(date: LocalDate) {
+        savedStateHandle[KEY_SELECTED_DATE] = date.toString()
+    }
+
     fun loadData() {
-        val dateStr = _selectedDate.value.toString()
+        val dateStr = selectedDateString.value
         currentDateString.value = dateStr
         viewModelScope.launch {
             _isLoading.value = true
@@ -100,7 +119,7 @@ class DashboardViewModel(
     fun refreshAll() {
         viewModelScope.launch {
             try {
-                refreshManager.refreshAll(_selectedDate.value.toString())
+                refreshManager.refreshAll(selectedDateString.value)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -111,8 +130,9 @@ class DashboardViewModel(
     fun copyEntriesFromYesterday() {
         viewModelScope.launch {
             try {
-                val yesterday = _selectedDate.value.minus(1, DateTimeUnit.DAY).toString()
-                val count = entryRepo.copyEntries(yesterday, _selectedDate.value.toString())
+                val today = LocalDate.parse(selectedDateString.value)
+                val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
+                val count = entryRepo.copyEntries(yesterday, today.toString())
                 _snackbarMessage.value = "Copied $count entries from yesterday"
                 loadData()
             } catch (e: Exception) {
@@ -125,5 +145,9 @@ class DashboardViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    companion object {
+        private const val KEY_SELECTED_DATE = "selectedDate"
     }
 }

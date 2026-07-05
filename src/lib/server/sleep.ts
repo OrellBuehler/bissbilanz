@@ -3,43 +3,36 @@ import { sleepEntries } from '$lib/server/schema';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { and, eq, desc, gte, lte } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
-export const createSleepEntry = async (
+export const createSleepEntry = (
 	userId: string,
 	payload: unknown
-): Promise<Result<typeof sleepEntries.$inferSelect>> => {
-	const result = sleepCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof sleepEntries.$inferSelect>> =>
+	withValidation(sleepCreateSchema, payload, async (data) => {
 		const db = getDB();
 		const now = new Date();
 		const [created] = await db
 			.insert(sleepEntries)
 			.values({
 				userId,
-				entryDate: result.data.entryDate,
-				durationMinutes: result.data.durationMinutes,
-				quality: result.data.quality,
-				bedtime: result.data.bedtime ? new Date(result.data.bedtime) : null,
-				wakeTime: result.data.wakeTime ? new Date(result.data.wakeTime) : null,
-				wakeUps: result.data.wakeUps ?? null,
-				notes: result.data.notes ?? null,
+				entryDate: data.entryDate,
+				durationMinutes: data.durationMinutes,
+				quality: data.quality,
+				bedtime: data.bedtime ? new Date(data.bedtime) : null,
+				wakeTime: data.wakeTime ? new Date(data.wakeTime) : null,
+				wakeUps: data.wakeUps ?? null,
+				notes: data.notes ?? null,
 				loggedAt: now
 			})
 			.returning();
 
 		if (!created) {
-			return { success: false, error: new Error('Failed to create sleep entry') };
+			throw new Error('Failed to create sleep entry');
 		}
-		return { success: true, data: created };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return created;
+	});
 
 const normalizeSleepRow = <T extends { bedtime?: unknown; wakeTime?: unknown }>(row: T): T => ({
 	...row,
@@ -95,30 +88,22 @@ export const getLatestSleep = async (userId: string) => {
 	return entry ? normalizeSleepRow(entry) : null;
 };
 
-export const updateSleepEntry = async (
+export const updateSleepEntry = (
 	userId: string,
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof sleepEntries.$inferSelect | undefined>> => {
-	const result = sleepUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof sleepEntries.$inferSelect | undefined>> =>
+	withValidation(sleepUpdateSchema, payload, async (data) => {
 		const db = getDB();
 		const updateData: Record<string, unknown> = { updatedAt: lwwStamp(clientEditedAt) };
-		if (result.data.durationMinutes !== undefined)
-			updateData.durationMinutes = result.data.durationMinutes;
-		if (result.data.quality !== undefined) updateData.quality = result.data.quality;
-		if (result.data.entryDate !== undefined) updateData.entryDate = result.data.entryDate;
-		if ('bedtime' in result.data)
-			updateData.bedtime = result.data.bedtime ? new Date(result.data.bedtime) : null;
-		if ('wakeTime' in result.data)
-			updateData.wakeTime = result.data.wakeTime ? new Date(result.data.wakeTime) : null;
-		if ('wakeUps' in result.data) updateData.wakeUps = result.data.wakeUps ?? null;
-		if ('notes' in result.data) updateData.notes = result.data.notes ?? null;
+		if (data.durationMinutes !== undefined) updateData.durationMinutes = data.durationMinutes;
+		if (data.quality !== undefined) updateData.quality = data.quality;
+		if (data.entryDate !== undefined) updateData.entryDate = data.entryDate;
+		if ('bedtime' in data) updateData.bedtime = data.bedtime ? new Date(data.bedtime) : null;
+		if ('wakeTime' in data) updateData.wakeTime = data.wakeTime ? new Date(data.wakeTime) : null;
+		if ('wakeUps' in data) updateData.wakeUps = data.wakeUps ?? null;
+		if ('notes' in data) updateData.notes = data.notes ?? null;
 
 		const [updated] = await db
 			.update(sleepEntries)
@@ -131,11 +116,8 @@ export const updateSleepEntry = async (
 				)
 			)
 			.returning();
-		return { success: true, data: updated };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return updated;
+	});
 
 export const deleteSleepEntry = async (userId: string, id: string) => {
 	const db = getDB();

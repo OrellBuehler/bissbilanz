@@ -504,6 +504,10 @@ enum L10n {
         localized("trend", en: "Trend", de: "Trend")
     }
 
+    static var range: String {
+        localized("range", en: "Range", de: "Zeitraum")
+    }
+
     // MARK: - Supplements
 
     static var supplements: String {

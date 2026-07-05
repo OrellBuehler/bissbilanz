@@ -2,7 +2,7 @@ import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipeIngredients, supplementIngredients } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, getTableColumns, ilike, isNotNull, or } from 'drizzle-orm';
-import { ApiError } from '$lib/server/errors';
+import { ApiError, withValidation } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -21,14 +21,11 @@ async function handleBarcodeConflict(
 	userId: string,
 	barcode: string | null | undefined,
 	dbOverride?: ReturnType<typeof getDB>
-): Promise<Result<never> | null> {
+): Promise<ApiError | null> {
 	if (!isDuplicateBarcodeError(error) || !barcode) return null;
 	const existing = await findFoodByBarcode(userId, barcode, dbOverride).catch(() => null);
 	const name = existing?.name ?? 'unknown';
-	return {
-		success: false,
-		error: new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`)
-	};
+	return new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`);
 }
 
 export type { DeleteResult };
@@ -103,32 +100,24 @@ export const listFoods = async (
 	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
-export const createFood = async (
+export const createFood = (
 	userId: string,
 	payload: unknown,
 	dbOverride?: ReturnType<typeof getDB>
-): Promise<Result<typeof foods.$inferSelect>> => {
-	const result = foodCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
-		const db = dbOverride ?? getDB();
-		const [created] = await db.insert(foods).values(toFoodInsert(userId, result.data)).returning();
-		if (!created) {
-			return { success: false, error: new Error('Failed to create food') };
-		}
-		return { success: true, data: roundNutrition(created) };
-	} catch (error) {
-		return (
-			(await handleBarcodeConflict(error, userId, result.data.barcode, dbOverride)) ?? {
-				success: false,
-				error: error as Error
+): Promise<Result<typeof foods.$inferSelect>> =>
+	withValidation(foodCreateSchema, payload, async (data) => {
+		try {
+			const db = dbOverride ?? getDB();
+			const [created] = await db.insert(foods).values(toFoodInsert(userId, data)).returning();
+			if (!created) {
+				throw new Error('Failed to create food');
 			}
-		);
-	}
-};
+			return roundNutrition(created);
+		} catch (error) {
+			const conflict = await handleBarcodeConflict(error, userId, data.barcode, dbOverride);
+			throw conflict ?? error;
+		}
+	});
 
 type FoodUpdateInput = typeof foodUpdateSchema._output;
 
@@ -138,36 +127,28 @@ export const toFoodUpdate = (input: FoodUpdateInput) => {
 	return update;
 };
 
-export const updateFood = async (
+export const updateFood = (
 	userId: string,
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof foods.$inferSelect | undefined>> => {
-	const result = foodUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
-		const db = getDB();
-		const [updated] = await db
-			.update(foods)
-			.set({ ...toFoodUpdate(result.data), updatedAt: lwwStamp(clientEditedAt) })
-			.where(
-				and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
-			)
-			.returning();
-		return { success: true, data: updated ? roundNutrition(updated) : updated };
-	} catch (error) {
-		return (
-			(await handleBarcodeConflict(error, userId, result.data.barcode)) ?? {
-				success: false,
-				error: error as Error
-			}
-		);
-	}
-};
+): Promise<Result<typeof foods.$inferSelect | undefined>> =>
+	withValidation(foodUpdateSchema, payload, async (data) => {
+		try {
+			const db = getDB();
+			const [updated] = await db
+				.update(foods)
+				.set({ ...toFoodUpdate(data), updatedAt: lwwStamp(clientEditedAt) })
+				.where(
+					and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
+				)
+				.returning();
+			return updated ? roundNutrition(updated) : updated;
+		} catch (error) {
+			const conflict = await handleBarcodeConflict(error, userId, data.barcode);
+			throw conflict ?? error;
+		}
+	});
 
 export const deleteFood = async (
 	userId: string,

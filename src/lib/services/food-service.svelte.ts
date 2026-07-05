@@ -2,7 +2,6 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { isQueued } from '$lib/utils/api';
 import { refreshTable, withOfflineFallback } from './base';
 import type { paths } from '$lib/api/generated/schema';
 
@@ -142,16 +141,16 @@ async function create(food: FoodCreate) {
 
 	await db.foods.put(dexieFood);
 
-	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.POST('/api/foods', { body: food });
-			if (isQueued(response)) return;
-			if (data) {
-				await db.foods.put(data.food as unknown as DexieFood);
-			}
+	await withOfflineFallback(() => api.POST('/api/foods', { body: food }), {
+		onSuccess: async (data) => {
+			await db.foods.put(data.food as unknown as DexieFood);
 		},
-		{ method: 'POST', url: '/api/foods', body: food, affectedTable: 'foods', affectedId: id }
-	);
+		method: 'POST',
+		url: '/api/foods',
+		body: food,
+		affectedTable: 'foods',
+		affectedId: id
+	});
 }
 
 async function update(id: string, food: FoodUpdate) {
@@ -159,17 +158,15 @@ async function update(id: string, food: FoodUpdate) {
 	await db.foods.update(id, { ...food, updatedAt: now });
 
 	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.PATCH('/api/foods/{id}', {
+		() =>
+			api.PATCH('/api/foods/{id}', {
 				params: { path: { id } },
 				body: food
-			});
-			if (isQueued(response)) return;
-			if (data) {
-				await db.foods.put(data.food as unknown as DexieFood);
-			}
-		},
+			}),
 		{
+			onSuccess: async (data) => {
+				await db.foods.put(data.food as unknown as DexieFood);
+			},
 			method: 'PATCH',
 			url: `/api/foods/${id}`,
 			body: food,
@@ -183,11 +180,10 @@ async function deleteFood(id: string) {
 	await db.foods.delete(id);
 
 	await withOfflineFallback(
-		async () => {
-			await api.DELETE('/api/foods/{id}', {
+		() =>
+			api.DELETE('/api/foods/{id}', {
 				params: { path: { id } }
-			});
-		},
+			}),
 		{ method: 'DELETE', url: `/api/foods/${id}`, body: {}, affectedTable: 'foods', affectedId: id }
 	);
 }

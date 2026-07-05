@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.lifecycle.SavedStateHandle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.mode.AppMode
@@ -84,7 +85,8 @@ class InsightsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel() = InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo, appModeManager)
+    private fun createViewModel() =
+        InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo, appModeManager, SavedStateHandle())
 
     @Test
     fun loadSleepDataCallsRefreshOnRepository() =

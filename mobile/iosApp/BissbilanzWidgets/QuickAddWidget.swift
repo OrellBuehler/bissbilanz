@@ -12,12 +12,8 @@ struct QuickAddWidget: Widget {
         return StaticConfiguration(kind: "QuickAddWidget", provider: SnapshotProvider()) { entry in
             QuickAddWidgetView(entry: entry)
         }
-        .configurationDisplayName(strings.localeCode == "de" ? "Schnell eintragen" : "Quick Add")
-        .description(
-            strings.localeCode == "de"
-                ? "Favoriten mit einem Tippen eintragen — ohne die App zu öffnen."
-                : "Log a favorite with one tap — without opening the app."
-        )
+        .configurationDisplayName(strings.quickAddWidgetDisplayName)
+        .description(strings.quickAddWidgetDescription)
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

@@ -122,6 +122,13 @@ export async function clearAllData(): Promise<void> {
 	});
 }
 
+/** Clear all Workbox/PWA Cache Storage entries (e.g. on logout or user switch). */
+export async function clearCacheStorage(): Promise<void> {
+	if (typeof caches === 'undefined') return;
+	const keys = await caches.keys();
+	await Promise.all(keys.map((key) => caches.delete(key)));
+}
+
 /**
  * Ensure cached data belongs to the current user.
  * If a different user logs in on the same device, clear all stale data.
@@ -133,6 +140,7 @@ export async function ensureUserScope(userId: string): Promise<void> {
 	if (stored && stored.userId !== userId) {
 		// Different user — clear all cached data to prevent leaks
 		await clearAllData();
+		await clearCacheStorage().catch(() => {});
 	}
 	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: 0, userId });
 }

@@ -92,7 +92,7 @@ fun computeAdaptiveTDEE(
     }
     val slope = linearSlope(weights)
     val weeklyRate = slope * 7
-    val weeklyEnergyBalance = weeklyRate * 7700
+    val weeklyEnergyBalance = weeklyRate * KCAL_PER_KG_FAT
     val avgDailyIntake = mean(calories)
     var estimatedTDEE = avgDailyIntake - weeklyEnergyBalance / 7
     var confidence: ConfidenceLevel =
@@ -157,7 +157,7 @@ fun detectPlateau(
     }
     val slope = linearSlope(weights)
     val weeklyRate = slope * 7
-    val isPlateaued = abs(weeklyRate) < 0.1
+    val isPlateaued = abs(weeklyRate) < PLATEAU_THRESHOLD_KG_PER_WEEK
     if (!isPlateaued) {
         return PlateauResult(
             isPlateaued = false,

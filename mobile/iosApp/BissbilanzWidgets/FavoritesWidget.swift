@@ -10,12 +10,8 @@ struct FavoritesWidget: Widget {
         return StaticConfiguration(kind: "FavoritesWidget", provider: SnapshotProvider()) { entry in
             FavoritesWidgetView(entry: entry)
         }
-        .configurationDisplayName(strings.localeCode == "de" ? "Favoriten" : "Favorites")
-        .description(
-            strings.localeCode == "de"
-                ? "Lieblingsgerichte mit einem Tippen öffnen und eintragen."
-                : "Open and log favorite foods with one tap."
-        )
+        .configurationDisplayName(strings.favoritesWidgetDisplayName)
+        .description(strings.favoritesWidgetDescription)
         .supportedFamilies([.systemMedium])
     }
 }

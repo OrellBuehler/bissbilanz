@@ -3491,9 +3491,9 @@ export interface operations {
 	listAiTasks: {
 		parameters: {
 			query?: {
-				status?: 'pending' | 'completed' | 'dismissed';
 				limit?: number;
 				offset?: number;
+				status?: 'pending' | 'completed' | 'dismissed';
 			};
 			header?: never;
 			path?: never;

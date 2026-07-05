@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
@@ -69,7 +70,7 @@ class DashboardViewModelTest {
     @Test
     fun initialDateIsToday() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             assertEquals(today, viewModel.selectedDate.value)
         }
@@ -77,7 +78,7 @@ class DashboardViewModelTest {
     @Test
     fun previousDayDecrementsDate() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             val today = viewModel.selectedDate.value
 
             viewModel.previousDay()
@@ -89,7 +90,7 @@ class DashboardViewModelTest {
     @Test
     fun nextDayIncrementsDate() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             viewModel.previousDay()
             val yesterday = viewModel.selectedDate.value
 
@@ -101,7 +102,7 @@ class DashboardViewModelTest {
     @Test
     fun goToTodayResetsDate() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             viewModel.previousDay()
             viewModel.previousDay()
 
@@ -114,7 +115,7 @@ class DashboardViewModelTest {
     @Test
     fun initLoadsData() =
         runTest {
-            DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             coVerify { entryRepo.refresh(any()) }
             coVerify { goalsRepo.refresh() }
@@ -123,7 +124,7 @@ class DashboardViewModelTest {
     @Test
     fun loadDataSetsLoadingFalseAfterCompletion() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             assertEquals(false, viewModel.isLoading.value)
         }
@@ -133,7 +134,7 @@ class DashboardViewModelTest {
         runTest {
             coEvery { entryRepo.refresh(any()) } throws RuntimeException("Network error")
 
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             assertEquals(false, viewModel.isLoading.value)
         }
@@ -141,7 +142,7 @@ class DashboardViewModelTest {
     @Test
     fun entriesFlowDelegatesFromRepository() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             val entry =
                 Entry(
@@ -185,7 +186,7 @@ class DashboardViewModelTest {
     @Test
     fun goalsFlowDelegatesFromRepository() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             val goals =
                 Goals(
@@ -208,7 +209,7 @@ class DashboardViewModelTest {
     @Test
     fun entriesWithCapitalizedMealTypeGroupCorrectly() =
         runTest {
-            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter)
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
 
             val entry =
                 Entry(

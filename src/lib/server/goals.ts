@@ -3,6 +3,7 @@ import { userGoals } from '$lib/server/schema';
 import { goalsSchema } from '$lib/server/validation';
 import { eq } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
+import { withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type GoalsInput = typeof goalsSchema._output;
@@ -19,25 +20,20 @@ export const getGoals = async (userId: string) => {
 	return goal ?? null;
 };
 
-export const upsertGoals = async (
+export const upsertGoals = (
 	userId: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof userGoals.$inferSelect | undefined>> => {
-	const result = goalsSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof userGoals.$inferSelect | undefined>> =>
+	withValidation(goalsSchema, payload, async (data) => {
 		const db = getDB();
 		const stamp = lwwStamp(clientEditedAt);
 		const [goal] = await db
 			.insert(userGoals)
-			.values({ ...toGoalsUpsert(userId, result.data), updatedAt: stamp })
+			.values({ ...toGoalsUpsert(userId, data), updatedAt: stamp })
 			.onConflictDoUpdate({
 				target: userGoals.userId,
-				set: { ...result.data, updatedAt: stamp },
+				set: { ...data, updatedAt: stamp },
 				setWhere: lwwGuard(userGoals.updatedAt, clientEditedAt)
 			})
 			.returning();
@@ -45,12 +41,9 @@ export const upsertGoals = async (
 		if (!goal) {
 			// No row only happens when the LWW guard rejected a stale write (the row
 			// exists and is newer). Signal that to the handler as a conflict.
-			if (clientEditedAt) return { success: true, data: undefined };
-			return { success: false, error: new Error('Failed to upsert goals') };
+			if (clientEditedAt) return undefined;
+			throw new Error('Failed to upsert goals');
 		}
 
-		return { success: true, data: goal };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+		return goal;
+	});

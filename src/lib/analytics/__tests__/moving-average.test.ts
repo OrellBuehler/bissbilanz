@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { movingAverage } from '../moving-average';
+import { movingAverage, weightMovingAverage } from '../moving-average';
 
 describe('movingAverage', () => {
 	it('computes 3-day average with known values', () => {
@@ -69,5 +69,58 @@ describe('movingAverage', () => {
 	it('handles empty array', () => {
 		const result = movingAverage([], 3);
 		expect(result).toHaveLength(0);
+	});
+});
+
+describe('weightMovingAverage', () => {
+	it('averages over trailing calendar days, not rows', () => {
+		const entries = [
+			{ date: '2025-02-01', weightKg: 82.4 },
+			{ date: '2025-02-03', weightKg: 82.1 },
+			{ date: '2025-02-06', weightKg: 81.9 },
+			{ date: '2025-02-20', weightKg: 81.2 },
+			{ date: '2025-02-22', weightKg: 81.0 }
+		];
+		const result = weightMovingAverage(entries, 7);
+		expect(result.map((p) => p.date)).toEqual([
+			'2025-02-01',
+			'2025-02-03',
+			'2025-02-06',
+			'2025-02-20',
+			'2025-02-22'
+		]);
+		expect(result[0].movingAvg).toBeCloseTo(82.4);
+		expect(result[1].movingAvg).toBeCloseTo((82.4 + 82.1) / 2);
+		expect(result[2].movingAvg).toBeCloseTo((82.4 + 82.1 + 81.9) / 3);
+		expect(result[3].movingAvg).toBeCloseTo(81.2);
+		expect(result[4].movingAvg).toBeCloseTo((81.2 + 81.0) / 2);
+	});
+
+	it('collapses same-date entries to the latest loggedAt', () => {
+		const entries = [
+			{ date: '2025-03-01', weightKg: 80.2, loggedAt: '2025-03-01T06:30:00Z' },
+			{ date: '2025-03-01', weightKg: 80.6, loggedAt: '2025-03-01T21:40:00Z' },
+			{ date: '2025-03-02', weightKg: 79.8, loggedAt: '2025-03-02T07:10:00Z' },
+			{ date: '2025-03-02', weightKg: 79.4, loggedAt: null }
+		];
+		const result = weightMovingAverage(entries, 7);
+		expect(result).toHaveLength(2);
+		expect(result[0].weightKg).toBe(80.6);
+		expect(result[1].weightKg).toBe(79.8);
+	});
+
+	it('sorts out-of-order input and skips unparseable dates', () => {
+		const entries = [
+			{ date: '2025-04-03', weightKg: 78.0 },
+			{ date: 'garbage', weightKg: 99.9 },
+			{ date: '2025-04-01', weightKg: 79.0 }
+		];
+		const result = weightMovingAverage(entries, 7);
+		expect(result.map((p) => p.date)).toEqual(['2025-04-01', '2025-04-03']);
+		expect(result[1].movingAvg).toBeCloseTo(78.5);
+	});
+
+	it('returns empty for empty input', () => {
+		expect(weightMovingAverage([], 7)).toEqual([]);
 	});
 });

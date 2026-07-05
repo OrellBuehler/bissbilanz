@@ -27,3 +27,20 @@ bun run analytics-parity/generate.ts
 This rewrites `fixtures/golden-vectors.json`. Only regenerate when an analytics
 formula intentionally changes — then run the Kotlin parity test to confirm the
 shared module still matches, and review the JSON diff as part of the change.
+
+## Shared constants
+
+`constants.json` is the single source of truth for the analytics constants both
+languages share (RDA table, DII coefficient/mean/SD tables, energy densities,
+TDEE plateau threshold, omega-ratio thresholds). Edit it, then regenerate the
+checked-in outputs:
+
+```bash
+bun run constants:generate
+```
+
+This rewrites `src/lib/analytics/constants.generated.ts` and
+`mobile/shared/.../analytics/GeneratedAnalyticsConstants.kt`. CI runs
+`bun run constants:check` and fails when the generated files drift. The tables
+are also locked behaviorally by the golden vectors (`computeDIIScore`,
+`calculateMaintenance`, `computeTEF`, `detectPlateau`).

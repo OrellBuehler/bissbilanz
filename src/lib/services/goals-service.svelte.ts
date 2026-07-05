@@ -2,8 +2,7 @@ import { browser } from '$app/environment';
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
-import { urlToMeta } from '$lib/utils/api';
+import { withOfflineFallback } from './base';
 import type { DexieUserGoals } from '$lib/db/types';
 
 function goals() {
@@ -54,18 +53,16 @@ async function save(form: {
 	};
 	await db.userGoals.put(row);
 
-	if (browser && !navigator.onLine) {
-		const meta = urlToMeta('/api/goals');
-		await enqueue('POST', '/api/goals', form, meta);
-		return true;
-	}
-
-	try {
-		const { error } = await api.POST('/api/goals', { body: form });
-		return !error;
-	} catch {
-		return false;
-	}
+	let ok = true;
+	await withOfflineFallback(
+		async () => {
+			const result = await api.POST('/api/goals', { body: form });
+			if (result.error) ok = false;
+			return result;
+		},
+		{ method: 'POST', url: '/api/goals', body: form, affectedTable: 'userGoals' }
+	);
+	return ok;
 }
 
 export const goalsService = { goals, refresh, save };

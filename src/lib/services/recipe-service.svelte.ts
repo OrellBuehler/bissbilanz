@@ -2,7 +2,6 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieRecipe, DexieRecipeIngredient } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { isQueued } from '$lib/utils/api';
 import { refreshTable, withOfflineFallback } from './base';
 
 function allRecipes() {
@@ -96,30 +95,30 @@ async function create(recipe: Record<string, unknown>) {
 		await db.recipeIngredients.bulkPut(items);
 	}
 
-	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.POST('/api/recipes', { body: recipe as never });
-			if (isQueued(response)) return;
-			if (data) {
-				const { ingredients, ...recipeData } = data.recipe;
-				await db.recipes.put(recipeData as unknown as DexieRecipe);
-				if (Array.isArray(ingredients)) {
-					await db.recipeIngredients.where('recipeId').equals(id).delete();
-					await db.recipeIngredients.bulkPut(
-						ingredients.map((ing) => ({
-							id: ing.id ?? crypto.randomUUID(),
-							recipeId: ing.recipeId ?? id,
-							foodId: ing.foodId,
-							quantity: ing.quantity,
-							servingUnit: ing.servingUnit,
-							sortOrder: ing.sortOrder
-						}))
-					);
-				}
+	await withOfflineFallback(() => api.POST('/api/recipes', { body: recipe as never }), {
+		onSuccess: async (data) => {
+			const { ingredients, ...recipeData } = data.recipe;
+			await db.recipes.put(recipeData as unknown as DexieRecipe);
+			if (Array.isArray(ingredients)) {
+				await db.recipeIngredients.where('recipeId').equals(id).delete();
+				await db.recipeIngredients.bulkPut(
+					ingredients.map((ing) => ({
+						id: ing.id ?? crypto.randomUUID(),
+						recipeId: ing.recipeId ?? id,
+						foodId: ing.foodId,
+						quantity: ing.quantity,
+						servingUnit: ing.servingUnit,
+						sortOrder: ing.sortOrder
+					}))
+				);
 			}
 		},
-		{ method: 'POST', url: '/api/recipes', body: recipe, affectedTable: 'recipes', affectedId: id }
-	);
+		method: 'POST',
+		url: '/api/recipes',
+		body: recipe,
+		affectedTable: 'recipes',
+		affectedId: id
+	});
 }
 
 async function update(id: string, recipe: Record<string, unknown>) {
@@ -143,13 +142,13 @@ async function update(id: string, recipe: Record<string, unknown>) {
 	}
 
 	await withOfflineFallback(
-		async () => {
-			const { data, response } = await api.PATCH('/api/recipes/{id}', {
+		() =>
+			api.PATCH('/api/recipes/{id}', {
 				params: { path: { id } },
 				body: recipe as never
-			});
-			if (isQueued(response)) return;
-			if (data) {
+			}),
+		{
+			onSuccess: async (data) => {
 				const { ingredients: respIngredients, ...respRecipeData } = data.recipe;
 				await db.recipes.put(respRecipeData as unknown as DexieRecipe);
 				if (Array.isArray(respIngredients)) {
@@ -165,9 +164,7 @@ async function update(id: string, recipe: Record<string, unknown>) {
 						}))
 					);
 				}
-			}
-		},
-		{
+			},
 			method: 'PATCH',
 			url: `/api/recipes/${id}`,
 			body: recipe,
@@ -182,11 +179,10 @@ async function deleteRecipe(id: string) {
 	await db.recipeIngredients.where('recipeId').equals(id).delete();
 
 	await withOfflineFallback(
-		async () => {
-			await api.DELETE('/api/recipes/{id}', {
+		() =>
+			api.DELETE('/api/recipes/{id}', {
 				params: { path: { id } }
-			});
-		},
+			}),
 		{
 			method: 'DELETE',
 			url: `/api/recipes/${id}`,

@@ -15,11 +15,13 @@ vi.mock('$lib/stores/offline-queue', () => ({
 
 import { goalsService } from '../../src/lib/services/goals-service.svelte';
 import { api } from '../../src/lib/api/client';
+import { enqueue } from '$lib/stores/offline-queue';
 
 const mockApi = api as unknown as {
 	GET: ReturnType<typeof vi.fn>;
 	POST: ReturnType<typeof vi.fn>;
 };
+const mockEnqueue = enqueue as ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
 	await Promise.all(db.tables.map((t) => t.clear()));
@@ -89,7 +91,7 @@ describe('goalsService', () => {
 			fiberGoal: 35
 		};
 
-		mockApi.POST.mockResolvedValue({ error: undefined });
+		mockApi.POST.mockResolvedValue({ error: undefined, response: new Response(null) });
 
 		Object.defineProperty(globalThis, 'navigator', {
 			value: { onLine: true },
@@ -109,6 +111,56 @@ describe('goalsService', () => {
 		expect(mockApi.POST).toHaveBeenCalledWith('/api/goals', { body: form });
 	});
 
+	test('save() returns false when the API rejects the request', async () => {
+		mockApi.POST.mockResolvedValue({
+			error: { error: 'validation failed' },
+			response: new Response(null, { status: 400 })
+		});
+
+		Object.defineProperty(globalThis, 'navigator', {
+			value: { onLine: true },
+			writable: true,
+			configurable: true
+		});
+
+		const result = await goalsService.save({
+			calorieGoal: 2500,
+			proteinGoal: 180,
+			carbGoal: 300,
+			fatGoal: 80,
+			fiberGoal: 35
+		});
+
+		expect(result).toBe(false);
+	});
+
+	test('save() enqueues exactly once when the request fails', async () => {
+		mockApi.POST.mockRejectedValue(new Error('Network error'));
+
+		Object.defineProperty(globalThis, 'navigator', {
+			value: { onLine: true },
+			writable: true,
+			configurable: true
+		});
+
+		const result = await goalsService.save({
+			calorieGoal: 2500,
+			proteinGoal: 180,
+			carbGoal: 300,
+			fatGoal: 80,
+			fiberGoal: 35
+		});
+
+		expect(result).toBe(true);
+		expect(mockEnqueue).toHaveBeenCalledTimes(1);
+		expect(mockEnqueue).toHaveBeenCalledWith(
+			'POST',
+			'/api/goals',
+			expect.objectContaining({ calorieGoal: 2500 }),
+			expect.objectContaining({ affectedTable: 'userGoals' })
+		);
+	});
+
 	test('save() preserves existing userId and optional goals', async () => {
 		await db.userGoals.put({
 			userId: 'user-1',
@@ -122,7 +174,7 @@ describe('goalsService', () => {
 			updatedAt: '2026-01-01T00:00:00Z'
 		});
 
-		mockApi.POST.mockResolvedValue({ error: undefined });
+		mockApi.POST.mockResolvedValue({ error: undefined, response: new Response(null) });
 
 		Object.defineProperty(globalThis, 'navigator', {
 			value: { onLine: true },

@@ -4,6 +4,8 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.HealthSyncService
+import com.bissbilanz.analytics.WeightChartInput
+import com.bissbilanz.analytics.weightMovingAverage
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry
@@ -150,8 +152,9 @@ class WeightRepository(
             .executeAsList()
             .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
             .filter { it.entryDate in from..to }
-            .sortedBy { it.entryDate }
-            .map { WeightTrendEntry(entryDate = it.entryDate, weightKg = it.weightKg, movingAvg = 0.0) }
+            .map { WeightChartInput(date = it.entryDate, weightKg = it.weightKg, loggedAt = it.loggedAt) }
+            .let(::weightMovingAverage)
+            .map { WeightTrendEntry(entryDate = it.date, weightKg = it.weightKg, movingAvg = it.movingAvg) }
 
     suspend fun deleteEntry(id: String) {
         db.userDataDatabaseQueries.deleteWeightEntry(id)

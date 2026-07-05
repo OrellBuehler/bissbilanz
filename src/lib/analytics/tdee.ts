@@ -1,4 +1,5 @@
 import { type ConfidenceLevel } from './correlation';
+import { KCAL_PER_KG_FAT, PLATEAU_THRESHOLD_KG_PER_WEEK } from './constants.generated';
 
 export type TDEEResult = {
 	estimatedTDEE: number | null;
@@ -92,7 +93,7 @@ export function computeAdaptiveTDEE(
 
 	const slope = linearSlope(weights);
 	const weeklyRate = slope * 7;
-	const weeklyEnergyBalance = weeklyRate * 7700;
+	const weeklyEnergyBalance = weeklyRate * KCAL_PER_KG_FAT;
 	const avgDailyIntake = mean(calories);
 	let estimatedTDEE = avgDailyIntake - weeklyEnergyBalance / 7;
 
@@ -144,7 +145,7 @@ export function detectPlateau(
 
 	const slope = linearSlope(weights);
 	const weeklyRate = slope * 7;
-	const isPlateaued = Math.abs(weeklyRate) < 0.1;
+	const isPlateaued = Math.abs(weeklyRate) < PLATEAU_THRESHOLD_KG_PER_WEEK;
 
 	if (!isPlateaued) {
 		return {

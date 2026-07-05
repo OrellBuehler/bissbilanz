@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import { api } from '$lib/api/client';
 	import EatingWindowCard from './EatingWindowCard.svelte';
 	import MealSpacingCard from './MealSpacingCard.svelte';
 	import NutrientAdequacyCard from './NutrientAdequacyCard.svelte';
@@ -19,14 +20,18 @@
 		(async () => {
 			try {
 				const [mtRes, ndRes] = await Promise.all([
-					fetch(`/api/analytics/meal-timing?startDate=${startDate}&endDate=${endDate}`, { signal }),
-					fetch(`/api/analytics/nutrients-daily?startDate=${startDate}&endDate=${endDate}`, {
+					api.GET('/api/analytics/meal-timing', {
+						params: { query: { startDate, endDate } },
+						signal
+					}),
+					api.GET('/api/analytics/nutrients-daily', {
+						params: { query: { startDate, endDate } },
 						signal
 					})
 				]);
 				if (signal.aborted) return;
-				if (mtRes.ok) mealTimingData = (await mtRes.json()).data ?? [];
-				if (ndRes.ok) nutrientDailyData = (await ndRes.json()).data ?? [];
+				if (mtRes.data) mealTimingData = mtRes.data.data;
+				if (ndRes.data) nutrientDailyData = ndRes.data.data;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {

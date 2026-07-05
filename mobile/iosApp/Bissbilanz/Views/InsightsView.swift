@@ -628,17 +628,3 @@ struct InsightsView: View {
         calendarDays = CalendarDay.days(from: wire, calorieGoal: goals?.calorieGoal)
     }
 }
-
-// MARK: - Card View
-
-struct CardView<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        content
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}

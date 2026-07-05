@@ -2,8 +2,7 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import type { DexieFood, DexieSupplement, DexieSupplementLog } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
-import { browser } from '$app/environment';
+import { withOfflineFallback } from './base';
 import type { paths } from '$lib/api/generated/schema';
 
 type SupplementCreate =
@@ -123,24 +122,17 @@ async function create(supplement: SupplementCreate) {
 	};
 	await db.supplements.put(dexieRecord);
 
-	if (browser && !navigator.onLine) {
-		await enqueue('POST', '/api/supplements', supplement, {
-			affectedTable: 'supplements',
-			affectedId: id
-		});
-	} else {
-		api
-			.POST('/api/supplements', { body: supplement })
-			.then(({ data }) => {
-				if (data) {
-					db.supplements
-						.delete(id)
-						.then(() => db.supplements.put(data.supplement as unknown as DexieSupplement))
-						.catch(() => {});
-				}
-			})
-			.catch(() => {});
-	}
+	await withOfflineFallback(() => api.POST('/api/supplements', { body: supplement }), {
+		onSuccess: async (data) => {
+			await db.supplements.delete(id);
+			await db.supplements.put(data.supplement as unknown as DexieSupplement);
+		},
+		method: 'POST',
+		url: '/api/supplements',
+		body: supplement,
+		affectedTable: 'supplements',
+		affectedId: id
+	});
 }
 
 async function update(id: string, supplement: SupplementUpdate) {
@@ -148,43 +140,41 @@ async function update(id: string, supplement: SupplementUpdate) {
 	const { ingredients: _ingredients, ...updates } = supplement;
 	await db.supplements.update(id, { ...updates, updatedAt: now });
 
-	if (browser && !navigator.onLine) {
-		await enqueue('PATCH', `/api/supplements/${id}`, supplement, {
-			affectedTable: 'supplements',
-			affectedId: id
-		});
-	} else {
-		api
-			.PATCH('/api/supplements/{id}', {
+	await withOfflineFallback(
+		() =>
+			api.PATCH('/api/supplements/{id}', {
 				params: { path: { id } },
 				body: supplement
-			})
-			.then(({ data }) => {
-				if (data) {
-					db.supplements.put(data.supplement as unknown as DexieSupplement).catch(() => {});
-				}
-			})
-			.catch(() => {});
-	}
+			}),
+		{
+			onSuccess: async (data) => {
+				await db.supplements.put(data.supplement as unknown as DexieSupplement);
+			},
+			method: 'PATCH',
+			url: `/api/supplements/${id}`,
+			body: supplement,
+			affectedTable: 'supplements',
+			affectedId: id
+		}
+	);
 }
 
 async function deleteSupplement(id: string) {
 	await db.supplements.delete(id);
 
-	if (browser && !navigator.onLine) {
-		await enqueue(
-			'DELETE',
-			`/api/supplements/${id}`,
-			{},
-			{ affectedTable: 'supplements', affectedId: id }
-		);
-	} else {
-		api
-			.DELETE('/api/supplements/{id}', {
+	await withOfflineFallback(
+		() =>
+			api.DELETE('/api/supplements/{id}', {
 				params: { path: { id } }
-			})
-			.catch(() => {});
-	}
+			}),
+		{
+			method: 'DELETE',
+			url: `/api/supplements/${id}`,
+			body: {},
+			affectedTable: 'supplements',
+			affectedId: id
+		}
+	);
 }
 
 async function log(supplementId: string, date: string) {
@@ -196,40 +186,38 @@ async function log(supplementId: string, date: string) {
 		entryIds: []
 	});
 
-	if (browser && !navigator.onLine) {
-		await enqueue(
-			'POST',
-			`/api/supplements/${supplementId}/log`,
-			{ date },
-			{ affectedTable: 'supplements', affectedId: supplementId }
-		);
-	} else {
-		api
-			.POST('/api/supplements/{id}/log', {
+	await withOfflineFallback(
+		() =>
+			api.POST('/api/supplements/{id}/log', {
 				params: { path: { id: supplementId } },
 				body: { date }
-			})
-			.catch(() => {});
-	}
+			}),
+		{
+			method: 'POST',
+			url: `/api/supplements/${supplementId}/log`,
+			body: { date },
+			affectedTable: 'supplements',
+			affectedId: supplementId
+		}
+	);
 }
 
 async function unlog(supplementId: string, date: string) {
 	await db.supplementLogs.where('[supplementId+date]').equals([supplementId, date]).delete();
 
-	if (browser && !navigator.onLine) {
-		await enqueue(
-			'DELETE',
-			`/api/supplements/${supplementId}/log/${date}`,
-			{},
-			{ affectedTable: 'supplements', affectedId: supplementId }
-		);
-	} else {
-		api
-			.DELETE('/api/supplements/{id}/log/{date}', {
+	await withOfflineFallback(
+		() =>
+			api.DELETE('/api/supplements/{id}/log/{date}', {
 				params: { path: { id: supplementId, date } }
-			})
-			.catch(() => {});
-	}
+			}),
+		{
+			method: 'DELETE',
+			url: `/api/supplements/${supplementId}/log/${date}`,
+			body: {},
+			affectedTable: 'supplements',
+			affectedId: supplementId
+		}
+	);
 }
 
 export const supplementService = {

@@ -3,6 +3,7 @@ import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/sche
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
+import { withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwned } from '$lib/server/ownership';
@@ -66,28 +67,20 @@ export const listRecipes = async (
 	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
 };
 
-export const createRecipe = async (
+export const createRecipe = (
 	userId: string,
 	payload: unknown
-): Promise<Result<typeof recipes.$inferSelect>> => {
-	const result = recipeCreateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof recipes.$inferSelect>> =>
+	withValidation(recipeCreateSchema, payload, async (data) => {
 		const db = getDB();
-		const recipe = await db.transaction(async (tx) => {
-			const [created] = await tx
-				.insert(recipes)
-				.values(toRecipeInsert(userId, result.data))
-				.returning();
+		return db.transaction(async (tx) => {
+			const [created] = await tx.insert(recipes).values(toRecipeInsert(userId, data)).returning();
 
 			if (!created) {
 				throw new Error('Failed to create recipe');
 			}
 
-			const ingredientRows = result.data.ingredients.map((ingredient, index) => ({
+			const ingredientRows = data.ingredients.map((ingredient, index) => ({
 				recipeId: created.id,
 				foodId: ingredient.foodId,
 				quantity: ingredient.quantity,
@@ -96,17 +89,13 @@ export const createRecipe = async (
 			}));
 
 			// Reject ingredients referencing foods the caller doesn't own (IDOR).
-			for (const ingredient of result.data.ingredients) {
+			for (const ingredient of data.ingredients) {
 				await assertFoodOwned(tx, userId, ingredient.foodId);
 			}
 			await tx.insert(recipeIngredients).values(ingredientRows);
 			return created;
 		});
-		return { success: true, data: recipe };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+	});
 
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
@@ -141,22 +130,17 @@ export const getRecipe = async (userId: string, id: string) => {
 	return roundNutrition({ ...recipe, ingredients });
 };
 
-export const updateRecipe = async (
+export const updateRecipe = (
 	userId: string,
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof recipes.$inferSelect | null>> => {
-	const result = recipeUpdateSchema.safeParse(payload);
-	if (!result.success) {
-		return { success: false, error: result.error };
-	}
-
-	try {
+): Promise<Result<typeof recipes.$inferSelect | null>> =>
+	withValidation(recipeUpdateSchema, payload, async (data) => {
 		const db = getDB();
-		const { ingredients, ...recipeData } = result.data;
+		const { ingredients, ...recipeData } = data;
 
-		const recipe = await db.transaction(async (tx) => {
+		return db.transaction(async (tx) => {
 			const [updated] = await tx
 				.update(recipes)
 				.set({ ...recipeData, updatedAt: lwwStamp(clientEditedAt) })
@@ -189,13 +173,7 @@ export const updateRecipe = async (
 
 			return updated;
 		});
-
-		if (!recipe) return { success: true, data: null };
-		return { success: true, data: recipe };
-	} catch (error) {
-		return { success: false, error: error as Error };
-	}
-};
+	});
 
 export const deleteRecipe = async (
 	userId: string,

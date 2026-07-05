@@ -290,16 +290,16 @@ describe('entries-db', () => {
 	});
 
 	describe('deleteEntry', () => {
-		test('deletes entry', async () => {
-			setResult(undefined);
-			await deleteEntry(TEST_USER.id, TEST_ENTRY.id);
-			// No assertion needed
+		test('returns the deleted row', async () => {
+			setResult([{ id: TEST_ENTRY.id, date: TEST_ENTRY.date }]);
+			const deleted = await deleteEntry(TEST_USER.id, TEST_ENTRY.id);
+			expect(deleted).toEqual({ id: TEST_ENTRY.id, date: TEST_ENTRY.date });
 		});
 
-		test('does not throw when deleting nonexistent entry', async () => {
-			setResult(undefined);
-			await deleteEntry(TEST_USER.id, 'nonexistent-id');
-			// No assertion needed
+		test('returns null when no entry matches', async () => {
+			setResult([]);
+			const deleted = await deleteEntry(TEST_USER.id, 'nonexistent-id');
+			expect(deleted).toBeNull();
 		});
 	});
 
