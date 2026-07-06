@@ -1,3 +1,4 @@
+import { round2 } from '$lib/utils/number';
 import {
 	KCAL_PER_KG_FAT,
 	KCAL_PER_KG_MUSCLE,
@@ -50,8 +51,8 @@ export function calculateMaintenance(input: MaintenanceInput): MaintenanceResult
 		maintenanceCalories,
 		dailyDeficit: Math.round(dailyDeficit),
 		totalEnergyBalance: Math.round(totalEnergyBalance),
-		fatMassKg: Math.round(fatMassKg * 100) / 100,
-		muscleMassKg: Math.round(muscleMassKg * 100) / 100,
+		fatMassKg: round2(fatMassKg),
+		muscleMassKg: round2(muscleMassKg),
 		fatCalories: Math.round(fatCalories),
 		muscleCalories: Math.round(muscleCalories),
 		avgDailyCalories: Math.round(avgDailyCalories),

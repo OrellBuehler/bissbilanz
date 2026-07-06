@@ -3,6 +3,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Check from '@lucide/svelte/icons/check';
 	import { round2 } from '$lib/utils/number';
@@ -97,7 +98,10 @@
 		</div>
 		<div class="grid gap-2">
 			<Label for="edit-recipe-servings">{m.recipe_form_servings()}</Label>
-			<Input id="edit-recipe-servings" type="number" bind:value={totalServings} min="1" step="1" />
+			<NumberInput
+				id="edit-recipe-servings"
+				bind:value={() => totalServings, (v) => (totalServings = v ?? 1)}
+			/>
 		</div>
 	</div>
 

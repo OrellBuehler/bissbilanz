@@ -14,6 +14,7 @@
 	import { ALL_NUTRIENT_KEYS, NUTRIENT_BY_KEY } from '$lib/nutrients';
 	import { nutrientLabel } from '$lib/nutrients-i18n';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { formatKcal, formatGrams } from '$lib/utils/number';
 
 	type Food = components['schemas']['Food'];
 
@@ -379,7 +380,7 @@
 										{/if}
 									</span>
 									<span class="shrink-0 text-xs tabular-nums text-muted-foreground">
-										{Math.round(food.calories)} kcal
+										{formatKcal(food.calories)} kcal
 									</span>
 								</button>
 							{/each}
@@ -409,7 +410,9 @@
 								<p class="truncate text-xs text-muted-foreground">{food.brand}</p>
 							{/if}
 							<p class="text-xs text-muted-foreground">
-								{Math.round(food.calories)} kcal · {food.protein}P {food.carbs}C {food.fat}F
+								{formatKcal(food.calories)} kcal · {formatGrams(food.protein)}P {formatGrams(
+									food.carbs
+								)}C {formatGrams(food.fat)}F
 							</p>
 						</div>
 					</label>

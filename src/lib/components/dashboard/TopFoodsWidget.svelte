@@ -4,6 +4,7 @@
 	import TrendingUp from '@lucide/svelte/icons/trending-up';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { onMount } from 'svelte';
+	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type TopFood = {
@@ -66,7 +67,7 @@
 					<span class="min-w-0 flex-1 truncate text-sm font-medium">{food.foodName}</span>
 					<span class="text-muted-foreground shrink-0 text-xs">{food.count}x</span>
 					<span class="shrink-0 text-right text-xs font-medium tabular-nums"
-						>{Math.round(food.calories)} kcal</span
+						>{formatKcal(food.calories)} kcal</span
 					>
 				</div>
 			{/each}

@@ -25,7 +25,9 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
-	import { MACRO_COLORS, MEAL_COLORS } from '$lib/colors';
+	import { MEAL_COLORS } from '$lib/colors';
+	import MacroValue from '$lib/components/shared/MacroValue.svelte';
+	import { formatKcal, formatGrams, formatKg as formatKgValue } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import type { DexieWeightEntry } from '$lib/db/types';
 	import type { PageData } from './$types';
@@ -191,7 +193,7 @@
 	const latestTrend = $derived(
 		[...weightChartData].reverse().find((point) => point.moving_avg != null)?.moving_avg ?? null
 	);
-	const formatKg = (value: number | null) => (value == null ? '—' : `${value.toFixed(1)} kg`);
+	const formatKg = (value: number | null) => (value == null ? '—' : `${formatKgValue(value)} kg`);
 
 	const loadWeightChart = async () => {
 		const { data: apiData } = await api.GET('/api/weight', {
@@ -311,7 +313,7 @@
 										class="pointer-events-none absolute inset-0 bottom-8 flex flex-col items-center justify-center"
 									>
 										<span class="text-3xl font-bold tabular-nums text-foreground"
-											>{totalCalories}</span
+											>{formatKcal(totalCalories)}</span
 										>
 										<span class="text-xs text-muted-foreground">{m.foods_kcal()}</span>
 									</div>
@@ -336,16 +338,15 @@
 											<span class="text-muted-foreground text-xs tabular-nums">{pct}%</span>
 										</div>
 										<div class="mt-2 flex items-baseline gap-2">
-											<span class="text-sm font-semibold tabular-nums"
-												>{Math.round(row.calories)} kcal</span
-											>
+											<span class="text-sm font-semibold tabular-nums">
+												<MacroValue macro="calories" value={row.calories} unit="kcal" />
+											</span>
 										</div>
 										<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
-											<span style="color: {MACRO_COLORS.protein}">{Math.round(row.protein)}g P</span
-											>
-											<span style="color: {MACRO_COLORS.carbs}">{Math.round(row.carbs)}g C</span>
-											<span style="color: {MACRO_COLORS.fat}">{Math.round(row.fat)}g F</span>
-											<span style="color: {MACRO_COLORS.fiber}">{Math.round(row.fiber)}g Fi</span>
+											<MacroValue macro="protein" value={row.protein} suffix="P" />
+											<MacroValue macro="carbs" value={row.carbs} suffix="C" />
+											<MacroValue macro="fat" value={row.fat} suffix="F" />
+											<MacroValue macro="fiber" value={row.fiber} suffix="Fi" />
 										</div>
 									</div>
 								{/each}
@@ -377,11 +378,11 @@
 														{row.mealType}
 													</div>
 												</td>
-												<td class="py-2 text-right tabular-nums">{Math.round(row.calories)}</td>
-												<td class="py-2 text-right tabular-nums">{Math.round(row.protein)}g</td>
-												<td class="py-2 text-right tabular-nums">{Math.round(row.carbs)}g</td>
-												<td class="py-2 text-right tabular-nums">{Math.round(row.fat)}g</td>
-												<td class="py-2 text-right tabular-nums">{Math.round(row.fiber)}g</td>
+												<td class="py-2 text-right tabular-nums">{formatKcal(row.calories)}</td>
+												<td class="py-2 text-right tabular-nums">{formatGrams(row.protein)}g</td>
+												<td class="py-2 text-right tabular-nums">{formatGrams(row.carbs)}g</td>
+												<td class="py-2 text-right tabular-nums">{formatGrams(row.fat)}g</td>
+												<td class="py-2 text-right tabular-nums">{formatGrams(row.fiber)}g</td>
 												<td class="text-muted-foreground py-2 text-right tabular-nums">{pct}%</td>
 											</tr>
 										{/each}
@@ -442,20 +443,20 @@
 									<div class="flex items-baseline justify-between gap-2">
 										<p class="truncate text-sm font-medium">{food.foodName}</p>
 										<span class="shrink-0 text-sm font-semibold tabular-nums">
-											{Math.round(food.calories)} kcal
+											<MacroValue macro="calories" value={food.calories} unit="kcal" />
 										</span>
 									</div>
 									<div class="mt-0.5 text-xs text-muted-foreground">
-										{m.insights_times_logged({ count: food.count.toString() })} &middot; {Math.round(
+										{m.insights_times_logged({ count: food.count.toString() })} &middot; {formatKcal(
 											food.calories
 										)}
 										kcal {m.insights_per_serving()}
 									</div>
 									<div class="mt-1.5 flex gap-3 text-xs tabular-nums">
-										<span style="color: {MACRO_COLORS.protein}">{+food.protein.toFixed(1)}g P</span>
-										<span style="color: {MACRO_COLORS.carbs}">{+food.carbs.toFixed(1)}g C</span>
-										<span style="color: {MACRO_COLORS.fat}">{+food.fat.toFixed(1)}g F</span>
-										<span style="color: {MACRO_COLORS.fiber}">{+food.fiber.toFixed(1)}g Fi</span>
+										<MacroValue macro="protein" value={food.protein} suffix="P" />
+										<MacroValue macro="carbs" value={food.carbs} suffix="C" />
+										<MacroValue macro="fat" value={food.fat} suffix="F" />
+										<MacroValue macro="fiber" value={food.fiber} suffix="Fi" />
 									</div>
 								</div>
 							</div>

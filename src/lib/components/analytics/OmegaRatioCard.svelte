@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeOmegaRatio } from '$lib/analytics/food-quality';
+	import { formatNutrient } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
@@ -77,13 +78,13 @@
 					<div>
 						<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-3</p>
 						<p class="text-sm font-semibold tabular-nums">
-							{(Math.round(result.avgOmega3 * 10) / 10).toFixed(1)}g
+							{formatNutrient(result.avgOmega3, 'g')}
 						</p>
 					</div>
 					<div>
 						<p class="text-[11px] text-muted-foreground uppercase tracking-wide">Omega-6</p>
 						<p class="text-sm font-semibold tabular-nums">
-							{(Math.round(result.avgOmega6 * 10) / 10).toFixed(1)}g
+							{formatNutrient(result.avgOmega6, 'g')}
 						</p>
 					</div>
 				</div>

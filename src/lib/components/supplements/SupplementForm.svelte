@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import { dosageUnitValues } from '$lib/supplement-units';
 	import { today } from '$lib/utils/dates';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -248,11 +249,8 @@
 						required
 						class="min-w-0 flex-1"
 					/>
-					<Input
-						type="number"
-						step="any"
-						min="0"
-						bind:value={ing.dosage}
+					<NumberInput
+						bind:value={() => ing.dosage, (v) => (ing.dosage = v ?? 0)}
 						required
 						class="w-full sm:w-20"
 					/>

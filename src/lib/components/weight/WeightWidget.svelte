@@ -1,10 +1,10 @@
 <script lang="ts">
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { today } from '$lib/utils/dates';
-	import { parseDecimalInput } from '$lib/utils/number';
+	import { formatKg } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
 	import Weight from '@lucide/svelte/icons/weight';
 	import * as m from '$lib/paraglide/messages';
@@ -17,19 +17,19 @@
 		entryDate: string | null;
 	} = $props();
 
-	let inputValue = $state('');
+	let inputValue = $state<number | null>(null);
 	let saving = $state(false);
 
 	const isToday = $derived(entryDate === today());
 
 	const logWeight = async (e: Event) => {
 		e.preventDefault();
-		const kg = parseDecimalInput(inputValue);
-		if (isNaN(kg) || kg <= 0) return;
+		const kg = inputValue;
+		if (kg == null || kg <= 0) return;
 		saving = true;
 		try {
 			await weightService.create({ weightKg: kg, entryDate: today() });
-			inputValue = '';
+			inputValue = null;
 		} catch {
 			toast.error('Failed to log weight');
 		} finally {
@@ -46,22 +46,19 @@
 	{/snippet}
 	{#if weightKg != null}
 		<p class="text-3xl font-bold tabular-nums">
-			{m.dashboard_weight_latest({ value: weightKg.toFixed(1) })}
+			{m.dashboard_weight_latest({ value: formatKg(weightKg) })}
 		</p>
 	{:else}
 		<p class="text-muted-foreground text-sm">{m.dashboard_weight_no_entries()}</p>
 	{/if}
 	{#if !isToday}
 		<form onsubmit={logWeight} class="mt-3 flex gap-2">
-			<Input
-				type="number"
-				step="0.1"
-				min="0"
+			<NumberInput
 				placeholder={m.dashboard_weight_placeholder()}
 				bind:value={inputValue}
 				class="min-w-0 h-9"
 			/>
-			<Button type="submit" size="sm" disabled={saving || !inputValue}>
+			<Button type="submit" size="sm" disabled={saving || inputValue == null}>
 				{m.dashboard_weight_log()}
 			</Button>
 		</form>

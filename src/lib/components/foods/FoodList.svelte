@@ -8,6 +8,8 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import * as m from '$lib/paraglide/messages';
+	import { MACRO_TEXT_CLASS, MACRO_BAR_CLASS } from '$lib/utils/colors';
+	import { formatKcal, formatGrams } from '$lib/utils/number';
 
 	type FoodItem = {
 		id: string;
@@ -72,8 +74,8 @@
 				<div
 					class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950"
 				>
-					<span class="text-lg font-bold leading-tight text-blue-600 dark:text-blue-400"
-						>{Math.round(food.calories)}</span
+					<span class="text-lg font-bold leading-tight {MACRO_TEXT_CLASS.calories}"
+						>{formatKcal(food.calories)}</span
 					>
 					<span
 						class="text-[10px] font-medium uppercase tracking-wider text-blue-500/70 dark:text-blue-400/70"
@@ -97,20 +99,20 @@
 						<div class="mt-1.5 flex items-center gap-2">
 							<div class="flex h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
 								<div
-									class="bg-red-400 dark:bg-red-500"
+									class={MACRO_BAR_CLASS.protein}
 									style="width: {pct(food.protein, macroTotal(food))}%"
 								></div>
 								<div
-									class="bg-orange-400 dark:bg-orange-500"
+									class={MACRO_BAR_CLASS.carbs}
 									style="width: {pct(food.carbs, macroTotal(food))}%"
 								></div>
 								<div
-									class="bg-yellow-400 dark:bg-yellow-500"
+									class={MACRO_BAR_CLASS.fat}
 									style="width: {pct(food.fat, macroTotal(food))}%"
 								></div>
 							</div>
 							<span class="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-								{+food.protein.toFixed(1)}P {+food.carbs.toFixed(1)}C {+food.fat.toFixed(1)}F
+								{formatGrams(food.protein)}P {formatGrams(food.carbs)}C {formatGrams(food.fat)}F
 							</span>
 						</div>
 					{/if}

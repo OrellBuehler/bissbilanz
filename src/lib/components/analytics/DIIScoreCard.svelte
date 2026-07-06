@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeDIIScore } from '$lib/analytics/food-quality';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
@@ -123,7 +124,7 @@
 											? 'text-green-600 dark:text-green-400'
 											: 'text-red-600 dark:text-red-400'}"
 									>
-										{c.impact > 0 ? '+' : ''}{(Math.round(c.impact * 100) / 100).toFixed(2)}
+										{c.impact > 0 ? '+' : ''}{round2(c.impact).toFixed(2)}
 									</span>
 								</div>
 							{/each}

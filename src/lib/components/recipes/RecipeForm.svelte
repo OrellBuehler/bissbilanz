@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
 	import * as m from '$lib/paraglide/messages';
@@ -50,7 +51,10 @@
 	</div>
 	<div class="flex items-center gap-2">
 		<Label class="text-sm">{m.recipe_form_servings()}</Label>
-		<Input class="w-20" type="number" min="1" step="1" bind:value={state.totalServings} />
+		<NumberInput
+			class="w-20"
+			bind:value={() => state.totalServings, (v) => (state.totalServings = v ?? 1)}
+		/>
 	</div>
 	<div class="space-y-2">
 		<Label class="text-sm font-medium">{m.recipe_form_ingredients()}</Label>

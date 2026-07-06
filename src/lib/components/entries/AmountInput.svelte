@@ -1,8 +1,8 @@
 <script lang="ts">
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { parseDecimalInput } from '$lib/utils/number';
+	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -17,7 +17,19 @@
 		$props();
 
 	let mode: 'servings' | 'unit' = $state('servings');
-	let unitAmount = $state(0);
+	let unitAmount = $state<number | null>(0);
+
+	// Local mirror of the `servings` prop for the NumberInput binding: keeps
+	// whatever the user is currently typing (including transient invalid
+	// values) without forcing it back to the last valid value, and only
+	// propagates upward via onServingsChange once the entry is valid (>0) —
+	// matching the previous manual-oninput validation behavior.
+	// svelte-ignore state_referenced_locally
+	let servingsValue = $state<number | null>(servings);
+
+	$effect(() => {
+		servingsValue = servings;
+	});
 
 	const hasServingInfo = $derived(!!servingSize && !!servingUnit);
 
@@ -39,17 +51,16 @@
 		return m.amount_preview_kcal({ kcal: String(kcal) });
 	});
 
-	const handleServingsInput = (e: Event) => {
-		const val = parseDecimalInput((e.target as HTMLInputElement).value);
-		if (!isNaN(val) && val > 0) {
+	const handleServingsChange = (val: number | null) => {
+		servingsValue = val;
+		if (val != null && val > 0) {
 			onServingsChange(val);
 		}
 	};
 
-	const handleUnitInput = (e: Event) => {
-		const val = parseDecimalInput((e.target as HTMLInputElement).value);
-		if (!isNaN(val) && val > 0 && servingSize) {
-			unitAmount = val;
+	const handleUnitChange = (val: number | null) => {
+		unitAmount = val;
+		if (val != null && val > 0 && servingSize) {
 			onServingsChange(Math.round((val / servingSize) * 1000) / 1000);
 		}
 	};
@@ -82,14 +93,7 @@
 
 	{#if mode === 'servings'}
 		<div class="flex items-center gap-2">
-			<Input
-				type="number"
-				value={servings}
-				oninput={handleServingsInput}
-				min="0.1"
-				step="0.1"
-				class="min-w-0 flex-1"
-			/>
+			<NumberInput bind:value={() => servingsValue, handleServingsChange} class="min-w-0 flex-1" />
 			{#if previewAmount || previewKcal}
 				<span class="shrink-0 text-xs text-muted-foreground">
 					{#if previewAmount}{previewAmount}{/if}
@@ -100,20 +104,13 @@
 		</div>
 	{:else}
 		<div class="flex items-center gap-2">
-			<Input
-				type="number"
-				value={unitAmount}
-				oninput={handleUnitInput}
-				min="0.1"
-				step="0.1"
-				class="min-w-0 flex-1"
-			/>
+			<NumberInput bind:value={() => unitAmount, handleUnitChange} class="min-w-0 flex-1" />
 			<span class="shrink-0 text-sm text-muted-foreground">{servingUnit}</span>
 		</div>
 		{#if previewKcal}
 			<span class="text-xs text-muted-foreground">
 				{m.amount_preview_equals({
-					amount: String(Math.round(servings * 100) / 100),
+					amount: String(round2(servings)),
 					unit: ` ${m.amount_mode_servings().toLowerCase()}`
 				})}
 				({previewKcal})

@@ -3,6 +3,7 @@
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { MACRO_COLORS } from '$lib/colors';
+	import { roundMacroValue, formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	let { totals }: { totals: MacroTotals } = $props();
@@ -16,15 +17,19 @@
 
 	const chartData = $derived(
 		[
-			{ key: 'protein', label: m.macro_protein(), value: Math.round(totals.protein * 10) / 10 },
-			{ key: 'carbs', label: m.macro_carbs(), value: Math.round(totals.carbs * 10) / 10 },
-			{ key: 'fat', label: m.macro_fat(), value: Math.round(totals.fat * 10) / 10 },
-			{ key: 'fiber', label: m.macro_fiber(), value: Math.round(totals.fiber * 10) / 10 }
+			{
+				key: 'protein',
+				label: m.macro_protein(),
+				value: roundMacroValue('protein', totals.protein)
+			},
+			{ key: 'carbs', label: m.macro_carbs(), value: roundMacroValue('carbs', totals.carbs) },
+			{ key: 'fat', label: m.macro_fat(), value: roundMacroValue('fat', totals.fat) },
+			{ key: 'fiber', label: m.macro_fiber(), value: roundMacroValue('fiber', totals.fiber) }
 		].filter((d) => d.value > 0)
 	);
 
 	const hasData = $derived(chartData.length > 0);
-	const totalCalories = $derived(Math.round(totals.calories));
+	const totalCalories = $derived(formatKcal(totals.calories));
 </script>
 
 {#if hasData}
