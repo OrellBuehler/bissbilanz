@@ -92,7 +92,7 @@
 		"dexie": "^4.4.3",
 		"drizzle-orm": "^0.45.2",
 		"express-rate-limit": "^8.5.2",
-		"hono": "^4.12.25",
+		"hono": "^4.12.28",
 		"jose": "^6.2.3",
 		"openapi-fetch": "^0.17.0",
 		"path-to-regexp": "^8.4.2",
