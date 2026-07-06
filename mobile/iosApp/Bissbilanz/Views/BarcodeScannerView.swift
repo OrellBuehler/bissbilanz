@@ -141,7 +141,13 @@ struct BarcodeScannerView: View {
             // the user cancelled — resume scanning.
             if let created = pendingCreatedFood {
                 pendingCreatedFood = nil
-                foundFood = created
+                // onDismiss can fire before the sheet's dismissal transition has
+                // fully torn down, so presenting the detail sheet immediately
+                // races into a blank sheet on some devices (deferring within the
+                // same runloop is not enough). Wait out the transition first.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    foundFood = created
+                }
             } else {
                 resetScanner()
             }
