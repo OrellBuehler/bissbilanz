@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 @Composable
 fun CalorieCyclingCard(result: CalorieCyclingResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Calorie Cycling", sectionId = "calorie_cycle") {
+        CollapsibleCard(title = stringResource(R.string.insights_calorie_cycling_title), sectionId = "calorie_cycle") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -34,7 +34,7 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
         }
         return
     }
-    CollapsibleCard(title = "Calorie Cycling", sectionId = "calorie_cycle") {
+    CollapsibleCard(title = stringResource(R.string.insights_calorie_cycling_title), sectionId = "calorie_cycle") {
         val patternColor =
             when (result.pattern) {
                 "consistent" -> FiberGreen
@@ -42,9 +42,15 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
                 else -> CarbsOrange
             }
         val patternLabel =
-            result.pattern
-                .replace('_', ' ')
-                .replaceFirstChar { it.uppercase() }
+            when (result.pattern) {
+                "consistent" -> stringResource(R.string.insights_cycling_consistent)
+                "moderate", "moderate_cycling" -> stringResource(R.string.insights_cycling_moderate)
+                "high_cycling" -> stringResource(R.string.insights_cycling_high)
+                else ->
+                    result.pattern
+                        .replace('_', ' ')
+                        .replaceFirstChar { it.uppercase() }
+            }
         Text(
             patternLabel,
             style = MaterialTheme.typography.displaySmall,
@@ -58,26 +64,26 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
         ) {
             Column {
                 Text(
-                    "${result.mean.roundToInt()} kcal",
+                    stringResource(R.string.format_kcal, result.mean.roundToInt().toString()),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = CaloriesBlue,
                 )
                 Text(
-                    "avg daily",
+                    stringResource(R.string.insights_avg_daily),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Column {
                 Text(
-                    "±${result.stddev.roundToInt()} kcal",
+                    "±${stringResource(R.string.format_kcal, result.stddev.roundToInt().toString())}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    "std deviation",
+                    stringResource(R.string.insights_std_deviation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -89,12 +95,12 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "${result.highDays} high days",
+                stringResource(R.string.insights_high_days, result.highDays),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "${result.lowDays} low days",
+                stringResource(R.string.insights_low_days, result.lowDays),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -21,7 +21,7 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 @Composable
 fun WeightForecastCard(result: WeightForecast) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Weight Forecast", sectionId = "weight_forecast") {
+        CollapsibleCard(title = stringResource(R.string.insights_weight_forecast_title), sectionId = "weight_forecast") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -30,31 +30,31 @@ fun WeightForecastCard(result: WeightForecast) {
         }
         return
     }
-    CollapsibleCard(title = "Weight Forecast", sectionId = "weight_forecast") {
+    CollapsibleCard(title = stringResource(R.string.insights_weight_forecast_title), sectionId = "weight_forecast") {
         if (result.currentWeight == null) {
             Text(
-                "No recent weight entries",
+                stringResource(R.string.insights_no_recent_weight_entries),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@CollapsibleCard
         }
         Text(
-            "${"%.1f".format(result.currentWeight)} kg",
+            stringResource(R.string.weight_kg_value, "%.1f".format(result.currentWeight)),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = CaloriesBlue,
         )
         val sign = if (result.weeklyRate >= 0) "+" else ""
         Text(
-            "${sign}${"%.2f".format(result.weeklyRate)} kg/week",
+            stringResource(R.string.insights_kg_per_week, sign, "%.2f".format(result.weeklyRate)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        ForecastRow(label = "30 days", value = result.day30)
-        ForecastRow(label = "60 days", value = result.day60)
-        ForecastRow(label = "90 days", value = result.day90)
+        ForecastRow(label = stringResource(R.string.insights_forecast_30_days), value = result.day30)
+        ForecastRow(label = stringResource(R.string.insights_forecast_60_days), value = result.day60)
+        ForecastRow(label = stringResource(R.string.insights_forecast_90_days), value = result.day90)
     }
 }
 
@@ -70,7 +70,7 @@ private fun ForecastRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            if (value != null) "${"%.1f".format(value)} kg" else "—",
+            if (value != null) stringResource(R.string.weight_kg_value, "%.1f".format(value)) else "—",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
         )

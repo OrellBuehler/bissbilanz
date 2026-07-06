@@ -10,6 +10,6 @@
         android:layout_height="40dp"
         android:layout_gravity="center"
         android:src="@drawable/ic_barcode_scan"
-        android:contentDescription="Scan barcode" />
+        android:contentDescription="@string/scan_widget_content_desc" />
 
 </FrameLayout>

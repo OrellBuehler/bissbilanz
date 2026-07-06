@@ -21,7 +21,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 
 @Composable
 fun FoodSleepCard(result: FoodSleepResult?) {
-    CollapsibleCard(title = "Food & Sleep", sectionId = "food_sleep") {
+    CollapsibleCard(title = stringResource(R.string.insights_food_sleep_title), sectionId = "food_sleep") {
         if (result == null || result.foodImpacts.isEmpty()) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -32,12 +32,12 @@ fun FoodSleepCard(result: FoodSleepResult?) {
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Overall avg quality",
+                stringResource(R.string.insights_overall_avg_quality),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "${"%.1f".format(result.overallAvgQuality)}/10",
+                stringResource(R.string.insights_quality_out_of_10, "%.1f".format(result.overallAvgQuality)),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = CaloriesBlue,
@@ -48,7 +48,7 @@ fun FoodSleepCard(result: FoodSleepResult?) {
             val delta = impact.delta
             val deltaColor = if (delta >= 0) FiberGreen else ProteinRed
             val deltaText = if (delta >= 0) "+${"%.1f".format(delta)}" else "${"%.1f".format(delta)}"
-            val label = if (delta >= 0) "Better sleep" else "Worse sleep"
+            val label = stringResource(if (delta >= 0) R.string.insights_better_sleep else R.string.insights_worse_sleep)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     impact.foodName,
@@ -64,7 +64,7 @@ fun FoodSleepCard(result: FoodSleepResult?) {
                         color = deltaColor,
                     )
                     Text(
-                        " · $label · ${impact.occurrences} nights",
+                        " · ${stringResource(R.string.insights_nights_count, label, impact.occurrences)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

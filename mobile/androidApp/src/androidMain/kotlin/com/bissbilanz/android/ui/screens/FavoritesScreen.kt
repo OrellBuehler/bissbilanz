@@ -13,12 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FavoritesSkeleton
@@ -92,7 +94,7 @@ fun FavoritesScreen(navController: NavController) {
                     pendingServingsFood = null
                 }
             },
-            title = "Select Servings",
+            title = stringResource(R.string.favorites_select_servings),
             showMealPicker = false,
         )
     }
@@ -110,7 +112,7 @@ fun FavoritesScreen(navController: NavController) {
                     pendingServingsRecipe = null
                 }
             },
-            title = "Select Servings",
+            title = stringResource(R.string.favorites_select_servings),
             showMealPicker = false,
         )
     }
@@ -124,10 +126,18 @@ fun FavoritesScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.favorites_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val tabLabels = listOf("Foods (${favorites.size})", "Recipes (${favoriteRecipes.size})")
+                val tabLabels =
+                    listOf(
+                        stringResource(R.string.favorites_tab_foods, favorites.size),
+                        stringResource(R.string.favorites_tab_recipes, favoriteRecipes.size),
+                    )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     tabLabels.forEachIndexed { index, label ->
                         SegmentedButton(
@@ -147,7 +157,7 @@ fun FavoritesScreen(navController: NavController) {
                         FavoritesSkeleton()
                     } else if (selectedTab == 0) {
                         if (favorites.isEmpty()) {
-                            EmptyState("No favorite foods yet.\nMark foods as favorite to see them here.")
+                            EmptyState(stringResource(R.string.favorites_no_foods))
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
@@ -174,7 +184,7 @@ fun FavoritesScreen(navController: NavController) {
                         }
                     } else {
                         if (favoriteRecipes.isEmpty()) {
-                            EmptyState("No favorite recipes yet.\nMark recipes as favorite to see them here.")
+                            EmptyState(stringResource(R.string.favorites_no_recipes))
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),

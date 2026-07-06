@@ -7,10 +7,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.android.R
 
 @Composable
-fun LoadingScreen(message: String = "Loading...") {
+fun LoadingScreen(message: String = stringResource(R.string.loading_message)) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -37,7 +39,7 @@ fun ErrorState(
             if (onRetry != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 androidx.compose.material3.TextButton(onClick = onRetry) {
-                    Text("Retry")
+                    Text(stringResource(R.string.action_retry))
                 }
             }
         }

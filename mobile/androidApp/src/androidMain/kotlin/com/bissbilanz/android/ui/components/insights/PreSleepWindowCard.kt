@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun PreSleepWindowCard(summary: MealTimingSummary?) {
-    CollapsibleCard(title = "Pre-Sleep Eating Window", sectionId = "pre_sleep_window") {
+    CollapsibleCard(title = stringResource(R.string.insights_pre_sleep_window_title), sectionId = "pre_sleep_window") {
         if (summary == null) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -33,7 +33,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
             return@CollapsibleCard
         }
         Text(
-            "Last meal: ${summary.avgLastMealTime}",
+            stringResource(R.string.insights_last_meal_value, summary.avgLastMealTime),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = CaloriesBlue,
@@ -41,7 +41,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "First meal",
+                stringResource(R.string.insights_first_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -53,12 +53,12 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Eating window",
+                stringResource(R.string.insights_eating_window),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "${"%.1f".format(summary.avgWindowMinutes / 60.0)}h window",
+                stringResource(R.string.insights_hour_window_decimal, "%.1f".format(summary.avgWindowMinutes / 60.0)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -73,12 +73,12 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
             }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Late-night eating",
+                stringResource(R.string.insights_late_night_eating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "${lateNightPct.roundToInt()}% of days",
+                stringResource(R.string.insights_pct_of_days, lateNightPct.roundToInt()),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = lateNightColor,

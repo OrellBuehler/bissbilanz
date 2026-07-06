@@ -73,6 +73,11 @@ fun FoodEditSheet(
     var showUnitDropdown by remember { mutableStateOf(false) }
     var showLabelScanner by remember { mutableStateOf(false) }
 
+    val loadFailedMessage = stringResource(R.string.food_form_load_failed)
+    val nameRequiredMessage = stringResource(R.string.food_form_name_required_error)
+    val requiredFieldsMessage = stringResource(R.string.food_form_required_fields_error)
+    val saveFailedMessage = stringResource(R.string.food_form_save_failed)
+
     LaunchedEffect(foodId) {
         if (foodId != null) {
             try {
@@ -101,7 +106,7 @@ fun FoodEditSheet(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)
                 errorReporter.captureException(e)
-                errorMessage = "Failed to load food"
+                errorMessage = loadFailedMessage
             }
             isLoading = false
         }
@@ -110,7 +115,7 @@ fun FoodEditSheet(
     fun save() {
         val nameVal = name.trim()
         if (nameVal.isBlank()) {
-            errorMessage = "Name is required"
+            errorMessage = nameRequiredMessage
             return
         }
         val caloriesVal = calories.toLocalizedDoubleOrNull()
@@ -119,7 +124,7 @@ fun FoodEditSheet(
         val fatVal = fat.toLocalizedDoubleOrNull()
         val servingSizeVal = servingSize.toLocalizedDoubleOrNull()
         if (caloriesVal == null || proteinVal == null || carbsVal == null || fatVal == null || servingSizeVal == null) {
-            errorMessage = "Calories, protein, carbs, fat, and serving size are required"
+            errorMessage = requiredFieldsMessage
             return
         }
         val fiberVal = fiber.toLocalizedDoubleOrNull() ?: 0.0
@@ -163,7 +168,7 @@ fun FoodEditSheet(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to save food", e)
                 errorReporter.captureException(e)
-                errorMessage = "Failed to save food"
+                errorMessage = saveFailedMessage
             }
             isSaving = false
         }
@@ -221,7 +226,7 @@ fun FoodEditSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    if (isEditing) "Edit Food" else "Create Food",
+                    if (isEditing) stringResource(R.string.food_edit_title) else stringResource(R.string.food_create_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -258,14 +263,14 @@ fun FoodEditSheet(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name *") },
+                    label = { Text(stringResource(R.string.food_form_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = brand,
                     onValueChange = { brand = it },
-                    label = { Text("Brand") },
+                    label = { Text(stringResource(R.string.food_form_brand)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -273,7 +278,7 @@ fun FoodEditSheet(
                     OutlinedTextField(
                         value = servingSize,
                         onValueChange = { servingSize = it },
-                        label = { Text("Serving size") },
+                        label = { Text(stringResource(R.string.food_form_serving_size)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -287,7 +292,7 @@ fun FoodEditSheet(
                             value = servingUnit.name.lowercase(),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Unit") },
+                            label = { Text(stringResource(R.string.food_form_unit)) },
                             trailingIcon = {
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUnitDropdown)
                             },
@@ -313,7 +318,7 @@ fun FoodEditSheet(
                 OutlinedTextField(
                     value = barcode,
                     onValueChange = { barcode = it },
-                    label = { Text("Barcode") },
+                    label = { Text(stringResource(R.string.food_form_barcode)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -321,7 +326,7 @@ fun FoodEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Favorite")
+                    Text(stringResource(R.string.action_favorite))
                     Switch(checked = isFavorite, onCheckedChange = { isFavorite = it })
                 }
 
@@ -329,41 +334,57 @@ fun FoodEditSheet(
 
                 // Macros
                 Text(
-                    "Macros",
+                    stringResource(R.string.food_form_macros),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                NutrientTextField("Calories (kcal) *", calories, CaloriesBlue) { calories = it }
-                NutrientTextField("Protein (g) *", protein, ProteinRed) { protein = it }
-                NutrientTextField("Carbs (g) *", carbs, CarbsOrange) { carbs = it }
-                NutrientTextField("Fat (g) *", fat, FatYellow) { fat = it }
-                NutrientTextField("Fiber (g)", fiber, FiberGreen) { fiber = it }
+                NutrientTextField(stringResource(R.string.food_form_calories_required), calories, CaloriesBlue) { calories = it }
+                NutrientTextField(stringResource(R.string.food_form_protein_required), protein, ProteinRed) { protein = it }
+                NutrientTextField(stringResource(R.string.food_form_carbs_required), carbs, CarbsOrange) { carbs = it }
+                NutrientTextField(stringResource(R.string.food_form_fat_required), fat, FatYellow) { fat = it }
+                NutrientTextField(stringResource(R.string.food_form_fiber_optional), fiber, FiberGreen) { fiber = it }
 
                 // Advanced
                 TextButton(
                     onClick = { showAdvanced = !showAdvanced },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (showAdvanced) "Hide advanced nutrients" else "Show advanced nutrients")
+                    Text(stringResource(if (showAdvanced) R.string.food_form_hide_advanced else R.string.food_form_show_advanced))
                 }
                 AnimatedVisibility(visible = showAdvanced) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Fat Breakdown", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                        NutrientTextField("Saturated Fat (g)", saturatedFat) { saturatedFat = it }
+                        Text(
+                            stringResource(R.string.nutrient_category_fat_breakdown),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_saturated_fat), saturatedFat) { saturatedFat = it }
 
-                        Text("Sugar & Carbs", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                        NutrientTextField("Sugar (g)", sugar) { sugar = it }
+                        Text(
+                            stringResource(R.string.nutrient_category_sugar_carb),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_sugar), sugar) { sugar = it }
 
-                        Text("Minerals", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                        NutrientTextField("Sodium (mg)", sodium) { sodium = it }
-                        NutrientTextField("Salt (g)", salt) { salt = it }
-                        NutrientTextField("Potassium (mg)", potassium) { potassium = it }
-                        NutrientTextField("Calcium (mg)", calcium) { calcium = it }
-                        NutrientTextField("Iron (mg)", iron) { iron = it }
+                        Text(
+                            stringResource(R.string.nutrient_category_mineral),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_sodium), sodium) { sodium = it }
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_salt), salt) { salt = it }
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_potassium), potassium) { potassium = it }
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_calcium), calcium) { calcium = it }
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_iron), iron) { iron = it }
 
-                        Text("Vitamins", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                        NutrientTextField("Vitamin C (mg)", vitaminC) { vitaminC = it }
-                        NutrientTextField("Vitamin D (mcg)", vitaminD) { vitaminD = it }
+                        Text(
+                            stringResource(R.string.nutrient_category_vitamin),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_vitamin_c), vitaminC) { vitaminC = it }
+                        NutrientTextField(stringResource(R.string.food_form_nutrient_vitamin_d), vitaminD) { vitaminD = it }
                     }
                 }
 
@@ -385,7 +406,7 @@ fun FoodEditSheet(
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.dialog_cancel))
                     }
                     Button(
                         onClick = { save() },
@@ -399,7 +420,7 @@ fun FoodEditSheet(
                                 fat.toLocalizedDoubleOrNull() != null &&
                                 servingSize.toLocalizedDoubleOrNull() != null,
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.weight_save))
                     }
                 }
 

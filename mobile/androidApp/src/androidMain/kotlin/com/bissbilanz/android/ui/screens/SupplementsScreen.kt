@@ -17,17 +17,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SupplementEditSheet
+import com.bissbilanz.android.ui.components.timeOfDayDisplayName
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
@@ -42,12 +45,13 @@ import org.koin.compose.koinInject
 
 // Single-ingredient supplements show the backing food's dosage label
 // (e.g. "1000 IU"); multi-ingredient show an ingredient count summary.
+@Composable
 private fun dosageSummary(supplement: Supplement): String {
     val ings = supplement.ingredients
     return when {
         ings.isEmpty() -> ""
         ings.size == 1 -> ings[0].food.ingredientsText ?: ""
-        else -> "${ings.size} ingredients"
+        else -> stringResource(R.string.supplements_ingredient_count, ings.size)
     }
 }
 
@@ -66,6 +70,8 @@ fun SupplementsScreen(navController: NavController) {
     var takenIds by remember { mutableStateOf(setOf<String>()) }
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingSupplementId by remember { mutableStateOf<String?>(null) }
+    val loadFailedMessage = stringResource(R.string.supplements_load_failed)
+    val updateFailedMessage = stringResource(R.string.supplements_update_failed)
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -75,7 +81,7 @@ fun SupplementsScreen(navController: NavController) {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar("Failed to load supplements")
+            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
     }
@@ -83,15 +89,15 @@ fun SupplementsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Supplements") },
+                title = { Text(stringResource(R.string.chart_supplements)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate("supplement-history") }) {
-                        Icon(Icons.Default.DateRange, "History")
+                        Icon(Icons.Default.DateRange, stringResource(R.string.calendar_title))
                     }
                 },
             )
@@ -101,7 +107,7 @@ fun SupplementsScreen(navController: NavController) {
                 haptic(HapticFeedbackType.LongPress)
                 showCreateSheet = true
             }) {
-                Icon(Icons.Default.Add, "Add supplement")
+                Icon(Icons.Default.Add, stringResource(R.string.supplements_add))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -144,7 +150,7 @@ fun SupplementsScreen(navController: NavController) {
                 if (loading) {
                     LoadingScreen()
                 } else if (supplements.isEmpty()) {
-                    EmptyState("No supplements yet.\nTap + to add a supplement.")
+                    EmptyState(stringResource(R.string.supplements_empty))
                 } else {
                     val activeSupplements = supplements.filter { it.isActive }
 
@@ -155,12 +161,12 @@ fun SupplementsScreen(navController: NavController) {
                     ) {
                         item {
                             Text(
-                                "Today's Checklist",
+                                stringResource(R.string.supplements_today_checklist),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${takenIds.size} / ${activeSupplements.size} taken",
+                                stringResource(R.string.supplements_taken_count, takenIds.size, activeSupplements.size),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -203,7 +209,7 @@ fun SupplementsScreen(navController: NavController) {
                                             takenIds =
                                                 if (isTaken) takenIds + supplement.id else takenIds - supplement.id
                                             errorReporter.captureException(e)
-                                            snackbarHostState.showSnackbar("Failed to update supplement")
+                                            snackbarHostState.showSnackbar(updateFailedMessage)
                                         }
                                     }
                                 },
@@ -215,7 +221,7 @@ fun SupplementsScreen(navController: NavController) {
                             item {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    "Inactive",
+                                    stringResource(R.string.supplements_inactive),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -282,7 +288,11 @@ fun SupplementChecklistItem(
                 Column {
                     Text(dosageSummary(supplement))
                     supplement.timeOfDay?.let { tod ->
-                        Text(tod.value, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            timeOfDayDisplayName(tod.value),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     val ings = supplement.ingredients
                     if (ings.size > 1) {
@@ -306,7 +316,7 @@ fun SupplementChecklistItem(
                         IconButton(onClick = it) {
                             Icon(
                                 Icons.Default.Edit,
-                                "Edit supplement",
+                                stringResource(R.string.supplements_edit),
                                 modifier =
                                     androidx.compose.ui.Modifier
                                         .size(20.dp),
@@ -316,7 +326,7 @@ fun SupplementChecklistItem(
                     if (isTaken) {
                         Icon(
                             Icons.Default.Check,
-                            "Supplement taken",
+                            stringResource(R.string.supplements_taken),
                             tint = FiberGreen,
                             modifier =
                                 androidx.compose.ui.Modifier

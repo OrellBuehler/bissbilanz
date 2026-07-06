@@ -17,11 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
@@ -91,7 +93,7 @@ fun FoodSearchScreen(navController: NavController) {
                 haptic(HapticFeedbackType.LongPress)
                 showCreateFoodSheet = true
             }) {
-                Icon(Icons.Default.Add, "Create food")
+                Icon(Icons.Default.Add, stringResource(R.string.food_search_create_food))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -114,8 +116,8 @@ fun FoodSearchScreen(navController: NavController) {
                             onSearch = {},
                             expanded = false,
                             onExpandedChange = {},
-                            placeholder = { Text("Search foods...") },
-                            leadingIcon = { Icon(Icons.Default.Search, "Search") },
+                            placeholder = { Text(stringResource(R.string.food_search_placeholder)) },
+                            leadingIcon = { Icon(Icons.Default.Search, stringResource(R.string.food_search_icon_desc)) },
                         )
                     },
                     expanded = false,
@@ -129,7 +131,7 @@ fun FoodSearchScreen(navController: NavController) {
                         if (searching) {
                             FoodSearchSkeleton()
                         } else if (searchResults.isEmpty()) {
-                            EmptyState("No foods found for \"$query\"")
+                            EmptyState(stringResource(R.string.food_search_no_results, query))
                         } else {
                             LazyColumn {
                                 items(searchResults, key = { it.id }) { food ->
@@ -149,7 +151,7 @@ fun FoodSearchScreen(navController: NavController) {
                     }
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
-                    val tabLabels = listOf("Recent", "All")
+                    val tabLabels = listOf(stringResource(R.string.food_search_tab_recent), stringResource(R.string.food_search_tab_all))
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         tabLabels.forEachIndexed { index, label ->
                             SegmentedButton(
@@ -179,7 +181,7 @@ fun FoodSearchScreen(navController: NavController) {
 
                     if (selectedTab == 0) {
                         if (recentFoods.isEmpty()) {
-                            EmptyState("No recent foods")
+                            EmptyState(stringResource(R.string.food_search_no_recent))
                         } else {
                             LazyColumn {
                                 items(recentFoods, key = { it.id }) { food ->
@@ -198,7 +200,7 @@ fun FoodSearchScreen(navController: NavController) {
                         }
                     } else {
                         if (allFoods.isEmpty() && !isLoadingMore) {
-                            EmptyState("No foods yet")
+                            EmptyState(stringResource(R.string.food_search_no_foods))
                         } else {
                             LazyColumn(state = allFoodsListState) {
                                 items(allFoods, key = { it.id }) { food ->
@@ -259,7 +261,16 @@ fun FoodListItem(
             },
         supportingContent = {
             Text(
-                "${food.calories.roundToInt()} cal  ·  P${food.protein.roundToInt()} C${food.carbs.roundToInt()} F${food.fat.roundToInt()}",
+                stringResource(
+                    R.string.food_search_item_summary,
+                    food.calories.roundToInt(),
+                    stringResource(R.string.macro_chip_protein),
+                    food.protein.roundToInt(),
+                    stringResource(R.string.macro_chip_carbs),
+                    food.carbs.roundToInt(),
+                    stringResource(R.string.macro_chip_fat),
+                    food.fat.roundToInt(),
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -271,7 +282,7 @@ fun FoodListItem(
                 }
                 if (onQuickLog != null) {
                     IconButton(onClick = onQuickLog) {
-                        Icon(Icons.Default.Add, "Quick log", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Add, stringResource(R.string.food_search_quick_log), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

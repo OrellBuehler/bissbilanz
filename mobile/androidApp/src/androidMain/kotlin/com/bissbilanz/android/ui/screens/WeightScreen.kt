@@ -15,12 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -67,9 +69,15 @@ fun WeightScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
 
-    val ranges = listOf("7d", "30d", "90d", "All")
+    val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
     val projectionOptions = listOf(0, 14, 30, 60)
-    val projectionLabels = listOf("Off", "14d", "30d", "60d")
+    val projectionLabels = listOf(stringResource(R.string.weight_projection_off), "14d", "30d", "60d")
+
+    val loggedMessage = stringResource(R.string.weight_logged_success)
+    val logFailedMessage = stringResource(R.string.weight_log_failed)
+    val updatedMessage = stringResource(R.string.weight_update_success)
+    val updateFailedMessage = stringResource(R.string.weight_update_failed)
+    val deleteFailedMessage = stringResource(R.string.sleep_delete_failed)
 
     if (showAddDialog) {
         AddWeightDialog(
@@ -81,11 +89,11 @@ fun WeightScreen(navController: NavController) {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         weightRepo.createEntry(WeightCreate(weightKg = weight, entryDate = today, notes = notes.ifBlank { null }))
                         viewModel.refresh()
-                        snackbarHostState.showSnackbar("Weight logged")
+                        snackbarHostState.showSnackbar(loggedMessage)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to log weight")
+                        snackbarHostState.showSnackbar(logFailedMessage)
                     }
                 }
                 showAddDialog = false
@@ -105,11 +113,11 @@ fun WeightScreen(navController: NavController) {
                             WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
                         )
                         viewModel.refresh()
-                        snackbarHostState.showSnackbar("Weight updated")
+                        snackbarHostState.showSnackbar(updatedMessage)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar("Failed to update weight")
+                        snackbarHostState.showSnackbar(updateFailedMessage)
                     }
                 }
                 entryToEdit = null
@@ -120,8 +128,8 @@ fun WeightScreen(navController: NavController) {
     if (entryToDelete != null) {
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
-            title = { Text("Delete Weight Entry") },
-            text = { Text("Delete entry from ${entryToDelete!!.entryDate}?") },
+            title = { Text(stringResource(R.string.weight_delete_title)) },
+            text = { Text(stringResource(R.string.weight_delete_text, entryToDelete!!.entryDate)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -132,16 +140,16 @@ fun WeightScreen(navController: NavController) {
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
-                                snackbarHostState.showSnackbar("Failed to delete")
+                                snackbarHostState.showSnackbar(deleteFailedMessage)
                             }
                         }
                         entryToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { entryToDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { entryToDelete = null }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -149,10 +157,10 @@ fun WeightScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Weight Log") },
+                title = { Text(stringResource(R.string.weight_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -164,7 +172,7 @@ fun WeightScreen(navController: NavController) {
                     showAddDialog = true
                 },
             ) {
-                Icon(Icons.Default.Add, "Add weight")
+                Icon(Icons.Default.Add, stringResource(R.string.weight_add_content_desc))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -180,7 +188,7 @@ fun WeightScreen(navController: NavController) {
                 if (loading) {
                     LoadingScreen()
                 } else if (entries.isEmpty() && trendData.isEmpty()) {
-                    EmptyState("No weight entries yet.\nTap + to log your weight.")
+                    EmptyState(stringResource(R.string.weight_empty))
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -244,7 +252,10 @@ fun WeightScreen(navController: NavController) {
                             Card(modifier = Modifier.fillMaxWidth().animateItem()) {
                                 ListItem(
                                     headlineContent = {
-                                        Text("${entry.weightKg.formatDecimal1()} kg", fontWeight = FontWeight.Bold)
+                                        Text(
+                                            stringResource(R.string.weight_kg_value, entry.weightKg.formatDecimal1()),
+                                            fontWeight = FontWeight.Bold,
+                                        )
                                     },
                                     supportingContent = {
                                         Column {
@@ -261,10 +272,14 @@ fun WeightScreen(navController: NavController) {
                                     trailingContent = {
                                         Row {
                                             IconButton(onClick = { entryToEdit = entry }) {
-                                                Icon(Icons.Default.Edit, "Edit weight entry")
+                                                Icon(Icons.Default.Edit, stringResource(R.string.weight_edit_content_desc))
                                             }
                                             IconButton(onClick = { entryToDelete = entry }) {
-                                                Icon(Icons.Default.Delete, "Delete weight entry", tint = MaterialTheme.colorScheme.error)
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    stringResource(R.string.weight_delete_content_desc),
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                )
                                             }
                                         }
                                     },
@@ -305,7 +320,7 @@ private fun WeightStatsRow(
             contentColor = WeightBlue,
         ) {
             Text(
-                "${latest.weightKg.formatDecimal1()} kg",
+                stringResource(R.string.weight_kg_value, latest.weightKg.formatDecimal1()),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -319,7 +334,7 @@ private fun WeightStatsRow(
                 contentColor = TrendGreen,
             ) {
                 Text(
-                    "Trend ${avg.formatDecimal1()} kg",
+                    stringResource(R.string.weight_stats_trend, avg.formatDecimal1()),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -333,7 +348,7 @@ private fun WeightStatsRow(
             contentColor = deltaColor,
         ) {
             Text(
-                "Δ $deltaSign${delta.formatDecimal1()} kg",
+                stringResource(R.string.weight_stats_delta, "$deltaSign${delta.formatDecimal1()}"),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -363,7 +378,7 @@ private fun WeightStatsRow(
                     contentColor = ProjectionPurple,
                 ) {
                     Text(
-                        "Projected ${projectedWeight.formatDecimal1()} kg",
+                        stringResource(R.string.weight_stats_projected, projectedWeight.formatDecimal1()),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -384,13 +399,13 @@ fun AddWeightDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log Weight") },
+        title = { Text(stringResource(R.string.weight_log_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = weightText,
                     onValueChange = { weightText = it },
-                    label = { Text("Weight (kg)") },
+                    label = { Text(stringResource(R.string.weight_input_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -398,7 +413,7 @@ fun AddWeightDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
+                    label = { Text(stringResource(R.string.weight_notes_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -410,10 +425,10 @@ fun AddWeightDialog(
                     val weight = weightText.toLocalizedDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.weight_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.weight_cancel)) }
         },
     )
 }
@@ -429,13 +444,13 @@ fun EditWeightDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Weight") },
+        title = { Text(stringResource(R.string.weight_edit_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = weightText,
                     onValueChange = { weightText = it },
-                    label = { Text("Weight (kg)") },
+                    label = { Text(stringResource(R.string.weight_input_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -443,7 +458,7 @@ fun EditWeightDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
+                    label = { Text(stringResource(R.string.weight_notes_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -455,10 +470,10 @@ fun EditWeightDialog(
                     val weight = weightText.toLocalizedDoubleOrNull()
                     if (weight != null && weight > 0) onSave(weight, notes)
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.weight_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.weight_cancel)) }
         },
     )
 }

@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ProteinDistributionCard(result: ProteinDistributionResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Protein Distribution", sectionId = "protein_dist") {
+        CollapsibleCard(title = stringResource(R.string.insights_protein_distribution_title), sectionId = "protein_dist") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -34,7 +34,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
         }
         return
     }
-    CollapsibleCard(title = "Protein Distribution", sectionId = "protein_dist") {
+    CollapsibleCard(title = stringResource(R.string.insights_protein_distribution_title), sectionId = "protein_dist") {
         val scoreColor =
             when {
                 result.score >= 70 -> FiberGreen
@@ -48,7 +48,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
             color = scoreColor,
         )
         Text(
-            "distribution score",
+            stringResource(R.string.insights_distribution_score),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -65,7 +65,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
                     color = ProteinRed,
                 )
                 Text(
-                    "avg per meal",
+                    stringResource(R.string.insights_avg_per_meal),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -78,7 +78,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
                     color = CarbsOrange,
                 )
                 Text(
-                    "meals below threshold",
+                    stringResource(R.string.insights_meals_below_threshold),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

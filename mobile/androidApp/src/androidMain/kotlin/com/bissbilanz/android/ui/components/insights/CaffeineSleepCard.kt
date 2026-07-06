@@ -23,7 +23,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 
 @Composable
 fun CaffeineSleepCard(result: CaffeineSleepResult?) {
-    CollapsibleCard(title = "Caffeine & Sleep", sectionId = "caffeine_sleep") {
+    CollapsibleCard(title = stringResource(R.string.insights_caffeine_sleep_title), sectionId = "caffeine_sleep") {
         if (result == null || result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -32,11 +32,12 @@ fun CaffeineSleepCard(result: CaffeineSleepResult?) {
             )
             return@CollapsibleCard
         }
+        val cutoffHour = result.estimatedCutoffHour
         val cutoffText =
-            if (result.estimatedCutoffHour != null) {
-                "Cut off at ${result.estimatedCutoffHour}:00"
+            if (cutoffHour != null) {
+                stringResource(R.string.insights_caffeine_cutoff, cutoffHour)
             } else {
-                "No clear cutoff found"
+                stringResource(R.string.insights_caffeine_no_cutoff)
             }
         Text(
             cutoffText,

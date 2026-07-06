@@ -10,10 +10,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
@@ -59,6 +61,9 @@ fun EntryEditSheet(
     var quickFiber by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val unknownName = stringResource(R.string.entry_edit_unknown)
+    val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
+    val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
 
     LaunchedEffect(entryId) {
         if (entryId != null) {
@@ -74,11 +79,11 @@ fun EntryEditSheet(
     }
 
     if (showDeleteDialog && entry != null) {
-        val name = entry?.resolvedName() ?: "Unknown"
+        val name = entry?.resolvedName() ?: unknownName
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Entry") },
-            text = { Text("Remove \"$name\" from your log?") },
+            title = { Text(stringResource(R.string.entry_edit_delete_title)) },
+            text = { Text(stringResource(R.string.entry_edit_delete_text, name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -94,7 +99,7 @@ fun EntryEditSheet(
                                 Log.e("EntryEditSheet", "Failed to delete entry", e)
                                 errorReporter.captureException(e)
                                 showDeleteDialog = false
-                                errorMessage = "Failed to delete entry"
+                                errorMessage = deleteFailedMessage
                             }
                         }
                     },
@@ -102,10 +107,10 @@ fun EntryEditSheet(
                         ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -128,7 +133,7 @@ fun EntryEditSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    if (isEditing) "Edit Entry" else "Quick Add",
+                    if (isEditing) stringResource(R.string.entry_edit_title) else stringResource(R.string.entry_edit_quick_add_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -136,7 +141,7 @@ fun EntryEditSheet(
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
                             Icons.Default.Delete,
-                            "Delete",
+                            stringResource(R.string.action_delete),
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -144,7 +149,7 @@ fun EntryEditSheet(
             }
 
             if (isEditing && entry != null) {
-                val name = entry?.resolvedName() ?: "Unknown"
+                val name = entry?.resolvedName() ?: unknownName
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -160,7 +165,7 @@ fun EntryEditSheet(
             }
 
             // Meal type
-            Text("Meal Type", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.entry_edit_meal_type_label), style = MaterialTheme.typography.labelLarge)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 mealTypes.forEachIndexed { index, option ->
                     SegmentedButton(
@@ -172,7 +177,7 @@ fun EntryEditSheet(
                         onClick = { mealType = option },
                         selected = mealType == option,
                     ) {
-                        Text(option.replaceFirstChar { it.uppercase() })
+                        Text(mealTypeDisplayName(option))
                     }
                 }
             }
@@ -182,7 +187,7 @@ fun EntryEditSheet(
                 OutlinedTextField(
                     value = servings,
                     onValueChange = { servings = it },
-                    label = { Text("Servings") },
+                    label = { Text(stringResource(R.string.meal_picker_servings_label)) },
                     keyboardOptions =
                         KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
@@ -195,21 +200,21 @@ fun EntryEditSheet(
                 OutlinedTextField(
                     value = quickName,
                     onValueChange = { quickName = it },
-                    label = { Text("Name *") },
+                    label = { Text(stringResource(R.string.food_form_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
-                NutrientTextField("Calories (kcal)", quickCalories, CaloriesBlue) {
+                NutrientTextField(stringResource(R.string.add_food_quick_calories), quickCalories, CaloriesBlue) {
                     quickCalories = it
                 }
-                NutrientTextField("Protein (g)", quickProtein, ProteinRed) {
+                NutrientTextField(stringResource(R.string.add_food_quick_protein), quickProtein, ProteinRed) {
                     quickProtein = it
                 }
-                NutrientTextField("Carbs (g)", quickCarbs, CarbsOrange) {
+                NutrientTextField(stringResource(R.string.add_food_quick_carbs), quickCarbs, CarbsOrange) {
                     quickCarbs = it
                 }
-                NutrientTextField("Fat (g)", quickFat, FatYellow) { quickFat = it }
-                NutrientTextField("Fiber (g)", quickFiber, FiberGreen) {
+                NutrientTextField(stringResource(R.string.add_food_quick_fat), quickFat, FatYellow) { quickFat = it }
+                NutrientTextField(stringResource(R.string.food_form_fiber_optional), quickFiber, FiberGreen) {
                     quickFiber = it
                 }
             }
@@ -218,7 +223,7 @@ fun EntryEditSheet(
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Notes (optional)") },
+                label = { Text(stringResource(R.string.weight_notes_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 maxLines = 4,
@@ -242,7 +247,7 @@ fun EntryEditSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.dialog_cancel))
                 }
                 Button(
                     onClick = {
@@ -287,7 +292,7 @@ fun EntryEditSheet(
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
                                 errorReporter.captureException(e)
-                                errorMessage = "Failed to save entry"
+                                errorMessage = saveFailedMessage
                             }
                             isSaving = false
                         }
@@ -295,7 +300,7 @@ fun EntryEditSheet(
                     modifier = Modifier.weight(1f),
                     enabled = !isSaving,
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.weight_save))
                 }
             }
 

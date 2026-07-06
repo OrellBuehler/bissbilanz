@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun MealTimingWeightCard(summary: MealTimingSummary?) {
-    CollapsibleCard(title = "Meal Timing", sectionId = "meal_timing_weight") {
+    CollapsibleCard(title = stringResource(R.string.insights_meal_timing_title), sectionId = "meal_timing_weight") {
         if (summary == null) {
             Text(
                 stringResource(R.string.insights_not_enough_data),
@@ -30,20 +30,20 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
             return@CollapsibleCard
         }
         Text(
-            "${(summary.avgWindowMinutes / 60).roundToInt()}h window",
+            stringResource(R.string.insights_hour_window, (summary.avgWindowMinutes / 60).roundToInt()),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = CaloriesBlue,
         )
         Text(
-            "avg eating window",
+            stringResource(R.string.insights_avg_eating_window),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "First meal",
+                stringResource(R.string.insights_first_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -55,7 +55,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Last meal",
+                stringResource(R.string.insights_last_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -67,7 +67,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "${summary.lateNightFrequency.roundToInt()}% of days with late-night meals",
+            stringResource(R.string.insights_late_night_pct, summary.lateNightFrequency.roundToInt()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

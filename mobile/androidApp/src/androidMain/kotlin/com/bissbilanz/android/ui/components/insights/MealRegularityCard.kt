@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 @Composable
 fun MealRegularityCard(result: MealRegularityResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Meal Regularity", sectionId = "meal_regularity") {
+        CollapsibleCard(title = stringResource(R.string.insights_meal_regularity_title), sectionId = "meal_regularity") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -34,7 +34,7 @@ fun MealRegularityCard(result: MealRegularityResult) {
         }
         return
     }
-    CollapsibleCard(title = "Meal Regularity", sectionId = "meal_regularity") {
+    CollapsibleCard(title = stringResource(R.string.insights_meal_regularity_title), sectionId = "meal_regularity") {
         Text(
             "${result.overallScore.roundToInt()}/100",
             style = MaterialTheme.typography.displaySmall,
@@ -47,7 +47,7 @@ fun MealRegularityCard(result: MealRegularityResult) {
                 },
         )
         Text(
-            "overall regularity score",
+            stringResource(R.string.insights_overall_regularity_score),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -58,6 +58,13 @@ fun MealRegularityCard(result: MealRegularityResult) {
                     "high" -> FiberGreen
                     "medium" -> CarbsOrange
                     else -> ProteinRed
+                }
+            val regularityLabel =
+                when (meal.regularity) {
+                    "high" -> stringResource(R.string.insights_regularity_high)
+                    "medium" -> stringResource(R.string.insights_regularity_medium)
+                    "low" -> stringResource(R.string.insights_regularity_low)
+                    else -> meal.regularity.replaceFirstChar { it.uppercase() }
                 }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -70,7 +77,7 @@ fun MealRegularityCard(result: MealRegularityResult) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    meal.regularity.replaceFirstChar { it.uppercase() },
+                    regularityLabel,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = regularityColor,

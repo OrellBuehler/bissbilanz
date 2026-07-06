@@ -15,8 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bissbilanz.android.R
 
 @Composable
 fun CollapsibleCard(
@@ -55,7 +57,7 @@ fun CollapsibleCard(
                 )
                 Icon(
                     imageVector = Icons.Default.ExpandMore,
-                    contentDescription = if (collapsed) "Expand" else "Collapse",
+                    contentDescription = stringResource(if (collapsed) R.string.food_detail_expand else R.string.food_detail_collapse),
                     modifier = Modifier.rotate(rotation),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

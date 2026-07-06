@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 @Composable
 fun PlateauDetectionCard(result: PlateauResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
-        CollapsibleCard(title = "Plateau Detection", sectionId = "plateau_detect") {
+        CollapsibleCard(title = stringResource(R.string.insights_plateau_title), sectionId = "plateau_detect") {
             Text(
                 stringResource(R.string.insights_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -32,15 +32,21 @@ fun PlateauDetectionCard(result: PlateauResult) {
         }
         return
     }
-    CollapsibleCard(title = "Plateau Detection", sectionId = "plateau_detect") {
+    CollapsibleCard(title = stringResource(R.string.insights_plateau_title), sectionId = "plateau_detect") {
         Text(
-            if (result.isPlateaued) "Plateau detected" else "No plateau",
+            stringResource(if (result.isPlateaued) R.string.insights_plateau_detected else R.string.insights_plateau_none),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = if (result.isPlateaued) CarbsOrange else FiberGreen,
         )
         Spacer(modifier = Modifier.height(4.dp))
-        val causeLabel = result.cause.replace('_', ' ').replaceFirstChar { it.uppercase() }
+        val causeLabel =
+            when (result.cause) {
+                "intake_variance" -> stringResource(R.string.insights_plateau_cause_intake_variance)
+                "water_retention" -> stringResource(R.string.insights_plateau_cause_water_retention)
+                "adaptive_metabolism" -> stringResource(R.string.insights_plateau_cause_adaptive_metabolism)
+                else -> stringResource(R.string.insights_plateau_cause_none)
+            }
         Text(
             causeLabel,
             style = MaterialTheme.typography.labelSmall,
@@ -50,7 +56,7 @@ fun PlateauDetectionCard(result: PlateauResult) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "Plateau days",
+                stringResource(R.string.insights_plateau_days),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -64,12 +70,12 @@ fun PlateauDetectionCard(result: PlateauResult) {
         if (deficit != null) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Est. deficit",
+                    stringResource(R.string.insights_plateau_est_deficit),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "${deficit.roundToInt()} kcal/day",
+                    stringResource(R.string.insights_kcal_per_day, deficit.roundToInt()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

@@ -15,10 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -81,6 +83,7 @@ private fun computeAdherence(
     allSupplements: List<Supplement>,
     from: LocalDate,
     to: LocalDate,
+    ingredientCountTemplate: String,
 ): List<DayAdherence> {
     val active = allSupplements.filter { it.isActive }
     if (active.isEmpty()) return emptyList()
@@ -107,7 +110,7 @@ private fun computeAdherence(
                     when {
                         ings.isEmpty() -> ""
                         ings.size == 1 -> ings[0].food.ingredientsText.orEmpty()
-                        else -> "${ings.size} ingredients"
+                        else -> String.format(ingredientCountTemplate, ings.size)
                     }
                 return DayItem(
                     name = name,
@@ -153,15 +156,18 @@ fun SupplementHistoryScreen(navController: NavController) {
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
 
+    val loadFailedMessage = stringResource(R.string.supplement_history_load_failed)
+    val ingredientCountTemplate = stringResource(R.string.supplements_ingredient_count)
+
     val fetchData: suspend () -> Unit = {
         try {
             val history = supplementRepo.getHistory(fromDate.toString(), toDate.toString())
             val allSupplements = supplementRepo.getAllSupplements()
-            adherence = computeAdherence(history, allSupplements, fromDate, toDate)
+            adherence = computeAdherence(history, allSupplements, fromDate, toDate, ingredientCountTemplate)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar("Failed to load history")
+            snackbarHostState.showSnackbar(loadFailedMessage)
         }
     }
 
@@ -190,10 +196,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                 .date
                     }
                     showFromPicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.dialog_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showFromPicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showFromPicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         ) { DatePicker(state = state) }
     }
@@ -215,10 +221,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                 .date
                     }
                     showToPicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.dialog_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showToPicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showToPicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         ) { DatePicker(state = state) }
     }
@@ -226,10 +232,10 @@ fun SupplementHistoryScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Supplement History") },
+                title = { Text(stringResource(R.string.supplement_history_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -256,7 +262,7 @@ fun SupplementHistoryScreen(navController: NavController) {
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("From", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.supplement_history_from), style = MaterialTheme.typography.labelMedium)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     OutlinedCard(
                                         onClick = { showFromPicker = true },
@@ -270,7 +276,7 @@ fun SupplementHistoryScreen(navController: NavController) {
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("To", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.supplement_history_to), style = MaterialTheme.typography.labelMedium)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     OutlinedCard(
                                         onClick = { showToPicker = true },
@@ -289,7 +295,7 @@ fun SupplementHistoryScreen(navController: NavController) {
                                 onClick = { scope.launch { loadData() } },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text("Filter")
+                                Text(stringResource(R.string.supplement_history_filter))
                             }
                         }
                     }
@@ -306,7 +312,7 @@ fun SupplementHistoryScreen(navController: NavController) {
                     }
                 } else if (adherence.isEmpty()) {
                     item {
-                        EmptyState("No supplement data for this period.")
+                        EmptyState(stringResource(R.string.supplement_history_empty))
                     }
                 } else {
                     items(adherence, key = { it.date }) { day ->
@@ -351,7 +357,7 @@ private fun DayAdherenceCard(
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    "${day.taken.size} / $total taken",
+                    stringResource(R.string.supplements_taken_count, day.taken.size, total),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -408,7 +414,7 @@ private fun HistorySupplementRow(
         ) {
             Icon(
                 imageVector = if (taken) Icons.Default.Check else Icons.Default.Close,
-                contentDescription = if (taken) "Taken" else "Missed",
+                contentDescription = stringResource(if (taken) R.string.supplement_history_taken else R.string.supplement_history_missed),
                 tint = if (taken) FiberGreen else ProteinRed,
                 modifier = Modifier.size(18.dp),
             )
@@ -421,7 +427,7 @@ private fun HistorySupplementRow(
                         } else {
                             Icons.Default.KeyboardArrowRight
                         },
-                    contentDescription = "Toggle ingredients",
+                    contentDescription = stringResource(R.string.supplement_history_toggle_ingredients),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
