@@ -7,8 +7,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +29,13 @@ import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
 
@@ -53,6 +61,9 @@ fun EntryEditSheet(
     var servings by remember { mutableStateOf("1") }
     var mealType by remember { mutableStateOf("lunch") }
     var notes by remember { mutableStateOf("") }
+    var eatenHour by remember { mutableStateOf<Int?>(null) }
+    var eatenMinute by remember { mutableStateOf<Int?>(null) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var quickName by remember { mutableStateOf("") }
     var quickCalories by remember { mutableStateOf("") }
     var quickProtein by remember { mutableStateOf("") }
@@ -74,6 +85,12 @@ fun EntryEditSheet(
                 servings = found.servings.toDisplayString()
                 mealType = found.mealType
                 notes = found.notes ?: ""
+                val seed =
+                    (found.eatenAt ?: found.createdAt)
+                        ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                        ?.toLocalDateTime(TimeZone.currentSystemDefault())
+                eatenHour = seed?.hour
+                eatenMinute = seed?.minute
             }
         }
     }
@@ -111,6 +128,36 @@ fun EntryEditSheet(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
+    }
+
+    if (showTimePicker) {
+        val tz = TimeZone.currentSystemDefault()
+        val nowLocal = Clock.System.now().toLocalDateTime(tz)
+        val timeState =
+            rememberTimePickerState(
+                initialHour = eatenHour ?: nowLocal.hour,
+                initialMinute = eatenMinute ?: nowLocal.minute,
+            )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        eatenHour = timeState.hour
+                        eatenMinute = timeState.minute
+                        showTimePicker = false
+                    },
+                ) { Text(stringResource(R.string.dialog_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timeState)
+                }
             },
         )
     }
@@ -195,6 +242,23 @@ fun EntryEditSheet(
                 )
             }
 
+            // Time (edit mode)
+            if (isEditing) {
+                Text(stringResource(R.string.entry_edit_time_label), style = MaterialTheme.typography.labelLarge)
+                OutlinedButton(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        Icons.Default.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(formatTimeOfDay(eatenHour, eatenMinute))
+                }
+            }
+
             // Quick add fields
             if (!isEditing) {
                 OutlinedTextField(
@@ -263,6 +327,8 @@ fun EntryEditSheet(
                                             servings =
                                                 servings.toLocalizedDoubleOrNull() ?: 1.0,
                                             notes = notes.ifBlank { null },
+                                            eatenAt =
+                                                buildEatenAt(entry?.date, eatenHour, eatenMinute),
                                         ),
                                     )
                                 } else {
@@ -307,4 +373,37 @@ fun EntryEditSheet(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+/** Locale-aware short time-of-day (e.g. "1:30 PM" / "13:30"), or a placeholder when unset. */
+private fun formatTimeOfDay(
+    hour: Int?,
+    minute: Int?,
+): String {
+    if (hour == null || minute == null) return "--:--"
+    return java.time.LocalTime
+        .of(hour, minute)
+        .format(
+            java.time.format.DateTimeFormatter
+                .ofLocalizedTime(java.time.format.FormatStyle.SHORT),
+        )
+}
+
+/**
+ * Combines the entry's [date] (yyyy-MM-dd) with the picked [hour]/[minute] in the device
+ * timezone and serializes it to a UTC ISO-8601 `eatenAt` instant. The day is preserved from
+ * [date] so editing the time never moves the entry to another day. Returns null when any
+ * input is missing, in which case the server keeps the existing eaten time.
+ */
+private fun buildEatenAt(
+    date: String?,
+    hour: Int?,
+    minute: Int?,
+): String? {
+    if (date.isNullOrBlank() || hour == null || minute == null) return null
+    val localDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return null
+    val tz = TimeZone.currentSystemDefault()
+    return LocalDateTime(localDate, LocalTime(hour, minute))
+        .toInstant(tz)
+        .toString()
 }

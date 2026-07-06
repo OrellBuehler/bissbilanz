@@ -514,6 +514,7 @@
     <string name="entry_edit_title">Eintrag bearbeiten</string>
     <string name="entry_edit_quick_add_title">Schnell hinzufügen</string>
     <string name="entry_edit_meal_type_label">Mahlzeit</string>
+    <string name="entry_edit_time_label">Uhrzeit</string>
 
     <!-- Supplements widget -->
     <string name="supplements_widget_multi_ingredient">%1$s (%2$d Inhaltsstoffe)</string>
