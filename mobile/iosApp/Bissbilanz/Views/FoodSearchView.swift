@@ -384,22 +384,18 @@ struct LogFoodSheet: View {
                 }
 
                 Section(L10n.nutrition) {
-                    NutrientRow(
-                        label: L10n.calories,
-                        value: food.calories * servings,
-                        unit: "kcal",
-                        color: MacroColors.calories
-                    )
-                    NutrientRow(
-                        label: L10n.protein,
-                        value: food.protein * servings,
-                        unit: "g",
-                        color: MacroColors.protein
-                    )
-                    NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g", color: MacroColors.carbs)
-                    NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g", color: MacroColors.fat)
-                    NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g", color: MacroColors.fiber)
+                    NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal")
+                    NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g")
+                    NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g")
+                    NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g")
+                    NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g")
                 }
+
+                NutrientSection(title: L10n.fatBreakdown, nutrients: scaled(food.fatBreakdownNutrients))
+                NutrientSection(title: L10n.sugarsCarbs, nutrients: scaled(food.sugarCarbNutrients))
+                NutrientSection(title: L10n.minerals, nutrients: scaled(food.mineralNutrients))
+                NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
+                NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
             }
             .navigationTitle(L10n.logFood)
             .navigationBarTitleDisplayMode(.inline)
@@ -443,6 +439,12 @@ struct LogFoodSheet: View {
             errorMessage = error.localizedDescription
         }
         isLogging = false
+    }
+
+    /// Extended nutrients scaled to the picked serving count, matching the
+    /// per-serving macro rows above.
+    private func scaled(_ nutrients: [(String, Double, String)]) -> [(String, Double, String)] {
+        nutrients.map { ($0.0, $0.1 * servings, $0.2) }
     }
 
     /// The picked time-of-day on the picked log date, as the UTC ISO-8601

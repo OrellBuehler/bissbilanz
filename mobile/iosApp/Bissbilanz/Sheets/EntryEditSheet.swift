@@ -9,6 +9,7 @@ struct EntryEditSheet: View {
 
     @State private var servings: Double
     @State private var mealType: String
+    @State private var eatenTime: Date
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -19,6 +20,7 @@ struct EntryEditSheet: View {
         self.onSaved = onSaved
         _servings = State(initialValue: entry.servings)
         _mealType = State(initialValue: entry.mealType)
+        _eatenTime = State(initialValue: entry.loggedAt ?? Date())
     }
 
     var body: some View {
@@ -44,6 +46,7 @@ struct EntryEditSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
             }
             .navigationTitle(L10n.editEntry)
@@ -75,7 +78,7 @@ struct EntryEditSheet: View {
 
     private func save() async {
         isSaving = true
-        let update = EntryUpdate(mealType: mealType, servings: servings)
+        let update = EntryUpdate(mealType: mealType, servings: servings, eatenAt: eatenAtString())
         do {
             let updated = try await entryRepository.updateEntry(id: entry.id, update)
             onSaved(updated)
@@ -84,5 +87,20 @@ struct EntryEditSheet: View {
             errorMessage = error.localizedDescription
         }
         isSaving = false
+    }
+
+    /// The picked time-of-day on the entry's day, as the UTC ISO-8601 `eatenAt`
+    /// wire value — mirrors `LogFoodSheet.eatenAtString()`. `nil` (eaten time
+    /// left unchanged) only if the components can't be combined.
+    private func eatenAtString() -> String? {
+        let day = entry.date.flatMap { DateFormatting.date(from: $0) } ?? entry.loggedAt ?? Date()
+        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
+        guard let combined = Calendar.current.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: day
+        ) else { return nil }
+        return DateFormatting.isoDateTimeString(from: combined)
     }
 }

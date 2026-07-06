@@ -90,6 +90,7 @@ struct EntryUpdate: Codable {
     var servings: Double?
     var date: String?
     var notes: String?
+    var eatenAt: String?
 }
 
 struct EntriesResponse: Codable {
