@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +52,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.screens.ExtendedNutrientSections
 import com.bissbilanz.android.ui.screens.FoodListItem
+import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.screens.RecipeListItem
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -167,6 +170,34 @@ fun AddFoodSheet(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
+                selectedFood?.let { food ->
+                    val previewServings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
+                    Column(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    stringResource(R.string.food_form_macros),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                MacroRow(stringResource(R.string.macro_calories), food.calories * previewServings, "kcal", CaloriesBlue)
+                                MacroRow(stringResource(R.string.macro_protein), food.protein * previewServings, "g", ProteinRed)
+                                MacroRow(stringResource(R.string.macro_carbs), food.carbs * previewServings, "g", CarbsOrange)
+                                MacroRow(stringResource(R.string.macro_fat), food.fat * previewServings, "g", FatYellow)
+                                MacroRow(stringResource(R.string.macro_fiber), food.fiber * previewServings, "g", FiberGreen)
+                            }
+                        }
+                        ExtendedNutrientSections(food = food, visibleNutrients = null, servings = previewServings)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 if (isSaving) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

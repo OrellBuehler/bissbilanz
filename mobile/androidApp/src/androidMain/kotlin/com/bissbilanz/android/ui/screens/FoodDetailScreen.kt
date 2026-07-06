@@ -339,152 +339,7 @@ fun FoodDetailScreen(
                             }
                         }
 
-                        val nutrientKeyMap =
-                            mapOf(
-                                stringResource(R.string.nutrient_saturated_fat) to "saturatedFat",
-                                stringResource(R.string.nutrient_monounsaturated_fat) to "monounsaturatedFat",
-                                stringResource(R.string.nutrient_polyunsaturated_fat) to "polyunsaturatedFat",
-                                stringResource(R.string.nutrient_trans_fat) to "transFat",
-                                stringResource(R.string.nutrient_cholesterol) to "cholesterol",
-                                stringResource(R.string.nutrient_omega3) to "omega3",
-                                stringResource(R.string.nutrient_omega6) to "omega6",
-                                stringResource(R.string.nutrient_sugar) to "sugar",
-                                stringResource(R.string.nutrient_added_sugars) to "addedSugars",
-                                stringResource(R.string.nutrient_sugar_alcohols) to "sugarAlcohols",
-                                stringResource(R.string.nutrient_starch) to "starch",
-                                stringResource(R.string.nutrient_sodium) to "sodium",
-                                stringResource(R.string.nutrient_potassium) to "potassium",
-                                stringResource(R.string.nutrient_calcium) to "calcium",
-                                stringResource(R.string.nutrient_iron) to "iron",
-                                stringResource(R.string.nutrient_magnesium) to "magnesium",
-                                stringResource(R.string.nutrient_phosphorus) to "phosphorus",
-                                stringResource(R.string.nutrient_zinc) to "zinc",
-                                stringResource(R.string.nutrient_copper) to "copper",
-                                stringResource(R.string.nutrient_manganese) to "manganese",
-                                stringResource(R.string.nutrient_selenium) to "selenium",
-                                stringResource(R.string.nutrient_iodine) to "iodine",
-                                stringResource(R.string.nutrient_fluoride) to "fluoride",
-                                stringResource(R.string.nutrient_chromium) to "chromium",
-                                stringResource(R.string.nutrient_molybdenum) to "molybdenum",
-                                stringResource(R.string.nutrient_chloride) to "chloride",
-                                stringResource(R.string.nutrient_vitamin_a) to "vitaminA",
-                                stringResource(R.string.nutrient_vitamin_c) to "vitaminC",
-                                stringResource(R.string.nutrient_vitamin_d) to "vitaminD",
-                                stringResource(R.string.nutrient_vitamin_e) to "vitaminE",
-                                stringResource(R.string.nutrient_vitamin_k) to "vitaminK",
-                                stringResource(R.string.nutrient_vitamin_b1) to "vitaminB1",
-                                stringResource(R.string.nutrient_vitamin_b2) to "vitaminB2",
-                                stringResource(R.string.nutrient_vitamin_b3) to "vitaminB3",
-                                stringResource(R.string.nutrient_vitamin_b5) to "vitaminB5",
-                                stringResource(R.string.nutrient_vitamin_b6) to "vitaminB6",
-                                stringResource(R.string.nutrient_vitamin_b7) to "vitaminB7",
-                                stringResource(R.string.nutrient_vitamin_b9) to "vitaminB9",
-                                stringResource(R.string.nutrient_vitamin_b12) to "vitaminB12",
-                                stringResource(R.string.nutrient_caffeine) to "caffeine",
-                                stringResource(R.string.nutrient_alcohol) to "alcohol",
-                                stringResource(R.string.nutrient_water) to "water",
-                                stringResource(R.string.nutrient_salt) to "salt",
-                            )
-
-                        fun List<Pair<String, Pair<Double, String>>>.filterVisible() =
-                            if (visibleNutrients == null) {
-                                this
-                            } else {
-                                filter { (name, _) -> nutrientKeyMap[name]?.let { it in visibleNutrients } != false }
-                            }
-
-                        // Fat Breakdown
-                        val fatNutrients =
-                            listOfNotNull(
-                                f.saturatedFat?.let { stringResource(R.string.nutrient_saturated_fat) to Pair(it, "g") },
-                                f.monounsaturatedFat?.let { stringResource(R.string.nutrient_monounsaturated_fat) to Pair(it, "g") },
-                                f.polyunsaturatedFat?.let { stringResource(R.string.nutrient_polyunsaturated_fat) to Pair(it, "g") },
-                                f.transFat?.let { stringResource(R.string.nutrient_trans_fat) to Pair(it, "g") },
-                                f.cholesterol?.let { stringResource(R.string.nutrient_cholesterol) to Pair(it, "mg") },
-                                f.omega3?.let { stringResource(R.string.nutrient_omega3) to Pair(it, "mg") },
-                                f.omega6?.let { stringResource(R.string.nutrient_omega6) to Pair(it, "mg") },
-                            )
-                        val filteredFatNutrients = fatNutrients.filterVisible()
-                        if (filteredFatNutrients.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard(stringResource(R.string.nutrient_category_fat_breakdown), filteredFatNutrients)
-                        }
-
-                        // Sugar & Carbs
-                        val sugarNutrients =
-                            listOfNotNull(
-                                f.sugar?.let { stringResource(R.string.nutrient_sugar) to Pair(it, "g") },
-                                f.addedSugars?.let { stringResource(R.string.nutrient_added_sugars) to Pair(it, "g") },
-                                f.sugarAlcohols?.let { stringResource(R.string.nutrient_sugar_alcohols) to Pair(it, "g") },
-                                f.starch?.let { stringResource(R.string.nutrient_starch) to Pair(it, "g") },
-                            )
-                        val filteredSugarNutrients = sugarNutrients.filterVisible()
-                        if (filteredSugarNutrients.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard(stringResource(R.string.nutrient_category_sugar_carb), filteredSugarNutrients)
-                        }
-
-                        // Minerals
-                        val mineralNutrients =
-                            listOfNotNull(
-                                f.sodium?.let { stringResource(R.string.nutrient_sodium) to Pair(it, "mg") },
-                                f.potassium?.let { stringResource(R.string.nutrient_potassium) to Pair(it, "mg") },
-                                f.calcium?.let { stringResource(R.string.nutrient_calcium) to Pair(it, "mg") },
-                                f.iron?.let { stringResource(R.string.nutrient_iron) to Pair(it, "mg") },
-                                f.magnesium?.let { stringResource(R.string.nutrient_magnesium) to Pair(it, "mg") },
-                                f.phosphorus?.let { stringResource(R.string.nutrient_phosphorus) to Pair(it, "mg") },
-                                f.zinc?.let { stringResource(R.string.nutrient_zinc) to Pair(it, "mg") },
-                                f.copper?.let { stringResource(R.string.nutrient_copper) to Pair(it, "mg") },
-                                f.manganese?.let { stringResource(R.string.nutrient_manganese) to Pair(it, "mg") },
-                                f.selenium?.let { stringResource(R.string.nutrient_selenium) to Pair(it, "mcg") },
-                                f.iodine?.let { stringResource(R.string.nutrient_iodine) to Pair(it, "mcg") },
-                                f.fluoride?.let { stringResource(R.string.nutrient_fluoride) to Pair(it, "mg") },
-                                f.chromium?.let { stringResource(R.string.nutrient_chromium) to Pair(it, "mcg") },
-                                f.molybdenum?.let { stringResource(R.string.nutrient_molybdenum) to Pair(it, "mcg") },
-                                f.chloride?.let { stringResource(R.string.nutrient_chloride) to Pair(it, "mg") },
-                            )
-                        val filteredMineralNutrients = mineralNutrients.filterVisible()
-                        if (filteredMineralNutrients.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard(stringResource(R.string.nutrient_category_mineral), filteredMineralNutrients)
-                        }
-
-                        // Vitamins
-                        val vitaminNutrients =
-                            listOfNotNull(
-                                f.vitaminA?.let { stringResource(R.string.nutrient_vitamin_a) to Pair(it, "mcg") },
-                                f.vitaminC?.let { stringResource(R.string.nutrient_vitamin_c) to Pair(it, "mg") },
-                                f.vitaminD?.let { stringResource(R.string.nutrient_vitamin_d) to Pair(it, "mcg") },
-                                f.vitaminE?.let { stringResource(R.string.nutrient_vitamin_e) to Pair(it, "mg") },
-                                f.vitaminK?.let { stringResource(R.string.nutrient_vitamin_k) to Pair(it, "mcg") },
-                                f.vitaminB1?.let { stringResource(R.string.nutrient_vitamin_b1) to Pair(it, "mg") },
-                                f.vitaminB2?.let { stringResource(R.string.nutrient_vitamin_b2) to Pair(it, "mg") },
-                                f.vitaminB3?.let { stringResource(R.string.nutrient_vitamin_b3) to Pair(it, "mg") },
-                                f.vitaminB5?.let { stringResource(R.string.nutrient_vitamin_b5) to Pair(it, "mg") },
-                                f.vitaminB6?.let { stringResource(R.string.nutrient_vitamin_b6) to Pair(it, "mg") },
-                                f.vitaminB7?.let { stringResource(R.string.nutrient_vitamin_b7) to Pair(it, "mcg") },
-                                f.vitaminB9?.let { stringResource(R.string.nutrient_vitamin_b9) to Pair(it, "mcg") },
-                                f.vitaminB12?.let { stringResource(R.string.nutrient_vitamin_b12) to Pair(it, "mcg") },
-                            )
-                        val filteredVitaminNutrients = vitaminNutrients.filterVisible()
-                        if (filteredVitaminNutrients.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard(stringResource(R.string.nutrient_category_vitamin), filteredVitaminNutrients)
-                        }
-
-                        // Other
-                        val otherNutrients =
-                            listOfNotNull(
-                                f.caffeine?.let { stringResource(R.string.nutrient_caffeine) to Pair(it, "mg") },
-                                f.alcohol?.let { stringResource(R.string.nutrient_alcohol) to Pair(it, "g") },
-                                f.water?.let { stringResource(R.string.nutrient_water) to Pair(it, "ml") },
-                                f.salt?.let { stringResource(R.string.nutrient_salt) to Pair(it, "g") },
-                            )
-                        val filteredOtherNutrients = otherNutrients.filterVisible()
-                        if (filteredOtherNutrients.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            NutrientCategoryCard(stringResource(R.string.nutrient_category_other), filteredOtherNutrients)
-                        }
+                        ExtendedNutrientSections(food = f, visibleNutrients = visibleNutrients)
 
                         // Food Quality
                         FoodQualityCard(f)
@@ -510,6 +365,166 @@ fun NutrientCategoryCard(
                 MacroRow(label, valueUnit.first, valueUnit.second)
             }
         }
+    }
+}
+
+/**
+ * Renders the extended-nutrient category cards (fat breakdown, sugars & carbs, minerals,
+ * vitamins, other) for a [food]. Values are multiplied by [servings] (1.0 = per single
+ * serving). When [visibleNutrients] is non-null, only nutrients whose key is in the set are
+ * shown; null shows every nutrient the food has. Empty categories are omitted.
+ */
+@Composable
+fun ExtendedNutrientSections(
+    food: Food,
+    visibleNutrients: Set<String>?,
+    servings: Double = 1.0,
+) {
+    val nutrientKeyMap =
+        mapOf(
+            stringResource(R.string.nutrient_saturated_fat) to "saturatedFat",
+            stringResource(R.string.nutrient_monounsaturated_fat) to "monounsaturatedFat",
+            stringResource(R.string.nutrient_polyunsaturated_fat) to "polyunsaturatedFat",
+            stringResource(R.string.nutrient_trans_fat) to "transFat",
+            stringResource(R.string.nutrient_cholesterol) to "cholesterol",
+            stringResource(R.string.nutrient_omega3) to "omega3",
+            stringResource(R.string.nutrient_omega6) to "omega6",
+            stringResource(R.string.nutrient_sugar) to "sugar",
+            stringResource(R.string.nutrient_added_sugars) to "addedSugars",
+            stringResource(R.string.nutrient_sugar_alcohols) to "sugarAlcohols",
+            stringResource(R.string.nutrient_starch) to "starch",
+            stringResource(R.string.nutrient_sodium) to "sodium",
+            stringResource(R.string.nutrient_potassium) to "potassium",
+            stringResource(R.string.nutrient_calcium) to "calcium",
+            stringResource(R.string.nutrient_iron) to "iron",
+            stringResource(R.string.nutrient_magnesium) to "magnesium",
+            stringResource(R.string.nutrient_phosphorus) to "phosphorus",
+            stringResource(R.string.nutrient_zinc) to "zinc",
+            stringResource(R.string.nutrient_copper) to "copper",
+            stringResource(R.string.nutrient_manganese) to "manganese",
+            stringResource(R.string.nutrient_selenium) to "selenium",
+            stringResource(R.string.nutrient_iodine) to "iodine",
+            stringResource(R.string.nutrient_fluoride) to "fluoride",
+            stringResource(R.string.nutrient_chromium) to "chromium",
+            stringResource(R.string.nutrient_molybdenum) to "molybdenum",
+            stringResource(R.string.nutrient_chloride) to "chloride",
+            stringResource(R.string.nutrient_vitamin_a) to "vitaminA",
+            stringResource(R.string.nutrient_vitamin_c) to "vitaminC",
+            stringResource(R.string.nutrient_vitamin_d) to "vitaminD",
+            stringResource(R.string.nutrient_vitamin_e) to "vitaminE",
+            stringResource(R.string.nutrient_vitamin_k) to "vitaminK",
+            stringResource(R.string.nutrient_vitamin_b1) to "vitaminB1",
+            stringResource(R.string.nutrient_vitamin_b2) to "vitaminB2",
+            stringResource(R.string.nutrient_vitamin_b3) to "vitaminB3",
+            stringResource(R.string.nutrient_vitamin_b5) to "vitaminB5",
+            stringResource(R.string.nutrient_vitamin_b6) to "vitaminB6",
+            stringResource(R.string.nutrient_vitamin_b7) to "vitaminB7",
+            stringResource(R.string.nutrient_vitamin_b9) to "vitaminB9",
+            stringResource(R.string.nutrient_vitamin_b12) to "vitaminB12",
+            stringResource(R.string.nutrient_caffeine) to "caffeine",
+            stringResource(R.string.nutrient_alcohol) to "alcohol",
+            stringResource(R.string.nutrient_water) to "water",
+            stringResource(R.string.nutrient_salt) to "salt",
+        )
+
+    fun List<Pair<String, Pair<Double, String>>>.filterVisible() =
+        if (visibleNutrients == null) {
+            this
+        } else {
+            filter { (name, _) -> nutrientKeyMap[name]?.let { it in visibleNutrients } != false }
+        }
+
+    // Fat Breakdown
+    val fatNutrients =
+        listOfNotNull(
+            food.saturatedFat?.let { stringResource(R.string.nutrient_saturated_fat) to Pair(it * servings, "g") },
+            food.monounsaturatedFat?.let { stringResource(R.string.nutrient_monounsaturated_fat) to Pair(it * servings, "g") },
+            food.polyunsaturatedFat?.let { stringResource(R.string.nutrient_polyunsaturated_fat) to Pair(it * servings, "g") },
+            food.transFat?.let { stringResource(R.string.nutrient_trans_fat) to Pair(it * servings, "g") },
+            food.cholesterol?.let { stringResource(R.string.nutrient_cholesterol) to Pair(it * servings, "mg") },
+            food.omega3?.let { stringResource(R.string.nutrient_omega3) to Pair(it * servings, "mg") },
+            food.omega6?.let { stringResource(R.string.nutrient_omega6) to Pair(it * servings, "mg") },
+        )
+    val filteredFatNutrients = fatNutrients.filterVisible()
+    if (filteredFatNutrients.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        NutrientCategoryCard(stringResource(R.string.nutrient_category_fat_breakdown), filteredFatNutrients)
+    }
+
+    // Sugar & Carbs
+    val sugarNutrients =
+        listOfNotNull(
+            food.sugar?.let { stringResource(R.string.nutrient_sugar) to Pair(it * servings, "g") },
+            food.addedSugars?.let { stringResource(R.string.nutrient_added_sugars) to Pair(it * servings, "g") },
+            food.sugarAlcohols?.let { stringResource(R.string.nutrient_sugar_alcohols) to Pair(it * servings, "g") },
+            food.starch?.let { stringResource(R.string.nutrient_starch) to Pair(it * servings, "g") },
+        )
+    val filteredSugarNutrients = sugarNutrients.filterVisible()
+    if (filteredSugarNutrients.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        NutrientCategoryCard(stringResource(R.string.nutrient_category_sugar_carb), filteredSugarNutrients)
+    }
+
+    // Minerals
+    val mineralNutrients =
+        listOfNotNull(
+            food.sodium?.let { stringResource(R.string.nutrient_sodium) to Pair(it * servings, "mg") },
+            food.potassium?.let { stringResource(R.string.nutrient_potassium) to Pair(it * servings, "mg") },
+            food.calcium?.let { stringResource(R.string.nutrient_calcium) to Pair(it * servings, "mg") },
+            food.iron?.let { stringResource(R.string.nutrient_iron) to Pair(it * servings, "mg") },
+            food.magnesium?.let { stringResource(R.string.nutrient_magnesium) to Pair(it * servings, "mg") },
+            food.phosphorus?.let { stringResource(R.string.nutrient_phosphorus) to Pair(it * servings, "mg") },
+            food.zinc?.let { stringResource(R.string.nutrient_zinc) to Pair(it * servings, "mg") },
+            food.copper?.let { stringResource(R.string.nutrient_copper) to Pair(it * servings, "mg") },
+            food.manganese?.let { stringResource(R.string.nutrient_manganese) to Pair(it * servings, "mg") },
+            food.selenium?.let { stringResource(R.string.nutrient_selenium) to Pair(it * servings, "mcg") },
+            food.iodine?.let { stringResource(R.string.nutrient_iodine) to Pair(it * servings, "mcg") },
+            food.fluoride?.let { stringResource(R.string.nutrient_fluoride) to Pair(it * servings, "mg") },
+            food.chromium?.let { stringResource(R.string.nutrient_chromium) to Pair(it * servings, "mcg") },
+            food.molybdenum?.let { stringResource(R.string.nutrient_molybdenum) to Pair(it * servings, "mcg") },
+            food.chloride?.let { stringResource(R.string.nutrient_chloride) to Pair(it * servings, "mg") },
+        )
+    val filteredMineralNutrients = mineralNutrients.filterVisible()
+    if (filteredMineralNutrients.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        NutrientCategoryCard(stringResource(R.string.nutrient_category_mineral), filteredMineralNutrients)
+    }
+
+    // Vitamins
+    val vitaminNutrients =
+        listOfNotNull(
+            food.vitaminA?.let { stringResource(R.string.nutrient_vitamin_a) to Pair(it * servings, "mcg") },
+            food.vitaminC?.let { stringResource(R.string.nutrient_vitamin_c) to Pair(it * servings, "mg") },
+            food.vitaminD?.let { stringResource(R.string.nutrient_vitamin_d) to Pair(it * servings, "mcg") },
+            food.vitaminE?.let { stringResource(R.string.nutrient_vitamin_e) to Pair(it * servings, "mg") },
+            food.vitaminK?.let { stringResource(R.string.nutrient_vitamin_k) to Pair(it * servings, "mcg") },
+            food.vitaminB1?.let { stringResource(R.string.nutrient_vitamin_b1) to Pair(it * servings, "mg") },
+            food.vitaminB2?.let { stringResource(R.string.nutrient_vitamin_b2) to Pair(it * servings, "mg") },
+            food.vitaminB3?.let { stringResource(R.string.nutrient_vitamin_b3) to Pair(it * servings, "mg") },
+            food.vitaminB5?.let { stringResource(R.string.nutrient_vitamin_b5) to Pair(it * servings, "mg") },
+            food.vitaminB6?.let { stringResource(R.string.nutrient_vitamin_b6) to Pair(it * servings, "mg") },
+            food.vitaminB7?.let { stringResource(R.string.nutrient_vitamin_b7) to Pair(it * servings, "mcg") },
+            food.vitaminB9?.let { stringResource(R.string.nutrient_vitamin_b9) to Pair(it * servings, "mcg") },
+            food.vitaminB12?.let { stringResource(R.string.nutrient_vitamin_b12) to Pair(it * servings, "mcg") },
+        )
+    val filteredVitaminNutrients = vitaminNutrients.filterVisible()
+    if (filteredVitaminNutrients.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        NutrientCategoryCard(stringResource(R.string.nutrient_category_vitamin), filteredVitaminNutrients)
+    }
+
+    // Other
+    val otherNutrients =
+        listOfNotNull(
+            food.caffeine?.let { stringResource(R.string.nutrient_caffeine) to Pair(it * servings, "mg") },
+            food.alcohol?.let { stringResource(R.string.nutrient_alcohol) to Pair(it * servings, "g") },
+            food.water?.let { stringResource(R.string.nutrient_water) to Pair(it * servings, "ml") },
+            food.salt?.let { stringResource(R.string.nutrient_salt) to Pair(it * servings, "g") },
+        )
+    val filteredOtherNutrients = otherNutrients.filterVisible()
+    if (filteredOtherNutrients.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        NutrientCategoryCard(stringResource(R.string.nutrient_category_other), filteredOtherNutrients)
     }
 }
 
