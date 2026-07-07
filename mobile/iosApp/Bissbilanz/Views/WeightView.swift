@@ -291,7 +291,9 @@ struct WeightView: View {
     }
 
     /// Top row: latest weight and trend direction side by side as floating
-    /// cards (no list container). Server projections follow as chips.
+    /// cards (no list container). Server projections follow as equal-width
+    /// chips. Row separators are hidden so the cards float with a plain gap
+    /// between the rows instead of a divider line.
     private var statsChipsSection: some View {
         Section {
             HStack(spacing: 12) {
@@ -300,35 +302,39 @@ struct WeightView: View {
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
 
             if let stats = weightStats,
                stats.projected14d != nil || stats.projected30d != nil || stats.projected60d != nil
             {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        if let p14 = stats.projected14d {
-                            statChip(L10n.projection14d, value: MacroFormat.kg(p14), color: .purple)
-                        }
-                        if let p30 = stats.projected30d {
-                            statChip(L10n.projection30d, value: MacroFormat.kg(p30), color: .purple)
-                        }
-                        if let p60 = stats.projected60d {
-                            statChip(L10n.projection60d, value: MacroFormat.kg(p60), color: .purple)
-                        }
+                HStack(spacing: 12) {
+                    if let p14 = stats.projected14d {
+                        statChip(L10n.projection14d, value: MacroFormat.kg(p14), color: .purple)
                     }
-                    .padding(.horizontal, 4)
+                    if let p30 = stats.projected30d {
+                        statChip(L10n.projection30d, value: MacroFormat.kg(p30), color: .purple)
+                    }
+                    if let p60 = stats.projected60d {
+                        statChip(L10n.projection60d, value: MacroFormat.kg(p60), color: .purple)
+                    }
                 }
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
+                .listRowSeparator(.hidden)
             }
         }
     }
 
     private var latestCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.latestWeight)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "scalemass")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                Text(L10n.latestWeight)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Text(MacroFormat.kg(entries.first?.weightKg ?? 0))
                 .font(.title2)
                 .fontWeight(.bold)
@@ -343,7 +349,7 @@ struct WeightView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.blue.opacity(0.1))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -358,9 +364,14 @@ struct WeightView: View {
     private var trendCard: some View {
         let trend = trend
         return VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.trendWeight)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.caption)
+                    .foregroundStyle(trend.color)
+                Text(L10n.trendWeight)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 6) {
                 Image(systemName: trend.icon)
                 Text(trend.label)
@@ -376,7 +387,7 @@ struct WeightView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(trend.color.opacity(0.1))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -388,12 +399,13 @@ struct WeightView: View {
             Text(value)
                 .font(.subheadline)
                 .fontWeight(.semibold)
+                .monospacedDigit()
                 .foregroundStyle(color)
         }
-        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(color.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Chart Section
