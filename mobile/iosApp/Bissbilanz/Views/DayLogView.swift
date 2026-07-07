@@ -47,27 +47,29 @@ struct DayLogView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    showAIMeal = true
-                } label: {
-                    Image(systemName: "sparkles")
-                }
-                .accessibilityLabel(L10n.aiMealEstimate)
+                Menu {
+                    Button {
+                        showAIMeal = true
+                    } label: {
+                        Label(L10n.aiMealEstimate, systemImage: "sparkles")
+                    }
 
-                Button {
-                    Task { await copyYesterday() }
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .disabled(isCopying)
-                .accessibilityLabel(L10n.copyYesterday)
+                    Button {
+                        Task { await copyYesterday() }
+                    } label: {
+                        Label(L10n.copyYesterday, systemImage: "doc.on.doc")
+                    }
+                    .disabled(isCopying)
 
-                Button {
-                    showQuickEntry = true
+                    Button {
+                        showQuickEntry = true
+                    } label: {
+                        Label(L10n.quickEntry, systemImage: "pencil")
+                    }
                 } label: {
-                    Image(systemName: "pencil")
+                    Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel(L10n.quickEntry)
+                .accessibilityLabel(L10n.more)
 
                 Button {
                     showFoodSearch = true
@@ -160,6 +162,13 @@ struct DayLogView: View {
                                 } label: {
                                     Label(L10n.delete, systemImage: "trash")
                                 }
+
+                                Button {
+                                    editingEntry = entry
+                                } label: {
+                                    Label(L10n.edit, systemImage: "pencil")
+                                }
+                                .tint(.blue)
                             }
                             .swipeActions(edge: .leading) {
                                 Button {
