@@ -81,11 +81,12 @@ class SyncManager(
         if (appModeManager.isLocal) return 0
         if (!syncMutex.tryLock()) return 0
         var synced = 0
+        var drained: List<QueuedRequest> = emptyList()
         try {
             if (!connectivityProvider.isOnline.value) return 0
 
             _state.value = _state.value.copy(isSyncing = true, errors = emptyList())
-            val queued = syncQueue.drain()
+            drained = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
             // Temp ids whose creates drained in THIS batch. The drained snapshot still
@@ -94,7 +95,7 @@ class SyncManager(
             // beyond the drain limit) are rewritten in place after each create succeeds.
             val remaps = mutableMapOf<String, String>()
 
-            for (req in queued) {
+            for (req in drained) {
                 try {
                     val op = remapTempIds(req.operation, remaps, json)
                     val remap = execute(op, req.idempotencyKey, req.clientEditedAt)
@@ -190,6 +191,14 @@ class SyncManager(
                 _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
             }
         } finally {
+            // Release any drained-but-unprocessed items back to the queue. An early
+            // break (session expiry, 5xx backoff, or a network drop mid-batch) leaves
+            // the tail of the drained batch flagged in-progress; because drain() skips
+            // in-progress ids, those ops — the offline edits queued behind the failed
+            // one — would otherwise never upload again this session. remove()/
+            // releaseForRetry() already cleared the processed items, so this is a no-op
+            // for them and frees only the stranded tail for the next drain.
+            drained.forEach { syncQueue.releaseForRetry(it.id) }
             val pending = syncQueue.pendingCount()
             _state.value =
                 _state.value.copy(

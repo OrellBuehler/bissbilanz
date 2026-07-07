@@ -123,6 +123,9 @@ SELECT * FROM CachedEntry WHERE recipeId = ?;
 selectEntriesByDate:
 SELECT * FROM CachedEntry WHERE date = ?;
 
+selectEntryById:
+SELECT * FROM CachedEntry WHERE id = ? LIMIT 1;
+
 selectEntriesByDateRange:
 SELECT * FROM CachedEntry WHERE date >= ? AND date <= ? ORDER BY date;
 
