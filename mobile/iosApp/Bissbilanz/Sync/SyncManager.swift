@@ -79,6 +79,13 @@ final class SyncManager {
         scheduleDrain()
     }
 
+    /// Affected ids that still have an un-uploaded queued write for `table`. A
+    /// refresh uses this to avoid overwriting optimistic local rows with stale
+    /// server state while their edit is still waiting in the queue.
+    func pendingAffectedIds(table: String) -> Set<String> {
+        Set(queuedRows().filter { $0.affectedTable == table }.compactMap(\.affectedId))
+    }
+
     /// Queued rows touching (table, id) in FIFO order — the coalescing lookup.
     func queuedOperations(table: String, affectedId: String) -> [PendingSyncOperation] {
         let descriptor = FetchDescriptor<PendingSyncOperation>(

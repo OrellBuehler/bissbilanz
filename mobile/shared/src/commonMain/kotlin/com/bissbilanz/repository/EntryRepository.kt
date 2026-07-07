@@ -75,11 +75,15 @@ class EntryRepository(
         id: String,
         entry: EntryUpdate,
     ): Entry {
-        val cached =
+        // Look the row up by id rather than by the viewed date: the shared
+        // `currentDate` is reset to today by the post-sync refresh, so a date-based
+        // lookup misses entries edited on any other day and silently drops the
+        // optimistic write (the edit then only appears after a manual refresh).
+        val existing =
             db.userDataDatabaseQueries
-                .selectEntriesByDate(currentDate ?: entry.date ?: "")
-                .executeAsList()
-        val existing = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }.find { it.id == id }
+                .selectEntryById(id)
+                .executeAsOneOrNull()
+                ?.let { json.decodeOrNull<Entry>(it.jsonData) }
         val result =
             if (existing != null) {
                 val updated = applyUpdate(existing, entry)
@@ -251,13 +255,36 @@ class EntryRepository(
         )
     }
 
-    private fun cacheEntries(
+    private suspend fun cacheEntries(
         date: String,
         entries: List<Entry>,
     ) {
-        db.userDataDatabaseQueries.transaction {
-            db.userDataDatabaseQueries.deleteEntriesByDate(date)
-            entries.forEach { entry -> cacheEntry(entry.copy(date = date)) }
+        // Local rows with un-uploaded writes must survive a server refresh. A forced
+        // refresh right after an edit/create (the UI's onSaved handlers call it) races
+        // the async sync-queue upload; without this guard the incoming — still stale —
+        // server state overwrites the optimistic local change and reverts it in the UI
+        // until the next manual refresh. Preserve temp-id creates and any entry id that
+        // still has a queued (or in-flight) sync operation.
+        val pendingIds = pendingEntryIds()
+        val queries = db.userDataDatabaseQueries
+        // Local rows to keep after wiping the day: optimistic temp-id creates and
+        // rows carrying a queued update (a queued delete already removed its row,
+        // so it simply isn't present here).
+        val preserved =
+            queries
+                .selectEntriesByDate(date)
+                .executeAsList()
+                .filter { it.id.isTempId() || it.id in pendingIds }
+                .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+        queries.transaction {
+            queries.deleteEntriesByDate(date)
+            // Skip any server row whose id still has a queued local op: a queued
+            // update is re-applied from `preserved` below, and a queued delete must
+            // not be resurrected by the (still-present) server copy.
+            entries.forEach { entry ->
+                if (entry.id !in pendingIds) cacheEntry(entry.copy(date = date))
+            }
+            preserved.forEach { cacheEntry(it) }
         }
         // SyncMeta lives in the cache database; written after the user-data commit.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
@@ -265,6 +292,15 @@ class EntryRepository(
             lastSyncedAt = Clock.System.now().toString(),
         )
     }
+
+    /** Entry ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingEntryIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "entries" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     private fun entryCreateToEntry(
         entry: EntryCreate,

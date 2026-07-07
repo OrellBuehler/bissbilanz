@@ -4,6 +4,7 @@ import { aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { ApiError } from '$lib/server/errors';
 import { validateMealType } from '$lib/server/entries';
 import { UPLOAD_DIR } from '$lib/server/images';
 import { unlink } from 'node:fs/promises';
@@ -70,7 +71,10 @@ export const createAiTask = async (
 	}
 
 	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType))) {
-		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
+		return {
+			success: false,
+			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
+		};
 	}
 
 	try {
@@ -107,7 +111,10 @@ export const updateAiTask = async (
 	}
 
 	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType))) {
-		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
+		return {
+			success: false,
+			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
+		};
 	}
 
 	try {

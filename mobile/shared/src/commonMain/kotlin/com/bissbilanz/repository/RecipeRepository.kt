@@ -47,9 +47,23 @@ class RecipeRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val summaries = api.getRecipes()
-        db.userDataDatabaseQueries.transaction {
-            db.userDataDatabaseQueries.deleteAllRecipes()
+        val pendingIds = pendingRecipeIds()
+        val queries = db.userDataDatabaseQueries
+        // Keep optimistic temp-id creates and recipes carrying a queued update (a
+        // queued delete already removed its row). A forced refresh right after a
+        // recipe create/edit (the list screen calls refresh() on save) races the
+        // async sync-queue upload; without this the summary list would wipe the
+        // just-created recipe or resurrect a deleted one until the next refresh.
+        val preserved =
+            queries
+                .selectAllRecipes()
+                .executeAsList()
+                .filter { it.id.isTempId() || it.id in pendingIds }
+                .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+        queries.transaction {
+            queries.deleteAllRecipes()
             summaries.forEach { s ->
+                if (s.id in pendingIds) return@forEach
                 val recipe =
                     RecipeDetail(
                         id = s.id,
@@ -65,7 +79,7 @@ class RecipeRepository(
                         fiber = s.fiber,
                         ingredients = emptyList(),
                     )
-                db.userDataDatabaseQueries.insertRecipe(
+                queries.insertRecipe(
                     id = recipe.id,
                     name = recipe.name,
                     totalServings = recipe.totalServings,
@@ -78,6 +92,7 @@ class RecipeRepository(
                     jsonData = json.encodeToString(recipe),
                 )
             }
+            preserved.forEach { cacheRecipe(it) }
         }
         // SyncMeta lives in the cache database; written after the user-data commit.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
@@ -85,6 +100,15 @@ class RecipeRepository(
             lastSyncedAt = Clock.System.now().toString(),
         )
     }
+
+    /** Recipe ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingRecipeIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "recipes" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     suspend fun getRecipe(id: String): RecipeDetail {
         if (appModeManager.isLocal) {

@@ -176,10 +176,25 @@ class WeightRepository(
         )
     }
 
-    private fun cacheWeightEntries(entries: List<WeightEntry>) {
-        db.userDataDatabaseQueries.transaction {
-            db.userDataDatabaseQueries.deleteAllWeightEntries()
-            entries.forEach { entry -> cacheWeightEntry(entry) }
+    private suspend fun cacheWeightEntries(entries: List<WeightEntry>) {
+        val pendingIds = pendingWeightIds()
+        val queries = db.userDataDatabaseQueries
+        // Keep optimistic temp-id creates and rows carrying a queued update (a queued
+        // delete already removed its row). A forced refresh right after a weight
+        // create/edit/delete (the UI calls refresh() on save) races the async
+        // sync-queue upload; without this, the still-stale server list would revert
+        // the edit, drop the just-logged entry, or resurrect a deleted one until the
+        // next manual refresh.
+        val preserved =
+            queries
+                .selectAllWeightEntries()
+                .executeAsList()
+                .filter { it.id.isTempId() || it.id in pendingIds }
+                .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
+        queries.transaction {
+            queries.deleteAllWeightEntries()
+            entries.forEach { entry -> if (entry.id !in pendingIds) cacheWeightEntry(entry) }
+            preserved.forEach { cacheWeightEntry(it) }
         }
         // SyncMeta lives in the cache database; written after the user-data commit.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
@@ -187,6 +202,15 @@ class WeightRepository(
             lastSyncedAt = Clock.System.now().toString(),
         )
     }
+
+    /** Weight-entry ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingWeightIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "weight" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     private fun weightCreateToEntry(entry: WeightCreate): WeightEntry =
         WeightEntry(

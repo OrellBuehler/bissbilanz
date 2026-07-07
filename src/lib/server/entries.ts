@@ -6,6 +6,7 @@ import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { ApiError } from '$lib/server/errors';
 import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
 import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
 
@@ -96,7 +97,10 @@ export const createEntry = async (
 	}
 
 	if (!(await validateMealType(userId, result.data.mealType))) {
-		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
+		return {
+			success: false,
+			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
+		};
 	}
 
 	try {
@@ -155,7 +159,10 @@ export const updateEntry = async (
 	}
 
 	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType))) {
-		return { success: false, error: new Error(`Invalid meal type: ${result.data.mealType}`) };
+		return {
+			success: false,
+			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
+		};
 	}
 
 	try {
@@ -212,8 +219,8 @@ export const listEntriesByDateRange = async (
 			...entryMacroColumns(recipeMacrosCte)
 		})
 		.from(foodEntries)
-		.leftJoin(foods, eq(foodEntries.foodId, foods.id))
-		.leftJoin(recipes, eq(foodEntries.recipeId, recipes.id))
+		.leftJoin(foods, and(eq(foodEntries.foodId, foods.id), eq(foods.userId, userId)))
+		.leftJoin(recipes, and(eq(foodEntries.recipeId, recipes.id), eq(recipes.userId, userId)))
 		.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
 		.where(
 			and(

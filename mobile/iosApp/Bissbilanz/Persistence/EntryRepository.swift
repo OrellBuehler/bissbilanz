@@ -66,14 +66,19 @@ final class EntryRepository {
     func refresh(date: String) async throws {
         guard !appMode.isLocal else { return }
         let fetched = try await api.getEntries(date: date)
-        // Keep optimistic temp rows the server doesn't know about yet — their
-        // queued creates replace them with server records when they drain.
-        let tempPrefix = LocalStore.tempIdPrefix
-        try? context.delete(
-            model: LocalEntry.self,
-            where: #Predicate { $0.date == date && !$0.id.starts(with: tempPrefix) }
-        )
-        for entry in fetched {
+        // Preserve local rows the server response must not clobber: optimistic
+        // `temp_` creates (their queued creates replace them on drain) and any
+        // row with an un-uploaded queued write. A forced refresh right after an
+        // edit (see DayLogView.loadEntries) races the async sync-queue upload,
+        // so the still-stale server row would otherwise overwrite the edit until
+        // the next manual refresh.
+        let pendingIds = syncManager.pendingAffectedIds(table: "entries")
+        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == date })
+        let existing = (try? context.fetch(descriptor)) ?? []
+        for row in existing where !LocalStore.isTempId(row.id) && !pendingIds.contains(row.id) {
+            context.delete(row)
+        }
+        for entry in fetched where !pendingIds.contains(entry.id) {
             upsert(entry, date: date)
         }
         save()
