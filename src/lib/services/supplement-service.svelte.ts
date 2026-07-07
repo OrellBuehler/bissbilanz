@@ -3,6 +3,7 @@ import { db } from '$lib/db';
 import type { DexieFood, DexieSupplement, DexieSupplementLog } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';
+import { entryService } from './entry-service.svelte';
 import type { paths } from '$lib/api/generated/schema';
 
 type SupplementCreate =
@@ -197,7 +198,12 @@ async function log(supplementId: string, date: string) {
 			url: `/api/supplements/${supplementId}/log`,
 			body: { date },
 			affectedTable: 'supplements',
-			affectedId: supplementId
+			affectedId: supplementId,
+			// The server logs a calorie-bearing supplement as a `Snacks` food entry,
+			// so refresh the day's entries to surface it in the log and macro totals.
+			onSuccess: () => {
+				entryService.refresh(date).catch(() => {});
+			}
 		}
 	);
 }
@@ -215,7 +221,12 @@ async function unlog(supplementId: string, date: string) {
 			url: `/api/supplements/${supplementId}/log/${date}`,
 			body: {},
 			affectedTable: 'supplements',
-			affectedId: supplementId
+			affectedId: supplementId,
+			// Unlogging deletes the supplement's `Snacks` food entry server-side, so
+			// refresh the day's entries to drop it from the log and macro totals.
+			onSuccess: () => {
+				entryService.refresh(date).catch(() => {});
+			}
 		}
 	);
 }
