@@ -57,10 +57,10 @@ enum HealthKitImporter {
     }
 
     /// Imports nights from Apple Health, skipping dates that already have an
-    /// entry. Each night carries a quality estimated from its sleep efficiency
-    /// and awakenings (`HealthKitService.derivedQuality`), since Apple's Sleep
-    /// Score isn't exposed through public HealthKit; the value stays editable
-    /// afterwards. Returns whether anything was created.
+    /// entry. Each night carries a quality estimated from its duration,
+    /// bedtime consistency and awakenings (`HealthKitService.derivedQuality`),
+    /// since Apple's Sleep Score isn't exposed through public HealthKit; the
+    /// value stays editable afterwards. Returns whether anything was created.
     @discardableResult
     static func importSleepIfEnabled(into repository: SleepRepository) async -> Bool {
         guard UserDefaults.standard.bool(forKey: HealthKitService.readSleepEnabledKey) else { return false }
@@ -86,5 +86,68 @@ enum HealthKitImporter {
             }
         }
         return imported
+    }
+
+    /// Rewrites nights that were already imported with freshly derived values,
+    /// which the normal import can't do because it skips any date that already
+    /// has an entry. Needed after the quality estimate changes: without it an
+    /// old score sits there for 90 days looking like the new one is wrong.
+    /// Destructive by design — it overwrites hand-edited nights too, so it is
+    /// only ever reached through an explicit, confirmed action. Returns how
+    /// many entries actually changed.
+    @discardableResult
+    static func reimportSleep(into repository: SleepRepository) async -> Int {
+        let healthKit = HealthKitService.shared
+        guard healthKit.isAvailable else { return 0 }
+        let since = Date().adding(days: importWindowDays)
+        guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return 0 }
+
+        let existing = Dictionary(
+            repository.entries().map { ($0.entryDate, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        var updated = 0
+        for night in HealthKitService.nights(from: samples) {
+            let bedtime = DateFormatting.isoDateTimeString(from: night.bedtime)
+            let wakeTime = DateFormatting.isoDateTimeString(from: night.wakeTime)
+            guard let entry = existing[night.entryDate] else {
+                let create = SleepCreate(
+                    durationMinutes: night.asleepMinutes,
+                    quality: night.quality,
+                    entryDate: night.entryDate,
+                    bedtime: bedtime,
+                    wakeTime: wakeTime,
+                    wakeUps: night.wakeUps,
+                    notes: nil
+                )
+                if await (try? repository.createEntry(create)) != nil {
+                    updated += 1
+                }
+                continue
+            }
+
+            // Skip untouched nights so an unchanged re-import doesn't queue 90
+            // pointless uploads.
+            guard entry.durationMinutes != night.asleepMinutes
+                || entry.quality != night.quality
+                || entry.wakeUps != night.wakeUps
+            else { continue }
+
+            let update = SleepUpdate(
+                durationMinutes: night.asleepMinutes,
+                quality: night.quality,
+                bedtime: bedtime,
+                wakeTime: wakeTime,
+                wakeUps: night.wakeUps
+            )
+            if await (try? repository.updateEntry(id: entry.id, update)) != nil {
+                updated += 1
+            }
+        }
+        if updated > 0 {
+            NotificationCenter.default.post(name: didImportNotification, object: nil)
+        }
+        return updated
     }
 }

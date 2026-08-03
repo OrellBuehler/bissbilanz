@@ -7,6 +7,12 @@ import SwiftUI
 struct AppleHealthSettingsView: View {
     private let healthKit = HealthKitService.shared
 
+    @Environment(SleepRepository.self) private var sleepRepository
+
+    @State private var isConfirmingReimport = false
+    @State private var isReimporting = false
+    @State private var reimportResult: String?
+
     // Weight and sleep reuse the pre-existing defaults keys so settings made
     // before this page existed carry over unchanged.
     @State private var weightRead = UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey)
@@ -43,6 +49,36 @@ struct AppleHealthSettingsView: View {
         }
         .navigationTitle(L10n.appleHealth)
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            L10n.healthReimportSleep,
+            isPresented: $isConfirmingReimport,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.healthReimportSleep, role: .destructive) {
+                Task { await reimportSleep() }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.healthReimportSleepConfirm)
+        }
+        .alert(
+            L10n.appleHealth,
+            isPresented: Binding(
+                get: { reimportResult != nil },
+                set: { if !$0 { reimportResult = nil } }
+            )
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(reimportResult ?? "")
+        }
+    }
+
+    private func reimportSleep() async {
+        isReimporting = true
+        let updated = await HealthKitImporter.reimportSleep(into: sleepRepository)
+        isReimporting = false
+        reimportResult = L10n.healthReimportSleepResult(updated)
     }
 
     // MARK: - Status
@@ -104,6 +140,20 @@ struct AppleHealthSettingsView: View {
                     await healthKit.requestSleepReadAuthorization()
                 }
             )
+            if sleepRead {
+                Button {
+                    isConfirmingReimport = true
+                } label: {
+                    HStack {
+                        Label(L10n.healthReimportSleep, systemImage: "arrow.clockwise")
+                        Spacer()
+                        if isReimporting {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isReimporting)
+            }
         } header: {
             Text(L10n.healthReadingSection)
         } footer: {
