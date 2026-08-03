@@ -41,6 +41,10 @@ enum L10n {
         localized("close", en: "Close", de: "Schließen")
     }
 
+    static var details: String {
+        localized("details", en: "Details", de: "Details")
+    }
+
     static var add: String {
         localized("add", en: "Add", de: "Hinzufügen")
     }

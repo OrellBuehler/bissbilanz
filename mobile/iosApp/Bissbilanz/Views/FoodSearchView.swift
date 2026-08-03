@@ -357,6 +357,11 @@ struct LogFoodSheet: View {
     /// lets a presenting flow (e.g. the barcode scanner) collapse its own
     /// sheet stack instead of leaving the user on an intermediate screen.
     var onLogged: (() -> Void)?
+    /// Offers a link through to the food's detail page. Only for flows that
+    /// reach this sheet without passing the detail page on the way in — the
+    /// detail page presents this sheet itself, so linking back from there
+    /// would let the two stack on each other indefinitely.
+    var showsDetailsLink = false
 
     @State private var logDate: Date
     @State private var servings: Double = 1.0
@@ -365,9 +370,10 @@ struct LogFoodSheet: View {
     @State private var isLogging = false
     @State private var errorMessage: String?
 
-    init(food: Food, date: String, onLogged: (() -> Void)? = nil) {
+    init(food: Food, date: String, showsDetailsLink: Bool = false, onLogged: (() -> Void)? = nil) {
         self.food = food
         self.onLogged = onLogged
+        self.showsDetailsLink = showsDetailsLink
         _logDate = State(initialValue: DateFormatting.date(from: date) ?? Date())
     }
 
@@ -447,6 +453,18 @@ struct LogFoodSheet: View {
                     }
                     .disabled(isLogging)
                     .fontWeight(.semibold)
+                }
+                // Logging is the fast path, but the full detail — and the edit
+                // action on it — stays one tap away.
+                ToolbarItem(placement: .topBarTrailing) {
+                    if showsDetailsLink {
+                        NavigationLink {
+                            FoodDetailView(foodId: food.id, onLogged: { dismiss() })
+                        } label: {
+                            Image(systemName: "info.circle")
+                        }
+                        .accessibilityLabel(L10n.details)
+                    }
                 }
             }
             .alert(
