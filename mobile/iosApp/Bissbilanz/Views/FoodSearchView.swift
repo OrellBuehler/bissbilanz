@@ -371,6 +371,16 @@ struct LogFoodSheet: View {
         _logDate = State(initialValue: DateFormatting.date(from: date) ?? Date())
     }
 
+    /// "2 × 100 g = 200 g" — without the total there is no way to tell what a
+    /// multiplier actually amounts to.
+    private var servingSizeText: String {
+        let count = MacroFormat.servings(servings)
+        let unit = food.servingUnit.displayName
+        let perServing = "\(MacroFormat.nutrient(food.servingSize)) \(unit)"
+        let total = "\(MacroFormat.nutrient(food.servingSize * servings)) \(unit)"
+        return "\(count) × \(perServing) = \(total)"
+    }
+
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     var body: some View {
@@ -390,14 +400,13 @@ struct LogFoodSheet: View {
                 }
 
                 Section(L10n.servings) {
+                    ServingsField(servings: $servings)
                     HStack {
-                        Text("\(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)")
-                            .foregroundStyle(.secondary)
+                        Text(L10n.servingSize)
                         Spacer()
-                        Stepper(value: $servings, in: 0.25 ... 20, step: 0.25) {
-                            Text("\(servings, specifier: "%.2g")x")
-                                .fontWeight(.medium)
-                        }
+                        Text(servingSizeText)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
                 }
 

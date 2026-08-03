@@ -29,7 +29,7 @@ struct EntryEditSheet: View {
     /// which carry no serving size.
     private var servingSizeText: String? {
         guard let size = entry.servingSize, let unit = entry.servingUnit else { return nil }
-        let count = String(format: "%.2g", servings)
+        let count = MacroFormat.servings(servings)
         let perServing = "\(MacroFormat.nutrient(size)) \(unit.displayName)"
         let total = "\(MacroFormat.nutrient(size * servings)) \(unit.displayName)"
         return "\(count) × \(perServing) = \(total)"
@@ -58,14 +58,7 @@ struct EntryEditSheet: View {
                 }
 
                 Section {
-                    Stepper(value: $servings, in: 0.25 ... 50, step: 0.25) {
-                        HStack {
-                            Text(L10n.servings)
-                            Spacer()
-                            Text("\(servings, specifier: "%.2g")x")
-                                .fontWeight(.medium)
-                        }
-                    }
+                    ServingsField(servings: $servings)
                     if let servingSizeText {
                         HStack {
                             Text(L10n.servingSize)

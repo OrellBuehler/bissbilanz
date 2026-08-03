@@ -225,7 +225,7 @@ struct DayLogView: View {
                             Text(time)
                             Text("\u{00B7}")
                         }
-                        Text("\(entry.servings, specifier: "%.2g")x \u{00B7} \(Int(entry.totalCalories)) cal")
+                        Text("\(MacroFormat.servings(entry.servings))x \u{00B7} \(Int(entry.totalCalories)) cal")
                     }
                     .font(.caption)
                     .monospacedDigit()
