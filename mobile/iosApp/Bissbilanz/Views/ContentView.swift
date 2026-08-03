@@ -83,19 +83,25 @@ struct ContentView: View {
         }
         .minimizableTabBar()
         // Widget deep links land here as sheets so they work regardless of
-        // which tabs the user has configured.
+        // which tabs the user has configured. Each case picks its own
+        // container: the scanner and WeightView bring their own
+        // NavigationStack, the rest need one supplied.
         .sheet(item: $deepLinkRouter.pending) { link in
-            NavigationStack {
-                switch link {
-                case .logFood:
+            switch link {
+            case .logFood:
+                NavigationStack {
                     FoodSearchView(date: DateFormatting.today)
-                case .scanner:
-                    BarcodeScannerView()
-                case .weight:
-                    WeightView()
-                case let .food(foodId):
+                }
+            case .scanner:
+                BarcodeScannerView()
+            case .weight:
+                WeightView()
+            case let .food(foodId):
+                NavigationStack {
                     FoodDetailView(foodId: foodId)
-                case let .recipe(recipeId):
+                }
+            case let .recipe(recipeId):
+                NavigationStack {
                     RecipeDetailView(recipeId: recipeId)
                 }
             }

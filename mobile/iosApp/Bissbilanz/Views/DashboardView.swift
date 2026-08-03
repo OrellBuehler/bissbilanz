@@ -105,10 +105,10 @@ struct DashboardView: View {
                 .onDisappear { Task { await loadData() } }
             }
             .sheet(isPresented: $showScanner) {
-                NavigationStack {
-                    BarcodeScannerView()
-                }
-                .onDisappear { Task { await loadData() } }
+                // The scanner brings its own NavigationStack — its post-scan
+                // steps are pushed inside it.
+                BarcodeScannerView()
+                    .onDisappear { Task { await loadData() } }
             }
             .sheet(isPresented: $showQuickEntry) {
                 QuickEntrySheet(date: dateString) {

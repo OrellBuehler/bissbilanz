@@ -12,6 +12,11 @@ import VisionKit
 /// → prefill flow is identical.
 struct DataScannerView: UIViewControllerRepresentable {
     let onBarcodeScanned: (String) -> Void
+    /// Whether scanning should be running. The owner passes false while a
+    /// navigation step covers the camera: VisionKit may stop scanning on its
+    /// own when the view is obscured, and the isScanning latch would suppress
+    /// the restart — stopping and starting explicitly makes it deterministic.
+    var isActive = true
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
         let controller = DataScannerViewController(
@@ -27,6 +32,11 @@ struct DataScannerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: DataScannerViewController, context: Context) {
+        guard isActive else {
+            controller.stopScanning()
+            context.coordinator.isScanning = false
+            return
+        }
         // startScanning() throws until the controller's view joins the
         // hierarchy; retry on each update and latch once it takes. (The class
         // is not open, so this can't be done by overriding viewDidAppear.)
