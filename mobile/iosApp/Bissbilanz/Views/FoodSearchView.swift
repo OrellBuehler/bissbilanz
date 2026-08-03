@@ -244,9 +244,38 @@ struct FoodSearchView: View {
                 }
             }
         }
-        .onLongPressGesture {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            editingFood = food
+        // A bare long-press used to jump straight into editing, which gave no
+        // hint that tap and long-press did different things. A context menu
+        // names both actions instead, leaving tap as the fast path to logging.
+        .contextMenu {
+            Button {
+                selectedFood = food
+            } label: {
+                Label(L10n.logFood, systemImage: "plus.circle")
+            }
+            Button {
+                editingFood = food
+            } label: {
+                Label(L10n.editFood, systemImage: "pencil")
+            }
+            Button {
+                Task { await toggleFavorite(food) }
+            } label: {
+                Label(
+                    food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites,
+                    systemImage: food.isFavorite ? "star.slash" : "star"
+                )
+            }
+        }
+    }
+
+    private func toggleFavorite(_ food: Food) async {
+        do {
+            let updated = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
+            foodUpdated(updated)
+            await loadFavorites()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

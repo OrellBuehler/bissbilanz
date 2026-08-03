@@ -10,6 +10,7 @@ struct FavoritesView: View {
     @State private var isLoading = true
     @State private var selectedTab = 0
     @State private var selectedFood: Food?
+    @State private var editingFood: Food?
     @State private var selectedRecipe: Recipe?
     @State private var toastMessage: String?
 
@@ -48,6 +49,11 @@ struct FavoritesView: View {
             .sheet(item: $selectedFood) { food in
                 LogFoodSheet(food: food, date: DateFormatting.today)
             }
+            .sheet(item: $editingFood) { food in
+                FoodEditSheet(food: food) { _ in
+                    Task { await loadFavorites() }
+                }
+            }
             .sheet(item: $selectedRecipe) { recipe in
                 LogRecipeSheet(recipe: recipe) {
                     Task { await loadFavorites() }
@@ -81,6 +87,25 @@ struct FavoritesView: View {
                                     Task { await quickLogFood(food) }
                                 }
                             )
+                            // Same split as the food search list: tap logs,
+                            // long-press names the choices.
+                            .contextMenu {
+                                Button {
+                                    selectedFood = food
+                                } label: {
+                                    Label(L10n.logFood, systemImage: "plus.circle")
+                                }
+                                Button {
+                                    editingFood = food
+                                } label: {
+                                    Label(L10n.editFood, systemImage: "pencil")
+                                }
+                                Button {
+                                    Task { await removeFavorite(food) }
+                                } label: {
+                                    Label(L10n.removeFromFavorites, systemImage: "star.slash")
+                                }
+                            }
                         }
                     }
                     .padding()
@@ -146,6 +171,15 @@ struct FavoritesView: View {
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.failedToLog
+        }
+    }
+
+    private func removeFavorite(_ food: Food) async {
+        do {
+            _ = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: false)
+            await loadFavorites()
+        } catch {
+            toastMessage = L10n.somethingWentWrong
         }
     }
 
