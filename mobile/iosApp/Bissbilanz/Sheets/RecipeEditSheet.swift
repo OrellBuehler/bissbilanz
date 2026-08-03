@@ -11,7 +11,6 @@ struct RecipeEditSheet: View {
     @State private var totalServings = "1"
     @State private var isFavorite = false
     @State private var ingredients: [IngredientRow] = []
-    @State private var showFoodPicker = false
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -65,8 +64,17 @@ struct RecipeEditSheet: View {
                         ingredients.remove(atOffsets: indices)
                     }
 
-                    Button {
-                        showFoodPicker = true
+                    // Pushed, not presented: picking an ingredient is a step
+                    // inside this sheet's flow, and the picker pops itself
+                    // back to the list once a food is chosen.
+                    NavigationLink {
+                        FoodPicker { food in
+                            ingredients.append(IngredientRow(
+                                food: food,
+                                quantity: "\(food.servingSize)",
+                                unit: food.servingUnit
+                            ))
+                        }
                     } label: {
                         Label(L10n.addIngredient, systemImage: "plus")
                     }
@@ -93,15 +101,6 @@ struct RecipeEditSheet: View {
                     }
                     .disabled(name.isEmpty || ingredients.isEmpty || isSaving)
                     .fontWeight(.semibold)
-                }
-            }
-            .sheet(isPresented: $showFoodPicker) {
-                FoodPickerSheet { food in
-                    ingredients.append(IngredientRow(
-                        food: food,
-                        quantity: "\(food.servingSize)",
-                        unit: food.servingUnit
-                    ))
                 }
             }
             .onAppear { prefill() }
@@ -161,8 +160,10 @@ struct RecipeEditSheet: View {
     }
 }
 
-/// Helper sheet for picking a food to add as ingredient
-struct FoodPickerSheet: View {
+/// Food search step for picking an ingredient, pushed within the recipe
+/// editor's stack — the system back button covers cancellation, and picking
+/// a food pops back to the ingredient list.
+struct FoodPicker: View {
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
@@ -174,53 +175,46 @@ struct FoodPickerSheet: View {
     @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if query.count < 2 {
-                    ContentUnavailableView(
-                        L10n.search,
-                        systemImage: "magnifyingglass",
-                        description: Text(L10n.typeToSearchHint)
-                    )
-                } else if isSearching {
-                    LoadingView()
-                } else if results.isEmpty {
-                    ContentUnavailableView(L10n.noResults, systemImage: "magnifyingglass")
-                } else {
-                    List(results) { food in
-                        Button {
-                            onPicked(food)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(food.name)
-                                    .foregroundStyle(.primary)
-                                Text(
-                                    "\(Int(food.calories)) cal \u{00B7} \(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)"
-                                )
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
+        Group {
+            if query.count < 2 {
+                ContentUnavailableView(
+                    L10n.search,
+                    systemImage: "magnifyingglass",
+                    description: Text(L10n.typeToSearchHint)
+                )
+            } else if isSearching {
+                LoadingView()
+            } else if results.isEmpty {
+                ContentUnavailableView(L10n.noResults, systemImage: "magnifyingglass")
+            } else {
+                List(results) { food in
+                    Button {
+                        onPicked(food)
+                        dismiss()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(food.name)
+                                .foregroundStyle(.primary)
+                            Text(
+                                "\(Int(food.calories)) cal \u{00B7} \(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
-                    .listStyle(.plain)
                 }
+                .listStyle(.plain)
             }
-            .navigationTitle(L10n.selectFood)
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, prompt: L10n.searchFoods)
-            .onChange(of: query) { _, newValue in
-                searchTask?.cancel()
-                searchTask = Task {
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    guard !Task.isCancelled else { return }
-                    await search(newValue)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
-                }
+        }
+        .navigationTitle(L10n.selectFood)
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, prompt: L10n.searchFoods)
+        .onChange(of: query) { _, newValue in
+            searchTask?.cancel()
+            searchTask = Task {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
+                await search(newValue)
             }
         }
     }

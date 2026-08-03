@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Entry point for AI-assisted meal logging: a free-text description (and
 /// optionally a photo) can either be estimated on-device via `MealEstimator`
-/// — opening `AIMealReviewView` as a nested sheet — or queued as an
+/// — pushing `AIMealReviewView` within this sheet's stack — or queued as an
 /// `AiTask` for the MCP assistant to pick up later. On-device estimation only
 /// runs on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`);
 /// queueing needs only a server connection, so it's shown in Synced mode as a
@@ -30,6 +30,7 @@ struct AIMealSheet: View {
     @State private var showCamera = false
     @State private var isSendingToAssistant = false
     @State private var pendingTaskCount: Int?
+    @State private var detent: PresentationDetent = .medium
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
@@ -121,13 +122,19 @@ struct AIMealSheet: View {
             } message: {
                 if let errorMessage { Text(errorMessage) }
             }
-            .sheet(isPresented: .init(get: { estimate != nil }, set: { if !$0 { estimate = nil } })) {
+            // The review pushes within this sheet's stack instead of stacking
+            // a second sheet; Back returns to the form, and a successful log
+            // captures this sheet's dismiss to close the whole flow.
+            // (isPresented: rather than item-based because MealEstimate isn't
+            // Hashable.)
+            .navigationDestination(isPresented: .init(
+                get: { estimate != nil },
+                set: { if !$0 { estimate = nil } }
+            )) {
                 if let estimate {
-                    NavigationStack {
-                        AIMealReviewView(estimate: estimate, date: date, mealType: mealType) { count in
-                            onLogged(count)
-                            dismiss()
-                        }
+                    AIMealReviewView(estimate: estimate, date: date, mealType: mealType) { count in
+                        onLogged(count)
+                        dismiss()
                     }
                 }
             }
@@ -148,7 +155,7 @@ struct AIMealSheet: View {
             .onAppear { mealEstimator.prewarm() }
             .task { await loadPendingCount() }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
     }
 
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
@@ -242,6 +249,9 @@ struct AIMealSheet: View {
         errorMessage = nil
         do {
             estimate = try await mealEstimator.estimate(description: trimmedDescription)
+            // The pushed review is cramped at medium height — promote the
+            // sheet once there is something to review.
+            detent = .large
         } catch let error as MealEstimatorError {
             errorMessage = error.localizedMessage
         } catch {

@@ -60,10 +60,9 @@ struct FoodEditForm: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    // Additional nutrients keyed by their FoodCreate field name. The user can
-    // add any supported nutrient here; the label scanner also fills a few.
+    /// Additional nutrients keyed by their FoodCreate field name. The user can
+    /// add any supported nutrient here; the label scanner also fills a few.
     @State private var additionalValues: [String: String] = [:]
-    @State private var showLabelScanner = false
 
     let initialBarcode: String?
 
@@ -77,8 +76,13 @@ struct FoodEditForm: View {
         Form {
             if existingFood == nil {
                 Section {
-                    Button {
-                        showLabelScanner = true
+                    // Pushed, not presented: the scan is a step inside this
+                    // form's flow, and it works in whichever stack encloses
+                    // the form (the sheet wrapper's or the barcode scanner's).
+                    NavigationLink {
+                        NutritionLabelScanView { parsed in
+                            apply(parsed)
+                        }
                     } label: {
                         Label(L10n.scanLabel, systemImage: "doc.text.viewfinder")
                     }
@@ -179,11 +183,6 @@ struct FoodEditForm: View {
             }
         }
         .onAppear { prefill() }
-        .sheet(isPresented: $showLabelScanner) {
-            NutritionLabelScanView { parsed in
-                apply(parsed)
-            }
-        }
     }
 
     private func macroField(_ label: String, text: Binding<String>, unit: String) -> some View {
