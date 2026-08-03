@@ -1,8 +1,42 @@
 import SwiftUI
 
+/// Presentation wrapper for `FoodEditForm`: supplies the `NavigationStack` and
+/// Cancel button a flat sheet needs. Flows that push the form into their own
+/// stack (the barcode scanner) use `FoodEditForm` directly.
 struct FoodEditSheet: View {
-    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
+
+    let existingFood: Food?
+    let initialBarcode: String?
+    let onSaved: (Food) -> Void
+
+    init(food: Food? = nil, barcode: String? = nil, onSaved: @escaping (Food) -> Void = { _ in }) {
+        existingFood = food
+        initialBarcode = barcode
+        self.onSaved = onSaved
+    }
+
+    var body: some View {
+        NavigationStack {
+            FoodEditForm(food: existingFood, barcode: initialBarcode) { saved in
+                onSaved(saved)
+                dismiss()
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// Bare food create/edit form: no `NavigationStack`, no Cancel item, and it
+/// never dismisses itself — `@Environment(\.dismiss)` pops when pushed and
+/// dismisses when presented, so the enclosing container decides what happens
+/// after `onSaved` and one body stays correct in both modes.
+struct FoodEditForm: View {
+    @Environment(FoodRepository.self) private var foodRepository
 
     let existingFood: Food?
     let onSaved: (Food) -> Void
@@ -40,119 +74,114 @@ struct FoodEditSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                if existingFood == nil {
-                    Section {
-                        Button {
-                            showLabelScanner = true
-                        } label: {
-                            Label(L10n.scanLabel, systemImage: "doc.text.viewfinder")
-                        }
-                    } footer: {
-                        Text(L10n.scanLabelFooter)
-                    }
-                }
-
+        Form {
+            if existingFood == nil {
                 Section {
-                    TextField(L10n.name, text: $name)
-                    TextField(L10n.brand, text: $brand)
-                    TextField(L10n.barcode, text: $barcode)
-                        .keyboardType(.numberPad)
-                }
-
-                Section(L10n.servingSize) {
-                    // Split the row 60/40 so the amount gets most of the width
-                    // and the unit picker no longer crowds it out.
-                    GeometryReader { geo in
-                        HStack(spacing: 8) {
-                            TextField("100", text: $servingSize)
-                                .keyboardType(.decimalPad)
-                                .frame(width: max(geo.size.width * 0.6 - 4, 0), alignment: .leading)
-                            Picker(L10n.unit, selection: $servingUnit) {
-                                ForEach(ServingUnit.allCases, id: \.self) { unit in
-                                    Text(unit.displayName).tag(unit)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(width: max(geo.size.width * 0.4 - 4, 0), alignment: .trailing)
-                        }
+                    Button {
+                        showLabelScanner = true
+                    } label: {
+                        Label(L10n.scanLabel, systemImage: "doc.text.viewfinder")
                     }
-                    .frame(height: 34)
-                }
-
-                Section {
-                    Picker(L10n.valuesPer, selection: $perHundredBasis) {
-                        Text(L10n.perServing).tag(false)
-                        Text(servingUnit.isVolume ? L10n.per100Ml : L10n.per100).tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    macroField(L10n.calories, text: $calories, unit: "kcal")
-                    macroField(L10n.protein, text: $protein, unit: "g")
-                    macroField(L10n.carbs, text: $carbs, unit: "g")
-                    macroField(L10n.fat, text: $fat, unit: "g")
-                    macroField(L10n.fiber, text: $fiber, unit: "g")
-                } header: {
-                    Text(L10n.mainMacros)
                 } footer: {
-                    Text(L10n.macroBasisFooter)
+                    Text(L10n.scanLabelFooter)
                 }
+            }
 
-                Section(L10n.additionalNutrients) {
-                    ForEach(addedNutrients) { spec in
-                        additionalNutrientField(spec)
+            Section {
+                TextField(L10n.name, text: $name)
+                TextField(L10n.brand, text: $brand)
+                TextField(L10n.barcode, text: $barcode)
+                    .keyboardType(.numberPad)
+            }
+
+            Section(L10n.servingSize) {
+                // Split the row 60/40 so the amount gets most of the width
+                // and the unit picker no longer crowds it out.
+                GeometryReader { geo in
+                    HStack(spacing: 8) {
+                        TextField("100", text: $servingSize)
+                            .keyboardType(.decimalPad)
+                            .frame(width: max(geo.size.width * 0.6 - 4, 0), alignment: .leading)
+                        Picker(L10n.unit, selection: $servingUnit) {
+                            ForEach(ServingUnit.allCases, id: \.self) { unit in
+                                Text(unit.displayName).tag(unit)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: max(geo.size.width * 0.4 - 4, 0), alignment: .trailing)
                     }
-                    .onDelete(perform: removeAdditionalNutrients)
+                }
+                .frame(height: 34)
+            }
 
-                    Menu {
-                        ForEach(Self.nutrientCatalog) { category in
-                            if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
-                                Menu(category.title) {
-                                    ForEach(category.nutrients) { spec in
-                                        if additionalValues[spec.key] == nil {
-                                            Button(spec.label) { additionalValues[spec.key] = "" }
-                                        }
+            Section {
+                Picker(L10n.valuesPer, selection: $perHundredBasis) {
+                    Text(L10n.perServing).tag(false)
+                    Text(servingUnit.isVolume ? L10n.per100Ml : L10n.per100).tag(true)
+                }
+                .pickerStyle(.segmented)
+                macroField(L10n.calories, text: $calories, unit: "kcal")
+                macroField(L10n.protein, text: $protein, unit: "g")
+                macroField(L10n.carbs, text: $carbs, unit: "g")
+                macroField(L10n.fat, text: $fat, unit: "g")
+                macroField(L10n.fiber, text: $fiber, unit: "g")
+            } header: {
+                Text(L10n.mainMacros)
+            } footer: {
+                Text(L10n.macroBasisFooter)
+            }
+
+            Section(L10n.additionalNutrients) {
+                ForEach(addedNutrients) { spec in
+                    additionalNutrientField(spec)
+                }
+                .onDelete(perform: removeAdditionalNutrients)
+
+                Menu {
+                    ForEach(Self.nutrientCatalog) { category in
+                        if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
+                            Menu(category.title) {
+                                ForEach(category.nutrients) { spec in
+                                    if additionalValues[spec.key] == nil {
+                                        Button(spec.label) { additionalValues[spec.key] = "" }
                                     }
                                 }
                             }
                         }
-                    } label: {
-                        Label(L10n.addNutrient, systemImage: "plus.circle")
                     }
+                } label: {
+                    Label(L10n.addNutrient, systemImage: "plus.circle")
                 }
+            }
 
+            Section {
+                Toggle(L10n.favorite, isOn: $isFavorite)
+            }
+
+            if let errorMessage {
                 Section {
-                    Toggle(L10n.favorite, isOn: $isFavorite)
-                }
-
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                    }
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.caption)
                 }
             }
-            .keyboardDismissable()
-            .navigationTitle(existingFood != nil ? L10n.editFood : L10n.createFood)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
+        }
+        .keyboardDismissable()
+        .navigationTitle(existingFood != nil ? L10n.editFood : L10n.createFood)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(L10n.save) {
+                    Task { await save() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.save) {
-                        Task { await save() }
-                    }
-                    .disabled(name.isEmpty || isSaving)
-                    .fontWeight(.semibold)
-                }
+                .disabled(name.isEmpty || isSaving)
+                .fontWeight(.semibold)
             }
-            .onAppear { prefill() }
-            .sheet(isPresented: $showLabelScanner) {
-                NutritionLabelScanView { parsed in
-                    apply(parsed)
-                }
+        }
+        .onAppear { prefill() }
+        .sheet(isPresented: $showLabelScanner) {
+            NutritionLabelScanView { parsed in
+                apply(parsed)
             }
         }
     }
@@ -288,7 +317,6 @@ struct FoodEditSheet: View {
                 try await foodRepository.createFood(foodData)
             }
             onSaved(saved)
-            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }
