@@ -1055,6 +1055,14 @@ enum L10n {
         localized("torch", en: "Torch", de: "Taschenlampe")
     }
 
+    static var torchOn: String {
+        localized("torch_on", en: "Turn on torch", de: "Taschenlampe einschalten")
+    }
+
+    static var torchOff: String {
+        localized("torch_off", en: "Turn off torch", de: "Taschenlampe ausschalten")
+    }
+
     // MARK: - Nutrition label scanner
 
     static var scanLabel: String {

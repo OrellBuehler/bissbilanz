@@ -28,6 +28,12 @@ struct BarcodeScannerView: View {
     /// false). Evaluated once — device capability does not change at runtime.
     private let useDataScanner = DataScannerViewController.isSupported
 
+    /// The back camera, when it has a lamp. DataScannerViewController exposes
+    /// no torch control of its own, but the torch belongs to the capture
+    /// device rather than to the session, so setting it here lights the same
+    /// lamp the scanner is looking through.
+    private let torchDevice = AVCaptureDevice.default(for: .video).flatMap { $0.hasTorch ? $0 : nil }
+
     var body: some View {
         ZStack {
             if cameraPermission == .authorized {
@@ -102,17 +108,29 @@ struct BarcodeScannerView: View {
                 Button(L10n.close) { dismiss() }
             }
             ToolbarItem(placement: .primaryAction) {
-                // DataScannerViewController owns its capture session and exposes
-                // no torch control, so the flashlight is offered only on the
-                // AVFoundation fallback path.
-                if cameraPermission == .authorized, !useDataScanner {
+                if cameraPermission == .authorized, torchDevice != nil {
                     Button {
                         isTorchOn.toggle()
                     } label: {
                         Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
                             .foregroundStyle(isTorchOn ? .yellow : .white)
                     }
+                    .accessibilityLabel(isTorchOn ? L10n.torchOff : L10n.torchOn)
                 }
+            }
+        }
+        // The fallback path applies the torch through CameraPreviewView, which
+        // owns its device; on the DataScanner path nothing else would.
+        .onChange(of: isTorchOn) { _, isOn in
+            guard useDataScanner else { return }
+            setTorch(isOn)
+        }
+        .onDisappear {
+            // Leaving the scanner with the lamp still burning is nobody's idea
+            // of a good time — the fallback path's session teardown does this
+            // for itself, DataScanner's does not.
+            if useDataScanner, isTorchOn {
+                setTorch(false)
             }
         }
         .task {
@@ -188,6 +206,12 @@ struct BarcodeScannerView: View {
             .buttonStyle(.bordered)
         }
         .padding()
+    }
+
+    private func setTorch(_ isOn: Bool) {
+        guard let torchDevice, (try? torchDevice.lockForConfiguration()) != nil else { return }
+        torchDevice.torchMode = isOn ? .on : .off
+        torchDevice.unlockForConfiguration()
     }
 
     private func handleBarcode(_ barcode: String) {
