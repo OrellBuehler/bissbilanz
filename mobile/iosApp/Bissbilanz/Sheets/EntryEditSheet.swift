@@ -23,6 +23,32 @@ struct EntryEditSheet: View {
         _eatenTime = State(initialValue: entry.loggedAt ?? Date())
     }
 
+    /// "0.75 × 50 g = 37.5 g" — the food's serving size with the amount the
+    /// picked serving count works out to, so the user can judge the quantity
+    /// without remembering the food. `nil` for quick entries and recipes,
+    /// which carry no serving size.
+    private var servingSizeText: String? {
+        guard let size = entry.servingSize, let unit = entry.servingUnit else { return nil }
+        let count = String(format: "%.2g", servings)
+        let perServing = "\(MacroFormat.nutrient(size)) \(unit.displayName)"
+        let total = "\(MacroFormat.nutrient(size * servings)) \(unit.displayName)"
+        return "\(count) × \(perServing) = \(total)"
+    }
+
+    /// Per-serving macros resolved server-side (food/recipe) or stored on the
+    /// entry (quick add). `nil` when the entry predates a refresh and carries
+    /// no macros — the nutrition section is skipped rather than showing zeros.
+    private var perServingMacros: (calories: Double, protein: Double, carbs: Double, fat: Double, fiber: Double)? {
+        guard let calories = entry.calories ?? entry.quickCalories else { return nil }
+        return (
+            calories: calories,
+            protein: entry.protein ?? entry.quickProtein ?? 0,
+            carbs: entry.carbs ?? entry.quickCarbs ?? 0,
+            fat: entry.fat ?? entry.quickFat ?? 0,
+            fiber: entry.fiber ?? entry.quickFiber ?? 0
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -40,6 +66,15 @@ struct EntryEditSheet: View {
                                 .fontWeight(.medium)
                         }
                     }
+                    if let servingSizeText {
+                        HStack {
+                            Text(L10n.servingSize)
+                            Spacer()
+                            Text(servingSizeText)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
                     Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in
                             Text(L10n.mealName(meal)).tag(meal)
@@ -47,6 +82,16 @@ struct EntryEditSheet: View {
                     }
                     .pickerStyle(.menu)
                     DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                }
+
+                if let macros = perServingMacros {
+                    Section(L10n.nutrition) {
+                        NutrientRow(label: L10n.calories, value: macros.calories * servings, unit: "kcal")
+                        NutrientRow(label: L10n.protein, value: macros.protein * servings, unit: "g")
+                        NutrientRow(label: L10n.carbs, value: macros.carbs * servings, unit: "g")
+                        NutrientRow(label: L10n.fat, value: macros.fat * servings, unit: "g")
+                        NutrientRow(label: L10n.fiber, value: macros.fiber * servings, unit: "g")
+                    }
                 }
             }
             .navigationTitle(L10n.editEntry)
