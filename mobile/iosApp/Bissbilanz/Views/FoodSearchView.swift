@@ -244,9 +244,38 @@ struct FoodSearchView: View {
                 }
             }
         }
-        .onLongPressGesture {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            editingFood = food
+        // A bare long-press used to jump straight into editing, which gave no
+        // hint that tap and long-press did different things. A context menu
+        // names both actions instead, leaving tap as the fast path to logging.
+        .contextMenu {
+            Button {
+                selectedFood = food
+            } label: {
+                Label(L10n.logFood, systemImage: "plus.circle")
+            }
+            Button {
+                editingFood = food
+            } label: {
+                Label(L10n.editFood, systemImage: "pencil")
+            }
+            Button {
+                Task { await toggleFavorite(food) }
+            } label: {
+                Label(
+                    food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites,
+                    systemImage: food.isFavorite ? "star.slash" : "star"
+                )
+            }
+        }
+    }
+
+    private func toggleFavorite(_ food: Food) async {
+        do {
+            let updated = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: !food.isFavorite)
+            foodUpdated(updated)
+            await loadFavorites()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -319,15 +348,58 @@ struct FoodSearchView: View {
     }
 }
 
+/// Presentation wrapper for `LogFoodForm`: supplies the `NavigationStack` and
+/// Cancel button a flat sheet needs. Flows that push the form into their own
+/// stack (the barcode scanner) use `LogFoodForm` directly.
 struct LogFoodSheet: View {
-    @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
 
     let food: Food
+    let date: String
     /// Fired after a successful log, once this sheet has dismissed itself —
     /// lets a presenting flow (e.g. the barcode scanner) collapse its own
     /// sheet stack instead of leaving the user on an intermediate screen.
     var onLogged: (() -> Void)?
+    var showsDetailsLink = false
+
+    init(food: Food, date: String, showsDetailsLink: Bool = false, onLogged: (() -> Void)? = nil) {
+        self.food = food
+        self.date = date
+        self.showsDetailsLink = showsDetailsLink
+        self.onLogged = onLogged
+    }
+
+    var body: some View {
+        NavigationStack {
+            LogFoodForm(food: food, date: date, showsDetailsLink: showsDetailsLink) {
+                dismiss()
+                onLogged?()
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// Bare log form: no `NavigationStack`, no Cancel item, and it never dismisses
+/// itself — `@Environment(\.dismiss)` pops when pushed and dismisses when
+/// presented, so the enclosing container decides what happens after `onLogged`
+/// and one body stays correct in both modes.
+struct LogFoodForm: View {
+    @Environment(EntryRepository.self) private var entryRepository
+
+    let food: Food
+    /// Fired after a successful log; the enclosing flow dismisses (or pops)
+    /// from here.
+    var onLogged: () -> Void
+    /// Offers a link through to the food's detail page. Only for flows that
+    /// reach this form without passing the detail page on the way in — the
+    /// detail page presents this form itself, so linking back from there
+    /// would let the two stack on each other indefinitely.
+    var showsDetailsLink = false
 
     @State private var logDate: Date
     @State private var servings: Double = 1.0
@@ -336,89 +408,107 @@ struct LogFoodSheet: View {
     @State private var isLogging = false
     @State private var errorMessage: String?
 
-    init(food: Food, date: String, onLogged: (() -> Void)? = nil) {
+    init(food: Food, date: String, showsDetailsLink: Bool = false, onLogged: @escaping () -> Void = {}) {
         self.food = food
         self.onLogged = onLogged
+        self.showsDetailsLink = showsDetailsLink
         _logDate = State(initialValue: DateFormatting.date(from: date) ?? Date())
+    }
+
+    /// "2 × 100 g = 200 g" — without the total there is no way to tell what a
+    /// multiplier actually amounts to.
+    private var servingSizeText: String {
+        let count = MacroFormat.servings(servings)
+        let unit = food.servingUnit.displayName
+        let perServing = "\(MacroFormat.nutrient(food.servingSize)) \(unit)"
+        let total = "\(MacroFormat.nutrient(food.servingSize * servings)) \(unit)"
+        return "\(count) × \(perServing) = \(total)"
     }
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Text(food.name)
-                            .font(.headline)
-                        Spacer()
-                        if let brand = food.brand {
-                            Text(brand)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Section(L10n.servings) {
-                    HStack {
-                        Text("\(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)")
+        Form {
+            Section {
+                HStack {
+                    Text(food.name)
+                        .font(.headline)
+                    Spacer()
+                    if let brand = food.brand {
+                        Text(brand)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Stepper(value: $servings, in: 0.25 ... 20, step: 0.25) {
-                            Text("\(servings, specifier: "%.2g")x")
-                                .fontWeight(.medium)
-                        }
                     }
                 }
+            }
 
-                Section {
-                    Picker(L10n.meal, selection: $mealType) {
-                        ForEach(mealTypes, id: \.self) { meal in
-                            Text(L10n.mealName(meal)).tag(meal)
-                        }
+            Section(L10n.servings) {
+                ServingsField(servings: $servings)
+                HStack {
+                    Text(L10n.servingSize)
+                    Spacer()
+                    Text(servingSizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+
+            Section {
+                Picker(L10n.meal, selection: $mealType) {
+                    ForEach(mealTypes, id: \.self) { meal in
+                        Text(L10n.mealName(meal)).tag(meal)
                     }
-                    .pickerStyle(.menu)
-                    DatePicker(L10n.date, selection: $logDate, displayedComponents: .date)
-                    DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
-
-                Section(L10n.nutrition) {
-                    NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal")
-                    NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g")
-                    NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g")
-                    NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g")
-                    NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g")
-                }
-
-                NutrientSection(title: L10n.fatBreakdown, nutrients: scaled(food.fatBreakdownNutrients))
-                NutrientSection(title: L10n.sugarsCarbs, nutrients: scaled(food.sugarCarbNutrients))
-                NutrientSection(title: L10n.minerals, nutrients: scaled(food.mineralNutrients))
-                NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
-                NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
+                .pickerStyle(.menu)
+                DatePicker(L10n.date, selection: $logDate, displayedComponents: .date)
+                DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
             }
-            .navigationTitle(L10n.logFood)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
+
+            Section(L10n.nutrition) {
+                NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal")
+                NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g")
+                NutrientRow(label: L10n.carbs, value: food.carbs * servings, unit: "g")
+                NutrientRow(label: L10n.fat, value: food.fat * servings, unit: "g")
+                NutrientRow(label: L10n.fiber, value: food.fiber * servings, unit: "g")
+            }
+
+            NutrientSection(title: L10n.fatBreakdown, nutrients: scaled(food.fatBreakdownNutrients))
+            NutrientSection(title: L10n.sugarsCarbs, nutrients: scaled(food.sugarCarbNutrients))
+            NutrientSection(title: L10n.minerals, nutrients: scaled(food.mineralNutrients))
+            NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
+            NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
+        }
+        .navigationTitle(L10n.logFood)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(L10n.log) {
+                    Task { await logFood() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.log) {
-                        Task { await logFood() }
+                .disabled(isLogging)
+                .fontWeight(.semibold)
+            }
+            // Logging is the fast path, but the full detail — and the edit
+            // action on it — stays one tap away. Logging from the detail page
+            // completes this flow the same way logging here does.
+            ToolbarItem(placement: .topBarTrailing) {
+                if showsDetailsLink {
+                    NavigationLink {
+                        FoodDetailView(foodId: food.id, onLogged: onLogged)
+                    } label: {
+                        Image(systemName: "info.circle")
                     }
-                    .disabled(isLogging)
-                    .fontWeight(.semibold)
+                    .accessibilityLabel(L10n.details)
                 }
             }
-            .alert(
-                L10n.error,
-                isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
-            ) {
-                Button(L10n.ok, role: .cancel) {}
-            } message: {
-                if let errorMessage { Text(errorMessage) }
-            }
+        }
+        .alert(
+            L10n.error,
+            isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
         }
     }
 
@@ -433,8 +523,7 @@ struct LogFoodSheet: View {
         )
         do {
             try await entryRepository.createEntry(entry, food: food)
-            dismiss()
-            onLogged?()
+            onLogged()
         } catch {
             errorMessage = error.localizedDescription
         }

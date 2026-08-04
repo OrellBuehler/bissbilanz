@@ -41,6 +41,10 @@ enum L10n {
         localized("close", en: "Close", de: "Schließen")
     }
 
+    static var details: String {
+        localized("details", en: "Details", de: "Details")
+    }
+
     static var add: String {
         localized("add", en: "Add", de: "Hinzufügen")
     }
@@ -960,8 +964,32 @@ enum L10n {
     static var healthReadingFooter: String {
         localized(
             "health_reading_footer",
-            en: "Data recorded in Apple Health (e.g. by a smart scale or Apple Watch) is imported automatically. Sleep arrives with a neutral quality rating you can edit.",
-            de: "In Apple Health aufgezeichnete Daten (z. B. von einer smarten Waage oder der Apple Watch) werden automatisch importiert. Schlaf erhält eine neutrale, editierbare Qualitätsbewertung."
+            en: "Data recorded in Apple Health (e.g. by a smart scale or Apple Watch) is imported automatically. Apple doesn't share its own Sleep Score with other apps, so nights arrive with an estimate based on their duration, your usual bedtime and how often you woke — close to Apple's number, but not identical. You can edit it.",
+            de: "In Apple Health aufgezeichnete Daten (z. B. von einer smarten Waage oder der Apple Watch) werden automatisch importiert. Apple gibt den eigenen Schlafscore nicht an andere Apps weiter — Nächte erhalten deshalb einen Schätzwert aus Dauer, üblicher Schlafenszeit und Aufwachvorgängen. Er liegt nahe an Apples Wert, ist aber nicht identisch, und lässt sich bearbeiten."
+        )
+    }
+
+    static var healthReimportSleep: String {
+        localized(
+            "health_reimport_sleep",
+            en: "Re-import Nights from Health",
+            de: "Nächte aus Health neu importieren"
+        )
+    }
+
+    static var healthReimportSleepConfirm: String {
+        localized(
+            "health_reimport_sleep_confirm",
+            en: "Replace the last 90 days of sleep entries with what Apple Health has recorded. Nights you edited by hand and nights Health has no record of will be overwritten or left behind.",
+            de: "Ersetzt die Schlafeinträge der letzten 90 Tage durch die Aufzeichnungen aus Apple Health. Von Hand bearbeitete Nächte und Nächte ohne Health-Aufzeichnung werden überschrieben bzw. bleiben unverändert."
+        )
+    }
+
+    static func healthReimportSleepResult(_ count: Int) -> String {
+        localized(
+            "health_reimport_sleep_result",
+            en: count == 1 ? "1 night updated" : "\(count) nights updated",
+            de: count == 1 ? "1 Nacht aktualisiert" : "\(count) Nächte aktualisiert"
         )
     }
 
@@ -1029,6 +1057,14 @@ enum L10n {
 
     static var torch: String {
         localized("torch", en: "Torch", de: "Taschenlampe")
+    }
+
+    static var torchOn: String {
+        localized("torch_on", en: "Turn on torch", de: "Taschenlampe einschalten")
+    }
+
+    static var torchOff: String {
+        localized("torch_off", en: "Turn off torch", de: "Taschenlampe ausschalten")
     }
 
     // MARK: - Nutrition label scanner

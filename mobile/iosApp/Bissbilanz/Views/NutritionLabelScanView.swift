@@ -2,7 +2,9 @@ import PhotosUI
 import SwiftUI
 
 /// Captures or picks a photo of a nutrition-facts panel, runs on-device OCR,
-/// and hands the parsed values back for confirmation in `FoodEditSheet`.
+/// and hands the parsed values back for confirmation in `FoodEditForm`.
+/// Always pushed into the enclosing stack — the system back button covers
+/// cancellation, and `dismiss()` pops back to the form once values parse.
 ///
 /// A library photo needs no camera permission (`PhotosPicker` is out of
 /// process); the camera path reuses the existing `NSCameraUsageDescription`.
@@ -18,79 +20,72 @@ struct NutritionLabelScanView: View {
     private let scanner = NutritionLabelScanner()
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
+        VStack(spacing: 24) {
+            Spacer()
 
-                Image(systemName: "doc.text.viewfinder")
-                    .font(.system(size: 56))
+            Image(systemName: "doc.text.viewfinder")
+                .font(.system(size: 56))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 6) {
+                Text(L10n.scanLabel)
+                    .font(.headline)
+                Text(L10n.scanLabelHint)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
-                VStack(spacing: 6) {
-                    Text(L10n.scanLabel)
-                        .font(.headline)
-                    Text(L10n.scanLabelHint)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-
-                if isProcessing {
-                    ProgressView(L10n.scanningLabel)
-                        .padding(.top, 8)
-                } else {
-                    VStack(spacing: 12) {
-                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                            Button {
-                                showCamera = true
-                            } label: {
-                                Label(L10n.takePhoto, systemImage: "camera")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
+            if isProcessing {
+                ProgressView(L10n.scanningLabel)
+                    .padding(.top, 8)
+            } else {
+                VStack(spacing: 12) {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Label(L10n.takePhoto, systemImage: "camera")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                     }
-                    .padding(.horizontal, 40)
-                }
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
+                .padding(.horizontal, 40)
+            }
 
-                Spacer()
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
-            .padding()
-            .navigationTitle(L10n.scanLabel)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
-                }
-            }
-            .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker(
-                    onImage: { image in
-                        showCamera = false
-                        process(image)
-                    },
-                    onCancel: { showCamera = false }
-                )
-                .ignoresSafeArea()
-            }
-            .onChange(of: photoItem) { _, item in
-                guard let item else { return }
-                loadPhoto(item)
-            }
+
+            Spacer()
+        }
+        .padding()
+        .navigationTitle(L10n.scanLabel)
+        .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker(
+                onImage: { image in
+                    showCamera = false
+                    process(image)
+                },
+                onCancel: { showCamera = false }
+            )
+            .ignoresSafeArea()
+        }
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            loadPhoto(item)
         }
     }
 

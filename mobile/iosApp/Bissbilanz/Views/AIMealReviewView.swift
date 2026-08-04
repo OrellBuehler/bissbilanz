@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// Editable review of an `AIMealSheet` estimate before logging. Matched items
-/// log against the matched food (by servings, falling back to a grams/serving
-/// size conversion); everything else logs as a quick entry with the AI's
-/// macro estimate. `onLogged` reports how many items were logged so the
-/// presenting screen (Dashboard/DayLog) can show its own toast.
+/// Editable review of an `AIMealSheet` estimate before logging, pushed within
+/// that sheet's stack (Back returns to the form). Matched items log against
+/// the matched food (by servings, falling back to a grams/serving size
+/// conversion); everything else logs as a quick entry with the AI's macro
+/// estimate. `onLogged` reports how many items were logged so the presenting
+/// screen (Dashboard/DayLog) can show its own toast; the sheet tears itself
+/// down from that callback.
 struct AIMealReviewView: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(FoodRepository.self) private var foodRepository
-    @Environment(\.dismiss) private var dismiss
 
     let estimate: MealEstimate
     let date: String
@@ -63,9 +64,6 @@ struct AIMealReviewView: View {
         .navigationTitle(L10n.aiMealReviewTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(L10n.cancel) { dismiss() }
-            }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L10n.aiMealLogItems(includedCount)) {
                     Task { await logAll() }
@@ -176,7 +174,6 @@ struct AIMealReviewView: View {
         isLogging = false
         if loggedCount > 0 {
             onLogged(loggedCount)
-            dismiss()
         } else {
             errorMessage = L10n.failedToLog
         }

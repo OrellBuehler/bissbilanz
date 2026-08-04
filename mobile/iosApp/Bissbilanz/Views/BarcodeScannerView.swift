@@ -11,28 +11,85 @@ struct BarcodeScannerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var scannedBarcode: String?
-    @State private var foundFood: Food?
     @State private var isSearching = false
     @State private var notFound = false
-    @State private var notFoundBarcode: String?
-    @State private var showCreateFood = false
-    // Holds a freshly created food until the create sheet has fully dismissed,
-    // so its detail isn't presented mid-dismissal (which races into an empty
-    // sheet).
-    @State private var pendingCreatedFood: Food?
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var isTorchOn = false
+    /// The flow after a scan lives in this stack's path: one sheet, pushed
+    /// steps. Back returns to the previous step; closing the sheet at any
+    /// depth discards the whole flow.
+    @State private var path: [ScanStep] = []
+
+    private enum ScanStep: Hashable {
+        case create(barcode: String?)
+        case log(Food)
+    }
 
     /// VisionKit's DataScanner is used on supported hardware; the AVFoundation
     /// preview is the fallback (notably the Simulator, where isSupported is
     /// false). Evaluated once — device capability does not change at runtime.
     private let useDataScanner = DataScannerViewController.isSupported
 
+    /// The back camera, when it has a lamp. DataScannerViewController exposes
+    /// no torch control of its own, but the torch belongs to the capture
+    /// device rather than to the session, so setting it here lights the same
+    /// lamp the scanner is looking through.
+    private let torchDevice = AVCaptureDevice.default(for: .video).flatMap { $0.hasTorch ? $0 : nil }
+
     var body: some View {
+        NavigationStack(path: $path) {
+            scannerRoot
+                .navigationDestination(for: ScanStep.self) { step in
+                    switch step {
+                    case let .create(barcode):
+                        // Replace, don't append, once the food is saved: the
+                        // form is spent and the food exists now, so Back from
+                        // the log step must land on the camera, not on a form
+                        // that would create a duplicate.
+                        FoodEditForm(barcode: barcode) { created in
+                            path = [.log(created)]
+                        }
+                    case let .log(food):
+                        // Scanning a barcode is a logging shortcut, so a hit
+                        // goes straight to the log step instead of parking on
+                        // the food's detail page and making logging a second
+                        // tap. After a successful log the whole flow collapses
+                        // — dismiss() captures the sheet root's dismiss, so it
+                        // tears down the entire presentation regardless of
+                        // depth. Back returns to the camera for the next item.
+                        LogFoodForm(
+                            food: food,
+                            date: DateFormatting.today,
+                            showsDetailsLink: true,
+                            onLogged: { dismiss() }
+                        )
+                    }
+                }
+        }
+        .onChange(of: path.isEmpty) { _, atScanner in
+            if atScanner {
+                resetScanner()
+            } else {
+                // A pushed step covers the camera; leaving the lamp lit behind
+                // it would disagree with the toolbar icon on the way back.
+                isTorchOn = false
+            }
+        }
+        .onDisappear {
+            // Leaving the scanner with the lamp still burning is nobody's idea
+            // of a good time — the fallback path's session teardown does this
+            // for itself, DataScanner's does not.
+            if useDataScanner, isTorchOn {
+                setTorch(false)
+            }
+        }
+    }
+
+    private var scannerRoot: some View {
         ZStack {
             if cameraPermission == .authorized {
                 if useDataScanner {
-                    DataScannerView(onBarcodeScanned: handleBarcode)
+                    DataScannerView(onBarcodeScanned: handleBarcode, isActive: path.isEmpty)
                         .ignoresSafeArea()
                 } else {
                     CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: $isTorchOn)
@@ -79,7 +136,7 @@ struct BarcodeScannerView: View {
 
                             Button {
                                 notFound = false
-                                showCreateFood = true
+                                path.append(.create(barcode: scannedBarcode))
                             } label: {
                                 Label(L10n.createFoodForBarcode, systemImage: "plus.circle")
                             }
@@ -102,62 +159,28 @@ struct BarcodeScannerView: View {
                 Button(L10n.close) { dismiss() }
             }
             ToolbarItem(placement: .primaryAction) {
-                // DataScannerViewController owns its capture session and exposes
-                // no torch control, so the flashlight is offered only on the
-                // AVFoundation fallback path.
-                if cameraPermission == .authorized, !useDataScanner {
+                if cameraPermission == .authorized, torchDevice != nil {
                     Button {
                         isTorchOn.toggle()
                     } label: {
                         Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
                             .foregroundStyle(isTorchOn ? .yellow : .white)
                     }
+                    .accessibilityLabel(isTorchOn ? L10n.torchOff : L10n.torchOn)
                 }
             }
+        }
+        // The fallback path applies the torch through CameraPreviewView, which
+        // owns its device; on the DataScanner path nothing else would.
+        .onChange(of: isTorchOn) { _, isOn in
+            guard useDataScanner else { return }
+            setTorch(isOn)
         }
         .task {
             cameraPermission = AVCaptureDevice.authorizationStatus(for: .video)
             if cameraPermission == .notDetermined {
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 cameraPermission = granted ? .authorized : .denied
-            }
-        }
-        .sheet(item: $foundFood) { food in
-            NavigationStack {
-                // After a successful log the whole flow collapses — log sheet,
-                // this detail sheet and the scanner itself — back to where the
-                // scan started. Closing the detail sheet manually (no log)
-                // still returns to the scanner for the next item.
-                FoodDetailView(foodId: food.id, onLogged: { dismiss() })
-            }
-        }
-        .onChange(of: foundFood) { _, newValue in
-            if newValue == nil { resetScanner() }
-        }
-        .sheet(isPresented: $showCreateFood, onDismiss: {
-            // Chain to the new food's detail only after the create sheet has
-            // finished dismissing; presenting during the dismissal animation
-            // surfaces an empty sheet. A dismissal with nothing pending means
-            // the user cancelled — resume scanning.
-            if let created = pendingCreatedFood {
-                pendingCreatedFood = nil
-                // onDismiss can fire before the sheet's dismissal transition has
-                // fully torn down, so presenting the detail sheet immediately
-                // races into a blank sheet on some devices (deferring within the
-                // same runloop is not enough). Wait out the transition first.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    foundFood = created
-                }
-            } else {
-                resetScanner()
-            }
-        }) {
-            NavigationStack {
-                FoodEditSheet(barcode: notFoundBarcode) { food in
-                    pendingCreatedFood = food
-                    scannedBarcode = nil
-                    notFoundBarcode = nil
-                }
             }
         }
     }
@@ -190,8 +213,16 @@ struct BarcodeScannerView: View {
         .padding()
     }
 
+    private func setTorch(_ isOn: Bool) {
+        guard let torchDevice, (try? torchDevice.lockForConfiguration()) != nil else { return }
+        torchDevice.torchMode = isOn ? .on : .off
+        torchDevice.unlockForConfiguration()
+    }
+
     private func handleBarcode(_ barcode: String) {
-        guard scannedBarcode == nil else { return }
+        // The camera stays in the view tree while a step is pushed — the
+        // path.isEmpty guard keeps stray detections from firing behind it.
+        guard scannedBarcode == nil, path.isEmpty else { return }
         scannedBarcode = barcode
         isSearching = true
         notFound = false
@@ -201,7 +232,7 @@ struct BarcodeScannerView: View {
         Task {
             do {
                 if let food = try await foodRepository.findByBarcode(barcode) {
-                    foundFood = food
+                    path.append(.log(food))
                 } else if let food = try await lookupOpenFoodFacts(barcode) {
                     // Found in Open Food Facts - create locally
                     let created = try await foodRepository.createFood(FoodCreate(
@@ -220,14 +251,12 @@ struct BarcodeScannerView: View {
                         additives: food.additives,
                         ingredientsText: food.ingredientsText
                     ))
-                    foundFood = created
+                    path.append(.log(created))
                 } else {
-                    notFoundBarcode = barcode
                     notFound = true
                     UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 }
             } catch {
-                notFoundBarcode = barcode
                 notFound = true
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
@@ -248,7 +277,6 @@ struct BarcodeScannerView: View {
     private func resetScanner() {
         scannedBarcode = nil
         notFound = false
-        notFoundBarcode = nil
     }
 }
 

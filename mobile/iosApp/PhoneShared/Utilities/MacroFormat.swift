@@ -31,4 +31,12 @@ enum MacroFormat {
     static func percent(_ value: Double) -> String {
         "\(Int(value))%"
     }
+
+    /// A serving multiplier: whole numbers bare, fractions to as many places
+    /// as they need. The old "%.2g" kept only two significant digits, which
+    /// was fine while multipliers moved in quarters but rendered 12.5x as
+    /// "12" once arbitrary ones became possible.
+    static func servings(_ value: Double) -> String {
+        value == value.rounded() ? "\(Int(value))" : String(format: "%g", value)
+    }
 }

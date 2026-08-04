@@ -269,9 +269,9 @@ final class HealthKitService {
         let asleepMinutes: Int
         let wakeUps: Int
         /// Estimated 1–10 quality. Apple's own Sleep Score isn't exposed
-        /// through public HealthKit, so this is derived from sleep efficiency
-        /// penalised by the awakening count — see `derivedQuality`. It stays a
-        /// real, editable rating instead of a flat placeholder.
+        /// through public HealthKit, so this estimates it from duration,
+        /// bedtime consistency and awakenings — see `derivedQuality`. It stays
+        /// a real, editable rating instead of a flat placeholder.
         let quality: Double
     }
 
@@ -349,28 +349,73 @@ final class HealthKitService {
     /// Sessions shorter than this are ignored — micro-naps aren't a night.
     nonisolated static let minimumNightMinutes = 30
 
-    /// Each awakening shaves this much off the 1–10 quality estimate…
-    nonisolated static let wakeUpQualityPenalty = 0.3
+    // MARK: - Quality estimate
 
-    /// …but the combined wake-up penalty never exceeds this, so a fragmented
-    /// night still keeps a score driven mostly by how much of the time in bed
-    /// was actually spent asleep.
-    nonisolated static let maxWakeUpQualityPenalty = 2.0
+    /// The three components Apple publishes for its Sleep Score, and the
+    /// points each contributes out of 100.
+    nonisolated static let durationPoints = 50.0
+    nonisolated static let consistencyPoints = 30.0
+    nonisolated static let interruptionPoints = 20.0
 
-    /// Estimates a 1–10 quality for an imported night. Apple's own Sleep Score
-    /// isn't readable through public HealthKit (it's a Health-app metric, not a
-    /// sample type), so quality is derived from sleep efficiency — asleep
-    /// minutes over time in bed — scaled onto the 1–10 range and penalised by
-    /// the number of awakenings. The result is clamped to 1.0…10.0 and rounded
-    /// to one decimal so it always satisfies the server's `1..10` CHECK (a 0 or
-    /// >10 value would be rejected and the sync op dropped). Example: 97%
-    /// efficiency with no awakenings maps to 9.7.
-    nonisolated static func derivedQuality(asleepMinutes: Int, timeInBedMinutes: Int, wakeUps: Int) -> Double {
-        let inBed = max(timeInBedMinutes, asleepMinutes, 1)
-        let efficiency = min(Double(asleepMinutes) / Double(inBed), 1.0)
-        let penalty = min(Double(max(wakeUps, 0)) * wakeUpQualityPenalty, maxWakeUpQualityPenalty)
-        let score = efficiency * 10 - penalty
-        let clamped = min(max(score, 1.0), 10.0)
+    /// Apple stops deducting duration points once a night reaches 7h50m.
+    nonisolated static let targetSleepMinutes = 470
+
+    /// Duration points lost for every two hours slept below the target.
+    nonisolated static let durationPenaltyPerTwoHours = 13.0
+
+    /// Interruption points lost per awakening.
+    nonisolated static let interruptionPenaltyPerWakeUp = 4.0
+
+    /// Bedtimes within this of the usual one keep full consistency points.
+    nonisolated static let bedtimeConsistencyGraceMinutes = 30.0
+
+    /// Past the grace window, consistency points are lost at this rate — a
+    /// full hour beyond it costs the whole component.
+    nonisolated static let consistencyPenaltyPerMinute = 0.5
+
+    /// Bedtime consistency is only scored once the window holds this many
+    /// nights; below that there is no habit to compare against.
+    nonisolated static let minimumNightsForConsistency = 3
+
+    /// Estimates a 1–10 quality for an imported night, modelled on the
+    /// breakdown Apple publishes for its own Sleep Score: 50 points for
+    /// duration, 30 for bedtime consistency, 20 for interruptions. Apple's
+    /// score itself isn't readable through public HealthKit (it's a Health-app
+    /// metric, not a sample type), so this estimates it from the same inputs
+    /// and scales the total onto the 1–10 range the app and the server's
+    /// `1..10` CHECK use — a 0 or >10 value would be rejected and the sync op
+    /// dropped.
+    ///
+    /// Duration is deliberately the dominant term. The previous estimate used
+    /// sleep efficiency alone, which ignored how long the night actually was
+    /// and so scored a three-hour night that happened to be uninterrupted a
+    /// perfect 10.
+    ///
+    /// `bedtimeOffsetMinutes` is how far this night's bedtime sits from the
+    /// user's usual one. Pass nil when there isn't enough history to know,
+    /// which awards the component in full rather than guessing at it.
+    nonisolated static func derivedQuality(
+        asleepMinutes: Int,
+        wakeUps: Int,
+        bedtimeOffsetMinutes: Double? = nil
+    ) -> Double {
+        let shortfall = max(Double(targetSleepMinutes - asleepMinutes), 0)
+        let duration = max(durationPoints - shortfall / 120 * durationPenaltyPerTwoHours, 0)
+
+        let interruptions = max(
+            interruptionPoints - Double(max(wakeUps, 0)) * interruptionPenaltyPerWakeUp,
+            0
+        )
+
+        let consistency: Double
+        if let bedtimeOffsetMinutes {
+            let excess = max(abs(bedtimeOffsetMinutes) - bedtimeConsistencyGraceMinutes, 0)
+            consistency = max(consistencyPoints - excess * consistencyPenaltyPerMinute, 0)
+        } else {
+            consistency = consistencyPoints
+        }
+
+        let clamped = min(max((duration + consistency + interruptions) / 10, 1.0), 10.0)
         return (clamped * 10).rounded() / 10
     }
 
@@ -395,7 +440,7 @@ final class HealthKitService {
             }
         }
 
-        var bestPerDay: [String: SleepNight] = [:]
+        var bestPerDay: [String: NightAggregate] = [:]
         for session in sessions {
             guard let bedtime = session.map(\.start).min(),
                   let wakeTime = session.map(\.end).max()
@@ -407,26 +452,82 @@ final class HealthKitService {
             let asleepMinutes = asleep.isEmpty ? totalMinutes(of: inBed) : totalMinutes(of: asleep)
             guard asleepMinutes >= minimumNightMinutes else { continue }
 
-            let cappedAsleep = min(asleepMinutes, 1440)
-            let timeInBedMinutes = Int(wakeTime.timeIntervalSince(bedtime) / 60)
-            let night = SleepNight(
+            let aggregate = NightAggregate(
                 entryDate: DateFormatting.isoString(from: wakeTime),
                 bedtime: bedtime,
                 wakeTime: wakeTime,
-                asleepMinutes: cappedAsleep,
-                wakeUps: awake.count,
-                quality: derivedQuality(
-                    asleepMinutes: cappedAsleep,
-                    timeInBedMinutes: timeInBedMinutes,
-                    wakeUps: awake.count
-                )
+                asleepMinutes: min(asleepMinutes, 1440),
+                wakeUps: awake.count
             )
-            if let existing = bestPerDay[night.entryDate], existing.asleepMinutes >= night.asleepMinutes {
+            if let existing = bestPerDay[aggregate.entryDate], existing.asleepMinutes >= aggregate.asleepMinutes {
                 continue
             }
-            bestPerDay[night.entryDate] = night
+            bestPerDay[aggregate.entryDate] = aggregate
         }
-        return bestPerDay.values.sorted { $0.wakeTime < $1.wakeTime }
+
+        // Quality is scored only once every night in the window is known —
+        // bedtime consistency compares each night against the others.
+        let aggregates = bestPerDay.values.sorted { $0.wakeTime < $1.wakeTime }
+        let usualBedtime = typicalBedtimeMinutes(of: aggregates)
+        return aggregates.map { aggregate in
+            SleepNight(
+                entryDate: aggregate.entryDate,
+                bedtime: aggregate.bedtime,
+                wakeTime: aggregate.wakeTime,
+                asleepMinutes: aggregate.asleepMinutes,
+                wakeUps: aggregate.wakeUps,
+                quality: derivedQuality(
+                    asleepMinutes: aggregate.asleepMinutes,
+                    wakeUps: aggregate.wakeUps,
+                    bedtimeOffsetMinutes: usualBedtime.map {
+                        bedtimeOffset(of: aggregate.bedtime, from: $0)
+                    }
+                )
+            )
+        }
+    }
+
+    /// A night before its quality is scored.
+    private struct NightAggregate {
+        let entryDate: String
+        let bedtime: Date
+        let wakeTime: Date
+        let asleepMinutes: Int
+        let wakeUps: Int
+    }
+
+    /// The user's usual bedtime as minutes since midnight, averaged around the
+    /// clock face so bedtimes either side of midnight (23:40 and 00:20)
+    /// average to midnight rather than to midday. Nil when the window holds
+    /// too few nights to call anything usual.
+    private nonisolated static func typicalBedtimeMinutes(of nights: [NightAggregate]) -> Double? {
+        guard nights.count >= minimumNightsForConsistency else { return nil }
+        var x = 0.0
+        var y = 0.0
+        for night in nights {
+            let angle = minutesOfDay(night.bedtime) / 1440 * 2 * .pi
+            x += cos(angle)
+            y += sin(angle)
+        }
+        // Bedtimes spread evenly around the clock cancel out, leaving no
+        // meaningful average to compare against.
+        guard x != 0 || y != 0 else { return nil }
+        let minutes = atan2(y, x) / (2 * .pi) * 1440
+        return minutes < 0 ? minutes + 1440 : minutes
+    }
+
+    private nonisolated static func minutesOfDay(_ date: Date) -> Double {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))
+    }
+
+    /// How far a bedtime sits from the usual one, taking the short way around
+    /// the clock so 23:50 against 00:10 is 20 minutes, not 1420.
+    private nonisolated static func bedtimeOffset(of bedtime: Date, from usual: Double) -> Double {
+        let difference = (minutesOfDay(bedtime) - usual).truncatingRemainder(dividingBy: 1440)
+        if difference > 720 { return difference - 1440 }
+        if difference < -720 { return difference + 1440 }
+        return difference
     }
 
     /// Overlapping or touching intervals merged into disjoint ones.
@@ -445,9 +546,12 @@ final class HealthKitService {
         return merged
     }
 
+    /// Truncated rather than rounded: Apple Health drops the leftover seconds
+    /// when it shows whole minutes slept, and rounding made the app read a
+    /// minute longer than Health for the same night.
     private nonisolated static func totalMinutes(of intervals: [(start: Date, end: Date)]) -> Int {
         let seconds = intervals.reduce(0.0) { $0 + $1.end.timeIntervalSince($1.start) }
-        return Int((seconds / 60).rounded())
+        return Int(seconds / 60)
     }
 
     func fetchLatestWeight() async throws -> Double? {
