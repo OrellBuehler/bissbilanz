@@ -38,7 +38,7 @@
 	"devDependencies": {
 		"@internationalized/date": "^3.12.2",
 		"@j178/prek": "^0.4.5",
-		"@lucide/svelte": "^1.18.0",
+		"@lucide/svelte": "^1.30.0",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/kit": "^2.66.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
