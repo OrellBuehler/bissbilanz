@@ -30,12 +30,6 @@ struct BarcodeScannerView: View {
     /// false). Evaluated once — device capability does not change at runtime.
     private let useDataScanner = DataScannerViewController.isSupported
 
-    /// The back camera, when it has a lamp. DataScannerViewController exposes
-    /// no torch control of its own, but the torch belongs to the capture
-    /// device rather than to the session, so setting it here lights the same
-    /// lamp the scanner is looking through.
-    private let torchDevice = AVCaptureDevice.default(for: .video).flatMap { $0.hasTorch ? $0 : nil }
-
     var body: some View {
         NavigationStack(path: $path) {
             scannerRoot
@@ -70,17 +64,10 @@ struct BarcodeScannerView: View {
             if atScanner {
                 resetScanner()
             } else {
-                // A pushed step covers the camera; leaving the lamp lit behind
-                // it would disagree with the toolbar icon on the way back.
+                // A pushed step covers the camera, which stops the session and
+                // takes the lamp out with it; the icon has to agree on the way
+                // back.
                 isTorchOn = false
-            }
-        }
-        .onDisappear {
-            // Leaving the scanner with the lamp still burning is nobody's idea
-            // of a good time — the fallback path's session teardown does this
-            // for itself, DataScanner's does not.
-            if useDataScanner, isTorchOn {
-                setTorch(false)
             }
         }
     }
@@ -89,10 +76,14 @@ struct BarcodeScannerView: View {
         ZStack {
             if cameraPermission == .authorized {
                 if useDataScanner {
-                    DataScannerView(onBarcodeScanned: handleBarcode, isActive: path.isEmpty)
-                        .ignoresSafeArea()
+                    DataScannerView(
+                        onBarcodeScanned: handleBarcode,
+                        isActive: path.isEmpty,
+                        isTorchOn: isTorchOn
+                    )
+                    .ignoresSafeArea()
                 } else {
-                    CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: $isTorchOn)
+                    CameraPreviewView(onBarcodeScanned: handleBarcode, isTorchOn: isTorchOn)
                         .ignoresSafeArea()
 
                     viewfinder
@@ -159,7 +150,7 @@ struct BarcodeScannerView: View {
                 Button(L10n.close) { dismiss() }
             }
             ToolbarItem(placement: .primaryAction) {
-                if cameraPermission == .authorized, torchDevice != nil {
+                if cameraPermission == .authorized, ScannerTorch.isAvailable {
                     Button {
                         isTorchOn.toggle()
                     } label: {
@@ -169,12 +160,6 @@ struct BarcodeScannerView: View {
                     .accessibilityLabel(isTorchOn ? L10n.torchOff : L10n.torchOn)
                 }
             }
-        }
-        // The fallback path applies the torch through CameraPreviewView, which
-        // owns its device; on the DataScanner path nothing else would.
-        .onChange(of: isTorchOn) { _, isOn in
-            guard useDataScanner else { return }
-            setTorch(isOn)
         }
         .task {
             cameraPermission = AVCaptureDevice.authorizationStatus(for: .video)
@@ -211,12 +196,6 @@ struct BarcodeScannerView: View {
             .buttonStyle(.bordered)
         }
         .padding()
-    }
-
-    private func setTorch(_ isOn: Bool) {
-        guard let torchDevice, (try? torchDevice.lockForConfiguration()) != nil else { return }
-        torchDevice.torchMode = isOn ? .on : .off
-        torchDevice.unlockForConfiguration()
     }
 
     private func handleBarcode(_ barcode: String) {
@@ -284,7 +263,7 @@ struct BarcodeScannerView: View {
 
 struct CameraPreviewView: UIViewRepresentable {
     let onBarcodeScanned: (String) -> Void
-    @Binding var isTorchOn: Bool
+    var isTorchOn = false
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
@@ -325,11 +304,7 @@ struct CameraPreviewView: UIViewRepresentable {
         // Update preview layer frame to match actual view bounds
         context.coordinator.previewLayer?.frame = uiView.bounds
 
-        // Update torch
-        guard let device = context.coordinator.device, device.hasTorch else { return }
-        try? device.lockForConfiguration()
-        device.torchMode = isTorchOn ? .on : .off
-        device.unlockForConfiguration()
+        ScannerTorch.set(isTorchOn, on: context.coordinator.device)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -360,10 +335,66 @@ struct CameraPreviewView: UIViewRepresentable {
 
     static func dismantleUIView(_: UIView, coordinator: Coordinator) {
         coordinator.session?.stopRunning()
-        if let device = coordinator.device, device.hasTorch, device.torchMode == .on {
-            try? device.lockForConfiguration()
+        ScannerTorch.set(false, on: coordinator.device)
+    }
+}
+
+// MARK: - Torch
+
+/// The lamp belongs to the capture device, not to the session, which is how a
+/// torch button can exist at all on the VisionKit path — DataScannerViewController
+/// exposes no torch control, but the device underneath it does.
+///
+/// Reaching for a device a running session owns has to be done sparingly. Every
+/// `lockForConfiguration` contends with the focus and exposure adjustments the
+/// session is making continuously, so the scanner views re-apply their wanted
+/// state on each update and this decides when that actually costs anything.
+enum ScannerTorch {
+    /// The default video device, when it has a lamp. Resolved once:
+    /// `AVCaptureDevice.default(for:)` is not cheap, the SwiftUI views asking
+    /// for it are re-created constantly, and the hardware does not change while
+    /// the app runs.
+    ///
+    /// `nonisolated(unsafe)` because `AVCaptureDevice` is not `Sendable`; the
+    /// handle is written once and every caller is on the main actor anyway.
+    nonisolated(unsafe) static let device: AVCaptureDevice? =
+        AVCaptureDevice.default(for: .video).flatMap { $0.hasTorch ? $0 : nil }
+
+    static var isAvailable: Bool { device != nil }
+
+    /// Full power is the first thing the system throttles when the lamp heats
+    /// up, and it is far more than a barcode at arm's length needs. Backing off
+    /// keeps the capture pipeline out of thermal pressure, which is what stalls
+    /// the preview.
+    private static let level: Float = 0.6
+
+    @discardableResult
+    static func set(_ isOn: Bool) -> Bool {
+        set(isOn, on: device)
+    }
+
+    /// Returns whether the lamp is lit afterwards — not always what was asked
+    /// for, since a device can refuse. Takes the device explicitly for the
+    /// AVFoundation fallback, which opens its own.
+    @discardableResult
+    static func set(_ isOn: Bool, on device: AVCaptureDevice?) -> Bool {
+        guard let device, device.hasTorch else { return false }
+        // Callers re-apply on every view update; a lamp already in the wanted
+        // state is left alone rather than re-locking the running device. Read
+        // through `isTorchActive`, not `torchMode`: the mode survives a session
+        // restart that put the lamp out, so only the former notices that the
+        // state needs applying again.
+        guard isOn != device.isTorchActive else { return isOn }
+        guard (try? device.lockForConfiguration()) != nil else { return false }
+        defer { device.unlockForConfiguration() }
+
+        guard isOn else {
             device.torchMode = .off
-            device.unlockForConfiguration()
+            return false
         }
+        // The lamp reports itself unavailable while it cools down, and setting
+        // the mode regardless raises rather than lights anything.
+        guard device.isTorchAvailable, device.isTorchModeSupported(.on) else { return false }
+        return (try? device.setTorchModeOn(level: level)) != nil
     }
 }
