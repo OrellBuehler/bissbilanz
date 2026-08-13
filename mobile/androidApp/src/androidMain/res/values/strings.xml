@@ -491,6 +491,7 @@
     <string name="settings_local_mode_desc">Local mode — data only on this device</string>
     <string name="settings_sign_in_to_sync">Sign in to sync</string>
     <string name="settings_sign_out">Sign out</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_nav_go">Go</string>
 

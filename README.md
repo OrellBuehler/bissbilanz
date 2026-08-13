@@ -11,6 +11,7 @@ A calorie and macro tracking application with AI-assisted food logging.
 - **Barcode Scanning** — Quickly add foods by scanning barcodes (via Open Food Facts)
 - **AI-Assisted Logging** — Use AI agents via MCP to help log meals
 - **Offline Support** — Full PWA support for offline access
+- **Native Mobile Apps** — Android (Jetpack Compose) and iOS (SwiftUI) apps with offline sync, widgets, watch app, and an optional local-only mode
 - **Multilingual** — Available in English and German
 
 ## Tech Stack
