@@ -40,6 +40,10 @@ export function createTtlStore<T extends object>(ttlMs: number): TtlStore<T> {
 export type WebAuthTransaction = {
 	nonce: string;
 	provider: string;
+	/** 'link' connects the identity to an already signed-in user instead of signing in. */
+	flow: 'login' | 'link';
+	/** Captured when the flow starts, because Apple's POST callback has no session cookie. */
+	userId?: string;
 };
 
 const WEB_TRANSACTION_TTL_MS = 10 * 60 * 1000;

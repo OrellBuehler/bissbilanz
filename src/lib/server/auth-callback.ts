@@ -4,12 +4,12 @@ import { config } from './env';
 import { getProvider, type ProviderConfig, type ProviderProfile } from './auth-providers';
 import { exchangeCodeForTokens, fetchUserInfo, type TokenResponse } from './oidc';
 import { verifyIdToken } from './oidc-jwt';
-import { findOrCreateUserByIdentity } from './auth-account';
+import { findOrCreateUserByIdentity, linkIdentity, IdentityConflictError } from './auth-account';
 import { createSession } from './session';
 import { assertState } from './oidc-validate';
 import { rateLimit } from './rate-limit';
 import { consumePendingState, createOneTimeCode } from './mobile-auth';
-import { consumeWebTransaction } from './auth-transactions';
+import { consumeWebTransaction, type WebAuthTransaction } from './auth-transactions';
 import { extractLocaleFromHeader, isLocale } from '$lib/paraglide/runtime';
 
 export function requireProvider(providerId: string): ProviderConfig {
@@ -96,6 +96,33 @@ export async function startSession(input: {
 	});
 }
 
+const SETTINGS_PATH = '/settings';
+
+/**
+ * Completes a link flow: attaches the identity to the signed-in user and returns
+ * to settings with the outcome, rather than touching the session at all.
+ */
+async function completeLink(
+	transaction: WebAuthTransaction,
+	provider: ProviderConfig,
+	profile: ProviderProfile
+): Promise<never> {
+	if (transaction.provider !== provider.id || !transaction.userId) {
+		throw error(400, 'Invalid or expired state');
+	}
+
+	try {
+		await linkIdentity(transaction.userId, provider.id, profile);
+	} catch (e) {
+		if (e instanceof IdentityConflictError) {
+			throw redirect(303, `${SETTINGS_PATH}?link_error=conflict`);
+		}
+		throw e;
+	}
+
+	throw redirect(303, `${SETTINGS_PATH}?linked=${provider.id}`);
+}
+
 export function clearOidcCookies(cookies: Cookies) {
 	cookies.delete('oidc_state', { path: '/' });
 	cookies.delete('oidc_nonce', { path: '/' });
@@ -134,6 +161,12 @@ export async function handleWebCallback(input: {
 	});
 
 	clearOidcCookies(input.cookies);
+
+	// Only link flows leave a transaction behind; a plain sign-in has none.
+	const transaction = input.state ? consumeWebTransaction(input.state) : undefined;
+	if (transaction?.flow === 'link') {
+		return completeLink(transaction, provider, profile);
+	}
 
 	const user = await findOrCreateUserByIdentity(provider.id, profile, detectLocale(input.request));
 
@@ -191,18 +224,23 @@ export async function handleFormPostCallback(input: {
 		throw error(400, 'Invalid or expired state');
 	}
 
-	const { profile, tokens } = await resolveProviderProfile({
+	const { profile: rawProfile, tokens } = await resolveProviderProfile({
 		provider,
 		code: input.code,
 		redirectUri: provider.redirectUri,
 		expectedNonce: transaction.nonce
 	});
 
-	const user = await findOrCreateUserByIdentity(
-		provider.id,
-		{ ...profile, name: profile.name ?? parseAppleUserField(input.appleUserField) },
-		detectLocale(input.request)
-	);
+	const profile = {
+		...rawProfile,
+		name: rawProfile.name ?? parseAppleUserField(input.appleUserField)
+	};
+
+	if (transaction.flow === 'link') {
+		return completeLink(transaction, provider, profile);
+	}
+
+	const user = await findOrCreateUserByIdentity(provider.id, profile, detectLocale(input.request));
 
 	await startSession({
 		userId: user.id,
