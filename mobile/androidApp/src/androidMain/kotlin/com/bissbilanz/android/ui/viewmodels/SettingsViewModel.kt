@@ -180,6 +180,28 @@ class SettingsViewModel(
         }
     }
 
+    fun deleteAccount() {
+        viewModelScope.launch {
+            try {
+                api.deleteAccount()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to delete account"
+                return@launch
+            }
+            // Same teardown as logout: wipe local data before flipping auth state.
+            try {
+                localDataWiper.wipeAll()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+            authManager.logout()
+            appModeManager.clear()
+        }
+    }
+
     fun clearSnackbar() {
         _snackbarMessage.value = null
     }

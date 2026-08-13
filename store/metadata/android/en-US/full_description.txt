@@ -1,0 +1,24 @@
+Bissbilanz is a fast, no-nonsense calorie and macro tracker. Log what you eat in seconds, see your day at a glance, and keep your data in your hands.
+
+TRACK WHAT MATTERS
+• Calories, protein, carbs, fat and fiber for every meal
+• 43 extended nutrients, from vitamins to minerals
+• Daily goals with clear progress at a glance
+
+LOG FAST
+• Scan any barcode — nutrition data comes straight from Open Food Facts
+• Point the camera at a nutrition label and let on-device OCR fill in the values
+• Favorites, recent foods and home-screen widgets for one-tap logging
+
+MORE THAN FOOD
+• Build recipes with automatic per-serving nutrition
+• Track weight, sleep and supplements alongside your food log
+• Maintenance-calorie estimate from your weight trend and food log
+
+YOUR DATA, YOUR PACE
+• Use it without an account — everything stays on your device in local-only mode
+• Or sign in to sync across the web app, Android and iPhone
+• Works offline; changes sync when you're back online
+• No ads, no tracking SDKs, no selling data — see the privacy policy
+
+Bissbilanz is a personal project, built for people who already know why they track and just want a tool that gets out of the way.

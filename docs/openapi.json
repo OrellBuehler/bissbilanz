@@ -1912,6 +1912,21 @@
 				}
 			}
 		},
+		"/api/account": {
+			"delete": {
+				"operationId": "deleteAccount",
+				"tags": ["Account"],
+				"description": "Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible.",
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/images/upload": {
 			"post": {
 				"operationId": "uploadImage",

@@ -738,6 +738,32 @@ enum L10n {
         )
     }
 
+    static var deleteAccount: String {
+        localized("delete_account", en: "Delete Account", de: "Konto löschen")
+    }
+
+    static var deleteAccountTitle: String {
+        localized("delete_account_title", en: "Delete your account?", de: "Konto wirklich löschen?")
+    }
+
+    static var deleteAccountConfirmation: String {
+        localized(
+            "delete_account_confirmation",
+            en: "Your account and all data on the server will be permanently deleted — food log, foods, recipes, weight, sleep and settings. This cannot be undone.",
+            de: "Dein Konto und alle Daten auf dem Server werden endgültig gelöscht — Ernährungstagebuch, Lebensmittel, Rezepte, Gewicht, Schlaf und Einstellungen. Dies kann nicht rückgängig gemacht werden."
+        )
+    }
+
+    static var deleteAccountConfirm: String {
+        localized("delete_account_confirm", en: "Delete Permanently", de: "Endgültig löschen")
+    }
+
+    static var deleteAccountFailed: String {
+        localized(
+            "delete_account_failed",
+            en: "Account deletion failed. Please try again.",
+            de: "Konto konnte nicht gelöscht werden. Bitte versuche es erneut."
+        )
     static var privacyPolicy: String {
         localized("privacy_policy", en: "Privacy Policy", de: "Datenschutzerklärung")
     }

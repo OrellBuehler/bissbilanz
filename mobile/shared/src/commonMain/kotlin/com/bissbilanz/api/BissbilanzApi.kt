@@ -249,6 +249,9 @@ class BissbilanzApi(
         client.close()
     }
 
+    // Account
+    suspend fun deleteAccount() = delete("/api/account")
+
     // Foods
     suspend fun getFoodsPaginated(
         limit: Int = 20,
