@@ -1,0 +1,24 @@
+Bissbilanz ist ein schneller, unkomplizierter Kalorien- und Makro-Tracker. Logge dein Essen in Sekunden, behalte deinen Tag im Blick und deine Daten in deiner Hand.
+
+TRACKE, WAS ZÄHLT
+• Kalorien, Protein, Kohlenhydrate, Fett und Ballaststoffe für jede Mahlzeit
+• 43 erweiterte Nährstoffe, von Vitaminen bis Mineralstoffen
+• Tagesziele mit klarem Fortschritt auf einen Blick
+
+SCHNELL LOGGEN
+• Barcode scannen — Nährwerte kommen direkt von Open Food Facts
+• Kamera auf die Nährwerttabelle richten, die On-Device-Texterkennung füllt die Werte aus
+• Favoriten, letzte Lebensmittel und Homescreen-Widgets für Ein-Tipp-Logging
+
+MEHR ALS ESSEN
+• Rezepte mit automatischer Nährwertberechnung pro Portion
+• Gewicht, Schlaf und Supplemente direkt neben dem Ernährungstagebuch
+• Erhaltungskalorien-Schätzung aus Gewichtstrend und Ernährungstagebuch
+
+DEINE DATEN, DEIN TEMPO
+• Nutzung ohne Konto — im lokalen Modus bleibt alles auf deinem Gerät
+• Oder anmelden und zwischen Web-App, Android und iPhone synchronisieren
+• Funktioniert offline; Änderungen synchronisieren sich später automatisch
+• Keine Werbung, keine Tracking-SDKs, kein Datenverkauf — siehe Datenschutzerklärung
+
+Bissbilanz ist ein persönliches Projekt — für Leute, die wissen, warum sie tracken, und einfach ein Tool wollen, das nicht im Weg steht.
