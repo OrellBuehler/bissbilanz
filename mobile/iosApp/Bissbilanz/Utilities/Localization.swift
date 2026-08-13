@@ -764,6 +764,8 @@ enum L10n {
             en: "Account deletion failed. Please try again.",
             de: "Konto konnte nicht gelöscht werden. Bitte versuche es erneut."
         )
+    }
+
     static var privacyPolicy: String {
         localized("privacy_policy", en: "Privacy Policy", de: "Datenschutzerklärung")
     }
