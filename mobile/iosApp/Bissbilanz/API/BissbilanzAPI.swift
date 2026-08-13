@@ -704,6 +704,10 @@ final class BissbilanzAPI {
         return body
     }
 
+    func deleteAccount() async throws {
+        try await deleteRequest("/api/account")
+    }
+
     private func deleteRequest(
         _ path: String,
         idempotencyKey: String? = nil,

@@ -1068,6 +1068,20 @@ export function generateSpec() {
 				}
 			},
 
+			// ── Account ───────────────────────────────────────────
+			'/api/account': {
+				delete: {
+					operationId: 'deleteAccount',
+					tags: ['Account'],
+					description:
+						'Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible.',
+					responses: {
+						'204': res204,
+						'401': res401
+					}
+				}
+			},
+
 			// ── Images ────────────────────────────────────────────
 			'/api/images/upload': {
 				post: {

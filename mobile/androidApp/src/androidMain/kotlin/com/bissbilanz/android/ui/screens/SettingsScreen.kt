@@ -57,6 +57,7 @@ fun SettingsScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var showMealTypeDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -113,6 +114,28 @@ fun SettingsScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { showMealTypeDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text(stringResource(R.string.settings_delete_account_title)) },
+            text = { Text(stringResource(R.string.settings_delete_account_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteAccountDialog = false
+                    viewModel.deleteAccount()
+                }) {
+                    Text(
+                        stringResource(R.string.settings_delete_account_confirm),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -683,6 +706,14 @@ fun SettingsScreen(navController: NavController) {
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             ) {
                                 Text(stringResource(R.string.settings_sign_out))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = { showDeleteAccountDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            ) {
+                                Text(stringResource(R.string.settings_delete_account))
                             }
                         }
                     }
