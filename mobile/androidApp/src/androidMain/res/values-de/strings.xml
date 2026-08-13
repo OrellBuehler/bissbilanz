@@ -467,12 +467,6 @@
     <string name="settings_fat_unit_pct">g (%1$d%%)</string>
     <string name="settings_fiber_grams">Ballaststoffe: %1$dg</string>
     <string name="settings_total_pct">Total: %1$d%%</string>
-    <string name="settings_health_connect">Health Connect</string>
-    <string name="settings_health_connect_unavailable">Health Connect ist auf diesem Gerät nicht verfügbar</string>
-    <string name="settings_sync_health_connect">Mit Health Connect synchronisieren</string>
-    <string name="settings_permissions_granted">Berechtigungen erteilt</string>
-    <string name="settings_permissions">Berechtigungen</string>
-    <string name="settings_grant_permissions">Berechtigungen erteilen</string>
     <string name="settings_custom_meal_types">Eigene Mahlzeitentypen</string>
     <string name="settings_add_meal_type">Mahlzeitentyp hinzufügen</string>
     <string name="settings_default_meals_only">Nur Standardmahlzeiten (Frühstück, Mittagessen, Abendessen, Snack)</string>

@@ -3,7 +3,6 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.analytics.WeightChartInput
 import com.bissbilanz.analytics.weightMovingAverage
 import com.bissbilanz.api.BissbilanzApi
@@ -32,7 +31,6 @@ class WeightRepository(
     private val api: BissbilanzApi,
     private val db: UserDataDatabase,
     private val cacheDb: BissbilanzDatabase,
-    private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
@@ -56,12 +54,6 @@ class WeightRepository(
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
         val temp = weightCreateToEntry(entry)
         cacheWeightEntry(temp)
-        try {
-            healthSync.syncWeight(listOf(temp))
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
         onWeightChanged?.invoke()
         return temp
@@ -92,12 +84,6 @@ class WeightRepository(
                     notes = entry.notes,
                 )
             }
-        try {
-            healthSync.syncWeight(listOf(result))
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, entry)
         } else {

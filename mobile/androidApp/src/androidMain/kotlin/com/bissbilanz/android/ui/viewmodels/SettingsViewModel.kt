@@ -3,7 +3,6 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Preferences
@@ -30,7 +29,6 @@ class SettingsViewModel(
     private val goalsRepo: GoalsRepository,
     private val prefsRepo: PreferencesRepository,
     private val api: BissbilanzApi,
-    private val healthSync: HealthSyncService,
     private val refreshManager: RefreshManager,
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
@@ -50,12 +48,6 @@ class SettingsViewModel(
 
     private val _customMealTypes = MutableStateFlow<List<MealType>>(emptyList())
     val customMealTypes: StateFlow<List<MealType>> = _customMealTypes.asStateFlow()
-
-    private val _healthAvailable = MutableStateFlow(false)
-    val healthAvailable: StateFlow<Boolean> = _healthAvailable.asStateFlow()
-
-    private val _healthPermGranted = MutableStateFlow(false)
-    val healthPermGranted: StateFlow<Boolean> = _healthPermGranted.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
@@ -78,22 +70,12 @@ class SettingsViewModel(
                     errorReporter.captureException(e)
                 }
             }
-            _healthAvailable.value = healthSync.isAvailable()
-            if (_healthAvailable.value) {
-                _healthPermGranted.value = healthSync.hasPermissions()
-            }
         }
     }
 
     fun refreshAll() {
         viewModelScope.launch {
             refreshManager.refreshAll()
-        }
-    }
-
-    fun refreshHealthPermissions() {
-        viewModelScope.launch {
-            _healthPermGranted.value = healthSync.hasPermissions()
         }
     }
 

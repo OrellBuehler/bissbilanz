@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.EntryCreate
@@ -48,8 +47,7 @@ class LocalModeGatingTest {
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
         syncQueue = SyncQueue(cacheDb, json, localMode)
-        val healthSync = mockk<HealthSyncService>(relaxed = true)
-        entryRepository = EntryRepository(api, db, cacheDb, healthSync, syncQueue, json, NoopErrorReporter(), localMode)
+        entryRepository = EntryRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), localMode)
         foodRepository =
             FoodRepository(
                 api,

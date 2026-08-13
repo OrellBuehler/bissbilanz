@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.EntryUpdate
@@ -28,7 +27,6 @@ class EntryRepositoryTest {
     private lateinit var api: BissbilanzApi
     private lateinit var db: UserDataDatabase
     private lateinit var cacheDb: BissbilanzDatabase
-    private lateinit var healthSync: HealthSyncService
     private lateinit var syncQueue: SyncQueue
     private lateinit var repository: EntryRepository
     private val json = Json { ignoreUnknownKeys = true }
@@ -38,9 +36,8 @@ class EntryRepositoryTest {
         api = mockk()
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
-        healthSync = mockk(relaxed = true)
         syncQueue = mockk(relaxed = true)
-        repository = EntryRepository(api, db, cacheDb, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
+        repository = EntryRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
     }
 
     @Test

@@ -3,7 +3,6 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
@@ -15,7 +14,6 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
-import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +26,6 @@ class EntryRepository(
     private val api: BissbilanzApi,
     private val db: UserDataDatabase,
     private val cacheDb: BissbilanzDatabase,
-    private val healthSync: HealthSyncService,
     private val syncQueue: SyncQueue,
     private val json: Json,
     private val errorReporter: ErrorReporter,
@@ -65,7 +62,6 @@ class EntryRepository(
     ): Entry {
         val tempEntry = entryCreateToEntry(entry, food, recipe)
         cacheEntry(tempEntry)
-        syncNutritionForCurrentDate()
         syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
         onEntryChanged?.invoke()
         return tempEntry
@@ -98,7 +94,6 @@ class EntryRepository(
                     servings = entry.servings ?: 1.0,
                 )
             }
-        syncNutritionForCurrentDate()
         if (id.isTempId()) {
             coalesceQueuedCreate(id, entry)
         } else {
@@ -110,7 +105,6 @@ class EntryRepository(
 
     suspend fun deleteEntry(id: String) {
         db.userDataDatabaseQueries.deleteEntry(id)
-        syncNutritionForCurrentDate()
         if (id.isTempId()) {
             syncQueue.removeByAffected("entries", id)
         } else {
@@ -216,19 +210,6 @@ class EntryRepository(
             count++
         }
         return count
-    }
-
-    private suspend fun syncNutritionForCurrentDate() {
-        val date = currentDate ?: return
-        try {
-            val cached = db.userDataDatabaseQueries.selectEntriesByDate(date).executeAsList()
-            val entries = cached.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
-            val totals = entries.totalMacros()
-            healthSync.syncNutrition(date, totals)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
     }
 
     private fun cacheEntry(entry: Entry) {

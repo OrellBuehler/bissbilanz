@@ -78,3 +78,8 @@ tests/fixtures/catalog/bad.jsonl
 
 # Apple provisioning profiles (signing artifacts, never commit)
 *.mobileprovision
+
+# Android signing artifacts, never commit
+*.jks
+*.keystore
+*.p12

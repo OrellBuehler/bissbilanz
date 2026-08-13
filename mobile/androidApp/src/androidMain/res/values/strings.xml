@@ -467,12 +467,6 @@
     <string name="settings_fat_unit_pct">g (%1$d%%)</string>
     <string name="settings_fiber_grams">Fiber: %1$dg</string>
     <string name="settings_total_pct">Total: %1$d%%</string>
-    <string name="settings_health_connect">Health Connect</string>
-    <string name="settings_health_connect_unavailable">Health Connect is not available on this device</string>
-    <string name="settings_sync_health_connect">Sync to Health Connect</string>
-    <string name="settings_permissions_granted">Permissions granted</string>
-    <string name="settings_permissions">Permissions</string>
-    <string name="settings_grant_permissions">Grant Permissions</string>
     <string name="settings_custom_meal_types">Custom Meal Types</string>
     <string name="settings_add_meal_type">Add meal type</string>
     <string name="settings_default_meals_only">Default meals only (Breakfast, Lunch, Dinner, Snack)</string>
