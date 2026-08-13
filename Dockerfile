@@ -37,6 +37,10 @@ RUN bun install --frozen-lockfile --production
 FROM oven/bun:1.3.14-alpine AS runner
 WORKDIR /app
 
+# The base image ships openssl 3.5.6-r0 (CVE-2026-45447). Alpine has the fix,
+# so pull it in here rather than waiting for a rebased bun image.
+RUN apk --no-cache upgrade libcrypto3 libssl3
+
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 sveltekit
 
