@@ -71,6 +71,25 @@ describe('validateEnv', () => {
 		);
 	});
 
+	test('allows optional providers to be entirely absent', () => {
+		expect(validateEnv(validEnv)).toEqual([]);
+	});
+
+	test('accepts an optional provider when both credentials are set', () => {
+		expect(
+			validateEnv({ ...validEnv, GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' })
+		).toEqual([]);
+	});
+
+	test('rejects a half-configured optional provider', () => {
+		expect(validateEnv({ ...validEnv, GOOGLE_CLIENT_ID: 'id' })).toContain(
+			'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together (or both left unset)'
+		);
+		expect(validateEnv({ ...validEnv, MICROSOFT_CLIENT_SECRET: 'secret' })).toContain(
+			'MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET must be set together (or both left unset)'
+		);
+	});
+
 	test('rejects TEST_MODE in production', () => {
 		expect(validateEnv({ ...validEnv, TEST_MODE: 'true', NODE_ENV: 'production' })).toContain(
 			'TEST_MODE must not be enabled in production'

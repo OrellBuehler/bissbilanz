@@ -2,7 +2,18 @@
 	import { login } from '$lib/stores/auth.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import ProviderIcon from '$lib/components/auth/ProviderIcon.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+
+	const providerLabels: Record<string, () => string> = {
+		infomaniak: m.auth_login_infomaniak,
+		google: m.auth_login_google,
+		microsoft: m.auth_login_microsoft,
+		apple: m.auth_login_apple
+	};
 </script>
 
 <div class="bg-surface-container-low flex min-h-screen w-full items-center justify-center px-4">
@@ -11,13 +22,21 @@
 			<Card.Title class="text-2xl">{m.app_title()}</Card.Title>
 			<Card.Description>{m.app_tagline()}</Card.Description>
 		</Card.Header>
-		<Card.Content>
-			<Button class="w-full" size="lg" onclick={login}>
-				{m.auth_login()}
-			</Button>
+		<Card.Content class="flex flex-col gap-3">
+			{#each data.providers as provider (provider)}
+				<Button
+					variant="outline"
+					class="w-full justify-start gap-3"
+					size="lg"
+					onclick={() => login(provider)}
+				>
+					<ProviderIcon {provider} />
+					<span>{providerLabels[provider]?.() ?? provider}</span>
+				</Button>
+			{/each}
 		</Card.Content>
 		<Card.Footer class="justify-center">
-			<p class="text-muted-foreground text-xs">{m.login_powered_by()}</p>
+			<p class="text-muted-foreground text-center text-xs">{m.login_account_hint()}</p>
 		</Card.Footer>
 	</Card.Root>
 </div>

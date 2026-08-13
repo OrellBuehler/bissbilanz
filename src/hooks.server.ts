@@ -10,7 +10,7 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
-import { isCrossOriginEndpoint, isOriginMismatch } from '$lib/server/csrf';
+import { isCrossOriginEndpoint, isFormPostCallback, isOriginMismatch } from '$lib/server/csrf';
 import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
@@ -93,7 +93,11 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Manual CSRF check for non-exempt routes
-	if (!isCrossOrigin && isOriginMismatch(event.request, event.url)) {
+	if (
+		!isCrossOrigin &&
+		!isFormPostCallback(pathname) &&
+		isOriginMismatch(event.request, event.url)
+	) {
 		return new Response('Cross-site POST form submissions are forbidden', { status: 403 });
 	}
 

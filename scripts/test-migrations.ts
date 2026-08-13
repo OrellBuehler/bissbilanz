@@ -202,6 +202,24 @@ try {
 			process.exit(1);
 		}
 		console.log(`weight_entries: ${weightCount} rows`);
+
+		// 0043 backfills an infomaniak identity for every pre-existing user; without it
+		// they would be handed a brand new empty account on their next sign-in.
+		const backfilled =
+			await client`SELECT user_id, subject FROM identities WHERE provider = 'infomaniak' AND user_id IN (${U1}, ${U2}) ORDER BY subject`;
+		if (backfilled.length !== 2) {
+			console.error(
+				`FAIL: expected 2 backfilled identities after migration, found ${backfilled.length}`
+			);
+			process.exit(1);
+		}
+		if (backfilled[0].subject !== 'sub-test-1' || backfilled[1].subject !== 'sub-test-2') {
+			console.error(
+				`FAIL: backfilled identities carry the wrong subjects: ${backfilled.map((r) => r.subject).join(', ')}`
+			);
+			process.exit(1);
+		}
+		console.log(`identities: ${backfilled.length} backfilled rows`);
 	}
 
 	console.log('\nMigration test PASSED.');

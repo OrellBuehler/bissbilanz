@@ -34,10 +34,10 @@ export const aiTaskStatusValues = ['pending', 'completed', 'dismissed'] as const
 export type AiTaskStatus = (typeof aiTaskStatusValues)[number];
 export const aiTaskStatusEnum = pgEnum('ai_task_status', aiTaskStatusValues);
 
-// Users (from Infomaniak OIDC)
+// Users (identified via one or more linked OIDC identities)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	infomaniakSub: text('infomaniak_sub').unique().notNull(),
+	infomaniakSub: text('infomaniak_sub').unique(),
 	email: text('email'),
 	name: text('name'),
 	avatarUrl: text('avatar_url'),
@@ -45,6 +45,25 @@ export const users = pgTable('users', {
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
+
+// Linked OIDC provider identities (one user can have several)
+export const identities = pgTable(
+	'identities',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		provider: text('provider').notNull(),
+		subject: text('subject').notNull(),
+		email: text('email'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		unique('uq_identities_provider_subject').on(table.provider, table.subject),
+		index('idx_identities_user_id').on(table.userId)
+	]
+);
 
 // Sessions
 export const sessions = pgTable(
@@ -790,6 +809,8 @@ export const catalogAccess = pgTable(
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Identity = typeof identities.$inferSelect;
+export type NewIdentity = typeof identities.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Food = typeof foods.$inferSelect;

@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { config } from '$lib/server/env';
+import { getProvider } from '$lib/server/auth-providers';
 import {
 	generateCodeVerifier,
 	createCodeChallenge,
@@ -16,6 +16,9 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 		throw error(400, 'Missing or invalid state parameter');
 	}
 
+	const provider = getProvider(url.searchParams.get('provider') ?? 'infomaniak');
+	if (!provider) throw error(404, 'Unknown or disabled sign-in provider');
+
 	try {
 		rateLimit(`auth:mobile:${getClientAddress()}`, 10, 60_000);
 	} catch {
@@ -26,11 +29,11 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 	const codeChallenge = await createCodeChallenge(codeVerifier);
 	const nonce = generateNonce();
 
-	storePendingState(state, codeVerifier, nonce);
+	storePendingState(state, codeVerifier, nonce, provider.id);
 
 	const authorizeUrl = buildAuthorizeUrl({
-		clientId: config.infomaniak.clientId,
-		redirectUri: `${config.app.url}/api/auth/mobile/callback`,
+		provider,
+		redirectUri: provider.mobileRedirectUri,
 		state,
 		nonce,
 		codeChallenge

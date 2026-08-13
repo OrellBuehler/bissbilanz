@@ -1,16 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ fetch }) => {
+export const load: PageLoad = async ({ fetch, data }) => {
 	const response = await fetch('/api/auth/me');
 	if (!response.ok) {
-		return {};
+		return data;
 	}
-	const data = await response.json();
+	const body = await response.json();
 
-	if (data.user) {
+	if (body.user) {
 		throw redirect(302, '/');
 	}
 
-	return {};
+	return data;
 };

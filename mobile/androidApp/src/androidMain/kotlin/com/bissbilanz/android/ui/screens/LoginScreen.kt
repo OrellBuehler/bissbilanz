@@ -19,16 +19,26 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 
+/** Providers offered on the login screen, in display order. */
+val loginProviders =
+    listOf(
+        "infomaniak" to R.string.login_with_infomaniak,
+        "google" to R.string.login_with_google,
+        "microsoft" to R.string.login_with_microsoft,
+        "apple" to R.string.login_with_apple,
+    )
+
 /** Opens the OIDC login page in a Custom Tab. Shared with the Settings "Sign in to sync" flow. */
 fun launchLoginFlow(
     context: Context,
     authManager: AuthManager,
+    provider: String = "infomaniak",
 ) {
     val state =
         java.util.UUID
             .randomUUID()
             .toString()
-    val url = authManager.buildLoginUrl(state)
+    val url = authManager.buildLoginUrl(state, provider)
     val customTabsIntent = CustomTabsIntent.Builder().build()
     customTabsIntent.launchUrl(context, Uri.parse(url))
 }
@@ -72,11 +82,23 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(48.dp))
-            Button(
-                onClick = { launchLoginFlow(context, authManager) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.login_sign_in))
+            loginProviders.forEachIndexed { index, (provider, labelRes) ->
+                if (index == 0) {
+                    Button(
+                        onClick = { launchLoginFlow(context, authManager, provider) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(labelRes))
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { launchLoginFlow(context, authManager, provider) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(labelRes))
+                    }
+                }
             }
             if (showContinueWithoutAccount(mode)) {
                 Spacer(modifier = Modifier.height(16.dp))

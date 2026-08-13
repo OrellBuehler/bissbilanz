@@ -35,6 +35,21 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 	if (env.DATABASE_URL && !/^postgres(ql)?:\/\//.test(env.DATABASE_URL)) {
 		problems.push('DATABASE_URL must be a postgres:// connection string');
 	}
+	// Optional providers are all-or-nothing: half-configured means a broken button.
+	for (const provider of ['GOOGLE', 'MICROSOFT']) {
+		const id = env[`${provider}_CLIENT_ID`]?.trim();
+		const secret = env[`${provider}_CLIENT_SECRET`]?.trim();
+		if (Boolean(id) !== Boolean(secret)) {
+			problems.push(
+				`${provider}_CLIENT_ID and ${provider}_CLIENT_SECRET must be set together (or both left unset)`
+			);
+		}
+	}
+	const appleVars = ['APPLE_SERVICES_ID', 'APPLE_TEAM_ID', 'APPLE_KEY_ID', 'APPLE_PRIVATE_KEY'];
+	const appleSet = appleVars.filter((key) => env[key]?.trim());
+	if (appleSet.length > 0 && appleSet.length < appleVars.length) {
+		problems.push(`${appleVars.join(', ')} must be set together (or all left unset)`);
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -50,11 +65,31 @@ export const config = {
 		clientSecret: process.env.INFOMANIAK_CLIENT_SECRET!,
 		redirectUri: process.env.INFOMANIAK_REDIRECT_URI!
 	},
+	// Optional providers: leaving the credentials unset keeps the provider hidden.
+	google: {
+		clientId: process.env.GOOGLE_CLIENT_ID,
+		clientSecret: process.env.GOOGLE_CLIENT_SECRET
+	},
+	microsoft: {
+		clientId: process.env.MICROSOFT_CLIENT_ID,
+		clientSecret: process.env.MICROSOFT_CLIENT_SECRET
+	},
+	apple: {
+		servicesId: process.env.APPLE_SERVICES_ID,
+		teamId: process.env.APPLE_TEAM_ID,
+		keyId: process.env.APPLE_KEY_ID,
+		privateKey: process.env.APPLE_PRIVATE_KEY,
+		// Native Sign in with Apple on iOS issues tokens for the app's bundle id.
+		bundleId: process.env.APPLE_BUNDLE_ID
+	},
 	session: {
 		secret: process.env.SESSION_SECRET!
 	},
 	app: {
-		url: process.env.PUBLIC_APP_URL!
+		url: process.env.PUBLIC_APP_URL!,
+		// Whether auth cookies get the Secure attribute. Derived from the public app
+		// URL so it stays correct behind a TLS-terminating proxy.
+		secureCookies: (process.env.PUBLIC_APP_URL ?? '').startsWith('https')
 	},
 	mcp: {
 		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'

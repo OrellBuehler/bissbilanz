@@ -8,6 +8,15 @@ export function isCrossOriginEndpoint(pathname: string): boolean {
 	);
 }
 
+/**
+ * Sign in with Apple answers with a cross-site form POST (response_mode=form_post),
+ * which the origin check would otherwise reject. These routes are protected instead
+ * by the single-use state they carry, which is validated against server-side state.
+ */
+export function isFormPostCallback(pathname: string): boolean {
+	return pathname === '/api/auth/callback/apple' || pathname === '/api/auth/mobile/callback/apple';
+}
+
 const FORM_CONTENT_TYPES = [
 	'application/x-www-form-urlencoded',
 	'multipart/form-data',

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { generateToken } from './oauth';
 import { getDB, oauthClients } from './db';
+import { createTtlStore } from './auth-transactions';
 
 export const MOBILE_CLIENT_ID = 'bissbilanz-mobile';
 
@@ -10,60 +11,33 @@ const CODE_TTL_MS = 60 * 1000; // 1 minute
 type PendingState = {
 	codeVerifier: string;
 	nonce: string;
-	expiresAt: number;
+	provider: string;
 };
 
-type OneTimeCode = {
-	userId: string;
-	expiresAt: number;
-};
+const pendingStates = createTtlStore<PendingState>(STATE_TTL_MS);
+const oneTimeCodes = createTtlStore<{ userId: string }>(CODE_TTL_MS);
 
-const pendingStates = new Map<string, PendingState>();
-const oneTimeCodes = new Map<string, OneTimeCode>();
-
-function cleanup<T extends { expiresAt: number }>(store: Map<string, T>) {
-	const now = Date.now();
-	for (const [key, entry] of store) {
-		if (entry.expiresAt < now) store.delete(key);
-	}
+export function storePendingState(
+	state: string,
+	codeVerifier: string,
+	nonce: string,
+	provider: string
+) {
+	pendingStates.set(state, { codeVerifier, nonce, provider });
 }
 
-export function storePendingState(state: string, codeVerifier: string, nonce: string) {
-	cleanup(pendingStates);
-	pendingStates.set(state, {
-		codeVerifier,
-		nonce,
-		expiresAt: Date.now() + STATE_TTL_MS
-	});
-}
-
-export function consumePendingState(
-	state: string
-): { codeVerifier: string; nonce: string } | undefined {
-	const entry = pendingStates.get(state);
-	pendingStates.delete(state);
-	if (!entry || entry.expiresAt < Date.now()) return undefined;
-	return { codeVerifier: entry.codeVerifier, nonce: entry.nonce };
+export function consumePendingState(state: string): PendingState | undefined {
+	return pendingStates.consume(state);
 }
 
 export function createOneTimeCode(userId: string): string {
-	cleanup(oneTimeCodes);
 	const code = generateToken(32);
-	oneTimeCodes.set(code, {
-		userId,
-		expiresAt: Date.now() + CODE_TTL_MS
-	});
+	oneTimeCodes.set(code, { userId });
 	return code;
 }
 
 export function consumeOneTimeCode(code: string): string | undefined {
-	const entry = oneTimeCodes.get(code);
-	if (!entry || entry.expiresAt < Date.now()) {
-		oneTimeCodes.delete(code);
-		return undefined;
-	}
-	oneTimeCodes.delete(code);
-	return entry.userId;
+	return oneTimeCodes.consume(code)?.userId;
 }
 
 export async function ensureMobileClient() {

@@ -71,9 +71,12 @@ class AuthManager(
         _authState.value = AuthState.Authenticated
     }
 
-    fun buildLoginUrl(state: String): String {
+    fun buildLoginUrl(
+        state: String,
+        provider: String = "infomaniak",
+    ): String {
         pendingState = state
-        return "$baseUrl/api/auth/mobile/login?state=$state"
+        return "$baseUrl/api/auth/mobile/login?state=$state&provider=$provider"
     }
 
     fun validateState(state: String?): Boolean {

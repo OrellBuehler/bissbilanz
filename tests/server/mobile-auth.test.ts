@@ -58,9 +58,13 @@ describe('mobile-auth', () => {
 
 	describe('storePendingState / consumePendingState', () => {
 		test('stores state and retrieves it', () => {
-			storePendingState('state-1', 'verifier-1', 'nonce-1');
+			storePendingState('state-1', 'verifier-1', 'nonce-1', 'infomaniak');
 			const result = consumePendingState('state-1');
-			expect(result).toEqual({ codeVerifier: 'verifier-1', nonce: 'nonce-1' });
+			expect(result).toEqual({
+				codeVerifier: 'verifier-1',
+				nonce: 'nonce-1',
+				provider: 'infomaniak'
+			});
 		});
 
 		test('returns undefined for unknown state', () => {
@@ -69,24 +73,28 @@ describe('mobile-auth', () => {
 		});
 
 		test('removes state after consumption', () => {
-			storePendingState('state-2', 'verifier-2', 'nonce-2');
+			storePendingState('state-2', 'verifier-2', 'nonce-2', 'infomaniak');
 			consumePendingState('state-2');
 			const result = consumePendingState('state-2');
 			expect(result).toBeUndefined();
 		});
 
 		test('returns undefined for expired state', () => {
-			storePendingState('state-3', 'verifier-3', 'nonce-3');
+			storePendingState('state-3', 'verifier-3', 'nonce-3', 'infomaniak');
 			vi.advanceTimersByTime(10 * 60 * 1000 + 1);
 			const result = consumePendingState('state-3');
 			expect(result).toBeUndefined();
 		});
 
 		test('returns state that has not yet expired', () => {
-			storePendingState('state-4', 'verifier-4', 'nonce-4');
+			storePendingState('state-4', 'verifier-4', 'nonce-4', 'infomaniak');
 			vi.advanceTimersByTime(10 * 60 * 1000 - 1);
 			const result = consumePendingState('state-4');
-			expect(result).toEqual({ codeVerifier: 'verifier-4', nonce: 'nonce-4' });
+			expect(result).toEqual({
+				codeVerifier: 'verifier-4',
+				nonce: 'nonce-4',
+				provider: 'infomaniak'
+			});
 		});
 	});
 
@@ -132,10 +140,14 @@ describe('mobile-auth', () => {
 
 	describe('double-consumption prevention', () => {
 		test('consuming state twice returns undefined on second call', () => {
-			storePendingState('state-dc', 'verifier-dc', 'nonce-dc');
+			storePendingState('state-dc', 'verifier-dc', 'nonce-dc', 'infomaniak');
 			const first = consumePendingState('state-dc');
 			const second = consumePendingState('state-dc');
-			expect(first).toEqual({ codeVerifier: 'verifier-dc', nonce: 'nonce-dc' });
+			expect(first).toEqual({
+				codeVerifier: 'verifier-dc',
+				nonce: 'nonce-dc',
+				provider: 'infomaniak'
+			});
 			expect(second).toBeUndefined();
 		});
 

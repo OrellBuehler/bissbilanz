@@ -24,6 +24,7 @@
 		type TimeframeDraft
 	} from './FavoriteMealTimeframeManager.svelte';
 	import WidgetOrderEditor, { type WidgetVisibility } from './WidgetOrderEditor.svelte';
+	import ConnectedAccounts from './ConnectedAccounts.svelte';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let deleteAccountOpen = $state(false);
@@ -234,6 +235,16 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.connected_accounts()}</Card.Title>
+			<Card.Description>{m.connected_accounts_description()}</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<ConnectedAccounts />
+		</Card.Content>
+	</Card.Root>
 
 	{#if prefsLoaded}
 		<WidgetOrderEditor

@@ -5,7 +5,6 @@
 	import Smartphone from '@lucide/svelte/icons/smartphone';
 	import CookingPot from '@lucide/svelte/icons/cooking-pot';
 	import Pill from '@lucide/svelte/icons/pill';
-	import { login } from '$lib/stores/auth.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages';
 </script>
@@ -22,7 +21,7 @@
 	>
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 			<span class="font-heading text-xl font-bold tracking-tight">{m.app_title()}</span>
-			<Button onclick={login}>
+			<Button href="/login">
 				{m.auth_login()}
 			</Button>
 		</div>
@@ -46,7 +45,7 @@
 				{m.landing_subheading()}
 			</p>
 			<div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
-				<Button size="lg" onclick={login}>
+				<Button size="lg" href="/login">
 					{m.landing_cta_primary()}
 				</Button>
 				<Button variant="outline" size="lg" href="#features">
@@ -116,7 +115,7 @@
 				{m.landing_cta_headline()}
 			</h2>
 			<p class="mb-8 text-muted-foreground">{m.landing_cta_subtext()}</p>
-			<Button size="lg" onclick={login}>
+			<Button size="lg" href="/login">
 				{m.landing_cta_primary()}
 			</Button>
 		</div>
