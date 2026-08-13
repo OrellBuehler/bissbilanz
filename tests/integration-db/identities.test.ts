@@ -136,6 +136,24 @@ describe('findOrCreateUserByIdentity', () => {
 	});
 });
 
+describe('account deletion', () => {
+	it('takes the identities with it, so the same provider can sign up again', async () => {
+		const { findOrCreateUserByIdentity } = await account();
+		const db = getTestDB(dbUrl);
+
+		const user = await findOrCreateUserByIdentity('google', { sub: 'g-1' }, 'en');
+
+		// deleteAccount() removes the users row and leans on the cascade for the rest.
+		await db.delete(users).where(eq(users.id, user.id));
+
+		expect(await db.select().from(identities)).toHaveLength(0);
+
+		// Without the cascade this would collide with the unique (provider, subject).
+		const rejoined = await findOrCreateUserByIdentity('google', { sub: 'g-1' }, 'en');
+		expect(rejoined.id).not.toBe(user.id);
+	});
+});
+
 describe('linkIdentity', () => {
 	it('lets a second provider sign in to the same account', async () => {
 		const { findOrCreateUserByIdentity, linkIdentity } = await account();
