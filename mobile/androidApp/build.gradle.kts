@@ -23,10 +23,16 @@ kotlin {
 }
 
 val appVersion = (findProperty("APP_VERSION") as? String)?.trimStart('v') ?: "dev"
+val buildNumber = (findProperty("BUILD_NUMBER") as? String)?.toIntOrNull() ?: 0
+// versionCode must strictly increase across every Play upload, including re-runs for
+// the same tag. Semver alone made re-runs collide (v1.29.0), so the workflow run
+// number is folded in; both terms only ever grow. The old scheme's max was 13000
+// (v1.30.0), which any semver*1000 value exceeds.
 val computedVersionCode =
     if (appVersion != "dev") {
         val parts = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
-        (parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }).coerceAtLeast(1)
+        val semverCode = parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
+        (semverCode * 1000 + buildNumber).coerceAtLeast(1)
     } else {
         1
     }
@@ -38,7 +44,7 @@ android {
     defaultConfig {
         applicationId = "com.bissbilanz.android"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = computedVersionCode
         versionName = appVersion
         buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
@@ -69,6 +75,16 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    // Without this, a missing ANDROID_KEYSTORE_FILE silently produces an *unsigned*
+    // release AAB (the signing config exists but is empty). Fail instead.
+    tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.configureEach {
+        doFirst {
+            check(System.getenv("ANDROID_KEYSTORE_FILE") != null) {
+                "ANDROID_KEYSTORE_FILE is not set — refusing to build an unsigned release artifact"
+            }
         }
     }
 
@@ -120,7 +136,6 @@ android {
         implementation(libs.camerax.view)
         implementation(libs.mlkit.barcode)
         implementation(libs.mlkit.text)
-        implementation(libs.health.connect)
         implementation(libs.browser)
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)

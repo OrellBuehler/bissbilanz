@@ -16,7 +16,6 @@ camerax = "1.6.1"
 ktlint = "14.2.0"
 mockk = "1.14.11"
 turbine = "1.2.1"
-health-connect = "1.2.0-alpha04"
 security-crypto = "1.1.0"
 browser = "1.10.0"
 activity-compose = "1.13.0"
@@ -82,7 +81,6 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 
 # Health Connect
-health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "health-connect" }
 
 # Sentry
 sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry-android" }
