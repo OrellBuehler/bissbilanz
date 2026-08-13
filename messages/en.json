@@ -8,6 +8,7 @@
 	"auth_login_infomaniak": "Continue with Infomaniak",
 	"auth_login_google": "Continue with Google",
 	"auth_login_microsoft": "Continue with Microsoft",
+	"auth_login_apple": "Continue with Apple",
 	"auth_logout": "Logout",
 	"landing_badge": "Track what matters",
 	"landing_headline_1": "Know every bite.",

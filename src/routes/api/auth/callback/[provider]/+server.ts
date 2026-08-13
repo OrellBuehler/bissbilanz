@@ -1,4 +1,4 @@
-import { handleWebCallback } from '$lib/server/auth-callback';
+import { handleFormPostCallback, handleWebCallback } from '$lib/server/auth-callback';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, url, cookies, getClientAddress, request }) =>
@@ -10,3 +10,17 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		request,
 		clientAddress: getClientAddress()
 	});
+
+/** Sign in with Apple replies with response_mode=form_post. */
+export const POST: RequestHandler = async ({ params, request, cookies, getClientAddress }) => {
+	const form = await request.formData();
+	return handleFormPostCallback({
+		providerId: params.provider,
+		code: form.get('code')?.toString() ?? null,
+		state: form.get('state')?.toString() ?? null,
+		appleUserField: form.get('user')?.toString() ?? null,
+		cookies,
+		request,
+		clientAddress: getClientAddress()
+	});
+};

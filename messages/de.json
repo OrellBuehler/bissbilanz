@@ -8,6 +8,7 @@
 	"auth_login_infomaniak": "Mit Infomaniak fortfahren",
 	"auth_login_google": "Mit Google fortfahren",
 	"auth_login_microsoft": "Mit Microsoft fortfahren",
+	"auth_login_apple": "Mit Apple fortfahren",
 	"auth_logout": "Abmelden",
 	"landing_badge": "Behalte den Überblick",
 	"landing_headline_1": "Jeden Bissen kennen.",

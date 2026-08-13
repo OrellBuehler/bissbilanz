@@ -9,6 +9,7 @@ import {
 	generateState
 } from '$lib/server/oidc';
 import { oidcCookieOptions } from '$lib/server/oidc-cookies';
+import { storeWebTransaction } from '$lib/server/auth-transactions';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 
@@ -28,9 +29,15 @@ export const GET: RequestHandler = async ({ cookies, url, getClientAddress }) =>
 	const challenge = await createCodeChallenge(verifier);
 	const secure = config.app.secureCookies;
 
-	cookies.set('oidc_state', state, oidcCookieOptions(secure));
-	cookies.set('oidc_nonce', nonce, oidcCookieOptions(secure));
-	cookies.set('oidc_verifier', verifier, oidcCookieOptions(secure));
+	if (provider.responseMode === 'form_post') {
+		// The provider replies with a cross-site POST, which carries no SameSite=Lax
+		// cookies, so the flow state has to live on the server instead.
+		storeWebTransaction(state, { nonce, provider: provider.id });
+	} else {
+		cookies.set('oidc_state', state, oidcCookieOptions(secure));
+		cookies.set('oidc_nonce', nonce, oidcCookieOptions(secure));
+		cookies.set('oidc_verifier', verifier, oidcCookieOptions(secure));
+	}
 
 	const authUrl = buildAuthorizeUrl({
 		provider,

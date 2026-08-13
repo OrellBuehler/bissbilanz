@@ -1,7 +1,8 @@
 import type { JWTPayload } from 'jose';
 import { config } from './env';
+import { appleConfig, createAppleClientSecret } from './apple-secret';
 
-export const providerIds = ['infomaniak', 'google', 'microsoft'] as const;
+export const providerIds = ['infomaniak', 'google', 'microsoft', 'apple'] as const;
 export type ProviderId = (typeof providerIds)[number];
 
 export type ProviderProfile = {
@@ -90,6 +91,23 @@ export const providerDefs: Record<ProviderId, ProviderDef> = {
 			name: str(claims.name)
 			// No avatar: personal-account photos require a Microsoft Graph call.
 		})
+	},
+	apple: {
+		id: 'apple',
+		issuer: 'https://appleid.apple.com',
+		authorizeEndpoint: 'https://appleid.apple.com/auth/authorize',
+		tokenEndpoint: 'https://appleid.apple.com/auth/token',
+		// Requesting name or email obliges Apple to reply with a form POST.
+		scopes: 'name email',
+		responseMode: 'form_post',
+		// Apple authenticates the client with the signed secret JWT instead.
+		usesPkce: false,
+		mapClaims: (claims) => ({
+			sub: str(claims.sub) ?? '',
+			email: str(claims.email)
+			// Apple has no userinfo endpoint and never sends a picture. The name
+			// arrives once, in the callback form body, and is merged in there.
+		})
 	}
 };
 
@@ -122,20 +140,37 @@ function mobileRedirectUriFor(id: ProviderId): string {
 	return `${config.app.url}/api/auth/mobile/callback/${id}`;
 }
 
+type ResolvedCredentials = { clientId: string; clientSecret: () => Promise<string> };
+
+/** Apple has no static secret, so its credentials resolve differently. */
+function resolveCredentials(id: ProviderId): ResolvedCredentials | null {
+	if (id === 'apple') {
+		const apple = appleConfig();
+		if (!apple) return null;
+		return { clientId: apple.servicesId, clientSecret: createAppleClientSecret };
+	}
+
+	const credentials = credentialsFor(id);
+	if (!credentials) return null;
+	return {
+		clientId: credentials.clientId,
+		clientSecret: async () => credentials.clientSecret
+	};
+}
+
 export function getProvider(id: string): ProviderConfig | null {
 	if (!isProviderId(id)) return null;
-	const credentials = credentialsFor(id);
+	const credentials = resolveCredentials(id);
 	if (!credentials) return null;
 
 	return {
 		...providerDefs[id],
-		clientId: credentials.clientId,
-		clientSecret: async () => credentials.clientSecret,
+		...credentials,
 		redirectUri: redirectUriFor(id),
 		mobileRedirectUri: mobileRedirectUriFor(id)
 	};
 }
 
 export function enabledProviderIds(): ProviderId[] {
-	return providerIds.filter((id) => credentialsFor(id) !== null);
+	return providerIds.filter((id) => resolveCredentials(id) !== null);
 }

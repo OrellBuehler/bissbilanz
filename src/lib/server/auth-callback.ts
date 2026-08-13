@@ -9,6 +9,7 @@ import { createSession } from './session';
 import { assertState } from './oidc-validate';
 import { rateLimit } from './rate-limit';
 import { consumePendingState, createOneTimeCode } from './mobile-auth';
+import { consumeWebTransaction } from './auth-transactions';
 import { extractLocaleFromHeader, isLocale } from '$lib/paraglide/runtime';
 
 export function requireProvider(providerId: string): ProviderConfig {
@@ -144,6 +145,74 @@ export async function handleWebCallback(input: {
 	});
 
 	throw redirect(302, '/home');
+}
+
+/**
+ * Apple sends the chosen display name exactly once, in the callback form body
+ * rather than in any token, so it has to be picked up here or it is lost forever.
+ */
+export function parseAppleUserField(raw: string | null): string | undefined {
+	if (!raw) return undefined;
+	try {
+		const parsed = JSON.parse(raw) as { name?: { firstName?: string; lastName?: string } };
+		const name = [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(' ').trim();
+		return name.length > 0 ? name : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Callback for providers that answer with a cross-site form POST. The single-use
+ * state, validated against the server-side transaction, stands in for both the
+ * CSRF cookie and the nonce cookie that such a request cannot carry.
+ */
+export async function handleFormPostCallback(input: {
+	providerId: string;
+	code: string | null;
+	state: string | null;
+	appleUserField: string | null;
+	cookies: Cookies;
+	request: Request;
+	clientAddress: string;
+}): Promise<never> {
+	const provider = requireProvider(input.providerId);
+	if (provider.responseMode !== 'form_post') throw error(405, 'Method not allowed');
+	if (!input.code || !input.state) throw error(400, 'Missing code or state parameter');
+
+	try {
+		rateLimit(`auth:callback:${input.clientAddress}`, 5, 60_000);
+	} catch {
+		throw error(429, 'Too many requests');
+	}
+
+	const transaction = consumeWebTransaction(input.state);
+	if (!transaction || transaction.provider !== provider.id) {
+		throw error(400, 'Invalid or expired state');
+	}
+
+	const { profile, tokens } = await resolveProviderProfile({
+		provider,
+		code: input.code,
+		redirectUri: provider.redirectUri,
+		expectedNonce: transaction.nonce
+	});
+
+	const user = await findOrCreateUserByIdentity(
+		provider.id,
+		{ ...profile, name: profile.name ?? parseAppleUserField(input.appleUserField) },
+		detectLocale(input.request)
+	);
+
+	await startSession({
+		userId: user.id,
+		locale: user.locale,
+		refreshToken: tokens.refresh_token,
+		cookies: input.cookies
+	});
+
+	// 303 so the browser follows up with a GET, which carries the fresh session cookie.
+	throw redirect(303, '/home');
 }
 
 /**

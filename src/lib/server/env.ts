@@ -45,6 +45,11 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 			);
 		}
 	}
+	const appleVars = ['APPLE_SERVICES_ID', 'APPLE_TEAM_ID', 'APPLE_KEY_ID', 'APPLE_PRIVATE_KEY'];
+	const appleSet = appleVars.filter((key) => env[key]?.trim());
+	if (appleSet.length > 0 && appleSet.length < appleVars.length) {
+		problems.push(`${appleVars.join(', ')} must be set together (or all left unset)`);
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -68,6 +73,14 @@ export const config = {
 	microsoft: {
 		clientId: process.env.MICROSOFT_CLIENT_ID,
 		clientSecret: process.env.MICROSOFT_CLIENT_SECRET
+	},
+	apple: {
+		servicesId: process.env.APPLE_SERVICES_ID,
+		teamId: process.env.APPLE_TEAM_ID,
+		keyId: process.env.APPLE_KEY_ID,
+		privateKey: process.env.APPLE_PRIVATE_KEY,
+		// Native Sign in with Apple on iOS issues tokens for the app's bundle id.
+		bundleId: process.env.APPLE_BUNDLE_ID
 	},
 	session: {
 		secret: process.env.SESSION_SECRET!
