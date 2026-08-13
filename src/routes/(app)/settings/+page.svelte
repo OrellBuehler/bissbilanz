@@ -5,6 +5,8 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
 	import { SortableList, sortItems } from '@rodrigodagostino/svelte-sortable-list';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
@@ -24,6 +26,8 @@
 	import WidgetOrderEditor, { type WidgetVisibility } from './WidgetOrderEditor.svelte';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
+	let deleteAccountOpen = $state(false);
+	let deletingAccount = $state(false);
 	let newName = $state('');
 
 	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
@@ -187,6 +191,23 @@
 	onMount(() => {
 		loadMealTypes();
 	});
+
+	async function deleteAccount() {
+		if (deletingAccount) return;
+		deletingAccount = true;
+		try {
+			const response = await fetch('/api/account', { method: 'DELETE' });
+			if (!response.ok) throw new Error('Request failed');
+			const { clearAllData, clearCacheStorage } = await import('$lib/db');
+			await clearAllData().catch(() => {});
+			await clearCacheStorage().catch(() => {});
+			window.location.href = '/';
+		} catch {
+			toast.error(m.settings_delete_account_failed());
+			deletingAccount = false;
+			deleteAccountOpen = false;
+		}
+	}
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
@@ -321,4 +342,44 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<Card.Root class="border-destructive/50">
+		<Card.Header>
+			<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_delete_account_desc()}</p>
+		</Card.Header>
+		<Card.Content>
+			<Button variant="destructive" onclick={() => (deleteAccountOpen = true)}>
+				<Trash2 class="size-4" />
+				{m.settings_delete_account()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
+
+	<AlertDialog.Root bind:open={deleteAccountOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title class="text-left">
+					{m.settings_delete_account_confirm_title()}
+				</AlertDialog.Title>
+				<AlertDialog.Description>
+					{m.settings_delete_account_confirm_desc()}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel disabled={deletingAccount}>{m.cancel()}</AlertDialog.Cancel>
+				<AlertDialog.Action
+					class={buttonVariants({ variant: 'destructive' })}
+					disabled={deletingAccount}
+					onclick={(e) => {
+						e.preventDefault();
+						deleteAccount();
+					}}
+				>
+					<Trash2 class="size-4" />
+					{m.settings_delete_account_confirm()}
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

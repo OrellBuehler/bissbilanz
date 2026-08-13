@@ -17,6 +17,8 @@ struct SettingsView: View {
     @State private var mealTypes: [MealType] = []
     @State private var isEditingGoals = false
     @State private var showLogoutConfirmation = false
+    @State private var showDeleteAccountConfirmation = false
+    @State private var isDeletingAccount = false
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
@@ -281,6 +283,24 @@ struct SettingsView: View {
                         } message: {
                             Text(L10n.signOutConfirmation)
                         }
+                        Button(role: .destructive) {
+                            showDeleteAccountConfirmation = true
+                        } label: {
+                            Label(L10n.deleteAccount, systemImage: "trash")
+                        }
+                        .disabled(isDeletingAccount)
+                        .confirmationDialog(
+                            L10n.deleteAccountTitle,
+                            isPresented: $showDeleteAccountConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button(L10n.deleteAccountConfirm, role: .destructive) {
+                                deleteAccount()
+                            }
+                            Button(L10n.cancel, role: .cancel) {}
+                        } message: {
+                            Text(L10n.deleteAccountConfirmation)
+                        }
                     }
                 }
 
@@ -418,6 +438,23 @@ struct SettingsView: View {
             goals = goalsRepository.goals() ?? .defaults
         }
         isEditingGoals = false
+    }
+
+    private func deleteAccount() {
+        isDeletingAccount = true
+        Task {
+            do {
+                try await api.deleteAccount()
+                // Same teardown as sign-out: wipe local data before flipping auth
+                // state so nothing leaks into the next session.
+                migrator.wipeLocalData()
+                authManager.logout()
+                appModeManager.clear()
+            } catch {
+                errorMessage = L10n.deleteAccountFailed
+            }
+            isDeletingAccount = false
+        }
     }
 
     private func loadData() async {
