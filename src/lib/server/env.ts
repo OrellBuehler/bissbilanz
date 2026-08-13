@@ -35,6 +35,16 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 	if (env.DATABASE_URL && !/^postgres(ql)?:\/\//.test(env.DATABASE_URL)) {
 		problems.push('DATABASE_URL must be a postgres:// connection string');
 	}
+	// Optional providers are all-or-nothing: half-configured means a broken button.
+	for (const provider of ['GOOGLE', 'MICROSOFT']) {
+		const id = env[`${provider}_CLIENT_ID`]?.trim();
+		const secret = env[`${provider}_CLIENT_SECRET`]?.trim();
+		if (Boolean(id) !== Boolean(secret)) {
+			problems.push(
+				`${provider}_CLIENT_ID and ${provider}_CLIENT_SECRET must be set together (or both left unset)`
+			);
+		}
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -49,6 +59,15 @@ export const config = {
 		clientId: process.env.INFOMANIAK_CLIENT_ID!,
 		clientSecret: process.env.INFOMANIAK_CLIENT_SECRET!,
 		redirectUri: process.env.INFOMANIAK_REDIRECT_URI!
+	},
+	// Optional providers: leaving the credentials unset keeps the provider hidden.
+	google: {
+		clientId: process.env.GOOGLE_CLIENT_ID,
+		clientSecret: process.env.GOOGLE_CLIENT_SECRET
+	},
+	microsoft: {
+		clientId: process.env.MICROSOFT_CLIENT_ID,
+		clientSecret: process.env.MICROSOFT_CLIENT_SECRET
 	},
 	session: {
 		secret: process.env.SESSION_SECRET!

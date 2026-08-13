@@ -1,7 +1,7 @@
 import type { JWTPayload } from 'jose';
 import { config } from './env';
 
-export const providerIds = ['infomaniak'] as const;
+export const providerIds = ['infomaniak', 'google', 'microsoft'] as const;
 export type ProviderId = (typeof providerIds)[number];
 
 export type ProviderProfile = {
@@ -40,6 +40,9 @@ export type ProviderConfig = ProviderDef & {
 const str = (value: unknown): string | undefined =>
 	typeof value === 'string' && value.length > 0 ? value : undefined;
 
+const emailLike = (value: string | undefined): string | undefined =>
+	value && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) ? value : undefined;
+
 export const providerDefs: Record<ProviderId, ProviderDef> = {
 	infomaniak: {
 		id: 'infomaniak',
@@ -54,6 +57,38 @@ export const providerDefs: Record<ProviderId, ProviderDef> = {
 			email: str(userinfo?.email),
 			name: str(userinfo?.name),
 			avatarUrl: str(userinfo?.picture)
+		})
+	},
+	google: {
+		id: 'google',
+		issuer: 'https://accounts.google.com',
+		authorizeEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+		tokenEndpoint: 'https://oauth2.googleapis.com/token',
+		scopes: 'openid email profile',
+		usesPkce: true,
+		mapClaims: (claims) => ({
+			sub: str(claims.sub) ?? '',
+			email: str(claims.email),
+			name: str(claims.name),
+			avatarUrl: str(claims.picture)
+		})
+	},
+	microsoft: {
+		id: 'microsoft',
+		// The consumers tenant (personal Microsoft accounts) has a fixed issuer, so
+		// discovery and JWKS work without any tenant-template handling.
+		issuer: 'https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0',
+		authorizeEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
+		tokenEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
+		scopes: 'openid email profile',
+		usesPkce: true,
+		mapClaims: (claims) => ({
+			sub: str(claims.sub) ?? '',
+			// Microsoft omits `email` unless the account has one on file; the
+			// username is an email address for personal accounts.
+			email: str(claims.email) ?? emailLike(str(claims.preferred_username)),
+			name: str(claims.name)
+			// No avatar: personal-account photos require a Microsoft Graph call.
 		})
 	}
 };

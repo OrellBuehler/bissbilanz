@@ -50,8 +50,8 @@ export async function fetchUser(): Promise<void> {
 	}
 }
 
-export function login(): void {
-	window.location.href = '/api/auth/login';
+export function login(provider = 'infomaniak'): void {
+	window.location.href = `/api/auth/login?provider=${encodeURIComponent(provider)}`;
 }
 
 export async function logout(): Promise<void> {

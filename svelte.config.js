@@ -28,7 +28,8 @@ const config = {
 					'data:',
 					'https://images.openfoodfacts.net',
 					'https://images.openfoodfacts.org',
-					'https://avatar.storage.infomaniak.com'
+					'https://avatar.storage.infomaniak.com',
+					'https://lh3.googleusercontent.com'
 				],
 				'style-src': ['self', 'unsafe-inline'],
 				'script-src': ['self', 'wasm-unsafe-eval', 'https://a.orellbuehler.ch'],
