@@ -1,6 +1,5 @@
 package com.bissbilanz.sync
 
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.EntryCreate
@@ -45,7 +44,6 @@ class TempIdCoalescingTest {
     private lateinit var db: UserDataDatabase
     private lateinit var cacheDb: BissbilanzDatabase
     private lateinit var syncQueue: SyncQueue
-    private lateinit var healthSync: HealthSyncService
     private val json = Json { ignoreUnknownKeys = true }
 
     @BeforeTest
@@ -54,10 +52,9 @@ class TempIdCoalescingTest {
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
         syncQueue = SyncQueue(cacheDb, json, appModeManager())
-        healthSync = mockk(relaxed = true)
     }
 
-    private fun entryRepository() = EntryRepository(api, db, cacheDb, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
+    private fun entryRepository() = EntryRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
 
     private fun foodRepository() =
         FoodRepository(
@@ -74,7 +71,7 @@ class TempIdCoalescingTest {
 
     private fun recipeRepository() = RecipeRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
 
-    private fun weightRepository() = WeightRepository(api, db, cacheDb, healthSync, syncQueue, json, NoopErrorReporter(), appModeManager())
+    private fun weightRepository() = WeightRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
 
     private fun sleepRepository() = SleepRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
 

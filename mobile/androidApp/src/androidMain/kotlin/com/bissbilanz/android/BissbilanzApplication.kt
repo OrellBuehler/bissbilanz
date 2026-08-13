@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -23,7 +22,6 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
-import com.bissbilanz.health.HealthConnectService
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.repository.FoodRepository
@@ -63,7 +61,6 @@ class BissbilanzApplication : Application() {
                 single { SecureStorage(androidContext()) }
                 single { PlainStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }
-                single<HealthSyncService> { HealthConnectService(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
                 single<ErrorReporter> { SentryErrorReporter() }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }

@@ -1,7 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
 import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,11 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -35,7 +32,6 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -44,15 +40,12 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpd
 @Composable
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
-    val healthSync: HealthSyncService = koinInject()
     val authManager: AuthManager = koinInject()
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
-    val healthAvailable by viewModel.healthAvailable.collectAsStateWithLifecycle()
-    val healthPermGranted by viewModel.healthPermGranted.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
@@ -61,8 +54,6 @@ fun SettingsScreen(navController: NavController) {
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val healthPrefs = context.getSharedPreferences("health_connect", Context.MODE_PRIVATE)
-    var healthSyncEnabled by remember { mutableStateOf(healthPrefs.getBoolean("sync_enabled", false)) }
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
     var selectedTabs by remember {
         mutableStateOf(
@@ -70,13 +61,6 @@ fun SettingsScreen(navController: NavController) {
                 ?: com.bissbilanz.android.navigation.defaultTabRoutes,
         )
     }
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            PermissionController.createRequestPermissionResultContract(),
-        ) {
-            viewModel.refreshHealthPermissions()
-        }
-
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -416,66 +400,6 @@ fun SettingsScreen(navController: NavController) {
                                 enabled = isValid,
                             ) {
                                 Text(stringResource(R.string.weight_save))
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Health Connect
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_health_connect),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (!healthAvailable) {
-                            Text(
-                                stringResource(R.string.settings_health_connect_unavailable),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        } else {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(stringResource(R.string.settings_sync_health_connect))
-                                Switch(
-                                    checked = healthSyncEnabled,
-                                    onCheckedChange = { enabled ->
-                                        haptic(HapticFeedbackType.LongPress)
-                                        healthSyncEnabled = enabled
-                                        healthPrefs.edit().putBoolean("sync_enabled", enabled).apply()
-                                    },
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            if (healthPermGranted) {
-                                Text(
-                                    stringResource(R.string.settings_permissions_granted),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            } else {
-                                OutlinedButton(
-                                    onClick = {
-                                        permissionLauncher.launch(healthSync.getRequiredPermissions())
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Icon(
-                                        Icons.Default.HealthAndSafety,
-                                        stringResource(R.string.settings_permissions),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.settings_grant_permissions))
-                                }
                             }
                         }
                     }

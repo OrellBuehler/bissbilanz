@@ -1,6 +1,5 @@
 package com.bissbilanz.repository
 
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -43,7 +42,6 @@ class DayPropertiesRepositoryTest {
             api,
             db,
             cacheDb,
-            mockk<HealthSyncService>(relaxed = true),
             syncQueue,
             json,
             NoopErrorReporter(),

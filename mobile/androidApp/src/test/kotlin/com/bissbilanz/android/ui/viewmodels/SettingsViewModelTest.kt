@@ -1,7 +1,6 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.HealthSyncService
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
@@ -54,7 +53,6 @@ class SettingsViewModelTest {
     private lateinit var goalsRepo: GoalsRepository
     private lateinit var prefsRepo: PreferencesRepository
     private lateinit var api: BissbilanzApi
-    private lateinit var healthSync: HealthSyncService
     private lateinit var refreshManager: RefreshManager
     private lateinit var errorReporter: ErrorReporter
     private lateinit var appModeManager: AppModeManager
@@ -65,7 +63,6 @@ class SettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         authManager = mockk(relaxed = true)
         api = mockk(relaxed = true)
-        healthSync = mockk(relaxed = true)
         refreshManager = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
         appModeManager = AppModeManager(InMemoryKeyValueStore())
@@ -91,7 +88,6 @@ class SettingsViewModelTest {
             goalsRepo,
             prefsRepo,
             api,
-            healthSync,
             refreshManager,
             errorReporter,
             appModeManager,
