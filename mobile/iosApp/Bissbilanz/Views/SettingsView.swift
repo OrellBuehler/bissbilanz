@@ -312,6 +312,9 @@ struct SettingsView: View {
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
                     }
+                    Link(destination: URL(string: "https://bissbilanz.orellbuehler.ch/privacy")!) {
+                        Label(L10n.privacyPolicy, systemImage: "hand.raised")
+                    }
                     #if DEBUG
                     // Developer-only: verify the Sentry pipeline end-to-end.
                     // Greyed out unless the build was made with a SENTRY_DSN.

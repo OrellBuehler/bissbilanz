@@ -766,6 +766,10 @@ enum L10n {
         )
     }
 
+    static var privacyPolicy: String {
+        localized("privacy_policy", en: "Privacy Policy", de: "Datenschutzerklärung")
+    }
+
     static func pendingSyncCount(_ count: Int) -> String {
         localized(
             "pending_sync_count",

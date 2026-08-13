@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +55,7 @@ fun SettingsScreen(navController: NavController) {
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
     var selectedTabs by remember {
         mutableStateOf(
@@ -651,6 +653,15 @@ fun SettingsScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
+                TextButton(
+                    onClick = { uriHandler.openUri("https://bissbilanz.orellbuehler.ch/privacy") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_privacy_policy),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
     }
