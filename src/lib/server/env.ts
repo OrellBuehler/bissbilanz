@@ -54,7 +54,10 @@ export const config = {
 		secret: process.env.SESSION_SECRET!
 	},
 	app: {
-		url: process.env.PUBLIC_APP_URL!
+		url: process.env.PUBLIC_APP_URL!,
+		// Whether auth cookies get the Secure attribute. Derived from the public app
+		// URL so it stays correct behind a TLS-terminating proxy.
+		secureCookies: (process.env.PUBLIC_APP_URL ?? '').startsWith('https')
 	},
 	mcp: {
 		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'

@@ -10,6 +10,7 @@ const CODE_TTL_MS = 60 * 1000; // 1 minute
 type PendingState = {
 	codeVerifier: string;
 	nonce: string;
+	provider: string;
 	expiresAt: number;
 };
 
@@ -28,22 +29,28 @@ function cleanup<T extends { expiresAt: number }>(store: Map<string, T>) {
 	}
 }
 
-export function storePendingState(state: string, codeVerifier: string, nonce: string) {
+export function storePendingState(
+	state: string,
+	codeVerifier: string,
+	nonce: string,
+	provider: string
+) {
 	cleanup(pendingStates);
 	pendingStates.set(state, {
 		codeVerifier,
 		nonce,
+		provider,
 		expiresAt: Date.now() + STATE_TTL_MS
 	});
 }
 
 export function consumePendingState(
 	state: string
-): { codeVerifier: string; nonce: string } | undefined {
+): { codeVerifier: string; nonce: string; provider: string } | undefined {
 	const entry = pendingStates.get(state);
 	pendingStates.delete(state);
 	if (!entry || entry.expiresAt < Date.now()) return undefined;
-	return { codeVerifier: entry.codeVerifier, nonce: entry.nonce };
+	return { codeVerifier: entry.codeVerifier, nonce: entry.nonce, provider: entry.provider };
 }
 
 export function createOneTimeCode(userId: string): string {

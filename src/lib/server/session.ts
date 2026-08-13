@@ -105,7 +105,7 @@ export function createSessionCookie(
 	sessionId: string,
 	options?: { secure?: boolean; sameSite?: SameSiteValue }
 ): string {
-	const secure = options?.secure ?? config.infomaniak.redirectUri.startsWith('https');
+	const secure = options?.secure ?? config.app.secureCookies;
 	const sameSite = formatSameSite(options?.sameSite);
 	return [
 		`session=${sessionId}`,
@@ -123,7 +123,7 @@ export function clearSessionCookie(options?: {
 	secure?: boolean;
 	sameSite?: SameSiteValue;
 }): string {
-	const secure = options?.secure ?? config.infomaniak.redirectUri.startsWith('https');
+	const secure = options?.secure ?? config.app.secureCookies;
 	const sameSite = formatSameSite(options?.sameSite);
 	return [
 		'session=',
