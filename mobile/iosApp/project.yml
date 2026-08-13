@@ -98,6 +98,11 @@ targets:
           - iCloud.com.bissbilanz.ios
         com.apple.developer.icloud-services:
           - CloudKit
+        # Native Sign in with Apple. The capability must also be enabled on the
+        # App ID in the developer portal, or signing fails with a profile
+        # mismatch on this entitlement.
+        com.apple.developer.applesignin:
+          - Default
     dependencies:
       - framework: '../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/shared.framework'
         embed: false

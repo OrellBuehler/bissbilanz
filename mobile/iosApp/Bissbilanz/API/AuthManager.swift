@@ -76,10 +76,10 @@ final class AuthManager {
         return sub
     }
 
-    func buildLoginURL() -> URL? {
+    func buildLoginURL(provider: String = "infomaniak") -> URL? {
         let state = UUID().uuidString
         pendingState = state
-        return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)")
+        return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)&provider=\(provider)")
     }
 
     @discardableResult
@@ -104,6 +104,38 @@ final class AuthManager {
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
+            let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
+            KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
+            if let refresh = tokenResponse.refreshToken {
+                KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
+            }
+            authState = .authenticated
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Native Sign in with Apple: the device already holds a verified identity token,
+    /// so the server only has to check it and issue our own tokens. There is no
+    /// authorization code and no browser round trip.
+    @discardableResult
+    func signInWithApple(identityToken: String, nonce: String, name: String?) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/auth/mobile/apple") else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        var body = ["identity_token": identityToken, "nonce": nonce]
+        if let name, !name.isEmpty { body["name"] = name }
+        request.httpBody = try? JSONEncoder().encode(body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
+                return false
+            }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
             KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
             if let refresh = tokenResponse.refreshToken {

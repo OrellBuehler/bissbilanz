@@ -1183,6 +1183,26 @@ enum L10n {
         localized("sign_in", en: "Sign in", de: "Anmelden")
     }
 
+    static var signInWithInfomaniak: String {
+        localized(
+            "sign_in_with_infomaniak",
+            en: "Continue with Infomaniak",
+            de: "Mit Infomaniak fortfahren"
+        )
+    }
+
+    static var signInWithGoogle: String {
+        localized("sign_in_with_google", en: "Continue with Google", de: "Mit Google fortfahren")
+    }
+
+    static var signInWithMicrosoft: String {
+        localized(
+            "sign_in_with_microsoft",
+            en: "Continue with Microsoft",
+            de: "Mit Microsoft fortfahren"
+        )
+    }
+
     static var continueWithoutAccount: String {
         localized(
             "continue_without_account",
