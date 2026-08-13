@@ -41,6 +41,13 @@ jobs:
       TEST_MODE: 'true'
       TEST_AUTH_TOKEN: 'test-integration-token'
       TEST_USER_ID: '00000000-0000-0000-0000-000000000001'
+      # Dummy values so the env validation in src/lib/server/env.ts passes —
+      # the e2e tests authenticate with TEST_AUTH_TOKEN, not OIDC.
+      SESSION_SECRET: test-session-secret-for-ci-not-a-real-secret
+      PUBLIC_APP_URL: http://localhost:4000
+      INFOMANIAK_CLIENT_ID: fake
+      INFOMANIAK_CLIENT_SECRET: fake
+      INFOMANIAK_REDIRECT_URI: http://localhost:4000/oauth/callback
 
     steps:
       - name: Checkout repository
