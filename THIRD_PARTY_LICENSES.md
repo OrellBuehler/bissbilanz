@@ -6,12 +6,12 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 232   |
-| Apache-2.0                | 22    |
-| ISC                       | 14    |
-| BSD-2-Clause              | 5     |
+| MIT                       | 234   |
+| Apache-2.0                | 26    |
+| ISC                       | 15    |
+| BSD-2-Clause              | 6     |
+| BSD-3-Clause              | 5     |
 | BlueOak-1.0.0             | 5     |
-| BSD-3-Clause              | 4     |
 | MPL-2.0                   | 3     |
 | OFL-1.1                   | 2     |
 | LGPL-3.0-or-later         | 2     |
@@ -22,6 +22,21 @@ This file lists all third-party dependencies used in production and their licens
 | MIT*                      | 1     |
 
 ## Packages
+
+### @apm-js-collab/code-transformer-bundler-plugins@0.7.4
+
+- **License:** MIT
+- **Repository:** https://github.com/apm-js-collab/code-transformer-bundler-plugins
+
+### @apm-js-collab/code-transformer@0.18.1
+
+- **License:** Apache-2.0
+- **Repository:** https://github.com/nodejs/orchestrion-js
+
+### @apm-js-collab/tracing-hooks@0.13.0
+
+- **License:** Apache-2.0
+- **Repository:** https://github.com/apm-js-collab/tracing-hooks
 
 ### @babel/code-frame@7.29.7
 
@@ -125,7 +140,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/generator@7.29.7
+### @babel/generator@7.29.8
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -432,7 +447,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/parser@7.29.7
+### @babel/parser@7.29.8
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -497,7 +512,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/traverse@7.29.7
+### @babel/traverse@7.29.8
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -531,7 +546,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @babel/types@7.29.7
+### @babel/types@7.29.8
 
 - **License:** MIT
 - **Repository:** https://github.com/babel/babel
@@ -565,7 +580,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### @esbuild/linux-x64@0.28.1
+### @esbuild/linux-x64@0.28.2
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -580,7 +595,7 @@ This is the Linux 64-bit binary for esbuild, a JavaScript bundler and minifier. 
 
 </details>
 
-### @fontsource-variable/inter@5.2.8
+### @fontsource-variable/inter@5.3.0
 
 - **License:** OFL-1.1
 - **Repository:** https://github.com/fontsource/font-files
@@ -685,7 +700,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @fontsource-variable/manrope@5.2.8
+### @fontsource-variable/manrope@5.3.0
 
 - **License:** OFL-1.1
 - **Repository:** https://github.com/fontsource/font-files
@@ -790,40 +805,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @hono/node-server@1.19.14
-
-- **License:** MIT
-- **Repository:** https://github.com/honojs/node-server
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2022 - present, Yusuke Wada and Hono contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### @hono/node-server@2.0.6
+### @hono/node-server@2.1.0
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/node-server
@@ -950,7 +932,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### @img/sharp-libvips-linux-x64@1.3.1
+### @img/sharp-libvips-linux-x64@1.3.2
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
@@ -1008,7 +990,7 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 </details>
 
-### @img/sharp-libvips-linuxmusl-x64@1.3.1
+### @img/sharp-libvips-linuxmusl-x64@1.3.2
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
@@ -1066,17 +1048,17 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 </details>
 
-### @img/sharp-linux-x64@0.35.2
+### @img/sharp-linux-x64@0.35.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @img/sharp-linuxmusl-x64@0.35.2
+### @img/sharp-linuxmusl-x64@0.35.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @inlang/paraglide-js@2.20.2
+### @inlang/paraglide-js@2.23.2
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
@@ -1424,7 +1406,7 @@ SOFTWARE.
 
 </details>
 
-### @modelcontextprotocol/sdk@1.29.0
+### @modelcontextprotocol/sdk@1.30.0
 
 - **License:** MIT
 - **Repository:** https://github.com/modelcontextprotocol/typescript-sdk
@@ -1457,7 +1439,22 @@ SOFTWARE.
 
 </details>
 
-### @opentelemetry/api-logs@0.214.0
+### @napi-rs/lzma-linux-x64-gnu@1.5.1
+
+- **License:** MIT
+- **Repository:** https://github.com/Brooooooklyn/lzma
+
+<details><summary>License Text</summary>
+
+```
+# `@napi-rs/lzma-linux-x64-gnu`
+
+This is the **x86_64-unknown-linux-gnu** binary for `@napi-rs/lzma`
+```
+
+</details>
+
+### @opentelemetry/api-logs@0.220.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
@@ -1467,32 +1464,37 @@ SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/core@2.7.1
+### @opentelemetry/core@2.10.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/instrumentation@0.214.0
+### @opentelemetry/instrumentation@0.220.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/resources@2.7.1
+### @opentelemetry/resources@2.10.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/sdk-trace-base@2.7.1
+### @opentelemetry/sdk-trace-base@2.10.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @opentelemetry/semantic-conventions@1.41.1
+### @opentelemetry/sdk-trace@2.10.0
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
 
-### @oxc-project/types@0.137.0
+### @opentelemetry/semantic-conventions@1.43.0
+
+- **License:** Apache-2.0
+- **Repository:** https://github.com/open-telemetry/opentelemetry-js
+
+### @oxc-project/types@0.144.0
 
 - **License:** MIT
 - **Repository:** https://github.com/oxc-project/oxc
@@ -1608,7 +1610,7 @@ MIT © [Luke Edwards](https://lukeed.com)
 
 </details>
 
-### @rodrigodagostino/svelte-sortable-list@2.1.18
+### @rodrigodagostino/svelte-sortable-list@2.2.5
 
 - **License:** MIT
 - **Repository:** https://github.com/rodrigodagostino/svelte-sortable-list
@@ -1643,7 +1645,7 @@ SOFTWARE.
 
 </details>
 
-### @rolldown/binding-linux-x64-gnu@1.1.3
+### @rolldown/binding-linux-x64-gnu@1.2.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1660,7 +1662,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `@rolldown/binding`
 
 </details>
 
-### @rolldown/binding-linux-x64-musl@1.1.3
+### @rolldown/binding-linux-x64-musl@1.2.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1712,7 +1714,7 @@ SOFTWARE.
 
 </details>
 
-### @rollup/rollup-linux-x64-gnu@4.61.1
+### @rollup/rollup-linux-x64-gnu@4.62.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -1729,7 +1731,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `rollup`
 
 </details>
 
-### @rollup/rollup-linux-x64-musl@4.61.1
+### @rollup/rollup-linux-x64-musl@4.62.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -1746,7 +1748,7 @@ This is the **x86_64-unknown-linux-musl** binary for `rollup`
 
 </details>
 
-### @sentry-internal/browser-utils@10.57.0
+### @sentry/browser-utils@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -1781,192 +1783,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry-internal/feedback@10.57.0
-
-- **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2023 Functional Software, Inc. dba Sentry
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### @sentry-internal/replay-canvas@10.57.0
-
-- **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2024 Functional Software, Inc. dba Sentry
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### @sentry-internal/replay@10.57.0
-
-- **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2022 Functional Software, Inc. dba Sentry
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### @sentry-internal/server-utils@10.57.0
-
-- **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript
-
-<details><summary>License Text</summary>
-
-```
-
-<p align="center">
-  <a href="https://sentry.io/?utm_source=github&utm_medium=logo" target="_blank">
-    <img src="https://sentry-brand.storage.googleapis.com/sentry-wordmark-dark-280x84.png" alt="Sentry" width="280" height="84">
-  </a>
-</p>
-
-# Sentry JavaScript SDK Server Utilities
-
-[![npm version](https://img.shields.io/npm/v/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
-[![npm dm](https://img.shields.io/npm/dm/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
-[![npm dt](https://img.shields.io/npm/dt/@sentry-internal/server-utils.svg)](https://www.npmjs.com/package/@sentry-internal/server-utils)
-
-## Links
-
-- [Official SDK Docs](https://docs.sentry.io/quickstart/)
-
-## General
-
-Common server-only utilities used by the Sentry JavaScript server SDKs (node, node-core, bun, deno, cloudflare,
-aws-serverless, google-cloud-serverless, vercel-edge).
-
-Note: This package is only meant to be used internally, and as such is not part of our public API contract and does not
-follow semver.
-
-```
-
-</details>
-
-### @sentry/babel-plugin-component-annotate@5.3.0
-
-- **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
-
-<details><summary>License Text</summary>
-
-```
-
-# MIT License
-
-Copyright (c) 2024, Sentry
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-- Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-- Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-- Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-```
-
-</details>
-
-### @sentry/browser@10.57.0
+### @sentry/browser@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2001,10 +1818,10 @@ SOFTWARE.
 
 </details>
 
-### @sentry/bundler-plugin-core@5.3.0
+### @sentry/bundler-plugins@10.70.0
 
 - **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
+- **Repository:** https://github.com/getsentry/sentry-javascript
 
 <details><summary>License Text</summary>
 
@@ -2012,7 +1829,7 @@ SOFTWARE.
 
 # MIT License
 
-Copyright (c) 2022, Sentry
+Copyright (c) 2022-2026, Sentry
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -2193,7 +2010,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/cloudflare@10.57.0
+### @sentry/cloudflare@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2228,7 +2045,42 @@ SOFTWARE.
 
 </details>
 
-### @sentry/core@10.57.0
+### @sentry/conventions@0.16.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-conventions
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2023-2025 Functional Software, Inc. dba Sentry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+</details>
+
+### @sentry/core@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2263,7 +2115,42 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node-core@10.57.0
+### @sentry/feedback@10.70.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-javascript
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2023 Functional Software, Inc. dba Sentry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+</details>
+
+### @sentry/node-core@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2298,7 +2185,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node@10.57.0
+### @sentry/node@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2333,7 +2220,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/opentelemetry@10.57.0
+### @sentry/opentelemetry@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2368,50 +2255,42 @@ SOFTWARE.
 
 </details>
 
-### @sentry/rollup-plugin@5.3.0
+### @sentry/replay-canvas@10.70.0
 
 - **License:** MIT
-- **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
+- **Repository:** https://github.com/getsentry/sentry-javascript
 
 <details><summary>License Text</summary>
 
 ```
 
-# MIT License
+MIT License
 
-Copyright (c) 2022, Sentry
-All rights reserved.
+Copyright (c) 2024 Functional Software, Inc. dba Sentry
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-- Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-- Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-- Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ```
 
 </details>
 
-### @sentry/svelte@10.57.0
+### @sentry/replay@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2446,7 +2325,80 @@ SOFTWARE.
 
 </details>
 
-### @sentry/sveltekit@10.57.0
+### @sentry/server-utils@10.70.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-javascript
+
+<details><summary>License Text</summary>
+
+```
+
+<p align="center">
+  <a href="https://sentry.io/?utm_source=github&utm_medium=logo" target="_blank">
+    <img src="https://sentry-brand.storage.googleapis.com/sentry-wordmark-dark-280x84.png" alt="Sentry" width="280" height="84">
+  </a>
+</p>
+
+# Sentry JavaScript SDK Server Utilities
+
+[![npm version](https://img.shields.io/npm/v/@sentry/server-utils.svg)](https://www.npmjs.com/package/@sentry/server-utils)
+[![npm dm](https://img.shields.io/npm/dm/@sentry/server-utils.svg)](https://www.npmjs.com/package/@sentry/server-utils)
+[![npm dt](https://img.shields.io/npm/dt/@sentry/server-utils.svg)](https://www.npmjs.com/package/@sentry/server-utils)
+
+> [!NOTE]
+> This package is an internal library published for use by Sentry-owned JavaScript SDK packages. It is not part of the
+> public API contract and may change in any release. Do not rely on SemVer compatibility if you depend on it directly.
+
+## Links
+
+- [Official SDK Docs](https://docs.sentry.io/quickstart/)
+
+## General
+
+Common server-only utilities used by the Sentry JavaScript server SDKs (node, node-core, bun, deno, cloudflare,
+aws-serverless, google-cloud-serverless, vercel-edge).
+
+```
+
+</details>
+
+### @sentry/svelte@10.70.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-javascript
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2022 Functional Software, Inc. dba Sentry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+</details>
+
+### @sentry/sveltekit@10.70.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2481,7 +2433,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/vite-plugin@5.3.0
+### @sentry/vite-plugin@5.4.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript-bundler-plugins
@@ -2524,10 +2476,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### @sinclair/typebox@0.31.28
+### @sinclair/typebox@0.31.30
 
 - **License:** MIT
-- **Repository:** https://github.com/sinclairzx81/typebox
+- **Repository:** https://github.com/sinclairzx81/sinclair-typebox
 
 <details><summary>License Text</summary>
 
@@ -2601,7 +2553,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/acorn-typescript@1.0.10
+### @sveltejs/acorn-typescript@1.0.13
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/acorn-typescript
@@ -2637,7 +2589,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/kit@2.66.0
+### @sveltejs/kit@2.70.2
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/kit
@@ -2658,7 +2610,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### @sveltejs/vite-plugin-svelte@7.1.2
+### @sveltejs/vite-plugin-svelte@7.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/vite-plugin-svelte
@@ -2763,7 +2715,7 @@ MIT License
 
 </details>
 
-### @types/node@25.9.2
+### @types/node@26.2.0
 
 - **License:** MIT
 - **Repository:** https://github.com/DefinitelyTyped/DefinitelyTyped
@@ -2833,7 +2785,7 @@ MIT License
 
 </details>
 
-### @zxing/browser@0.2.0
+### @zxing/browser@0.2.1
 
 - **License:** MIT
 - **Repository:** https://github.com/zxing-js/browser
@@ -2915,42 +2867,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### acorn-import-attributes@1.9.5
-
-- **License:** MIT
-- **Repository:** https://github.com/xtuc/acorn-import-attributes
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2023 Sven Sauleau
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### acorn@8.16.0
+### acorn@8.18.0
 
 - **License:** MIT
 - **Repository:** https://github.com/acornjs/acorn
@@ -3100,6 +3017,39 @@ THE SOFTWARE.
 
 </details>
 
+### astring@1.9.0
+
+- **License:** MIT
+- **Repository:** https://github.com/davidbonnet/astring
+
+<details><summary>License Text</summary>
+
+```
+
+Copyright (c) 2015, David Bonnet <david@bonnet.cc>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+```
+
+</details>
+
 ### axobject-query@4.1.0
 
 - **License:** Apache-2.0
@@ -3142,7 +3092,7 @@ SOFTWARE.
 
 </details>
 
-### baseline-browser-mapping@2.10.35
+### baseline-browser-mapping@2.11.14
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/web-platform-dx/baseline-browser-mapping
@@ -3180,7 +3130,7 @@ THE SOFTWARE.
 
 </details>
 
-### body-parser@2.2.2
+### body-parser@2.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/expressjs/body-parser
@@ -3217,7 +3167,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### brace-expansion@5.0.6
+### brace-expansion@5.0.9
 
 - **License:** MIT
 - **Repository:** https://github.com/juliangruber/brace-expansion
@@ -3254,7 +3204,7 @@ SOFTWARE.
 
 </details>
 
-### browserslist@4.28.2
+### browserslist@4.28.8
 
 - **License:** MIT
 - **Repository:** https://github.com/browserslist/browserslist
@@ -3477,7 +3427,7 @@ SOFTWARE.
 
 </details>
 
-### caniuse-lite@1.0.30001797
+### caniuse-lite@1.0.30001809
 
 - **License:** CC-BY-4.0
 - **Repository:** https://github.com/browserslist/caniuse-lite
@@ -4167,7 +4117,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/detect-libc
 
-### devalue@5.8.1
+### devalue@5.9.0
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/devalue
@@ -4188,12 +4138,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### dexie@4.4.3
+### dexie@4.4.4
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/dexie/Dexie.js
 
-### dotenv@16.6.1
+### dotenv@17.4.2
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/motdotla/dotenv
@@ -4357,7 +4307,7 @@ THE SOFTWARE.
 
 </details>
 
-### electron-to-chromium@1.5.371
+### electron-to-chromium@1.5.405
 
 - **License:** ISC
 - **Repository:** https://github.com/Kilian/electron-to-chromium
@@ -4474,6 +4424,28 @@ SOFTWARE.
 
 </details>
 
+### es-module-lexer@2.3.1
+
+- **License:** MIT
+- **Repository:** https://github.com/guybedford/es-module-lexer
+
+<details><summary>License Text</summary>
+
+```
+MIT License
+-----------
+
+Copyright (C) 2018-2022 Guy Bedford
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+</details>
+
 ### es-object-atoms@1.1.2
 
 - **License:** MIT
@@ -4507,7 +4479,7 @@ SOFTWARE.
 
 </details>
 
-### esbuild@0.28.1
+### esbuild@0.28.2
 
 - **License:** MIT
 - **Repository:** https://github.com/evanw/esbuild
@@ -4649,7 +4621,43 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### esrap@2.2.11
+### esquery@1.7.0
+
+- **License:** BSD-3-Clause
+- **Repository:** https://github.com/estools/esquery
+
+<details><summary>License Text</summary>
+
+```
+Copyright (c) 2013, Joel Feenstra
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the ESQuery nor the names of its contributors may
+      be used to endorse or promote products derived from this software without
+      specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL JOEL FEENSTRA BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+</details>
+
+### esrap@2.3.3
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/esrap
@@ -4664,6 +4672,37 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+</details>
+
+### estraverse@5.3.0
+
+- **License:** BSD-2-Clause
+- **Repository:** https://github.com/estools/estraverse
+
+<details><summary>License Text</summary>
+
+```
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 </details>
@@ -4702,7 +4741,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### eventsource-parser@3.1.0
+### eventsource-parser@3.1.1
 
 - **License:** MIT
 - **Repository:** https://github.com/rexxars/eventsource-parser
@@ -4769,7 +4808,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### express-rate-limit@8.5.2
+### express-rate-limit@8.6.2
 
 - **License:** MIT
 - **Repository:** https://github.com/express-rate-limit/express-rate-limit
@@ -4870,7 +4909,7 @@ SOFTWARE.
 
 </details>
 
-### fast-uri@3.1.2
+### fast-uri@3.1.5
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/fastify/fast-uri
@@ -5411,7 +5450,7 @@ SOFTWARE.
 
 </details>
 
-### hono@4.12.25
+### hono@4.13.2
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
@@ -5661,7 +5700,7 @@ SOFTWARE.
 
 </details>
 
-### iconv-lite@0.7.2
+### iconv-lite@0.7.3
 
 - **License:** MIT
 - **Repository:** https://github.com/pillarjs/iconv-lite
@@ -5695,7 +5734,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### import-in-the-middle@3.0.2
+### import-in-the-middle@3.3.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/nodejs/import-in-the-middle
@@ -5729,7 +5768,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### ip-address@10.2.0
+### ip-address@10.5.0
 
 - **License:** MIT
 - **Repository:** https://github.com/beaugunderson/ip-address
@@ -5964,7 +6003,7 @@ SOFTWARE.
 
 </details>
 
-### jose@6.2.3
+### jose@6.2.8
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
@@ -6317,17 +6356,17 @@ SOFTWARE.
 
 </details>
 
-### lightningcss-linux-x64-gnu@1.32.0
+### lightningcss-linux-x64-gnu@1.33.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
 
-### lightningcss-linux-x64-musl@1.32.0
+### lightningcss-linux-x64-musl@1.33.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
 
-### lightningcss@1.32.0
+### lightningcss@1.33.0
 
 - **License:** MPL-2.0
 - **Repository:** https://github.com/parcel-bundler/lightningcss
@@ -6435,7 +6474,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### lru-cache@11.5.1
+### lru-cache@11.5.2
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/node-lru-cache
@@ -6554,6 +6593,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
+### magic-string@1.2.0
+
+- **License:** MIT
+- **Repository:** https://github.com/Rich-Harris/magic-string
+
+<details><summary>License Text</summary>
+
+```
+
+Copyright 2018 Rich Harris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
 ### math-intrinsics@1.1.0
 
 - **License:** MIT
@@ -6589,7 +6649,7 @@ SOFTWARE.
 
 </details>
 
-### media-typer@1.1.0
+### media-typer@1.1.1
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/media-typer
@@ -6645,6 +6705,27 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
+### meriyah@6.1.4
+
+- **License:** ISC
+- **Repository:** https://github.com/meriyah/meriyah
+
+<details><summary>License Text</summary>
+
+```
+
+ISC License
+
+Copyright (c) 2019 and later, KFlash and others.
+
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ```
 
@@ -6724,7 +6805,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### minimatch@10.2.5
+### minimatch@10.2.6
 
 - **License:** BlueOak-1.0.0
 - **Repository:** https://github.com/isaacs/minimatch
@@ -6999,7 +7080,7 @@ SOFTWARE.
 
 </details>
 
-### nanoid@3.3.12
+### nanoid@3.3.18
 
 - **License:** MIT
 - **Repository:** https://github.com/ai/nanoid
@@ -7071,7 +7152,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### node-addon-api@8.8.0
+### node-addon-api@8.9.2
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/node-addon-api
@@ -7164,7 +7245,7 @@ THE SOFTWARE.
 
 </details>
 
-### node-releases@2.0.47
+### node-releases@2.0.53
 
 - **License:** MIT
 - **Repository:** https://github.com/chicoxyzzy/node-releases
@@ -7269,7 +7350,7 @@ SOFTWARE.
 
 </details>
 
-### obug@2.1.2
+### obug@2.1.4
 
 - **License:** MIT
 - **Repository:** https://github.com/sxzz/obug
@@ -7704,7 +7785,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### picomatch@4.0.4
+### picomatch@4.0.5
 
 - **License:** MIT
 - **Repository:** https://github.com/micromatch/picomatch
@@ -7774,7 +7855,7 @@ SOFTWARE.
 
 </details>
 
-### postcss@8.5.15
+### postcss@8.5.26
 
 - **License:** MIT
 - **Repository:** https://github.com/postcss/postcss
@@ -7919,7 +8000,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### qs@6.15.2
+### qs@6.15.3
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/ljharb/qs
@@ -7962,7 +8043,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### range-parser@1.2.1
+### range-parser@1.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/jshttp/range-parser
@@ -8107,7 +8188,7 @@ SOFTWARE.
 
 </details>
 
-### rolldown@1.1.3
+### rolldown@1.2.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -8146,7 +8227,7 @@ The licenses of externally maintained libraries from which parts of the Software
 
 </details>
 
-### rollup@4.61.1
+### rollup@4.62.4
 
 - **License:** MIT
 - **Repository:** https://github.com/rollup/rollup
@@ -8223,6 +8304,11 @@ SOFTWARE.
 
 </details>
 
+### semifies@1.0.0
+
+- **License:** Apache-2.0
+- **Repository:** https://github.com/holepunchto/semifies
+
 ### semver@6.3.1
 
 - **License:** ISC
@@ -8252,7 +8338,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### semver@7.8.4
+### semver@7.8.5
 
 - **License:** ISC
 - **Repository:** https://github.com/npm/node-semver
@@ -8357,7 +8443,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### set-cookie-parser@3.1.0
+### set-cookie-parser@3.1.2
 
 - **License:** MIT
 - **Repository:** https://github.com/nfriedly/set-cookie-parser
@@ -8419,7 +8505,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### sharp@0.35.2
+### sharp@0.35.3
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
@@ -8949,7 +9035,7 @@ THE SOFTWARE.
 
 </details>
 
-### svelte@5.56.3
+### svelte@5.56.9
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/svelte
@@ -8970,7 +9056,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### terser@5.48.0
+### terser@5.50.0
 
 - **License:** BSD-2-Clause
 - **Repository:** https://github.com/terser/terser
@@ -9191,7 +9277,7 @@ THE SOFTWARE.
 
 </details>
 
-### tsx@4.22.4
+### tsx@4.23.12
 
 - **License:** MIT
 - **Repository:** https://github.com/privatenumber/tsx
@@ -9303,7 +9389,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - **License:** Apache-2.0
 - **Repository:** https://github.com/microsoft/TypeScript
 
-### undici-types@7.24.6
+### undici-types@8.3.0
 
 - **License:** MIT
 - **Repository:** https://github.com/nodejs/undici
@@ -9409,7 +9495,7 @@ SOFTWARE.
 
 </details>
 
-### update-browserslist-db@1.2.3
+### update-browserslist-db@1.3.1
 
 - **License:** MIT
 - **Repository:** https://github.com/browserslist/update-db
@@ -9420,7 +9506,7 @@ SOFTWARE.
 
 The MIT License (MIT)
 
-Copyright 2022 Andrey Sitnik <andrey@sitnik.ru> and other contributors
+Copyright 2022 Andrey Sitnik <andrey@sitnik.es> and other contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -9476,7 +9562,7 @@ THE SOFTWARE.
 
 </details>
 
-### uuid@14.0.0
+### uuid@14.0.1
 
 - **License:** MIT
 - **Repository:** https://github.com/uuidjs/uuid
@@ -9535,7 +9621,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### vite@8.1.0
+### vite@8.2.1
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
