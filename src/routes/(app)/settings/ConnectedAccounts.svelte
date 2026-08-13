@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ProviderIcon from '$lib/components/auth/ProviderIcon.svelte';
 	import Unlink from '@lucide/svelte/icons/unlink';
@@ -61,7 +62,10 @@
 		const linkError = page.url.searchParams.get('link_error');
 		if (linked) toast.success(m.connected_accounts_connected({ provider: label(linked) }));
 		if (linkError) toast.error(m.connected_accounts_conflict());
-		if (linked || linkError) history.replaceState(null, '', page.url.pathname);
+		// Drop the outcome params so a reload does not re-toast.
+		if (linked || linkError) {
+			goto(page.url.pathname, { replaceState: true, noScroll: true });
+		}
 
 		load();
 	});
