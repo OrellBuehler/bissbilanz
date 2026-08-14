@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DayLogView: View {
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(\.scenePhase) private var scenePhase
     let date: String
 
     @State private var entries: [Entry] = []
@@ -107,6 +108,16 @@ struct DayLogView: View {
             }
         }
         .task { await loadEntries(showSpinner: true) }
+        // `.task` doesn't re-run on foreground (same view identity), so
+        // entries logged server-side (MCP agents, other devices) while the
+        // app was backgrounded wouldn't appear without a manual
+        // pull-to-refresh. Local data renders first, so this is invisible
+        // when nothing changed.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await loadEntries() }
+            }
+        }
         .toast(message: $toastMessage)
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}

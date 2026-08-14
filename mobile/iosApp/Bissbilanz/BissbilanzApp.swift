@@ -98,9 +98,8 @@ struct BissbilanzApp: App {
         _supplementRepository = State(wrappedValue: SupplementRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
-        _goalsRepository = State(wrappedValue: GoalsRepository(
-            context: context, api: api, appMode: appMode, syncManager: sync
-        ))
+        let goalsRepo = GoalsRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        _goalsRepository = State(wrappedValue: goalsRepo)
         _preferencesRepository = State(wrappedValue: PreferencesRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
@@ -163,6 +162,19 @@ struct BissbilanzApp: App {
             return WidgetSnapshotWriter.buildWatchState(context: context)
         }
         PhoneWatchConnectivity.shared.activate()
+
+        // Periodic background pull so server-side changes (MCP agent logs,
+        // other devices) reach the widgets while the app is closed. Must be
+        // registered before launch completes — see BackgroundRefresher.
+        BackgroundRefresher.register(BackgroundRefresher.Dependencies(
+            context: context,
+            syncManager: sync,
+            entryRepository: entryRepo,
+            goalsRepository: goalsRepo,
+            weightRepository: weightRepo,
+            sleepRepository: sleepRepo,
+            foodRepository: foodRepo
+        ))
     }
 
     var body: some Scene {
@@ -262,6 +274,9 @@ struct BissbilanzApp: App {
                             context: ["details": entry.message, "timestamp": entry.timestamp.description]
                         )
                     }
+                } else if phase == .background {
+                    // Re-arm the background pull chain for the time away.
+                    BackgroundRefresher.schedule()
                 }
             }
         }

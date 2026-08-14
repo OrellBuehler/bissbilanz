@@ -70,9 +70,16 @@ targets:
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
         SentryDSN: $(SENTRY_DSN)
-        # CloudKit delivers sync changes via silent remote notifications.
+        # remote-notification: CloudKit delivers sync changes via silent
+        # remote notifications. fetch: BGAppRefreshTask background pulls
+        # (BackgroundRefresher) keep widgets fresh with server-side changes.
         UIBackgroundModes:
           - remote-notification
+          - fetch
+        # Identifiers BGTaskScheduler may register — must match
+        # BackgroundRefresher.taskIdentifier or registration fails at launch.
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.bissbilanz.ios.refresh
         # Only standard (exempt) HTTPS encryption is used, so declare no
         # non-exempt encryption — TestFlight then skips the per-build
         # export-compliance prompt that would otherwise block each upload.
