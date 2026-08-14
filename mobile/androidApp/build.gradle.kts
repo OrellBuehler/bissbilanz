@@ -140,6 +140,7 @@ android {
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
         implementation(libs.glance.appwidget)
+        implementation(libs.health.connect)
         implementation(libs.work.runtime)
         implementation("com.google.guava:guava:33.6.0-android")
         debugImplementation(libs.compose.ui.tooling)

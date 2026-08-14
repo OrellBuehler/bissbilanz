@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.health.HealthExporter
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
@@ -24,6 +25,7 @@ import kotlinx.datetime.todayIn
 
 class SleepViewModel(
     private val sleepRepo: SleepRepository,
+    private val healthExporter: HealthExporter,
     private val errorReporter: ErrorReporter,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -78,6 +80,7 @@ class SleepViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.createEntry(entry)
+                healthExporter.exportLatestSleep()
                 _snackbarMessage.value = successMessage
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -96,6 +99,7 @@ class SleepViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.updateEntry(id, entry)
+                healthExporter.exportLatestSleep()
                 _snackbarMessage.value = successMessage
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

@@ -143,6 +143,24 @@
     <string name="ai_task_remove_photo">Foto entfernen</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
 
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connected">Verbunden</string>
+    <string name="health_not_connected">Nicht verbunden</string>
+    <string name="health_unavailable">Health Connect ist auf diesem Gerät nicht verfügbar</string>
+    <string name="health_needs_provider_update">Health Connect muss aktualisiert werden, bevor es genutzt werden kann.</string>
+    <string name="health_connect_action">Verbinden</string>
+    <string name="health_manage_permissions">Berechtigungen verwalten</string>
+    <string name="health_install">Health Connect holen</string>
+    <string name="health_reading_section">In Bissbilanz einlesen</string>
+    <string name="health_reading_footer">Importiert die letzten 90 Tage. Bereits erfasste Tage bleiben unverändert.</string>
+    <string name="health_writing_section">Nach Health Connect schreiben</string>
+    <string name="health_writing_footer">Schalte das Schreiben aus, wenn eine andere App dies bereits erfasst — sonst entstehen Duplikate.</string>
+    <string name="health_nutrition">Nährwerte</string>
+    <string name="health_import_now">Jetzt importieren</string>
+    <string name="health_import_done">Aus Health Connect importiert</string>
+    <string name="health_import_nothing">Nichts Neues zu importieren</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>

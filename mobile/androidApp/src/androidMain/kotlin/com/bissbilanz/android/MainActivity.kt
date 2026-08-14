@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
     private val authManager: AuthManager by inject()
+    private val healthImporter: HealthImporter by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +26,17 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             BissbilanzApp()
+        }
+    }
+
+    /**
+     * Health Connect import runs on every activation, matching iOS: new samples
+     * from a scale or watch land in the app without a manual pull.
+     */
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch(Dispatchers.IO) {
+            healthImporter.importAllIfEnabled()
         }
     }
 

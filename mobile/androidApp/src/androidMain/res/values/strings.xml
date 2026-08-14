@@ -143,6 +143,24 @@
     <string name="ai_task_remove_photo">Remove photo</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
 
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connected">Connected</string>
+    <string name="health_not_connected">Not connected</string>
+    <string name="health_unavailable">Health Connect is not available on this device</string>
+    <string name="health_needs_provider_update">Health Connect needs to be updated before it can be used.</string>
+    <string name="health_connect_action">Connect</string>
+    <string name="health_manage_permissions">Manage permissions</string>
+    <string name="health_install">Get Health Connect</string>
+    <string name="health_reading_section">Read into Bissbilanz</string>
+    <string name="health_reading_footer">Imports the last 90 days. Days you already logged are left untouched.</string>
+    <string name="health_writing_section">Write to Health Connect</string>
+    <string name="health_writing_footer">Turn writing off if another app already records this, or you will get duplicates.</string>
+    <string name="health_nutrition">Nutrition</string>
+    <string name="health_import_now">Import now</string>
+    <string name="health_import_done">Imported from Health Connect</string>
+    <string name="health_import_nothing">Nothing new to import</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>

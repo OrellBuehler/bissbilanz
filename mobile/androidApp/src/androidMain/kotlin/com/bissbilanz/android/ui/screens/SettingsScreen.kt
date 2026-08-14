@@ -26,6 +26,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
+import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -44,6 +45,8 @@ fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
     val authManager: AuthManager = koinInject()
     val syncManager: SyncManager = koinInject()
+    val healthConnect: HealthConnectService = koinInject()
+    val healthAvailable = remember { healthConnect.isAvailable() }
     val syncState by syncManager.state.collectAsStateWithLifecycle()
     val pendingSyncCount = syncState.pendingCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
@@ -180,6 +183,12 @@ fun SettingsScreen(navController: NavController) {
                         HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
                             navController.navigate("fasting")
+                        }
+                        if (healthAvailable) {
+                            HorizontalDivider()
+                            SettingsNavItem(stringResource(R.string.health_connect_title), Icons.Default.Favorite) {
+                                navController.navigate("health")
+                            }
                         }
                         HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.Default.MenuBook) {

@@ -6,6 +6,10 @@ import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
+import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.health.HealthExporter
+import com.bissbilanz.android.health.HealthImporter
+import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -32,6 +36,9 @@ import com.bissbilanz.storage.PlainStorage
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -69,6 +76,10 @@ class BissbilanzApplication : Application() {
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
                 single { FastingSessionStore(androidContext(), get()) }
                 single { FastingManager(androidContext(), get(), get(), get()) }
+                single { HealthConnectService(androidContext()) }
+                single { HealthSyncPreferences(androidContext()) }
+                single { HealthImporter(get(), get(), get(), get(), get()) }
+                single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -103,8 +114,12 @@ class BissbilanzApplication : Application() {
         // respected from the first connectivity event onwards.
         koin.get<AppModeManager>().initialize()
 
+        val healthExporter = koin.get<HealthExporter>()
+        val today = { Clock.System.todayIn(TimeZone.currentSystemDefault()).toString() }
+
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+            healthExporter.exportNutrition(today())
         }
         koin.get<FoodRepository>().onFoodChanged = {
             WorkManager
@@ -116,6 +131,7 @@ class BissbilanzApplication : Application() {
         }
         koin.get<WeightRepository>().onWeightChanged = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+            healthExporter.exportLatestWeight()
         }
 
         val refreshManager = koin.get<RefreshManager>()
