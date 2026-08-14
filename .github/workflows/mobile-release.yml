@@ -83,11 +83,29 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew androidApp:bundleRelease -PSENTRY_DSN="$SENTRY_DSN" -PAPP_VERSION="$APP_VERSION" -PBUILD_NUMBER="$BUILD_NUMBER"
 
+      # Built and kept as an artifact, but deliberately not sent to Play yet: a
+      # Wear OS app needs its own Play Console listing before it can be uploaded.
+      - name: Build Wear OS release bundle
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APP_VERSION: ${{ steps.version.outputs.tag }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ./gradlew wearApp:bundleRelease -PAPP_VERSION="$APP_VERSION" -PBUILD_NUMBER="$BUILD_NUMBER"
+
       - name: Upload release AAB artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-aab
           path: mobile/androidApp/build/outputs/bundle/release/*.aab
+
+      - name: Upload Wear OS release AAB artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wear-release-aab
+          path: mobile/wearApp/build/outputs/bundle/release/*.aab
 
       - name: Upload to Google Play (internal testing)
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
