@@ -82,6 +82,30 @@
     <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
     <string name="dashboard_copy_failed">Keine Einträge von gestern zum Kopieren</string>
 
+    <!-- Warteschlange der Synchronisierung -->
+    <string name="pending_sync_title">Ausstehende Änderungen</string>
+    <string name="pending_sync_row">%1$d Änderungen warten auf Synchronisierung</string>
+    <string name="pending_sync_retry_now">Jetzt erneut versuchen</string>
+    <string name="pending_sync_empty">Alles synchronisiert</string>
+    <string name="pending_sync_empty_detail">Es warten keine lokalen Änderungen auf den Upload.</string>
+    <string name="pending_sync_retry_count">%1$d Mal erneut versucht</string>
+    <string name="sync_create_entry">Eintrag hinzufügen</string>
+    <string name="sync_update_entry">Eintrag bearbeiten</string>
+    <string name="sync_delete_entry">Eintrag löschen</string>
+    <string name="sync_create_food">Lebensmittel erstellen</string>
+    <string name="sync_update_food">Lebensmittel bearbeiten</string>
+    <string name="sync_delete_food">Lebensmittel löschen</string>
+    <string name="sync_toggle_favorite">Favorit ändern</string>
+    <string name="sync_create_recipe">Rezept erstellen</string>
+    <string name="sync_update_recipe">Rezept bearbeiten</string>
+    <string name="sync_delete_recipe">Rezept löschen</string>
+    <string name="sync_create_sleep">Schlaf erfassen</string>
+    <string name="sync_update_sleep">Schlaf bearbeiten</string>
+    <string name="sync_delete_sleep">Schlaf löschen</string>
+    <string name="sync_log_supplement">Supplement erfassen</string>
+    <string name="sync_set_goals">Ziele aktualisieren</string>
+    <string name="sync_generic_change">Ausstehende Änderung</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
@@ -237,6 +261,7 @@
     <string name="daylog_quick_add">Schnell hinzufügen</string>
     <string name="daylog_no_entries_for_day">Keine Einträge für diesen Tag</string>
     <string name="daylog_delete_entry">Eintrag löschen</string>
+    <string name="daylog_edit_entry">Eintrag bearbeiten</string>
     <string name="daylog_entry_summary">%1$sx  ·  %2$s kcal  ·  P %3$sg</string>
 
     <!-- Favorites -->

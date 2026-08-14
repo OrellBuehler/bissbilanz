@@ -33,6 +33,7 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
+import com.bissbilanz.sync.SyncManager
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -42,6 +43,9 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpd
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
     val authManager: AuthManager = koinInject()
+    val syncManager: SyncManager = koinInject()
+    val syncState by syncManager.state.collectAsStateWithLifecycle()
+    val pendingSyncCount = syncState.pendingCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()
@@ -632,6 +636,18 @@ fun SettingsScreen(navController: NavController) {
                                 Text(stringResource(R.string.settings_sign_in_to_sync))
                             }
                         } else {
+                            // Queued offline writes: surfaced here (and only when
+                            // there are any) so a stalled upload is visible instead
+                            // of silently sitting in the queue.
+                            if (pendingSyncCount > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SettingsNavItem(
+                                    stringResource(R.string.pending_sync_row, pendingSyncCount),
+                                    Icons.Default.Sync,
+                                ) {
+                                    navController.navigate("pending-sync")
+                                }
+                            }
                             Spacer(modifier = Modifier.height(16.dp))
                             OutlinedButton(
                                 onClick = { viewModel.logout() },

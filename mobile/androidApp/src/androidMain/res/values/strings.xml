@@ -82,6 +82,30 @@
     <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
     <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
 
+    <!-- Pending sync queue -->
+    <string name="pending_sync_title">Pending changes</string>
+    <string name="pending_sync_row">%1$d changes waiting to sync</string>
+    <string name="pending_sync_retry_now">Retry now</string>
+    <string name="pending_sync_empty">Everything is synced</string>
+    <string name="pending_sync_empty_detail">No local changes are waiting to upload.</string>
+    <string name="pending_sync_retry_count">Retried %1$d times</string>
+    <string name="sync_create_entry">Add food entry</string>
+    <string name="sync_update_entry">Edit food entry</string>
+    <string name="sync_delete_entry">Delete food entry</string>
+    <string name="sync_create_food">Create food</string>
+    <string name="sync_update_food">Edit food</string>
+    <string name="sync_delete_food">Delete food</string>
+    <string name="sync_toggle_favorite">Change favorite</string>
+    <string name="sync_create_recipe">Create recipe</string>
+    <string name="sync_update_recipe">Edit recipe</string>
+    <string name="sync_delete_recipe">Delete recipe</string>
+    <string name="sync_create_sleep">Log sleep</string>
+    <string name="sync_update_sleep">Edit sleep</string>
+    <string name="sync_delete_sleep">Delete sleep</string>
+    <string name="sync_log_supplement">Log supplement</string>
+    <string name="sync_set_goals">Update goals</string>
+    <string name="sync_generic_change">Pending change</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
@@ -237,6 +261,7 @@
     <string name="daylog_quick_add">Quick add</string>
     <string name="daylog_no_entries_for_day">No entries for this day</string>
     <string name="daylog_delete_entry">Delete entry</string>
+    <string name="daylog_edit_entry">Edit entry</string>
     <string name="daylog_entry_summary">%1$sx  ·  %2$s kcal  ·  P %3$sg</string>
 
     <!-- Favorites -->

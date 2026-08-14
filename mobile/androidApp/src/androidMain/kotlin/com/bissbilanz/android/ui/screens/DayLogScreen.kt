@@ -305,6 +305,7 @@ fun DayLogScreen(
                                                     SnackbarResult.ActionPerformed -> {
                                                         pendingDeleteIds = pendingDeleteIds - deletedEntry.id
                                                     }
+
                                                     SnackbarResult.Dismissed -> {
                                                         viewModel.deleteEntry(deletedEntry.id)
                                                         pendingDeleteIds = pendingDeleteIds - deletedEntry.id
@@ -332,27 +333,33 @@ fun SwipeToDismissEntry(
     entry: Entry,
     onDelete: () -> Unit,
     onClick: () -> Unit,
+    onEdit: () -> Unit = onClick,
 ) {
+    // Trailing swipe deletes, leading swipe edits — the same two directions the
+    // iOS day log offers. Neither settles into a dismissed state; both fire an
+    // action and snap back.
     val dismissState =
         rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) {
-                    onDelete()
-                    false
-                } else {
-                    false
+                when (value) {
+                    SwipeToDismissBoxValue.EndToStart -> onDelete()
+                    SwipeToDismissBoxValue.StartToEnd -> onEdit()
+                    else -> Unit
                 }
+                false
             },
         )
 
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
+            val deleting = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart
+            val editing = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
             val color by animateColorAsState(
-                if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.surface
+                when {
+                    deleting -> MaterialTheme.colorScheme.errorContainer
+                    editing -> MaterialTheme.colorScheme.secondaryContainer
+                    else -> MaterialTheme.colorScheme.surface
                 },
                 label = "bg",
             )
@@ -362,12 +369,19 @@ fun SwipeToDismissEntry(
                         .fillMaxSize()
                         .background(color)
                         .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd,
+                contentAlignment = if (editing) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
-                Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
+                if (editing) {
+                    Icon(
+                        Icons.Default.Edit,
+                        stringResource(R.string.daylog_edit_entry),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                } else {
+                    Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
+                }
             }
         },
-        enableDismissFromStartToEnd = false,
     ) {
         EntryListItem(entry, onClick)
     }

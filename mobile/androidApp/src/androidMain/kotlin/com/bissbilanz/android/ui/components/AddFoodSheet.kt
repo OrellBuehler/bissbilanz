@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -18,9 +19,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +39,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +71,10 @@ import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.toLocalizedDoubleOrNull
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
@@ -103,6 +113,11 @@ fun AddFoodSheet(
             stringResource(R.string.add_food_tab_quick),
         )
 
+    // The caller's day is only the starting point — the sheet can backdate,
+    // matching the date picker iOS added to its log-food sheet.
+    var logDate by remember(date) { mutableStateOf(date) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
     var selectedFood by remember { mutableStateOf<Food?>(null) }
     var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
     var servingsText by remember { mutableStateOf("1") }
@@ -125,6 +140,32 @@ fun AddFoodSheet(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+
+    if (showDatePicker) {
+        val initialMillis =
+            runCatching { LocalDate.parse(logDate).toEpochDays().toLong() * 86_400_000L }
+                .getOrDefault(0L)
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        logDate =
+                            Instant
+                                .fromEpochMilliseconds(millis)
+                                .toLocalDateTime(TimeZone.UTC)
+                                .date
+                                .toString()
+                    }
+                    showDatePicker = false
+                }) { Text(stringResource(R.string.dialog_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        ) { DatePicker(state = pickerState) }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -220,9 +261,9 @@ fun AddFoodSheet(
                         onClick = {
                             val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
                             if (selectedFood != null) {
-                                viewModel.logFood(selectedFood!!, mealType, servings, date) { onLogged() }
+                                viewModel.logFood(selectedFood!!, mealType, servings, logDate) { onLogged() }
                             } else if (selectedRecipe != null) {
-                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, date) { onLogged() }
+                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, logDate) { onLogged() }
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -231,12 +272,26 @@ fun AddFoodSheet(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
-                Text(
-                    stringResource(R.string.add_food_title, mealTypeDisplayName(mealType)),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.add_food_title, mealTypeDisplayName(mealType)),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
+                    )
+                    TextButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            Icons.Default.CalendarToday,
+                            stringResource(R.string.insights_sleep_pick_date),
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(logDate)
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -305,7 +360,7 @@ fun AddFoodSheet(
                                 onSave = {
                                     viewModel.logQuickEntry(
                                         mealType,
-                                        date,
+                                        logDate,
                                         quickName,
                                         quickCalories.toLocalizedDoubleOrNull(),
                                         quickProtein.toLocalizedDoubleOrNull(),
