@@ -161,6 +161,16 @@
     <string name="health_import_done">Aus Health Connect importiert</string>
     <string name="health_import_nothing">Nichts Neues zu importieren</string>
 
+    <!-- Launcher-Shortcuts -->
+    <string name="shortcut_log_food_short">Erfassen</string>
+    <string name="shortcut_log_food_long">Lebensmittel erfassen</string>
+    <string name="shortcut_scan_short">Scannen</string>
+    <string name="shortcut_scan_long">Barcode scannen</string>
+    <string name="shortcut_weight_short">Gewicht</string>
+    <string name="shortcut_weight_long">Gewicht erfassen</string>
+    <string name="shortcut_fasting_short">Fasten</string>
+    <string name="shortcut_fasting_long">Fasten starten oder beenden</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
@@ -401,6 +411,9 @@
     <string name="food_form_fat_required">Fett (g) *</string>
     <string name="food_form_fiber_optional">Ballaststoffe (g)</string>
     <string name="food_form_show_advanced">Erweiterte Nährwerte anzeigen</string>
+    <string name="food_form_additional_nutrients">Weitere Nährstoffe</string>
+    <string name="food_form_add_nutrient">Nährstoff hinzufügen</string>
+    <string name="food_form_remove_nutrient">Nährstoff entfernen</string>
     <string name="food_form_hide_advanced">Erweiterte Nährwerte ausblenden</string>
     <string name="food_form_load_failed">Lebensmittel konnte nicht geladen werden</string>
     <string name="food_form_name_required_error">Name ist erforderlich</string>

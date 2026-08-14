@@ -40,6 +40,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
             <!-- Health Connect opens this to show why the app wants health data;
                  without it the permission request is rejected. -->
             <intent-filter>

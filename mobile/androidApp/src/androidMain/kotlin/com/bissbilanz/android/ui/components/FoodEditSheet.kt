@@ -7,9 +7,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -17,7 +20,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.screens.nutrientCategories
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.util.NAMED_NUTRIENT_KEYS
+import com.bissbilanz.android.util.extraNutrientValues
 import com.bissbilanz.label.ParsedNutrition
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
@@ -25,7 +31,9 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
+import com.bissbilanz.util.withNutrients
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +46,7 @@ fun FoodEditSheet(
 ) {
     val foodRepo: FoodRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val json: Json = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isLoading by remember { mutableStateOf(foodId != null) }
@@ -70,6 +79,10 @@ fun FoodEditSheet(
     var vitaminD by remember { mutableStateOf("") }
 
     var showAdvanced by remember { mutableStateOf(false) }
+    // Open-ended rather than a fixed field list: any nutrient the API model
+    // declares can be recorded, matching the iOS add-nutrient catalog.
+    var extraNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var showNutrientPicker by remember { mutableStateOf(false) }
     var showUnitDropdown by remember { mutableStateOf(false) }
     var showLabelScanner by remember { mutableStateOf(false) }
 
@@ -102,6 +115,7 @@ fun FoodEditSheet(
                 iron = food.iron?.formatNutrient() ?: ""
                 vitaminC = food.vitaminC?.formatNutrient() ?: ""
                 vitaminD = food.vitaminD?.formatNutrient() ?: ""
+                extraNutrients = food.extraNutrientValues(json)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("FoodEditSheet", "Failed to load food", e)
@@ -156,11 +170,16 @@ fun FoodEditSheet(
                         vitaminC = vitaminC.toLocalizedDoubleOrNull(),
                         vitaminD = vitaminD.toLocalizedDoubleOrNull(),
                     )
+                val withExtras =
+                    foodCreate.withNutrients(
+                        extraNutrients.mapValues { (_, raw) -> raw.toLocalizedDoubleOrNull() },
+                        json,
+                    )
                 if (isEditing) {
                     val id = foodId ?: return@launch
-                    foodRepo.updateFood(id, foodCreate)
+                    foodRepo.updateFood(id, withExtras)
                 } else {
-                    foodRepo.createFood(foodCreate)
+                    foodRepo.createFood(withExtras)
                 }
                 sheetState.hide()
                 onSaved()
@@ -385,6 +404,79 @@ fun FoodEditSheet(
                         )
                         NutrientTextField(stringResource(R.string.food_form_nutrient_vitamin_c), vitaminC) { vitaminC = it }
                         NutrientTextField(stringResource(R.string.food_form_nutrient_vitamin_d), vitaminD) { vitaminD = it }
+
+                        // Anything beyond the fields above, added on demand.
+                        val catalog = nutrientCategories()
+                        val labels =
+                            remember(catalog) {
+                                catalog.flatMap { (_, entries) -> entries }.toMap()
+                            }
+
+                        if (extraNutrients.isNotEmpty()) {
+                            Text(
+                                stringResource(R.string.food_form_additional_nutrients),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            extraNutrients.keys.sorted().forEach { key ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        NutrientTextField(labels[key] ?: key, extraNutrients[key] ?: "") { value ->
+                                            extraNutrients = extraNutrients + (key to value)
+                                        }
+                                    }
+                                    IconButton(onClick = { extraNutrients = extraNutrients - key }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            stringResource(R.string.food_form_remove_nutrient),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Box {
+                            TextButton(onClick = { showNutrientPicker = true }) {
+                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(R.string.food_form_add_nutrient))
+                            }
+                            DropdownMenu(
+                                expanded = showNutrientPicker,
+                                onDismissRequest = { showNutrientPicker = false },
+                            ) {
+                                catalog.forEach { (category, entries) ->
+                                    val available =
+                                        entries.filter { (key, _) ->
+                                            key !in NAMED_NUTRIENT_KEYS && key !in extraNutrients
+                                        }
+                                    if (available.isEmpty()) return@forEach
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                category,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        },
+                                        onClick = {},
+                                        enabled = false,
+                                    )
+                                    available.forEach { (key, label) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                extraNutrients = extraNutrients + (key to "")
+                                                showNutrientPicker = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

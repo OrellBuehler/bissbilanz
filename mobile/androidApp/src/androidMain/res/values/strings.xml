@@ -161,6 +161,16 @@
     <string name="health_import_done">Imported from Health Connect</string>
     <string name="health_import_nothing">Nothing new to import</string>
 
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_log_food_short">Log food</string>
+    <string name="shortcut_log_food_long">Log a food</string>
+    <string name="shortcut_scan_short">Scan</string>
+    <string name="shortcut_scan_long">Scan a barcode</string>
+    <string name="shortcut_weight_short">Weight</string>
+    <string name="shortcut_weight_long">Log your weight</string>
+    <string name="shortcut_fasting_short">Fasting</string>
+    <string name="shortcut_fasting_long">Start or end a fast</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
@@ -401,6 +411,9 @@
     <string name="food_form_fat_required">Fat (g) *</string>
     <string name="food_form_fiber_optional">Fiber (g)</string>
     <string name="food_form_show_advanced">Show advanced nutrients</string>
+    <string name="food_form_additional_nutrients">Additional nutrients</string>
+    <string name="food_form_add_nutrient">Add nutrient</string>
+    <string name="food_form_remove_nutrient">Remove nutrient</string>
     <string name="food_form_hide_advanced">Hide advanced nutrients</string>
     <string name="food_form_load_failed">Failed to load food</string>
     <string name="food_form_name_required_error">Name is required</string>
