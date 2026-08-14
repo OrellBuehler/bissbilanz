@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 rootProject.name = "Bissbilanz"
 include(":shared")
 include(":androidApp")
+include(":wearProtocol")
+include(":wearApp")

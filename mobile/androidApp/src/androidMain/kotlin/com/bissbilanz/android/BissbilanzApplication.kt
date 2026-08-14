@@ -21,6 +21,7 @@ import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
+import com.bissbilanz.android.wear.WearStatePublisher
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
@@ -80,6 +81,7 @@ class BissbilanzApplication : Application() {
                 single { HealthSyncPreferences(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
+                single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -117,9 +119,12 @@ class BissbilanzApplication : Application() {
         val healthExporter = koin.get<HealthExporter>()
         val today = { Clock.System.todayIn(TimeZone.currentSystemDefault()).toString() }
 
+        val wearPublisher = koin.get<WearStatePublisher>()
+
         koin.get<EntryRepository>().onEntryChanged = {
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)
             healthExporter.exportNutrition(today())
+            wearPublisher.publish()
         }
         koin.get<FoodRepository>().onFoodChanged = {
             WorkManager
@@ -128,10 +133,13 @@ class BissbilanzApplication : Application() {
                     OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
                         .build(),
                 )
+            // Favourites drive the watch's quick-log list.
+            wearPublisher.publish()
         }
         koin.get<WeightRepository>().onWeightChanged = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
             healthExporter.exportLatestWeight()
+            wearPublisher.publish()
         }
 
         val refreshManager = koin.get<RefreshManager>()

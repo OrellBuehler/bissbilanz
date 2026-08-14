@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_log">Erfassen</string>
+    <string name="tab_weight">Gewicht</string>
+    <string name="tab_sleep">Schlaf</string>
+    <string name="tab_today">Heute</string>
+    <string name="waiting_for_phone">Öffne Bissbilanz auf deinem Handy</string>
+    <string name="no_favorites">Noch keine Favoriten</string>
+    <string name="favorites">Favoriten</string>
+    <string name="recents">Zuletzt</string>
+    <string name="servings">Portionen</string>
+    <string name="meal">Mahlzeit</string>
+    <string name="log">Erfassen</string>
+    <string name="logged">Erfasst</string>
+    <string name="log_failed">Handy nicht erreichbar</string>
+    <string name="kcal_value">%1$d kcal</string>
+    <string name="of_goal">von %1$d</string>
+    <string name="weight_kg">%1$s kg</string>
+    <string name="no_weight">Kein Gewicht erfasst</string>
+    <string name="delta_7d">%1$s kg / 7 T</string>
+    <string name="log_weight">Gewicht erfassen</string>
+    <string name="log_sleep">Schlaf erfassen</string>
+    <string name="no_sleep">Kein Schlaf erfasst</string>
+    <string name="sleep_summary">%1$s h · Qualität %2$s/10</string>
+    <string name="hours">Stunden</string>
+    <string name="quality">Qualität</string>
+</resources>
