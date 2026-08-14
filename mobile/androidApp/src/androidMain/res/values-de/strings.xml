@@ -76,6 +76,12 @@
     <string name="sleep_quality_poor">Schlecht</string>
     <string name="sleep_quality_great">Super</string>
 
+    <string name="dashboard_refresh_failed_title">Etwas ist schiefgelaufen</string>
+    <string name="dashboard_refresh_failed_body">Dein Log konnte nicht aktualisiert werden.</string>
+    <string name="dashboard_retry">Erneut versuchen</string>
+    <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
+    <string name="dashboard_copy_failed">Keine Einträge von gestern zum Kopieren</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
@@ -359,6 +365,11 @@
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Lebensmittel erstellen</string>
+    <string name="food_search_create">Erstellen</string>
+    <string name="food_search_create_recipe">Rezept erstellen</string>
+    <string name="food_search_edit_food">Lebensmittel bearbeiten</string>
+    <string name="food_search_add_to_favorites">Zu Favoriten hinzufügen</string>
+    <string name="food_search_remove_from_favorites">Aus Favoriten entfernen</string>
     <string name="food_search_placeholder">Lebensmittel suchen…</string>
     <string name="food_search_icon_desc">Suchen</string>
     <string name="food_search_no_results">Keine Lebensmittel für \"%1$s\" gefunden</string>

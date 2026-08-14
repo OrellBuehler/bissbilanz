@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -59,6 +60,7 @@ fun DashboardScreen(navController: NavController) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val refreshFailed by viewModel.refreshFailed.collectAsStateWithLifecycle()
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
@@ -72,6 +74,12 @@ fun DashboardScreen(navController: NavController) {
             viewModel.clearSnackbar()
         }
     }
+    val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
+    val copiedFormat = stringResource(R.string.dashboard_copied_count)
+    val copyEntries = {
+        viewModel.copyEntriesFromYesterday({ count -> copiedFormat.format(count) }, copyFailedMessage)
+    }
+
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
@@ -323,17 +331,21 @@ fun DashboardScreen(navController: NavController) {
                             }
 
                             if (entries.isEmpty()) {
-                                OutlinedButton(
-                                    onClick = { viewModel.copyEntriesFromYesterday() },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                                ) {
-                                    Icon(
-                                        Icons.Default.ContentCopy,
-                                        stringResource(R.string.dashboard_copy),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                if (refreshFailed) {
+                                    RefreshErrorState(onRetry = { viewModel.loadData() })
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { copyEntries() },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            stringResource(R.string.dashboard_copy),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                    }
                                 }
                             }
 
@@ -367,6 +379,38 @@ fun DashboardScreen(navController: NavController) {
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Shown when the entries refresh failed and the day has nothing cached, so a
+ * swallowed network error isn't mistaken for a day with no food logged.
+ */
+@Composable
+private fun RefreshErrorState(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            Icons.Default.CloudOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.dashboard_refresh_failed_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            stringResource(R.string.dashboard_refresh_failed_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(onClick = onRetry) {
+            Text(stringResource(R.string.dashboard_retry))
         }
     }
 }

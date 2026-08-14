@@ -297,6 +297,28 @@ class BissbilanzApi(
         return response.food
     }
 
+    @kotlinx.serialization.Serializable
+    private data class FavoritePatch(
+        val isFavorite: Boolean,
+    )
+
+    /**
+     * Flips only the favorite flag. A partial PATCH rather than a full food body,
+     * so a stale client can never overwrite nutrients it did not intend to touch.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun toggleFavorite(
+        id: String,
+        isFavorite: Boolean,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Food {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse = patch("/api/foods/$id", FavoritePatch(isFavorite), key, editedAt)
+        return response.food
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteFood(
         id: String,

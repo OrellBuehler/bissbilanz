@@ -144,6 +144,18 @@ class FoodSearchViewModel(
         }
     }
 
+    fun toggleFavorite(food: Food) {
+        viewModelScope.launch {
+            try {
+                foodRepo.toggleFavorite(food.id, !food.isFavorite)
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
     fun clearSnackbar() {
         _snackbarMessage.value = null
     }

@@ -76,6 +76,12 @@
     <string name="sleep_quality_poor">Poor</string>
     <string name="sleep_quality_great">Great</string>
 
+    <string name="dashboard_refresh_failed_title">Something went wrong</string>
+    <string name="dashboard_refresh_failed_body">Could not refresh your log.</string>
+    <string name="dashboard_retry">Retry</string>
+    <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
+    <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
@@ -359,6 +365,11 @@
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Create food</string>
+    <string name="food_search_create">Create</string>
+    <string name="food_search_create_recipe">Create recipe</string>
+    <string name="food_search_edit_food">Edit food</string>
+    <string name="food_search_add_to_favorites">Add to favorites</string>
+    <string name="food_search_remove_from_favorites">Remove from favorites</string>
     <string name="food_search_placeholder">Search foods…</string>
     <string name="food_search_icon_desc">Search</string>
     <string name="food_search_no_results">No foods found for \"%1$s\"</string>

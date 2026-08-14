@@ -42,6 +42,17 @@ sealed class SyncOperation {
     }
 
     @Serializable
+    @SerialName("toggle_favorite")
+    data class ToggleFavorite(
+        val id: String,
+        val isFavorite: Boolean,
+    ) : SyncOperation() {
+        override val affectedTable = "foods"
+        override val affectedId get() = id
+        override val description get() = "toggle favorite $id"
+    }
+
+    @Serializable
     @SerialName("create_entry")
     data class CreateEntry(
         val body: String,

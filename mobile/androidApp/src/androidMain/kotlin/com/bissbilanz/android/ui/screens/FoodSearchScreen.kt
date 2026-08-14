@@ -1,7 +1,8 @@
 package com.bissbilanz.android.ui.screens
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,7 +10,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +36,7 @@ import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
@@ -58,6 +65,9 @@ fun FoodSearchScreen(navController: NavController) {
     val haptic = rememberHaptic()
     var foodToLog by remember { mutableStateOf<Food?>(null) }
     var showCreateFoodSheet by remember { mutableStateOf(false) }
+    var showCreateRecipeSheet by remember { mutableStateOf(false) }
+    var showCreateMenu by remember { mutableStateOf(false) }
+    var foodToEdit by remember { mutableStateOf<Food?>(null) }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
@@ -87,13 +97,57 @@ fun FoodSearchScreen(navController: NavController) {
         )
     }
 
+    foodToEdit?.let { food ->
+        FoodEditSheet(
+            foodId = food.id,
+            onDismiss = { foodToEdit = null },
+            onSaved = {
+                foodToEdit = null
+                viewModel.refresh()
+            },
+        )
+    }
+
+    if (showCreateRecipeSheet) {
+        RecipeEditSheet(
+            recipeId = null,
+            onDismiss = { showCreateRecipeSheet = false },
+            onSaved = {
+                showCreateRecipeSheet = false
+                viewModel.refresh()
+            },
+        )
+    }
+
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                haptic(HapticFeedbackType.LongPress)
-                showCreateFoodSheet = true
-            }) {
-                Icon(Icons.Default.Add, stringResource(R.string.food_search_create_food))
+            // A menu rather than a single action: the Foods tab is the entry
+            // point for creating recipes too, matching the iOS toolbar menu.
+            Box {
+                FloatingActionButton(onClick = {
+                    haptic(HapticFeedbackType.LongPress)
+                    showCreateMenu = true
+                }) {
+                    Icon(Icons.Default.Add, stringResource(R.string.food_search_create))
+                }
+                DropdownMenu(expanded = showCreateMenu, onDismissRequest = { showCreateMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.food_search_create_food)) },
+                        leadingIcon = { Icon(Icons.Default.Restaurant, null) },
+                        onClick = {
+                            showCreateMenu = false
+                            showCreateFoodSheet = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.food_search_create_recipe)) },
+                        leadingIcon = { Icon(Icons.Default.MenuBook, null) },
+                        onClick = {
+                            showCreateMenu = false
+                            showCreateRecipeSheet = true
+                        },
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -143,6 +197,8 @@ fun FoodSearchScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             foodToLog = food
                                         },
+                                        onEdit = { foodToEdit = food },
+                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
@@ -193,6 +249,8 @@ fun FoodSearchScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             foodToLog = food
                                         },
+                                        onEdit = { foodToEdit = food },
+                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
@@ -212,6 +270,8 @@ fun FoodSearchScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             foodToLog = food
                                         },
+                                        onEdit = { foodToEdit = food },
+                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
@@ -234,14 +294,21 @@ fun FoodSearchScreen(navController: NavController) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FoodListItem(
     food: Food,
     baseUrl: String,
     onClick: () -> Unit,
     onQuickLog: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
+    onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    // Long-press opens a named menu rather than jumping straight into editing,
+    // so tap (log) and long-press (manage) are both discoverable.
+    var showMenu by remember { mutableStateOf(false) }
+
     ListItem(
         headlineContent = { Text(food.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingContent =
@@ -287,6 +354,60 @@ fun FoodListItem(
                 }
             }
         },
-        modifier = modifier.clickable(onClick = onClick),
+        modifier =
+            modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick =
+                    if (onEdit != null || onToggleFavorite != null) {
+                        { showMenu = true }
+                    } else {
+                        null
+                    },
+            ),
     )
+
+    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+        if (onQuickLog != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.food_detail_log)) },
+                leadingIcon = { Icon(Icons.Default.Add, null) },
+                onClick = {
+                    showMenu = false
+                    onQuickLog()
+                },
+            )
+        }
+        if (onEdit != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.food_search_edit_food)) },
+                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                onClick = {
+                    showMenu = false
+                    onEdit()
+                },
+            )
+        }
+        if (onToggleFavorite != null) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (food.isFavorite) {
+                                R.string.food_search_remove_from_favorites
+                            } else {
+                                R.string.food_search_add_to_favorites
+                            },
+                        ),
+                    )
+                },
+                leadingIcon = {
+                    Icon(if (food.isFavorite) Icons.Default.StarBorder else Icons.Default.Star, null)
+                },
+                onClick = {
+                    showMenu = false
+                    onToggleFavorite()
+                },
+            )
+        }
+    }
 }
