@@ -56,6 +56,26 @@
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
 
+    <!-- Sleep screen -->
+    <string name="sleep_updated">Sleep entry updated</string>
+    <string name="sleep_update_failed">Failed to update sleep entry</string>
+    <string name="sleep_edit_title">Edit Sleep</string>
+    <string name="sleep_edit_content_desc">Edit sleep entry</string>
+    <string name="sleep_entry_headline">%1$sh · Quality %2$s/10</string>
+    <string name="sleep_bed_wake_summary">Bed %1$s · Wake %2$s</string>
+    <string name="sleep_wake_ups_summary">%1$d wake-ups</string>
+    <string name="sleep_last_night">Last night</string>
+    <string name="sleep_seven_day_average">7-day average</string>
+    <string name="sleep_quality_value">Quality %1$s/10</string>
+    <string name="sleep_bed_and_wake_times">Bed &amp; wake times</string>
+    <string name="sleep_bedtime_label">Bedtime</string>
+    <string name="sleep_wake_time_label">Wake time</string>
+    <string name="sleep_bedtime_value">Bed %1$s</string>
+    <string name="sleep_wake_time_value">Wake %1$s</string>
+    <string name="sleep_wake_ups_label">Wake-ups</string>
+    <string name="sleep_quality_poor">Poor</string>
+    <string name="sleep_quality_great">Great</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>

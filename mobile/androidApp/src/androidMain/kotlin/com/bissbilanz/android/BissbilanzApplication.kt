@@ -13,6 +13,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
+import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.MacroWidget
@@ -71,6 +72,7 @@ class BissbilanzApplication : Application() {
                 viewModelOf(::FoodSearchViewModel)
                 viewModelOf(::FavoritesViewModel)
                 viewModelOf(::WeightViewModel)
+                viewModelOf(::SleepViewModel)
                 viewModelOf(::SettingsViewModel)
                 viewModelOf(::AddFoodViewModel)
                 viewModelOf(::MigrationViewModel)

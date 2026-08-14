@@ -56,6 +56,26 @@
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>
 
+    <!-- Schlaf-Screen -->
+    <string name="sleep_updated">Schlafeintrag aktualisiert</string>
+    <string name="sleep_update_failed">Schlafeintrag konnte nicht aktualisiert werden</string>
+    <string name="sleep_edit_title">Schlaf bearbeiten</string>
+    <string name="sleep_edit_content_desc">Schlafeintrag bearbeiten</string>
+    <string name="sleep_entry_headline">%1$sh · Qualität %2$s/10</string>
+    <string name="sleep_bed_wake_summary">Zubett %1$s · Aufwachen %2$s</string>
+    <string name="sleep_wake_ups_summary">%1$d Mal aufgewacht</string>
+    <string name="sleep_last_night">Letzte Nacht</string>
+    <string name="sleep_seven_day_average">7-Tage-Schnitt</string>
+    <string name="sleep_quality_value">Qualität %1$s/10</string>
+    <string name="sleep_bed_and_wake_times">Zubett- &amp; Aufwachzeit</string>
+    <string name="sleep_bedtime_label">Zubettgehzeit</string>
+    <string name="sleep_wake_time_label">Aufwachzeit</string>
+    <string name="sleep_bedtime_value">Zubett %1$s</string>
+    <string name="sleep_wake_time_value">Aufwachen %1$s</string>
+    <string name="sleep_wake_ups_label">Aufwachvorgänge</string>
+    <string name="sleep_quality_poor">Schlecht</string>
+    <string name="sleep_quality_great">Super</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>

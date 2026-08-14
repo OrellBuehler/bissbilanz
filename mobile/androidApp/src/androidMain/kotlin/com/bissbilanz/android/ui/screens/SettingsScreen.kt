@@ -170,6 +170,10 @@ fun SettingsScreen(navController: NavController) {
                             }
                         }
                         HorizontalDivider()
+                        SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) {
+                            navController.navigate("sleep")
+                        }
+                        HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.Default.MenuBook) {
                             navController.navigate("recipes")
                         }
@@ -469,6 +473,9 @@ fun SettingsScreen(navController: NavController) {
                             }
                             WidgetToggle(stringResource(R.string.weight_widget_title), p.showWeightWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showWeightWidget = value))
+                            }
+                            WidgetToggle(stringResource(R.string.sleep_section_title), p.showSleepWidget) { value ->
+                                viewModel.updatePreference(PreferencesUpdate(showSleepWidget = value))
                             }
                             WidgetToggle(stringResource(R.string.settings_widget_meal_breakdown), p.showMealBreakdownWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showMealBreakdownWidget = value))

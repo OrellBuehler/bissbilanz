@@ -35,6 +35,7 @@ import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
@@ -180,6 +181,7 @@ fun DashboardScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             viewModel.previousDay()
                                         }
+
                                         dragAmount < -threshold -> {
                                             haptic(HapticFeedbackType.LongPress)
                                             viewModel.nextDay()
@@ -352,6 +354,12 @@ fun DashboardScreen(navController: NavController) {
                                     onViewAll = { navController.navigate("weight") },
                                     onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                                 )
+                            }
+
+                            // Sleep widget
+                            if (prefs?.showSleepWidget == true) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                SleepWidget(onViewAll = { navController.navigate("sleep") })
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
