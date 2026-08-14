@@ -106,6 +106,31 @@
     <string name="sync_set_goals">Ziele aktualisieren</string>
     <string name="sync_generic_change">Ausstehende Änderung</string>
 
+    <!-- Fasten-Tracker -->
+    <string name="fasting_title">Fasten</string>
+    <string name="fasting_start">Fasten starten</string>
+    <string name="fasting_end">Fasten beenden</string>
+    <string name="fasting_end_confirmation">Dieses Fasten beenden?</string>
+    <string name="fasting_not_running">Es läuft kein Fasten.</string>
+    <string name="fasting_protocol">Protokoll</string>
+    <string name="fasting_protocol_custom">Eigenes</string>
+    <string name="fasting_protocol_description">%1$d h fasten · %2$d h Essensfenster</string>
+    <string name="fasting_custom_description">Ein %1$d-Stunden-Fasten</string>
+    <string name="fasting_of_target_hours">von %1$d h Ziel</string>
+    <string name="fasting_target_hours">%1$d h Ziel</string>
+    <string name="fasting_target_reached">Ziel erreicht</string>
+    <string name="fasting_started">Gestartet</string>
+    <string name="fasting_ends">Endet</string>
+    <string name="fasting_change_target">Ziel ändern</string>
+    <string name="fasting_history">Verlauf</string>
+    <string name="fasting_no_history">Noch keine abgeschlossenen Fastenzeiten.</string>
+    <string name="fasting_hours">Stunden</string>
+    <string name="fasting_duration_hm">%1$d h %2$d min</string>
+    <string name="fasting_notification_title">Fasten läuft</string>
+    <string name="fasting_notification_channel">Fasten</string>
+    <string name="fasting_notification_channel_desc">Zeigt die verstrichene Zeit während eines Fastens.</string>
+    <string name="fasting_card_start">Fasten starten</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>

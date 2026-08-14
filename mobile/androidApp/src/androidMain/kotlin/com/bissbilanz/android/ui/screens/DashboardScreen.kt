@@ -32,6 +32,7 @@ import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
+import com.bissbilanz.android.ui.components.FastingCard
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
@@ -298,6 +299,11 @@ fun DashboardScreen(navController: NavController) {
                         strokeWidth = 5.dp,
                         showGoal = true,
                     )
+                }
+
+                if (selectedDate == today) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FastingCard(onClick = { navController.navigate("fasting") })
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))

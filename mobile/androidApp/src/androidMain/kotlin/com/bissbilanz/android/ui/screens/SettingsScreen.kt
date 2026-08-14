@@ -178,6 +178,10 @@ fun SettingsScreen(navController: NavController) {
                             navController.navigate("sleep")
                         }
                         HorizontalDivider()
+                        SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
+                            navController.navigate("fasting")
+                        }
+                        HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.Default.MenuBook) {
                             navController.navigate("recipes")
                         }

@@ -221,12 +221,19 @@ fun CalendarScreen(navController: NavController) {
                                         val calorieGoal = goals?.calorieGoal
                                         val bgColor =
                                             when {
-                                                calDay != null && calorieGoal != null && calDay.calories >= calorieGoal ->
+                                                calDay != null && calorieGoal != null && calDay.calories >= calorieGoal -> {
                                                     FiberGreen.copy(
                                                         alpha = 0.3f,
                                                     )
-                                                calDay?.hasEntries == true -> CaloriesBlue.copy(alpha = 0.2f)
-                                                else -> MaterialTheme.colorScheme.surface
+                                                }
+
+                                                calDay?.hasEntries == true -> {
+                                                    CaloriesBlue.copy(alpha = 0.2f)
+                                                }
+
+                                                else -> {
+                                                    MaterialTheme.colorScheme.surface
+                                                }
                                             }
 
                                         Column(

@@ -90,12 +90,19 @@ fun SupplementsWidget(
                     val ings = supplement.ingredients
                     val summary =
                         when {
-                            ings.isEmpty() -> supplement.name
-                            ings.size == 1 ->
+                            ings.isEmpty() -> {
+                                supplement.name
+                            }
+
+                            ings.size == 1 -> {
                                 ings[0].food.ingredientsText.orEmpty().let { label ->
                                     if (label.isBlank()) supplement.name else "${supplement.name} - $label"
                                 }
-                            else -> stringResource(R.string.supplements_widget_multi_ingredient, supplement.name, ings.size)
+                            }
+
+                            else -> {
+                                stringResource(R.string.supplements_widget_multi_ingredient, supplement.name, ings.size)
+                            }
                         }
                     Text(
                         summary,

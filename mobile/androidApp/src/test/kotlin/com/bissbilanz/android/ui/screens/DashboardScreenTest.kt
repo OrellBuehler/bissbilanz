@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -52,6 +53,7 @@ class DashboardScreenTest {
     private lateinit var goalsRepo: GoalsRepository
     private lateinit var prefsRepo: PreferencesRepository
     private lateinit var refreshManager: RefreshManager
+    private lateinit var fastingManager: FastingManager
     private lateinit var errorReporter: ErrorReporter
 
     @Before
@@ -72,6 +74,10 @@ class DashboardScreenTest {
                 every { preferences() } returns MutableStateFlow(null)
             }
         refreshManager = mockk(relaxed = true)
+        fastingManager =
+            mockk(relaxed = true) {
+                every { session } returns MutableStateFlow(null)
+            }
         errorReporter = mockk(relaxed = true)
 
         startKoin {
@@ -81,6 +87,7 @@ class DashboardScreenTest {
                     single<GoalsRepository> { goalsRepo }
                     single<PreferencesRepository> { prefsRepo }
                     single<RefreshManager> { refreshManager }
+                    single<FastingManager> { fastingManager }
                     single<ErrorReporter> { errorReporter }
                     viewModelOf(::DashboardViewModel)
                 },

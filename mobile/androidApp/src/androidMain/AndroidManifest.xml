@@ -3,6 +3,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Ongoing "fast in progress" notification; the fast itself works without it. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -95,6 +97,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/favorites_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".fasting.EndFastReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.fasting.FastingManager
+import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -65,6 +67,8 @@ class BissbilanzApplication : Application() {
                 single { ConnectivityProvider(androidContext()) }
                 single<ErrorReporter> { SentryErrorReporter() }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
+                single { FastingSessionStore(androidContext(), get()) }
+                single { FastingManager(androidContext(), get(), get(), get()) }
 
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)

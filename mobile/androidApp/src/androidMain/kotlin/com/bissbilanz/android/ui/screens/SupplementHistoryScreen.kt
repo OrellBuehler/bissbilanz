@@ -58,7 +58,10 @@ private fun isSupplementDue(
     date: LocalDate,
 ): Boolean =
     when (scheduleType) {
-        ScheduleType.daily -> true
+        ScheduleType.daily -> {
+            true
+        }
+
         ScheduleType.every_other_day -> {
             if (scheduleStartDate == null) {
                 true
@@ -68,6 +71,7 @@ private fun isSupplementDue(
                 daysBetween % 2 == 0
             }
         }
+
         ScheduleType.weekly, ScheduleType.specific_days -> {
             if (scheduleDays.isNullOrEmpty()) {
                 false

@@ -106,6 +106,31 @@
     <string name="sync_set_goals">Update goals</string>
     <string name="sync_generic_change">Pending change</string>
 
+    <!-- Fasting tracker -->
+    <string name="fasting_title">Fasting</string>
+    <string name="fasting_start">Start fast</string>
+    <string name="fasting_end">End fast</string>
+    <string name="fasting_end_confirmation">End this fast?</string>
+    <string name="fasting_not_running">No fast is running.</string>
+    <string name="fasting_protocol">Protocol</string>
+    <string name="fasting_protocol_custom">Custom</string>
+    <string name="fasting_protocol_description">%1$dh fasting · %2$dh eating window</string>
+    <string name="fasting_custom_description">A %1$dh fast</string>
+    <string name="fasting_of_target_hours">of %1$dh target</string>
+    <string name="fasting_target_hours">%1$dh target</string>
+    <string name="fasting_target_reached">Target reached</string>
+    <string name="fasting_started">Started</string>
+    <string name="fasting_ends">Ends</string>
+    <string name="fasting_change_target">Change target</string>
+    <string name="fasting_history">History</string>
+    <string name="fasting_no_history">No completed fasts yet.</string>
+    <string name="fasting_hours">Hours</string>
+    <string name="fasting_duration_hm">%1$dh %2$dm</string>
+    <string name="fasting_notification_title">Fasting in progress</string>
+    <string name="fasting_notification_channel">Fasting</string>
+    <string name="fasting_notification_channel_desc">Shows the elapsed time while a fast is running.</string>
+    <string name="fasting_card_start">Start a fast</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
