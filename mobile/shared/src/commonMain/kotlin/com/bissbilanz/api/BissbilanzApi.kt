@@ -1,5 +1,10 @@
 package com.bissbilanz.api
 
+import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskCreate
+import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
+import com.bissbilanz.api.generated.model.AiTaskResponse
+import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.api.generated.model.CalendarResponse
 import com.bissbilanz.api.generated.model.DailyStatsResponse
 import com.bissbilanz.api.generated.model.DayProperties
@@ -948,6 +953,56 @@ class BissbilanzApi(
             parameter("startDate", startDate)
             parameter("endDate", endDate)
         }
+
+    // AI tasks — meals handed to the MCP assistant to log later
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createAiTask(
+        task: AiTaskCreate,
+        idempotencyKey: String? = null,
+    ): AiTask {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val response: AiTaskResponse = post("/api/ai-tasks", task, key, null)
+        return response.task
+    }
+
+    suspend fun listAiTasks(
+        status: String? = null,
+        limit: Int? = null,
+    ): AiTasksResponse =
+        get("/api/ai-tasks") {
+            status?.let { parameter("status", it) }
+            limit?.let { parameter("limit", it) }
+        }
+
+    suspend fun uploadAiTaskPhoto(
+        fileName: String,
+        fileBytes: ByteArray,
+        contentType: String = "image/jpeg",
+    ): String {
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/ai-tasks/photo",
+                formData =
+                    formData {
+                        append(
+                            "photo",
+                            fileBytes,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, contentType)
+                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                            },
+                        )
+                    },
+            )
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "POST /api/ai-tasks/photo failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+            )
+        }
+        val body: AiTaskPhotoResponse = response.body()
+        return body.photoUrl
+    }
 
     // Images
     suspend fun uploadImage(

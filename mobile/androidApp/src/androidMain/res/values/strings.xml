@@ -131,6 +131,18 @@
     <string name="fasting_notification_channel_desc">Shows the elapsed time while a fast is running.</string>
     <string name="fasting_card_start">Start a fast</string>
 
+    <!-- AI meal task -->
+    <string name="ai_task_title">Send to assistant</string>
+    <string name="ai_task_subtitle">Queue this meal for the AI assistant to log for you.</string>
+    <string name="ai_task_what_did_you_eat">What did you eat?</string>
+    <string name="ai_task_description_placeholder">e.g. a bowl of porridge with banana and honey</string>
+    <string name="ai_task_send">Send</string>
+    <string name="ai_task_sending">Sending…</string>
+    <string name="ai_task_send_failed">Could not send to the assistant</string>
+    <string name="ai_task_queued">Sent to the assistant</string>
+    <string name="ai_task_remove_photo">Remove photo</string>
+    <string name="ai_task_content_desc">Send a meal to the assistant</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>

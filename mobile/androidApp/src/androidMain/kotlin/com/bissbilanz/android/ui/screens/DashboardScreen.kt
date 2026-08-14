@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -30,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.AddFoodSheet
+import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FastingCard
@@ -43,6 +45,8 @@ import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.util.displayName
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
@@ -53,6 +57,7 @@ import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(navController: NavController) {
@@ -64,6 +69,9 @@ fun DashboardScreen(navController: NavController) {
     val refreshFailed by viewModel.refreshFailed.collectAsStateWithLifecycle()
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val appModeManager: AppModeManager = koinInject()
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -75,6 +83,7 @@ fun DashboardScreen(navController: NavController) {
             viewModel.clearSnackbar()
         }
     }
+    val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
     val copiedFormat = stringResource(R.string.dashboard_copied_count)
     val copyEntries = {
@@ -83,6 +92,7 @@ fun DashboardScreen(navController: NavController) {
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showAiMealSheet by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
     var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
@@ -111,6 +121,20 @@ fun DashboardScreen(navController: NavController) {
     Scaffold(
         floatingActionButton = {
             Column {
+                // Queuing a meal for the assistant needs the server, so it is
+                // hidden in local mode — same rule as iOS.
+                if (!isLocalMode) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            haptic(HapticFeedbackType.LongPress)
+                            showAiMealSheet = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, stringResource(R.string.ai_task_content_desc))
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 SmallFloatingActionButton(
                     onClick = {
                         haptic(HapticFeedbackType.LongPress)
@@ -133,6 +157,17 @@ fun DashboardScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (showAiMealSheet) {
+            AiMealSheet(
+                date = selectedDate.toString(),
+                onDismiss = { showAiMealSheet = false },
+                onQueued = {
+                    showAiMealSheet = false
+                    scope.launch { snackbarHostState.showSnackbar(aiQueuedMessage) }
+                },
+            )
+        }
+
         if (showQuickAddSheet) {
             EntryEditSheet(
                 entryId = null,

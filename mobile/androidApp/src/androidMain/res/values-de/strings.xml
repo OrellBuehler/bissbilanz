@@ -131,6 +131,18 @@
     <string name="fasting_notification_channel_desc">Zeigt die verstrichene Zeit während eines Fastens.</string>
     <string name="fasting_card_start">Fasten starten</string>
 
+    <!-- KI-Mahlzeitenauftrag -->
+    <string name="ai_task_title">An Assistenten senden</string>
+    <string name="ai_task_subtitle">Diese Mahlzeit für den KI-Assistenten zum Erfassen einreihen.</string>
+    <string name="ai_task_what_did_you_eat">Was hast du gegessen?</string>
+    <string name="ai_task_description_placeholder">z. B. eine Schüssel Porridge mit Banane und Honig</string>
+    <string name="ai_task_send">Senden</string>
+    <string name="ai_task_sending">Wird gesendet…</string>
+    <string name="ai_task_send_failed">Senden an den Assistenten fehlgeschlagen</string>
+    <string name="ai_task_queued">An den Assistenten gesendet</string>
+    <string name="ai_task_remove_photo">Foto entfernen</string>
+    <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
