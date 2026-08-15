@@ -1,6 +1,7 @@
 package com.bissbilanz.android.fasting
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -22,6 +23,9 @@ object FastingNotifier {
     const val CHANNEL_ID = "fasting"
     const val NOTIFICATION_ID = 4201
 
+    // The POST_NOTIFICATIONS guard is the `hasPermission` early return below;
+    // lint cannot follow it through the helper, hence the suppression.
+    @SuppressLint("MissingPermission")
     fun show(
         context: Context,
         session: FastingSession,
