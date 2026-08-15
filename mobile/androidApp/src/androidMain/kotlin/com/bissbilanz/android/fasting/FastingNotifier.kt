@@ -33,11 +33,17 @@ object FastingNotifier {
         if (!hasPermission(context)) return
         ensureChannel(context)
 
+        // Both intents name their component and both PendingIntents are immutable.
+        // setPackage is redundant next to an explicit component, but it is the form
+        // CodeQL's implicit-pendingintents query recognises: it does not read
+        // Kotlin's `X::class.java` as an explicit target and otherwise reports the
+        // notification below.
         val openApp =
             PendingIntent.getActivity(
                 context,
                 0,
                 Intent(context, MainActivity::class.java).apply {
+                    setPackage(context.packageName)
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra(MainActivity.EXTRA_NAVIGATE_TO, "fasting")
                 },
@@ -48,7 +54,9 @@ object FastingNotifier {
             PendingIntent.getBroadcast(
                 context,
                 1,
-                Intent(context, EndFastReceiver::class.java),
+                Intent(context, EndFastReceiver::class.java).apply {
+                    setPackage(context.packageName)
+                },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
