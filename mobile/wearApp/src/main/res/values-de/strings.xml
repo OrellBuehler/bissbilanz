@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tab_log">Erfassen</string>
+    <string name="app_name">Bissbilanz</string>
     <string name="tab_weight">Gewicht</string>
     <string name="tab_sleep">Schlaf</string>
     <string name="tab_today">Heute</string>
@@ -24,4 +24,8 @@
     <string name="sleep_summary">%1$s h · Qualität %2$s/10</string>
     <string name="hours">Stunden</string>
     <string name="quality">Qualität</string>
+    <string name="protein_short">P</string>
+    <string name="carbs_short">K</string>
+    <string name="fat_short">F</string>
+    <string name="fiber_short">Ba</string>
 </resources>

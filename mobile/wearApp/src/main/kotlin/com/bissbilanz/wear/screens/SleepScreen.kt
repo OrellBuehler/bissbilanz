@@ -60,6 +60,8 @@ fun SleepScreen(
             )
         }
 
+        item { StepperLabel(stringResource(R.string.hours)) }
+
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -71,6 +73,8 @@ fun SleepScreen(
                 CompactChip(onClick = { hours = (hours + 0.5).coerceAtMost(24.0) }, label = { Text("+") })
             }
         }
+
+        item { StepperLabel(stringResource(R.string.quality)) }
 
         item {
             Row(
@@ -117,6 +121,16 @@ fun SleepScreen(
             }
         }
     }
+}
+
+@Composable
+private fun StepperLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.caption2,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 internal fun formatHours(value: Double): String {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Same i18n rule as the phone app (issue #337): user-facing watch text must
+         come from strings.xml so it can be translated (en/de). -->
+    <issue id="HardcodedText" severity="error" />
+</lint>

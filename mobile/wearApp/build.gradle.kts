@@ -54,6 +54,11 @@ android {
         }
     }
 
+    lint {
+        // HardcodedText is promoted to error in lint.xml, same as the phone app.
+        abortOnError = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

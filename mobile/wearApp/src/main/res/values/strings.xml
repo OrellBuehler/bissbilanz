@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Bissbilanz</string>
-    <string name="tab_log">Log</string>
     <string name="tab_weight">Weight</string>
     <string name="tab_sleep">Sleep</string>
     <string name="tab_today">Today</string>

@@ -100,6 +100,9 @@ jobs:
       - name: Run Android lint
         run: ./gradlew androidApp:lintDebug
 
+      - name: Run Wear OS lint
+        run: ./gradlew wearApp:lintDebug
+
       - name: Run shared module tests
         run: ./gradlew shared:allTests
 
