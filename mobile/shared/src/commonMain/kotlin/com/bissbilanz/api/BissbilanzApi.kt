@@ -1,5 +1,10 @@
 package com.bissbilanz.api
 
+import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskCreate
+import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
+import com.bissbilanz.api.generated.model.AiTaskResponse
+import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.api.generated.model.CalendarResponse
 import com.bissbilanz.api.generated.model.DailyStatsResponse
 import com.bissbilanz.api.generated.model.DayProperties
@@ -294,6 +299,28 @@ class BissbilanzApi(
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         val response: FoodResponse = patch("/api/foods/$id", food, key, editedAt)
+        return response.food
+    }
+
+    @kotlinx.serialization.Serializable
+    private data class FavoritePatch(
+        val isFavorite: Boolean,
+    )
+
+    /**
+     * Flips only the favorite flag. A partial PATCH rather than a full food body,
+     * so a stale client can never overwrite nutrients it did not intend to touch.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun toggleFavorite(
+        id: String,
+        isFavorite: Boolean,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Food {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse = patch("/api/foods/$id", FavoritePatch(isFavorite), key, editedAt)
         return response.food
     }
 
@@ -927,7 +954,60 @@ class BissbilanzApi(
             parameter("endDate", endDate)
         }
 
+    // AI tasks — meals handed to the MCP assistant to log later
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createAiTask(
+        task: AiTaskCreate,
+        idempotencyKey: String? = null,
+    ): AiTask {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val response: AiTaskResponse = post("/api/ai-tasks", task, key, null)
+        return response.task
+    }
+
+    suspend fun listAiTasks(
+        status: String? = null,
+        limit: Int? = null,
+    ): AiTasksResponse =
+        get("/api/ai-tasks") {
+            status?.let { parameter("status", it) }
+            limit?.let { parameter("limit", it) }
+        }
+
+    suspend fun uploadAiTaskPhoto(
+        fileName: String,
+        fileBytes: ByteArray,
+        contentType: String = "image/jpeg",
+    ): String {
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/ai-tasks/photo",
+                formData =
+                    formData {
+                        append(
+                            "photo",
+                            fileBytes,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, contentType)
+                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                            },
+                        )
+                    },
+            ) { header(HttpHeaders.Origin, baseUrl) }
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "POST /api/ai-tasks/photo failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+            )
+        }
+        val body: AiTaskPhotoResponse = response.body()
+        return body.photoUrl
+    }
+
     // Images
+    // Both multipart uploads set Origin explicitly: the server's manual CSRF check
+    // (`isOriginMismatch`) 403s any multipart/form-data POST without one, and only
+    // browsers send it automatically.
     suspend fun uploadImage(
         fileName: String,
         fileBytes: ByteArray,
@@ -947,7 +1027,7 @@ class BissbilanzApi(
                             },
                         )
                     },
-            )
+            ) { header(HttpHeaders.Origin, baseUrl) }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST /api/images/upload failed: HTTP ${response.status.value} ${response.bodyAsText()}",

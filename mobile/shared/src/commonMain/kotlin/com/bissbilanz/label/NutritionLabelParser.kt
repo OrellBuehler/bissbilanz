@@ -28,12 +28,16 @@ object NutritionLabelParser {
         for (row in rows) {
             val folded = fold(row)
             when (val nutrient = match(folded)) {
-                null, Nutrient.Ignore -> continue
+                null, Nutrient.Ignore -> {
+                    continue
+                }
+
                 Nutrient.Energy -> {
                     if (result.calories == null) {
                         energyKcal(row)?.let { result.calories = round2(it) }
                     }
                 }
+
                 is Nutrient.Field -> {
                     if (nutrient.get(result) == null) {
                         firstValue(row)?.let { measured ->
@@ -181,6 +185,7 @@ object NutritionLabelParser {
         when (unit) {
             // Salt is the only gram field commonly printed in mg.
             FieldUnit.GRAMS -> if (measured.unit == "mg") measured.value / 1000 else measured.value
+
             // Sodium is usually mg (US); EU prints it in grams.
             FieldUnit.MILLIGRAMS -> if (measured.unit == "g") measured.value * 1000 else measured.value
         }

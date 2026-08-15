@@ -55,6 +55,9 @@ jobs:
       - name: Build debug APK
         run: ./gradlew androidApp:assembleDebug
 
+      - name: Build Wear OS debug APK
+        run: ./gradlew wearApp:assembleDebug
+
       - name: Upload debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -97,11 +100,17 @@ jobs:
       - name: Run Android lint
         run: ./gradlew androidApp:lintDebug
 
+      - name: Run Wear OS lint
+        run: ./gradlew wearApp:lintDebug
+
       - name: Run shared module tests
         run: ./gradlew shared:allTests
 
       - name: Run Android ViewModel unit tests
         run: ./gradlew androidApp:testDebugUnitTest
+
+      - name: Run Wear OS unit tests
+        run: ./gradlew wearProtocol:testDebugUnitTest wearApp:testDebugUnitTest
 
       - name: Upload test results
         if: always()

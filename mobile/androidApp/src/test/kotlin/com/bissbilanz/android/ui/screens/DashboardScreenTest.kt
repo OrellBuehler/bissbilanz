@@ -7,10 +7,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
@@ -52,6 +55,8 @@ class DashboardScreenTest {
     private lateinit var goalsRepo: GoalsRepository
     private lateinit var prefsRepo: PreferencesRepository
     private lateinit var refreshManager: RefreshManager
+    private lateinit var fastingManager: FastingManager
+    private lateinit var appModeManager: AppModeManager
     private lateinit var errorReporter: ErrorReporter
 
     @Before
@@ -72,6 +77,14 @@ class DashboardScreenTest {
                 every { preferences() } returns MutableStateFlow(null)
             }
         refreshManager = mockk(relaxed = true)
+        fastingManager =
+            mockk(relaxed = true) {
+                every { session } returns MutableStateFlow(null)
+            }
+        appModeManager =
+            mockk(relaxed = true) {
+                every { mode } returns MutableStateFlow(AppMode.SYNCED)
+            }
         errorReporter = mockk(relaxed = true)
 
         startKoin {
@@ -81,6 +94,8 @@ class DashboardScreenTest {
                     single<GoalsRepository> { goalsRepo }
                     single<PreferencesRepository> { prefsRepo }
                     single<RefreshManager> { refreshManager }
+                    single<FastingManager> { fastingManager }
+                    single<AppModeManager> { appModeManager }
                     single<ErrorReporter> { errorReporter }
                     viewModelOf(::DashboardViewModel)
                 },

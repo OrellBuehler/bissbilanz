@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Long-press launcher shortcuts — Android's answer to the iOS Siri shortcuts.
+  Each one carries the navigate_to extra MainActivity already understands, so the
+  app lands directly on the relevant screen.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="log_food"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_log_food_short"
+        android:shortcutLongLabel="@string/shortcut_log_food_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <extra
+                android:name="navigate_to"
+                android:value="foods" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="scan_barcode"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_scan_short"
+        android:shortcutLongLabel="@string/shortcut_scan_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <extra
+                android:name="navigate_to"
+                android:value="scanner" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="log_weight"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_weight_short"
+        android:shortcutLongLabel="@string/shortcut_weight_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <extra
+                android:name="navigate_to"
+                android:value="weight" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="fasting"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_fasting_short"
+        android:shortcutLongLabel="@string/shortcut_fasting_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <extra
+                android:name="navigate_to"
+                android:value="fasting" />
+        </intent>
+    </shortcut>
+</shortcuts>

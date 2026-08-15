@@ -6,12 +6,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,10 +19,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.CalendarHeatmap
@@ -68,23 +66,16 @@ import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
-import com.bissbilanz.model.SleepCreate
 import com.bissbilanz.model.SleepEntry
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 @Composable
-fun InsightsScreen() {
+fun InsightsScreen(navController: NavController) {
     val viewModel: InsightsViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
@@ -503,7 +494,6 @@ fun InsightsScreen() {
                 3 -> {
                     val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
                     val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
-                    var showSleepDialog by remember { mutableStateOf(false) }
                     var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
 
                     CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
@@ -517,7 +507,7 @@ fun InsightsScreen() {
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            IconButton(onClick = { showSleepDialog = true }) {
+                            IconButton(onClick = { navController.navigate("sleep") }) {
                                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
                             }
                         }
@@ -744,23 +734,6 @@ fun InsightsScreen() {
                         PreSleepWindowCard(preSleepTimingSummary)
                         Spacer(Modifier.height(12.dp))
                         CaffeineSleepCard(caffeineSleepResult)
-                    }
-
-                    if (showSleepDialog) {
-                        SleepLogDialog(
-                            onDismiss = { showSleepDialog = false },
-                            onSave = { duration, quality, date, notes ->
-                                viewModel.createSleepEntry(
-                                    SleepCreate(
-                                        durationMinutes = duration,
-                                        quality = quality,
-                                        entryDate = date,
-                                        notes = notes.ifBlank { null },
-                                    ),
-                                )
-                                showSleepDialog = false
-                            },
-                        )
                     }
 
                     sleepEntryToDelete?.let { entry ->
@@ -1062,136 +1035,4 @@ private fun GoalAdherenceCard(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SleepLogDialog(
-    onDismiss: () -> Unit,
-    onSave: (duration: Int, quality: Double, date: String, notes: String) -> Unit,
-) {
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    var durationHours by remember { mutableStateOf("8") }
-    var durationMinutes by remember { mutableStateOf("0") }
-    var quality by remember { mutableFloatStateOf(7f) }
-    var date by remember { mutableStateOf(today.toString()) }
-    var notes by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
-
-    val totalMinutes = (durationHours.toIntOrNull() ?: 0) * 60 + (durationMinutes.toIntOrNull() ?: 0)
-    val durationError = totalMinutes == 0
-
-    val todayEpochMillis = today.toEpochDays().toLong() * 24L * 60L * 60L * 1000L
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = todayEpochMillis)
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            date =
-                                Instant
-                                    .fromEpochMilliseconds(millis)
-                                    .toLocalDateTime(TimeZone.UTC)
-                                    .date
-                                    .toString()
-                        }
-                        showDatePicker = false
-                    },
-                ) { Text(stringResource(R.string.dialog_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
-            },
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.sleep_log_dialog_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = date,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.insights_sleep_date_label)) },
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, contentDescription = stringResource(R.string.insights_sleep_pick_date))
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
-                Text(stringResource(R.string.insights_sleep_duration_label), style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = durationHours,
-                        onValueChange = { durationHours = it.filter { c -> c.isDigit() } },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        suffix = { Text(stringResource(R.string.insights_hours_unit)) },
-                        isError = durationError,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    OutlinedTextField(
-                        value = durationMinutes,
-                        onValueChange = { durationMinutes = it.filter { c -> c.isDigit() } },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        suffix = { Text(stringResource(R.string.insights_minutes_unit)) },
-                        isError = durationError,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-                if (durationError) {
-                    Text(
-                        stringResource(R.string.insights_sleep_duration_error),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-
-                Text(
-                    stringResource(R.string.insights_sleep_quality_label, quality.formatAsInt()),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Slider(
-                    value = quality,
-                    onValueChange = { quality = it },
-                    valueRange = 1f..10f,
-                    steps = 8,
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text(stringResource(R.string.weight_notes_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (!durationError) {
-                        onSave(totalMinutes, quality.roundToInt().toDouble(), date, notes)
-                    }
-                },
-                enabled = !durationError,
-            ) {
-                Text(stringResource(R.string.weight_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
 }

@@ -43,13 +43,23 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
             }
         val patternLabel =
             when (result.pattern) {
-                "consistent" -> stringResource(R.string.insights_cycling_consistent)
-                "moderate", "moderate_cycling" -> stringResource(R.string.insights_cycling_moderate)
-                "high_cycling" -> stringResource(R.string.insights_cycling_high)
-                else ->
+                "consistent" -> {
+                    stringResource(R.string.insights_cycling_consistent)
+                }
+
+                "moderate", "moderate_cycling" -> {
+                    stringResource(R.string.insights_cycling_moderate)
+                }
+
+                "high_cycling" -> {
+                    stringResource(R.string.insights_cycling_high)
+                }
+
+                else -> {
                     result.pattern
                         .replace('_', ' ')
                         .replaceFirstChar { it.uppercase() }
+                }
             }
         Text(
             patternLabel,

@@ -83,7 +83,18 @@ fun AppNavigation() {
             val currentRoute = currentDestination?.route
 
             val hideBottomBar =
-                currentRoute in listOf("scanner", "supplement-history", "recipes", "calendar", "maintenance") ||
+                currentRoute in
+                    listOf(
+                        "scanner",
+                        "supplement-history",
+                        "recipes",
+                        "calendar",
+                        "maintenance",
+                        "sleep",
+                        "pending-sync",
+                        "fasting",
+                        "health",
+                    ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
                     currentRoute?.startsWith("food/") == true ||
@@ -152,7 +163,7 @@ fun AppNavigation() {
             }
             composable(Screen.Insights.route) {
                 com.bissbilanz.android.ui.screens
-                    .InsightsScreen()
+                    .InsightsScreen(navController)
             }
             composable(Screen.Settings.route) {
                 com.bissbilanz.android.ui.screens
@@ -185,6 +196,10 @@ fun AppNavigation() {
                 com.bissbilanz.android.ui.screens
                     .WeightScreen(navController)
             }
+            composable("sleep") {
+                com.bissbilanz.android.ui.screens
+                    .SleepScreen(navController)
+            }
             composable("supplements") {
                 com.bissbilanz.android.ui.screens
                     .SupplementsScreen(navController)
@@ -196,6 +211,18 @@ fun AppNavigation() {
             composable("calendar") {
                 com.bissbilanz.android.ui.screens
                     .CalendarScreen(navController)
+            }
+            composable("health") {
+                com.bissbilanz.android.ui.screens
+                    .HealthConnectScreen(navController)
+            }
+            composable("fasting") {
+                com.bissbilanz.android.ui.screens
+                    .FastingScreen(navController)
+            }
+            composable("pending-sync") {
+                com.bissbilanz.android.ui.screens
+                    .PendingSyncScreen(navController)
             }
             composable("maintenance") {
                 com.bissbilanz.android.ui.screens

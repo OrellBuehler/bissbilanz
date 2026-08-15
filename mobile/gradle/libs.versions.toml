@@ -25,7 +25,12 @@ sentry-android = "8.49.0"
 sentry-gradle = "6.18.0"
 coil = "2.7.0"
 glance = "1.1.1"
+health-connect = "1.1.0-rc02"
 work = "2.11.2"
+wear-compose = "1.5.4"
+wear-watchface = "1.2.1"
+play-services-wearable = "19.0.0"
+horologist = "0.9.0"
 robolectric = "4.16.1"
 
 [libraries]
@@ -90,7 +95,15 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Widget
 glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "health-connect" }
 work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+# Wear OS
+wear-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "wear-compose" }
+wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wear-compose" }
+wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wear-compose" }
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "play-services-wearable" }
+wear-complications-datasource = { group = "androidx.wear.watchface", name = "watchface-complications-data-source-ktx", version.ref = "wear-watchface" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 # Testing
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
@@ -109,6 +122,7 @@ test-rules = { group = "androidx.test", name = "rules", version = "1.7.0" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

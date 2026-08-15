@@ -17,6 +17,9 @@ val WeightBlue = Color(0xFF2563EB)
 val TrendGreen = Color(0xFF059669)
 val ProjectionPurple = Color(0xFF8B5CF6)
 
+// Not a macro, but part of the same fixed colour language: fasting surfaces.
+val FastingIndigo = Color(0xFF6366F1)
+
 private val DarkColorScheme =
     darkColorScheme(
         primary = CaloriesBlue,
@@ -55,8 +58,14 @@ fun BissbilanzTheme(
                 val context = LocalContext.current
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
+
+            darkTheme -> {
+                DarkColorScheme
+            }
+
+            else -> {
+                LightColorScheme
+            }
         }
 
     MaterialTheme(

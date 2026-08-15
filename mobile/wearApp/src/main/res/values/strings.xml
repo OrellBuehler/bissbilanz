@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bissbilanz</string>
+    <string name="tab_weight">Weight</string>
+    <string name="tab_sleep">Sleep</string>
+    <string name="tab_today">Today</string>
+    <string name="waiting_for_phone">Open Bissbilanz on your phone</string>
+    <string name="no_favorites">No favorites yet</string>
+    <string name="favorites">Favorites</string>
+    <string name="recents">Recent</string>
+    <string name="servings">Servings</string>
+    <string name="meal">Meal</string>
+    <string name="log">Log</string>
+    <string name="logged">Logged</string>
+    <string name="log_failed">Could not reach your phone</string>
+    <string name="kcal_value">%1$d kcal</string>
+    <string name="of_goal">of %1$d</string>
+    <string name="weight_kg">%1$s kg</string>
+    <string name="no_weight">No weight logged</string>
+    <string name="delta_7d">%1$s kg / 7d</string>
+    <string name="log_weight">Log weight</string>
+    <string name="log_sleep">Log sleep</string>
+    <string name="no_sleep">No sleep logged</string>
+    <string name="sleep_summary">%1$sh · quality %2$s/10</string>
+    <string name="hours">Hours</string>
+    <string name="quality">Quality</string>
+    <string name="protein_short">P</string>
+    <string name="carbs_short">C</string>
+    <string name="fat_short">F</string>
+    <string name="fiber_short">Fb</string>
+</resources>

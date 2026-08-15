@@ -56,6 +56,121 @@
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
 
+    <!-- Sleep screen -->
+    <string name="sleep_updated">Sleep entry updated</string>
+    <string name="sleep_update_failed">Failed to update sleep entry</string>
+    <string name="sleep_edit_title">Edit Sleep</string>
+    <string name="sleep_edit_content_desc">Edit sleep entry</string>
+    <string name="sleep_entry_headline">%1$sh · Quality %2$s/10</string>
+    <string name="sleep_bed_wake_summary">Bed %1$s · Wake %2$s</string>
+    <string name="sleep_wake_ups_summary">%1$d wake-ups</string>
+    <string name="sleep_last_night">Last night</string>
+    <string name="sleep_seven_day_average">7-day average</string>
+    <string name="sleep_quality_value">Quality %1$s/10</string>
+    <string name="sleep_bed_and_wake_times">Bed &amp; wake times</string>
+    <string name="sleep_bedtime_label">Bedtime</string>
+    <string name="sleep_wake_time_label">Wake time</string>
+    <string name="sleep_bedtime_value">Bed %1$s</string>
+    <string name="sleep_wake_time_value">Wake %1$s</string>
+    <string name="sleep_wake_ups_label">Wake-ups</string>
+    <string name="sleep_quality_poor">Poor</string>
+    <string name="sleep_quality_great">Great</string>
+
+    <string name="dashboard_refresh_failed_title">Something went wrong</string>
+    <string name="dashboard_refresh_failed_body">Could not refresh your log.</string>
+    <string name="dashboard_retry">Retry</string>
+    <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
+    <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
+
+    <!-- Pending sync queue -->
+    <string name="pending_sync_title">Pending changes</string>
+    <string name="pending_sync_row">%1$d changes waiting to sync</string>
+    <string name="pending_sync_retry_now">Retry now</string>
+    <string name="pending_sync_empty">Everything is synced</string>
+    <string name="pending_sync_empty_detail">No local changes are waiting to upload.</string>
+    <string name="pending_sync_retry_count">Retried %1$d times</string>
+    <string name="sync_create_entry">Add food entry</string>
+    <string name="sync_update_entry">Edit food entry</string>
+    <string name="sync_delete_entry">Delete food entry</string>
+    <string name="sync_create_food">Create food</string>
+    <string name="sync_update_food">Edit food</string>
+    <string name="sync_delete_food">Delete food</string>
+    <string name="sync_toggle_favorite">Change favorite</string>
+    <string name="sync_create_recipe">Create recipe</string>
+    <string name="sync_update_recipe">Edit recipe</string>
+    <string name="sync_delete_recipe">Delete recipe</string>
+    <string name="sync_create_sleep">Log sleep</string>
+    <string name="sync_update_sleep">Edit sleep</string>
+    <string name="sync_delete_sleep">Delete sleep</string>
+    <string name="sync_log_supplement">Log supplement</string>
+    <string name="sync_set_goals">Update goals</string>
+    <string name="sync_generic_change">Pending change</string>
+
+    <!-- Fasting tracker -->
+    <string name="fasting_title">Fasting</string>
+    <string name="fasting_start">Start fast</string>
+    <string name="fasting_end">End fast</string>
+    <string name="fasting_end_confirmation">End this fast?</string>
+    <string name="fasting_not_running">No fast is running.</string>
+    <string name="fasting_protocol">Protocol</string>
+    <string name="fasting_protocol_custom">Custom</string>
+    <string name="fasting_protocol_description">%1$dh fasting · %2$dh eating window</string>
+    <string name="fasting_custom_description">A %1$dh fast</string>
+    <string name="fasting_of_target_hours">of %1$dh target</string>
+    <string name="fasting_target_hours">%1$dh target</string>
+    <string name="fasting_target_reached">Target reached</string>
+    <string name="fasting_started">Started</string>
+    <string name="fasting_ends">Ends</string>
+    <string name="fasting_change_target">Change target</string>
+    <string name="fasting_history">History</string>
+    <string name="fasting_no_history">No completed fasts yet.</string>
+    <string name="fasting_hours">Hours</string>
+    <string name="fasting_duration_hm">%1$dh %2$dm</string>
+    <string name="fasting_notification_title">Fasting in progress</string>
+    <string name="fasting_notification_channel">Fasting</string>
+    <string name="fasting_notification_channel_desc">Shows the elapsed time while a fast is running.</string>
+    <string name="fasting_card_start">Start a fast</string>
+
+    <!-- AI meal task -->
+    <string name="ai_task_title">Send to assistant</string>
+    <string name="ai_task_subtitle">Queue this meal for the AI assistant to log for you.</string>
+    <string name="ai_task_what_did_you_eat">What did you eat?</string>
+    <string name="ai_task_description_placeholder">e.g. a bowl of porridge with banana and honey</string>
+    <string name="ai_task_send">Send</string>
+    <string name="ai_task_sending">Sending…</string>
+    <string name="ai_task_send_failed">Could not send to the assistant</string>
+    <string name="ai_task_queued">Sent to the assistant</string>
+    <string name="ai_task_remove_photo">Remove photo</string>
+    <string name="ai_task_content_desc">Send a meal to the assistant</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connected">Connected</string>
+    <string name="health_not_connected">Not connected</string>
+    <string name="health_unavailable">Health Connect is not available on this device</string>
+    <string name="health_needs_provider_update">Health Connect needs to be updated before it can be used.</string>
+    <string name="health_connect_action">Connect</string>
+    <string name="health_manage_permissions">Manage permissions</string>
+    <string name="health_install">Get Health Connect</string>
+    <string name="health_reading_section">Read into Bissbilanz</string>
+    <string name="health_reading_footer">Imports the last 90 days. Days you already logged are left untouched.</string>
+    <string name="health_writing_section">Write to Health Connect</string>
+    <string name="health_writing_footer">Turn writing off if another app already records this, or you will get duplicates.</string>
+    <string name="health_nutrition">Nutrition</string>
+    <string name="health_import_now">Import now</string>
+    <string name="health_import_done">Imported from Health Connect</string>
+    <string name="health_import_nothing">Nothing new to import</string>
+
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_log_food_short">Log food</string>
+    <string name="shortcut_log_food_long">Log a food</string>
+    <string name="shortcut_scan_short">Scan</string>
+    <string name="shortcut_scan_long">Scan a barcode</string>
+    <string name="shortcut_weight_short">Weight</string>
+    <string name="shortcut_weight_long">Log your weight</string>
+    <string name="shortcut_fasting_short">Fasting</string>
+    <string name="shortcut_fasting_long">Start or end a fast</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>
     <string name="scan_label_footer">Fill in the nutrition values from a photo of the label.</string>
@@ -211,6 +326,7 @@
     <string name="daylog_quick_add">Quick add</string>
     <string name="daylog_no_entries_for_day">No entries for this day</string>
     <string name="daylog_delete_entry">Delete entry</string>
+    <string name="daylog_edit_entry">Edit entry</string>
     <string name="daylog_entry_summary">%1$sx  ·  %2$s kcal  ·  P %3$sg</string>
 
     <!-- Favorites -->
@@ -295,6 +411,9 @@
     <string name="food_form_fat_required">Fat (g) *</string>
     <string name="food_form_fiber_optional">Fiber (g)</string>
     <string name="food_form_show_advanced">Show advanced nutrients</string>
+    <string name="food_form_additional_nutrients">Additional nutrients</string>
+    <string name="food_form_add_nutrient">Add nutrient</string>
+    <string name="food_form_remove_nutrient">Remove nutrient</string>
     <string name="food_form_hide_advanced">Hide advanced nutrients</string>
     <string name="food_form_load_failed">Failed to load food</string>
     <string name="food_form_name_required_error">Name is required</string>
@@ -339,6 +458,11 @@
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Create food</string>
+    <string name="food_search_create">Create</string>
+    <string name="food_search_create_recipe">Create recipe</string>
+    <string name="food_search_edit_food">Edit food</string>
+    <string name="food_search_add_to_favorites">Add to favorites</string>
+    <string name="food_search_remove_from_favorites">Remove from favorites</string>
     <string name="food_search_placeholder">Search foods…</string>
     <string name="food_search_icon_desc">Search</string>
     <string name="food_search_no_results">No foods found for \"%1$s\"</string>

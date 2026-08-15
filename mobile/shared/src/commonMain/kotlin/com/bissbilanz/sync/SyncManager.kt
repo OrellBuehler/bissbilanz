@@ -251,6 +251,10 @@ class SyncManager(
                 api.deleteFood(op.id, idempotencyKey, clientEditedAt)
             }
 
+            is SyncOperation.ToggleFavorite -> {
+                api.toggleFavorite(op.id, op.isFavorite, idempotencyKey, clientEditedAt)
+            }
+
             is SyncOperation.CreateEntry -> {
                 api.createEntry(json.decodeFromString<EntryCreate>(op.body), idempotencyKey, clientEditedAt)
             }

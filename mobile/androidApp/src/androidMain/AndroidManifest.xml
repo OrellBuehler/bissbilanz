@@ -3,6 +3,19 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Ongoing "fast in progress" notification; the fast itself works without it. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Health Connect: weight and sleep both ways, nutrition write-only. -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
+
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -26,6 +39,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+            <!-- Health Connect opens this to show why the app wants health data;
+                 without it the permission request is rejected. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
             <!-- OAuth deep link -->
             <intent-filter>
@@ -95,6 +116,37 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/favorites_widget_info" />
         </receiver>
+
+        <!-- Exported by requirement, but guarded by START_VIEW_PERMISSION_USAGE,
+             a signature-level permission only the system holds. -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Receives log commands from a paired Wear OS watch. -->
+        <service
+            android:name=".wear.WearMessageService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/bissbilanz" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".fasting.EndFastReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

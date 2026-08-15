@@ -173,6 +173,33 @@ class FoodRepository(
         return tempFood
     }
 
+    /**
+     * Flips the favorite flag and queues a partial PATCH, returning the updated
+     * food when there was a cached copy to update.
+     * Deliberately not routed through [updateFood]: that uploads a full
+     * [FoodCreate], which would rewrite every nutrient from whatever the cache
+     * happened to hold. For a temp-id food the queued create is rewritten instead.
+     */
+    suspend fun toggleFavorite(
+        id: String,
+        isFavorite: Boolean,
+    ): Food? {
+        // A food shown from a server search need not be cached locally; the flag
+        // still has to reach the server, so only the local mirror is conditional.
+        val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { cacheFood(it) }
+        if (id.isTempId()) {
+            syncQueue.rewriteQueuedCreate("foods", id) { op ->
+                val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
+                val body = json.decodeOrNull<FoodCreate>(create.body) ?: return@rewriteQueuedCreate null
+                create.copy(body = json.encodeToString(body.copy(isFavorite = isFavorite)))
+            }
+        } else {
+            syncQueue.enqueue(SyncOperation.ToggleFavorite(id, isFavorite))
+        }
+        onFoodChanged?.invoke()
+        return updated
+    }
+
     suspend fun deleteFood(id: String) {
         db.userDataDatabaseQueries.deleteFood(id)
         if (id.isTempId()) {

@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -29,17 +31,22 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.AddFoodSheet
+import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
+import com.bissbilanz.android.ui.components.FastingCard
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.util.displayName
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.resolvedCalories
@@ -50,6 +57,7 @@ import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(navController: NavController) {
@@ -58,8 +66,12 @@ fun DashboardScreen(navController: NavController) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val refreshFailed by viewModel.refreshFailed.collectAsStateWithLifecycle()
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val appModeManager: AppModeManager = koinInject()
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -71,8 +83,16 @@ fun DashboardScreen(navController: NavController) {
             viewModel.clearSnackbar()
         }
     }
+    val aiQueuedMessage = stringResource(R.string.ai_task_queued)
+    val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
+    val copiedFormat = stringResource(R.string.dashboard_copied_count)
+    val copyEntries = {
+        viewModel.copyEntriesFromYesterday({ count -> copiedFormat.format(count) }, copyFailedMessage)
+    }
+
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showAiMealSheet by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
     var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
@@ -101,6 +121,20 @@ fun DashboardScreen(navController: NavController) {
     Scaffold(
         floatingActionButton = {
             Column {
+                // Queuing a meal for the assistant needs the server, so it is
+                // hidden in local mode — same rule as iOS.
+                if (!isLocalMode) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            haptic(HapticFeedbackType.LongPress)
+                            showAiMealSheet = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, stringResource(R.string.ai_task_content_desc))
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 SmallFloatingActionButton(
                     onClick = {
                         haptic(HapticFeedbackType.LongPress)
@@ -123,6 +157,17 @@ fun DashboardScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (showAiMealSheet) {
+            AiMealSheet(
+                date = selectedDate.toString(),
+                onDismiss = { showAiMealSheet = false },
+                onQueued = {
+                    showAiMealSheet = false
+                    scope.launch { snackbarHostState.showSnackbar(aiQueuedMessage) }
+                },
+            )
+        }
+
         if (showQuickAddSheet) {
             EntryEditSheet(
                 entryId = null,
@@ -180,6 +225,7 @@ fun DashboardScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             viewModel.previousDay()
                                         }
+
                                         dragAmount < -threshold -> {
                                             haptic(HapticFeedbackType.LongPress)
                                             viewModel.nextDay()
@@ -290,6 +336,11 @@ fun DashboardScreen(navController: NavController) {
                     )
                 }
 
+                if (selectedDate == today) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FastingCard(onClick = { navController.navigate("fasting") })
+                }
+
                 Spacer(modifier = Modifier.height(28.dp))
 
                 Crossfade(targetState = isLoading, label = "dashboard") { loading ->
@@ -321,17 +372,21 @@ fun DashboardScreen(navController: NavController) {
                             }
 
                             if (entries.isEmpty()) {
-                                OutlinedButton(
-                                    onClick = { viewModel.copyEntriesFromYesterday() },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                                ) {
-                                    Icon(
-                                        Icons.Default.ContentCopy,
-                                        stringResource(R.string.dashboard_copy),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                if (refreshFailed) {
+                                    RefreshErrorState(onRetry = { viewModel.loadData() })
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { copyEntries() },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            stringResource(R.string.dashboard_copy),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                    }
                                 }
                             }
 
@@ -354,11 +409,49 @@ fun DashboardScreen(navController: NavController) {
                                 )
                             }
 
+                            // Sleep widget
+                            if (prefs?.showSleepWidget == true) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                SleepWidget(onViewAll = { navController.navigate("sleep") })
+                            }
+
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Shown when the entries refresh failed and the day has nothing cached, so a
+ * swallowed network error isn't mistaken for a day with no food logged.
+ */
+@Composable
+private fun RefreshErrorState(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            Icons.Default.CloudOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.dashboard_refresh_failed_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            stringResource(R.string.dashboard_refresh_failed_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(onClick = onRetry) {
+            Text(stringResource(R.string.dashboard_retry))
         }
     }
 }

@@ -26,6 +26,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
+import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -33,6 +34,7 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
+import com.bissbilanz.sync.SyncManager
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -42,6 +44,11 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpd
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
     val authManager: AuthManager = koinInject()
+    val syncManager: SyncManager = koinInject()
+    val healthConnect: HealthConnectService = koinInject()
+    val healthAvailable = remember { healthConnect.isAvailable() }
+    val syncState by syncManager.state.collectAsStateWithLifecycle()
+    val pendingSyncCount = syncState.pendingCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()
@@ -167,6 +174,20 @@ fun SettingsScreen(navController: NavController) {
                                 }
                             } else {
                                 navController.navigate("supplements")
+                            }
+                        }
+                        HorizontalDivider()
+                        SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) {
+                            navController.navigate("sleep")
+                        }
+                        HorizontalDivider()
+                        SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
+                            navController.navigate("fasting")
+                        }
+                        if (healthAvailable) {
+                            HorizontalDivider()
+                            SettingsNavItem(stringResource(R.string.health_connect_title), Icons.Default.Favorite) {
+                                navController.navigate("health")
                             }
                         }
                         HorizontalDivider()
@@ -470,6 +491,9 @@ fun SettingsScreen(navController: NavController) {
                             WidgetToggle(stringResource(R.string.weight_widget_title), p.showWeightWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showWeightWidget = value))
                             }
+                            WidgetToggle(stringResource(R.string.sleep_section_title), p.showSleepWidget) { value ->
+                                viewModel.updatePreference(PreferencesUpdate(showSleepWidget = value))
+                            }
                             WidgetToggle(stringResource(R.string.settings_widget_meal_breakdown), p.showMealBreakdownWidget) { value ->
                                 viewModel.updatePreference(PreferencesUpdate(showMealBreakdownWidget = value))
                             }
@@ -625,6 +649,18 @@ fun SettingsScreen(navController: NavController) {
                                 Text(stringResource(R.string.settings_sign_in_to_sync))
                             }
                         } else {
+                            // Queued offline writes: surfaced here (and only when
+                            // there are any) so a stalled upload is visible instead
+                            // of silently sitting in the queue.
+                            if (pendingSyncCount > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SettingsNavItem(
+                                    stringResource(R.string.pending_sync_row, pendingSyncCount),
+                                    Icons.Default.Sync,
+                                ) {
+                                    navController.navigate("pending-sync")
+                                }
+                            }
                             Spacer(modifier = Modifier.height(16.dp))
                             OutlinedButton(
                                 onClick = { viewModel.logout() },

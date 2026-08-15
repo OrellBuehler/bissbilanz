@@ -56,6 +56,121 @@
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>
 
+    <!-- Schlaf-Screen -->
+    <string name="sleep_updated">Schlafeintrag aktualisiert</string>
+    <string name="sleep_update_failed">Schlafeintrag konnte nicht aktualisiert werden</string>
+    <string name="sleep_edit_title">Schlaf bearbeiten</string>
+    <string name="sleep_edit_content_desc">Schlafeintrag bearbeiten</string>
+    <string name="sleep_entry_headline">%1$sh · Qualität %2$s/10</string>
+    <string name="sleep_bed_wake_summary">Zubett %1$s · Aufwachen %2$s</string>
+    <string name="sleep_wake_ups_summary">%1$d Mal aufgewacht</string>
+    <string name="sleep_last_night">Letzte Nacht</string>
+    <string name="sleep_seven_day_average">7-Tage-Schnitt</string>
+    <string name="sleep_quality_value">Qualität %1$s/10</string>
+    <string name="sleep_bed_and_wake_times">Zubett- &amp; Aufwachzeit</string>
+    <string name="sleep_bedtime_label">Zubettgehzeit</string>
+    <string name="sleep_wake_time_label">Aufwachzeit</string>
+    <string name="sleep_bedtime_value">Zubett %1$s</string>
+    <string name="sleep_wake_time_value">Aufwachen %1$s</string>
+    <string name="sleep_wake_ups_label">Aufwachvorgänge</string>
+    <string name="sleep_quality_poor">Schlecht</string>
+    <string name="sleep_quality_great">Super</string>
+
+    <string name="dashboard_refresh_failed_title">Etwas ist schiefgelaufen</string>
+    <string name="dashboard_refresh_failed_body">Dein Log konnte nicht aktualisiert werden.</string>
+    <string name="dashboard_retry">Erneut versuchen</string>
+    <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
+    <string name="dashboard_copy_failed">Keine Einträge von gestern zum Kopieren</string>
+
+    <!-- Warteschlange der Synchronisierung -->
+    <string name="pending_sync_title">Ausstehende Änderungen</string>
+    <string name="pending_sync_row">%1$d Änderungen warten auf Synchronisierung</string>
+    <string name="pending_sync_retry_now">Jetzt erneut versuchen</string>
+    <string name="pending_sync_empty">Alles synchronisiert</string>
+    <string name="pending_sync_empty_detail">Es warten keine lokalen Änderungen auf den Upload.</string>
+    <string name="pending_sync_retry_count">%1$d Mal erneut versucht</string>
+    <string name="sync_create_entry">Eintrag hinzufügen</string>
+    <string name="sync_update_entry">Eintrag bearbeiten</string>
+    <string name="sync_delete_entry">Eintrag löschen</string>
+    <string name="sync_create_food">Lebensmittel erstellen</string>
+    <string name="sync_update_food">Lebensmittel bearbeiten</string>
+    <string name="sync_delete_food">Lebensmittel löschen</string>
+    <string name="sync_toggle_favorite">Favorit ändern</string>
+    <string name="sync_create_recipe">Rezept erstellen</string>
+    <string name="sync_update_recipe">Rezept bearbeiten</string>
+    <string name="sync_delete_recipe">Rezept löschen</string>
+    <string name="sync_create_sleep">Schlaf erfassen</string>
+    <string name="sync_update_sleep">Schlaf bearbeiten</string>
+    <string name="sync_delete_sleep">Schlaf löschen</string>
+    <string name="sync_log_supplement">Supplement erfassen</string>
+    <string name="sync_set_goals">Ziele aktualisieren</string>
+    <string name="sync_generic_change">Ausstehende Änderung</string>
+
+    <!-- Fasten-Tracker -->
+    <string name="fasting_title">Fasten</string>
+    <string name="fasting_start">Fasten starten</string>
+    <string name="fasting_end">Fasten beenden</string>
+    <string name="fasting_end_confirmation">Dieses Fasten beenden?</string>
+    <string name="fasting_not_running">Es läuft kein Fasten.</string>
+    <string name="fasting_protocol">Protokoll</string>
+    <string name="fasting_protocol_custom">Eigenes</string>
+    <string name="fasting_protocol_description">%1$d h fasten · %2$d h Essensfenster</string>
+    <string name="fasting_custom_description">Ein %1$d-Stunden-Fasten</string>
+    <string name="fasting_of_target_hours">von %1$d h Ziel</string>
+    <string name="fasting_target_hours">%1$d h Ziel</string>
+    <string name="fasting_target_reached">Ziel erreicht</string>
+    <string name="fasting_started">Gestartet</string>
+    <string name="fasting_ends">Endet</string>
+    <string name="fasting_change_target">Ziel ändern</string>
+    <string name="fasting_history">Verlauf</string>
+    <string name="fasting_no_history">Noch keine abgeschlossenen Fastenzeiten.</string>
+    <string name="fasting_hours">Stunden</string>
+    <string name="fasting_duration_hm">%1$d h %2$d min</string>
+    <string name="fasting_notification_title">Fasten läuft</string>
+    <string name="fasting_notification_channel">Fasten</string>
+    <string name="fasting_notification_channel_desc">Zeigt die verstrichene Zeit während eines Fastens.</string>
+    <string name="fasting_card_start">Fasten starten</string>
+
+    <!-- KI-Mahlzeitenauftrag -->
+    <string name="ai_task_title">An Assistenten senden</string>
+    <string name="ai_task_subtitle">Diese Mahlzeit für den KI-Assistenten zum Erfassen einreihen.</string>
+    <string name="ai_task_what_did_you_eat">Was hast du gegessen?</string>
+    <string name="ai_task_description_placeholder">z. B. eine Schüssel Porridge mit Banane und Honig</string>
+    <string name="ai_task_send">Senden</string>
+    <string name="ai_task_sending">Wird gesendet…</string>
+    <string name="ai_task_send_failed">Senden an den Assistenten fehlgeschlagen</string>
+    <string name="ai_task_queued">An den Assistenten gesendet</string>
+    <string name="ai_task_remove_photo">Foto entfernen</string>
+    <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connected">Verbunden</string>
+    <string name="health_not_connected">Nicht verbunden</string>
+    <string name="health_unavailable">Health Connect ist auf diesem Gerät nicht verfügbar</string>
+    <string name="health_needs_provider_update">Health Connect muss aktualisiert werden, bevor es genutzt werden kann.</string>
+    <string name="health_connect_action">Verbinden</string>
+    <string name="health_manage_permissions">Berechtigungen verwalten</string>
+    <string name="health_install">Health Connect holen</string>
+    <string name="health_reading_section">In Bissbilanz einlesen</string>
+    <string name="health_reading_footer">Importiert die letzten 90 Tage. Bereits erfasste Tage bleiben unverändert.</string>
+    <string name="health_writing_section">Nach Health Connect schreiben</string>
+    <string name="health_writing_footer">Schalte das Schreiben aus, wenn eine andere App dies bereits erfasst — sonst entstehen Duplikate.</string>
+    <string name="health_nutrition">Nährwerte</string>
+    <string name="health_import_now">Jetzt importieren</string>
+    <string name="health_import_done">Aus Health Connect importiert</string>
+    <string name="health_import_nothing">Nichts Neues zu importieren</string>
+
+    <!-- Launcher-Shortcuts -->
+    <string name="shortcut_log_food_short">Erfassen</string>
+    <string name="shortcut_log_food_long">Lebensmittel erfassen</string>
+    <string name="shortcut_scan_short">Scannen</string>
+    <string name="shortcut_scan_long">Barcode scannen</string>
+    <string name="shortcut_weight_short">Gewicht</string>
+    <string name="shortcut_weight_long">Gewicht erfassen</string>
+    <string name="shortcut_fasting_short">Fasten</string>
+    <string name="shortcut_fasting_long">Fasten starten oder beenden</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>
@@ -211,6 +326,7 @@
     <string name="daylog_quick_add">Schnell hinzufügen</string>
     <string name="daylog_no_entries_for_day">Keine Einträge für diesen Tag</string>
     <string name="daylog_delete_entry">Eintrag löschen</string>
+    <string name="daylog_edit_entry">Eintrag bearbeiten</string>
     <string name="daylog_entry_summary">%1$sx  ·  %2$s kcal  ·  P %3$sg</string>
 
     <!-- Favorites -->
@@ -295,6 +411,9 @@
     <string name="food_form_fat_required">Fett (g) *</string>
     <string name="food_form_fiber_optional">Ballaststoffe (g)</string>
     <string name="food_form_show_advanced">Erweiterte Nährwerte anzeigen</string>
+    <string name="food_form_additional_nutrients">Weitere Nährstoffe</string>
+    <string name="food_form_add_nutrient">Nährstoff hinzufügen</string>
+    <string name="food_form_remove_nutrient">Nährstoff entfernen</string>
     <string name="food_form_hide_advanced">Erweiterte Nährwerte ausblenden</string>
     <string name="food_form_load_failed">Lebensmittel konnte nicht geladen werden</string>
     <string name="food_form_name_required_error">Name ist erforderlich</string>
@@ -339,6 +458,11 @@
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Lebensmittel erstellen</string>
+    <string name="food_search_create">Erstellen</string>
+    <string name="food_search_create_recipe">Rezept erstellen</string>
+    <string name="food_search_edit_food">Lebensmittel bearbeiten</string>
+    <string name="food_search_add_to_favorites">Zu Favoriten hinzufügen</string>
+    <string name="food_search_remove_from_favorites">Aus Favoriten entfernen</string>
     <string name="food_search_placeholder">Lebensmittel suchen…</string>
     <string name="food_search_icon_desc">Suchen</string>
     <string name="food_search_no_results">Keine Lebensmittel für \"%1$s\" gefunden</string>

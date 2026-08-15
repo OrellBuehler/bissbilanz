@@ -1,10 +1,6 @@
 package com.bissbilanz.android.ui.components
 
-import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -37,17 +33,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ocr.NutritionLabelScanner
+import com.bissbilanz.android.util.createImageUri
+import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.label.ParsedNutrition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
-import java.io.File
 
 /**
  * Lets the user fill in a new food's nutrition by photographing or picking an
@@ -139,7 +135,7 @@ fun NutritionLabelScanDialog(
                 } else {
                     Button(
                         onClick = {
-                            val uri = createImageUri(context)
+                            val uri = createImageUri(context, "label_")
                             cameraUri = uri
                             takePicture.launch(uri)
                         },
@@ -185,47 +181,3 @@ fun NutritionLabelScanDialog(
         },
     )
 }
-
-private fun createImageUri(context: Context): Uri {
-    val file = File.createTempFile("label_", ".jpg", context.cacheDir)
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
-private const val MAX_IMAGE_DIMENSION = 2048
-
-/**
- * Decodes [uri] into an upright bitmap (EXIF rotation applied) downscaled so its
- * longest side is at most [MAX_IMAGE_DIMENSION], which keeps OCR fast and avoids
- * out-of-memory on full-resolution camera photos.
- */
-private fun decodeUprightBitmap(
-    context: Context,
-    uri: Uri,
-): Bitmap? {
-    val resolver = context.contentResolver
-
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-    var sample = 1
-    val longest = maxOf(bounds.outWidth, bounds.outHeight)
-    while (longest / sample > MAX_IMAGE_DIMENSION) sample *= 2
-
-    val options = BitmapFactory.Options().apply { inSampleSize = sample }
-    val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) } ?: return null
-
-    val degrees = resolver.openInputStream(uri)?.use { exifRotationDegrees(it) } ?: 0f
-    if (degrees == 0f) return bitmap
-
-    val matrix = Matrix().apply { postRotate(degrees) }
-    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-}
-
-private fun exifRotationDegrees(input: java.io.InputStream): Float =
-    when (ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-        ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-        ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-        ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-        else -> 0f
-    }

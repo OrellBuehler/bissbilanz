@@ -17,6 +17,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(project(":shared"))
+            implementation(project(":wearProtocol"))
             implementation(libs.kotlinx.serialization.json)
         }
     }
@@ -140,6 +141,9 @@ android {
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
         implementation(libs.glance.appwidget)
+        implementation(libs.health.connect)
+        implementation(libs.play.services.wearable)
+        implementation(libs.kotlinx.coroutines.play.services)
         implementation(libs.work.runtime)
         implementation("com.google.guava:guava:33.6.0-android")
         debugImplementation(libs.compose.ui.tooling)

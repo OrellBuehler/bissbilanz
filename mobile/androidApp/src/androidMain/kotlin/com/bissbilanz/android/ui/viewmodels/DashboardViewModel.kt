@@ -53,6 +53,14 @@ class DashboardViewModel(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
+    /**
+     * True when the last entries refresh failed. The dashboard uses it to tell a
+     * swallowed network error apart from a genuinely empty day, which would
+     * otherwise both render as "no entries yet".
+     */
+    private val _refreshFailed = MutableStateFlow(false)
+    val refreshFailed: StateFlow<Boolean> = _refreshFailed.asStateFlow()
+
     private val currentDateString = MutableStateFlow("")
 
     val entries: StateFlow<List<Entry>> =
@@ -98,7 +106,7 @@ class DashboardViewModel(
         savedStateHandle[KEY_SELECTED_DATE] = date.toString()
     }
 
-    fun loadData() {
+    fun loadData(loadFailedMessage: String? = null) {
         val dateStr = selectedDateString.value
         currentDateString.value = dateStr
         viewModelScope.launch {
@@ -106,10 +114,12 @@ class DashboardViewModel(
             try {
                 entryRepo.refresh(dateStr)
                 goalsRepo.refresh()
+                _refreshFailed.value = false
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load data"
+                _refreshFailed.value = true
+                loadFailedMessage?.let { _snackbarMessage.value = it }
             } finally {
                 _isLoading.value = false
             }
@@ -127,18 +137,21 @@ class DashboardViewModel(
         }
     }
 
-    fun copyEntriesFromYesterday() {
+    fun copyEntriesFromYesterday(
+        copiedMessage: (Int) -> String,
+        failedMessage: String,
+    ) {
         viewModelScope.launch {
             try {
                 val today = LocalDate.parse(selectedDateString.value)
                 val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
                 val count = entryRepo.copyEntries(yesterday, today.toString())
-                _snackbarMessage.value = "Copied $count entries from yesterday"
+                _snackbarMessage.value = copiedMessage(count)
                 loadData()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "No entries to copy from yesterday"
+                _snackbarMessage.value = failedMessage
             }
         }
     }
