@@ -21,6 +21,9 @@
             android:name="com.google.android.wearable.standalone"
             android:value="false" />
 
+        <!-- A LAUNCHER activity has to be exported; it holds no privileged
+             control plane, only the watch UI. -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name=".WearMainActivity"
             android:exported="true"
