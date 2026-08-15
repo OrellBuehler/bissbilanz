@@ -1,5 +1,10 @@
 package com.bissbilanz.android.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,10 +22,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
@@ -59,6 +66,7 @@ fun FastingScreen(navController: NavController) {
     val history by fastingManager.history.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val haptic = rememberHaptic()
+    val context = LocalContext.current
 
     var selectedProtocol by remember { mutableStateOf(FastingProtocol.SIXTEEN_EIGHT) }
     var customHours by remember { mutableIntStateOf(16) }
@@ -68,6 +76,15 @@ fun FastingScreen(navController: NavController) {
     // The notification's End Fast action can clear the session from outside the
     // UI, so reconcile whenever this screen comes back into view.
     LaunchedEffect(Unit) { fastingManager.refresh() }
+
+    // The ongoing notification is the only way to end a fast without opening the
+    // app, and POST_NOTIFICATIONS is runtime-granted from API 33 — without asking,
+    // FastingNotifier would silently post nothing. Re-posting on grant covers the
+    // session started before the dialog was answered.
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted -> if (granted) fastingManager.refresh() }
 
     if (showEndConfirmation) {
         AlertDialog(
@@ -129,6 +146,12 @@ fun FastingScreen(navController: NavController) {
                     onCustomHoursChange = { customHours = it },
                     onStart = {
                         haptic(HapticFeedbackType.LongPress)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
                         fastingManager.start(selectedProtocol.hours ?: customHours)
                     },
                 )

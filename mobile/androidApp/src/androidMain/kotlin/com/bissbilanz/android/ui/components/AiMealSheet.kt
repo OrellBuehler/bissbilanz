@@ -85,7 +85,12 @@ fun AiMealSheet(
 
     val canSend = description.isNotBlank() || attached != null
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    // Swiping the sheet away mid-send would cancel the upload with it, since the
+    // send runs in this composable's scope — hold it open until the task is queued.
+    ModalBottomSheet(
+        onDismissRequest = { if (!isSending) onDismiss() },
+        sheetState = sheetState,
+    ) {
         Column(
             modifier =
                 Modifier

@@ -70,8 +70,15 @@ class HealthImporter(
                     .first()
                     .map { it.entryDate }
                     .toSet()
+            // One night per day, the longest session winning: Health Connect files a
+            // nap and the night it ends on under the same date, and importing both
+            // would leave the day with two sleep entries.
+            val longestPerDay =
+                nights
+                    .groupBy { it.date }
+                    .mapValues { (_, sessions) -> sessions.maxBy { it.durationMinutes } }
             var imported = false
-            nights
+            longestPerDay.values
                 .filter { it.date !in existing }
                 .forEach { night ->
                     sleepRepository.createEntry(

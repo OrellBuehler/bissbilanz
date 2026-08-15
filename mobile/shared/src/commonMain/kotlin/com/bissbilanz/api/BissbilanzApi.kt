@@ -993,7 +993,7 @@ class BissbilanzApi(
                             },
                         )
                     },
-            )
+            ) { header(HttpHeaders.Origin, baseUrl) }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST /api/ai-tasks/photo failed: HTTP ${response.status.value} ${response.bodyAsText()}",
@@ -1005,6 +1005,9 @@ class BissbilanzApi(
     }
 
     // Images
+    // Both multipart uploads set Origin explicitly: the server's manual CSRF check
+    // (`isOriginMismatch`) 403s any multipart/form-data POST without one, and only
+    // browsers send it automatically.
     suspend fun uploadImage(
         fileName: String,
         fileBytes: ByteArray,
@@ -1024,7 +1027,7 @@ class BissbilanzApi(
                             },
                         )
                     },
-            )
+            ) { header(HttpHeaders.Origin, baseUrl) }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST /api/images/upload failed: HTTP ${response.status.value} ${response.bodyAsText()}",

@@ -22,13 +22,21 @@ class EndFastWorker(
     override suspend fun doWork(): Result {
         val koin = KoinJavaComponent.getKoin()
         return try {
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-            koin.get<EntryRepository>().setDayProperties(today, isFastingDay = true)
+            // The date the fast actually ended, passed in by the receiver: a retry
+            // that runs after midnight must not flag the following day instead.
+            val date =
+                inputData.getString(KEY_DATE)
+                    ?: Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+            koin.get<EntryRepository>().setDayProperties(date, isFastingDay = true)
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             koin.get<ErrorReporter>().captureException(e)
             Result.retry()
         }
+    }
+
+    companion object {
+        const val KEY_DATE = "ended_date"
     }
 }

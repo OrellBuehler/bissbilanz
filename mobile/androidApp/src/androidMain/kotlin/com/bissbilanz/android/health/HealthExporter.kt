@@ -39,8 +39,11 @@ class HealthExporter(
             val latest = weightRepository.entries().first().maxByOrNull { it.entryDate } ?: return@runSafely
             val marker = "${latest.entryDate}:${latest.weightKg}"
             if (markers.getString(KEY_WEIGHT, null) == marker) return@runSafely
-            health.writeWeight(latest.weightKg, latest.entryDate)
-            markers.edit().putString(KEY_WEIGHT, marker).apply()
+            // Only remember what actually landed: a marker stored after a denied
+            // permission or a failed write would skip that value forever.
+            if (health.writeWeight(latest.weightKg, latest.entryDate)) {
+                markers.edit().putString(KEY_WEIGHT, marker).apply()
+            }
         }
     }
 
@@ -52,8 +55,9 @@ class HealthExporter(
             val wakeTime = latest.wakeTime ?: return@runSafely
             val marker = "${latest.entryDate}:$bedtime:$wakeTime"
             if (markers.getString(KEY_SLEEP, null) == marker) return@runSafely
-            health.writeSleep(Instant.parse(bedtime), Instant.parse(wakeTime))
-            markers.edit().putString(KEY_SLEEP, marker).apply()
+            if (health.writeSleep(Instant.parse(bedtime), Instant.parse(wakeTime), latest.entryDate)) {
+                markers.edit().putString(KEY_SLEEP, marker).apply()
+            }
         }
     }
 
@@ -69,8 +73,9 @@ class HealthExporter(
             val fiber = entries.sumOf { it.resolvedFiber() }
             val marker = "$date:$calories:$protein:$carbs:$fat:$fiber"
             if (markers.getString(KEY_NUTRITION, null) == marker) return@runSafely
-            health.writeNutrition(date, calories, protein, carbs, fat, fiber)
-            markers.edit().putString(KEY_NUTRITION, marker).apply()
+            if (health.writeNutrition(date, calories, protein, carbs, fat, fiber)) {
+                markers.edit().putString(KEY_NUTRITION, marker).apply()
+            }
         }
     }
 

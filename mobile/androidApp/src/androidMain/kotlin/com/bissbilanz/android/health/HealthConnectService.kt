@@ -99,23 +99,23 @@ class HealthConnectService(
     suspend fun writeWeight(
         weightKg: Double,
         date: String,
-    ) {
-        val client = client() ?: return
-        if (!has(HealthPermission.getWritePermission(WeightRecord::class))) return
+    ): Boolean {
+        val client = client() ?: return false
+        if (!has(HealthPermission.getWritePermission(WeightRecord::class))) return false
         val zone = ZoneId.systemDefault()
         val instant = LocalDate.parse(date).atStartOfDay(zone).toInstant()
-        runCatching {
+        return runCatching {
             client.insertRecords(
                 listOf(
                     WeightRecord(
                         weight = Mass.kilograms(weightKg),
                         time = instant,
                         zoneOffset = zone.rules.getOffset(instant),
-                        metadata = Metadata.manualEntry(),
+                        metadata = upsertMetadata("weight-$date"),
                     ),
                 ),
             )
-        }
+        }.isSuccess
     }
 
     // MARK: - Sleep
@@ -139,11 +139,12 @@ class HealthConnectService(
     suspend fun writeSleep(
         bedtime: Instant,
         wakeTime: Instant,
-    ) {
-        val client = client() ?: return
-        if (!has(HealthPermission.getWritePermission(SleepSessionRecord::class))) return
+        date: String,
+    ): Boolean {
+        val client = client() ?: return false
+        if (!has(HealthPermission.getWritePermission(SleepSessionRecord::class))) return false
         val zone = ZoneId.systemDefault()
-        runCatching {
+        return runCatching {
             client.insertRecords(
                 listOf(
                     SleepSessionRecord(
@@ -151,11 +152,11 @@ class HealthConnectService(
                         startZoneOffset = zone.rules.getOffset(bedtime),
                         endTime = wakeTime,
                         endZoneOffset = zone.rules.getOffset(wakeTime),
-                        metadata = Metadata.manualEntry(),
+                        metadata = upsertMetadata("sleep-$date"),
                     ),
                 ),
             )
-        }
+        }.isSuccess
     }
 
     // MARK: - Nutrition
@@ -167,14 +168,14 @@ class HealthConnectService(
         carbs: Double,
         fat: Double,
         fiber: Double,
-    ) {
-        val client = client() ?: return
-        if (!has(HealthPermission.getWritePermission(NutritionRecord::class))) return
+    ): Boolean {
+        val client = client() ?: return false
+        if (!has(HealthPermission.getWritePermission(NutritionRecord::class))) return false
         val zone = ZoneId.systemDefault()
         val localDate = LocalDate.parse(date)
         val start = localDate.atStartOfDay(zone).toInstant()
         val end = localDate.plusDays(1).atStartOfDay(zone).toInstant()
-        runCatching {
+        return runCatching {
             client.insertRecords(
                 listOf(
                     NutritionRecord(
@@ -187,12 +188,24 @@ class HealthConnectService(
                         totalCarbohydrate = Mass.grams(carbs),
                         totalFat = Mass.grams(fat),
                         dietaryFiber = Mass.grams(fiber),
-                        metadata = Metadata.manualEntry(),
+                        metadata = upsertMetadata("nutrition-$date"),
                     ),
                 ),
             )
-        }
+        }.isSuccess
     }
+
+    /**
+     * Health Connect has no update call: inserting again would append a second
+     * record for the same day, and for cumulative nutrition totals a reader sums
+     * them. A stable clientRecordId makes the insert an upsert instead, with the
+     * write time as the version so the newest totals always win.
+     */
+    private fun upsertMetadata(clientRecordId: String): Metadata =
+        Metadata.manualEntry(
+            clientRecordId = clientRecordId,
+            clientRecordVersion = System.currentTimeMillis(),
+        )
 }
 
 /**
