@@ -33,30 +33,33 @@ object FastingNotifier {
         if (!hasPermission(context)) return
         ensureChannel(context)
 
-        // Both intents name their component and both PendingIntents are immutable.
-        // setPackage is redundant next to an explicit component, but it is the form
-        // CodeQL's implicit-pendingintents query recognises: it does not read
-        // Kotlin's `X::class.java` as an explicit target and otherwise reports the
-        // notification below.
+        // Both intents name their component and both PendingIntents are immutable,
+        // so neither is the implicit, mutable PendingIntent CodeQL's
+        // implicit-pendingintents query looks for. It does not read Kotlin's
+        // `X::class.java` as an explicit target, so the target is also spelled out
+        // through setClassName/setPackage on a plain local — inside `apply {}` the
+        // query does not associate the calls with the intent.
+        val openIntent = Intent(context, MainActivity::class.java)
+        openIntent.setClassName(context, MainActivity::class.java.name)
+        openIntent.setPackage(context.packageName)
+        openIntent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        openIntent.putExtra(MainActivity.EXTRA_NAVIGATE_TO, "fasting")
         val openApp =
             PendingIntent.getActivity(
                 context,
                 0,
-                Intent(context, MainActivity::class.java).apply {
-                    setPackage(context.packageName)
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra(MainActivity.EXTRA_NAVIGATE_TO, "fasting")
-                },
+                openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
+        val endIntent = Intent(context, EndFastReceiver::class.java)
+        endIntent.setClassName(context, EndFastReceiver::class.java.name)
+        endIntent.setPackage(context.packageName)
         val endFast =
             PendingIntent.getBroadcast(
                 context,
                 1,
-                Intent(context, EndFastReceiver::class.java).apply {
-                    setPackage(context.packageName)
-                },
+                endIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
