@@ -51,6 +51,27 @@ final class WeightRepository {
         return (try? context.fetch(descriptor))?.first?.toWeightEntry()
     }
 
+    /// The entry whose day is nearest to `date` ("yyyy-MM-dd") in either
+    /// direction, preferring the on-or-before side on a tie.
+    func closest(to date: String) -> WeightEntry? {
+        var beforeDescriptor = FetchDescriptor<LocalWeightEntry>(
+            predicate: #Predicate { $0.entryDate <= date },
+            sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
+        )
+        beforeDescriptor.fetchLimit = 1
+        var afterDescriptor = FetchDescriptor<LocalWeightEntry>(
+            predicate: #Predicate { $0.entryDate > date },
+            sortBy: [SortDescriptor(\.entryDate, order: .forward)]
+        )
+        afterDescriptor.fetchLimit = 1
+        let before = (try? context.fetch(beforeDescriptor))?.first?.toWeightEntry()
+        let after = (try? context.fetch(afterDescriptor))?.first?.toWeightEntry()
+        guard let before else { return after }
+        guard let after else { return before }
+        return DateFormatting.dayDistance(before.entryDate, date)
+            <= DateFormatting.dayDistance(after.entryDate, date) ? before : after
+    }
+
     // MARK: - Refresh (API → store)
 
     func refresh() async throws {

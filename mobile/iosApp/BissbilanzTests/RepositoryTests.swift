@@ -580,6 +580,23 @@ struct RepositoryTests {
         #expect(repo.entries(offset: 7, limit: 3).isEmpty)
     }
 
+    @Test("Weight closest picks the nearest day, preferring on-or-before on a tie")
+    func weightClosestPicksNearestDay() throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.weightRepository
+        #expect(repo.closest(to: "2026-06-03") == nil)
+        try harness.context.insert(LocalWeightEntry(entry: harness.weight(id: "w1", date: "2026-06-01", kg: 80)))
+        try harness.context.insert(LocalWeightEntry(entry: harness.weight(id: "w5", date: "2026-06-05", kg: 79)))
+        try harness.context.save()
+
+        #expect(repo.closest(to: "2026-06-01")?.id == "w1")
+        #expect(repo.closest(to: "2026-06-02")?.id == "w1")
+        #expect(repo.closest(to: "2026-06-03")?.id == "w1") // tie → on-or-before wins
+        #expect(repo.closest(to: "2026-06-04")?.id == "w5")
+        #expect(repo.closest(to: "2026-05-20")?.id == "w1") // nothing before → nearest after
+        #expect(repo.closest(to: "2026-06-20")?.id == "w5")
+    }
+
     @Test("Drained weight create replaces the temp row with the server record")
     func weightCreateDrainReplacesTempId() async throws {
         let harness = try RepositoryHarness()
@@ -634,6 +651,21 @@ struct RepositoryTests {
         #expect(entries.map(\.id) == ["s2", "s1"]) // newest first
         #expect(entries.last?.durationMinutes == 430)
         #expect(repo.latest()?.id == "s2")
+    }
+
+    @Test("Sleep closest picks the nearest day, preferring on-or-before on a tie")
+    func sleepClosestPicksNearestDay() throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.sleepRepository
+        #expect(repo.closest(to: "2026-06-03") == nil)
+        try harness.context.insert(LocalSleepEntry(entry: harness.sleepEntry(id: "s1", date: "2026-06-01")))
+        try harness.context.insert(LocalSleepEntry(entry: harness.sleepEntry(id: "s5", date: "2026-06-05")))
+        try harness.context.save()
+
+        #expect(repo.closest(to: "2026-06-02")?.id == "s1")
+        #expect(repo.closest(to: "2026-06-03")?.id == "s1") // tie → on-or-before wins
+        #expect(repo.closest(to: "2026-06-04")?.id == "s5")
+        #expect(repo.closest(to: "2026-05-20")?.id == "s1") // nothing before → nearest after
     }
 
     @Test("Drained sleep create replaces the temp row with the server record")
