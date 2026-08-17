@@ -29,7 +29,7 @@ health-connect = "1.1.0-rc02"
 work = "2.11.2"
 wear-compose = "1.5.4"
 wear-watchface = "1.2.1"
-play-services-wearable = "19.0.0"
+play-services-wearable = "20.0.1"
 horologist = "0.9.0"
 robolectric = "4.16.1"
 
