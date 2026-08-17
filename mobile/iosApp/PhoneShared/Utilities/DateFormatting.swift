@@ -83,6 +83,13 @@ enum DateFormatting {
     static var today: String {
         isoString(from: Date())
     }
+
+    /// Whole days between two "yyyy-MM-dd" strings, ignoring direction.
+    /// Unparseable input counts as infinitely far.
+    static func dayDistance(_ a: String, _ b: String) -> Int {
+        guard let dateA = date(from: a), let dateB = date(from: b) else { return .max }
+        return abs(Calendar.current.dateComponents([.day], from: dateA, to: dateB).day ?? 0)
+    }
 }
 
 extension Date {

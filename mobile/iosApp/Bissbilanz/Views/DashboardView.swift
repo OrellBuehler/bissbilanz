@@ -37,8 +37,11 @@ struct DashboardView: View {
 
     // Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
-    @State private var latestWeight: WeightEntry?
-    @State private var latestSleep: SleepEntry?
+    /// Weight/sleep entries nearest the selected day, not simply the latest —
+    /// browsing a past day must show that day's context, with each card
+    /// captioned by the entry's own date.
+    @State private var closestWeight: WeightEntry?
+    @State private var closestSleep: SleepEntry?
 
     private var dateString: String {
         selectedDate.isoDateString
@@ -190,12 +193,12 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
-            if (preferences.showWeightWidget && latestWeight != nil) || preferences.showSleepWidget {
+            if (preferences.showWeightWidget && closestWeight != nil) || preferences.showSleepWidget {
                 // Weight and sleep share one row at half width each; a lone
                 // card stretches to the full width. `fixedSize` + `maxHeight`
                 // keeps the two cards equal-height when their content differs.
                 HStack(spacing: 16) {
-                    if preferences.showWeightWidget, let weight = latestWeight {
+                    if preferences.showWeightWidget, let weight = closestWeight {
                         NavigationLink {
                             WeightView()
                         } label: {
@@ -417,13 +420,9 @@ struct DashboardView: View {
             }
             Text("\(entry.weightKg, specifier: "%.1f") kg")
                 .font(.headline)
-            if let dateStr = entry.loggedAt ?? entry.createdAt,
-               let date = DateFormatting.date(from: String(dateStr.prefix(10)))
-            {
-                Text(DateFormatting.displayString(from: date))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
+            Text(entryDateCaption(entry.entryDate))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -433,8 +432,9 @@ struct DashboardView: View {
 
     // MARK: - Sleep Widget
 
-    /// Last night's sleep (a night is keyed by its wake day, so "last night"
-    /// means an entry dated today) or a log prompt when there is none yet.
+    /// Sleep for the night nearest the selected day (a night is keyed by its
+    /// wake day), captioned with the entry's own date. On today the card keeps
+    /// the log prompt until last night is actually logged.
     private var sleepWidget: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -445,10 +445,10 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            if let sleep = latestSleep, sleep.entryDate == DateFormatting.today {
+            if let sleep = closestSleep, sleep.entryDate == dateString || !selectedDate.isToday {
                 Text(formatSleepDuration(sleep.durationMinutes))
                     .font(.headline)
-                Text("\(formatSleepQuality(sleep.quality))/10")
+                Text("\(formatSleepQuality(sleep.quality))/10 · \(entryDateCaption(sleep.entryDate))")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             } else {
@@ -606,8 +606,13 @@ struct DashboardView: View {
         preferences = preferencesRepository.preferences() ?? .defaults
         isFastingDay = entryRepository.isFastingDay(date: dateString)
         supplementChecklist = supplementRepository.localChecklist(date: dateString)
-        latestWeight = weightRepository.latest()
-        latestSleep = sleepRepository.latest()
+        closestWeight = weightRepository.closest(to: dateString)
+        closestSleep = sleepRepository.closest(to: dateString)
+    }
+
+    private func entryDateCaption(_ isoDate: String) -> String {
+        guard let date = DateFormatting.date(from: isoDate) else { return isoDate }
+        return DateFormatting.displayString(from: date)
     }
 
     private func loadData() async {
@@ -629,11 +634,12 @@ struct DashboardView: View {
         async let suppListTask: Void? = try? supplementRepository.refresh()
         async let supplementsTask = try? supplementRepository.refreshChecklist(date: dateString)
         async let weightTask: Void? = try? weightRepository.refresh()
+        async let sleepTask: Void? = try? sleepRepository.refresh()
         // Report the device timezone so server-side analytics/MCP use the user's tz.
         async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
 
-        let (entriesFailReason, _, _, _, _, _, _) = await (
-            entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, tzTask
+        let (entriesFailReason, _, _, _, _, _, _, _) = await (
+            entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, sleepTask, tzTask
         )
         let checklist = await supplementsTask
 
