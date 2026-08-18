@@ -74,11 +74,17 @@ struct FastingView: View {
             isPresented: $showEndConfirmation,
             titleVisibility: .visible
         ) {
-            Button(L10n.endFast, role: .destructive) {
+            Button(L10n.endFast) {
                 Task {
                     await fastingManager.stop()
                     history = FastingSessionStore.loadHistory()
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            }
+            Button(L10n.fastingDiscard, role: .destructive) {
+                Task {
+                    await fastingManager.discard()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 }
             }
         }
@@ -253,6 +259,9 @@ struct FastingView: View {
                         historyRow(session)
                     }
                 }
+                Text(L10n.fastingHistoryHint)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -282,6 +291,15 @@ struct FastingView: View {
             }
         }
         .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(role: .destructive) {
+                FastingSessionStore.removeFromHistory(id: session.id)
+                history = FastingSessionStore.loadHistory()
+            } label: {
+                Label(L10n.delete, systemImage: "trash")
+            }
+        }
     }
 
     private func durationString(_ interval: TimeInterval) -> String {

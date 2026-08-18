@@ -65,6 +65,16 @@ final class FastingTimerManager {
         )
     }
 
+    /// Ends the running fast without leaving a trace — no history entry and
+    /// no fasting-day mark. For fasts started by mistake or abandoned after
+    /// a few minutes.
+    func discard() async {
+        guard session != nil else { return }
+        FastingSessionStore.clearCurrent()
+        session = nil
+        await endAllActivities()
+    }
+
     /// Reconciles app state with the store and the system on foreground: the
     /// lock-screen intent may have ended the fast while we weren't looking,
     /// or the system may have expired the activity mid-fast (~8h cap).

@@ -84,4 +84,10 @@ enum FastingSessionStore {
         guard let defaults, let data = try? JSONEncoder().encode(history) else { return }
         defaults.set(data, forKey: historyKey)
     }
+
+    static func removeFromHistory(id: UUID) {
+        let history = loadHistory().filter { $0.id != id }
+        guard let defaults, let data = try? JSONEncoder().encode(history) else { return }
+        defaults.set(data, forKey: historyKey)
+    }
 }
