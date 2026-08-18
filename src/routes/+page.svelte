@@ -134,6 +134,13 @@
 			>
 				{m.landing_footer_privacy()}
 			</Button>
+			<Button
+				variant="link"
+				href="/support"
+				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
+			>
+				{m.landing_footer_support()}
+			</Button>
 			<span>© {new Date().getFullYear()} {m.app_title()}</span>
 		</div>
 	</footer>

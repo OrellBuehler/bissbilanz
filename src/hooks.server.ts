@@ -146,6 +146,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		'/login',
 		'/privacy',
 		'/account-deletion',
+		'/support',
 		'/api/',
 		'/authorize',
 		'/token',

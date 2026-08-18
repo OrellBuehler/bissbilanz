@@ -5,7 +5,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'August 13, 2026' })}
+		{m.privacy_effective_date({ date: 'August 19, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -40,6 +40,10 @@
 		<li><strong>Weight logs:</strong> Weight entries you record over time.</li>
 		<li><strong>Sleep logs:</strong> Bedtime, wake time and sleep quality you record.</li>
 		<li>
+			<strong>Fasting:</strong> Whether you marked a day as a fasting day, and the start and end times
+			of fasts you track.
+		</li>
+		<li>
 			<strong>Meal photos for AI estimation:</strong> If you use the AI meal estimation feature, the photo
 			you submit is stored with the pending task until the estimate is logged or dismissed.
 		</li>
@@ -71,6 +75,35 @@
 		Bissbilanz never shares Health data with third parties and does not use it for advertising.
 	</p>
 
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Health Connect (Android)</h2>
+	<p class="mb-3">
+		On Android you can optionally connect Health Connect. Bissbilanz only accesses it after you
+		grant the individual permissions in the Health Connect permission dialog, and you can revoke
+		them at any time in Health Connect or in Android settings. The app requests:
+	</p>
+	<ul class="mb-3 list-disc space-y-1 pl-6">
+		<li>
+			<strong>Weight (read and write):</strong> to import your weight into your log and to write weight
+			you log in Bissbilanz back to Health Connect.
+		</li>
+		<li>
+			<strong>Sleep (read and write):</strong> to import your sleep sessions into your log and to write
+			sleep you log in Bissbilanz back to Health Connect.
+		</li>
+		<li>
+			<strong>Nutrition (write only):</strong> to write the calories and macronutrients of the food you
+			log back to Health Connect. Bissbilanz never reads nutrition data written by other apps.
+		</li>
+	</ul>
+	<p class="mb-6">
+		Health Connect data is used only to show you your own weight, sleep and nutrition inside the
+		app. Values you import become normal entries in your log and are stored the same way as entries
+		you type in yourself; they are deleted when you delete the entry or your account. Health Connect
+		data is never sold, never used for advertising, never shared with third parties, and never sent
+		to Sentry or any analytics service. If you revoke the permissions, the app stops reading and
+		writing immediately; entries already imported stay in your log until you delete them.
+	</p>
+
 	<h2 class="mb-3 mt-8 text-xl font-semibold">How your data is used</h2>
 	<p class="mb-3">
 		Your data is used solely to provide the food tracking functionality of the app: showing you what
@@ -88,6 +121,13 @@
 		(MCP). This only happens if you explicitly authorize it; the assistant then accesses your data
 		with a token you can revoke at any time. What the assistant's provider does with data it reads
 		is governed by that provider's own privacy policy.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Notifications</h2>
+	<p class="mb-6">
+		The mobile apps can show local notifications — for example an ongoing notification or Live
+		Activity while a fast is running. These are generated on your device; no push service is used
+		and no notification content leaves your phone.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">How your data is stored</h2>
@@ -163,5 +203,12 @@
 	<p class="mb-6">
 		If this policy changes, the updated version will be posted here with a new effective date. Since
 		this is a small hobby project, changes will be rare.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Contact</h2>
+	<p class="mb-6">
+		For privacy requests, questions or bug reports, email
+		<a href="mailto:me@orellbuehler.ch" class="underline">me@orellbuehler.ch</a>. See the
+		<a href="/support" class="underline">support page</a> for what to include and how long a reply takes.
 	</p>
 </div>
