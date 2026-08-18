@@ -1443,8 +1443,20 @@ enum L10n {
     static var fastingEndConfirmation: String {
         localized(
             "fasting_end_confirmation",
-            en: "End your fast? Today will be marked as a fasting day.",
-            de: "Fasten beenden? Heute wird als Fastentag markiert."
+            en: "End your fast? Ending saves it to your history and marks today as a fasting day. Discarding removes it without saving.",
+            de: "Fasten beenden? Beim Beenden wird es im Verlauf gespeichert und heute als Fastentag markiert. Beim Verwerfen wird nichts gespeichert."
+        )
+    }
+
+    static var fastingDiscard: String {
+        localized("fasting_discard", en: "Discard Without Saving", de: "Verwerfen ohne Speichern")
+    }
+
+    static var fastingHistoryHint: String {
+        localized(
+            "fasting_history_hint",
+            en: "Touch and hold an entry to delete it",
+            de: "Eintrag zum Löschen gedrückt halten"
         )
     }
 

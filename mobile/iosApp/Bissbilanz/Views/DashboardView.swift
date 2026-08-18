@@ -93,9 +93,6 @@ struct DashboardView: View {
             }
             .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
-            .navigationDestination(for: String.self) { date in
-                DayLogView(date: date)
-            }
             .refreshable { await loadData() }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
@@ -230,7 +227,12 @@ struct DashboardView: View {
                 }
             } else {
                 ForEach(mealGroups, id: \.0) { meal, mealEntries in
-                    NavigationLink(value: dateString) {
+                    // Label-based link like the fasting/weight/sleep cards —
+                    // the value-based variant stopped resolving its
+                    // destination on iOS 26.6 (card highlighted, no push).
+                    NavigationLink {
+                        DayLogView(date: dateString)
+                    } label: {
                         MealCard(mealType: meal, entries: mealEntries)
                     }
                     .buttonStyle(.plain)
