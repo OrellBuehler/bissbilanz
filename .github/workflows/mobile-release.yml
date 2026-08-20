@@ -9,6 +9,19 @@ on:
         description: 'Release version (e.g. 1.0.0)'
         required: true
         type: string
+      # Lets one platform be retried on its own. Re-running a release's failed
+      # jobs uses the workflow file from the tag, so picking up a fix on main
+      # needs a dispatch — and without this, that would re-upload the other
+      # platform under a fresh build number.
+      platforms:
+        description: 'Which apps to build and upload'
+        required: false
+        default: both
+        type: choice
+        options:
+          - both
+          - android
+          - ios
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -21,6 +34,8 @@ permissions: {}
 
 jobs:
   android-release:
+    # `inputs` is unset on the release trigger, which always ships both.
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -115,8 +130,12 @@ jobs:
           releaseFiles: mobile/androidApp/build/outputs/bundle/release/*.aab
           track: internal
           status: draft
+          # Without this, uploading into an existing unpromoted draft keeps that
+          # draft's old name, so the release reads as the previous version.
+          releaseName: ${{ steps.version.outputs.tag }}
 
   ios-release:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'android'
     runs-on: macos-15
     timeout-minutes: 45
     permissions:
@@ -128,6 +147,59 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Enabling a capability on an App ID invalidates every profile issued for
+      # it, and export signs manually against profiles kept in secrets — so a
+      # capability change fails the job ~25 minutes in with a bare
+      # "doesn't include the <entitlement> entitlement". Compare the stored
+      # profiles against each target's entitlements first: a minute to fail, and
+      # the message names its own fix.
+      - name: Check provisioning profiles cover the app entitlements
+        env:
+          PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
+          PROFILE_WIDGET_BASE64: ${{ secrets.IOS_PROFILE_WIDGET_BASE64 }}
+          PROFILE_WATCH_BASE64: ${{ secrets.IOS_PROFILE_WATCH_BASE64 }}
+          PROFILE_WATCH_WIDGET_BASE64: ${{ secrets.IOS_PROFILE_WATCH_WIDGET_BASE64 }}
+        run: |
+          set -euo pipefail
+          failed=0
+
+          check() {
+            local encoded="$1" entitlements="$2" label="$3"
+            local prof="$RUNNER_TEMP/pf.mobileprovision" plist="$RUNNER_TEMP/pf.plist"
+            echo "$encoded" | base64 -d > "$prof"
+            security cms -D -i "$prof" > "$plist"
+
+            local expires
+            expires=$(plutil -extract ExpirationDate raw -o - "$plist" 2>/dev/null || true)
+            if [ -n "$expires" ] && [ "$(date -u +%Y-%m-%d)" \> "${expires%%T*}" ]; then
+              echo "::error::$label profile expired on $expires"
+              failed=1
+            fi
+
+            # Every entitlement the target requests must be granted by the
+            # profile; the profile carrying extras (aps-environment, ...) is fine.
+            local missing
+            missing=$(comm -23 \
+              <(plutil -convert json -o - "$entitlements" | jq -r 'keys[]' | sort) \
+              <(plutil -extract Entitlements json -o - "$plist" | jq -r 'keys[]' | sort))
+            if [ -n "$missing" ]; then
+              echo "::error::$label profile is missing entitlements: $(echo "$missing" | tr '\n' ' ')"
+              failed=1
+            else
+              echo "ok: $label (expires $expires)"
+            fi
+          }
+
+          check "$PROFILE_APP_BASE64" Bissbilanz/Bissbilanz.entitlements "app"
+          check "$PROFILE_WIDGET_BASE64" BissbilanzWidgets/BissbilanzWidgets.entitlements "widgets"
+          check "$PROFILE_WATCH_BASE64" BissbilanzWatch/BissbilanzWatch.entitlements "watch"
+          check "$PROFILE_WATCH_WIDGET_BASE64" BissbilanzWatchWidgets/BissbilanzWatchWidgets.entitlements "watch widgets"
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Regenerate the affected profiles, then re-run this job: ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_PRIVATE_KEY_PATH=... node scripts/ios/refresh-provisioning-profiles.mjs --apply"
+            exit 1
+          fi
 
       # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml).
       - name: Select latest stable Xcode

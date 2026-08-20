@@ -186,6 +186,17 @@ iOS builds require macOS with Xcode installed. The shared KMP framework is compi
 
 If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 
+#### Release Signing
+
+The release job exports with manual signing against App Store provisioning profiles held in GitHub secrets (`IOS_PROFILE_*_BASE64`). Enabling any capability on an App ID (Sign In with Apple, iCloud, App Groups, …) invalidates those profiles, and the export step then fails with `doesn't include the <entitlement> entitlement`. Regenerate them — no Developer portal clicking needed:
+
+```bash
+ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_PRIVATE_KEY_PATH=... \
+  node scripts/ios/refresh-provisioning-profiles.mjs --apply
+```
+
+The job's first step checks each profile against its target's entitlements, so this failure surfaces in a minute rather than after the ~25-minute archive.
+
 ## Git Workflow
 
 - **IMPORTANT:** Always commit changes when work is complete
