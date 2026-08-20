@@ -163,6 +163,18 @@ struct BissbilanzApp: App {
         }
         PhoneWatchConnectivity.shared.activate()
 
+        // A conflict means the local row lost to a newer change; pull the server
+        // state so the screen stops showing the value that was dropped. Same set
+        // BackgroundRefresher pulls, minus its queue drain — this runs from inside
+        // the drain and would only no-op against the reentrancy guard.
+        sync.onConflictResolved = {
+            try? await entryRepo.refresh(date: DateFormatting.today)
+            try? await goalsRepo.refresh()
+            try? await weightRepo.refresh()
+            try? await sleepRepo.refresh()
+            try? await foodRepo.refreshFavorites()
+        }
+
         // Periodic background pull so server-side changes (MCP agent logs,
         // other devices) reach the widgets while the app is closed. Must be
         // registered before launch completes — see BackgroundRefresher.

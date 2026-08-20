@@ -187,6 +187,18 @@ class SyncQueue(
         }
     }
 
+    /**
+     * Soonest future backoff gate among the queued items, or null when nothing is
+     * waiting on one. The manager arms a timer on this so a backed-off item retries on
+     * its own, instead of sitting until the next enqueue or connectivity flip.
+     */
+    suspend fun nextRetryAt(): Long? =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectNextSyncQueueRetryAt(Clock.System.now().toEpochMilliseconds())
+                .executeAsOneOrNull()
+        }
+
     suspend fun pendingCount(): Long =
         mutex.withLock {
             db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()

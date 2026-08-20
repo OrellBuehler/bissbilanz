@@ -814,16 +814,6 @@ struct AddWeightSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func writeToHealthIfEnabled(kg: Double) async {
-        let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: HealthKitService.syncEnabledKey),
-              defaults.bool(forKey: HealthKitService.writeWeightEnabledKey),
-              HealthKitService.shared.isAvailable
-        else { return }
-        // Best effort — the user may have denied write permission in Health
-        try? await HealthKitService.shared.saveWeight(kg, date: date)
-    }
-
     private func prefill() {
         guard let entry = existingEntry else { return }
         weight = "\(entry.weightKg)"
@@ -853,7 +843,6 @@ struct AddWeightSheet: View {
                     notes: notes.isEmpty ? nil : notes
                 )
                 try await weightRepository.createEntry(entry)
-                await writeToHealthIfEnabled(kg: kg)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()

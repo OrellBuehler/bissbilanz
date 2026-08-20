@@ -183,5 +183,42 @@ final class WeightRepository {
     private func save() {
         try? context.save()
         WidgetSnapshotWriter.scheduleUpdate(context: context)
+        syncLatestToHealth()
+    }
+
+    // MARK: - Apple Health write-back
+
+    /// Dates `HealthKitImporter` is currently writing entries for, read *from*
+    /// Health. Scoped to dates rather than a global flag so a refresh landing a
+    /// weight for some other day mid-import still writes back normally.
+    @ObservationIgnored private var healthImportDates: Set<String> = []
+
+    /// Runs `body` with the Health write-back suppressed for `dates`. Those
+    /// entries came out of Health, so they get marked as already synced instead
+    /// of being written back as app-authored duplicates of the scale's samples.
+    func withHealthImportInProgress<T>(dates: Set<String>, _ body: () async throws -> T) async rethrows -> T {
+        healthImportDates = dates
+        defer { healthImportDates = [] }
+        return try await body()
+    }
+
+    /// Pushes the newest weight to Apple Health on every store mutation — writes,
+    /// refreshes and deletes alike. This used to live in the weight edit sheet,
+    /// which meant a weight logged on the Apple Watch, or arriving from web, MCP
+    /// or Android through `refresh()`, never reached Health at all. Android hangs
+    /// the same export off its repository callbacks.
+    ///
+    /// Fire-and-forget, like the widget update above it. The marker guard inside
+    /// `syncLatestWeight` makes an unchanged repeat free.
+    private func syncLatestToHealth() {
+        guard let latest = latest() else { return }
+        let alreadyInHealth = healthImportDates.contains(latest.entryDate)
+        Task {
+            await HealthKitService.shared.syncLatestWeight(
+                latest.weightKg,
+                entryDate: latest.entryDate,
+                alreadyInHealth: alreadyInHealth
+            )
+        }
     }
 }

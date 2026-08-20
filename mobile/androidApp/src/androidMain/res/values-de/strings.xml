@@ -851,4 +851,9 @@
     <string name="insights_regularity_high">Hoch</string>
     <string name="insights_regularity_medium">Mittel</string>
     <string name="insights_regularity_low">Niedrig</string>
+    <string name="sync_conflict_dismiss">Schließen</string>
+    <plurals name="sync_conflict_banner">
+        <item quantity="one">%1$d Änderung wurde nicht übernommen</item>
+        <item quantity="other">%1$d Änderungen wurden nicht übernommen</item>
+    </plurals>
 </resources>

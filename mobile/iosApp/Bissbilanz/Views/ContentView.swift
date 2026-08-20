@@ -82,6 +82,11 @@ struct ContentView: View {
             }
         }
         .minimizableTabBar()
+        // Above the tabs so a lost offline edit is visible wherever the user
+        // happens to be. Zero-height while there are no notices.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SyncConflictBanner()
+        }
         // Widget deep links land here as sheets so they work regardless of
         // which tabs the user has configured. Each case picks its own
         // container: the scanner and WeightView bring their own

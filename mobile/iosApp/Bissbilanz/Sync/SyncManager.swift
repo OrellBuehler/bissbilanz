@@ -39,6 +39,12 @@ final class SyncManager {
     /// A pending delayed re-drain scheduled for when the soonest backoff expires.
     @ObservationIgnored private var retryTask: Task<Void, Never>?
 
+    /// Invoked once per drain that resolved at least one conflict, so the app can
+    /// pull the affected entities back down. Without it the row that *lost* keeps
+    /// showing its superseded value until some unrelated refresh overwrites it.
+    /// Set by the app once its repositories exist.
+    @ObservationIgnored var onConflictResolved: (() async -> Void)?
+
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
@@ -119,6 +125,11 @@ final class SyncManager {
         pendingCount = queuedRows().count
     }
 
+    /// Drops the conflict notices once the user has acknowledged them.
+    func clearConflictNotices() {
+        conflictNotices = []
+    }
+
     func clearQueue() {
         try? context.delete(model: PendingSyncOperation.self)
         save()
@@ -145,6 +156,7 @@ final class SyncManager {
         isSyncing = true
         errors = []
         var processed = 0
+        var sawConflict = false
         ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
@@ -199,6 +211,7 @@ final class SyncManager {
                 case .conflict(serverNewer: true):
                     remove(row)
                     processed += 1
+                    sawConflict = true
                     conflictNotices.append(
                         "Offline change to \(operation.summary) was superseded by a newer change from another device."
                     )
@@ -219,6 +232,7 @@ final class SyncManager {
                 case .notFound:
                     remove(row)
                     processed += 1
+                    sawConflict = true
                     conflictNotices.append(
                         "Offline change to \(operation.summary) was lost: the record was deleted on another device."
                     )
@@ -260,6 +274,11 @@ final class SyncManager {
                 }
             }
             pendingCount = queuedRows().count
+        }
+        // Once per drain, not once per conflict: a batch that lost three edits needs
+        // a single refresh.
+        if sawConflict {
+            await onConflictResolved?()
         }
         return processed
     }

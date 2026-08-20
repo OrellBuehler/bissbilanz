@@ -22,6 +22,8 @@ import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -76,6 +78,41 @@ class SyncManagerTest {
             coVerify { api.deleteEntry("e1", any(), any()) }
             assertTrue(
                 manager.state.value.errors
+                    .isEmpty(),
+            )
+        }
+
+    @Test
+    fun lostConflictSurfacesANoticeAndTriggersOneRefresh() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws serverNewerConflict()
+            var refreshes = 0
+            manager.onConflictResolved = { refreshes++ }
+
+            manager.syncPendingQueue()
+
+            assertEquals(2, manager.state.value.conflictNotices.size)
+            // One refresh for the drain, not one per conflict.
+            assertEquals(1, refreshes)
+        }
+
+    @Test
+    fun clearConflictNoticesEmptiesThem() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws serverNewerConflict()
+            manager.syncPendingQueue()
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .isNotEmpty(),
+            )
+
+            manager.clearConflictNotices()
+
+            assertTrue(
+                manager.state.value.conflictNotices
                     .isEmpty(),
             )
         }
@@ -476,5 +513,16 @@ class SyncManagerTest {
             carbs = 28.0,
             fat = 0.3,
             fiber = 0.4,
+        )
+
+    /** A 409 carrying the last-write-wins conflict header the drain keys off. */
+    private fun serverNewerConflict() =
+        ApiException(
+            "conflict",
+            409,
+            rawResponse =
+                mockk<HttpResponse> {
+                    every { headers } returns headersOf("X-Sync-Conflict", "server-newer")
+                },
         )
 }

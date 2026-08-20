@@ -38,6 +38,15 @@ class WeightRepository(
 ) {
     var onWeightChanged: (suspend () -> Unit)? = null
 
+    /**
+     * Fired after a server refresh replaced the cached entries. Weights logged
+     * outside this device (web, MCP, iOS) only arrive through refresh, so this is
+     * where the Health Connect export, the weight widget and the watch state catch
+     * them — [onWeightChanged] only covers mutations made in the app itself.
+     * Mirrors [com.bissbilanz.repository.EntryRepository.onEntriesRefreshed].
+     */
+    var onWeightRefreshed: (suspend () -> Unit)? = null
+
     fun entries(): Flow<List<WeightEntry>> =
         db.userDataDatabaseQueries
             .selectAllWeightEntries()
@@ -49,6 +58,7 @@ class WeightRepository(
         if (appModeManager.isLocal) return
         val entries = api.getWeightEntries(limit)
         cacheWeightEntries(entries)
+        onWeightRefreshed?.invoke()
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
