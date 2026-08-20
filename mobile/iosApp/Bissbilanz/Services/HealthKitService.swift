@@ -143,6 +143,14 @@ final class HealthKitService {
         let sampleDate = dayStart.addingTimeInterval(12 * 60 * 60)
 
         let totals = Self.nutrientTotals(entries: entries, foods: foods, nutrients: enabled)
+
+        // Now also triggered by every day refresh, not just mutations — skip
+        // the delete + rewrite when the enabled types and their totals match
+        // what was last written, so routine refreshes don't churn Health.
+        let marker = enabled.map { "\($0.key)=\(totals[$0.key] ?? 0)" }.joined(separator: ",")
+        let markerKey = Self.nutritionMarkerKey(date)
+        if UserDefaults.standard.string(forKey: markerKey) == marker { return }
+
         let dayPredicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
 
         var samples: [HKQuantitySample] = []
@@ -162,14 +170,46 @@ final class HealthKitService {
             syncedKeys.append(nutrient.key)
         }
 
-        guard !samples.isEmpty else { return }
+        guard !samples.isEmpty else {
+            // A day cleared to zero still counts as synced — the deletes above
+            // already removed the stale samples.
+            Self.storeNutritionMarker(marker, forDate: date)
+            return
+        }
         do {
             try await healthStore.save(samples)
+            Self.storeNutritionMarker(marker, forDate: date)
             for key in syncedKeys {
                 Self.markSynced(Self.nutrientWriteSyncKind(key))
             }
         } catch {
-            // Permission denied or Health unavailable — silent by design.
+            // Permission denied or Health unavailable — silent by design. The
+            // day's samples were already deleted, so drop any stored marker to
+            // force a full rewrite on the next sync.
+            UserDefaults.standard.removeObject(forKey: markerKey)
+        }
+    }
+
+    private static let nutritionMarkerPrefix = "healthkit_nutrition_marker_"
+
+    private static func nutritionMarkerKey(_ date: String) -> String {
+        nutritionMarkerPrefix + date
+    }
+
+    /// Remembers what a day's last successful sync wrote and prunes markers
+    /// older than 30 days so UserDefaults doesn't accumulate one key per day
+    /// forever. Date keys are yyyy-MM-dd, so string order is date order.
+    private static func storeNutritionMarker(_ marker: String, forDate date: String) {
+        let defaults = UserDefaults.standard
+        defaults.set(marker, forKey: nutritionMarkerKey(date))
+        guard let day = DateFormatting.date(from: date),
+              let cutoffDay = Calendar.current.date(byAdding: .day, value: -30, to: day)
+        else { return }
+        let cutoff = nutritionMarkerKey(DateFormatting.isoString(from: cutoffDay))
+        for key in defaults.dictionaryRepresentation().keys
+            where key.hasPrefix(nutritionMarkerPrefix) && key < cutoff
+        {
+            defaults.removeObject(forKey: key)
         }
     }
 

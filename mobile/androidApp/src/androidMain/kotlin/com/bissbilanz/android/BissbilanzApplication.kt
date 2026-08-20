@@ -126,6 +126,11 @@ class BissbilanzApplication : Application() {
             healthExporter.exportNutrition(today())
             wearPublisher.publish()
         }
+        // Entries logged elsewhere (web, MCP, iOS) arrive via refresh, not
+        // onEntryChanged — export the refreshed day so Health Connect follows.
+        koin.get<EntryRepository>().onEntriesRefreshed = { date ->
+            healthExporter.exportNutrition(date)
+        }
         koin.get<FoodRepository>().onFoodChanged = {
             WorkManager
                 .getInstance(this@BissbilanzApplication)
