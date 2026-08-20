@@ -164,6 +164,13 @@ jobs:
           set -euo pipefail
           failed=0
 
+          # <key> names out of an xml1 dump. plutil's json converter refuses
+          # values JSON cannot represent (data, date), and a profile's
+          # Entitlements dict can hold them.
+          keys_of() {
+            { grep -o '<key>[^<]*</key>' || true; } | sed 's/<[^>]*>//g' | sort -u
+          }
+
           check() {
             local encoded="$1" entitlements="$2" label="$3"
             local prof="$RUNNER_TEMP/pf.mobileprovision" plist="$RUNNER_TEMP/pf.plist"
@@ -179,10 +186,20 @@ jobs:
 
             # Every entitlement the target requests must be granted by the
             # profile; the profile carrying extras (aps-environment, ...) is fine.
-            local missing
-            missing=$(comm -23 \
-              <(plutil -convert json -o - "$entitlements" | jq -r 'keys[]' | sort) \
-              <(plutil -extract Entitlements json -o - "$plist" | jq -r 'keys[]' | sort))
+            local requested granted missing
+            requested=$(plutil -convert xml1 -o - "$entitlements" | keys_of)
+            granted=$(plutil -extract Entitlements xml1 -o - "$plist" | keys_of)
+
+            # Without this an unreadable profile yields an empty granted set,
+            # which reads as "grants nothing" and reports every entitlement of
+            # every target as missing.
+            if [ -z "$granted" ]; then
+              echo "::error::$label profile has no readable Entitlements dict"
+              failed=1
+              return
+            fi
+
+            missing=$(comm -23 <(echo "$requested") <(echo "$granted"))
             if [ -n "$missing" ]; then
               echo "::error::$label profile is missing entitlements: $(echo "$missing" | tr '\n' ' ')"
               failed=1
