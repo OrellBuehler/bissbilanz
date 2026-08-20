@@ -89,7 +89,7 @@
 		"@zxing/browser": "^0.2.1",
 		"@zxing/library": "^0.23.0",
 		"bcrypt": "^6.0.0",
-		"dexie": "^4.4.4",
+		"dexie": "^4.4.5",
 		"drizzle-orm": "^0.45.2",
 		"express-rate-limit": "^8.6.2",
 		"hono": "^4.13.2",
