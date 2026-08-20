@@ -64,7 +64,13 @@ final class EntryRepository {
     // MARK: - Refresh (API → store)
 
     func refresh(date: String) async throws {
-        guard !appMode.isLocal else { return }
+        guard !appMode.isLocal else {
+            // No server to pull from, but the local store may have changed
+            // outside the repository (widget quick-adds) — re-sync Health so
+            // those entries aren't lost until the next in-app mutation.
+            syncDayToHealth(date)
+            return
+        }
         let fetched = try await api.getEntries(date: date)
         // Preserve local rows the server response must not clobber: optimistic
         // `temp_` creates (their queued creates replace them on drain) and any
@@ -82,6 +88,11 @@ final class EntryRepository {
             upsert(entry, date: date)
         }
         save()
+        // Entries logged outside this device (web, MCP, Android) only reach the
+        // app through this refresh — push the day to Health here too, or its
+        // totals stay frozen at the last in-app mutation. The unchanged-day
+        // guard in syncNutrition keeps repeated refreshes free.
+        syncDayToHealth(date)
     }
 
     // MARK: - Writes (local first + queued upload)

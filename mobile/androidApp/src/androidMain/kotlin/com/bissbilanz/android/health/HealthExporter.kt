@@ -13,6 +13,7 @@ import com.bissbilanz.util.resolvedProtein
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * Pushes the app's own entries out to Health Connect.
@@ -61,22 +62,46 @@ class HealthExporter(
         }
     }
 
+    /**
+     * Markers are per date: refreshes export whichever day was refreshed, so a
+     * single last-write marker would see today and a viewed past day alternate
+     * and rewrite both on every visit.
+     */
     suspend fun exportNutrition(date: String) {
         if (!prefs.writeNutrition || !health.isAvailable()) return
         runSafely {
             val entries = entryRepository.entriesByDate(date).first()
-            if (entries.isEmpty()) return@runSafely
+            val key = "$KEY_NUTRITION_PREFIX$date"
+            val previous = markers.getString(key, null)
+            // An empty day that was never exported has nothing to zero out;
+            // one that was exported before must be rewritten to zeros.
+            if (entries.isEmpty() && previous == null) return@runSafely
             val calories = entries.sumOf { it.resolvedCalories() }
             val protein = entries.sumOf { it.resolvedProtein() }
             val carbs = entries.sumOf { it.resolvedCarbs() }
             val fat = entries.sumOf { it.resolvedFat() }
             val fiber = entries.sumOf { it.resolvedFiber() }
-            val marker = "$date:$calories:$protein:$carbs:$fat:$fiber"
-            if (markers.getString(KEY_NUTRITION, null) == marker) return@runSafely
+            val marker = "$calories:$protein:$carbs:$fat:$fiber"
+            if (previous == marker) return@runSafely
             if (health.writeNutrition(date, calories, protein, carbs, fat, fiber)) {
-                markers.edit().putString(KEY_NUTRITION, marker).apply()
+                markers.edit().putString(key, marker).apply()
+                pruneNutritionMarkers(date)
             }
         }
+    }
+
+    /**
+     * Drops nutrition markers older than 30 days so the prefs file doesn't
+     * grow one key per day forever. Keys embed yyyy-MM-dd dates, so string
+     * order is date order.
+     */
+    private fun pruneNutritionMarkers(currentDate: String) {
+        val cutoff = "$KEY_NUTRITION_PREFIX${LocalDate.parse(currentDate).minusDays(30)}"
+        val stale = markers.all.keys.filter { it.startsWith(KEY_NUTRITION_PREFIX) && it < cutoff }
+        if (stale.isEmpty()) return
+        val editor = markers.edit()
+        stale.forEach(editor::remove)
+        editor.apply()
     }
 
     private inline fun runSafely(block: () -> Unit) {
@@ -91,6 +116,6 @@ class HealthExporter(
     private companion object {
         const val KEY_WEIGHT = "last_weight"
         const val KEY_SLEEP = "last_sleep"
-        const val KEY_NUTRITION = "last_nutrition"
+        const val KEY_NUTRITION_PREFIX = "last_nutrition_"
     }
 }

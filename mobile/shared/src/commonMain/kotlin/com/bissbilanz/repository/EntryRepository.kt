@@ -34,6 +34,14 @@ class EntryRepository(
     private var currentDate: String? = null
     var onEntryChanged: (suspend () -> Unit)? = null
 
+    /**
+     * Fired after a server refresh replaced the cached day. Entries logged
+     * outside this device (web, MCP, iOS) only arrive through refresh, so this
+     * is where the Health Connect export catches them — [onEntryChanged] only
+     * covers mutations made in the app itself.
+     */
+    var onEntriesRefreshed: (suspend (date: String) -> Unit)? = null
+
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.userDataDatabaseQueries
             .selectEntriesByDate(date)
@@ -53,6 +61,7 @@ class EntryRepository(
         if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
         cacheEntries(date, entries)
+        onEntriesRefreshed?.invoke(date)
     }
 
     suspend fun createEntry(
