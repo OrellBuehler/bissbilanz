@@ -30,8 +30,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -167,6 +169,40 @@ class SyncManagerTest {
                     .contains("Gave up"),
             )
             coVerify(exactly = 5) { api.deleteEntry(any(), any(), any()) }
+        }
+
+    @Test
+    fun payloadFailureSkipsTheRowInsteadOfStallingTheQueueBehindIt() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws SerializationException("unreadable payload")
+
+            val synced = manager.syncPendingQueue()
+
+            // Both attempted: a payload only this operation can trip is no reason to park
+            // the ops queued behind it.
+            assertEquals(0, synced)
+            coVerify(exactly = 2) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(2, syncQueue.pendingCount())
+            assertEquals(listOf(1L, 1L), syncQueue.all().map { it.retryCount })
+        }
+
+    @Test
+    fun transportFailureStopsTheDrainSoQueuedOpsKeepTheirRetryBudget() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws IOException("connection reset")
+
+            val synced = manager.syncPendingQueue()
+
+            // Only the head is charged a retry. Continuing would spend all five retries of
+            // every queued item on one outage and dead-letter the lot.
+            assertEquals(0, synced)
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(2, syncQueue.pendingCount())
+            assertEquals(listOf(0L, 1L), syncQueue.all().map { it.retryCount }.sorted())
         }
 
     @Test

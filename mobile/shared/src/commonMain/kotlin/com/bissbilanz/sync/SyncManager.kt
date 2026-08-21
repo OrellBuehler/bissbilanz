@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.isTempId
+import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Clock
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.min
@@ -206,7 +208,12 @@ class SyncManager(
                         val delay = backoffMs(count, req.id)
                         syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
                         syncQueue.releaseForRetry(req.id)
-                        break
+                        // Skip a payload this build cannot serialize: it is broken for this one
+                        // operation, and parking the rest of the queue behind it buys nothing.
+                        // Everything else caught here is a transport failure that every remaining
+                        // upload would hit too, so stop — continuing would spend all five retries
+                        // of every queued item on one outage and dead-letter the lot.
+                        if (!isPayloadFailure(e)) break
                     }
                 }
 
@@ -456,6 +463,24 @@ class SyncManager(
             op is SyncOperation.UnlogSupplement
 
     /**
+     * Whether [e] blames the operation's payload rather than the server or the network:
+     * a stored operation this build can no longer decode, a request body it cannot encode,
+     * or a response it cannot read. Ktor reports response-decode failures as
+     * [ContentConvertException] rather than a [SerializationException], and both may sit
+     * one or two `cause` levels down, so the chain is walked.
+     */
+    private fun isPayloadFailure(e: Throwable): Boolean {
+        var cause: Throwable? = e
+        var depth = 0
+        while (cause != null && depth < CAUSE_CHAIN_LIMIT) {
+            if (cause is SerializationException || cause is ContentConvertException) return true
+            cause = cause.cause.takeIf { it !== cause }
+            depth++
+        }
+        return false
+    }
+
+    /**
      * Exponential backoff: BASE * 2^retryCount + small jitter capped at CAP.
      * jitter uses retryCount as a deterministic seed to avoid requiring kotlin.random
      * in common code.
@@ -563,5 +588,8 @@ class SyncManager(
 
         /** Slack past the backoff gate, so the retry can't land a tick early. */
         private const val RETRY_SLACK_MS = 50L
+
+        /** Depth [isPayloadFailure] walks a `cause` chain before giving up. */
+        private const val CAUSE_CHAIN_LIMIT = 5
     }
 }
