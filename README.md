@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="static/icon-512.png" alt="Bissbilanz app icon" width="112" height="112">
+
 # Bissbilanz
 
 ### Know every bite. Own every goal.
