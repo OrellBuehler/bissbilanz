@@ -1,53 +1,190 @@
+<div align="center">
+
 # Bissbilanz
 
-A calorie and macro tracking application with AI-assisted food logging.
+### Know every bite. Own every goal.
+
+A calorie and macro tracker for **web, Android and iPhone** — barcode scanning, on-device
+nutrition-label OCR, offline-first sync, and a food log you can hand to an AI agent.
+
+**[Open the web app](https://bissbilanz.orellbuehler.ch/) · [Join the iOS beta](https://testflight.apple.com/join/e5Y3scbW)**
+
+[![Release](https://img.shields.io/github/v/release/OrellBuehler/bissbilanz?style=flat-square&color=3b82f6)](https://github.com/OrellBuehler/bissbilanz/releases)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/OrellBuehler/bissbilanz/codeql.yml?branch=main&style=flat-square&label=codeql)](https://github.com/OrellBuehler/bissbilanz/actions/workflows/codeql.yml)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey?style=flat-square)](LICENSE)
+[![Web](https://img.shields.io/badge/web-PWA-4b32c3?style=flat-square)](https://bissbilanz.orellbuehler.ch/)
+[![iOS](https://img.shields.io/badge/iOS-TestFlight-000000?style=flat-square&logo=apple&logoColor=white)](https://testflight.apple.com/join/e5Y3scbW)
+[![Android](https://img.shields.io/badge/Android-Compose-3ddc84?style=flat-square&logo=android&logoColor=white)](#try-it)
+
+</div>
+
+---
+
+## Try it
+
+|                             |                                                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 🌐 **Web**                  | **[bissbilanz.orellbuehler.ch](https://bissbilanz.orellbuehler.ch/)** — installable PWA, works offline                      |
+| 🍎 **iPhone / Apple Watch** | **[TestFlight beta](https://testflight.apple.com/join/e5Y3scbW)** — widgets, watch app, Apple Health, fasting Live Activity |
+| 🤖 **Android / Wear OS**    | Internal testing — [open an issue](https://github.com/OrellBuehler/bissbilanz/issues) to be added                           |
+
+Free, no ads, no tracking SDKs, no data selling. Try the mobile apps without an account at
+all — local-only mode keeps everything on device and migrates into your account if you
+later sign in.
+
+## What makes it different
+
+**Your food log is an MCP server.** Point Claude (or any MCP client) at it and just say
+what you ate. **59 tools** cover logging, foods, recipes, goals, weight, sleep,
+supplements and analytics — OAuth-protected, so the agent only ever sees your data.
+
+**On-device label OCR.** No barcode? Point the camera at the nutrition table. A shared
+Kotlin parser plus ML Kit reads the values locally — nothing leaves the phone.
+
+**Offline-first, for real.** Every client writes optimistically to a local store
+(Dexie on web, SQLDelight on Android, SwiftData on iOS) and drains a sync queue with
+idempotency keys and last-write-wins conflict resolution. Log on a plane; it reconciles
+when you land.
+
+**43 extended nutrients.** Beyond calories and the five macros — vitamins, minerals,
+amino acids — sourced from Open Food Facts and your own database.
+
+**Actually native.** Not a wrapped web view: Jetpack Compose on Android, SwiftUI on
+iPhone, plus a Wear OS app, an Apple Watch app, home- and lock-screen widgets, and
+Health Connect / Apple Health integration.
 
 ## Features
 
-- **Macro Tracking** — Track calories, protein, carbs, fat, and fiber for every meal
-- **Food Database** — Create and manage a personal food database
-- **Recipes** — Build recipes with multiple ingredients and automatic macro calculation
-- **Daily Log** — Log food entries organized by meals with daily macro goals
-- **Barcode Scanning** — Quickly add foods by scanning barcodes (via Open Food Facts)
-- **AI-Assisted Logging** — Use AI agents via MCP to help log meals
-- **Offline Support** — Full PWA support for offline access
-- **Native Mobile Apps** — Android (Jetpack Compose) and iOS (SwiftUI) apps with offline sync, widgets, watch app, and an optional local-only mode
-- **Multilingual** — Available in English and German
+|                 |                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Track**       | Calories, protein, carbs, fat, fiber + 43 extended nutrients, per meal and per day                                    |
+| **Log fast**    | Barcode scanner, camera label OCR, favorites, recent foods, one-tap widgets                                           |
+| **Recipes**     | Multi-ingredient recipes with automatic per-serving nutrition                                                         |
+| **Beyond food** | Weight trend, sleep, supplements, fasting timer with Live Activity                                                    |
+| **Insights**    | Maintenance-calorie estimate from weight trend + intake, streaks, meal timing, food diversity, sleep/food correlation |
+| **AI**          | Natural-language logging via MCP, plus on-device meal estimation from a photo on iOS                                  |
+| **Sync**        | Web, Android, iOS and watch stay in sync; conflict-safe and offline-tolerant                                          |
+| **Accounts**    | Infomaniak, Google, Microsoft or Apple sign-in — or no account at all on mobile                                       |
+| **Languages**   | English and German                                                                                                    |
 
-## Tech Stack
+## How it fits together
 
-- **Frontend:** SvelteKit 2.x with Svelte 5
-- **Runtime:** Bun
-- **Database:** PostgreSQL with Drizzle ORM
-- **Auth:** Infomaniak OIDC
-- **UI:** shadcn-svelte + Tailwind CSS 4
-- **AI Integration:** Model Context Protocol (MCP) SDK
+```mermaid
+flowchart LR
+    API["SvelteKit API on Bun<br/>Zod-validated · OpenAPI-generated clients"]
+    DB[("PostgreSQL<br/>Drizzle ORM")]
+    OFF["Open Food Facts"]
 
-## Getting Started
+    subgraph Clients
+        direction TB
+        W["Web PWA<br/>Svelte 5 + Dexie"]
+        A["Android + Wear OS<br/>Compose + SQLDelight"]
+        I["iPhone + Watch<br/>SwiftUI + SwiftData"]
+    end
 
-```bash
-# Install dependencies
-bun install
+    C["Claude / any MCP client"]
 
-# Start the dev server
-bun run dev
+    W -- "REST + sync queue" --> API
+    A -- "REST + sync queue" --> API
+    I -- "REST + sync queue" --> API
+    C -- "/api/mcp (OAuth)" --> API
+    API --> DB
+    API --> OFF
+```
+
+The Zod validation schemas are the single source of truth: `bun run api:generate` emits
+`docs/openapi.json` and from it both the TypeScript and Kotlin client models, so the web,
+Android and iOS clients can't silently drift from the server.
+
+## Talk to your food log
+
+Bissbilanz exposes a remote MCP server at `/api/mcp` (streamable HTTP; OAuth 2.1 with PKCE and dynamic client registration,
+scope `mcp:access`):
+
+```json
+{
+	"mcpServers": {
+		"bissbilanz": {
+			"type": "http",
+			"url": "https://bissbilanz.orellbuehler.ch/api/mcp"
+		}
+	}
+}
+```
+
+Then:
+
+> **You:** I had a chicken bowl with rice and avocado for lunch, and a flat white.
+>
+> **Claude:** Logged 4 items to Lunch — 812 kcal, 47 g protein. You're at 1,340 / 2,200 kcal
+> and 89 / 160 g protein for the day.
+
+Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,
+`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 50 more.
+
+## Tech stack
+
+| Layer   | Choice                                                                                  |
+| ------- | --------------------------------------------------------------------------------------- |
+| Web     | SvelteKit 2 · Svelte 5 runes · Tailwind CSS 4 · shadcn-svelte · layerchart              |
+| Runtime | Bun (dev and production, via `svelte-adapter-bun`)                                      |
+| Data    | PostgreSQL · Drizzle ORM · versioned migrations applied on boot                         |
+| Mobile  | Kotlin Multiplatform shared core · Jetpack Compose · SwiftUI · Ktor · SQLDelight · Koin |
+| Offline | Dexie (web) · SQLDelight (Android) · SwiftData (iOS) · idempotent sync queue            |
+| AI      | Model Context Protocol SDK · Apple Foundation Models (on-device)                        |
+| Quality | Vitest · Playwright · Testcontainers · CodeQL · Semgrep · Trivy · Gitleaks              |
+
+## Repository layout
+
+```
+src/            SvelteKit app — routes, API, server logic, Drizzle schema
+  lib/server/   auth, validation, MCP server, sync, security
+mobile/
+  shared/       Kotlin Multiplatform core (models, API client, repositories, DI)
+  androidApp/   Jetpack Compose app
+  wearApp/      Wear OS app
+  iosApp/       SwiftUI app + widgets + Apple Watch app
+drizzle/        SQL migrations and snapshots
+crawler/        base food catalog importer
+tests/          unit, integration (Testcontainers) and Playwright e2e suites
+docs/           generated OpenAPI spec
 ```
 
 ## Development
 
+Requires [Bun](https://bun.sh), PostgreSQL, and OAuth credentials for at least one
+sign-in provider (see `.env.example`).
+
 ```bash
-# Type checking
-bun run check
-
-# Generate DB migrations after schema changes
-bun run db:generate
-
-# Run migrations
-bun run db:migrate
-
-# Run tests
-bun test
-
-# Security scan
-bun run security
+bun install
+cp .env.example .env       # fill in DATABASE_URL, SESSION_SECRET, an OIDC provider
+bun run dev                # migrations run automatically on start
 ```
+
+```bash
+bun run check              # svelte-check + prettier
+bun test                   # unit tests
+bun run test:integration-db # DB integration tests (Testcontainers, needs Docker)
+bun run test:mobile        # Playwright e2e
+bun run api:generate       # regenerate OpenAPI spec + TS/Kotlin clients
+bun run security           # Semgrep + bun audit + Trivy
+```
+
+Android:
+
+```bash
+cd mobile && ./gradlew androidApp:assembleDebug
+```
+
+iOS requires macOS with Xcode; the shared KMP module builds as a static framework.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE) — free to use, modify and share for any
+noncommercial purpose. Commercial use requires a separate license.
+
+---
+
+<div align="center">
+<sub>Built by <a href="https://github.com/OrellBuehler">Orell Bühler</a> · nutrition data from <a href="https://world.openfoodfacts.org/">Open Food Facts</a></sub>
+</div>
