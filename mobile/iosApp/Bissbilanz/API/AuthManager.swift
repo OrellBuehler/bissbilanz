@@ -76,6 +76,17 @@ final class AuthManager {
         return sub
     }
 
+    /// Which sign-in providers the server has configured, or nil when the request fails.
+    func fetchLoginProviders() async -> [String]? {
+        guard let url = URL(string: "\(baseURL)/api/auth/providers") else { return nil }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode(LoginProvidersResponse.self, from: data).providers
+        } catch {
+            return nil
+        }
+    }
+
     func buildLoginURL(provider: String = "infomaniak") -> URL? {
         let state = UUID().uuidString
         pendingState = state
@@ -219,6 +230,10 @@ final class AuthManager {
         KeychainHelper.delete(key: Self.refreshTokenKey)
         authState = .unauthenticated
     }
+}
+
+private struct LoginProvidersResponse: Codable {
+    let providers: [String]
 }
 
 private struct TokenResponse: Codable {

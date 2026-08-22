@@ -55,10 +55,16 @@ enum SignInFlow {
 }
 
 struct LoginView: View {
+    /// Shown until /api/auth/providers answers (or when it fails): the providers
+    /// known to be configured in production. A failed fetch must never hide a
+    /// working sign-in button.
+    static let defaultEnabledProviders: Set<String> = ["infomaniak", "google"]
+
     @Environment(AuthManager.self) private var authManager
     @Environment(AppModeManager.self) private var appModeManager
     @State private var authSession: ASWebAuthenticationSession?
     @State private var appleRawNonce = ""
+    @State private var enabledProviders = LoginView.defaultEnabledProviders
     @ScaledMetric(relativeTo: .largeTitle) private var brandIconSize = 72.0
 
     var body: some View {
@@ -81,22 +87,24 @@ struct LoginView: View {
             }
 
             VStack(spacing: 16) {
-                ForEach(SignInProvider.allCases) { provider in
+                ForEach(SignInProvider.allCases.filter { enabledProviders.contains($0.rawValue) }) { provider in
                     providerButton(provider)
                 }
 
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName, .email]
-                    // Apple embeds the SHA256 of this in the identity token; the raw
-                    // value travels separately so the server can compare the two.
-                    let nonce = Self.randomNonce()
-                    appleRawNonce = nonce
-                    request.nonce = Self.sha256(nonce)
-                } onCompletion: { result in
-                    handleAppleCompletion(result)
+                if enabledProviders.contains("apple") {
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                        // Apple embeds the SHA256 of this in the identity token; the raw
+                        // value travels separately so the server can compare the two.
+                        let nonce = Self.randomNonce()
+                        appleRawNonce = nonce
+                        request.nonce = Self.sha256(nonce)
+                    } onCompletion: { result in
+                        handleAppleCompletion(result)
+                    }
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 50)
                 }
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 50)
 
                 VStack(spacing: 8) {
                     Button {
@@ -118,6 +126,11 @@ struct LoginView: View {
             Spacer()
         }
         .padding(32)
+        .task {
+            if let providers = await authManager.fetchLoginProviders() {
+                enabledProviders = Set(providers)
+            }
+        }
     }
 
     @ViewBuilder

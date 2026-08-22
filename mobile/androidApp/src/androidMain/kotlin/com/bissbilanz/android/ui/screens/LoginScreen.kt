@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +28,16 @@ val loginProviders =
         "microsoft" to R.string.login_with_microsoft,
         "apple" to R.string.login_with_apple,
     )
+
+/**
+ * Shown until /api/auth/providers answers (or when it fails): the providers
+ * known to be configured in production. A failed fetch must never hide a
+ * working sign-in button.
+ */
+val defaultEnabledProviders = listOf("infomaniak", "google")
+
+/** The login buttons to show, in display order, given the server's enabled provider ids. */
+fun visibleLoginProviders(enabled: List<String>): List<Pair<String, Int>> = loginProviders.filter { (id, _) -> id in enabled }
 
 /** Opens the OIDC login page in a Custom Tab. Shared with the Settings "Sign in to sync" flow. */
 fun launchLoginFlow(
@@ -60,6 +71,9 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val mode by appModeManager.mode.collectAsStateWithLifecycle()
+    val enabledProviders by produceState(defaultEnabledProviders, authManager) {
+        authManager.fetchLoginProviders()?.let { value = it }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -82,7 +96,7 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(48.dp))
-            loginProviders.forEachIndexed { index, (provider, labelRes) ->
+            visibleLoginProviders(enabledProviders).forEachIndexed { index, (provider, labelRes) ->
                 if (index == 0) {
                     Button(
                         onClick = { launchLoginFlow(context, authManager, provider) },
