@@ -1,12 +1,113 @@
 <script lang="ts">
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
+	import ScanText from '@lucide/svelte/icons/scan-text';
 	import Bot from '@lucide/svelte/icons/bot';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
 	import CookingPot from '@lucide/svelte/icons/cooking-pot';
 	import Pill from '@lucide/svelte/icons/pill';
+	import Scale from '@lucide/svelte/icons/scale';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Timer from '@lucide/svelte/icons/timer';
+	import ChartLine from '@lucide/svelte/icons/chart-line';
+	import CloudOff from '@lucide/svelte/icons/cloud-off';
+	import Watch from '@lucide/svelte/icons/watch';
+	import HeartPulse from '@lucide/svelte/icons/heart-pulse';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Apple from '@lucide/svelte/icons/apple';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages';
+
+	const testflightUrl = 'https://testflight.apple.com/join/e5Y3scbW';
+
+	const features = [
+		{
+			icon: ChartColumn,
+			title: m.landing_feature_macros_title,
+			desc: m.landing_feature_macros_desc
+		},
+		{
+			icon: ScanBarcode,
+			title: m.landing_feature_barcode_title,
+			desc: m.landing_feature_barcode_desc
+		},
+		{
+			icon: ScanText,
+			title: m.landing_feature_label_title,
+			desc: m.landing_feature_label_desc,
+			platform: m.landing_platform_mobile
+		},
+		{ icon: Bot, title: m.landing_feature_ai_title, desc: m.landing_feature_ai_desc },
+		{
+			icon: CookingPot,
+			title: m.landing_feature_recipes_title,
+			desc: m.landing_feature_recipes_desc
+		},
+		{
+			icon: Pill,
+			title: m.landing_feature_supplements_title,
+			desc: m.landing_feature_supplements_desc
+		},
+		{ icon: Scale, title: m.landing_feature_weight_title, desc: m.landing_feature_weight_desc },
+		{ icon: Moon, title: m.landing_feature_sleep_title, desc: m.landing_feature_sleep_desc },
+		{ icon: Timer, title: m.landing_feature_fasting_title, desc: m.landing_feature_fasting_desc },
+		{
+			icon: ChartLine,
+			title: m.landing_feature_insights_title,
+			desc: m.landing_feature_insights_desc
+		},
+		{
+			icon: CloudOff,
+			title: m.landing_feature_offline_title,
+			desc: m.landing_feature_offline_desc
+		},
+		{
+			icon: Watch,
+			title: m.landing_feature_watch_title,
+			desc: m.landing_feature_watch_desc,
+			platform: m.landing_platform_mobile
+		},
+		{
+			icon: HeartPulse,
+			title: m.landing_feature_health_title,
+			desc: m.landing_feature_health_desc,
+			platform: m.landing_platform_mobile
+		},
+		{ icon: Smartphone, title: m.landing_feature_pwa_title, desc: m.landing_feature_pwa_desc },
+		{
+			icon: ShieldCheck,
+			title: m.landing_feature_privacy_title,
+			desc: m.landing_feature_privacy_desc
+		}
+	];
+
+	const apps = [
+		{
+			icon: Globe,
+			title: m.landing_apps_web_title,
+			desc: m.landing_apps_web_desc,
+			cta: m.landing_apps_web_cta,
+			href: '/login',
+			external: false
+		},
+		{
+			icon: Apple,
+			title: m.landing_apps_ios_title,
+			desc: m.landing_apps_ios_desc,
+			cta: m.landing_apps_ios_cta,
+			href: testflightUrl,
+			external: true
+		},
+		{
+			icon: Smartphone,
+			title: m.landing_apps_android_title,
+			desc: m.landing_apps_android_desc,
+			cta: m.landing_apps_android_cta,
+			href: '/support',
+			external: false
+		}
+	];
 </script>
 
 <svelte:head>
@@ -21,9 +122,14 @@
 	>
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 			<span class="font-heading text-xl font-bold tracking-tight">{m.app_title()}</span>
-			<Button href="/login">
-				{m.auth_login()}
-			</Button>
+			<div class="flex items-center gap-2">
+				<Button variant="ghost" href="#features" class="hidden sm:inline-flex">
+					{m.landing_cta_secondary()}
+				</Button>
+				<Button href="/login">
+					{m.auth_login()}
+				</Button>
+			</div>
 		</div>
 	</header>
 
@@ -48,10 +154,12 @@
 				<Button size="lg" href="/login">
 					{m.landing_cta_primary()}
 				</Button>
-				<Button variant="outline" size="lg" href="#features">
-					{m.landing_cta_secondary()}
+				<Button variant="outline" size="lg" href={testflightUrl} target="_blank" rel="noopener">
+					<Apple />
+					{m.landing_cta_beta()}
 				</Button>
 			</div>
+			<p class="mt-6 text-sm text-muted-foreground">{m.landing_hero_platforms()}</p>
 		</div>
 	</section>
 
@@ -62,62 +170,78 @@
 				{m.landing_features_title()}
 			</h2>
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<ChartColumn class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_macros_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_macros_desc()}
-					</p>
-				</div>
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<ScanBarcode class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_barcode_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_barcode_desc()}
-					</p>
-				</div>
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<Bot class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_ai_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_ai_desc()}
-					</p>
-				</div>
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<Smartphone class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_pwa_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_pwa_desc()}
-					</p>
-				</div>
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<CookingPot class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_recipes_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_recipes_desc()}
-					</p>
-				</div>
-				<div class="rounded-2xl bg-surface-container-low p-6">
-					<Pill class="mb-4 text-primary" size={24} />
-					<h3 class="mb-2 font-semibold">{m.landing_feature_supplements_title()}</h3>
-					<p class="text-sm leading-relaxed text-muted-foreground">
-						{m.landing_feature_supplements_desc()}
-					</p>
-				</div>
+				{#each features as feature (feature.title)}
+					{@const Icon = feature.icon}
+					<div class="rounded-2xl bg-surface-container-low p-6">
+						<Icon class="mb-4 text-primary" size={24} />
+						<h3 class="mb-2 flex flex-wrap items-center gap-2 font-semibold">
+							{feature.title()}
+							{#if feature.platform}
+								<span
+									class="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground"
+								>
+									{feature.platform()}
+								</span>
+							{/if}
+						</h3>
+						<p class="text-sm leading-relaxed text-muted-foreground">
+							{feature.desc()}
+						</p>
+					</div>
+				{/each}
+			</div>
+		</div>
+	</section>
+
+	<!-- Apps -->
+	<section id="apps" class="px-6 py-24">
+		<div class="mx-auto max-w-5xl">
+			<h2 class="font-heading mb-3 text-center text-3xl font-bold tracking-tight">
+				{m.landing_apps_title()}
+			</h2>
+			<p class="mx-auto mb-16 max-w-xl text-center text-muted-foreground">
+				{m.landing_apps_subtitle()}
+			</p>
+			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+				{#each apps as app (app.title)}
+					{@const Icon = app.icon}
+					<div
+						class="flex flex-col rounded-2xl border border-outline-variant/15 bg-surface-container-low p-6"
+					>
+						<Icon class="mb-4 text-primary" size={24} />
+						<h3 class="mb-2 font-semibold">{app.title()}</h3>
+						<p class="mb-6 text-sm leading-relaxed text-muted-foreground">{app.desc()}</p>
+						<Button
+							variant="outline"
+							class="mt-auto w-full"
+							href={app.href}
+							target={app.external ? '_blank' : undefined}
+							rel={app.external ? 'noopener' : undefined}
+						>
+							{app.cta()}
+						</Button>
+					</div>
+				{/each}
 			</div>
 		</div>
 	</section>
 
 	<!-- CTA -->
-	<section class="px-6 py-24 text-center">
+	<section class="bg-surface-container/50 px-6 py-24 text-center">
 		<div class="mx-auto max-w-2xl">
 			<h2 class="font-heading mb-4 text-4xl font-bold tracking-tight">
 				{m.landing_cta_headline()}
 			</h2>
 			<p class="mb-8 text-muted-foreground">{m.landing_cta_subtext()}</p>
-			<Button size="lg" href="/login">
-				{m.landing_cta_primary()}
-			</Button>
+			<div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+				<Button size="lg" href="/login">
+					{m.landing_cta_primary()}
+				</Button>
+				<Button variant="outline" size="lg" href={testflightUrl} target="_blank" rel="noopener">
+					<Apple />
+					{m.landing_cta_beta()}
+				</Button>
+			</div>
 		</div>
 	</section>
 
