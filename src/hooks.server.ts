@@ -147,6 +147,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		'/privacy',
 		'/account-deletion',
 		'/support',
+		'/sitemap.xml',
 		'/api/',
 		'/authorize',
 		'/token',
@@ -165,7 +166,10 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	const isPublicRoute =
 		stripped === '/' || PUBLIC_PATHS.some((p) => p !== '/' && stripped.startsWith(p));
 
-	if (!isPublicRoute && !event.locals.user) {
+	// Unmatched paths (route.id === null) must fall through to a real 404 —
+	// redirecting them to /login turns every bad URL into a soft 404 that
+	// search engines index as a redirect chain.
+	if (!isPublicRoute && !event.locals.user && event.route.id !== null) {
 		throw redirect(302, '/login');
 	}
 

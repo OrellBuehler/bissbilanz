@@ -17,9 +17,12 @@
 	import Globe from '@lucide/svelte/icons/globe';
 	import Apple from '@lucide/svelte/icons/apple';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import Seo from '$lib/components/Seo.svelte';
+	import { getLocale } from '$lib/paraglide/runtime';
+	import { absoluteUrl, GITHUB_URL, OG_IMAGE, SITE_URL, TESTFLIGHT_URL } from '$lib/seo';
 	import * as m from '$lib/paraglide/messages';
 
-	const testflightUrl = 'https://testflight.apple.com/join/e5Y3scbW';
+	const testflightUrl = TESTFLIGHT_URL;
 
 	const features = [
 		{
@@ -108,12 +111,58 @@
 			external: false
 		}
 	];
+
+	const structuredData = $derived({
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'WebSite',
+				'@id': `${SITE_URL}/#website`,
+				url: SITE_URL,
+				name: 'Bissbilanz',
+				alternateName: 'Bissbilanz — ' + m.app_tagline(),
+				description: m.landing_subheading(),
+				inLanguage: getLocale(),
+				publisher: { '@id': `${SITE_URL}/#person` }
+			},
+			{
+				'@type': 'Person',
+				'@id': `${SITE_URL}/#person`,
+				name: 'Orell Bühler',
+				url: 'https://orellbuehler.ch',
+				sameAs: ['https://github.com/OrellBuehler']
+			},
+			{
+				'@type': 'SoftwareApplication',
+				'@id': `${SITE_URL}/#app`,
+				name: 'Bissbilanz',
+				applicationCategory: 'HealthApplication',
+				applicationSubCategory: 'Nutrition & Calorie Tracker',
+				operatingSystem: 'Web, Android, iOS, watchOS',
+				url: absoluteUrl('/', getLocale()),
+				description: m.landing_subheading(),
+				image: OG_IMAGE,
+				screenshot: OG_IMAGE,
+				inLanguage: ['en', 'de'],
+				isAccessibleForFree: true,
+				offers: { '@type': 'Offer', price: '0', priceCurrency: 'CHF' },
+				author: { '@id': `${SITE_URL}/#person` },
+				publisher: { '@id': `${SITE_URL}/#person` },
+				softwareHelp: `${SITE_URL}/support`,
+				privacyPolicy: `${SITE_URL}/privacy`,
+				featureList: features.map((feature) => feature.title()),
+				sameAs: [GITHUB_URL, TESTFLIGHT_URL]
+			}
+		]
+	});
 </script>
 
-<svelte:head>
-	<title>{m.app_title()} — {m.app_tagline()}</title>
-	<meta name="description" content={m.landing_subheading()} />
-</svelte:head>
+<Seo
+	title={m.seo_home_title()}
+	description={m.landing_subheading()}
+	path="/"
+	jsonLd={structuredData}
+/>
 
 <div class="min-h-screen bg-background text-foreground">
 	<!-- Header -->
