@@ -112,9 +112,14 @@ enum ErrorReporter {
     /// Reports a non-fatal warning: a recoverable problem still worth knowing
     /// about (a sync conflict resolved by discarding local state, a fallback
     /// that masked a server bug). Sent at `warning` level with optional
-    /// structured context.
+    /// structured context. Callers deliberately use this to report past
+    /// `capture`'s noise filter (offline/401/404 matter when the user sees the
+    /// failure) — but a cancelled request (superseded or torn down mid-flight)
+    /// is never a real failure, so warnings whose `reason` context value (from
+    /// `reason(for:)`) says "cancelled" are dropped.
     static func captureWarning(_ message: String, context: [String: Any]? = nil) {
         guard isEnabled else { return }
+        if context?["reason"] as? String == "cancelled" { return }
         SentrySDK.capture(message: message) { scope in
             scope.setLevel(.warning)
             if let context {
@@ -138,6 +143,7 @@ enum ErrorReporter {
         if error is CancellationError { return "cancelled" }
         if let urlError = error as? URLError {
             switch urlError.code {
+            case .cancelled: return "cancelled"
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed: return "offline"
             case .timedOut: return "timeout"
             case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed: return "cannot_reach_host"
