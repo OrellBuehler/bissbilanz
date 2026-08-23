@@ -12,6 +12,28 @@
     *** serializer(...);
     kotlinx.serialization.KSerializer serializer(...);
 }
+# serializer() lives on the generated Companion object, which is NOT itself
+# annotated @Serializable — the rule above never matches it, so R8 strips it
+# from any class not covered by a blanket -keep and runtime lookup fails with
+# "Serializer for class ... is not found". Official kotlinx.serialization rules:
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1> {
+    static <1>$Companion Companion;
+}
+-if @kotlinx.serialization.Serializable class ** {
+    static **$* *;
+}
+-keepclassmembers class <2>$<3> {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-if @kotlinx.serialization.Serializable class ** {
+    public static ** INSTANCE;
+}
+-keepclassmembers class <1> {
+    public static <1> INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class com.bissbilanz.**$$serializer { *; }
 -keepclassmembers class ** {
     @kotlinx.serialization.SerialName *;
     @kotlinx.serialization.Transient *;

@@ -2,6 +2,7 @@ package com.bissbilanz.android.fasting
 
 import com.bissbilanz.android.ui.screens.formatElapsed
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -59,6 +60,17 @@ class FastingSessionTest {
     fun `a running session has no duration and has not reached its target`() {
         assertEquals(null, session().duration)
         assertFalse(session().reachedTarget)
+    }
+
+    @Test
+    fun `round-trips through JSON`() {
+        // Exercises the generated serializer FastingSessionStore depends on —
+        // it only exists when androidApp applies the kotlinx.serialization
+        // plugin, so this fails with "Serializer for class 'FastingSession' is
+        // not found" (the shipped start-fast crash) if the plugin is dropped.
+        val original = session(endedAfter = 16.hours)
+        val json = Json.encodeToString(original)
+        assertEquals(original, Json.decodeFromString<FastingSession>(json))
     }
 
     @Test
