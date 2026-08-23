@@ -95,6 +95,8 @@ const fatExpr = (rm: RecipeMacrosCte) =>
 const fiberExpr = (rm: RecipeMacrosCte) =>
 	sql<number>`COALESCE(${foods.fiber}, ${rm.rmFiber}, ${foodEntries.quickFiber}, 0) * ${foodEntries.servings}`;
 
+const quickNutrientExpr = (key: string) => sql`(${foodEntries.quickNutrients}->>${key})::real`;
+
 export const getWeightFoodSeries = async (userId: string, startDate: string, endDate: string) => {
 	const db = getDB();
 	const rm = buildRecipeMacrosCte(db, userId);
@@ -183,49 +185,57 @@ export const getDailyNutrientTotals = async (
 			fiber: sql<number>`COALESCE(SUM(${fiberExpr(rm)}), 0)`.as('fiber'),
 			omega3: sql<
 				number | null
-			>`SUM(COALESCE(${foods.omega3}, ${re.reOmega3}) * ${foodEntries.servings})`.as('omega3'),
+			>`SUM(COALESCE(${foods.omega3}, ${re.reOmega3}, ${quickNutrientExpr('omega3')}) * ${foodEntries.servings})`.as(
+				'omega3'
+			),
 			omega6: sql<
 				number | null
-			>`SUM(COALESCE(${foods.omega6}, ${re.reOmega6}) * ${foodEntries.servings})`.as('omega6'),
+			>`SUM(COALESCE(${foods.omega6}, ${re.reOmega6}, ${quickNutrientExpr('omega6')}) * ${foodEntries.servings})`.as(
+				'omega6'
+			),
 			sodium: sql<
 				number | null
-			>`SUM(COALESCE(${foods.sodium}, ${re.reSodium}) * ${foodEntries.servings})`.as('sodium'),
+			>`SUM(COALESCE(${foods.sodium}, ${re.reSodium}, ${quickNutrientExpr('sodium')}) * ${foodEntries.servings})`.as(
+				'sodium'
+			),
 			caffeine: sql<
 				number | null
-			>`SUM(COALESCE(${foods.caffeine}, ${re.reCaffeine}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.caffeine}, ${re.reCaffeine}, ${quickNutrientExpr('caffeine')}) * ${foodEntries.servings})`.as(
 				'caffeine'
 			),
 			saturatedFat: sql<
 				number | null
-			>`SUM(COALESCE(${foods.saturatedFat}, ${re.reSaturatedFat}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.saturatedFat}, ${re.reSaturatedFat}, ${quickNutrientExpr('saturatedFat')}) * ${foodEntries.servings})`.as(
 				'saturated_fat'
 			),
 			transFat: sql<
 				number | null
-			>`SUM(COALESCE(${foods.transFat}, ${re.reTransFat}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.transFat}, ${re.reTransFat}, ${quickNutrientExpr('transFat')}) * ${foodEntries.servings})`.as(
 				'trans_fat'
 			),
 			vitaminC: sql<
 				number | null
-			>`SUM(COALESCE(${foods.vitaminC}, ${re.reVitaminC}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.vitaminC}, ${re.reVitaminC}, ${quickNutrientExpr('vitaminC')}) * ${foodEntries.servings})`.as(
 				'vitamin_c'
 			),
 			vitaminD: sql<
 				number | null
-			>`SUM(COALESCE(${foods.vitaminD}, ${re.reVitaminD}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.vitaminD}, ${re.reVitaminD}, ${quickNutrientExpr('vitaminD')}) * ${foodEntries.servings})`.as(
 				'vitamin_d'
 			),
 			vitaminE: sql<
 				number | null
-			>`SUM(COALESCE(${foods.vitaminE}, ${re.reVitaminE}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.vitaminE}, ${re.reVitaminE}, ${quickNutrientExpr('vitaminE')}) * ${foodEntries.servings})`.as(
 				'vitamin_e'
 			),
 			alcohol: sql<
 				number | null
-			>`SUM(COALESCE(${foods.alcohol}, ${re.reAlcohol}) * ${foodEntries.servings})`.as('alcohol'),
+			>`SUM(COALESCE(${foods.alcohol}, ${re.reAlcohol}, ${quickNutrientExpr('alcohol')}) * ${foodEntries.servings})`.as(
+				'alcohol'
+			),
 			addedSugars: sql<
 				number | null
-			>`SUM(COALESCE(${foods.addedSugars}, ${re.reAddedSugars}) * ${foodEntries.servings})`.as(
+			>`SUM(COALESCE(${foods.addedSugars}, ${re.reAddedSugars}, ${quickNutrientExpr('addedSugars')}) * ${foodEntries.servings})`.as(
 				'added_sugars'
 			)
 		})
@@ -382,39 +392,57 @@ export const getExtendedNutrientEntries = async (
 			novaGroup: sql<number | null>`${foods.novaGroup}`.as('nova_group'),
 			omega3: sql<
 				number | null
-			>`COALESCE(${foods.omega3}, ${re.reOmega3}) * ${foodEntries.servings}`.as('omega3'),
+			>`COALESCE(${foods.omega3}, ${re.reOmega3}, ${quickNutrientExpr('omega3')}) * ${foodEntries.servings}`.as(
+				'omega3'
+			),
 			omega6: sql<
 				number | null
-			>`COALESCE(${foods.omega6}, ${re.reOmega6}) * ${foodEntries.servings}`.as('omega6'),
+			>`COALESCE(${foods.omega6}, ${re.reOmega6}, ${quickNutrientExpr('omega6')}) * ${foodEntries.servings}`.as(
+				'omega6'
+			),
 			sodium: sql<
 				number | null
-			>`COALESCE(${foods.sodium}, ${re.reSodium}) * ${foodEntries.servings}`.as('sodium'),
+			>`COALESCE(${foods.sodium}, ${re.reSodium}, ${quickNutrientExpr('sodium')}) * ${foodEntries.servings}`.as(
+				'sodium'
+			),
 			caffeine: sql<
 				number | null
-			>`COALESCE(${foods.caffeine}, ${re.reCaffeine}) * ${foodEntries.servings}`.as('caffeine'),
+			>`COALESCE(${foods.caffeine}, ${re.reCaffeine}, ${quickNutrientExpr('caffeine')}) * ${foodEntries.servings}`.as(
+				'caffeine'
+			),
 			saturatedFat: sql<
 				number | null
-			>`COALESCE(${foods.saturatedFat}, ${re.reSaturatedFat}) * ${foodEntries.servings}`.as(
+			>`COALESCE(${foods.saturatedFat}, ${re.reSaturatedFat}, ${quickNutrientExpr('saturatedFat')}) * ${foodEntries.servings}`.as(
 				'saturated_fat'
 			),
 			transFat: sql<
 				number | null
-			>`COALESCE(${foods.transFat}, ${re.reTransFat}) * ${foodEntries.servings}`.as('trans_fat'),
+			>`COALESCE(${foods.transFat}, ${re.reTransFat}, ${quickNutrientExpr('transFat')}) * ${foodEntries.servings}`.as(
+				'trans_fat'
+			),
 			vitaminC: sql<
 				number | null
-			>`COALESCE(${foods.vitaminC}, ${re.reVitaminC}) * ${foodEntries.servings}`.as('vitamin_c'),
+			>`COALESCE(${foods.vitaminC}, ${re.reVitaminC}, ${quickNutrientExpr('vitaminC')}) * ${foodEntries.servings}`.as(
+				'vitamin_c'
+			),
 			vitaminD: sql<
 				number | null
-			>`COALESCE(${foods.vitaminD}, ${re.reVitaminD}) * ${foodEntries.servings}`.as('vitamin_d'),
+			>`COALESCE(${foods.vitaminD}, ${re.reVitaminD}, ${quickNutrientExpr('vitaminD')}) * ${foodEntries.servings}`.as(
+				'vitamin_d'
+			),
 			vitaminE: sql<
 				number | null
-			>`COALESCE(${foods.vitaminE}, ${re.reVitaminE}) * ${foodEntries.servings}`.as('vitamin_e'),
+			>`COALESCE(${foods.vitaminE}, ${re.reVitaminE}, ${quickNutrientExpr('vitaminE')}) * ${foodEntries.servings}`.as(
+				'vitamin_e'
+			),
 			alcohol: sql<
 				number | null
-			>`COALESCE(${foods.alcohol}, ${re.reAlcohol}) * ${foodEntries.servings}`.as('alcohol'),
+			>`COALESCE(${foods.alcohol}, ${re.reAlcohol}, ${quickNutrientExpr('alcohol')}) * ${foodEntries.servings}`.as(
+				'alcohol'
+			),
 			addedSugars: sql<
 				number | null
-			>`COALESCE(${foods.addedSugars}, ${re.reAddedSugars}) * ${foodEntries.servings}`.as(
+			>`COALESCE(${foods.addedSugars}, ${re.reAddedSugars}, ${quickNutrientExpr('addedSugars')}) * ${foodEntries.servings}`.as(
 				'added_sugars'
 			)
 		})

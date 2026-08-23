@@ -68,6 +68,7 @@ export const listEntriesByDate = async (
 				quickCarbs: foodEntries.quickCarbs,
 				quickFat: foodEntries.quickFat,
 				quickFiber: foodEntries.quickFiber,
+				quickNutrients: foodEntries.quickNutrients,
 				...entryMacroColumns(recipeMacrosCte),
 				eatenAt: foodEntries.eatenAt,
 				createdAt: foodEntries.createdAt,
@@ -124,6 +125,7 @@ export const createEntry = async (
 				quickCarbs: result.data.quickCarbs ?? null,
 				quickFat: result.data.quickFat ?? null,
 				quickFiber: result.data.quickFiber ?? null,
+				quickNutrients: normalizeQuickNutrients(result.data.quickNutrients),
 				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date()
 			})
 			.returning();
@@ -136,6 +138,9 @@ export const createEntry = async (
 	}
 };
 
+const normalizeQuickNutrients = (rec: Record<string, number> | null | undefined) =>
+	rec && Object.keys(rec).length ? rec : null;
+
 type EntryUpdateInput = typeof entryUpdateSchema._output;
 
 export const toEntryUpdate = (input: EntryUpdateInput) => {
@@ -143,6 +148,9 @@ export const toEntryUpdate = (input: EntryUpdateInput) => {
 	return {
 		...rest,
 		notes: input.notes ?? null,
+		...(input.quickNutrients !== undefined
+			? { quickNutrients: normalizeQuickNutrients(input.quickNutrients) }
+			: {}),
 		...(eatenAt !== undefined ? { eatenAt: eatenAt ? new Date(eatenAt) : new Date() } : {})
 	};
 };
@@ -254,7 +262,8 @@ export const copyEntries = async (userId: string, fromDate: string, toDate: stri
 		quickProtein: entry.quickProtein,
 		quickCarbs: entry.quickCarbs,
 		quickFat: entry.quickFat,
-		quickFiber: entry.quickFiber
+		quickFiber: entry.quickFiber,
+		quickNutrients: entry.quickNutrients
 	}));
 
 	return db.insert(foodEntries).values(rows).returning();

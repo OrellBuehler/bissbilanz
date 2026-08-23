@@ -15,6 +15,7 @@ const entryListItemSchema = z
 		quickCarbs: z.number().nullable(),
 		quickFat: z.number().nullable(),
 		quickFiber: z.number().nullable(),
+		quickNutrients: z.record(z.string(), z.number()).nullable(),
 		foodName: z.string().nullable(),
 		calories: z.number(),
 		protein: z.number(),
@@ -44,6 +45,7 @@ const entryRawSchema = z
 		quickCarbs: z.number().nullable(),
 		quickFat: z.number().nullable(),
 		quickFiber: z.number().nullable(),
+		quickNutrients: z.record(z.string(), z.number()).nullable(),
 		eatenAt: z.string(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()

@@ -9,6 +9,7 @@ import {
 	integer,
 	date,
 	index,
+	jsonb,
 	primaryKey,
 	uniqueIndex,
 	unique,
@@ -224,6 +225,7 @@ export const foodEntries = pgTable(
 		quickCarbs: real('quick_carbs'),
 		quickFat: real('quick_fat'),
 		quickFiber: real('quick_fiber'),
+		quickNutrients: jsonb('quick_nutrients').$type<Record<string, number>>(),
 		eatenAt: timestamp('eaten_at', { withTimezone: true }).notNull().defaultNow(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()

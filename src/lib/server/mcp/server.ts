@@ -218,6 +218,7 @@ export function createMcpServer(userId: string): McpServer {
 		quickCarbs: 'Carbs in grams for quick log',
 		quickFat: 'Fat in grams for quick log',
 		quickFiber: 'Fiber in grams for quick log',
+		quickNutrients: `Extended nutrients for a quick log, as an object mapping nutrient key to amount per serving. Valid keys: ${ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ')}.`,
 		eatenAt:
 			'When the food was eaten, as ISO 8601 datetime with timezone (e.g., "2025-01-15T12:30:00+01:00"). Defaults to current time if not provided.'
 	};
@@ -226,7 +227,7 @@ export function createMcpServer(userId: string): McpServer {
 		'log_food',
 		{
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
+				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). Quick logs can also carry extended nutrients via quickNutrients. If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
 			inputSchema: describeShape(
 				{ ...entryBaseSchema.shape, date: entryBaseSchema.shape.date.optional() },
 				ENTRY_FIELD_DOCS
