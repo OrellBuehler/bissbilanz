@@ -71,6 +71,7 @@ import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.toLocalizedDoubleOrNull
+import com.bissbilanz.util.toNutrientDoubles
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -102,6 +103,7 @@ fun AddFoodSheet(
     val recipes by viewModel.allRecipes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val visibleNutrients by viewModel.visibleNutrients.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabLabels =
@@ -128,6 +130,7 @@ fun AddFoodSheet(
     var quickCarbs by remember { mutableStateOf("") }
     var quickFat by remember { mutableStateOf("") }
     var quickFiber by remember { mutableStateOf("") }
+    var quickNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var quickNotes by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -348,14 +351,17 @@ fun AddFoodSheet(
                                 quickCarbs,
                                 quickFat,
                                 quickFiber,
+                                quickNutrients,
                                 quickNotes,
                                 isSaving,
+                                visibleNutrients,
                                 onNameChange = { quickName = it },
                                 onCaloriesChange = { quickCalories = it },
                                 onProteinChange = { quickProtein = it },
                                 onCarbsChange = { quickCarbs = it },
                                 onFatChange = { quickFat = it },
                                 onFiberChange = { quickFiber = it },
+                                onNutrientsChange = { quickNutrients = it },
                                 onNotesChange = { quickNotes = it },
                                 onSave = {
                                     viewModel.logQuickEntry(
@@ -367,6 +373,7 @@ fun AddFoodSheet(
                                         quickCarbs.toLocalizedDoubleOrNull(),
                                         quickFat.toLocalizedDoubleOrNull(),
                                         quickFiber.toLocalizedDoubleOrNull(),
+                                        quickNutrients.toNutrientDoubles().ifEmpty { null },
                                         quickNotes,
                                     ) { onLogged() }
                                 },
@@ -503,14 +510,17 @@ private fun QuickTab(
     carbs: String,
     fat: String,
     fiber: String,
+    nutrients: Map<String, String>,
     notes: String,
     isSaving: Boolean,
+    visibleNutrients: Set<String>?,
     onNameChange: (String) -> Unit,
     onCaloriesChange: (String) -> Unit,
     onProteinChange: (String) -> Unit,
     onCarbsChange: (String) -> Unit,
     onFatChange: (String) -> Unit,
     onFiberChange: (String) -> Unit,
+    onNutrientsChange: (Map<String, String>) -> Unit,
     onNotesChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
@@ -530,6 +540,11 @@ private fun QuickTab(
         NutrientTextField(stringResource(R.string.add_food_quick_carbs), carbs, CarbsOrange, onCarbsChange)
         NutrientTextField(stringResource(R.string.add_food_quick_fat), fat, FatYellow, onFatChange)
         NutrientTextField(stringResource(R.string.food_form_fiber_optional), fiber, FiberGreen, onFiberChange)
+        QuickNutrientInputs(
+            nutrients = nutrients,
+            onNutrientsChange = onNutrientsChange,
+            visibleNutrientKeys = visibleNutrients,
+        )
         OutlinedTextField(
             value = notes,
             onValueChange = onNotesChange,

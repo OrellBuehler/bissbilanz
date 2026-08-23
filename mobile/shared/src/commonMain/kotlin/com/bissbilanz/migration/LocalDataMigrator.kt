@@ -896,6 +896,7 @@ class LocalDataMigrator(
             quickCarbs = quickCarbs ?: if (orphan) food?.carbs ?: recipe?.carbs ?: carbs else null,
             quickFat = quickFat ?: if (orphan) food?.fat ?: recipe?.fat ?: fat else null,
             quickFiber = quickFiber ?: if (orphan) food?.fiber ?: recipe?.fiber ?: fiber else null,
+            quickNutrients = quickNutrients,
             eatenAt = eatenAt,
         )
     }

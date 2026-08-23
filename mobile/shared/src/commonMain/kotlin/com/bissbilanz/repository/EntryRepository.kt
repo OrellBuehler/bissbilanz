@@ -213,6 +213,7 @@ class EntryRepository(
                     quickCarbs = entry.quickCarbs,
                     quickFat = entry.quickFat,
                     quickFiber = entry.quickFiber,
+                    quickNutrients = entry.quickNutrients,
                     eatenAt = entry.eatenAt,
                 )
             createEntry(create, food = entry.food, recipe = entry.recipe)
@@ -312,6 +313,7 @@ class EntryRepository(
             quickCarbs = entry.quickCarbs,
             quickFat = entry.quickFat,
             quickFiber = entry.quickFiber,
+            quickNutrients = entry.quickNutrients,
             eatenAt = entry.eatenAt,
             createdAt = Clock.System.now().toString(),
             food = food,
@@ -335,6 +337,7 @@ class EntryRepository(
             quickCarbs = update.quickCarbs ?: existing.quickCarbs,
             quickFat = update.quickFat ?: existing.quickFat,
             quickFiber = update.quickFiber ?: existing.quickFiber,
+            quickNutrients = update.quickNutrients ?: existing.quickNutrients,
             eatenAt = update.eatenAt ?: existing.eatenAt,
         )
 
@@ -355,6 +358,7 @@ class EntryRepository(
             quickCarbs = update.quickCarbs ?: existing.quickCarbs,
             quickFat = update.quickFat ?: existing.quickFat,
             quickFiber = update.quickFiber ?: existing.quickFiber,
+            quickNutrients = update.quickNutrients ?: existing.quickNutrients,
             eatenAt = update.eatenAt ?: existing.eatenAt,
         )
 }
