@@ -57,6 +57,7 @@
 		quickCarbs?: number | null;
 		quickFat?: number | null;
 		quickFiber?: number | null;
+		quickNutrients?: Record<string, number> | null;
 		quickName?: string | null;
 	} | null = $state(null);
 
@@ -109,6 +110,7 @@
 		quickCarbs?: number | null;
 		quickFat?: number | null;
 		quickFiber?: number | null;
+		quickNutrients?: Record<string, number> | null;
 	}) => {
 		const { id, ...body } = payload;
 		await entryService.update(id, body);
@@ -136,6 +138,7 @@
 		quickCarbs?: number | null;
 		quickFat?: number | null;
 		quickFiber?: number | null;
+		quickNutrients?: Record<string, number> | null;
 		quickName?: string | null;
 	}) => {
 		editingEntry = entry;
