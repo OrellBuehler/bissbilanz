@@ -142,7 +142,7 @@ struct FoodEditForm: View {
                 .onDelete(perform: removeAdditionalNutrients)
 
                 Menu {
-                    ForEach(Self.nutrientCatalog) { category in
+                    ForEach(NutrientCatalog.categories) { category in
                         if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
                             Menu(category.title) {
                                 ForEach(category.nutrients) { spec in
@@ -201,7 +201,7 @@ struct FoodEditForm: View {
 
     /// Catalog rows the user has added a value row for, in catalog order.
     private var addedNutrients: [AdditionalNutrientSpec] {
-        Self.nutrientCatalog.flatMap(\.nutrients).filter { additionalValues[$0.key] != nil }
+        NutrientCatalog.all.filter { additionalValues[$0.key] != nil }
     }
 
     private func additionalNutrientField(_ spec: AdditionalNutrientSpec) -> some View {
@@ -238,7 +238,7 @@ struct FoodEditForm: View {
         // Surface any extended nutrients already stored on the food so they can
         // be reviewed and edited alongside newly added ones.
         let encoded = (try? JSONPatch.dictionary(of: food)) ?? [:]
-        for spec in Self.nutrientCatalog.flatMap(\.nutrients) {
+        for spec in NutrientCatalog.all {
             if let number = encoded[spec.key] as? NSNumber {
                 additionalValues[spec.key] = Self.numberString(number.doubleValue)
             }
@@ -321,75 +321,4 @@ struct FoodEditForm: View {
         }
         isSaving = false
     }
-
-    // Supported extended nutrients, grouped for the "Add Nutrient" menu. Keys
-    // match the FoodCreate JSON fields; units mirror the food detail view.
-    private static let nutrientCatalog: [AdditionalNutrientCategory] = [
-        AdditionalNutrientCategory(title: "Fat Breakdown", nutrients: [
-            AdditionalNutrientSpec(key: "saturatedFat", label: "Saturated Fat", unit: "g"),
-            AdditionalNutrientSpec(key: "monounsaturatedFat", label: "Monounsaturated Fat", unit: "g"),
-            AdditionalNutrientSpec(key: "polyunsaturatedFat", label: "Polyunsaturated Fat", unit: "g"),
-            AdditionalNutrientSpec(key: "transFat", label: "Trans Fat", unit: "g"),
-            AdditionalNutrientSpec(key: "cholesterol", label: "Cholesterol", unit: "mg"),
-            AdditionalNutrientSpec(key: "omega3", label: "Omega-3", unit: "g"),
-            AdditionalNutrientSpec(key: "omega6", label: "Omega-6", unit: "g"),
-        ]),
-        AdditionalNutrientCategory(title: "Sugars & Carbs", nutrients: [
-            AdditionalNutrientSpec(key: "sugar", label: "Sugar", unit: "g"),
-            AdditionalNutrientSpec(key: "addedSugars", label: "Added Sugars", unit: "g"),
-            AdditionalNutrientSpec(key: "sugarAlcohols", label: "Sugar Alcohols", unit: "g"),
-            AdditionalNutrientSpec(key: "starch", label: "Starch", unit: "g"),
-        ]),
-        AdditionalNutrientCategory(title: "Minerals", nutrients: [
-            AdditionalNutrientSpec(key: "sodium", label: "Sodium", unit: "mg"),
-            AdditionalNutrientSpec(key: "potassium", label: "Potassium", unit: "mg"),
-            AdditionalNutrientSpec(key: "calcium", label: "Calcium", unit: "mg"),
-            AdditionalNutrientSpec(key: "iron", label: "Iron", unit: "mg"),
-            AdditionalNutrientSpec(key: "magnesium", label: "Magnesium", unit: "mg"),
-            AdditionalNutrientSpec(key: "phosphorus", label: "Phosphorus", unit: "mg"),
-            AdditionalNutrientSpec(key: "zinc", label: "Zinc", unit: "mg"),
-            AdditionalNutrientSpec(key: "copper", label: "Copper", unit: "mg"),
-            AdditionalNutrientSpec(key: "manganese", label: "Manganese", unit: "mg"),
-            AdditionalNutrientSpec(key: "selenium", label: "Selenium", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "iodine", label: "Iodine", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "fluoride", label: "Fluoride", unit: "mg"),
-            AdditionalNutrientSpec(key: "chromium", label: "Chromium", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "molybdenum", label: "Molybdenum", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "chloride", label: "Chloride", unit: "mg"),
-        ]),
-        AdditionalNutrientCategory(title: "Vitamins", nutrients: [
-            AdditionalNutrientSpec(key: "vitaminA", label: "Vitamin A", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "vitaminC", label: "Vitamin C", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminD", label: "Vitamin D", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "vitaminE", label: "Vitamin E", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminK", label: "Vitamin K", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "vitaminB1", label: "Vitamin B1", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminB2", label: "Vitamin B2", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminB3", label: "Vitamin B3", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminB5", label: "Vitamin B5", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminB6", label: "Vitamin B6", unit: "mg"),
-            AdditionalNutrientSpec(key: "vitaminB7", label: "Vitamin B7", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "vitaminB9", label: "Vitamin B9", unit: "\u{00B5}g"),
-            AdditionalNutrientSpec(key: "vitaminB12", label: "Vitamin B12", unit: "\u{00B5}g"),
-        ]),
-        AdditionalNutrientCategory(title: "Other", nutrients: [
-            AdditionalNutrientSpec(key: "caffeine", label: "Caffeine", unit: "mg"),
-            AdditionalNutrientSpec(key: "alcohol", label: "Alcohol", unit: "g"),
-            AdditionalNutrientSpec(key: "water", label: "Water", unit: "g"),
-            AdditionalNutrientSpec(key: "salt", label: "Salt", unit: "g"),
-        ]),
-    ]
-}
-
-private struct AdditionalNutrientSpec: Identifiable {
-    let key: String
-    let label: String
-    let unit: String
-    var id: String { key }
-}
-
-private struct AdditionalNutrientCategory: Identifiable {
-    let title: String
-    let nutrients: [AdditionalNutrientSpec]
-    var id: String { title }
 }
