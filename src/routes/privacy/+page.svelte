@@ -1,6 +1,9 @@
 <script lang="ts">
+	import Seo from '$lib/components/Seo.svelte';
 	import * as m from '$lib/paraglide/messages';
 </script>
+
+<Seo title={m.seo_privacy_title()} description={m.seo_privacy_description()} path="/privacy" />
 
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>

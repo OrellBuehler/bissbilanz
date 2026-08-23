@@ -1,3 +1,37 @@
-# allow crawling everything by default
+# Marketing and legal pages are crawlable. Everything behind sign-in redirects
+# to /login for anonymous visitors, so it is excluded to avoid wasted crawling.
 User-agent: *
-Disallow:
+Disallow: /api/
+Disallow: /app/
+Disallow: /login
+Disallow: /authorize
+Disallow: /token
+Disallow: /oauth/
+Disallow: /uploads/
+Disallow: /.well-known/
+Disallow: /home
+Disallow: /foods
+Disallow: /recipes
+Disallow: /favorites
+Disallow: /history
+Disallow: /insights
+Disallow: /goals
+Disallow: /weight
+Disallow: /supplements
+Disallow: /settings
+Disallow: /ai-tasks
+Disallow: /maintenance
+Disallow: /de/home
+Disallow: /de/foods
+Disallow: /de/recipes
+Disallow: /de/favorites
+Disallow: /de/history
+Disallow: /de/insights
+Disallow: /de/goals
+Disallow: /de/weight
+Disallow: /de/supplements
+Disallow: /de/settings
+Disallow: /de/ai-tasks
+Disallow: /de/maintenance
+
+Sitemap: https://bissbilanz.orellbuehler.ch/sitemap.xml
