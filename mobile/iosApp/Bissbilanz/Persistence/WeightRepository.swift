@@ -196,7 +196,7 @@ final class WeightRepository {
     /// Runs `body` with the Health write-back suppressed for `dates`. Those
     /// entries came out of Health, so they get marked as already synced instead
     /// of being written back as app-authored duplicates of the scale's samples.
-    func withHealthImportInProgress<T>(dates: Set<String>, _ body: () async throws -> T) async rethrows -> T {
+    func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
         healthImportDates = dates
         defer { healthImportDates = [] }
         return try await body()

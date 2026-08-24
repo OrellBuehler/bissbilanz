@@ -203,7 +203,7 @@ final class SleepRepository {
     /// Runs `body` with the Health write-back suppressed for `dates` — imported
     /// nights are marked as already synced rather than written back as
     /// duplicates of the Watch's own sleep samples.
-    func withHealthImportInProgress<T>(dates: Set<String>, _ body: () async throws -> T) async rethrows -> T {
+    func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
         healthImportDates = dates
         defer { healthImportDates = [] }
         return try await body()
