@@ -1226,6 +1226,7 @@ export interface components {
 			isActive?: boolean;
 			sortOrder?: number;
 			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			reminderTimes?: string[] | null;
 			ingredients: components['schemas']['SupplementIngredientInput'][];
 		};
 		SupplementUpdate: {
@@ -1237,6 +1238,7 @@ export interface components {
 			isActive?: boolean;
 			sortOrder?: number;
 			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			reminderTimes?: string[] | null;
 			ingredients?: components['schemas']['SupplementIngredientInput'][];
 		};
 		SupplementLogCreate: {
@@ -1639,6 +1641,7 @@ export interface components {
 			isActive: boolean;
 			sortOrder: number;
 			timeOfDay: ('morning' | 'noon' | 'evening') | null;
+			reminderTimes?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
 			ingredients: components['schemas']['SupplementIngredient'][];

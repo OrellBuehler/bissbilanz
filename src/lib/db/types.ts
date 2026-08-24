@@ -200,6 +200,8 @@ export type DexieSupplement = {
 	isActive: boolean;
 	sortOrder: number;
 	timeOfDay: string | null;
+	/** Local wall-clock 'HH:MM' reminder times; mobile-only delivery. */
+	reminderTimes: string[] | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 	ingredients: DexieSupplementIngredient[];

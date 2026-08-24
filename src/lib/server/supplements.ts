@@ -190,6 +190,7 @@ export const listSupplements = async (
 		...r,
 		scheduleDays: r.scheduleDays ?? null,
 		scheduleStartDate: r.scheduleStartDate ?? null,
+		reminderTimes: r.reminderTimes ?? null,
 		ingredients: ingredientsMap.get(r.id) ?? []
 	}));
 };
@@ -229,7 +230,8 @@ export const createSupplement = (
 						data.scheduleStartDate ?? todayInTimeZone(await getUserTimeZone(userId)),
 					isActive: data.isActive ?? true,
 					sortOrder: data.sortOrder ?? 0,
-					timeOfDay: data.timeOfDay ?? null
+					timeOfDay: data.timeOfDay ?? null,
+					reminderTimes: data.reminderTimes ?? null
 				})
 				.returning();
 

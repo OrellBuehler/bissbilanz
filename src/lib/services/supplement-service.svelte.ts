@@ -117,6 +117,7 @@ async function create(supplement: SupplementCreate) {
 		isActive: supplement.isActive ?? true,
 		sortOrder: supplement.sortOrder ?? 0,
 		timeOfDay: supplement.timeOfDay ?? null,
+		reminderTimes: supplement.reminderTimes ?? null,
 		createdAt: now,
 		updatedAt: now,
 		ingredients: []

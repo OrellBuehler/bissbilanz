@@ -221,6 +221,7 @@ final class SupplementRepository {
             isActive: create.isActive ?? true,
             sortOrder: create.sortOrder ?? 0,
             timeOfDay: create.timeOfDay,
+            reminderTimes: create.reminderTimes,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil,
             ingredients: resolvedIngredients(create.ingredients, supplementId: id)
@@ -297,6 +298,7 @@ final class SupplementRepository {
             isActive: supplement.isActive,
             sortOrder: supplement.sortOrder,
             timeOfDay: supplement.timeOfDay,
+            reminderTimes: supplement.reminderTimes,
             createdAt: supplement.createdAt,
             updatedAt: supplement.updatedAt,
             ingredients: ingredients

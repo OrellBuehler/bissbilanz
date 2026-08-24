@@ -5133,6 +5133,21 @@
 							}
 						]
 					},
+					"reminderTimes": {
+						"anyOf": [
+							{
+								"maxItems": 6,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"ingredients": {
 						"minItems": 1,
 						"maxItems": 50,
@@ -5193,6 +5208,21 @@
 							{
 								"type": "string",
 								"enum": ["morning", "noon", "evening"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"reminderTimes": {
+						"anyOf": [
+							{
+								"maxItems": 6,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+								}
 							},
 							{
 								"type": "null"
@@ -7367,6 +7397,19 @@
 							{
 								"type": "string",
 								"enum": ["morning", "noon", "evening"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"reminderTimes": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
 							},
 							{
 								"type": "null"

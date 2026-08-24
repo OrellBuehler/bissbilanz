@@ -459,7 +459,7 @@ struct SupplementModelTests {
             id: "s1", userId: "u1", name: "Vitamin D",
             scheduleType: .daily, scheduleDays: nil,
             scheduleStartDate: nil, isActive: true, sortOrder: 0,
-            timeOfDay: "morning", createdAt: nil, updatedAt: nil,
+            timeOfDay: "morning", reminderTimes: nil, createdAt: nil, updatedAt: nil,
             ingredients: []
         )
         let checklist = SupplementChecklist(supplement: supplement, taken: false, takenAt: nil)

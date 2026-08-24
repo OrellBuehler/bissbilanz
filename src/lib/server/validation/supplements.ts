@@ -17,6 +17,18 @@ export const ingredientSchema = z
 		path: ['foodId']
 	});
 
+/**
+ * Optional local wall-clock reminder times ('HH:MM', 24h). De-duplicated and sorted so the
+ * stored order is stable — iOS derives notification identifiers from these, and a reshuffle
+ * on every save would churn the whole pending set.
+ */
+const reminderTimesSchema = z
+	.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Reminder times must be HH:MM (24h)'))
+	.max(6)
+	.transform((times) => [...new Set(times)].sort())
+	.optional()
+	.nullable();
+
 export const supplementCreateSchema = z
 	.object({
 		name: z.string().min(1),
@@ -26,6 +38,7 @@ export const supplementCreateSchema = z
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
 		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+		reminderTimes: reminderTimesSchema,
 		ingredients: z.array(ingredientSchema).min(1).max(50)
 	})
 	.meta({ id: 'SupplementCreate' })
@@ -48,6 +61,7 @@ export const supplementUpdateSchema = z
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
 		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+		reminderTimes: reminderTimesSchema,
 		ingredients: z.array(ingredientSchema).min(1).max(50).optional()
 	})
 	.meta({ id: 'SupplementUpdate' });

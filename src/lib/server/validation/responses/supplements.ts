@@ -41,6 +41,9 @@ const supplementSchema = z
 		isActive: z.boolean().default(true),
 		sortOrder: z.number().int(),
 		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable(),
+		// Optional, not just nullable: staying out of OpenAPI `required` keeps generated
+		// mobile models defaulted, so a device decoding pre-upgrade cached JSON still works.
+		reminderTimes: z.array(z.string()).nullable().optional(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
 		ingredients: z.array(supplementIngredientSchema)
