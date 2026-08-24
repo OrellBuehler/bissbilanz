@@ -3,8 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Ongoing "fast in progress" notification; the fast itself works without it. -->
+    <!-- Ongoing "fast in progress" notification and supplement reminders; both
+         features work without it, only their notifications are missing. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Reboot clears all pending alarms, so supplement reminders must re-arm. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Health Connect: weight and sleep both ways, nutrition write-only. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
@@ -147,6 +150,28 @@
         <receiver
             android:name=".fasting.EndFastReceiver"
             android:exported="false" />
+
+        <!-- Supplement reminders. The first two are targeted only by our own explicit,
+             immutable PendingIntents; the third needs an intent-filter for the system
+             broadcasts, which are exempt from the implicit-broadcast ban. -->
+        <receiver
+            android:name=".reminders.SupplementReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.SupplementReminderActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.BootAndTimeChangeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

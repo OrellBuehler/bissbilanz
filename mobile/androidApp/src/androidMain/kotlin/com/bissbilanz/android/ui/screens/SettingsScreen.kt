@@ -21,13 +21,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
@@ -505,6 +508,10 @@ fun SettingsScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    SupplementRemindersCard()
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // Favorite Logging
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -870,3 +877,87 @@ fun nutrientCategories() =
                 "salt" to stringResource(R.string.nutrient_salt),
             ),
     )
+
+/**
+ * Snooze duration for supplement reminders, plus the notification-permission status.
+ *
+ * Device-local (SharedPreferences), not a server preference: how long a snooze lasts is a
+ * property of the phone you're being reminded on. Presets rather than a free-text field —
+ * there is nothing to parse, clamp or reject, and it stays parallel with iOS.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SupplementRemindersCard() {
+    val context = LocalContext.current
+    val reminderPrefs: SupplementReminderPreferences = koinInject()
+    var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
+    var expanded by remember { mutableStateOf(false) }
+    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    @Composable
+    fun label(minutes: Int) =
+        if (minutes % 60 == 0 && minutes >= 60) {
+            stringResource(R.string.settings_snooze_hours, minutes / 60)
+        } else {
+            stringResource(R.string.settings_snooze_minutes, minutes)
+        }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.settings_reminders_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+            ) {
+                OutlinedTextField(
+                    value = label(snoozeMinutes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_snooze_duration)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier =
+                        Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    SupplementReminderPreferences.SNOOZE_PRESETS.forEach { minutes ->
+                        DropdownMenuItem(
+                            text = { Text(label(minutes)) },
+                            onClick = {
+                                snoozeMinutes = minutes
+                                reminderPrefs.snoozeMinutes = minutes
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (!notificationsEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.settings_reminders_permission_missing),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = { openNotificationSettings(context) }) {
+                    Text(stringResource(R.string.settings_reminders_permission_grant))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.settings_reminders_delay_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

@@ -523,6 +523,26 @@
     <string name="supplement_time_noon">Noon</string>
     <string name="supplement_time_evening">Evening</string>
     <string name="supplement_time_anytime">Anytime</string>
+
+    <!-- Supplement reminders -->
+    <string name="supplement_reminder_channel">Supplement reminders</string>
+    <string name="supplement_reminder_channel_desc">Reminds you when a supplement is due.</string>
+    <string name="supplement_reminder_title">Time for %1$s</string>
+    <string name="supplement_reminder_summary">Supplements due</string>
+    <string name="supplement_reminder_action_taken">Mark taken</string>
+    <string name="supplement_reminder_action_snooze">Remind later</string>
+    <string name="supplement_reminder_action_skip">Skip today</string>
+    <string name="supplement_reminders">Reminders</string>
+    <string name="supplement_add_reminder">Add reminder time</string>
+    <string name="supplement_remove_reminder">Remove reminder time</string>
+    <string name="supplement_reminders_none">No reminders</string>
+    <string name="settings_reminders_title">Supplement reminders</string>
+    <string name="settings_snooze_duration">Remind me again after</string>
+    <string name="settings_snooze_minutes">%1$d min</string>
+    <string name="settings_snooze_hours">%1$d h</string>
+    <string name="settings_reminders_delay_note">Reminders may arrive up to about 10 minutes late while your phone is idle, and are silenced by Do Not Disturb.</string>
+    <string name="settings_reminders_permission_missing">Notifications are turned off, so reminders won\'t appear.</string>
+    <string name="settings_reminders_permission_grant">Open notification settings</string>
     <string name="supplement_unit_drops">drops</string>
     <string name="supplement_unit_capsules">capsules</string>
     <string name="supplement_unit_tablets">tablets</string>
