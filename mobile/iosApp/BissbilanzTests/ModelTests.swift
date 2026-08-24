@@ -67,7 +67,7 @@ struct EntryModelTests {
             id: "e2", mealType: "snacks", servings: 1, notes: nil,
             foodId: nil, recipeId: nil,
             quickName: "Protein Bar", quickCalories: 200, quickProtein: 20,
-            quickCarbs: 25, quickFat: 8, quickFiber: 3,
+            quickCarbs: 25, quickFat: 8, quickFiber: 3, quickNutrients: nil,
             foodName: nil, calories: nil, protein: nil,
             carbs: nil, fat: nil, fiber: nil,
             servingSize: nil, servingUnit: nil,
@@ -118,6 +118,7 @@ struct EntryDecodingTests {
         let response = try JSONDecoder().decode(EntryResponse.self, from: json)
         #expect(response.entry.date == "2026-06-09")
         #expect(response.entry.calories == nil)
+        #expect(response.entry.quickNutrients == nil)
     }
 }
 
@@ -215,7 +216,7 @@ struct EntryRecipeTests {
             id: "e1", mealType: "snacks", servings: 1, notes: nil,
             foodId: "f1", recipeId: nil,
             quickName: nil, quickCalories: 200, quickProtein: 20,
-            quickCarbs: nil, quickFat: nil, quickFiber: nil,
+            quickCarbs: nil, quickFat: nil, quickFiber: nil, quickNutrients: nil,
             foodName: "Apple", calories: 95, protein: 0.5,
             carbs: 25, fat: 0.3, fiber: 4.4,
             servingSize: nil, servingUnit: nil,
@@ -246,7 +247,7 @@ struct EntryDisplayNameTests {
             id: "e1", mealType: "snacks", servings: 2, notes: nil,
             foodId: nil, recipeId: nil,
             quickName: "Mystery Snack", quickCalories: nil, quickProtein: nil,
-            quickCarbs: nil, quickFat: nil, quickFiber: nil,
+            quickCarbs: nil, quickFat: nil, quickFiber: nil, quickNutrients: nil,
             foodName: nil, calories: nil, protein: nil,
             carbs: nil, fat: nil, fiber: nil,
             servingSize: nil, servingUnit: nil,
@@ -263,7 +264,7 @@ struct EntryDisplayNameTests {
             id: "e1", mealType: "snacks", servings: 3, notes: nil,
             foodId: nil, recipeId: nil,
             quickName: "Protein Bar", quickCalories: 200, quickProtein: 20,
-            quickCarbs: 25, quickFat: 8, quickFiber: 3,
+            quickCarbs: 25, quickFat: 8, quickFiber: 3, quickNutrients: nil,
             foodName: nil, calories: nil, protein: nil,
             carbs: nil, fat: nil, fiber: nil,
             servingSize: nil, servingUnit: nil,
@@ -664,7 +665,7 @@ private func makeListEntry(
         id: id, mealType: mealType, servings: servings, notes: nil,
         foodId: foodId, recipeId: recipeId,
         quickName: nil, quickCalories: nil,
-        quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil,
+        quickProtein: nil, quickCarbs: nil, quickFat: nil, quickFiber: nil, quickNutrients: nil,
         foodName: foodName, calories: calories, protein: protein,
         carbs: carbs, fat: fat, fiber: fiber,
         servingSize: nil, servingUnit: nil,

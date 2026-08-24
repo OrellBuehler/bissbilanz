@@ -10,10 +10,16 @@
 	import Check from '@lucide/svelte/icons/check';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
 	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
 	type Props = {
 		open?: boolean;
@@ -32,6 +38,7 @@
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
+			quickNutrients?: Record<string, number> | null;
 			quickName?: string | null;
 		} | null;
 		onClose: () => void;
@@ -46,6 +53,7 @@
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
+			quickNutrients?: Record<string, number> | null;
 		}) => void;
 		onDelete: (id: string) => void;
 	};
@@ -70,6 +78,19 @@
 	let editQuickCarbs = $state<number | null>(null);
 	let editQuickFat = $state<number | null>(null);
 	let editQuickFiber = $state<number | null>(null);
+	let editQuickNutrients = $state<Record<string, number>>({});
+	let editNutrientsOpen = $state(false);
+
+	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
+	let visibleNutrients = $derived(cachedPrefs.value?.visibleNutrients ?? DEFAULT_VISIBLE_NUTRIENTS);
+
+	const setQuickNutrient = (key: string, value: number | null) => {
+		if (value == null) {
+			delete editQuickNutrients[key];
+		} else {
+			editQuickNutrients[key] = value;
+		}
+	};
 
 	const isQuickEntry = $derived(entry?.quickCalories != null);
 
@@ -96,6 +117,8 @@
 				editQuickCarbs = entry.quickCarbs ?? null;
 				editQuickFat = entry.quickFat ?? null;
 				editQuickFiber = entry.quickFiber ?? null;
+				editQuickNutrients = entry.quickNutrients ? { ...entry.quickNutrients } : {};
+				editNutrientsOpen = Object.keys(editQuickNutrients).length > 0;
 			}
 		}
 	});
@@ -116,7 +139,8 @@
 				quickProtein: editQuickProtein,
 				quickCarbs: editQuickCarbs,
 				quickFat: editQuickFat,
-				quickFiber: editQuickFiber
+				quickFiber: editQuickFiber,
+				quickNutrients: Object.keys(editQuickNutrients).length ? { ...editQuickNutrients } : null
 			});
 		} else {
 			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
@@ -179,6 +203,28 @@
 							<TriangleAlert class="size-3.5" />
 						{/if}
 						{m.quick_log_macro_calories({ calories: Math.round(editMacroCalories) })}
+					</div>
+				{/if}
+				<button
+					type="button"
+					class="flex items-center gap-1 text-sm text-muted-foreground"
+					onclick={() => (editNutrientsOpen = !editNutrientsOpen)}
+				>
+					{#if editNutrientsOpen}
+						<ChevronUp class="size-4" />
+					{:else}
+						<ChevronDown class="size-4" />
+					{/if}
+					{m.quick_log_nutrients()}
+				</button>
+				{#if editNutrientsOpen}
+					<div class="space-y-2">
+						<NutrientCategoryInputs
+							values={editQuickNutrients}
+							onChange={setQuickNutrient}
+							{visibleNutrients}
+							idPrefix="edit-quick-"
+						/>
 					</div>
 				{/if}
 			</div>

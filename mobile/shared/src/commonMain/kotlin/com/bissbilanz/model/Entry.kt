@@ -20,6 +20,7 @@ data class Entry(
     val quickCarbs: Double? = null,
     val quickFat: Double? = null,
     val quickFiber: Double? = null,
+    val quickNutrients: Map<String, Double>? = null,
     val eatenAt: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,

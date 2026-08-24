@@ -4,6 +4,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -30,6 +31,7 @@ class AddFoodViewModelTest {
     private lateinit var foodRepo: FoodRepository
     private lateinit var recipeRepo: RecipeRepository
     private lateinit var entryRepo: EntryRepository
+    private lateinit var prefsRepo: PreferencesRepository
     private lateinit var errorReporter: ErrorReporter
 
     @BeforeTest
@@ -45,6 +47,10 @@ class AddFoodViewModelTest {
                 every { allRecipes() } returns flowOf(emptyList())
             }
         entryRepo = mockk(relaxed = true)
+        prefsRepo =
+            mockk(relaxed = true) {
+                every { preferences() } returns flowOf(null)
+            }
         errorReporter = mockk(relaxed = true)
     }
 
@@ -53,7 +59,7 @@ class AddFoodViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = AddFoodViewModel(foodRepo, recipeRepo, entryRepo, errorReporter)
+    private fun viewModel() = AddFoodViewModel(foodRepo, recipeRepo, entryRepo, prefsRepo, errorReporter)
 
     private fun testFood(id: String = "food-1") =
         Food(
@@ -223,6 +229,7 @@ class AddFoodViewModelTest {
                 carbs = 50.0,
                 fat = 20.0,
                 fiber = null,
+                quickNutrients = mapOf("sugar" to 15.0),
                 notes = null,
                 onComplete = {},
             )
@@ -234,7 +241,8 @@ class AddFoodViewModelTest {
                         it.mealType == "dinner" &&
                             it.date == "2024-01-15" &&
                             it.quickName == "Restaurant meal" &&
-                            it.quickCalories == 600.0
+                            it.quickCalories == 600.0 &&
+                            it.quickNutrients == mapOf("sugar" to 15.0)
                     },
                     food = isNull(),
                     recipe = isNull(),

@@ -191,6 +191,7 @@ final class EntryRepository {
                 quickCarbs: entry.quickCarbs,
                 quickFat: entry.quickFat,
                 quickFiber: entry.quickFiber,
+                quickNutrients: entry.quickNutrients,
                 eatenAt: entry.eatenAt
             )
             // Patch the source entry instead of rebuilding so resolved display
@@ -308,6 +309,7 @@ final class EntryRepository {
             quickCarbs: server.quickCarbs ?? local.quickCarbs,
             quickFat: server.quickFat ?? local.quickFat,
             quickFiber: server.quickFiber ?? local.quickFiber,
+            quickNutrients: server.quickNutrients ?? local.quickNutrients,
             foodName: server.foodName ?? local.foodName,
             calories: server.calories ?? local.calories,
             protein: server.protein ?? local.protein,

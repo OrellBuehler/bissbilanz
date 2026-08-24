@@ -95,6 +95,7 @@ export type DexieFoodEntry = {
 	fiber: number | null;
 	servingSize: number | null;
 	servingUnit: string | null;
+	quickNutrients?: Record<string, number> | null;
 	createdAt: string | null;
 };
 

@@ -4821,6 +4821,23 @@
 							}
 						]
 					},
+					"quickNutrients": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {
+									"type": "number",
+									"minimum": 0
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"eatenAt": {
 						"type": "string",
 						"format": "date-time",
@@ -4924,6 +4941,23 @@
 							{
 								"type": "number",
 								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickNutrients": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {
+									"type": "number",
+									"minimum": 0
+								}
 							},
 							{
 								"type": "null"
@@ -6675,6 +6709,22 @@
 							}
 						]
 					},
+					"quickNutrients": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {
+									"type": "number"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"foodName": {
 						"anyOf": [
 							{
@@ -6740,6 +6790,7 @@
 					"quickCarbs",
 					"quickFat",
 					"quickFiber",
+					"quickNutrients",
 					"foodName",
 					"calories",
 					"protein",
@@ -6878,6 +6929,22 @@
 							}
 						]
 					},
+					"quickNutrients": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {
+									"type": "number"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"eatenAt": {
 						"type": "string"
 					},
@@ -6903,6 +6970,7 @@
 					"quickCarbs",
 					"quickFat",
 					"quickFiber",
+					"quickNutrients",
 					"eatenAt"
 				],
 				"additionalProperties": false

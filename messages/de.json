@@ -139,6 +139,7 @@
 	"quick_log_fat": "Fett (g)",
 	"quick_log_fiber": "Ballaststoffe (g)",
 	"quick_log_macros": "Makros (optional)",
+	"quick_log_nutrients": "Weitere Nährwerte (optional)",
 	"quick_log_add": "Eintragen",
 	"quick_log_macro_calories": "{calories} kcal aus Makros",
 	"add_food_servings": "Portionen",

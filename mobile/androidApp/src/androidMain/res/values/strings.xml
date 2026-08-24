@@ -631,6 +631,7 @@
     <string name="add_food_quick_protein">Protein (g)</string>
     <string name="add_food_quick_carbs">Carbs (g)</string>
     <string name="add_food_quick_fat">Fat (g)</string>
+    <string name="quick_add_more_nutrients">More nutrients</string>
 
     <!-- Entry edit sheet -->
     <string name="entry_edit_unknown">Unknown</string>

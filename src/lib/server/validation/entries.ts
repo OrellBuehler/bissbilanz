@@ -1,6 +1,13 @@
 import 'zod-openapi';
 import { z } from 'zod';
 import { normalizeMealType } from '$lib/utils/meals';
+import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+
+const quickNutrientsSchema = z
+	.record(z.string(), z.coerce.number().nonnegative())
+	.refine((rec) => Object.keys(rec).every((key) => ALL_NUTRIENT_KEYS.includes(key)), {
+		message: 'Invalid nutrient key'
+	});
 
 export const entryBaseSchema = z.object({
 	foodId: z.string().uuid().optional(),
@@ -15,6 +22,7 @@ export const entryBaseSchema = z.object({
 	quickCarbs: z.coerce.number().nonnegative().optional().nullable(),
 	quickFat: z.coerce.number().nonnegative().optional().nullable(),
 	quickFiber: z.coerce.number().nonnegative().optional().nullable(),
+	quickNutrients: quickNutrientsSchema.optional().nullable(),
 	eatenAt: z.string().datetime({ offset: true }).optional()
 });
 

@@ -17,6 +17,7 @@ struct Entry: Codable, Identifiable {
     let quickCarbs: Double?
     let quickFat: Double?
     let quickFiber: Double?
+    let quickNutrients: [String: Double]?
     let foodName: String?
     let calories: Double?
     let protein: Double?
@@ -82,6 +83,7 @@ struct EntryCreate: Codable {
     var quickCarbs: Double?
     var quickFat: Double?
     var quickFiber: Double?
+    var quickNutrients: [String: Double]?
     var eatenAt: String?
 }
 
