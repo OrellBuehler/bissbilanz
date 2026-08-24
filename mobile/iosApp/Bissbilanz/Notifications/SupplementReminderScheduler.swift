@@ -12,7 +12,10 @@ import UserNotifications
 /// repeating `UNCalendarNotificationTrigger` would be far cheaper on slots, but it cannot
 /// express `every_other_day` at all, and removing a repeating request to suppress *today's*
 /// reminder (because the supplement was already taken) would kill the whole series.
-@MainActor
+///
+/// Only `refill` is `@MainActor` (it reads the repository). Everything else stays
+/// nonisolated so the notification delegate's callbacks — which arrive off the main actor
+/// with non-Sendable arguments — can call it directly.
 enum SupplementReminderScheduler {
     static let categoryIdentifier = "SUPPLEMENT_REMINDER"
     static let identifierPrefix = "supp-"
@@ -65,21 +68,50 @@ enum SupplementReminderScheduler {
     /// most reliable way to earn a permanent deny from someone who might have said yes later.
     @discardableResult
     static func requestAuthorizationIfNeeded() async -> Bool {
-        let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
-        switch settings.authorizationStatus {
+        switch await authorizationStatus() {
         case .notDetermined:
-            return await (try? center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+            await withCheckedContinuation { continuation in
+                UNUserNotificationCenter.current()
+                    .requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                        continuation.resume(returning: granted)
+                    }
+            }
         case .denied:
             // Cannot be re-prompted; Settings surfaces a link to the system page.
-            return false
+            false
         default:
-            return true
+            true
         }
     }
 
+    /// `UNNotificationSettings` is not Sendable, so only the status enum leaves the
+    /// callback. Same trick throughout this file: read what we need inside the closure and
+    /// resume with plain values.
     static func authorizationStatus() async -> UNAuthorizationStatus {
-        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                continuation.resume(returning: settings.authorizationStatus)
+            }
+        }
+    }
+
+    /// Identifiers of everything currently scheduled. `UNNotificationRequest` is not
+    /// Sendable; the identifiers are.
+    private static func pendingIdentifiers() async -> [String] {
+        await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+                continuation.resume(returning: requests.map(\.identifier))
+            }
+        }
+    }
+
+    /// Identifiers of reminders already sitting in Notification Center.
+    private static func deliveredIdentifiers() async -> [String] {
+        await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+                continuation.resume(returning: notifications.map(\.request.identifier))
+            }
+        }
     }
 
     // MARK: - Refill
@@ -88,6 +120,7 @@ enum SupplementReminderScheduler {
     ///
     /// Diffs against what is already pending rather than clearing and re-adding, so a
     /// refill neither churns the whole set nor leaves a moment with nothing scheduled.
+    @MainActor
     static func refill(repository: SupplementRepository, now: Date = Date()) async {
         let center = UNUserNotificationCenter.current()
         guard await authorizationStatus() == .authorized else { return }
@@ -124,16 +157,15 @@ enum SupplementReminderScheduler {
         let keep = Array(wanted.prefix(slotBudget))
         let keepIds = Set(keep.map(\.identifier))
 
-        let pending = await center.pendingNotificationRequests()
+        let pending = await pendingIdentifiers()
         let stale = pending
-            .map(\.identifier)
             // Snoozes are one-offs this pass knows nothing about; leave them alone.
             .filter { $0.hasPrefix(identifierPrefix) && !$0.hasPrefix(snoozePrefix) && !keepIds.contains($0) }
         if !stale.isEmpty {
             center.removePendingNotificationRequests(withIdentifiers: stale)
         }
 
-        let pendingIds = Set(pending.map(\.identifier))
+        let pendingIds = Set(pending)
         for item in keep where !pendingIds.contains(item.identifier) {
             let components = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute], from: item.date
@@ -143,7 +175,9 @@ enum SupplementReminderScheduler {
                 content: content(for: item.supplement, hhmm: time(from: item.identifier)),
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
-            try? await center.add(request)
+            // The completion-handler form: `add(_:)`'s async form would send a
+            // non-Sendable UNNotificationRequest across an isolation boundary.
+            center.add(request, withCompletionHandler: nil)
         }
     }
 
@@ -159,8 +193,8 @@ enum SupplementReminderScheduler {
         let dayPrefix = "\(identifierPrefix)\(supplementId)-\(SupplementReminderDay.key(for: date))-"
         let snoozeIdPrefix = "\(snoozePrefix)\(supplementId)-"
 
-        let pending = await center.pendingNotificationRequests().map(\.identifier)
-        let delivered = await center.deliveredNotifications().map(\.request.identifier)
+        let pending = await pendingIdentifiers()
+        let delivered = await deliveredIdentifiers()
         let matches = (pending + delivered).filter {
             $0.hasPrefix(dayPrefix) || $0.hasPrefix(snoozeIdPrefix)
         }
@@ -171,18 +205,18 @@ enum SupplementReminderScheduler {
 
     // MARK: - Snooze
 
-    static func snooze(_ notification: UNNotification) async {
+    static func snooze(_ payload: SupplementReminderPayload) {
         let minutes = storedSnoozeMinutes()
         let content = UNMutableNotificationContent()
-        // Copied off the delivered notification so the snoozed copy keeps the same
-        // actions, title and supplement id.
-        content.title = notification.request.content.title
-        content.body = notification.request.content.body
+        // Rebuilt from the delivered notification's values so the snoozed copy keeps the
+        // same title, body and supplement id — and therefore the same actions.
+        content.title = payload.title
+        content.body = payload.body
         content.sound = .default
         content.categoryIdentifier = categoryIdentifier
-        content.userInfo = notification.request.content.userInfo
+        content.userInfo = [userInfoSupplementId: payload.supplementId ?? ""]
 
-        let supplementId = notification.request.content.userInfo[userInfoSupplementId] as? String ?? "unknown"
+        let supplementId = payload.supplementId ?? "unknown"
         let request = UNNotificationRequest(
             identifier: "\(snoozePrefix)\(supplementId)-\(UUID().uuidString)",
             content: content,
@@ -192,10 +226,10 @@ enum SupplementReminderScheduler {
                 timeInterval: max(60, Double(minutes) * 60), repeats: false
             )
         )
-        try? await UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
-    nonisolated static func storedSnoozeMinutes() -> Int {
+    static func storedSnoozeMinutes() -> Int {
         // Read straight from UserDefaults — the delegate is not a View, and @AppStorage
         // is backed by the same store.
         let stored = UserDefaults.standard.integer(forKey: snoozeMinutesKey)
@@ -204,7 +238,7 @@ enum SupplementReminderScheduler {
 
     // MARK: - Identifiers
 
-    nonisolated static func identifier(supplementId: String, day: String, hhmm: String) -> String {
+    static func identifier(supplementId: String, day: String, hhmm: String) -> String {
         "\(identifierPrefix)\(supplementId)-\(day)-\(hhmm.replacingOccurrences(of: ":", with: ""))"
     }
 
