@@ -70,6 +70,19 @@ describe('supplements-db', () => {
 			const result = await listSupplements(TEST_USER.id);
 			expect(Array.isArray(result[0].ingredients)).toBe(true);
 		});
+
+		test('normalises a missing reminderTimes column to null', async () => {
+			// Rows written before the reminder_times migration come back without the key.
+			setResult([TEST_SUPPLEMENT]);
+			const result = await listSupplements(TEST_USER.id);
+			expect(result[0].reminderTimes).toBeNull();
+		});
+
+		test('passes stored reminder times through untouched', async () => {
+			setResult([{ ...TEST_SUPPLEMENT, reminderTimes: ['08:00', '20:00'] }]);
+			const result = await listSupplements(TEST_USER.id);
+			expect(result[0].reminderTimes).toEqual(['08:00', '20:00']);
+		});
 	});
 
 	describe('getSupplementById', () => {
@@ -104,6 +117,36 @@ describe('supplements-db', () => {
 			setResult([TEST_SUPPLEMENT]);
 			const result = await createSupplement(TEST_USER.id, VALID_MULTI_SUPPLEMENT_PAYLOAD);
 			expect(result.success).toBe(true);
+		});
+
+		test('accepts reminder times', async () => {
+			setResult([TEST_SUPPLEMENT]);
+			const result = await createSupplement(TEST_USER.id, {
+				...VALID_SUPPLEMENT_PAYLOAD,
+				reminderTimes: ['20:00', '08:00']
+			});
+			expect(result.success).toBe(true);
+		});
+
+		test('rejects a malformed reminder time', async () => {
+			setResult([TEST_SUPPLEMENT]);
+			const result = await createSupplement(TEST_USER.id, {
+				...VALID_SUPPLEMENT_PAYLOAD,
+				reminderTimes: ['8:00']
+			});
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.name).toBe('ZodError');
+			}
+		});
+
+		test('rejects more than six reminder times', async () => {
+			setResult([TEST_SUPPLEMENT]);
+			const result = await createSupplement(TEST_USER.id, {
+				...VALID_SUPPLEMENT_PAYLOAD,
+				reminderTimes: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00']
+			});
+			expect(result.success).toBe(false);
 		});
 
 		test('returns validation error for missing name', async () => {

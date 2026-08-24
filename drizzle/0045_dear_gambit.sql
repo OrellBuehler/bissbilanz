@@ -1,0 +1,2 @@
+ALTER TABLE "supplements" ADD COLUMN "reminder_times" text[];--> statement-breakpoint
+ALTER TABLE "supplements" ADD CONSTRAINT "supplements_reminder_times_max" CHECK ("supplements"."reminder_times" IS NULL OR array_length("supplements"."reminder_times", 1) <= 6);

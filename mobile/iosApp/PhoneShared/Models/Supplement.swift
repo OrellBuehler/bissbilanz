@@ -37,6 +37,9 @@ struct Supplement: Codable, Identifiable {
     let isActive: Bool
     let sortOrder: Int
     let timeOfDay: String?
+    /// Local wall-clock "HH:MM" reminder times. Optional so cached JSON written before
+    /// the reminder_times migration still decodes.
+    let reminderTimes: [String]?
     let createdAt: String?
     let updatedAt: String?
     let ingredients: [SupplementIngredient]
@@ -92,6 +95,7 @@ struct SupplementCreate: Codable {
     var isActive: Bool?
     var sortOrder: Int?
     var timeOfDay: String?
+    var reminderTimes: [String]?
     let ingredients: [SupplementIngredientInput]
 }
 
@@ -103,6 +107,7 @@ struct SupplementUpdate: Codable {
     var isActive: Bool?
     var sortOrder: Int?
     var timeOfDay: String?
+    var reminderTimes: [String]?
     var ingredients: [SupplementIngredientInput]?
 }
 

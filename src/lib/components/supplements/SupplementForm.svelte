@@ -50,6 +50,8 @@
 		scheduleDays?: number[];
 		scheduleStartDate?: string;
 		timeOfDay?: 'morning' | 'noon' | 'evening' | null;
+		/** Local wall-clock 'HH:MM' reminder times; only the mobile apps notify. */
+		reminderTimes?: string[];
 		ingredients: {
 			foodId?: string;
 			food?: InlineFoodPayload;
@@ -71,6 +73,7 @@
 		scheduleDays: number[] | null;
 		scheduleStartDate: string | null;
 		timeOfDay: string | null;
+		reminderTimes?: string[] | null;
 		ingredients?: ExistingIngredient[];
 	};
 
@@ -101,6 +104,9 @@
 	let timeOfDay = $state<'morning' | 'noon' | 'evening' | null>(
 		(supplement?.timeOfDay as 'morning' | 'noon' | 'evening' | null) ?? null
 	);
+
+	// svelte-ignore state_referenced_locally
+	let reminderTimes = $state<string[]>(supplement?.reminderTimes ?? []);
 
 	// svelte-ignore state_referenced_locally
 	let ingredients = $state<IngredientInput[]>(
@@ -164,6 +170,28 @@
 		ingredients = ingredients.filter((_, i) => i !== index);
 	};
 
+	const MAX_REMINDERS = 6;
+	const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+	// The time-of-day label is only a grouping header, but it is the best hint we have
+	// for what clock time the user actually means, so it seeds the first row.
+	const timeOfDayDefaults: Record<string, string> = {
+		morning: '08:00',
+		noon: '12:00',
+		evening: '20:00'
+	};
+
+	const addReminderTime = () => {
+		if (reminderTimes.length >= MAX_REMINDERS) return;
+		const preferred = timeOfDayDefaults[timeOfDay ?? ''] ?? '08:00';
+		const candidates = [preferred, '08:00', '12:00', '20:00'];
+		const next = candidates.find((t) => !reminderTimes.includes(t)) ?? '08:00';
+		reminderTimes = [...reminderTimes, next];
+	};
+
+	const removeReminderTime = (index: number) => {
+		reminderTimes = reminderTimes.filter((_, i) => i !== index);
+	};
+
 	// weekly / specific_days schedules are meaningless (never due) with no days picked.
 	const requiresScheduleDays = $derived(
 		scheduleType === 'weekly' || scheduleType === 'specific_days'
@@ -175,7 +203,9 @@
 			ingredients.every(
 				(i) => i.name.trim().length > 0 && (i.dosage > 0 || (i.originalText ?? '').length > 0)
 			) &&
-			(!requiresScheduleDays || scheduleDays.length > 0)
+			(!requiresScheduleDays || scheduleDays.length > 0) &&
+			// Native type="time" enforces this, but a browser without support degrades to text.
+			reminderTimes.every((t) => timeRe.test(t))
 	);
 
 	const handleSubmit = () => {
@@ -215,6 +245,8 @@
 		if (scheduleType === 'every_other_day') {
 			payload.scheduleStartDate = scheduleStartDate;
 		}
+		// Always sent, so removing the last row clears the stored times.
+		payload.reminderTimes = [...new Set(reminderTimes)].sort();
 
 		onSave(payload);
 	};
@@ -347,6 +379,47 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
+	</div>
+
+	<div class="space-y-2">
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<Label>{m.supplements_reminders()}</Label>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				aria-label={m.supplements_add_reminder()}
+				disabled={reminderTimes.length >= MAX_REMINDERS}
+				onclick={addReminderTime}
+			>
+				<Plus class="size-3.5 sm:mr-1" />
+				<span class="hidden sm:inline">{m.supplements_add_reminder()}</span>
+			</Button>
+		</div>
+		{#if reminderTimes.length > 0}
+			<div class="space-y-2">
+				{#each reminderTimes as _, i}
+					<div class="flex min-w-0 items-center gap-2 rounded-md border p-2">
+						<Input
+							type="time"
+							aria-label={m.supplements_reminder_time()}
+							bind:value={reminderTimes[i]}
+							class="min-w-0 flex-1"
+						/>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={m.supplements_remove_reminder()}
+							onclick={() => removeReminderTime(i)}
+						>
+							<X class="size-4" />
+						</Button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+		<p class="text-muted-foreground text-sm">{m.supplements_reminders_mobile_only()}</p>
 	</div>
 
 	<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">

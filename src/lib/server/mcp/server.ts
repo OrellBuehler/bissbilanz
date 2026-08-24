@@ -610,6 +610,13 @@ export function createMcpServer(userId: string): McpServer {
 					.enum(['morning', 'noon', 'evening'])
 					.optional()
 					.describe('Preferred time of day'),
+				reminderTimes: z
+					.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/))
+					.max(6)
+					.optional()
+					.describe(
+						'Local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. The mobile apps schedule local notifications from these; the web app never notifies.'
+					),
 				ingredients: z
 					.array(supplementIngredientInputSchema)
 					.min(1)
@@ -658,6 +665,14 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.nullable()
 					.describe('New time of day'),
+				reminderTimes: z
+					.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/))
+					.max(6)
+					.optional()
+					.nullable()
+					.describe(
+						'New local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. Replaces all existing times; the web app never notifies.'
+					),
 				isActive: z.boolean().optional().describe('Active status'),
 				ingredients: z
 					.array(supplementIngredientInputSchema)

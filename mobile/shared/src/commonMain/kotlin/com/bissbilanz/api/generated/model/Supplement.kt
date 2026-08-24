@@ -33,6 +33,7 @@ import kotlinx.serialization.encoding.*
  * @param sortOrder
  * @param timeOfDay
  * @param ingredients
+ * @param reminderTimes
  * @param createdAt
  * @param updatedAt
  */
@@ -48,6 +49,7 @@ data class Supplement(
     @SerialName(value = "sortOrder") @Required val sortOrder: kotlin.Int,
     @SerialName(value = "timeOfDay") @Required val timeOfDay: Supplement.TimeOfDay?,
     @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<SupplementIngredient>,
+    @SerialName(value = "reminderTimes") val reminderTimes: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {

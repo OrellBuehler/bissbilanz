@@ -31,6 +31,7 @@ import kotlinx.serialization.encoding.*
  * @param isActive
  * @param sortOrder
  * @param timeOfDay
+ * @param reminderTimes
  */
 @Serializable
 data class SupplementCreate(
@@ -42,6 +43,7 @@ data class SupplementCreate(
     @SerialName(value = "isActive") val isActive: kotlin.Boolean? = null,
     @SerialName(value = "sortOrder") val sortOrder: kotlin.Int? = null,
     @SerialName(value = "timeOfDay") val timeOfDay: SupplementCreate.TimeOfDay? = null,
+    @SerialName(value = "reminderTimes") val reminderTimes: kotlin.collections.List<kotlin.String>? = null,
 ) {
     /**
      *

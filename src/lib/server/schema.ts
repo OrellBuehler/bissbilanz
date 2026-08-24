@@ -420,6 +420,10 @@ export const supplements = pgTable(
 		isActive: boolean('is_active').notNull().default(true),
 		sortOrder: integer('sort_order').notNull().default(0),
 		timeOfDay: text('time_of_day'),
+		// Optional local wall-clock reminder times as 'HH:MM' (24h). Timezone-naive on
+		// purpose: 08:00 means 08:00 wherever the device currently is. Only the mobile
+		// apps act on these — they schedule local notifications; the web never notifies.
+		reminderTimes: text('reminder_times').array(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -429,6 +433,12 @@ export const supplements = pgTable(
 		check(
 			'supplements_schedule_days_required',
 			sql`${table.scheduleType} NOT IN ('weekly', 'specific_days') OR (${table.scheduleDays} IS NOT NULL AND array_length(${table.scheduleDays}, 1) > 0)`
+		),
+		// Cardinality only — Postgres CHECK can't run a per-element regex without a
+		// helper function, so 'HH:MM' format is enforced in Zod.
+		check(
+			'supplements_reminder_times_max',
+			sql`${table.reminderTimes} IS NULL OR array_length(${table.reminderTimes}, 1) <= 6`
 		)
 	]
 );

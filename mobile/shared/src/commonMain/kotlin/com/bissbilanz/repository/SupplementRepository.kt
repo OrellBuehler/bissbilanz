@@ -284,6 +284,7 @@ class SupplementRepository(
             isActive = supplement.isActive ?: true,
             sortOrder = supplement.sortOrder ?: 0,
             timeOfDay = supplement.timeOfDay?.let { Supplement.TimeOfDay.valueOf(it.name) },
+            reminderTimes = supplement.reminderTimes,
             ingredients =
                 supplement.ingredients.mapIndexed { index, input ->
                     input.toSupplementIngredient(supplementId = id, index = index)
