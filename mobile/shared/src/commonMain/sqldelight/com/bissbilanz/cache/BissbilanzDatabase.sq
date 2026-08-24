@@ -59,6 +59,9 @@ UPDATE SyncQueue SET retryCount = retryCount + 1 WHERE id = ?;
 selectSyncQueueItemRetryCount:
 SELECT retryCount FROM SyncQueue WHERE id = ?;
 
+selectNextSyncQueueRetryAt:
+SELECT nextAttemptAt FROM SyncQueue WHERE nextAttemptAt > ? ORDER BY nextAttemptAt LIMIT 1;
+
 updateSyncQueueNextAttemptAt:
 UPDATE SyncQueue SET nextAttemptAt = ? WHERE id = ?;
 

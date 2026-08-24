@@ -191,5 +191,45 @@ final class SleepRepository {
     private func save() {
         try? context.save()
         WidgetSnapshotWriter.scheduleUpdate(context: context)
+        syncLatestToHealth()
+    }
+
+    // MARK: - Apple Health write-back
+
+    /// Dates `HealthKitImporter` is currently writing nights for, read *from*
+    /// Health. See the weight repository's twin.
+    @ObservationIgnored private var healthImportDates: Set<String> = []
+
+    /// Runs `body` with the Health write-back suppressed for `dates` — imported
+    /// nights are marked as already synced rather than written back as
+    /// duplicates of the Watch's own sleep samples.
+    func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
+        healthImportDates = dates
+        defer { healthImportDates = [] }
+        return try await body()
+    }
+
+    /// Pushes the newest night to Apple Health on every store mutation. This used
+    /// to live in the sleep edit sheet, so a night logged on the Apple Watch or
+    /// arriving through `refresh()` never reached Health.
+    ///
+    /// Nights without both a bedtime and a wake time are skipped — Health needs a
+    /// real interval and a fabricated one would pollute it.
+    private func syncLatestToHealth() {
+        guard let latest = latest(),
+              let bedtimeString = latest.bedtime,
+              let wakeTimeString = latest.wakeTime,
+              let bedtime = DateFormatting.isoDateTime(from: bedtimeString),
+              let wakeTime = DateFormatting.isoDateTime(from: wakeTimeString)
+        else { return }
+        let alreadyInHealth = healthImportDates.contains(latest.entryDate)
+        Task {
+            await HealthKitService.shared.syncLatestSleep(
+                bedtime: bedtime,
+                wakeTime: wakeTime,
+                entryDate: latest.entryDate,
+                alreadyInHealth: alreadyInHealth
+            )
+        }
     }
 }

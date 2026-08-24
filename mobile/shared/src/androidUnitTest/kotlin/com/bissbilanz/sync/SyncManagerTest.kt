@@ -22,14 +22,18 @@ import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,6 +80,41 @@ class SyncManagerTest {
             coVerify { api.deleteEntry("e1", any(), any()) }
             assertTrue(
                 manager.state.value.errors
+                    .isEmpty(),
+            )
+        }
+
+    @Test
+    fun lostConflictSurfacesANoticeAndTriggersOneRefresh() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws serverNewerConflict()
+            var refreshes = 0
+            manager.onConflictResolved = { refreshes++ }
+
+            manager.syncPendingQueue()
+
+            assertEquals(2, manager.state.value.conflictNotices.size)
+            // One refresh for the drain, not one per conflict.
+            assertEquals(1, refreshes)
+        }
+
+    @Test
+    fun clearConflictNoticesEmptiesThem() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws serverNewerConflict()
+            manager.syncPendingQueue()
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .isNotEmpty(),
+            )
+
+            manager.clearConflictNotices()
+
+            assertTrue(
+                manager.state.value.conflictNotices
                     .isEmpty(),
             )
         }
@@ -130,6 +169,40 @@ class SyncManagerTest {
                     .contains("Gave up"),
             )
             coVerify(exactly = 5) { api.deleteEntry(any(), any(), any()) }
+        }
+
+    @Test
+    fun payloadFailureSkipsTheRowInsteadOfStallingTheQueueBehindIt() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws SerializationException("unreadable payload")
+
+            val synced = manager.syncPendingQueue()
+
+            // Both attempted: a payload only this operation can trip is no reason to park
+            // the ops queued behind it.
+            assertEquals(0, synced)
+            coVerify(exactly = 2) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(2, syncQueue.pendingCount())
+            assertEquals(listOf(1L, 1L), syncQueue.all().map { it.retryCount })
+        }
+
+    @Test
+    fun transportFailureStopsTheDrainSoQueuedOpsKeepTheirRetryBudget() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws IOException("connection reset")
+
+            val synced = manager.syncPendingQueue()
+
+            // Only the head is charged a retry. Continuing would spend all five retries of
+            // every queued item on one outage and dead-letter the lot.
+            assertEquals(0, synced)
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(2, syncQueue.pendingCount())
+            assertEquals(listOf(0L, 1L), syncQueue.all().map { it.retryCount }.sorted())
         }
 
     @Test
@@ -476,5 +549,16 @@ class SyncManagerTest {
             carbs = 28.0,
             fat = 0.3,
             fiber = 0.4,
+        )
+
+    /** A 409 carrying the last-write-wins conflict header the drain keys off. */
+    private fun serverNewerConflict() =
+        ApiException(
+            "conflict",
+            409,
+            rawResponse =
+                mockk<HttpResponse> {
+                    every { headers } returns headersOf("X-Sync-Conflict", "server-newer")
+                },
         )
 }

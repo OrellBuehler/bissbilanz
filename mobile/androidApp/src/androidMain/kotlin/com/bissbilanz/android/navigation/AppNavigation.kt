@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
 
 sealed class Screen(
@@ -123,110 +125,115 @@ fun AppNavigation() {
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding).imePadding(),
-            enterTransition = {
-                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                    slideInHorizontally(
-                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
-                    ) { it / 5 }
-            },
-            exitTransition = {
-                fadeOut(spring(stiffness = Spring.StiffnessHigh))
-            },
-            popEnterTransition = {
-                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                    slideInHorizontally(
-                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
-                    ) { -it / 5 }
-            },
-            popExitTransition = {
-                fadeOut(spring(stiffness = Spring.StiffnessHigh)) +
-                    slideOutHorizontally(
-                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
-                    ) { it / 5 }
-            },
-        ) {
-            composable(Screen.Dashboard.route) {
-                com.bissbilanz.android.ui.screens
-                    .DashboardScreen(navController)
-            }
-            composable(Screen.Foods.route) {
-                com.bissbilanz.android.ui.screens
-                    .FoodSearchScreen(navController)
-            }
-            composable(Screen.Favorites.route) {
-                com.bissbilanz.android.ui.screens
-                    .FavoritesScreen(navController)
-            }
-            composable(Screen.Insights.route) {
-                com.bissbilanz.android.ui.screens
-                    .InsightsScreen(navController)
-            }
-            composable(Screen.Settings.route) {
-                com.bissbilanz.android.ui.screens
-                    .SettingsScreen(navController)
-            }
-            composable("food/{foodId}") { backStackEntry ->
-                val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .FoodDetailScreen(foodId, navController)
-            }
-            composable("daylog/{date}") { backStackEntry ->
-                val date = backStackEntry.arguments?.getString("date") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .DayLogScreen(date, navController)
-            }
-            composable("scanner") {
-                com.bissbilanz.android.ui.screens
-                    .BarcodeScannerScreen(navController)
-            }
-            composable("recipes") {
-                com.bissbilanz.android.ui.screens
-                    .RecipeListScreen(navController)
-            }
-            composable("recipe/{recipeId}") { backStackEntry ->
-                val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
-                com.bissbilanz.android.ui.screens
-                    .RecipeDetailScreen(recipeId, navController)
-            }
-            composable("weight") {
-                com.bissbilanz.android.ui.screens
-                    .WeightScreen(navController)
-            }
-            composable("sleep") {
-                com.bissbilanz.android.ui.screens
-                    .SleepScreen(navController)
-            }
-            composable("supplements") {
-                com.bissbilanz.android.ui.screens
-                    .SupplementsScreen(navController)
-            }
-            composable("supplement-history") {
-                com.bissbilanz.android.ui.screens
-                    .SupplementHistoryScreen(navController)
-            }
-            composable("calendar") {
-                com.bissbilanz.android.ui.screens
-                    .CalendarScreen(navController)
-            }
-            composable("health") {
-                com.bissbilanz.android.ui.screens
-                    .HealthConnectScreen(navController)
-            }
-            composable("fasting") {
-                com.bissbilanz.android.ui.screens
-                    .FastingScreen(navController)
-            }
-            composable("pending-sync") {
-                com.bissbilanz.android.ui.screens
-                    .PendingSyncScreen(navController)
-            }
-            composable("maintenance") {
-                com.bissbilanz.android.ui.screens
-                    .MaintenanceScreen(navController)
+        Column(modifier = Modifier.padding(innerPadding)) {
+            // Above the nav host so a lost offline edit is visible wherever the
+            // user happens to be, not only on the screen that made the edit.
+            SyncConflictBanner()
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Dashboard.route,
+                modifier = Modifier.weight(1f).imePadding(),
+                enterTransition = {
+                    fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                        slideInHorizontally(
+                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                        ) { it / 5 }
+                },
+                exitTransition = {
+                    fadeOut(spring(stiffness = Spring.StiffnessHigh))
+                },
+                popEnterTransition = {
+                    fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                        slideInHorizontally(
+                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                        ) { -it / 5 }
+                },
+                popExitTransition = {
+                    fadeOut(spring(stiffness = Spring.StiffnessHigh)) +
+                        slideOutHorizontally(
+                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                        ) { it / 5 }
+                },
+            ) {
+                composable(Screen.Dashboard.route) {
+                    com.bissbilanz.android.ui.screens
+                        .DashboardScreen(navController)
+                }
+                composable(Screen.Foods.route) {
+                    com.bissbilanz.android.ui.screens
+                        .FoodSearchScreen(navController)
+                }
+                composable(Screen.Favorites.route) {
+                    com.bissbilanz.android.ui.screens
+                        .FavoritesScreen(navController)
+                }
+                composable(Screen.Insights.route) {
+                    com.bissbilanz.android.ui.screens
+                        .InsightsScreen(navController)
+                }
+                composable(Screen.Settings.route) {
+                    com.bissbilanz.android.ui.screens
+                        .SettingsScreen(navController)
+                }
+                composable("food/{foodId}") { backStackEntry ->
+                    val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
+                    com.bissbilanz.android.ui.screens
+                        .FoodDetailScreen(foodId, navController)
+                }
+                composable("daylog/{date}") { backStackEntry ->
+                    val date = backStackEntry.arguments?.getString("date") ?: return@composable
+                    com.bissbilanz.android.ui.screens
+                        .DayLogScreen(date, navController)
+                }
+                composable("scanner") {
+                    com.bissbilanz.android.ui.screens
+                        .BarcodeScannerScreen(navController)
+                }
+                composable("recipes") {
+                    com.bissbilanz.android.ui.screens
+                        .RecipeListScreen(navController)
+                }
+                composable("recipe/{recipeId}") { backStackEntry ->
+                    val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
+                    com.bissbilanz.android.ui.screens
+                        .RecipeDetailScreen(recipeId, navController)
+                }
+                composable("weight") {
+                    com.bissbilanz.android.ui.screens
+                        .WeightScreen(navController)
+                }
+                composable("sleep") {
+                    com.bissbilanz.android.ui.screens
+                        .SleepScreen(navController)
+                }
+                composable("supplements") {
+                    com.bissbilanz.android.ui.screens
+                        .SupplementsScreen(navController)
+                }
+                composable("supplement-history") {
+                    com.bissbilanz.android.ui.screens
+                        .SupplementHistoryScreen(navController)
+                }
+                composable("calendar") {
+                    com.bissbilanz.android.ui.screens
+                        .CalendarScreen(navController)
+                }
+                composable("health") {
+                    com.bissbilanz.android.ui.screens
+                        .HealthConnectScreen(navController)
+                }
+                composable("fasting") {
+                    com.bissbilanz.android.ui.screens
+                        .FastingScreen(navController)
+                }
+                composable("pending-sync") {
+                    com.bissbilanz.android.ui.screens
+                        .PendingSyncScreen(navController)
+                }
+                composable("maintenance") {
+                    com.bissbilanz.android.ui.screens
+                        .MaintenanceScreen(navController)
+                }
             }
         }
     }

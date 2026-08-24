@@ -5,10 +5,12 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.test.appModeManager
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SyncQueueTest {
@@ -38,6 +40,30 @@ class SyncQueueTest {
             assertEquals("temp_1", create.localId)
             val delete = drained[1].operation as SyncOperation.DeleteEntry
             assertEquals("e1", delete.id)
+        }
+
+    @Test
+    fun nextRetryAtIsNullWhenNothingIsBackedOff() =
+        runTest {
+            queue.enqueue(SyncOperation.DeleteFood("f1"))
+
+            assertNull(queue.nextRetryAt())
+        }
+
+    @Test
+    fun nextRetryAtReturnsTheSoonestFutureGate() =
+        runTest {
+            queue.enqueue(SyncOperation.DeleteFood("f1"))
+            queue.enqueue(SyncOperation.DeleteFood("f2"))
+            queue.enqueue(SyncOperation.DeleteFood("f3"))
+            val ids = queue.all().map { it.id }
+            val now = Clock.System.now().toEpochMilliseconds()
+            queue.setNextAttemptAt(ids[0], now + 60_000)
+            queue.setNextAttemptAt(ids[1], now + 5_000)
+            // Already due — must not win over the two future gates.
+            queue.setNextAttemptAt(ids[2], now - 5_000)
+
+            assertEquals(now + 5_000, queue.nextRetryAt())
         }
 
     @Test

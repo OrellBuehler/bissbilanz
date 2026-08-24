@@ -141,13 +141,21 @@ class BissbilanzApplication : Application() {
             // Favourites drive the watch's quick-log list.
             wearPublisher.publish()
         }
-        koin.get<WeightRepository>().onWeightChanged = {
+        val publishWeight: suspend () -> Unit = {
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
             healthExporter.exportLatestWeight()
             wearPublisher.publish()
         }
+        koin.get<WeightRepository>().onWeightChanged = publishWeight
+        // Weights logged elsewhere (web, MCP, iOS) arrive via refresh, not
+        // onWeightChanged — same three consumers, or Health Connect, the widget and
+        // the watch all keep showing the last weight entered on this device.
+        koin.get<WeightRepository>().onWeightRefreshed = publishWeight
 
         val refreshManager = koin.get<RefreshManager>()
+        // A conflict means the local row lost to a newer change; pull the server state
+        // so the screen stops showing the value that was dropped.
+        koin.get<SyncManager>().onConflictResolved = { refreshManager.refreshAll() }
         koin.get<SyncManager>().startNetworkListener {
             refreshManager.refreshAll()
             MacroWidget.updateAllWidgets(this@BissbilanzApplication)

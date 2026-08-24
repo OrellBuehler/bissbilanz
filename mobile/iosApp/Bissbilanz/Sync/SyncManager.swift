@@ -39,6 +39,12 @@ final class SyncManager {
     /// A pending delayed re-drain scheduled for when the soonest backoff expires.
     @ObservationIgnored private var retryTask: Task<Void, Never>?
 
+    /// Invoked once per drain that resolved at least one conflict, so the app can
+    /// pull the affected entities back down. Without it the row that *lost* keeps
+    /// showing its superseded value until some unrelated refresh overwrites it.
+    /// Set by the app once its repositories exist.
+    @ObservationIgnored var onConflictResolved: (() async -> Void)?
+
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
@@ -119,6 +125,11 @@ final class SyncManager {
         pendingCount = queuedRows().count
     }
 
+    /// Drops the conflict notices once the user has acknowledged them.
+    func clearConflictNotices() {
+        conflictNotices = []
+    }
+
     func clearQueue() {
         try? context.delete(model: PendingSyncOperation.self)
         save()
@@ -145,6 +156,7 @@ final class SyncManager {
         isSyncing = true
         errors = []
         var processed = 0
+        var sawConflict = false
         ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
@@ -164,8 +176,10 @@ final class SyncManager {
         // Every iteration removes the head row, backs it off, or returns, so the
         // loop terminates. Items whose `nextAttemptAt` is in the future are
         // skipped via `nextDueRow()` (backoff) — a backed-off op no longer
-        // stalls the ops queued behind it.
-        while let row = nextDueRow() {
+        // stalls the ops queued behind it. That skip only applies to failures
+        // scoped to one operation; a server-scoped failure ends the drain, so an
+        // outage cannot charge a retry to every queued op at once.
+        drain: while let row = nextDueRow() {
             guard let operation = row.operation() else {
                 // Unreadable payload — nothing useful can ever be uploaded.
                 // Capture before dropping: this is the most invisible data-loss
@@ -191,14 +205,16 @@ final class SyncManager {
                 }
                 processed += 1
             } catch {
-                switch Self.classify(error, isOnline: connectivity.isOnline) {
+                let kind = Self.classify(error, isOnline: connectivity.isOnline)
+                switch kind {
                 case .unauthorized:
                     errors.append("Session expired. Please log in again to sync pending changes.")
-                    return processed
+                    break drain
 
                 case .conflict(serverNewer: true):
                     remove(row)
                     processed += 1
+                    sawConflict = true
                     conflictNotices.append(
                         "Offline change to \(operation.summary) was superseded by a newer change from another device."
                     )
@@ -219,6 +235,7 @@ final class SyncManager {
                 case .notFound:
                     remove(row)
                     processed += 1
+                    sawConflict = true
                     conflictNotices.append(
                         "Offline change to \(operation.summary) was lost: the record was deleted on another device."
                     )
@@ -237,9 +254,9 @@ final class SyncManager {
                     )
 
                 case .offline:
-                    return processed
+                    break drain
 
-                case .retryable:
+                case .retryableOperation, .serverUnavailable:
                     row.retryCount += 1
                     if row.retryCount >= Self.maxRetries {
                         remove(row)
@@ -249,17 +266,33 @@ final class SyncManager {
                             "Sync op dropped: max retries",
                             context: dropContext(operation, row, outcome: "dropped_max_retries", status: nil)
                         )
+                        // Keep going even when the server looked unavailable: if this op
+                        // was simply poison the queue behind it is fine, and if the server
+                        // really is down the next op backs off and aborts below.
                     } else {
                         row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
                         save()
-                        // Skip (not abort): a backed-off op is filtered out by
-                        // `nextDueRow`, so the loop advances to the next due op
-                        // instead of stalling the whole queue behind this one.
+                        if case .serverUnavailable = kind {
+                            // Abort. Every remaining op would hit the same outage, and
+                            // because `nextDueRow` skips this backed-off row the drain
+                            // would charge a retry to each of them — five drains of a
+                            // one-minute outage would dead-letter the entire queue.
+                            break drain
+                        }
+                        // Per-operation failure: skip it. A backed-off row is filtered out
+                        // by `nextDueRow`, so the loop advances to the next due op instead
+                        // of stalling the whole queue behind this one.
                         continue
                     }
                 }
             }
             pendingCount = queuedRows().count
+        }
+        // Once per drain, not once per conflict: a batch that lost three edits needs
+        // a single refresh. Reached on every exit path — a drain that resolved a
+        // conflict and then hit an outage still owes the UI that refresh.
+        if sawConflict {
+            await onConflictResolved?()
         }
         return processed
     }
@@ -464,12 +497,20 @@ final class SyncManager {
         case notFound
         case clientError(Int)
         case offline
-        case retryable
+        /// The payload, not the server: this one operation is at fault and the rest
+        /// of the queue is unaffected.
+        case retryableOperation
+        /// The server or the transport is failing, so every queued operation would
+        /// fail the same way.
+        case serverUnavailable
     }
 
     private static func classify(_ error: Error, isOnline: Bool) -> FailureKind {
         guard let apiError = error as? APIError else {
-            return isConnectivityError(error, isOnline: isOnline) ? .offline : .retryable
+            // Unknown throws default to server-scoped: mistaking a global failure for a
+            // per-operation one dead-letters the whole queue, while the reverse only
+            // stalls it until `maxRetries` drops the offending op.
+            return isConnectivityError(error, isOnline: isOnline) ? .offline : .serverUnavailable
         }
         switch apiError {
         case .unauthorized:
@@ -483,11 +524,13 @@ final class SyncManager {
         case .badRequest:
             return .clientError(400)
         case let .serverError(status, _):
-            return status < 500 ? .clientError(status) : .retryable
+            return status < 500 ? .clientError(status) : .serverUnavailable
         case let .networkError(underlying):
-            return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .retryable
+            return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .serverUnavailable
         case .decodingError:
-            return .retryable
+            // A response this build cannot read is a contract mismatch on one endpoint,
+            // not an outage — the ops queued behind it may well upload fine.
+            return .retryableOperation
         }
     }
 

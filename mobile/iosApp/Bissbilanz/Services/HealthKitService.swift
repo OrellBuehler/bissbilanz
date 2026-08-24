@@ -106,6 +106,69 @@ final class HealthKitService {
         Self.markSynced(Self.weightWriteSyncKind)
     }
 
+    // MARK: - Weight & sleep write-back
+
+    private static let weightMarkerKey = "healthkit_weight_write_marker"
+    private static let sleepMarkerKey = "healthkit_sleep_write_marker"
+
+    /// Pushes the newest weight to Health, gated on the same read + write
+    /// toggles the edit sheet used to check.
+    ///
+    /// Health has no upsert for body-mass samples, so the marker records what was
+    /// last written and skips an unchanged repeat — without it every refresh
+    /// would append another duplicate for the same day. Same device-local guard
+    /// Android's `HealthExporter` keeps in SharedPreferences.
+    ///
+    /// `alreadyInHealth` marks the value as synced *without* writing it: the
+    /// weight came out of Health in the first place (a `HealthKitImporter` run),
+    /// and writing it back would duplicate the scale's own sample with an
+    /// app-authored copy — on that import and on every refresh after it.
+    ///
+    /// Best effort: a denied permission or a failed write leaves the marker
+    /// unset, so the next save retries.
+    func syncLatestWeight(_ weightKg: Double, entryDate: String, alreadyInHealth: Bool = false) async {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: Self.syncEnabledKey),
+              defaults.bool(forKey: Self.writeWeightEnabledKey),
+              isAvailable
+        else { return }
+        let marker = "\(entryDate):\(weightKg)"
+        guard defaults.string(forKey: Self.weightMarkerKey) != marker else { return }
+        if !alreadyInHealth {
+            guard let date = DateFormatting.date(from: entryDate) else { return }
+            do {
+                try await saveWeight(weightKg, date: date)
+            } catch {
+                return
+            }
+        }
+        defaults.set(marker, forKey: Self.weightMarkerKey)
+    }
+
+    /// Pushes the newest night to Health. See `syncLatestWeight` — same marker
+    /// guard, same `alreadyInHealth` rule for nights that came from an import.
+    /// Duration-only entries never reach here: they have no real interval and
+    /// fabricating one would pollute Health.
+    func syncLatestSleep(
+        bedtime: Date,
+        wakeTime: Date,
+        entryDate: String,
+        alreadyInHealth: Bool = false
+    ) async {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: Self.writeSleepEnabledKey), isAvailable else { return }
+        let marker = "\(entryDate):\(bedtime.timeIntervalSince1970):\(wakeTime.timeIntervalSince1970)"
+        guard defaults.string(forKey: Self.sleepMarkerKey) != marker else { return }
+        if !alreadyInHealth {
+            do {
+                try await saveSleep(bedtime: bedtime, wakeTime: wakeTime)
+            } catch {
+                return
+            }
+        }
+        defaults.set(marker, forKey: Self.sleepMarkerKey)
+    }
+
     // MARK: - Nutrition
 
     /// Requests share access for the given nutrient types only — permissions

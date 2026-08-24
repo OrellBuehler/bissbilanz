@@ -45,12 +45,19 @@ enum HealthKitImporter {
             latestPerDay[day] = sample
         }
 
+        let newDays = Set(latestPerDay.keys).subtracting(existingDates)
         var imported = false
-        for (day, sample) in latestPerDay where !existingDates.contains(day) {
-            let kg = (sample.weightKg * 100).rounded() / 100
-            let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
-            if await (try? repository.createEntry(create)) != nil {
-                imported = true
+        // Suppressed write-back: these values came out of Health, and the
+        // repository now pushes every save back to it. Without this each import
+        // would duplicate the scale's own sample with an app-authored copy.
+        await repository.withHealthImportInProgress(dates: newDays) {
+            for day in newDays {
+                guard let sample = latestPerDay[day] else { continue }
+                let kg = (sample.weightKg * 100).rounded() / 100
+                let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
+                if await (try? repository.createEntry(create)) != nil {
+                    imported = true
+                }
             }
         }
         return imported
@@ -70,19 +77,24 @@ enum HealthKitImporter {
         guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return false }
 
         let existingDates = Set(repository.entries().map(\.entryDate))
+        let newNights = HealthKitService.nights(from: samples)
+            .filter { !existingDates.contains($0.entryDate) }
         var imported = false
-        for night in HealthKitService.nights(from: samples) where !existingDates.contains(night.entryDate) {
-            let create = SleepCreate(
-                durationMinutes: night.asleepMinutes,
-                quality: night.quality,
-                entryDate: night.entryDate,
-                bedtime: DateFormatting.isoDateTimeString(from: night.bedtime),
-                wakeTime: DateFormatting.isoDateTimeString(from: night.wakeTime),
-                wakeUps: night.wakeUps,
-                notes: nil
-            )
-            if await (try? repository.createEntry(create)) != nil {
-                imported = true
+        // Suppressed write-back — see the weight import above.
+        await repository.withHealthImportInProgress(dates: Set(newNights.map(\.entryDate))) {
+            for night in newNights {
+                let create = SleepCreate(
+                    durationMinutes: night.asleepMinutes,
+                    quality: night.quality,
+                    entryDate: night.entryDate,
+                    bedtime: DateFormatting.isoDateTimeString(from: night.bedtime),
+                    wakeTime: DateFormatting.isoDateTimeString(from: night.wakeTime),
+                    wakeUps: night.wakeUps,
+                    notes: nil
+                )
+                if await (try? repository.createEntry(create)) != nil {
+                    imported = true
+                }
             }
         }
         return imported
@@ -107,42 +119,46 @@ enum HealthKitImporter {
             uniquingKeysWith: { first, _ in first }
         )
 
+        let nights = HealthKitService.nights(from: samples)
         var updated = 0
-        for night in HealthKitService.nights(from: samples) {
-            let bedtime = DateFormatting.isoDateTimeString(from: night.bedtime)
-            let wakeTime = DateFormatting.isoDateTimeString(from: night.wakeTime)
-            guard let entry = existing[night.entryDate] else {
-                let create = SleepCreate(
+        // Suppressed write-back — every value here was just read out of Health.
+        await repository.withHealthImportInProgress(dates: Set(nights.map(\.entryDate))) {
+            for night in nights {
+                let bedtime = DateFormatting.isoDateTimeString(from: night.bedtime)
+                let wakeTime = DateFormatting.isoDateTimeString(from: night.wakeTime)
+                guard let entry = existing[night.entryDate] else {
+                    let create = SleepCreate(
+                        durationMinutes: night.asleepMinutes,
+                        quality: night.quality,
+                        entryDate: night.entryDate,
+                        bedtime: bedtime,
+                        wakeTime: wakeTime,
+                        wakeUps: night.wakeUps,
+                        notes: nil
+                    )
+                    if await (try? repository.createEntry(create)) != nil {
+                        updated += 1
+                    }
+                    continue
+                }
+
+                // Skip untouched nights so an unchanged re-import doesn't queue 90
+                // pointless uploads.
+                guard entry.durationMinutes != night.asleepMinutes
+                    || entry.quality != night.quality
+                    || entry.wakeUps != night.wakeUps
+                else { continue }
+
+                let update = SleepUpdate(
                     durationMinutes: night.asleepMinutes,
                     quality: night.quality,
-                    entryDate: night.entryDate,
                     bedtime: bedtime,
                     wakeTime: wakeTime,
-                    wakeUps: night.wakeUps,
-                    notes: nil
+                    wakeUps: night.wakeUps
                 )
-                if await (try? repository.createEntry(create)) != nil {
+                if await (try? repository.updateEntry(id: entry.id, update)) != nil {
                     updated += 1
                 }
-                continue
-            }
-
-            // Skip untouched nights so an unchanged re-import doesn't queue 90
-            // pointless uploads.
-            guard entry.durationMinutes != night.asleepMinutes
-                || entry.quality != night.quality
-                || entry.wakeUps != night.wakeUps
-            else { continue }
-
-            let update = SleepUpdate(
-                durationMinutes: night.asleepMinutes,
-                quality: night.quality,
-                bedtime: bedtime,
-                wakeTime: wakeTime,
-                wakeUps: night.wakeUps
-            )
-            if await (try? repository.updateEntry(id: entry.id, update)) != nil {
-                updated += 1
             }
         }
         if updated > 0 {

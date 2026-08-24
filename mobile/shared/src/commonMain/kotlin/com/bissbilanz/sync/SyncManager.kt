@@ -8,16 +8,20 @@ import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.isTempId
+import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Clock
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.min
@@ -53,8 +57,27 @@ class SyncManager(
     private val syncMutex = Mutex()
     private var onSynced: (suspend () -> Unit)? = null
 
+    /**
+     * Invoked once per drain that resolved at least one conflict, so the app layer can
+     * pull the affected entities back down. Without it the row that *lost* keeps showing
+     * its superseded value until some unrelated refresh overwrites it. Set by the app
+     * (the shared module has no access to the platform refresh manager).
+     */
+    var onConflictResolved: (suspend () -> Unit)? = null
+
+    /** Pending delayed re-drain, armed for when the soonest backoff gate expires. */
+    private var retryJob: Job? = null
+
+    /**
+     * Whether a drain may arm [retryJob]. Only the running app wants a background
+     * timer; unit tests drive [syncPendingQueue] directly and would otherwise leave
+     * real delays running against a torn-down database.
+     */
+    private var autoRetryEnabled = false
+
     fun startNetworkListener(onSynced: (suspend () -> Unit)? = null) {
         this.onSynced = onSynced
+        autoRetryEnabled = true
         scope.launch {
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
@@ -81,6 +104,7 @@ class SyncManager(
         if (appModeManager.isLocal) return 0
         if (!syncMutex.tryLock()) return 0
         var synced = 0
+        var sawConflict = false
         var drained: List<QueuedRequest> = emptyList()
         try {
             if (!connectivityProvider.isOnline.value) return 0
@@ -126,7 +150,7 @@ class SyncManager(
                             addConflict(
                                 "Offline change to ${req.operation.description} was lost: the record was deleted on another device.",
                             )
-                            triggerRefresh(req.operation)
+                            sawConflict = true
                         }
 
                         // 409 with X-Sync-Conflict: server-newer → LWW lost; surface notice
@@ -136,7 +160,7 @@ class SyncManager(
                             addConflict(
                                 "Offline change to ${req.operation.description} was superseded by a newer change from another device.",
                             )
-                            triggerRefresh(req.operation)
+                            sawConflict = true
                         }
 
                         // 409 without header → real duplicate/validation conflict; dead-letter
@@ -184,7 +208,12 @@ class SyncManager(
                         val delay = backoffMs(count, req.id)
                         syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
                         syncQueue.releaseForRetry(req.id)
-                        break
+                        // Skip a payload this build cannot serialize: it is broken for this one
+                        // operation, and parking the rest of the queue behind it buys nothing.
+                        // Everything else caught here is a transport failure that every remaining
+                        // upload would hit too, so stop — continuing would spend all five retries
+                        // of every queued item on one outage and dead-letter the lot.
+                        if (!isPayloadFailure(e)) break
                     }
                 }
 
@@ -212,9 +241,47 @@ class SyncManager(
                         },
                 )
             syncMutex.unlock()
+            // An item parked in exponential backoff gets no enqueue or connectivity
+            // event to nudge it, so without this the whole queue sits until the user
+            // happens to write again. Armed after the unlock so the timer's own drain
+            // can take the mutex.
+            scheduleRetryDrain()
+        }
+
+        // Once per drain, not once per conflict: a batch that lost three edits needs
+        // one refresh, and this runs outside the mutex so it can't deadlock the drain.
+        if (sawConflict) {
+            try {
+                onConflictResolved?.invoke()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
         }
 
         return synced
+    }
+
+    /**
+     * Arms a single timer to re-drain when the soonest backed-off item comes due.
+     * Replaces any previously armed timer — every drain recomputes the gate.
+     */
+    private fun scheduleRetryDrain() {
+        if (!autoRetryEnabled) return
+        retryJob?.cancel()
+        retryJob =
+            scope.launch {
+                val dueAt = syncQueue.nextRetryAt() ?: return@launch
+                val wait = dueAt - Clock.System.now().toEpochMilliseconds()
+                delay(maxOf(wait, 0L) + RETRY_SLACK_MS)
+                // Drop the self-reference before draining: the drain re-arms this timer
+                // from its finally block, and cancelling the job we are currently
+                // running would kill the onSynced callback below.
+                retryJob = null
+                if (!connectivityProvider.isOnline.value) return@launch
+                val count = syncPendingQueue()
+                if (count > 0) onSynced?.invoke()
+            }
     }
 
     /**
@@ -396,14 +463,21 @@ class SyncManager(
             op is SyncOperation.UnlogSupplement
 
     /**
-     * Triggers a best-effort background refresh of the affected entity type so local
-     * state converges after a conflict. This is fire-and-forget; errors are silently
-     * swallowed since the queue drain is already complete for this item.
+     * Whether [e] blames the operation's payload rather than the server or the network:
+     * a stored operation this build can no longer decode, a request body it cannot encode,
+     * or a response it cannot read. Ktor reports response-decode failures as
+     * [ContentConvertException] rather than a [SerializationException], and both may sit
+     * one or two `cause` levels down, so the chain is walked.
      */
-    private fun triggerRefresh(op: SyncOperation) {
-        // The repositories do not expose a refresh hook directly here; the UI layer
-        // observes SyncState.conflictNotices and initiates its own refresh. This method
-        // is a placeholder for future direct-refresh wiring if needed.
+    private fun isPayloadFailure(e: Throwable): Boolean {
+        var cause: Throwable? = e
+        var depth = 0
+        while (cause != null && depth < CAUSE_CHAIN_LIMIT) {
+            if (cause is SerializationException || cause is ContentConvertException) return true
+            cause = cause.cause.takeIf { it !== cause }
+            depth++
+        }
+        return false
     }
 
     /**
@@ -501,10 +575,21 @@ class SyncManager(
         _state.value = _state.value.copy(conflictNotices = _state.value.conflictNotices + message)
     }
 
+    /** Drops the conflict notices once the user has acknowledged them. */
+    fun clearConflictNotices() {
+        _state.value = _state.value.copy(conflictNotices = emptyList())
+    }
+
     companion object {
         private const val MAX_RETRIES = 5
         private const val BACKOFF_BASE_MS = 2_000L
         private const val BACKOFF_CAP_MS = 5 * 60 * 1_000L
         private const val BACKOFF_JITTER_MS = 500L
+
+        /** Slack past the backoff gate, so the retry can't land a tick early. */
+        private const val RETRY_SLACK_MS = 50L
+
+        /** Depth [isPayloadFailure] walks a `cause` chain before giving up. */
+        private const val CAUSE_CHAIN_LIMIT = 5
     }
 }

@@ -778,6 +778,20 @@ enum L10n {
         )
     }
 
+    // MARK: - Sync conflicts
+
+    static func syncConflictBanner(_ count: Int) -> String {
+        localized(
+            "sync_conflict_banner",
+            en: count == 1 ? "1 change was not applied" : "\(count) changes were not applied",
+            de: count == 1 ? "1 Änderung wurde nicht übernommen" : "\(count) Änderungen wurden nicht übernommen"
+        )
+    }
+
+    static var dismiss: String {
+        localized("dismiss", en: "Dismiss", de: "Schließen")
+    }
+
     // MARK: - Pending changes (sync queue) screen
 
     static var pendingChanges: String {

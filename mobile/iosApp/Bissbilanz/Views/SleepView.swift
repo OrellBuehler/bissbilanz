@@ -595,18 +595,6 @@ struct AddSleepSheet: View {
         minutes = total % 60
     }
 
-    // MARK: - Health write-back
-
-    /// Best effort, create-only and gated on the independent write toggle —
-    /// duration-only entries are skipped because Health needs a real interval.
-    private func writeToHealthIfEnabled(bedtime: Date?, wakeTime: Date?) async {
-        guard UserDefaults.standard.bool(forKey: HealthKitService.writeSleepEnabledKey),
-              HealthKitService.shared.isAvailable,
-              let bedtime, let wakeTime
-        else { return }
-        try? await HealthKitService.shared.saveSleep(bedtime: bedtime, wakeTime: wakeTime)
-    }
-
     // MARK: - Prefill / Save
 
     private func prefill() {
@@ -662,7 +650,6 @@ struct AddSleepSheet: View {
                     notes: notes.isEmpty ? nil : notes
                 )
                 try await sleepRepository.createEntry(create)
-                await writeToHealthIfEnabled(bedtime: times?.bedtime, wakeTime: times?.wakeTime)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onSaved()
