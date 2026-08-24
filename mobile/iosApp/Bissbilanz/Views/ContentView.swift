@@ -109,6 +109,10 @@ struct ContentView: View {
                 NavigationStack {
                     RecipeDetailView(recipeId: recipeId)
                 }
+            case .supplements:
+                NavigationStack {
+                    SupplementsView()
+                }
             }
         }
         // Only users who signed in initially are prompted — Local mode is

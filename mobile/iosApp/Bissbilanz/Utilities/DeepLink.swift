@@ -10,6 +10,8 @@ enum DeepLink: Equatable, Identifiable {
     case weight
     case food(String)
     case recipe(String)
+    /// Tapping a supplement reminder's body.
+    case supplements
 
     var id: String {
         switch self {
@@ -18,6 +20,7 @@ enum DeepLink: Equatable, Identifiable {
         case .weight: "weight"
         case let .food(foodId): "food-\(foodId)"
         case let .recipe(recipeId): "recipe-\(recipeId)"
+        case .supplements: "supplements"
         }
     }
 
