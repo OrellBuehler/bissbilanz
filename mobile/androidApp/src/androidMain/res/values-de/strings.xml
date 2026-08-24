@@ -523,6 +523,26 @@
     <string name="supplement_time_noon">Mittags</string>
     <string name="supplement_time_evening">Abends</string>
     <string name="supplement_time_anytime">Jederzeit</string>
+
+    <!-- Supplement reminders -->
+    <string name="supplement_reminder_channel">Supplement-Erinnerungen</string>
+    <string name="supplement_reminder_channel_desc">Erinnert dich, wenn ein Supplement fällig ist.</string>
+    <string name="supplement_reminder_title">Zeit für %1$s</string>
+    <string name="supplement_reminder_summary">Supplements fällig</string>
+    <string name="supplement_reminder_action_taken">Als genommen markieren</string>
+    <string name="supplement_reminder_action_snooze">Später erinnern</string>
+    <string name="supplement_reminder_action_skip">Heute überspringen</string>
+    <string name="supplement_reminders">Erinnerungen</string>
+    <string name="supplement_add_reminder">Erinnerungszeit hinzufügen</string>
+    <string name="supplement_remove_reminder">Erinnerungszeit entfernen</string>
+    <string name="supplement_reminders_none">Keine Erinnerungen</string>
+    <string name="settings_reminders_title">Supplement-Erinnerungen</string>
+    <string name="settings_snooze_duration">Erneut erinnern nach</string>
+    <string name="settings_snooze_minutes">%1$d Min.</string>
+    <string name="settings_snooze_hours">%1$d Std.</string>
+    <string name="settings_reminders_delay_note">Erinnerungen können bis zu etwa 10 Minuten später eintreffen, während dein Handy im Ruhezustand ist, und werden von \"Nicht stören\" stummgeschaltet.</string>
+    <string name="settings_reminders_permission_missing">Benachrichtigungen sind deaktiviert, daher erscheinen keine Erinnerungen.</string>
+    <string name="settings_reminders_permission_grant">Benachrichtigungseinstellungen öffnen</string>
     <string name="supplement_unit_drops">Tropfen</string>
     <string name="supplement_unit_capsules">Kapseln</string>
     <string name="supplement_unit_tablets">Tabletten</string>

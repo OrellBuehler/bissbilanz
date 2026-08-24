@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.bissbilanz.android.health.HealthImporter
+import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,10 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             healthImporter.importAllIfEnabled()
         }
+        // Safety net for the cases nothing else catches: a force-stop or an aggressive
+        // OEM task-killer clears pending alarms silently, and there is no broadcast for
+        // either. Re-arming on every activation is cheap and self-healing.
+        RescheduleRemindersWorker.enqueue(this)
     }
 
     override fun onNewIntent(intent: Intent) {

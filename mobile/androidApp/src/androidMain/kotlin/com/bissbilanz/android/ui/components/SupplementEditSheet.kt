@@ -1,6 +1,11 @@
 package com.bissbilanz.android.ui.components
 
+import android.Manifest
+import android.app.TimePickerDialog
+import android.os.Build
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,16 +17,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.reminders.SupplementReminderNotifier
+import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
+import com.bissbilanz.util.SupplementSchedule
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -70,6 +80,7 @@ fun SupplementEditSheet(
     var name by remember { mutableStateOf("") }
     var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
     var timeOfDay by remember { mutableStateOf("morning") }
+    var reminderTimes by remember { mutableStateOf(listOf<String>()) }
     var isActive by remember { mutableStateOf(true) }
 
     // Always at least one ingredient — matches server's minItems: 1 rule.
@@ -89,6 +100,7 @@ fun SupplementEditSheet(
                     name = found.name
                     scheduleType = found.scheduleType
                     timeOfDay = found.timeOfDay?.value ?: "morning"
+                    reminderTimes = found.reminderTimes.orEmpty()
                     isActive = found.isActive
                     val rows =
                         found.ingredients.map { ing ->
@@ -216,6 +228,12 @@ fun SupplementEditSheet(
                         }
                     }
                 }
+
+                ReminderTimesSection(
+                    times = reminderTimes,
+                    timeOfDay = timeOfDay,
+                    onTimesChanged = { reminderTimes = it },
+                )
 
                 HorizontalDivider()
 
@@ -412,6 +430,7 @@ fun SupplementEditSheet(
                                                 GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
                                                     tod.value == timeOfDay
                                                 },
+                                            reminderTimes = reminderTimes.sorted(),
                                             isActive = isActive,
                                         )
                                     if (isEditing) {
@@ -439,6 +458,131 @@ fun SupplementEditSheet(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+private const val MAX_REMINDER_TIMES = 6
+
+/** The label is only a grouping header, but it's the best hint we have for what clock
+ *  time the user actually means, so it seeds the first row. */
+private fun defaultReminderTime(timeOfDay: String): String =
+    when (timeOfDay) {
+        "noon" -> "12:00"
+        "evening" -> "20:00"
+        else -> "08:00"
+    }
+
+/**
+ * Editor for a supplement's optional reminder times. Adding the first one is the moment
+ * of intent for POST_NOTIFICATIONS: asking at launch, before the user has expressed any
+ * interest in notifications, is the surest way to a permanent deny.
+ *
+ * Reminder times save regardless of the permission — they are server-side data that the
+ * other devices still act on; only this phone's delivery is gated.
+ */
+@Composable
+private fun ReminderTimesSection(
+    times: List<String>,
+    timeOfDay: String,
+    onTimesChanged: (List<String>) -> Unit,
+) {
+    val context = LocalContext.current
+    var notificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            notificationsEnabled = granted
+        }
+
+    val addTime = {
+        // Prefer the label's time, then the other presets, so a second row doesn't
+        // silently collide with the first.
+        val candidates = listOf(defaultReminderTime(timeOfDay), "08:00", "12:00", "20:00")
+        val next = candidates.firstOrNull { it !in times } ?: "08:00"
+        if (times.isEmpty() &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !SupplementReminderNotifier.hasPermission(context)
+        ) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        onTimesChanged((times + next).sorted())
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.supplement_reminders),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        TextButton(onClick = addTime, enabled = times.size < MAX_REMINDER_TIMES) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.supplement_add_reminder))
+        }
+    }
+
+    if (times.isEmpty()) {
+        Text(
+            stringResource(R.string.supplement_reminders_none),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        times.forEachIndexed { index, time ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val parsed = SupplementSchedule.parseReminderTime(time)
+                OutlinedButton(
+                    onClick = {
+                        TimePickerDialog(
+                            context,
+                            { _, hour, minute ->
+                                val picked = "%02d:%02d".format(hour, minute)
+                                // Distinct + sorted: the server stores them that way, and
+                                // duplicates would arm two alarms on the same slot key.
+                                onTimesChanged(
+                                    (times.filterIndexed { i, _ -> i != index } + picked)
+                                        .distinct()
+                                        .sorted(),
+                                )
+                            },
+                            parsed?.hour ?: 8,
+                            parsed?.minute ?: 0,
+                            true,
+                        ).show()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(time)
+                }
+                IconButton(onClick = { onTimesChanged(times.filterIndexed { i, _ -> i != index }) }) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.supplement_remove_reminder),
+                    )
+                }
+            }
+        }
+
+        if (!notificationsEnabled) {
+            // A twice-denied permission can never be re-requested from a launcher, so the
+            // only remaining route is the system settings page.
+            Text(
+                stringResource(R.string.settings_reminders_permission_missing),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            TextButton(onClick = { openNotificationSettings(context) }) {
+                Text(stringResource(R.string.settings_reminders_permission_grant))
             }
         }
     }

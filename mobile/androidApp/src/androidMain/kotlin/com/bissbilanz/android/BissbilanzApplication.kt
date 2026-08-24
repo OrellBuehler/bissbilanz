@@ -10,6 +10,8 @@ import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthExporter
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.reminders.RescheduleRemindersWorker
+import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -79,6 +81,7 @@ class BissbilanzApplication : Application() {
                 single { FastingManager(androidContext(), get(), get(), get()) }
                 single { HealthConnectService(androidContext()) }
                 single { HealthSyncPreferences(androidContext()) }
+                single { SupplementReminderPreferences(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }
@@ -146,6 +149,17 @@ class BissbilanzApplication : Application() {
             healthExporter.exportLatestWeight()
             wearPublisher.publish()
         }
+
+        // Any supplement change can move an alarm: the schedule, the reminder times and
+        // the active flag all live on the supplement. This one hook covers create,
+        // update, delete and the server refresh (which caches row by row) — the worker's
+        // unique work collapses the resulting burst into a single reschedule.
+        koin.get<SupplementRepository>().onSupplementsChanged = {
+            RescheduleRemindersWorker.enqueue(this@BissbilanzApplication)
+        }
+        // Alarms do not survive a reboot, an app update, or an OEM task-killer, so arm
+        // them from a known-good state on every start.
+        RescheduleRemindersWorker.enqueue(this)
 
         val refreshManager = koin.get<RefreshManager>()
         koin.get<SyncManager>().startNetworkListener {

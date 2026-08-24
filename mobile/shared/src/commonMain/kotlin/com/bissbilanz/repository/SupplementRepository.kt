@@ -47,6 +47,13 @@ class SupplementRepository(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
+    /**
+     * Fired whenever the cached supplement rows change — create, update, delete, or a
+     * server refresh. Android rebuilds its reminder alarms from this; the schedule and
+     * reminder times both live on the supplement, so any change can move an alarm.
+     */
+    var onSupplementsChanged: (() -> Unit)? = null
+
     fun supplements(): Flow<List<Supplement>> =
         db.userDataDatabaseQueries
             .selectActiveSupplements()
@@ -83,6 +90,7 @@ class SupplementRepository(
 
     suspend fun deleteSupplement(id: String) {
         db.userDataDatabaseQueries.deleteSupplement(id)
+        onSupplementsChanged?.invoke()
         if (id.isTempId()) {
             syncQueue.removeByAffected("supplements", id)
         } else {
@@ -251,6 +259,7 @@ class SupplementRepository(
             sortOrder = supplement.sortOrder.toLong(),
             jsonData = json.encodeToString(supplement),
         )
+        onSupplementsChanged?.invoke()
     }
 
     private fun cacheSupplements(
