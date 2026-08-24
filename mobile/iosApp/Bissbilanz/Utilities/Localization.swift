@@ -572,10 +572,6 @@ enum L10n {
         )
     }
 
-    static var openSettings: String {
-        localized("open_settings", en: "Open Settings", de: "Einstellungen öffnen")
-    }
-
     static func supplementReminderTitle(_ name: String) -> String {
         localized(
             "supplement_reminder_title",
