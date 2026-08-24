@@ -36,6 +36,7 @@ import kotlinx.serialization.encoding.*
  * @param quickCarbs
  * @param quickFat
  * @param quickFiber
+ * @param quickNutrients
  * @param eatenAt
  * @param createdAt
  * @param updatedAt
@@ -56,6 +57,7 @@ data class Entry(
     @SerialName(value = "quickCarbs") @Required val quickCarbs: kotlin.Double?,
     @SerialName(value = "quickFat") @Required val quickFat: kotlin.Double?,
     @SerialName(value = "quickFiber") @Required val quickFiber: kotlin.Double?,
+    @SerialName(value = "quickNutrients") @Required val quickNutrients: kotlin.collections.Map<kotlin.String, kotlin.Double>?,
     @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,

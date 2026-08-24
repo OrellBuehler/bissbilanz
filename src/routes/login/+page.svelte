@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import ProviderIcon from '$lib/components/auth/ProviderIcon.svelte';
+	import Seo from '$lib/components/Seo.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -15,6 +16,8 @@
 		apple: m.auth_login_apple
 	};
 </script>
+
+<Seo title={m.seo_login_title()} description={m.seo_login_description()} path="/login" noindex />
 
 <div class="bg-surface-container-low flex min-h-screen w-full items-center justify-center px-4">
 	<Card.Root class="mx-auto w-full max-w-md">

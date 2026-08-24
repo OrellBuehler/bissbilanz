@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
@@ -23,9 +24,11 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
+import com.bissbilanz.util.toNutrientDoubles
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -48,12 +51,15 @@ fun EntryEditSheet(
     onSaved: () -> Unit,
 ) {
     val entryRepo: EntryRepository = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isSaving by remember { mutableStateOf(false) }
     var entry by remember { mutableStateOf<Entry?>(null) }
     val isEditing = entryId != null
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val visibleNutrientKeys = prefs?.visibleNutrients?.toSet()
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
 
@@ -70,6 +76,7 @@ fun EntryEditSheet(
     var quickCarbs by remember { mutableStateOf("") }
     var quickFat by remember { mutableStateOf("") }
     var quickFiber by remember { mutableStateOf("") }
+    var quickNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val unknownName = stringResource(R.string.entry_edit_unknown)
@@ -281,6 +288,11 @@ fun EntryEditSheet(
                 NutrientTextField(stringResource(R.string.food_form_fiber_optional), quickFiber, FiberGreen) {
                     quickFiber = it
                 }
+                QuickNutrientInputs(
+                    nutrients = quickNutrients,
+                    onNutrientsChange = { quickNutrients = it },
+                    visibleNutrientKeys = visibleNutrientKeys,
+                )
             }
 
             // Notes
@@ -348,6 +360,8 @@ fun EntryEditSheet(
                                             quickFat = quickFat.toLocalizedDoubleOrNull(),
                                             quickFiber =
                                                 quickFiber.toLocalizedDoubleOrNull(),
+                                            quickNutrients =
+                                                quickNutrients.toNutrientDoubles().ifEmpty { null },
                                             notes = notes.ifBlank { null },
                                         ),
                                     )

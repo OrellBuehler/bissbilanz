@@ -95,6 +95,26 @@ struct APIRequestBuildingTests {
         #expect(json["eatenAt"] as? String == "12:30")
         #expect(json["recipeId"] == nil)
         #expect(json["quickName"] == nil)
+        #expect(json["quickNutrients"] == nil)
+    }
+
+    @Test("Quick entry POST body encodes quickNutrients")
+    func quickEntryCreateNutrientsEncoding() throws {
+        let entry = EntryCreate(
+            mealType: "snacks",
+            servings: 1,
+            date: "2026-03-12",
+            quickName: "Energy Bar",
+            quickCalories: 250,
+            quickNutrients: ["saturatedFat": 3.5, "sodium": 120]
+        )
+
+        let data = try JSONEncoder().encode(entry)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        let quickNutrients = try #require(json["quickNutrients"] as? [String: Any])
+        #expect(quickNutrients["saturatedFat"] as? Double == 3.5)
+        #expect(quickNutrients["sodium"] as? Double == 120)
     }
 
     @Test("Recipe create body encoding")
@@ -394,7 +414,8 @@ struct APIResponseDecodingTests {
                 "quickProtein": 10,
                 "quickCarbs": 35,
                 "quickFat": 8,
-                "quickFiber": 2
+                "quickFiber": 2,
+                "quickNutrients": {"saturatedFat": 3.5, "sodium": 120}
             }
         }
         """.data(using: .utf8)!
@@ -405,6 +426,33 @@ struct APIResponseDecodingTests {
         #expect(response.entry.totalCalories == 250)
         #expect(response.entry.date == "2026-03-12")
         #expect(response.entry.calories == nil)
+        #expect(response.entry.quickNutrients?["saturatedFat"] == 3.5)
+        #expect(response.entry.quickNutrients?["sodium"] == 120)
+    }
+
+    @Test("Quick entry response decodes with null quickNutrients")
+    func quickEntryNullNutrientsDecoding() throws {
+        let json = """
+        {
+            "entry": {
+                "id": "e4",
+                "userId": "u1",
+                "date": "2026-03-12",
+                "mealType": "snacks",
+                "servings": 1,
+                "quickName": "Cracker",
+                "quickCalories": 100,
+                "quickProtein": 2,
+                "quickCarbs": 20,
+                "quickFat": 1,
+                "quickFiber": 1,
+                "quickNutrients": null
+            }
+        }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntryResponse.self, from: json)
+        #expect(response.entry.quickNutrients == nil)
     }
 
     @Test("Goals response with null goals decodes")

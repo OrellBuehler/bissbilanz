@@ -20,6 +20,7 @@ enum EntryFactory {
             quickCarbs: create.quickCarbs,
             quickFat: create.quickFat,
             quickFiber: create.quickFiber,
+            quickNutrients: create.quickNutrients,
             foodName: food?.name ?? recipe?.name,
             calories: food?.calories ?? recipe?.calories.map { $0 / recipeServings },
             protein: food?.protein ?? recipe?.protein.map { $0 / recipeServings },

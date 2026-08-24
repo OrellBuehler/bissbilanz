@@ -1163,6 +1163,9 @@ export interface components {
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
+			quickNutrients?: {
+				[key: string]: number;
+			} | null;
 			/** Format: date-time */
 			eatenAt?: string;
 		};
@@ -1181,6 +1184,9 @@ export interface components {
 			quickCarbs?: number | null;
 			quickFat?: number | null;
 			quickFiber?: number | null;
+			quickNutrients?: {
+				[key: string]: number;
+			} | null;
 			/** Format: date-time */
 			eatenAt?: string;
 		};
@@ -1502,6 +1508,9 @@ export interface components {
 			quickCarbs: number | null;
 			quickFat: number | null;
 			quickFiber: number | null;
+			quickNutrients: {
+				[key: string]: number;
+			} | null;
 			foodName: string | null;
 			calories: number;
 			protein: number;
@@ -1533,6 +1542,9 @@ export interface components {
 			quickCarbs: number | null;
 			quickFat: number | null;
 			quickFiber: number | null;
+			quickNutrients: {
+				[key: string]: number;
+			} | null;
 			eatenAt: string;
 			createdAt?: string;
 			updatedAt?: string;

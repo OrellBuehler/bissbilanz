@@ -81,14 +81,23 @@ class EntrySerializationTest {
                 "quickProtein": 20.0,
                 "quickCarbs": 25.0,
                 "quickFat": 8.0,
-                "quickFiber": 3.0
+                "quickFiber": 3.0,
+                "quickNutrients": {
+                    "sugar": 12.0,
+                    "sodium": 150.0
+                }
             }
             """.trimIndent()
         val entry = json.decodeFromString<Entry>(jsonStr)
         assertEquals("Protein Bar", entry.quickName)
         assertEquals(200.0, entry.quickCalories)
+        assertEquals(mapOf("sugar" to 12.0, "sodium" to 150.0), entry.quickNutrients)
         assertNull(entry.foodId)
         assertNull(entry.food)
+
+        val reEncoded = json.encodeToString(entry)
+        val roundTripped = json.decodeFromString<Entry>(reEncoded)
+        assertEquals(entry.quickNutrients, roundTripped.quickNutrients)
     }
 
     @Test

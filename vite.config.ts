@@ -21,11 +21,15 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
+				id: '/',
 				scope: '/',
 				start_url: '/',
-				name: 'Bissbilanz',
+				lang: 'en',
+				categories: ['health', 'fitness', 'lifestyle', 'food'],
+				name: 'Bissbilanz — Calorie and Macro Tracker',
 				short_name: 'Bissbilanz',
-				description: 'Food tracking with AI assistance',
+				description:
+					'Track calories, macros and 43+ nutrients. Build recipes, scan barcodes, and let AI help you log — all offline-ready.',
 				theme_color: '#000000',
 				background_color: '#ffffff',
 				display: 'standalone',

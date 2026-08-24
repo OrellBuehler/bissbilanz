@@ -16,15 +16,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
 	import { round2 } from '$lib/utils/number';
-	import {
-		ALL_NUTRIENTS,
-		CATEGORY_ORDER,
-		NUTRIENTS_BY_CATEGORY,
-		DEFAULT_VISIBLE_NUTRIENTS,
-		type NutrientCategory
-	} from '$lib/nutrients';
-	import { nutrientLabel, categoryLabel } from '$lib/nutrients-i18n';
-	import { untrack } from 'svelte';
+	import { ALL_NUTRIENTS, DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
+	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -120,34 +113,6 @@
 		additives: initial.additives ?? null,
 		ingredientsText: initial.ingredientsText ?? null,
 		imageUrl: initial.imageUrl ?? null
-	});
-
-	// Track which category collapsibles are open
-	let openCategories = $state<Record<string, boolean>>(
-		Object.fromEntries(CATEGORY_ORDER.map((cat) => [cat, false]))
-	);
-
-	// Filter nutrients by visibility and compute which categories have visible nutrients
-	let visibleSet = $derived(new Set(visibleNutrients));
-
-	let visibleCategories = $derived(
-		CATEGORY_ORDER.filter((cat) => NUTRIENTS_BY_CATEGORY[cat].some((n) => visibleSet.has(n.key)))
-	);
-
-	// Auto-expand categories that have pre-filled data (one-time on mount)
-	$effect(() => {
-		untrack(() => {
-			for (const cat of CATEGORY_ORDER) {
-				const nutrients = NUTRIENTS_BY_CATEGORY[cat];
-				const hasData = nutrients.some((n) => {
-					const val = form[n.key];
-					return val != null && val !== 0;
-				});
-				if (hasData && !openCategories[cat]) {
-					openCategories[cat] = true;
-				}
-			}
-		});
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -282,38 +247,11 @@
 		</Collapsible.Trigger>
 		<Collapsible.Content>
 			<div class="space-y-3">
-				{#each visibleCategories as category}
-					{@const nutrients = NUTRIENTS_BY_CATEGORY[category].filter((n) => visibleSet.has(n.key))}
-					{#if nutrients.length > 0}
-						<Collapsible.Root bind:open={openCategories[category]}>
-							<Collapsible.Trigger
-								class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent"
-							>
-								{#if openCategories[category]}
-									<ChevronDown class="size-3.5" />
-								{:else}
-									<ChevronRight class="size-3.5" />
-								{/if}
-								{categoryLabel(category)}
-							</Collapsible.Trigger>
-							<Collapsible.Content>
-								<div class="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
-									{#each nutrients as nutrient}
-										<div class="grid gap-1.5">
-											<Label for={nutrient.key}>{nutrientLabel(nutrient)}</Label>
-											<NumberInput
-												id={nutrient.key}
-												bind:value={
-													() => form[nutrient.key] as number | null, (v) => (form[nutrient.key] = v)
-												}
-											/>
-										</div>
-									{/each}
-								</div>
-							</Collapsible.Content>
-						</Collapsible.Root>
-					{/if}
-				{/each}
+				<NutrientCategoryInputs
+					values={form as Record<string, number | null | undefined>}
+					onChange={(key, v) => (form[key] = v)}
+					{visibleNutrients}
+				/>
 
 				<!-- Nutri-Score -->
 				<div class="rounded-md border p-3 space-y-2">

@@ -40,6 +40,7 @@
 			quickCarbs?: number;
 			quickFat?: number;
 			quickFiber?: number;
+			quickNutrients?: Record<string, number>;
 		}) => void;
 	};
 

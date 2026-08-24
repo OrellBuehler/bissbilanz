@@ -5,6 +5,10 @@
 	import * as m from '$lib/paraglide/messages';
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex" />
+</svelte:head>
+
 <div class="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
 	<TriangleAlert class="h-12 w-12 text-muted-foreground" />
 	<h1 class="text-2xl font-semibold">

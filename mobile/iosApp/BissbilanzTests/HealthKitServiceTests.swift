@@ -530,7 +530,7 @@ private func makeNutrientEntry(
         id: "e1", mealType: "lunch", servings: servings, notes: nil,
         foodId: foodId, recipeId: nil,
         quickName: nil, quickCalories: quickCalories,
-        quickProtein: quickProtein, quickCarbs: nil, quickFat: nil, quickFiber: nil,
+        quickProtein: quickProtein, quickCarbs: nil, quickFat: nil, quickFiber: nil, quickNutrients: nil,
         foodName: nil, calories: calories, protein: protein,
         carbs: nil, fat: nil, fiber: nil,
         servingSize: nil, servingUnit: nil,

@@ -36,6 +36,11 @@ data class TokenResponse(
     @SerialName("expires_in") val expiresIn: Int,
 )
 
+@Serializable
+data class LoginProvidersResponse(
+    val providers: List<String>,
+)
+
 class AuthManager(
     private val baseUrl: String,
     private val secureStorage: SecureStorage,
@@ -78,6 +83,16 @@ class AuthManager(
         pendingState = state
         return "$baseUrl/api/auth/mobile/login?state=$state&provider=$provider"
     }
+
+    /** Which sign-in providers the server has configured, or null when the request fails. */
+    suspend fun fetchLoginProviders(): List<String>? =
+        try {
+            val response: LoginProvidersResponse = client.get("$baseUrl/api/auth/providers").body()
+            response.providers
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            null
+        }
 
     fun validateState(state: String?): Boolean {
         val expected = pendingState

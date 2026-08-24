@@ -41,3 +41,7 @@ fun Float.formatDecimal1(): String = toDouble().formatDecimal1()
  * parsing keeps entries like "1,5" from silently becoming null.
  */
 fun String.toLocalizedDoubleOrNull(): Double? = this.trim().replace(',', '.').toDoubleOrNull()
+
+/** Parses a nutrient-key-to-raw-input map, dropping blank/unparseable entries. */
+fun Map<String, String>.toNutrientDoubles(): Map<String, Double> =
+    mapNotNull { (key, raw) -> raw.toLocalizedDoubleOrNull()?.let { key to it } }.toMap()

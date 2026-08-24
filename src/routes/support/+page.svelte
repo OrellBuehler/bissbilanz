@@ -1,3 +1,10 @@
+<script lang="ts">
+	import Seo from '$lib/components/Seo.svelte';
+	import * as m from '$lib/paraglide/messages';
+</script>
+
+<Seo title={m.seo_support_title()} description={m.seo_support_description()} path="/support" />
+
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-8 text-3xl font-bold">Bissbilanz support</h1>
 

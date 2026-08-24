@@ -53,6 +53,7 @@ async function create(entry: {
 	quickCarbs?: number | null;
 	quickFat?: number | null;
 	quickFiber?: number | null;
+	quickNutrients?: Record<string, number> | null;
 	eatenAt?: string;
 }) {
 	const id = crypto.randomUUID();
@@ -123,6 +124,7 @@ async function create(entry: {
 		fiber,
 		servingSize,
 		servingUnit,
+		quickNutrients: entry.quickNutrients ?? null,
 		createdAt: now
 	});
 
@@ -154,6 +156,7 @@ async function update(
 		quickCarbs?: number | null;
 		quickFat?: number | null;
 		quickFiber?: number | null;
+		quickNutrients?: Record<string, number> | null;
 	}
 ) {
 	const existing = await db.foodEntries.get(id);

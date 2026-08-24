@@ -9,6 +9,10 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import * as m from '$lib/paraglide/messages';
+	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
 	export type QuickLogPayload = {
 		quickName?: string;
@@ -17,6 +21,7 @@
 		quickCarbs?: number;
 		quickFat?: number;
 		quickFiber?: number;
+		quickNutrients?: Record<string, number>;
 	};
 
 	type Props = {
@@ -34,6 +39,19 @@
 	let quickFat = $state<number | null>(null);
 	let quickFiber = $state<number | null>(null);
 	let quickMacrosOpen = $state(false);
+	let quickNutrients = $state<Record<string, number>>({});
+	let quickNutrientsOpen = $state(false);
+
+	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
+	let visibleNutrients = $derived(cachedPrefs.value?.visibleNutrients ?? DEFAULT_VISIBLE_NUTRIENTS);
+
+	const setQuickNutrient = (key: string, value: number | null) => {
+		if (value == null) {
+			delete quickNutrients[key];
+		} else {
+			quickNutrients[key] = value;
+		}
+	};
 
 	let macroCalories = $derived(
 		(quickProtein ?? 0) * 4 + (quickCarbs ?? 0) * 4 + (quickFat ?? 0) * 9
@@ -52,7 +70,8 @@
 			quickProtein: quickProtein ?? undefined,
 			quickCarbs: quickCarbs ?? undefined,
 			quickFat: quickFat ?? undefined,
-			quickFiber: quickFiber ?? undefined
+			quickFiber: quickFiber ?? undefined,
+			quickNutrients: Object.keys(quickNutrients).length ? { ...quickNutrients } : undefined
 		});
 		quickName = '';
 		quickCalories = null;
@@ -60,6 +79,7 @@
 		quickCarbs = null;
 		quickFat = null;
 		quickFiber = null;
+		quickNutrients = {};
 	};
 </script>
 
@@ -114,6 +134,28 @@
 				{m.quick_log_macro_calories({ calories: Math.round(macroCalories) })}
 			</div>
 		{/if}
+	{/if}
+	<button
+		type="button"
+		class="flex items-center gap-1 text-sm text-muted-foreground"
+		onclick={() => (quickNutrientsOpen = !quickNutrientsOpen)}
+	>
+		{#if quickNutrientsOpen}
+			<ChevronUp class="size-4" />
+		{:else}
+			<ChevronDown class="size-4" />
+		{/if}
+		{m.quick_log_nutrients()}
+	</button>
+	{#if quickNutrientsOpen}
+		<div class="space-y-2">
+			<NutrientCategoryInputs
+				values={quickNutrients}
+				onChange={setQuickNutrient}
+				{visibleNutrients}
+				idPrefix="quick-"
+			/>
+		</div>
 	{/if}
 	<div class="grid gap-1.5">
 		<Label class="text-xs">{m.add_food_time()}</Label>

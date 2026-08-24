@@ -8,6 +8,7 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,9 +24,16 @@ class AddFoodViewModel(
     private val foodRepo: FoodRepository,
     private val recipeRepo: RecipeRepository,
     private val entryRepo: EntryRepository,
+    private val prefsRepo: PreferencesRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
+
+    val visibleNutrients: StateFlow<Set<String>?> =
+        prefsRepo
+            .preferences()
+            .map { it?.visibleNutrients?.toSet() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val favoriteFoods: StateFlow<List<Food>> =
         foodRepo.favorites().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -160,6 +168,7 @@ class AddFoodViewModel(
         carbs: Double?,
         fat: Double?,
         fiber: Double?,
+        quickNutrients: Map<String, Double>?,
         notes: String?,
         onComplete: () -> Unit,
     ) {
@@ -177,6 +186,7 @@ class AddFoodViewModel(
                         quickCarbs = carbs,
                         quickFat = fat,
                         quickFiber = fiber,
+                        quickNutrients = quickNutrients,
                         notes = notes?.ifBlank { null },
                     ),
                 )

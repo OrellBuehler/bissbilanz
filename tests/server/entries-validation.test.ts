@@ -82,6 +82,42 @@ describe('entryCreateSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	test('validates quick log entry with extended quickNutrients', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'dinner',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: 900,
+			quickNutrients: { saturatedFat: 12, sodium: 800, vitaminC: 45 }
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.quickNutrients).toEqual({ saturatedFat: 12, sodium: 800, vitaminC: 45 });
+		}
+	});
+
+	test('rejects quickNutrients with unknown nutrient key', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'dinner',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: 900,
+			quickNutrients: { notANutrient: 5 }
+		});
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects quickNutrients with negative value', () => {
+		const result = entryCreateSchema.safeParse({
+			mealType: 'dinner',
+			servings: 1,
+			date: '2026-02-10',
+			quickCalories: 900,
+			quickNutrients: { sodium: -1 }
+		});
+		expect(result.success).toBe(false);
+	});
+
 	test('coerces string quickCalories to number', () => {
 		const result = entryCreateSchema.safeParse({
 			mealType: 'lunch',
