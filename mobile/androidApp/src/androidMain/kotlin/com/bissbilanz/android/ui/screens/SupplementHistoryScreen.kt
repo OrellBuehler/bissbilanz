@@ -26,10 +26,10 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
-import com.bissbilanz.model.ScheduleType
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.repository.SupplementRepository
+import com.bissbilanz.util.SupplementSchedule
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
@@ -50,37 +50,6 @@ private data class DayAdherence(
     val taken: List<DayItem>,
     val missed: List<DayItem>,
 )
-
-private fun isSupplementDue(
-    scheduleType: ScheduleType,
-    scheduleDays: List<Int>?,
-    scheduleStartDate: String?,
-    date: LocalDate,
-): Boolean =
-    when (scheduleType) {
-        ScheduleType.daily -> {
-            true
-        }
-
-        ScheduleType.every_other_day -> {
-            if (scheduleStartDate == null) {
-                true
-            } else {
-                val start = LocalDate.parse(scheduleStartDate)
-                val daysBetween = start.daysUntil(date)
-                daysBetween % 2 == 0
-            }
-        }
-
-        ScheduleType.weekly, ScheduleType.specific_days -> {
-            if (scheduleDays.isNullOrEmpty()) {
-                false
-            } else {
-                val dow = date.dayOfWeek.value % 7
-                scheduleDays.contains(dow)
-            }
-        }
-    }
 
 private fun computeAdherence(
     history: List<SupplementHistoryEntry>,
@@ -103,7 +72,7 @@ private fun computeAdherence(
         val dateStr = current.toString()
         val due =
             active.filter { s ->
-                isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, current)
+                SupplementSchedule.isSupplementDue(s.scheduleType, s.scheduleDays, s.scheduleStartDate, current)
             }
         if (due.isNotEmpty()) {
             val takenIds = logsByDate[dateStr] ?: emptySet()
