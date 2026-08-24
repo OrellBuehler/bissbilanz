@@ -27,6 +27,7 @@ enum BackgroundRefresher {
         let weightRepository: WeightRepository
         let sleepRepository: SleepRepository
         let foodRepository: FoodRepository
+        let supplementRepository: SupplementRepository
     }
 
     private static var dependencies: Dependencies?
@@ -101,5 +102,11 @@ enum BackgroundRefresher {
         try? await deps.weightRepository.refresh()
         try? await deps.sleepRepository.refresh()
         try? await deps.foodRepository.refreshFavorites()
+        // Not widget data: supplements are pulled so the reminder refill below sees
+        // schedule and reminder-time edits made on another device. A background run is
+        // one of the few chances iOS gives us to top the rolling window back up — a
+        // delivered-but-untouched notification does not wake the app.
+        try? await deps.supplementRepository.refresh()
+        await SupplementReminderScheduler.refill(repository: deps.supplementRepository)
     }
 }

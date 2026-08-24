@@ -125,6 +125,11 @@ final class SupplementRepository {
         ))
         save()
         syncManager.enqueue(.logSupplement(supplementId: id, date: date))
+        // iOS runs no code before a local notification is delivered, so a reminder for
+        // something already taken has to be cancelled here. Every log path — the
+        // checklist, the dashboard card, the notification's own Mark taken — funnels
+        // through this method, so this one hook covers all of them.
+        await SupplementReminderScheduler.cancelToday(supplementId: id)
     }
 
     func unlogSupplement(id: String, date: String) async throws {
@@ -141,6 +146,8 @@ final class SupplementRepository {
         } else {
             syncManager.enqueue(.unlogSupplement(supplementId: id, date: date))
         }
+        // Un-ticking is usually an undo, so re-arm the rest of today's reminders.
+        await SupplementReminderScheduler.refill(repository: self)
     }
 
     @discardableResult

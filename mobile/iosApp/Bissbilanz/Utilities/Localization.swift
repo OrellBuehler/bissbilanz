@@ -518,6 +518,80 @@ enum L10n {
         localized("supplements", en: "Supplements", de: "Nahrungsergänzung")
     }
 
+    // MARK: - Supplement reminders
+
+    static var reminders: String {
+        localized("supplement_reminders", en: "Reminders", de: "Erinnerungen")
+    }
+
+    static var addReminderTime: String {
+        localized(
+            "supplement_add_reminder",
+            en: "Add reminder time",
+            de: "Erinnerungszeit hinzufügen"
+        )
+    }
+
+    static var removeReminderTime: String {
+        localized(
+            "supplement_remove_reminder",
+            en: "Remove reminder time",
+            de: "Erinnerungszeit entfernen"
+        )
+    }
+
+    static var noReminders: String {
+        localized("supplement_reminders_none", en: "No reminders", de: "Keine Erinnerungen")
+    }
+
+    static var snoozeDuration: String {
+        localized(
+            "supplement_snooze_duration",
+            en: "Remind me again after",
+            de: "Erneut erinnern nach"
+        )
+    }
+
+    static var markTaken: String {
+        localized("supplement_mark_taken", en: "Mark taken", de: "Als genommen markieren")
+    }
+
+    static var remindLater: String {
+        localized("supplement_remind_later", en: "Remind later", de: "Später erinnern")
+    }
+
+    static var skipToday: String {
+        localized("supplement_skip_today", en: "Skip today", de: "Heute überspringen")
+    }
+
+    static var notificationsDisabled: String {
+        localized(
+            "supplement_notifications_disabled",
+            en: "Notifications are turned off, so reminders won't appear.",
+            de: "Benachrichtigungen sind deaktiviert, daher erscheinen keine Erinnerungen."
+        )
+    }
+
+    static var openSettings: String {
+        localized("open_settings", en: "Open Settings", de: "Einstellungen öffnen")
+    }
+
+    static func supplementReminderTitle(_ name: String) -> String {
+        localized(
+            "supplement_reminder_title",
+            en: "Time for \(name)",
+            de: "Zeit für \(name)"
+        )
+    }
+
+    static func snoozeMinutes(_ minutes: Int) -> String {
+        localized("supplement_snooze_minutes", en: "\(minutes) min", de: "\(minutes) Min.")
+    }
+
+    static func snoozeHours(_ hours: Int) -> String {
+        localized("supplement_snooze_hours", en: "\(hours) h", de: "\(hours) Std.")
+    }
+
     static var createSupplement: String {
         localized(
             "create_supplement",

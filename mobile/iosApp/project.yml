@@ -120,6 +120,13 @@ targets:
       - sdk: CoreSpotlight.framework
       # Fasting Live Activity (FastingTimerManager / EndFastIntent).
       - sdk: ActivityKit.framework
+      # Supplement reminders, scheduled on-device from each supplement's
+      # reminderTimes. Local notifications only — no remote push, so no
+      # aps-environment entitlement and nothing to add to UIBackgroundModes.
+      # Deliberately NOT added to BissbilanzWidgets: an extension cannot own the
+      # notification delegate, and letting it schedule would duplicate requests
+      # against the app's shared 64-slot budget.
+      - sdk: UserNotifications.framework
       - package: Sentry
       - target: BissbilanzWidgets
         embed: true

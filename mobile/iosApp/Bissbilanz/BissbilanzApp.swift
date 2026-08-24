@@ -1,6 +1,7 @@
 import AppIntents
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 /// Top-level destination shown at the app root, resolved from auth state and app mode.
 enum RootDestination {
@@ -95,9 +96,10 @@ struct BissbilanzApp: App {
         _recipeRepository = State(wrappedValue: recipeRepo)
         _weightRepository = State(wrappedValue: weightRepo)
         _sleepRepository = State(wrappedValue: sleepRepo)
-        _supplementRepository = State(wrappedValue: SupplementRepository(
+        let supplementRepo = SupplementRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
-        ))
+        )
+        _supplementRepository = State(wrappedValue: supplementRepo)
         let goalsRepo = GoalsRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         _goalsRepository = State(wrappedValue: goalsRepo)
         _preferencesRepository = State(wrappedValue: PreferencesRepository(
@@ -173,8 +175,19 @@ struct BissbilanzApp: App {
             goalsRepository: goalsRepo,
             weightRepository: weightRepo,
             sleepRepository: sleepRepo,
-            foodRepository: foodRepo
+            foodRepository: foodRepo,
+            supplementRepository: supplementRepo
         ))
+
+        // Supplement reminders. The category costs nothing and must be registered before
+        // any request is scheduled, so it happens regardless of authorization — the
+        // permission itself is only asked for when the user adds their first reminder
+        // time. The delegate is assigned here rather than later because an action tap
+        // that cold-launches the app is dropped if no delegate exists by the time launch
+        // finishes; `UNUserNotificationCenter.delegate` is weak, hence the singleton.
+        SupplementReminderScheduler.registerCategory()
+        SupplementNotificationDelegate.shared.configure(repository: supplementRepo, router: router)
+        UNUserNotificationCenter.current().delegate = SupplementNotificationDelegate.shared
     }
 
     var body: some Scene {
@@ -265,6 +278,11 @@ struct BissbilanzApp: App {
                             weightRepository: weightRepository,
                             sleepRepository: sleepRepository
                         )
+                    }
+                    // Top up the rolling reminder window (iOS caps pending requests at
+                    // 64) and re-resolve wall-clock times against the current timezone.
+                    Task {
+                        await SupplementReminderScheduler.refill(repository: supplementRepository)
                     }
                     // Surface any widget-extension quick-add failures (the
                     // extension has no Sentry of its own — see QuickAddDiagnostics).
