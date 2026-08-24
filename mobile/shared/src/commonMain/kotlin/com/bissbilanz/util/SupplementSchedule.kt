@@ -5,6 +5,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.isoDayNumber
 
 /**
  * Schedule maths shared by the supplement history screen and the reminder scheduler.
@@ -18,8 +19,9 @@ object SupplementSchedule {
     /**
      * Determine if a supplement is due on a given date.
      *
-     * [scheduleDays] uses the server's Sun=0..Sat=6 numbering, so the ISO Mon=1..Sun=7
-     * of [LocalDate.dayOfWeek] is rotated with `% 7`.
+     * [scheduleDays] uses the server's Sun=0..Sat=6 numbering, so the ISO Mon=1..Sun=7 is
+     * rotated with `% 7`. Uses `isoDayNumber` rather than `DayOfWeek.value`, which only
+     * exists where DayOfWeek is java.time's — not on Kotlin/Native.
      */
     fun isSupplementDue(
         scheduleType: Supplement.ScheduleType,
@@ -36,7 +38,7 @@ object SupplementSchedule {
             }
 
             Supplement.ScheduleType.weekly, Supplement.ScheduleType.specific_days -> {
-                if (scheduleDays.isNullOrEmpty()) false else scheduleDays.contains(date.dayOfWeek.value % 7)
+                if (scheduleDays.isNullOrEmpty()) false else scheduleDays.contains(date.dayOfWeek.isoDayNumber % 7)
             }
         }
 
