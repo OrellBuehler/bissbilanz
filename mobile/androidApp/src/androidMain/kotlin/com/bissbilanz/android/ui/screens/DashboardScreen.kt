@@ -17,13 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -44,7 +43,7 @@ import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
-import com.bissbilanz.android.util.displayName
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
@@ -59,6 +58,7 @@ import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController) {
     val viewModel: DashboardViewModel = koinViewModel()
@@ -110,15 +110,47 @@ fun DashboardScreen(navController: NavController) {
     val totalFat = remember(entries) { entries.sumOf { it.resolvedFat() } }
     val totalFiber = remember(entries) { entries.sumOf { it.resolvedFiber() } }
 
-    val dateLabel =
-        when (selectedDate) {
-            today -> stringResource(R.string.weight_widget_today)
-            today.minus(1, DateTimeUnit.DAY) -> stringResource(R.string.dashboard_yesterday)
-            today.plus(1, DateTimeUnit.DAY) -> stringResource(R.string.dashboard_tomorrow)
-            else -> "${selectedDate.dayOfMonth} ${selectedDate.month.displayName()} ${selectedDate.year}"
-        }
+    val dateLabel = dayLabel(selectedDate)
+
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            // Centre-aligned because the title is the middle of a prev/next day
+            // stepper; it is the same small top app bar the rest of the app uses.
+            CenterAlignedTopAppBar(
+                title = { Text(dateLabel, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.previousDay()
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            stringResource(R.string.dashboard_previous_day),
+                        )
+                    }
+                },
+                actions = {
+                    if (selectedDate != today) {
+                        TextButton(onClick = { viewModel.goToToday() }) {
+                            Text(stringResource(R.string.dashboard_go_to_today))
+                        }
+                    }
+                    IconButton(onClick = {
+                        haptic(HapticFeedbackType.LongPress)
+                        viewModel.nextDay()
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            stringResource(R.string.dashboard_next_day),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
         floatingActionButton = {
             Column {
                 // Queuing a meal for the assistant needs the server, so it is
@@ -235,48 +267,10 @@ fun DashboardScreen(navController: NavController) {
                                 onHorizontalDrag = { _, delta -> dragAmount += delta },
                             )
                         }.verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        // Bottom clearance for the three stacked FABs, which
+                        // otherwise sit on top of the last widget on the day.
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 176.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = {
-                        haptic(HapticFeedbackType.LongPress)
-                        viewModel.previousDay()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.dashboard_previous_day))
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(dateLabel, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = { viewModel.goToToday() },
-                            enabled = selectedDate != today,
-                            modifier =
-                                Modifier
-                                    .alpha(if (selectedDate != today) 1f else 0f)
-                                    .then(
-                                        if (selectedDate == today) {
-                                            Modifier.semantics { invisibleToUser() }
-                                        } else {
-                                            Modifier
-                                        },
-                                    ),
-                        ) {
-                            Text(stringResource(R.string.dashboard_go_to_today))
-                        }
-                    }
-                    IconButton(onClick = {
-                        haptic(HapticFeedbackType.LongPress)
-                        viewModel.nextDay()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.dashboard_next_day))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,

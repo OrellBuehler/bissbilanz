@@ -7,10 +7,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.repository.SupplementRepository
@@ -237,29 +239,33 @@ fun SupplementHistoryScreen(navController: NavController) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(stringResource(R.string.supplement_history_from), style = MaterialTheme.typography.labelMedium)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    OutlinedCard(
+                                    OutlinedButton(
                                         onClick = { showFromPicker = true },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        Text(
-                                            fromDate.toString(),
-                                            modifier = Modifier.padding(12.dp),
-                                            style = MaterialTheme.typography.bodyMedium,
+                                        Icon(
+                                            Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
                                         )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(dayLabel(fromDate), style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(stringResource(R.string.supplement_history_to), style = MaterialTheme.typography.labelMedium)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    OutlinedCard(
+                                    OutlinedButton(
                                         onClick = { showToPicker = true },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        Text(
-                                            toDate.toString(),
-                                            modifier = Modifier.padding(12.dp),
-                                            style = MaterialTheme.typography.bodyMedium,
+                                        Icon(
+                                            Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
                                         )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(dayLabel(toDate), style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
                             }
@@ -398,7 +404,7 @@ private fun HistorySupplementRow(
                         if (isExpanded) {
                             Icons.Default.KeyboardArrowDown
                         } else {
-                            Icons.Default.KeyboardArrowRight
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight
                         },
                     contentDescription = stringResource(R.string.supplement_history_toggle_ingredients),
                     modifier = Modifier.size(16.dp),

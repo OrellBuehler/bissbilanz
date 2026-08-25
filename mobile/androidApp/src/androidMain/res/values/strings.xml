@@ -877,4 +877,8 @@
         <item quantity="one">%1$d change was not applied</item>
         <item quantity="other">%1$d changes were not applied</item>
     </plurals>
+
+    <!-- Navigation / screen titles -->
+    <string name="nav_home">Home</string>
+    <string name="food_search_title">Foods</string>
 </resources>

@@ -22,6 +22,7 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 
 @Composable
 fun OmegaRatioCard(result: OmegaResult) {
@@ -83,7 +84,7 @@ fun OmegaRatioCard(result: OmegaResult) {
                     stringResource(R.string.insights_grams_per_day, "%.1f".format(result.avgOmega3)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = FiberGreen,
+                    color = FiberGreen.macroTextTone(),
                 )
                 Text(
                     stringResource(R.string.nutrient_omega3),
@@ -96,7 +97,7 @@ fun OmegaRatioCard(result: OmegaResult) {
                     stringResource(R.string.insights_grams_per_day, "%.1f".format(result.avgOmega6)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = CarbsOrange,
+                    color = CarbsOrange.macroTextTone(),
                 )
                 Text(
                     stringResource(R.string.nutrient_omega6),

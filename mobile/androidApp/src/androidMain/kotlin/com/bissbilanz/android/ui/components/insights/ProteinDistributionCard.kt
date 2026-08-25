@@ -20,6 +20,7 @@ import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -62,7 +63,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
                     "${"%.1f".format(result.avgPerMeal)} g",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = ProteinRed,
+                    color = ProteinRed.macroTextTone(),
                 )
                 Text(
                     stringResource(R.string.insights_avg_per_meal),
@@ -75,7 +76,7 @@ fun ProteinDistributionCard(result: ProteinDistributionResult) {
                     "${result.mealsBelowThreshold} / ${result.totalMeals}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = CarbsOrange,
+                    color = CarbsOrange.macroTextTone(),
                 )
                 Text(
                     stringResource(R.string.insights_meals_below_threshold),

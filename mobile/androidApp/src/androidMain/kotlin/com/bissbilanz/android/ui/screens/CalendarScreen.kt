@@ -27,6 +27,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.util.displayName
 import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.model.Goals
@@ -343,7 +344,7 @@ fun CalendarScreen(navController: NavController) {
                                         "$daysWithEntries",
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = CaloriesBlue,
+                                        color = CaloriesBlue.macroTextTone(),
                                     )
                                     Text(stringResource(R.string.calendar_days_logged), style = MaterialTheme.typography.labelSmall)
                                 }
@@ -352,7 +353,7 @@ fun CalendarScreen(navController: NavController) {
                                         "$daysGoalMet",
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = FiberGreen,
+                                        color = FiberGreen.macroTextTone(),
                                     )
                                     Text(stringResource(R.string.calendar_goals_met), style = MaterialTheme.typography.labelSmall)
                                 }

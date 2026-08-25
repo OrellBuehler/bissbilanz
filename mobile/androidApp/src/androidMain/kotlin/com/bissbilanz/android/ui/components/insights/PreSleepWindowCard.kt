@@ -19,6 +19,7 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -36,7 +37,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
             stringResource(R.string.insights_last_meal_value, summary.avgLastMealTime),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = CaloriesBlue,
+            color = CaloriesBlue.macroTextTone(),
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

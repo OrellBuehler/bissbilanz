@@ -14,6 +14,7 @@ import com.bissbilanz.analytics.FrontLoadingResult
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -33,7 +34,7 @@ fun CalorieFrontLoadingCard(result: FrontLoadingResult) {
             "${result.avgMorningPct.roundToInt()}%",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = CaloriesBlue,
+            color = CaloriesBlue.macroTextTone(),
         )
         Text(
             stringResource(R.string.insights_front_loading_before_2pm),

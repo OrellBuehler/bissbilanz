@@ -16,6 +16,7 @@ import com.bissbilanz.analytics.CaloricLagResult
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 
 @Composable
 fun CaloricLagCard(result: CaloricLagResult) {
@@ -33,7 +34,7 @@ fun CaloricLagCard(result: CaloricLagResult) {
             stringResource(R.string.insights_caloric_lag_days, bestLag),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = CaloriesBlue,
+            color = CaloriesBlue.macroTextTone(),
         )
         Spacer(modifier = Modifier.height(8.dp))
         result.results.forEach { lagResult ->

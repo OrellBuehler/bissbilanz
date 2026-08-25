@@ -1,10 +1,13 @@
 package com.bissbilanz.android.navigation
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -14,31 +17,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
 
 sealed class Screen(
     val route: String,
-    val title: String,
+    @param:StringRes val titleRes: Int,
     val icon: ImageVector,
 ) {
-    data object Dashboard : Screen("dashboard", "Home", Icons.Default.Home)
+    data object Dashboard : Screen("dashboard", R.string.nav_home, Icons.Default.Home)
 
-    data object Foods : Screen("foods", "Foods", Icons.Default.Restaurant)
+    data object Foods : Screen("foods", R.string.food_search_title, Icons.Default.Restaurant)
 
-    data object Favorites : Screen("favorites", "Favorites", Icons.Default.Star)
+    data object Favorites : Screen("favorites", R.string.favorites_title, Icons.Default.Star)
 
-    data object Insights : Screen("insights", "Insights", Icons.Default.BarChart)
+    data object Insights : Screen("insights", R.string.settings_nav_insights, Icons.Default.BarChart)
 
-    data object Weight : Screen("weight", "Weight", Icons.Default.MonitorWeight)
+    data object Weight : Screen("weight", R.string.weight_widget_title, Icons.Default.MonitorWeight)
 
-    data object Supplements : Screen("supplements", "Supplements", Icons.Default.Medication)
+    data object Supplements : Screen("supplements", R.string.chart_supplements, Icons.Default.Medication)
 
-    data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+    data object Settings : Screen("settings", R.string.settings_title, Icons.Default.Settings)
 }
 
 val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
@@ -79,6 +84,15 @@ fun AppNavigation() {
     val bottomNavItems = listOf(Screen.Dashboard) + middleTabs + listOf(Screen.Settings)
 
     Scaffold(
+        // The shell only reserves room for the bottom bar. Top insets are left to
+        // each screen's own Scaffold so its TopAppBar draws under the status bar
+        // the way Material intends, instead of sitting below a bare coloured gap.
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            // Above the nav host so a lost offline edit is visible wherever the
+            // user happens to be, not only on the screen that made the edit.
+            SyncConflictBanner()
+        },
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
@@ -107,8 +121,8 @@ fun AppNavigation() {
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
+                            icon = { Icon(screen.icon, contentDescription = null) },
+                            label = { Text(stringResource(screen.titleRes)) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
                                 navController.navigate(screen.route) {
@@ -125,10 +139,12 @@ fun AppNavigation() {
             }
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            // Above the nav host so a lost offline edit is visible wherever the
-            // user happens to be, not only on the screen that made the edit.
-            SyncConflictBanner()
+        Column(
+            modifier =
+                Modifier
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = Screen.Dashboard.route,

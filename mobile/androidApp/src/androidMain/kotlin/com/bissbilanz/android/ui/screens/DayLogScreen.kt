@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -33,6 +34,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.formatAsInt
@@ -45,6 +47,7 @@ import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import kotlinx.datetime.LocalDate
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -130,7 +133,7 @@ fun DayLogScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(date) },
+                title = { Text(dayLabel(LocalDate.parse(date))) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
@@ -275,7 +278,7 @@ fun DayLogScreen(
                                     Text(
                                         stringResource(R.string.format_kcal, mealCalories.formatAsInt()),
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = CaloriesBlue,
+                                        color = CaloriesBlue.macroTextTone(),
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
@@ -401,6 +404,7 @@ fun EntryListItem(
         onClick = onClick,
     ) {
         ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
                 Text(

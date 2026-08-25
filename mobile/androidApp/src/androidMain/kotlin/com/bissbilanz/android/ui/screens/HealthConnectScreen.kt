@@ -22,6 +22,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.ui.components.ToggleRow
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -244,12 +245,5 @@ private fun HealthToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+    ToggleRow(label = label, checked = checked, onCheckedChange = onCheckedChange)
 }

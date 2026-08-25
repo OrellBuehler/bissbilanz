@@ -21,6 +21,7 @@ import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -59,7 +60,7 @@ fun FoodDiversityCard(result: FoodDiversityResult) {
                     "${result.avgUniquePerWeek.roundToInt()}",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
-                    color = CaloriesBlue,
+                    color = CaloriesBlue.macroTextTone(),
                 )
                 Text(
                     stringResource(R.string.insights_unique_foods_per_week),

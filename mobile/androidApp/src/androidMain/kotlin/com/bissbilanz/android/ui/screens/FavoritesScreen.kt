@@ -1,7 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +22,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FavoritesSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -34,6 +35,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val viewModel: FavoritesViewModel = koinViewModel()
@@ -117,7 +119,11 @@ fun FavoritesScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { AppTopBar(stringResource(R.string.favorites_title), scrollBehavior) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(
@@ -126,13 +132,6 @@ fun FavoritesScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.favorites_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
                 val tabLabels =
                     listOf(
                         stringResource(R.string.favorites_tab_foods, favorites.size),
@@ -247,7 +246,7 @@ fun FavoriteCard(
     onQuickLog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.clickable(onClick = onQuickLog)) {
+    Card(onClick = onQuickLog, modifier = modifier) {
         Column {
             imageUrl?.let { url ->
                 AsyncImage(
