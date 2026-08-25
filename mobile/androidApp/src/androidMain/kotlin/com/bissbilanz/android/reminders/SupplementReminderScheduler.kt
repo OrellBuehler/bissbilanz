@@ -81,13 +81,14 @@ object SupplementReminderScheduler {
         supplementId: String,
         hhmm: String,
         delayMinutes: Int,
+        occurrenceDate: String,
     ) {
         val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
         val triggerAt = System.currentTimeMillis() + delayMinutes * 60_000L
         alarmManager.setAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             triggerAt,
-            alarmPendingIntent(context, supplementId, hhmm, isSnooze = true),
+            alarmPendingIntent(context, supplementId, hhmm, isSnooze = true, occurrenceDate = occurrenceDate),
         )
     }
 
@@ -104,7 +105,10 @@ object SupplementReminderScheduler {
             // moves the alarm with it rather than firing at a stale elapsed offset.
             AlarmManager.RTC_WAKEUP,
             at.toInstant(zone).toEpochMilliseconds(),
-            alarmPendingIntent(context, supplementId, hhmm, isSnooze = false),
+            // The date this alarm is *for*: the alarm is inexact and can drift past
+            // midnight, and the notification can sit unacted-on even longer, so every
+            // downstream consumer must use this rather than "today" at its own run time.
+            alarmPendingIntent(context, supplementId, hhmm, isSnooze = false, occurrenceDate = at.date.toString()),
         )
     }
 
@@ -127,6 +131,9 @@ object SupplementReminderScheduler {
         supplementId: String,
         hhmm: String,
         isSnooze: Boolean,
+        // Null only for `cancel`, which matches on request code and intent filter — the
+        // extras play no part, so a date-less cancel still reaches the armed alarm.
+        occurrenceDate: String? = null,
     ): PendingIntent {
         val intent = Intent(context, SupplementReminderReceiver::class.java)
         intent.setClassName(context, SupplementReminderReceiver::class.java.name)
@@ -134,6 +141,9 @@ object SupplementReminderScheduler {
         intent.putExtra(SupplementReminderReceiver.EXTRA_SUPPLEMENT_ID, supplementId)
         intent.putExtra(SupplementReminderReceiver.EXTRA_TIME, hhmm)
         intent.putExtra(SupplementReminderReceiver.EXTRA_IS_SNOOZE, isSnooze)
+        if (occurrenceDate != null) {
+            intent.putExtra(SupplementReminderReceiver.EXTRA_DATE, occurrenceDate)
+        }
         return PendingIntent.getBroadcast(
             context,
             if (isSnooze) snoozeRequestCode(supplementId, hhmm) else alarmRequestCode(supplementId, hhmm),

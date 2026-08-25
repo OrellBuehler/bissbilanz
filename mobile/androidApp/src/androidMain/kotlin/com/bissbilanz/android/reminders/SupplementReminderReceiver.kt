@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.java.KoinJavaComponent
@@ -34,6 +35,10 @@ class SupplementReminderReceiver : BroadcastReceiver() {
         val supplementId = intent.getStringExtra(EXTRA_SUPPLEMENT_ID) ?: return
         val hhmm = intent.getStringExtra(EXTRA_TIME) ?: return
         val isSnooze = intent.getBooleanExtra(EXTRA_IS_SNOOZE, false)
+        val armedDate =
+            intent
+                .getStringExtra(EXTRA_DATE)
+                ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
@@ -42,7 +47,11 @@ class SupplementReminderReceiver : BroadcastReceiver() {
                 withTimeout(TIMEOUT_MS) {
                     val repository = koin.get<SupplementRepository>()
                     val preferences = koin.get<SupplementReminderPreferences>()
-                    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                    // The date this reminder is *for*. An inexact alarm can drift past
+                    // midnight (and a snooze can be re-armed across it), so the armed
+                    // date wins over the fire-time clock; the fallback covers alarms
+                    // armed by a version that didn't attach it.
+                    val date = armedDate ?: Clock.System.todayIn(TimeZone.currentSystemDefault())
 
                     val supplement = repository.supplements().first().firstOrNull { it.id == supplementId }
 
@@ -55,15 +64,15 @@ class SupplementReminderReceiver : BroadcastReceiver() {
                     // Deleted, or deactivated after the alarm was armed.
                     if (supplement == null || !supplement.isActive) return@withTimeout
                     // The schedule may have changed under the armed alarm.
-                    if (!SupplementSchedule.isDueOn(supplement, today)) return@withTimeout
+                    if (!SupplementSchedule.isDueOn(supplement, date)) return@withTimeout
                     // Already ticked off — on the checklist, from a widget, or on another
                     // device whose log has since synced down.
                     val taken =
                         repository
-                            .getChecklist(today.toString())
+                            .getChecklist(date.toString())
                             .any { it.supplementId == supplementId }
                     if (taken) return@withTimeout
-                    if (preferences.isSkipped(supplementId, today)) return@withTimeout
+                    if (preferences.isSkipped(supplementId, date)) return@withTimeout
 
                     SupplementReminderNotifier.show(
                         context = context,
@@ -72,6 +81,7 @@ class SupplementReminderReceiver : BroadcastReceiver() {
                         actionRequestCodeBase =
                             SupplementReminderScheduler.actionRequestCodeBase(supplementId, hhmm),
                         hhmm = hhmm,
+                        occurrenceDate = date.toString(),
                     )
                 }
             } catch (e: Exception) {
@@ -87,6 +97,7 @@ class SupplementReminderReceiver : BroadcastReceiver() {
         const val EXTRA_SUPPLEMENT_ID = "supplement_id"
         const val EXTRA_TIME = "reminder_time"
         const val EXTRA_IS_SNOOZE = "is_snooze"
+        const val EXTRA_DATE = "occurrence_date"
 
         /** Comfortably under the ~10s a goAsync receiver gets. */
         private const val TIMEOUT_MS = 8_000L
