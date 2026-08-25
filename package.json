@@ -72,7 +72,7 @@
 		"tailwind-variants": "^3.3.1",
 		"tailwindcss": "^4.3.3",
 		"testcontainers": "^12.1.0",
-		"typescript": "^6.0.3",
+		"typescript": "^7.0.2",
 		"vaul-svelte": "^1.0.0-next.7",
 		"vite": "^8.2.1",
 		"vitest": "^4.1.10",
