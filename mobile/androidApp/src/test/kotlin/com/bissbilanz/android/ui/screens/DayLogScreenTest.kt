@@ -85,7 +85,8 @@ class DayLogScreenTest {
                 DayLogScreen(date = "2024-01-15", navController = navController)
             }
         }
-        composeTestRule.onNodeWithText("2024-01-15").assertIsDisplayed()
+        // The title renders the readable day label, not the raw ISO date.
+        composeTestRule.onNodeWithText("15 January 2024").assertIsDisplayed()
     }
 
     @Test

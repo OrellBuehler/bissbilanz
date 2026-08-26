@@ -9,9 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +32,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
@@ -119,7 +121,11 @@ fun FoodSearchScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { AppTopBar(stringResource(R.string.food_search_title), scrollBehavior) },
         floatingActionButton = {
             // A menu rather than a single action: the Foods tab is the entry
             // point for creating recipes too, matching the iOS toolbar menu.
@@ -141,7 +147,7 @@ fun FoodSearchScreen(navController: NavController) {
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.food_search_create_recipe)) },
-                        leadingIcon = { Icon(Icons.Default.MenuBook, null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.MenuBook, null) },
                         onClick = {
                             showCreateMenu = false
                             showCreateRecipeSheet = true
@@ -187,7 +193,7 @@ fun FoodSearchScreen(navController: NavController) {
                         } else if (searchResults.isEmpty()) {
                             EmptyState(stringResource(R.string.food_search_no_results, query))
                         } else {
-                            LazyColumn {
+                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                 items(searchResults, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
@@ -239,7 +245,7 @@ fun FoodSearchScreen(navController: NavController) {
                         if (recentFoods.isEmpty()) {
                             EmptyState(stringResource(R.string.food_search_no_recent))
                         } else {
-                            LazyColumn {
+                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                 items(recentFoods, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
@@ -260,7 +266,7 @@ fun FoodSearchScreen(navController: NavController) {
                         if (allFoods.isEmpty() && !isLoadingMore) {
                             EmptyState(stringResource(R.string.food_search_no_foods))
                         } else {
-                            LazyColumn(state = allFoodsListState) {
+                            LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                 items(allFoods, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,

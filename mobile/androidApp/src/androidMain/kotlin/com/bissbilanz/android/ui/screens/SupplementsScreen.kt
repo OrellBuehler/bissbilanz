@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,7 @@ import com.bissbilanz.android.ui.components.timeOfDayDisplayName
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
@@ -157,7 +159,7 @@ fun SupplementsScreen(navController: NavController) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                     ) {
                         item {
                             Text(
@@ -237,6 +239,7 @@ fun SupplementsScreen(navController: NavController) {
                                         ),
                                 ) {
                                     ListItem(
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                         headlineContent = {
                                             Text(supplement.name, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         },
@@ -277,6 +280,7 @@ fun SupplementChecklistItem(
         colors = CardDefaults.cardColors(containerColor = cardColor),
     ) {
         ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = {
                 Text(
                     supplement.name,
@@ -327,7 +331,7 @@ fun SupplementChecklistItem(
                         Icon(
                             Icons.Default.Check,
                             stringResource(R.string.supplements_taken),
-                            tint = FiberGreen,
+                            tint = FiberGreen.macroTextTone(),
                             modifier =
                                 androidx.compose.ui.Modifier
                                     .align(androidx.compose.ui.Alignment.CenterVertically),

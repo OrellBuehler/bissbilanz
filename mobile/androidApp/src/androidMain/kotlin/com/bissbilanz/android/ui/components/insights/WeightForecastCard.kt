@@ -17,6 +17,7 @@ import com.bissbilanz.analytics.WeightForecast
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 
 @Composable
 fun WeightForecastCard(result: WeightForecast) {
@@ -43,7 +44,7 @@ fun WeightForecastCard(result: WeightForecast) {
             stringResource(R.string.weight_kg_value, "%.1f".format(result.currentWeight)),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = CaloriesBlue,
+            color = CaloriesBlue.macroTextTone(),
         )
         val sign = if (result.weeklyRate >= 0) "+" else ""
         Text(

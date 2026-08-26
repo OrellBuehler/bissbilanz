@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CalendarHeatmap
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.components.MacroRadarChart
@@ -62,6 +64,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -74,6 +77,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(navController: NavController) {
     val viewModel: InsightsViewModel = koinViewModel()
@@ -114,664 +118,685 @@ fun InsightsScreen(navController: NavController) {
             3 to stringResource(R.string.sleep_section_title),
         )
 
-    PullToRefreshWrapper(
-        onRefresh = {
-            refreshManager.refreshAll()
-            viewModel.loadData()
-            viewModel.loadCalendarStats()
-            viewModel.loadSleepData()
-        },
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { AppTopBar(stringResource(R.string.settings_nav_insights), scrollBehavior) },
+    ) { padding ->
+        PullToRefreshWrapper(
+            onRefresh = {
+                refreshManager.refreshAll()
+                viewModel.loadData()
+                viewModel.loadCalendarStats()
+                viewModel.loadSleepData()
+            },
+            modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Text(
-                stringResource(R.string.settings_nav_insights),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ranges.forEachIndexed { index, label ->
-                    SegmentedButton(
-                        selected = selectedRange == index,
-                        onClick = { viewModel.selectRange(index) },
-                        shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
-                    ) {
-                        Text(label)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ScrollableTabRow(
-                selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0),
-                modifier = Modifier.fillMaxWidth(),
-                edgePadding = 0.dp,
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
             ) {
-                tabs.forEach { (index, title) ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { viewModel.selectTab(index) },
-                        text = { Text(title) },
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-
-            when (selectedTab) {
-                0 -> {
-                    // Streaks
-                    streaks?.let { s ->
-                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(20.dp)) {
-                                Text(
-                                    stringResource(R.string.insights_streaks),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            "${s.currentStreak}",
-                                            style = MaterialTheme.typography.headlineLarge,
-                                            color = CaloriesBlue,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            stringResource(R.string.insights_streaks_current),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            "${s.longestStreak}",
-                                            style = MaterialTheme.typography.headlineLarge,
-                                            color = FiberGreen,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            stringResource(R.string.insights_streaks_longest),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // 1. Trends
-                    if (dailyStats.isNotEmpty()) {
-                        CollapsibleCard(title = stringResource(R.string.insights_trends), sectionId = "trends") {
-                            Text(
-                                stringResource(R.string.insights_calorie_trend),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            SimpleLineChart(
-                                data = dailyStats.map { it.calories.toFloat() },
-                                color = CaloriesBlue,
-                                modifier = Modifier.fillMaxWidth().height(120.dp),
-                                unit = stringResource(R.string.insights_cal_unit),
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                val avgCal = dailyStats.map { it.calories }.average()
-                                val calUnit = stringResource(R.string.insights_cal_unit)
-                                Text(
-                                    stringResource(R.string.insights_avg_value_unit, avgCal.formatAsInt(), calUnit),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    stringResource(R.string.insights_days_count, dailyStats.size),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                stringResource(R.string.insights_macro_trends),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            MacroTrendRow(stringResource(R.string.macro_protein), dailyStats.map { it.protein.toFloat() }, "g", ProteinRed)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow(stringResource(R.string.macro_carbs), dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow(stringResource(R.string.macro_fat), dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            MacroTrendRow(stringResource(R.string.macro_fiber), dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // 2. Goal Adherence
-                    if (goals != null && dailyStats.isNotEmpty()) {
-                        GoalAdherenceCard(dailyStats, goals!!)
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // 3. Calendar Heatmap
-                    if (goals != null) {
-                        CollapsibleCard(title = stringResource(R.string.insights_calendar_heatmap), sectionId = "calendar") {
-                            CalendarHeatmap(
-                                days = calendarDays,
-                                calorieGoal = goals!!.calorieGoal,
-                                month = calendarMonth,
-                                year = calendarYear,
-                                onPrevMonth = { viewModel.prevMonth() },
-                                onNextMonth = { viewModel.nextMonth() },
-                                onDayClick = { },
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // 4. Macro Balance Radar
-                    if (goals != null && dailyStats.isNotEmpty()) {
-                        CollapsibleCard(title = stringResource(R.string.insights_macro_balance), sectionId = "radar") {
-                            val g = goals!!
-                            val avgCal = dailyStats.map { it.calories }.average()
-                            val avgPro = dailyStats.map { it.protein }.average()
-                            val avgCarb = dailyStats.map { it.carbs }.average()
-                            val avgFat = dailyStats.map { it.fat }.average()
-                            val avgFib = dailyStats.map { it.fiber }.average()
-
-                            val radarAxes =
-                                listOf(
-                                    RadarAxis(
-                                        stringResource(R.string.insights_radar_cal),
-                                        (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(),
-                                        CaloriesBlue,
-                                    ),
-                                    RadarAxis(
-                                        stringResource(R.string.macro_protein),
-                                        (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(),
-                                        ProteinRed,
-                                    ),
-                                    RadarAxis(
-                                        stringResource(R.string.macro_carbs),
-                                        (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(),
-                                        CarbsOrange,
-                                    ),
-                                    RadarAxis(
-                                        stringResource(R.string.macro_fat),
-                                        (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(),
-                                        FatYellow,
-                                    ),
-                                    RadarAxis(
-                                        stringResource(R.string.macro_fiber),
-                                        (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(),
-                                        FiberGreen,
-                                    ),
-                                )
-                            MacroRadarChart(axes = radarAxes)
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // 5. Meal Distribution
-                    if (mealBreakdown.isNotEmpty()) {
-                        val totalCalories = mealBreakdown.sumOf { it.calories }
-                        if (totalCalories > 0) {
-                            CollapsibleCard(title = stringResource(R.string.insights_meal_distribution), sectionId = "meals") {
-                                SimplePieChart(
-                                    entries = mealBreakdown,
-                                    modifier = Modifier.fillMaxWidth().height(180.dp),
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                MealBreakdownLegend(mealBreakdown, totalCalories)
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-                    }
-
-                    // 6. Top Foods
-                    if (topFoods.isNotEmpty()) {
-                        CollapsibleCard(title = stringResource(R.string.insights_top_foods), sectionId = "topfoods") {
-                            topFoods.forEachIndexed { i, f ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            "${i + 1}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.width(28.dp),
-                                        )
-                                        Text(f.foodName, modifier = Modifier.weight(1f))
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(
-                                            stringResource(R.string.insights_count_x, f.count),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            stringResource(R.string.format_kcal, f.calories.formatAsInt()),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                                if (i < topFoods.lastIndex) {
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                1 -> {
-                    if (nutritionLoading) {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
-                        val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
-                        val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
-                        val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
-                        val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
-                        val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
-                        val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
-                        val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
-                        val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
-                        val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
-
-                        novaResult?.let {
-                            NOVAScoreCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        omegaResult?.let {
-                            OmegaRatioCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        diiResult?.let {
-                            DIIScoreCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        tefResult?.let {
-                            TEFCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        proteinDistResult?.let {
-                            ProteinDistributionCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        frontLoadResult?.let {
-                            CalorieFrontLoadingCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        calorieCyclingResult?.let {
-                            CalorieCyclingCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        weekdayWeekendResult?.let {
-                            WeekdayWeekendCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        mealRegularityResult?.let {
-                            MealRegularityCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        foodDiversityResult?.let {
-                            FoodDiversityCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                    }
-                }
-
-                2 -> {
-                    if (weightLoading) {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
-                        val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
-                        val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
-                        val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
-                        val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
-                        val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
-                        val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
-                        val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
-
-                        tdeeResult?.let {
-                            AdaptiveTDEECard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        plateauResult?.let {
-                            PlateauDetectionCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        weightForecastResult?.let {
-                            WeightForecastCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        sodiumWeightResult?.let {
-                            SodiumWeightCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        caloricLagResult?.let {
-                            CaloricLagCard(it)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        if (macroImpactResult.isNotEmpty()) {
-                            MacroImpactCard(macroImpactResult)
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        MealTimingWeightCard(mealTimingSummary)
-                        Spacer(Modifier.height(12.dp))
-                        if (nutrientAdequacyResult.isNotEmpty()) {
-                            NutrientAdequacyCard(nutrientAdequacyResult)
-                        }
-                    }
-                }
-
-                3 -> {
-                    val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
-                    val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
-                    var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
-
-                    CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    ranges.forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = selectedRange == index,
+                            onClick = { viewModel.selectRange(index) },
+                            shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                         ) {
-                            Text(
-                                stringResource(R.string.sleep_recent),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(onClick = { navController.navigate("sleep") }) {
-                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
-                            }
+                            Text(label)
                         }
+                    }
+                }
 
-                        if (sleepEntries.isEmpty()) {
-                            Text(
-                                stringResource(R.string.sleep_no_entries),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            // Sleep quality trend chart
-                            if (sleepEntries.size >= 3) {
-                                Text(
-                                    stringResource(R.string.sleep_quality_trend),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                SimpleLineChart(
-                                    data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                    modifier = Modifier.fillMaxWidth().height(80.dp),
-                                    unit = "",
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                                Text(
-                                    stringResource(R.string.sleep_duration_trend),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                SimpleLineChart(
-                                    data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.fillMaxWidth().height(80.dp),
-                                    unit = "h",
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0),
+                    modifier = Modifier.fillMaxWidth(),
+                    edgePadding = 0.dp,
+                ) {
+                    tabs.forEach { (index, title) ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { viewModel.selectTab(index) },
+                            text = { Text(title) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
 
-                            // Summary stats
-                            val avgQuality = sleepEntries.map { it.quality }.average()
-                            val avgDuration = sleepEntries.map { it.durationMinutes }.average()
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                when (selectedTab) {
+                    0 -> {
+                        // Streaks
+                        streaks?.let { s ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
-                                        avgQuality.formatDecimal1(),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                        fontWeight = FontWeight.Bold,
+                                        stringResource(R.string.insights_streaks),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
                                     )
-                                    Text(
-                                        stringResource(R.string.sleep_avg_quality),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        "${(avgDuration / 60.0).formatDecimal1()}h",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    Text(
-                                        stringResource(R.string.sleep_avg_duration),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Recent entries list (last 5)
-                            sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
-                                val qStr = entry.quality.formatNutrient()
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Icon(
-                                            Icons.Default.Bedtime,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.tertiary,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
-                                                stringResource(
-                                                    R.string.insights_sleep_entry_summary,
-                                                    (entry.durationMinutes / 60.0).formatDecimal1(),
-                                                    qStr,
-                                                ),
+                                                "${s.currentStreak}",
+                                                style = MaterialTheme.typography.headlineLarge,
+                                                color = CaloriesBlue.macroTextTone(),
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                stringResource(R.string.insights_streaks_current),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                "${s.longestStreak}",
+                                                style = MaterialTheme.typography.headlineLarge,
+                                                color = FiberGreen.macroTextTone(),
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                stringResource(R.string.insights_streaks_longest),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
-                                    IconButton(
-                                        onClick = { sleepEntryToDelete = entry },
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // 1. Trends
+                        if (dailyStats.isNotEmpty()) {
+                            CollapsibleCard(title = stringResource(R.string.insights_trends), sectionId = "trends") {
+                                Text(
+                                    stringResource(R.string.insights_calorie_trend),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SimpleLineChart(
+                                    data = dailyStats.map { it.calories.toFloat() },
+                                    color = CaloriesBlue,
+                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                    unit = stringResource(R.string.insights_cal_unit),
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    val avgCal = dailyStats.map { it.calories }.average()
+                                    val calUnit = stringResource(R.string.insights_cal_unit)
+                                    Text(
+                                        stringResource(R.string.insights_avg_value_unit, avgCal.formatAsInt(), calUnit),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        stringResource(R.string.insights_days_count, dailyStats.size),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    stringResource(R.string.insights_macro_trends),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                MacroTrendRow(
+                                    stringResource(R.string.macro_protein),
+                                    dailyStats.map { it.protein.toFloat() },
+                                    "g",
+                                    ProteinRed,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                MacroTrendRow(stringResource(R.string.macro_carbs), dailyStats.map { it.carbs.toFloat() }, "g", CarbsOrange)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                MacroTrendRow(stringResource(R.string.macro_fat), dailyStats.map { it.fat.toFloat() }, "g", FatYellow)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                MacroTrendRow(stringResource(R.string.macro_fiber), dailyStats.map { it.fiber.toFloat() }, "g", FiberGreen)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // 2. Goal Adherence
+                        if (goals != null && dailyStats.isNotEmpty()) {
+                            GoalAdherenceCard(dailyStats, goals!!)
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        // 3. Calendar Heatmap
+                        if (goals != null) {
+                            CollapsibleCard(title = stringResource(R.string.insights_calendar_heatmap), sectionId = "calendar") {
+                                CalendarHeatmap(
+                                    days = calendarDays,
+                                    calorieGoal = goals!!.calorieGoal,
+                                    month = calendarMonth,
+                                    year = calendarYear,
+                                    onPrevMonth = { viewModel.prevMonth() },
+                                    onNextMonth = { viewModel.nextMonth() },
+                                    onDayClick = { },
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        // 4. Macro Balance Radar
+                        if (goals != null && dailyStats.isNotEmpty()) {
+                            CollapsibleCard(title = stringResource(R.string.insights_macro_balance), sectionId = "radar") {
+                                val g = goals!!
+                                val avgCal = dailyStats.map { it.calories }.average()
+                                val avgPro = dailyStats.map { it.protein }.average()
+                                val avgCarb = dailyStats.map { it.carbs }.average()
+                                val avgFat = dailyStats.map { it.fat }.average()
+                                val avgFib = dailyStats.map { it.fiber }.average()
+
+                                val radarAxes =
+                                    listOf(
+                                        RadarAxis(
+                                            stringResource(R.string.insights_radar_cal),
+                                            (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(),
+                                            CaloriesBlue,
+                                        ),
+                                        RadarAxis(
+                                            stringResource(R.string.macro_protein),
+                                            (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(),
+                                            ProteinRed,
+                                        ),
+                                        RadarAxis(
+                                            stringResource(R.string.macro_carbs),
+                                            (avgCarb / g.carbGoal.coerceAtLeast(1.0)).toFloat(),
+                                            CarbsOrange,
+                                        ),
+                                        RadarAxis(
+                                            stringResource(R.string.macro_fat),
+                                            (avgFat / g.fatGoal.coerceAtLeast(1.0)).toFloat(),
+                                            FatYellow,
+                                        ),
+                                        RadarAxis(
+                                            stringResource(R.string.macro_fiber),
+                                            (avgFib / g.fiberGoal.coerceAtLeast(1.0)).toFloat(),
+                                            FiberGreen,
+                                        ),
+                                    )
+                                MacroRadarChart(axes = radarAxes)
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        // 5. Meal Distribution
+                        if (mealBreakdown.isNotEmpty()) {
+                            val totalCalories = mealBreakdown.sumOf { it.calories }
+                            if (totalCalories > 0) {
+                                CollapsibleCard(title = stringResource(R.string.insights_meal_distribution), sectionId = "meals") {
+                                    SimplePieChart(
+                                        entries = mealBreakdown,
+                                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    MealBreakdownLegend(mealBreakdown, totalCalories)
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
+                        // 6. Top Foods
+                        if (topFoods.isNotEmpty()) {
+                            CollapsibleCard(title = stringResource(R.string.insights_top_foods), sectionId = "topfoods") {
+                                topFoods.forEachIndexed { i, f ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = stringResource(R.string.sleep_delete_content_desc),
-                                            modifier = Modifier.size(16.dp),
-                                        )
+                                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                "${i + 1}",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.width(28.dp),
+                                            )
+                                            Text(f.foodName, modifier = Modifier.weight(1f))
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                stringResource(R.string.insights_count_x, f.count),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                stringResource(R.string.format_kcal, f.calories.formatAsInt()),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    if (i < topFoods.lastIndex) {
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
                                     }
                                 }
-                                HorizontalDivider()
                             }
                         }
                     }
 
-                    // Sleep-Food Correlation
-                    if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        CollapsibleCard(title = stringResource(R.string.sleep_evening_eating_title), sectionId = "sleepfood") {
-                            Text(
-                                stringResource(R.string.sleep_evening_eating_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                    1 -> {
+                        if (nutritionLoading) {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
+                            val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
+                            val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
+                            val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
+                            val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
+                            val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
+                            val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
+                            val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
+                            val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
+                            val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
 
-                            val withCalories = sleepFoodCorrelation.filter { it.eveningCalories != null }
-                            if (withCalories.size >= 3) {
-                                val avgCalories = withCalories.map { it.eveningCalories!! }.average()
-                                val highCalDays = withCalories.filter { it.eveningCalories!! > avgCalories }
-                                val lowCalDays = withCalories.filter { it.eveningCalories!! <= avgCalories }
+                            novaResult?.let {
+                                NOVAScoreCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            omegaResult?.let {
+                                OmegaRatioCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            diiResult?.let {
+                                DIIScoreCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            tefResult?.let {
+                                TEFCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            proteinDistResult?.let {
+                                ProteinDistributionCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            frontLoadResult?.let {
+                                CalorieFrontLoadingCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            calorieCyclingResult?.let {
+                                CalorieCyclingCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            weekdayWeekendResult?.let {
+                                WeekdayWeekendCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            mealRegularityResult?.let {
+                                MealRegularityCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            foodDiversityResult?.let {
+                                FoodDiversityCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                        }
+                    }
 
-                                val highCalAvgQuality = if (highCalDays.isNotEmpty()) highCalDays.map { it.sleepQuality }.average() else 0.0
-                                val lowCalAvgQuality = if (lowCalDays.isNotEmpty()) lowCalDays.map { it.sleepQuality }.average() else 0.0
+                    2 -> {
+                        if (weightLoading) {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
+                            val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
+                            val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
+                            val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
+                            val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
+                            val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
+                            val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
+                            val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
 
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            lowCalAvgQuality.formatDecimal1(),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = FiberGreen,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            stringResource(R.string.sleep_light_evening),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Text(
-                                            stringResource(R.string.insights_below_avg_cal, avgCalories.formatAsInt()),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            highCalAvgQuality.formatDecimal1(),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = CarbsOrange,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            stringResource(R.string.sleep_heavy_evening),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Text(
-                                            stringResource(R.string.insights_above_avg_cal, avgCalories.formatAsInt()),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
+                            tdeeResult?.let {
+                                AdaptiveTDEECard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            plateauResult?.let {
+                                PlateauDetectionCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            weightForecastResult?.let {
+                                WeightForecastCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            sodiumWeightResult?.let {
+                                SodiumWeightCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            caloricLagResult?.let {
+                                CaloricLagCard(it)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            if (macroImpactResult.isNotEmpty()) {
+                                MacroImpactCard(macroImpactResult)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            MealTimingWeightCard(mealTimingSummary)
+                            Spacer(Modifier.height(12.dp))
+                            if (nutrientAdequacyResult.isNotEmpty()) {
+                                NutrientAdequacyCard(nutrientAdequacyResult)
+                            }
+                        }
+                    }
 
-                                val delta = lowCalAvgQuality - highCalAvgQuality
-                                if (kotlin.math.abs(delta) > 0.3) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    val lighterTemplate = stringResource(R.string.insights_lighter_evening_correlation)
-                                    val heavierTemplate = stringResource(R.string.insights_heavier_evening_correlation)
-                                    val message =
-                                        if (delta > 0) {
-                                            lighterTemplate.format(delta)
-                                        } else {
-                                            heavierTemplate.format(-delta)
-                                        }
-                                    Text(
-                                        message,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            } else {
+                    3 -> {
+                        val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
+                        val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
+                        var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
+
+                        CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
-                                    stringResource(R.string.insights_need_more_evening_data),
+                                    stringResource(R.string.sleep_recent),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                IconButton(onClick = { navController.navigate("sleep") }) {
+                                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
+                                }
+                            }
+
+                            if (sleepEntries.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.sleep_no_entries),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                            } else {
+                                // Sleep quality trend chart
+                                if (sleepEntries.size >= 3) {
+                                    Text(
+                                        stringResource(R.string.sleep_quality_trend),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    SimpleLineChart(
+                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                                        unit = "",
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        stringResource(R.string.sleep_duration_trend),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    SimpleLineChart(
+                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                                        unit = "h",
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+
+                                // Summary stats
+                                val avgQuality = sleepEntries.map { it.quality }.average()
+                                val avgDuration = sleepEntries.map { it.durationMinutes }.average()
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            avgQuality.formatDecimal1(),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            stringResource(R.string.sleep_avg_quality),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "${(avgDuration / 60.0).formatDecimal1()}h",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            stringResource(R.string.sleep_avg_duration),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Recent entries list (last 5)
+                                sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                                    val qStr = entry.quality.formatNutrient()
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                            Icon(
+                                                Icons.Default.Bedtime,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.tertiary,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                                                Text(
+                                                    stringResource(
+                                                        R.string.insights_sleep_entry_summary,
+                                                        (entry.durationMinutes / 60.0).formatDecimal1(),
+                                                        qStr,
+                                                    ),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = { sleepEntryToDelete = entry },
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = stringResource(R.string.sleep_delete_content_desc),
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+                                    }
+                                    HorizontalDivider()
+                                }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        // Sleep-Food Correlation
+                        if (sleepFoodCorrelation.isNotEmpty() && sleepFoodCorrelation.size >= 3) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            CollapsibleCard(title = stringResource(R.string.sleep_evening_eating_title), sectionId = "sleepfood") {
+                                Text(
+                                    stringResource(R.string.sleep_evening_eating_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                    // Sleep analytics cards are now computed on-device from the local DB.
-                    if (sleepLoading) {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
-                        val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
-                        val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
-                        val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+                                val withCalories = sleepFoodCorrelation.filter { it.eveningCalories != null }
+                                if (withCalories.size >= 3) {
+                                    val avgCalories = withCalories.map { it.eveningCalories!! }.average()
+                                    val highCalDays = withCalories.filter { it.eveningCalories!! > avgCalories }
+                                    val lowCalDays = withCalories.filter { it.eveningCalories!! <= avgCalories }
 
-                        FoodSleepCard(foodSleepResult)
-                        Spacer(Modifier.height(12.dp))
-                        NutrientSleepCard(nutrientSleepCorrelations)
-                        Spacer(Modifier.height(12.dp))
-                        PreSleepWindowCard(preSleepTimingSummary)
-                        Spacer(Modifier.height(12.dp))
-                        CaffeineSleepCard(caffeineSleepResult)
-                    }
+                                    val highCalAvgQuality =
+                                        if (highCalDays.isNotEmpty()) {
+                                            highCalDays
+                                                .map {
+                                                    it.sleepQuality
+                                                }.average()
+                                        } else {
+                                            0.0
+                                        }
+                                    val lowCalAvgQuality =
+                                        if (lowCalDays.isNotEmpty()) {
+                                            lowCalDays
+                                                .map {
+                                                    it.sleepQuality
+                                                }.average()
+                                        } else {
+                                            0.0
+                                        }
 
-                    sleepEntryToDelete?.let { entry ->
-                        AlertDialog(
-                            onDismissRequest = { sleepEntryToDelete = null },
-                            title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
-                            text = { Text(stringResource(R.string.sleep_delete_dialog_text, entry.entryDate)) },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.deleteSleepEntry(entry.id)
-                                        sleepEntryToDelete = null
-                                    },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                ) { Text(stringResource(R.string.action_delete)) }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { sleepEntryToDelete = null }) {
-                                    Text(stringResource(R.string.dialog_cancel))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                lowCalAvgQuality.formatDecimal1(),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = FiberGreen.macroTextTone(),
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                stringResource(R.string.sleep_light_evening),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                stringResource(R.string.insights_below_avg_cal, avgCalories.formatAsInt()),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                highCalAvgQuality.formatDecimal1(),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = CarbsOrange.macroTextTone(),
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                stringResource(R.string.sleep_heavy_evening),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                stringResource(R.string.insights_above_avg_cal, avgCalories.formatAsInt()),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+
+                                    val delta = lowCalAvgQuality - highCalAvgQuality
+                                    if (kotlin.math.abs(delta) > 0.3) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        val lighterTemplate = stringResource(R.string.insights_lighter_evening_correlation)
+                                        val heavierTemplate = stringResource(R.string.insights_heavier_evening_correlation)
+                                        val message =
+                                            if (delta > 0) {
+                                                lighterTemplate.format(delta)
+                                            } else {
+                                                heavierTemplate.format(-delta)
+                                            }
+                                        Text(
+                                            message,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        stringResource(R.string.insights_need_more_evening_data),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
-                            },
-                        )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Sleep analytics cards are now computed on-device from the local DB.
+                        if (sleepLoading) {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
+                            val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
+                            val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
+                            val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+
+                            FoodSleepCard(foodSleepResult)
+                            Spacer(Modifier.height(12.dp))
+                            NutrientSleepCard(nutrientSleepCorrelations)
+                            Spacer(Modifier.height(12.dp))
+                            PreSleepWindowCard(preSleepTimingSummary)
+                            Spacer(Modifier.height(12.dp))
+                            CaffeineSleepCard(caffeineSleepResult)
+                        }
+
+                        sleepEntryToDelete?.let { entry ->
+                            AlertDialog(
+                                onDismissRequest = { sleepEntryToDelete = null },
+                                title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
+                                text = { Text(stringResource(R.string.sleep_delete_dialog_text, entry.entryDate)) },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.deleteSleepEntry(entry.id)
+                                            sleepEntryToDelete = null
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                    ) { Text(stringResource(R.string.action_delete)) }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { sleepEntryToDelete = null }) {
+                                        Text(stringResource(R.string.dialog_cancel))
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
-            }
 
-            if (isLocalMode) {
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    stringResource(R.string.insights_more_with_account),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                )
-            }
+                if (isLocalMode) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        stringResource(R.string.insights_more_with_account),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }

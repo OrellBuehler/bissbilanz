@@ -877,4 +877,8 @@
         <item quantity="one">%1$d Änderung wurde nicht übernommen</item>
         <item quantity="other">%1$d Änderungen wurden nicht übernommen</item>
     </plurals>
+
+    <!-- Navigation / screen titles -->
+    <string name="nav_home">Start</string>
+    <string name="food_search_title">Lebensmittel</string>
 </resources>

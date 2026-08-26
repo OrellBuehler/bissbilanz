@@ -19,6 +19,7 @@ import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -43,7 +44,7 @@ fun AdaptiveTDEECard(result: TDEEResult) {
                     stringResource(R.string.format_kcal, tdee.roundToInt().toString()),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
-                    color = CaloriesBlue,
+                    color = CaloriesBlue.macroTextTone(),
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))

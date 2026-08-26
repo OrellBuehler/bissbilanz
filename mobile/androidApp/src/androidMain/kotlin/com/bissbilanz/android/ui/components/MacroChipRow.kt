@@ -13,6 +13,7 @@ import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.util.formatAsInt
 
 /**
@@ -34,23 +35,23 @@ fun MacroChipRow(
         Text(
             "${stringResource(R.string.macro_chip_protein)} ${protein.formatAsInt()}g",
             style = MaterialTheme.typography.labelSmall,
-            color = ProteinRed,
+            color = ProteinRed.macroTextTone(),
         )
         Text(
             "${stringResource(R.string.macro_chip_carbs)} ${carbs.formatAsInt()}g",
             style = MaterialTheme.typography.labelSmall,
-            color = CarbsOrange,
+            color = CarbsOrange.macroTextTone(),
         )
         Text(
             "${stringResource(R.string.macro_chip_fat)} ${fat.formatAsInt()}g",
             style = MaterialTheme.typography.labelSmall,
-            color = FatYellow,
+            color = FatYellow.macroTextTone(),
         )
         if (fiber != null) {
             Text(
                 "${stringResource(R.string.macro_chip_fiber)} ${fiber.formatAsInt()}g",
                 style = MaterialTheme.typography.labelSmall,
-                color = FiberGreen,
+                color = FiberGreen.macroTextTone(),
             )
         }
     }

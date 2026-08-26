@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -36,10 +35,8 @@ fun MealCard(
     val totalFat = entries.sumOf { it.resolvedFat() }
 
     Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -55,7 +52,7 @@ fun MealCard(
                 Text(
                     text = stringResource(R.string.format_kcal, totalCalories.formatAsInt()),
                     style = MaterialTheme.typography.titleMedium,
-                    color = CaloriesBlue,
+                    color = CaloriesBlue.macroTextTone(),
                     fontWeight = FontWeight.Bold,
                 )
                 IconButton(onClick = onAddClick) {

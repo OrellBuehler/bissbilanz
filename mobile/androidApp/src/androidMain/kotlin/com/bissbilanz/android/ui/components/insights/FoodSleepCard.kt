@@ -18,6 +18,7 @@ import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 
 @Composable
 fun FoodSleepCard(result: FoodSleepResult?) {
@@ -40,7 +41,7 @@ fun FoodSleepCard(result: FoodSleepResult?) {
                 stringResource(R.string.insights_quality_out_of_10, "%.1f".format(result.overallAvgQuality)),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
-                color = CaloriesBlue,
+                color = CaloriesBlue.macroTextTone(),
             )
         }
         Spacer(modifier = Modifier.height(8.dp))

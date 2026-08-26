@@ -16,6 +16,7 @@ import com.bissbilanz.analytics.MealTimingSummary
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.roundToInt
 
 @Composable
@@ -33,7 +34,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
             stringResource(R.string.insights_hour_window, (summary.avgWindowMinutes / 60).roundToInt()),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = CaloriesBlue,
+            color = CaloriesBlue.macroTextTone(),
         )
         Text(
             stringResource(R.string.insights_avg_eating_window),
