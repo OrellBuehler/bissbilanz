@@ -28,6 +28,14 @@ struct SupplementReminderPayload {
 /// arguments, so they are `nonisolated` and hop to the main actor themselves. All mutable
 /// state is `@MainActor`-isolated, which is what makes the `@unchecked Sendable`
 /// conformance sound.
+///
+/// The **completion-handler** protocol variants are implemented deliberately, not the
+/// `async` ones: the compiler thunk for an async delegate method invokes the framework's
+/// completion on the Swift concurrency executor (a background thread), and UIKit's
+/// post-response snapshot/state-restoration work then runs there and crashes with
+/// `NSInternalInconsistencyException: Call must be made on main thread` (BISSBILANZ-2N,
+/// notification tap on cold launch). Invoking the handler from the main actor keeps that
+/// follow-up work on the main thread.
 final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = SupplementNotificationDelegate()
 
@@ -44,16 +52,21 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
     /// screen at 08:00 concludes reminders are broken.
     nonisolated func userNotificationCenter(
         _: UNUserNotificationCenter,
-        willPresent _: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        await refill()
-        return [.banner, .sound, .list]
+        willPresent _: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        let completion = UncheckedSendable(completionHandler)
+        Task { @MainActor in
+            await refill()
+            completion.value([.banner, .sound, .list])
+        }
     }
 
     nonisolated func userNotificationCenter(
         _: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         let content = response.notification.request.content
         let payload = SupplementReminderPayload(
             supplementId: content.userInfo[SupplementReminderScheduler.userInfoSupplementId] as? String,
@@ -61,10 +74,15 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
             title: content.title,
             body: content.body
         )
-        await handle(action: response.actionIdentifier, payload: payload)
-        // A notification interaction is one of the few reliable chances to run, so top the
-        // rolling window back up while we have it.
-        await refill()
+        let action = response.actionIdentifier
+        let completion = UncheckedSendable(completionHandler)
+        Task { @MainActor in
+            await handle(action: action, payload: payload)
+            // A notification interaction is one of the few reliable chances to run, so top the
+            // rolling window back up while we have it.
+            await refill()
+            completion.value()
+        }
     }
 
     @MainActor
@@ -107,5 +125,16 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
     private func refill() async {
         guard let repository else { return }
         await SupplementReminderScheduler.refill(repository: repository)
+    }
+}
+
+/// Wraps a value the compiler can't prove `Sendable` (here, the framework's completion
+/// closure) so it can cross into a `@Sendable` task. Safe because the wrapped closure is
+/// only ever invoked once, from the main actor — which is the whole point (see the class
+/// doc). Same pattern as `PhoneWatchConnectivity`'s private wrapper.
+private struct UncheckedSendable<Value>: @unchecked Sendable {
+    let value: Value
+    init(_ value: Value) {
+        self.value = value
     }
 }
