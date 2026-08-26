@@ -8,6 +8,9 @@ import UserNotifications
 /// plain values first and hands those over instead.
 struct SupplementReminderPayload {
     let supplementId: String?
+    /// `yyyy-MM-dd` day the reminder was scheduled for; nil on notifications delivered
+    /// by a version that didn't attach it.
+    let date: String?
     let title: String
     let body: String
 }
@@ -54,6 +57,7 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
         let content = response.notification.request.content
         let payload = SupplementReminderPayload(
             supplementId: content.userInfo[SupplementReminderScheduler.userInfoSupplementId] as? String,
+            date: content.userInfo[SupplementReminderScheduler.userInfoDate] as? String,
             title: content.title,
             body: content.body
         )
@@ -72,8 +76,12 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
                 // makes this safe inside a background action's short execution budget.
                 // Going through the repository is also what puts an offline tap in the
                 // sync queue; the server's partial unique index makes a redelivered log
-                // idempotent. `logSupplement` cancels today's remaining reminders itself.
-                try? await repository.logSupplement(id: supplementId, date: DateFormatting.today)
+                // idempotent. `logSupplement` cancels that day's remaining reminders
+                // itself. The payload date, not today: acting after midnight must log
+                // the day the reminder fired.
+                try? await repository.logSupplement(
+                    id: supplementId, date: payload.date ?? DateFormatting.today
+                )
             }
 
         case SupplementReminderScheduler.snoozeAction:
@@ -81,8 +89,10 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
 
         case SupplementReminderScheduler.skipAction:
             if let supplementId = payload.supplementId {
-                SupplementReminderSkips.markSkipped(supplementId: supplementId)
-                await SupplementReminderScheduler.cancelToday(supplementId: supplementId)
+                // Same rule as Mark taken: the skip belongs to the reminder's day.
+                let day = payload.date.flatMap { DateFormatting.date(from: $0) } ?? Date()
+                SupplementReminderSkips.markSkipped(supplementId: supplementId, on: day)
+                await SupplementReminderScheduler.cancelToday(supplementId: supplementId, on: day)
             }
 
         case UNNotificationDefaultActionIdentifier:

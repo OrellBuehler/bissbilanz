@@ -128,8 +128,12 @@ final class SupplementRepository {
         // iOS runs no code before a local notification is delivered, so a reminder for
         // something already taken has to be cancelled here. Every log path — the
         // checklist, the dashboard card, the notification's own Mark taken — funnels
-        // through this method, so this one hook covers all of them.
-        await SupplementReminderScheduler.cancelToday(supplementId: id)
+        // through this method, so this one hook covers all of them. Cancel for the
+        // *logged* day: marking yesterday's reminder as taken at 00:30 must not eat
+        // today's still-pending reminders.
+        await SupplementReminderScheduler.cancelToday(
+            supplementId: id, on: DateFormatting.date(from: date) ?? Date()
+        )
     }
 
     func unlogSupplement(id: String, date: String) async throws {

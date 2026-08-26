@@ -9,6 +9,7 @@ import androidx.work.workDataOf
 import com.bissbilanz.ErrorReporter
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.java.KoinJavaComponent
@@ -30,7 +31,14 @@ class SupplementReminderActionReceiver : BroadcastReceiver() {
 
         try {
             if (notificationId != -1) SupplementReminderNotifier.clear(context, notificationId)
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            // The day the reminder was *for*, carried through the notification: a 20:00
+            // reminder acted on at 00:30 must log the day it fired, not the day of the
+            // tap. Fallback covers notifications posted by a version without the extra.
+            val date =
+                intent
+                    .getStringExtra(EXTRA_DATE)
+                    ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    ?: Clock.System.todayIn(TimeZone.currentSystemDefault())
 
             when (intent.action) {
                 ACTION_TAKEN ->
@@ -39,9 +47,9 @@ class SupplementReminderActionReceiver : BroadcastReceiver() {
                             .setInputData(
                                 workDataOf(
                                     SupplementReminderWorker.KEY_SUPPLEMENT_ID to supplementId,
-                                    // The date it was tapped, not the date the retry runs:
-                                    // a retry after midnight must not log the wrong day.
-                                    SupplementReminderWorker.KEY_DATE to today.toString(),
+                                    // Resolved here, not in the worker: a retry after
+                                    // midnight must not log the wrong day either.
+                                    SupplementReminderWorker.KEY_DATE to date.toString(),
                                 ),
                             ).build(),
                     )
@@ -53,10 +61,11 @@ class SupplementReminderActionReceiver : BroadcastReceiver() {
                         supplementId,
                         hhmm,
                         preferences.snoozeMinutes,
+                        occurrenceDate = date.toString(),
                     )
                 }
 
-                ACTION_SKIP -> koin.get<SupplementReminderPreferences>().markSkipped(supplementId, today)
+                ACTION_SKIP -> koin.get<SupplementReminderPreferences>().markSkipped(supplementId, date)
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -71,5 +80,6 @@ class SupplementReminderActionReceiver : BroadcastReceiver() {
         const val EXTRA_SUPPLEMENT_ID = "supplement_id"
         const val EXTRA_TIME = "reminder_time"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
+        const val EXTRA_DATE = "occurrence_date"
     }
 }

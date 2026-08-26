@@ -38,6 +38,7 @@ object SupplementReminderNotifier {
         notificationId: Int,
         actionRequestCodeBase: Int,
         hhmm: String,
+        occurrenceDate: String,
     ) {
         if (!hasPermission(context)) return
         ensureChannel(context)
@@ -62,6 +63,7 @@ object SupplementReminderNotifier {
                         hhmm,
                         notificationId,
                         actionRequestCodeBase,
+                        occurrenceDate,
                     ),
                 ).addAction(
                     0,
@@ -73,6 +75,7 @@ object SupplementReminderNotifier {
                         hhmm,
                         notificationId,
                         actionRequestCodeBase + 1,
+                        occurrenceDate,
                     ),
                 ).addAction(
                     0,
@@ -84,6 +87,7 @@ object SupplementReminderNotifier {
                         hhmm,
                         notificationId,
                         actionRequestCodeBase + 2,
+                        occurrenceDate,
                     ),
                 ).build()
 
@@ -150,6 +154,7 @@ object SupplementReminderNotifier {
         hhmm: String,
         notificationId: Int,
         requestCode: Int,
+        occurrenceDate: String,
     ): PendingIntent {
         val intent = Intent(context, SupplementReminderActionReceiver::class.java)
         intent.setClassName(context, SupplementReminderActionReceiver::class.java.name)
@@ -158,6 +163,7 @@ object SupplementReminderNotifier {
         intent.putExtra(SupplementReminderActionReceiver.EXTRA_SUPPLEMENT_ID, supplementId)
         intent.putExtra(SupplementReminderActionReceiver.EXTRA_TIME, hhmm)
         intent.putExtra(SupplementReminderActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+        intent.putExtra(SupplementReminderActionReceiver.EXTRA_DATE, occurrenceDate)
         return PendingIntent.getBroadcast(
             context,
             requestCode,
