@@ -1225,7 +1225,7 @@ export interface components {
 			scheduleStartDate?: string | null;
 			isActive?: boolean;
 			sortOrder?: number;
-			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			timeOfDay?: ('morning' | 'noon' | 'evening' | 'anytime') | null;
 			reminderTimes?: string[] | null;
 			ingredients: components['schemas']['SupplementIngredientInput'][];
 		};
@@ -1237,7 +1237,7 @@ export interface components {
 			scheduleStartDate?: string | null;
 			isActive?: boolean;
 			sortOrder?: number;
-			timeOfDay?: ('morning' | 'noon' | 'evening') | null;
+			timeOfDay?: ('morning' | 'noon' | 'evening' | 'anytime') | null;
 			reminderTimes?: string[] | null;
 			ingredients?: components['schemas']['SupplementIngredientInput'][];
 		};

@@ -70,7 +70,7 @@ data class SupplementCreate(
     /**
      *
      *
-     * Values: morning,noon,evening
+     * Values: morning,noon,evening,anytime
      */
     @Serializable
     enum class TimeOfDay(
@@ -84,5 +84,8 @@ data class SupplementCreate(
 
         @SerialName(value = "evening")
         evening("evening"),
+
+        @SerialName(value = "anytime")
+        anytime("anytime"),
     }
 }

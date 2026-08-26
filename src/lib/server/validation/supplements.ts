@@ -29,6 +29,17 @@ const reminderTimesSchema = z
 	.optional()
 	.nullable();
 
+/**
+ * 'anytime' is what the mobile pickers show for "no preferred time" and iOS sends it
+ * verbatim; it is normalised to NULL here so those PATCHes don't 400 and silently lose
+ * the whole edit (the sync queue drops client errors permanently).
+ */
+const timeOfDaySchema = z
+	.enum(['morning', 'noon', 'evening', 'anytime'])
+	.transform((value) => (value === 'anytime' ? null : value))
+	.nullable()
+	.optional();
+
 export const supplementCreateSchema = z
 	.object({
 		name: z.string().min(1),
@@ -37,7 +48,7 @@ export const supplementCreateSchema = z
 		scheduleStartDate: z.string().optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
-		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+		timeOfDay: timeOfDaySchema,
 		reminderTimes: reminderTimesSchema,
 		ingredients: z.array(ingredientSchema).min(1).max(50)
 	})
@@ -60,7 +71,7 @@ export const supplementUpdateSchema = z
 		scheduleStartDate: z.string().optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
-		timeOfDay: z.enum(['morning', 'noon', 'evening']).nullable().optional(),
+		timeOfDay: timeOfDaySchema,
 		reminderTimes: reminderTimesSchema,
 		ingredients: z.array(ingredientSchema).min(1).max(50).optional()
 	})

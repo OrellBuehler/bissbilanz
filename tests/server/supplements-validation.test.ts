@@ -54,6 +54,38 @@ describe('supplementCreateSchema reminderTimes', () => {
 	});
 });
 
+describe('timeOfDay normalisation', () => {
+	test.each([['morning'], ['noon'], ['evening']])('passes %s through on create', (value) => {
+		const result = supplementCreateSchema.safeParse({ ...baseSupplement, timeOfDay: value });
+		expect(result.success).toBe(true);
+		expect(result.success && result.data.timeOfDay).toBe(value);
+	});
+
+	test("normalises 'anytime' to null (iOS sends the picker value verbatim)", () => {
+		const create = supplementCreateSchema.safeParse({ ...baseSupplement, timeOfDay: 'anytime' });
+		expect(create.success).toBe(true);
+		expect(create.success && create.data.timeOfDay).toBeNull();
+
+		const update = supplementUpdateSchema.safeParse({ timeOfDay: 'anytime' });
+		expect(update.success).toBe(true);
+		expect(update.success && update.data.timeOfDay).toBeNull();
+	});
+
+	test('accepts null and stays absent when omitted', () => {
+		const withNull = supplementUpdateSchema.safeParse({ timeOfDay: null });
+		expect(withNull.success).toBe(true);
+		expect(withNull.success && withNull.data.timeOfDay).toBeNull();
+
+		const omitted = supplementUpdateSchema.safeParse({ name: 'Renamed' });
+		expect(omitted.success).toBe(true);
+		expect(omitted.success && omitted.data.timeOfDay).toBeUndefined();
+	});
+
+	test('still rejects unknown values', () => {
+		expect(supplementUpdateSchema.safeParse({ timeOfDay: 'midnight' }).success).toBe(false);
+	});
+});
+
 describe('supplementUpdateSchema reminderTimes', () => {
 	test('accepts a partial update carrying only reminderTimes', () => {
 		const result = supplementUpdateSchema.safeParse({ reminderTimes: ['09:15'] });
