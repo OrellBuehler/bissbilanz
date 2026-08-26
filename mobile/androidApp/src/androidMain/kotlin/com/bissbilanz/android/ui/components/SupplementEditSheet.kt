@@ -338,7 +338,7 @@ fun SupplementEditSheet(
                                                 expanded = showUnitMenu,
                                             )
                                         },
-                                        modifier = Modifier.menuAnchor(),
+                                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                         singleLine = true,
                                     )
                                     ExposedDropdownMenu(

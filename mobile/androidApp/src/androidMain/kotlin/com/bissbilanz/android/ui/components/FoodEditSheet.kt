@@ -315,7 +315,7 @@ fun FoodEditSheet(
                             trailingIcon = {
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUnitDropdown)
                             },
-                            modifier = Modifier.menuAnchor(),
+                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                             singleLine = true,
                         )
                         ExposedDropdownMenu(

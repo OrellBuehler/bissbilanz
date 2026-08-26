@@ -122,7 +122,7 @@ fun AiMealSheet(
                     readOnly = true,
                     label = { Text(stringResource(R.string.meal_picker_meal_label)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealMenuOpen) },
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = mealMenuOpen, onDismissRequest = { mealMenuOpen = false }) {
                     mealTypes.forEach { meal ->

@@ -27,6 +27,11 @@ enum SupplementReminderScheduler {
 
     static let userInfoSupplementId = "supplementId"
     static let userInfoTime = "reminderTime"
+    /// The `yyyy-MM-dd` day the reminder is *for*. Actions must log against this, never
+    /// against the day of the tap: a 20:00 reminder acted on at 00:30 belongs to the
+    /// previous day. (The request identifier encodes the same day, but a snoozed copy
+    /// gets a fresh identifier, so the date has to live in userInfo to survive a snooze.)
+    static let userInfoDate = "occurrenceDate"
 
     static let snoozeMinutesKey = "supplement_snooze_minutes"
     static let defaultSnoozeMinutes = 15
@@ -172,7 +177,11 @@ enum SupplementReminderScheduler {
             )
             let request = UNNotificationRequest(
                 identifier: item.identifier,
-                content: content(for: item.supplement, hhmm: time(from: item.identifier)),
+                content: content(
+                    for: item.supplement,
+                    hhmm: time(from: item.identifier),
+                    date: DateFormatting.isoString(from: item.date)
+                ),
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
             // The completion-handler form: `add(_:)`'s async form would send a
@@ -214,7 +223,11 @@ enum SupplementReminderScheduler {
         content.body = payload.body
         content.sound = .default
         content.categoryIdentifier = categoryIdentifier
-        content.userInfo = [userInfoSupplementId: payload.supplementId ?? ""]
+        var userInfo: [String: Any] = [userInfoSupplementId: payload.supplementId ?? ""]
+        // Keep the original occurrence's day: a snooze taken past midnight must still
+        // mark the day the reminder fired.
+        if let date = payload.date { userInfo[userInfoDate] = date }
+        content.userInfo = userInfo
 
         let supplementId = payload.supplementId ?? "unknown"
         let request = UNNotificationRequest(
@@ -249,7 +262,9 @@ enum SupplementReminderScheduler {
         return "\(compact.prefix(2)):\(compact.suffix(2))"
     }
 
-    private static func content(for supplement: Supplement, hhmm: String) -> UNMutableNotificationContent {
+    private static func content(
+        for supplement: Supplement, hhmm: String, date: String
+    ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = L10n.supplementReminderTitle(supplement.name)
         content.body = supplement.ingredients.map(\.food.name).joined(separator: ", ")
@@ -258,6 +273,7 @@ enum SupplementReminderScheduler {
         content.userInfo = [
             userInfoSupplementId: supplement.id,
             userInfoTime: hhmm,
+            userInfoDate: date,
         ]
         return content
     }

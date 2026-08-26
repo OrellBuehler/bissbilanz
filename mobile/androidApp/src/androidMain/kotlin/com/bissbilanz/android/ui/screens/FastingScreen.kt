@@ -35,6 +35,7 @@ import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSession
 import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.TrendGreen
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -234,13 +235,13 @@ private fun ActiveFastSection(
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = TrendGreen,
+                            tint = TrendGreen.macroTextTone(),
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
                             stringResource(R.string.fasting_target_reached),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TrendGreen,
+                            color = TrendGreen.macroTextTone(),
                         )
                     }
                 }
@@ -320,7 +321,7 @@ private fun StartSection(
             Icon(
                 Icons.Default.Timer,
                 contentDescription = null,
-                tint = FastingIndigo,
+                tint = FastingIndigo.macroTextTone(),
                 modifier = Modifier.size(40.dp),
             )
             Text(
@@ -414,7 +415,7 @@ private fun HistorySection(history: List<FastingSession>) {
                             Icon(
                                 Icons.Default.CheckCircle,
                                 contentDescription = stringResource(R.string.fasting_target_reached),
-                                tint = TrendGreen,
+                                tint = TrendGreen.macroTextTone(),
                                 modifier = Modifier.size(16.dp),
                             )
                         }

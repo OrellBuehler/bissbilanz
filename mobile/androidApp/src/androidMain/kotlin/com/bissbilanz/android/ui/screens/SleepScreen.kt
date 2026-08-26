@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -238,6 +239,7 @@ fun SleepScreen(navController: NavController) {
                         items(entries, key = { it.id }) { entry ->
                             Card(modifier = Modifier.fillMaxWidth().animateItem()) {
                                 ListItem(
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                     leadingContent = {
                                         Icon(
                                             Icons.Default.Bedtime,

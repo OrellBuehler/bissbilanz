@@ -7,13 +7,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -29,7 +31,10 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.ui.components.AppTopBar
+import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -43,6 +48,7 @@ import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = koinViewModel()
@@ -136,7 +142,11 @@ fun SettingsScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { AppTopBar(stringResource(R.string.settings_title), scrollBehavior) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(
@@ -150,9 +160,6 @@ fun SettingsScreen(navController: NavController) {
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
             ) {
-                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // Navigation items
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
@@ -194,7 +201,7 @@ fun SettingsScreen(navController: NavController) {
                             }
                         }
                         HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.Default.MenuBook) {
+                        SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.AutoMirrored.Filled.MenuBook) {
                             navController.navigate("recipes")
                         }
                         HorizontalDivider()
@@ -251,26 +258,20 @@ fun SettingsScreen(navController: NavController) {
 
                         tabOptions.forEach { (route, label) ->
                             val isSelected = route in selectedTabs
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        haptic(HapticFeedbackType.LongPress)
-                                        val updated = if (checked) selectedTabs + route else selectedTabs - route
-                                        if (updated.size in 1..5) {
-                                            selectedTabs = updated
-                                            if (updated.size == 3) {
-                                                tabPrefs.edit().putStringSet("selected_tabs", updated).apply()
-                                            }
+                            CheckboxRow(
+                                label = label,
+                                checked = isSelected,
+                                enabled = if (isSelected) selectedTabs.size >= 3 else selectedTabs.size < 3,
+                                onCheckedChange = { checked ->
+                                    val updated = if (checked) selectedTabs + route else selectedTabs - route
+                                    if (updated.size in 1..5) {
+                                        selectedTabs = updated
+                                        if (updated.size == 3) {
+                                            tabPrefs.edit().putStringSet("selected_tabs", updated).apply()
                                         }
-                                    },
-                                    enabled = if (isSelected) selectedTabs.size >= 3 else selectedTabs.size < 3,
-                                )
-                                Text(label, style = MaterialTheme.typography.bodyMedium)
-                            }
+                                    }
+                                },
+                            )
                         }
                         if (selectedTabs.size != 3) {
                             Text(
@@ -600,20 +601,14 @@ fun SettingsScreen(navController: NavController) {
                                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                     )
                                     nutrients.forEach { (key, label) ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Checkbox(
-                                                checked = key in selected,
-                                                onCheckedChange = { checked ->
-                                                    haptic(HapticFeedbackType.LongPress)
-                                                    editedNutrients = if (checked) selected + key else selected - key
-                                                    nutrientsDirty = true
-                                                },
-                                            )
-                                            Text(label, style = MaterialTheme.typography.bodyMedium)
-                                        }
+                                        CheckboxRow(
+                                            label = label,
+                                            checked = key in selected,
+                                            onCheckedChange = { checked ->
+                                                editedNutrients = if (checked) selected + key else selected - key
+                                                nutrientsDirty = true
+                                            },
+                                        )
                                     }
                                 }
                             }
@@ -732,12 +727,15 @@ fun SettingsNavItem(
     onClick: () -> Unit,
 ) {
     ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(title) },
-        leadingContent = { Icon(icon, title, tint = MaterialTheme.colorScheme.primary) },
+        // Both icons only restate the row's own label, so they stay decorative
+        // rather than making TalkBack announce every row three times.
+        leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
         trailingContent = {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                stringResource(R.string.settings_nav_go),
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -751,21 +749,7 @@ fun WidgetToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val haptic = rememberHaptic()
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label)
-        Switch(
-            checked = checked,
-            onCheckedChange = { value ->
-                haptic(HapticFeedbackType.LongPress)
-                onCheckedChange(value)
-            },
-        )
-    }
+    ToggleRow(label = label, checked = checked, onCheckedChange = onCheckedChange)
 }
 
 val ALL_NUTRIENT_KEYS =
@@ -923,7 +907,7 @@ private fun SupplementRemindersCard() {
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier =
                         Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

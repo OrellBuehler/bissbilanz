@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -17,6 +16,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.ui.screens.formatElapsed
 import com.bissbilanz.android.ui.theme.FastingIndigo
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import org.koin.compose.koinInject
@@ -41,7 +41,7 @@ fun FastingCard(onClick: () -> Unit) {
         }
     }
 
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -49,7 +49,7 @@ fun FastingCard(onClick: () -> Unit) {
             Icon(
                 Icons.Default.Timer,
                 contentDescription = null,
-                tint = FastingIndigo,
+                tint = FastingIndigo.macroTextTone(),
                 modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -47,6 +48,10 @@ fun MacroRing(
         label = "counter",
     )
 
+    // The arc keeps the saturated graphic tone; the counter sitting inside it is
+    // small text and needs the readable one.
+    val textTone = color.macroTextTone()
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
             Canvas(modifier = Modifier.fillMaxSize().padding(4.dp)) {
@@ -71,13 +76,13 @@ fun MacroRing(
                     text = animatedCounter.toString(),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = color,
+                    color = textTone,
                 )
                 if (showGoal) {
                     Text(
                         text = "/ ${goal.roundToInt()}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = color.copy(alpha = 0.6f),
+                        color = textTone.copy(alpha = 0.7f),
                     )
                 }
             }

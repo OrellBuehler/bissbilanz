@@ -196,7 +196,7 @@ fun MaintenanceScreen(navController: NavController) {
                                     r.maintenanceCalories.formatAsInt(),
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = CaloriesBlue,
+                                    color = CaloriesBlue.macroTextTone(),
                                 )
                                 Text(
                                     stringResource(R.string.maintenance_estimated_calories),

@@ -129,9 +129,9 @@ jobs:
           packageName: com.bissbilanz.android
           releaseFiles: mobile/androidApp/build/outputs/bundle/release/*.aab
           track: internal
-          status: draft
-          # Without this, uploading into an existing unpromoted draft keeps that
-          # draft's old name, so the release reads as the previous version.
+          status: completed
+          # Without this, Play reuses the track's previous release name, so the
+          # release reads as the previous version.
           releaseName: ${{ steps.version.outputs.tag }}
 
   ios-release:

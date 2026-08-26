@@ -3,9 +3,12 @@ package com.bissbilanz.android.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
@@ -43,7 +46,10 @@ fun SyncConflictBanner(modifier: Modifier = Modifier) {
     if (notices.isEmpty()) return
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        // Sits in the app shell's topBar slot, which the shell leaves inset-free
+        // so screens can draw under the status bar; when the banner is showing it
+        // takes that inset itself.
+        modifier = modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
         color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
