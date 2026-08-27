@@ -257,6 +257,12 @@ class BissbilanzApi(
     // Account
     suspend fun deleteAccount() = delete("/api/account")
 
+    suspend fun exportAccountData(): ByteArray =
+        get("/api/account/export") {
+            // Full-account archive incl. photos — allow more than the default 30s
+            timeout { requestTimeoutMillis = 120_000 }
+        }
+
     // Foods
     suspend fun getFoodsPaginated(
         limit: Int = 20,

@@ -717,6 +717,26 @@ final class BissbilanzAPI {
         try await deleteRequest("/api/account")
     }
 
+    /// Downloads the full-account ZIP archive. Returns the raw bytes — the
+    /// response is a binary archive, not the JSON envelope `performRequest`
+    /// expects.
+    func exportAccountData() async throws -> Data {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/account/export")!)
+        // Full-account archive incl. photos — allow more than the default 60s
+        request.timeoutInterval = 120
+        ErrorReporter.addBreadcrumb("GET /api/account/export", category: "http")
+        do {
+            let (data, httpResponse) = try await executeRequestData(request)
+            if httpResponse.statusCode >= 400 {
+                throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
+            }
+            return data
+        } catch {
+            ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
+            throw error
+        }
+    }
+
     private func deleteRequest(
         _ path: String,
         idempotencyKey: String? = nil,

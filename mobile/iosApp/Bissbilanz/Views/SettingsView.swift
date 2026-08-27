@@ -20,6 +20,8 @@ struct SettingsView: View {
     @State private var showLogoutConfirmation = false
     @State private var showDeleteAccountConfirmation = false
     @State private var isDeletingAccount = false
+    @State private var isExportingData = false
+    @State private var exportedArchive: ExportedArchive?
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
@@ -263,6 +265,18 @@ struct SettingsView: View {
                                     .foregroundStyle(.red)
                             }
                         }
+                        Button {
+                            exportData()
+                        } label: {
+                            HStack {
+                                Label(L10n.exportData, systemImage: "square.and.arrow.up")
+                                if isExportingData {
+                                    Spacer()
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(isExportingData)
                         Button(role: .destructive) {
                             showLogoutConfirmation = true
                         } label: {
@@ -302,12 +316,18 @@ struct SettingsView: View {
                             isPresented: $showDeleteAccountConfirmation,
                             titleVisibility: .visible
                         ) {
+                            Button(L10n.exportDataFirst) {
+                                exportData()
+                            }
                             Button(L10n.deleteAccountConfirm, role: .destructive) {
                                 deleteAccount()
                             }
                             Button(L10n.cancel, role: .cancel) {}
                         } message: {
                             Text(L10n.deleteAccountConfirmation)
+                        }
+                        .sheet(item: $exportedArchive) { archive in
+                            ShareSheet(url: archive.url)
                         }
                     }
                 }
@@ -449,6 +469,24 @@ struct SettingsView: View {
             goals = goalsRepository.goals() ?? .defaults
         }
         isEditingGoals = false
+    }
+
+    private func exportData() {
+        guard !isExportingData else { return }
+        isExportingData = true
+        Task {
+            defer { isExportingData = false }
+            do {
+                let data = try await api.exportAccountData()
+                let date = Date().ISO8601Format().prefix(10)
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("bissbilanz-export-\(date).zip")
+                try data.write(to: url, options: .atomic)
+                exportedArchive = ExportedArchive(url: url)
+            } catch {
+                errorMessage = L10n.exportDataFailed
+            }
+        }
     }
 
     private func deleteAccount() {
@@ -652,4 +690,19 @@ private extension SettingsView {
             notificationsAuthorized = await SupplementReminderScheduler.authorizationStatus() == .authorized
         }
     }
+}
+
+private struct ExportedArchive: Identifiable {
+    let url: URL
+    var id: String { url.path }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
