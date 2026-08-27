@@ -321,7 +321,14 @@ enum SupplementReminderSkips {
 /// calendar would silently change every identifier) — and a shared formatter would be
 /// mutable state across isolation domains.
 enum SupplementReminderDay {
-    static func key(for date: Date, calendar: Calendar = .current) -> String {
+    /// Gregorian rather than `.current`, which was the very calendar the note
+    /// above rules out: a user switching their device to a Buddhist or
+    /// Japanese calendar re-keyed every pending reminder identifier at once.
+    /// The time zone stays the device's, so the day boundary is still local —
+    /// read per call rather than cached, since it changes when the user travels.
+    static func key(for date: Date, timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
         let components = calendar.dateComponents([.year, .month, .day], from: date)
         return String(
             format: "%04d%02d%02d",

@@ -32,7 +32,17 @@ final class SyncManager {
     private(set) var isSyncing = false
     private(set) var pendingCount = 0
     private(set) var errors: [String] = []
+    /// Conflict notices for the banner, capped — a device that was offline for
+    /// a while can lose many writes, and `errors` is reset per drain while
+    /// these are only cleared by an explicit dismissal. The banner renders the
+    /// first notice plus a count, so the ones past the cap cost nothing but
+    /// memory; `conflictNoticeCount` keeps that count honest.
     private(set) var conflictNotices: [String] = []
+    /// Total conflicts recorded since the last dismissal, including any past
+    /// the `conflictNotices` cap.
+    private(set) var conflictNoticeCount = 0
+
+    private static let maxConflictNotices = 50
     private(set) var lastSyncedAt: Date?
 
     @ObservationIgnored private var isDraining = false
@@ -43,7 +53,11 @@ final class SyncManager {
     /// pull the affected entities back down. Without it the row that *lost* keeps
     /// showing its superseded value until some unrelated refresh overwrites it.
     /// Set by the app once its repositories exist.
-    @ObservationIgnored var onConflictResolved: (() async -> Void)?
+    ///
+    /// Carries the days the conflicted operations touched. Refreshing only
+    /// today left a conflict on a past day showing the superseded value — the
+    /// one case this callback exists to prevent.
+    @ObservationIgnored var onConflictResolved: ((Set<String>) async -> Void)?
 
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
@@ -171,6 +185,13 @@ final class SyncManager {
     /// Drops the conflict notices once the user has acknowledged them.
     func clearConflictNotices() {
         conflictNotices = []
+        conflictNoticeCount = 0
+    }
+
+    private func noteConflict(_ notice: String) {
+        conflictNoticeCount += 1
+        guard conflictNotices.count < Self.maxConflictNotices else { return }
+        conflictNotices.append(notice)
     }
 
     func clearQueue() {
@@ -200,6 +221,7 @@ final class SyncManager {
         errors = []
         var processed = 0
         var sawConflict = false
+        var conflictDates: Set<String> = []
         ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
@@ -258,7 +280,8 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     sawConflict = true
-                    conflictNotices.append(
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    noteConflict(
                         "Offline change to \(operation.summary) was superseded by a newer change from another device."
                     )
 
@@ -279,7 +302,8 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     sawConflict = true
-                    conflictNotices.append(
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    noteConflict(
                         "Offline change to \(operation.summary) was lost: the record was deleted on another device."
                     )
                     ErrorReporter.captureWarning(
@@ -335,9 +359,37 @@ final class SyncManager {
         // a single refresh. Reached on every exit path — a drain that resolved a
         // conflict and then hit an outage still owes the UI that refresh.
         if sawConflict {
-            await onConflictResolved?()
+            await onConflictResolved?(conflictDates)
         }
         return processed
+    }
+
+    /// The day(s) a conflicted operation touched, so the follow-up refresh
+    /// reloads them rather than only today. An update or delete carries no date
+    /// in its body, so the local row answers for it — for an update that row is
+    /// still present (only the queued op was dropped); a locally deleted row
+    /// has none, and today's refresh is the best available.
+    private func dayKeys(for operation: SyncOperation) -> Set<String> {
+        switch operation {
+        case let .createEntry(body, _):
+            [body.date]
+        case let .updateEntry(id, body):
+            (body.date ?? localEntryDate(id: id)).map { Set([$0]) } ?? []
+        case let .deleteEntry(id):
+            localEntryDate(id: id).map { Set([$0]) } ?? []
+        case let .setDayProperties(date, _), let .deleteDayProperties(date):
+            [date]
+        case let .logSupplement(_, date), let .unlogSupplement(_, date):
+            [date]
+        default:
+            []
+        }
+    }
+
+    private func localEntryDate(id: String) -> String? {
+        var descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.date
     }
 
     /// Rewrites still-queued operation payloads (and their affected table/id

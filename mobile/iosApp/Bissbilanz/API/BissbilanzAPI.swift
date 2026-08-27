@@ -830,7 +830,18 @@ final class BissbilanzAPI {
                 if let token = authManager.accessToken {
                     retryReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 }
-                let (retryData, retryResponse) = try await session.data(for: retryReq)
+                // Wrapped like the first attempt above — an unwrapped
+                // `session.data` here let a raw URLError escape past the
+                // APIError taxonomy, so every `catch let error as APIError`
+                // missed it and ErrorReporter classified it down a different
+                // branch than the identical failure on the first attempt.
+                let retryData: Data
+                let retryResponse: URLResponse
+                do {
+                    (retryData, retryResponse) = try await session.data(for: retryReq)
+                } catch {
+                    throw APIError.networkError(error)
+                }
                 guard let retryHTTP = retryResponse as? HTTPURLResponse else {
                     throw APIError.networkError(URLError(.badServerResponse))
                 }

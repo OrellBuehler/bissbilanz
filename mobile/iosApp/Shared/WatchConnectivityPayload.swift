@@ -137,6 +137,13 @@ struct WatchLogRequest: Codable {
     var quickCarbs: Double?
     var quickFat: Double?
     var quickFiber: Double?
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// The watch → phone "log my weight" command. Mirrors `WeightCreate`; the phone
@@ -145,6 +152,13 @@ struct WatchWeightLogRequest: Codable {
     let weightKg: Double
     /// ISO day ("yyyy-MM-dd").
     let date: String
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// The watch → phone "log my sleep" command. Mirrors `SleepCreate`; the phone
@@ -155,6 +169,13 @@ struct WatchSleepLogRequest: Codable {
     let quality: Double
     /// ISO day ("yyyy-MM-dd") the sleep is attributed to.
     let date: String
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// Dictionary keys for the plist-safe `[String: Any]` payloads WCSession

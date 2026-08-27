@@ -19,6 +19,8 @@ struct DashboardView: View {
     /// show a retry affordance instead of a misleading "No entries yet" state
     /// (a swallowed refresh error looks identical to a genuinely empty day).
     @State private var refreshFailed = false
+    /// Bumped by each `loadData`; only the newest generation writes results back.
+    @State private var loadGeneration = 0
     @State private var showFoodSearch = false
     @State private var showScanner = false
     @State private var showQuickEntry = false
@@ -130,10 +132,9 @@ struct DashboardView: View {
             } message: {
                 Text(L10n.copyConfirmation(to: DateFormatting.displayString(from: selectedDate)))
             }
-            .task { await loadData() }
-            .onChange(of: selectedDate) { _, _ in
-                Task { await loadData() }
-            }
+            // Keyed on the day so switching dates cancels the previous load
+            // instead of racing it (see `loadData`).
+            .task(id: dateString) { await loadData() }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 let newToday = Calendar.current.startOfDay(for: Date())
@@ -617,10 +618,22 @@ struct DashboardView: View {
         return DateFormatting.displayString(from: date)
     }
 
+    /// Every trigger — the day swipe, pull-to-refresh, each sheet's dismissal,
+    /// the retry button — starts its own task, so several loads can be in
+    /// flight at once with no ordering between them. A stale one finishing
+    /// last would apply a previous day's result to the day now on screen:
+    /// most visibly, turning on the "couldn't refresh" retry state for a day
+    /// that loaded fine, or clearing the spinner for a load still running.
+    /// Only the newest load writes back.
     private func loadData() async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let loadDate = dateString
         loadFromStore()
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if generation == loadGeneration { isLoading = false }
+        }
 
         // Track the entries refresh outcome: a failure that leaves the day
         // empty must surface (retry) rather than masquerade as "No entries yet".
@@ -645,6 +658,7 @@ struct DashboardView: View {
         )
         let checklist = await supplementsTask
 
+        guard generation == loadGeneration, dateString == loadDate else { return }
         loadFromStore()
         // Only flag the empty-day error case; a failed refresh that still has
         // cached entries keeps showing them (stale beats blank).

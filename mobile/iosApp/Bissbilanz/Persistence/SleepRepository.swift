@@ -104,25 +104,23 @@ final class SleepRepository {
         return temp
     }
 
+    /// See `EntryRepository.updateEntry` — a missing local row is reported as a
+    /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
-        var optimistic: SleepEntry?
-        if let row = fetchRow(id: id), let existing = row.toSleepEntry() {
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let updated = (try? JSONPatch.merged(SleepEntry.self, base: existing, patch: patch)) ?? existing
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toSleepEntry() else {
+            throw APIError.notFound
         }
+        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        let updated = (try? JSONPatch.merged(SleepEntry.self, base: existing, patch: patch)) ?? existing
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateSleep(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteEntry(id: String) async throws {

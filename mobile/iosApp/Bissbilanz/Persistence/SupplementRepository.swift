@@ -206,35 +206,33 @@ final class SupplementRepository {
         return temp
     }
 
+    /// See `EntryRepository.updateEntry` — a missing local row is reported as a
+    /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateSupplement(id: String, _ update: SupplementUpdate) async throws -> Supplement {
-        var optimistic: Supplement?
-        if let row = fetchRow(id: id), let existing = row.toSupplement() {
-            var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            patch.removeValue(forKey: "ingredients")
-            var updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
-            // Ingredient edits apply to the local row in BOTH modes (in Local
-            // mode there is no server to reconcile from; in Synced mode the
-            // refresh replaces this with the resolved server shape).
-            if let inputs = update.ingredients {
-                updated = Self.applying(
-                    ingredients: resolvedIngredients(inputs, supplementId: id),
-                    to: updated
-                )
-            }
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toSupplement() else {
+            throw APIError.notFound
         }
+        var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        patch.removeValue(forKey: "ingredients")
+        var updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
+        // Ingredient edits apply to the local row in BOTH modes (in Local
+        // mode there is no server to reconcile from; in Synced mode the
+        // refresh replaces this with the resolved server shape).
+        if let inputs = update.ingredients {
+            updated = Self.applying(
+                ingredients: resolvedIngredients(inputs, supplementId: id),
+                to: updated
+            )
+        }
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateSupplement(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteSupplement(id: String) async throws {

@@ -251,20 +251,42 @@ private struct TokenResponse: Codable {
 }
 
 enum KeychainHelper {
+    /// Writes `value`, updating in place when the item already exists.
+    ///
+    /// The previous delete-then-add pair had a window in which the old value
+    /// was gone and the new one not yet stored, and neither `OSStatus` was
+    /// checked — a failed add left no token and no error anywhere, which is
+    /// the one way the app can silently sign a user out. `SecItemUpdate` with
+    /// an add fallback closes the window, and the status is reported.
     static func save(key: String, value: String) {
         guard let data = value.data(using: .utf8) else { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
         ]
-        SecItemDelete(query as CFDictionary)
+        let updateStatus = SecItemUpdate(
+            query as CFDictionary,
+            [kSecValueData as String: data] as CFDictionary
+        )
+        if updateStatus == errSecSuccess { return }
+
+        if updateStatus != errSecItemNotFound {
+            // The item exists but couldn't be rewritten — replacing it is the
+            // only way forward, and the delete below is what makes that safe.
+            SecItemDelete(query as CFDictionary)
+        }
         let attributes: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
-        SecItemAdd(attributes as CFDictionary, nil)
+        let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+        guard addStatus != errSecSuccess else { return }
+        ErrorReporter.captureWarning(
+            "Keychain write failed",
+            context: ["key": key, "update_status": updateStatus, "add_status": addStatus]
+        )
     }
 
     static func load(key: String) -> String? {

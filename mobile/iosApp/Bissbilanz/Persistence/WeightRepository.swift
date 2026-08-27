@@ -105,25 +105,26 @@ final class WeightRepository {
         return temp
     }
 
+    /// A missing local row means the record is gone (deleted elsewhere, or
+    /// never cached) — the failure is reported without also queueing an upload
+    /// for it. Enqueuing first and throwing afterwards told the caller the edit
+    /// had failed while it was already on its way to the server, so the next
+    /// refresh brought back the change the UI had just reported as failed.
     @discardableResult
     func updateEntry(id: String, _ update: WeightUpdate) async throws -> WeightEntry {
-        var optimistic: WeightEntry?
-        if let row = fetchRow(id: id), let existing = row.toWeightEntry() {
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let updated = (try? JSONPatch.merged(WeightEntry.self, base: existing, patch: patch)) ?? existing
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toWeightEntry() else {
+            throw APIError.notFound
         }
+        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        let updated = (try? JSONPatch.merged(WeightEntry.self, base: existing, patch: patch)) ?? existing
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateWeight(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteEntry(id: String) async throws {

@@ -169,8 +169,13 @@ struct BissbilanzApp: App {
         // state so the screen stops showing the value that was dropped. Same set
         // BackgroundRefresher pulls, minus its queue drain — this runs from inside
         // the drain and would only no-op against the reentrancy guard.
-        sync.onConflictResolved = {
-            try? await entryRepo.refresh(date: DateFormatting.today)
+        sync.onConflictResolved = { conflictDates in
+            // Refresh every day a conflicted operation touched, not just today:
+            // the banner tells the user their change was superseded while the
+            // screen would otherwise keep showing the superseded value.
+            for date in conflictDates.union([DateFormatting.today]) {
+                try? await entryRepo.refresh(date: date)
+            }
             try? await goalsRepo.refresh()
             try? await weightRepo.refresh()
             try? await sleepRepo.refresh()

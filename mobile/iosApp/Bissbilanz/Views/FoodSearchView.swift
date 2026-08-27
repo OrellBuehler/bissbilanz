@@ -292,13 +292,25 @@ struct FoodSearchView: View {
         }
     }
 
+    /// The debounce checks `Task.isCancelled` before calling this, but never
+    /// again once the await is under way. Cancellation surfaces through
+    /// URLSession as a thrown error, which `searchFoods` turns into a local
+    /// fallback or an empty array — so a superseded search used to clear the
+    /// list and stop the spinner while the current one was still running (the
+    /// "No results" flash mid-typing). Only the search for the query still in
+    /// the field writes back.
     private func search(_ query: String) async {
         guard query.count >= 2 else {
             searchResults = []
+            // A superseded search no longer clears this, so the query dropping
+            // below the minimum length has to.
+            isSearching = false
             return
         }
         isSearching = true
-        searchResults = await foodRepository.searchFoods(query: query)
+        let results = await foodRepository.searchFoods(query: query)
+        guard !Task.isCancelled, query == self.query else { return }
+        searchResults = results
         isSearching = false
     }
 

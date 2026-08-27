@@ -151,7 +151,8 @@ private struct SleepLoggerView: View {
         let request = WatchSleepLogRequest(
             durationMinutes: Int(minutes),
             quality: Double(quality),
-            date: WidgetSnapshotStore.isoDateString(from: Date())
+            date: WidgetSnapshotStore.isoDateString(from: Date()),
+            requestId: UUID().uuidString
         )
         Task {
             let outcome = await connectivity.logSleep(request)

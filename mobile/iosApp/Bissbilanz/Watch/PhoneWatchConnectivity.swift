@@ -39,6 +39,33 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
         WCSession.isSupported() ? .default : nil
     }
 
+    private static let appliedRequestIdsKey = "watch_applied_request_ids_v1"
+    private static let appliedRequestIdsLimit = 64
+
+    /// Ids of watch requests already written, newest last.
+    ///
+    /// The watch re-sends via `transferUserInfo` whenever `sendMessage`'s error
+    /// handler fires, and that handler can't distinguish "the phone never
+    /// received this" from "the phone processed it but the reply was lost" — so
+    /// on flaky connectivity the same log arrives twice. Persisted rather than
+    /// held in memory because the queued copy can be delivered to a freshly
+    /// launched process. Bounded; a request older than the last 64 is long
+    /// past any retry window.
+    @MainActor
+    private func markApplied(_ requestId: String?) -> Bool {
+        // An older watch build sends no id — nothing to dedup on, so apply as
+        // before rather than dropping the log.
+        guard let requestId else { return true }
+        var applied = UserDefaults.standard.stringArray(forKey: Self.appliedRequestIdsKey) ?? []
+        guard !applied.contains(requestId) else { return false }
+        applied.append(requestId)
+        if applied.count > Self.appliedRequestIdsLimit {
+            applied.removeFirst(applied.count - Self.appliedRequestIdsLimit)
+        }
+        UserDefaults.standard.set(applied, forKey: Self.appliedRequestIdsKey)
+        return true
+    }
+
     override private init() {
         super.init()
     }
@@ -91,6 +118,14 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
             WatchLogRequest.self, from: message, key: WatchPayloadKey.logRequest
         ) {
             Task { @MainActor in
+                // A repeat is acknowledged but not written again. The reply is
+                // empty rather than a fresh snapshot: the first delivery
+                // already ran the write, which pushed an application context,
+                // so the watch is up to date either way.
+                guard markApplied(request.requestId) else {
+                    reply.value([:])
+                    return
+                }
                 let snapshot = await onLogRequest?(request)
                 let payload = snapshot.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.snapshot) } ?? [:]
                 reply.value(payload)
@@ -99,6 +134,10 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
             WatchWeightLogRequest.self, from: message, key: WatchPayloadKey.weightLogRequest
         ) {
             Task { @MainActor in
+                guard markApplied(request.requestId) else {
+                    reply.value([:])
+                    return
+                }
                 let state = await onWeightLog?(request)
                 reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
             }
@@ -106,6 +145,10 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
             WatchSleepLogRequest.self, from: message, key: WatchPayloadKey.sleepLogRequest
         ) {
             Task { @MainActor in
+                guard markApplied(request.requestId) else {
+                    reply.value([:])
+                    return
+                }
                 let state = await onSleepLog?(request)
                 reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
             }
@@ -121,15 +164,24 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
         if let request = WatchPayloadCodec.decode(
             WatchLogRequest.self, from: userInfo, key: WatchPayloadKey.logRequest
         ) {
-            Task { @MainActor in _ = await onLogRequest?(request) }
+            Task { @MainActor in
+                guard markApplied(request.requestId) else { return }
+                _ = await onLogRequest?(request)
+            }
         } else if let request = WatchPayloadCodec.decode(
             WatchWeightLogRequest.self, from: userInfo, key: WatchPayloadKey.weightLogRequest
         ) {
-            Task { @MainActor in _ = await onWeightLog?(request) }
+            Task { @MainActor in
+                guard markApplied(request.requestId) else { return }
+                _ = await onWeightLog?(request)
+            }
         } else if let request = WatchPayloadCodec.decode(
             WatchSleepLogRequest.self, from: userInfo, key: WatchPayloadKey.sleepLogRequest
         ) {
-            Task { @MainActor in _ = await onSleepLog?(request) }
+            Task { @MainActor in
+                guard markApplied(request.requestId) else { return }
+                _ = await onSleepLog?(request)
+            }
         }
     }
 }

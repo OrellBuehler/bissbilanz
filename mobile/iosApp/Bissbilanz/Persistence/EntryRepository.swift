@@ -112,18 +112,21 @@ final class EntryRepository {
         return temp
     }
 
+    /// A missing local row means the record is gone (deleted elsewhere, or
+    /// never cached) — the failure is reported without also queueing an upload
+    /// for it. Enqueuing first and throwing afterwards told the caller the edit
+    /// had failed while it was already on its way to the server, so the next
+    /// refresh brought back the change the UI had just reported as failed.
     @discardableResult
     func updateEntry(id: String, _ update: EntryUpdate) async throws -> Entry {
-        var local: Entry?
-        var previousDate: String?
-        if let row = fetchRow(id: id), let existing = row.toEntry() {
-            previousDate = row.date
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let updated = (try? JSONPatch.merged(Entry.self, base: existing, patch: patch)) ?? existing
-            row.update(from: updated, date: update.date ?? row.date)
-            save()
-            local = updated
+        guard let row = fetchRow(id: id), let existing = row.toEntry() else {
+            throw APIError.notFound
         }
+        let previousDate = row.date
+        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        let updated = (try? JSONPatch.merged(Entry.self, base: existing, patch: patch)) ?? existing
+        row.update(from: updated, date: update.date ?? row.date)
+        save()
         if LocalStore.isTempId(id) {
             // The row hasn't been uploaded — rewrite the queued create instead.
             coalesceQueuedCreate(tempId: id, update: update)
@@ -132,16 +135,11 @@ final class EntryRepository {
         }
         // Re-sync the affected day — both days when the entry moved dates.
         let currentDate = update.date ?? previousDate
-        if let currentDate {
-            syncDayToHealth(currentDate)
-        }
-        if let previousDate, previousDate != currentDate {
+        syncDayToHealth(currentDate)
+        if previousDate != currentDate {
             syncDayToHealth(previousDate)
         }
-        if let local {
-            return local
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteEntry(id: String) async throws {
