@@ -635,6 +635,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/account/export': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Download a ZIP archive of all data belonging to the authenticated account: a canonical JSON export, spreadsheet-friendly CSV files, and uploaded images. */
+		get: operations['exportAccountData'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/images/upload': {
 		parameters: {
 			query?: never;
@@ -3501,6 +3518,27 @@ export interface operations {
 		requestBody?: never;
 		responses: {
 			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	exportAccountData: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/zip': string;
+				};
+			};
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
