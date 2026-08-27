@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct FoodSearchView: View {
@@ -411,6 +412,12 @@ struct LogFoodForm: View {
     @State private var logDate: Date
     @State private var servings: Double = 1.0
     @State private var mealType: String
+    /// The same list the watch offers, learned from the log rather than
+    /// hardcoded. A custom meal type created on the web was visible on the
+    /// phone (entries carry it, `MealGrouping` renders it) and pickable on the
+    /// watch, but could not be chosen when logging here. Seeded with the
+    /// standard set so the picker is never momentarily empty.
+    @State private var mealTypes = WidgetSnapshotWriter.standardMealTypes
     @State private var eatenTime = Date()
     @State private var isLogging = false
     @State private var errorMessage: String?
@@ -435,18 +442,16 @@ struct LogFoodForm: View {
         return "\(count) × \(perServing) = \(total)"
     }
 
-    /// The same list the watch offers, learned from the log rather than
-    /// hardcoded. A custom meal type created on the web was visible on the
-    /// phone (entries carry it, `MealGrouping` renders it) and pickable on the
-    /// watch, but could not be chosen when logging here.
-    private var mealTypes: [String] {
+    /// Loaded once in `.task` rather than computed in `body`: it reads the
+    /// store, and `body` re-evaluates on every servings tick.
+    private func loadMealTypes() {
         var types = WidgetSnapshotWriter.mealTypes(context: modelContext)
         // The current selection may predate the window the list is learned
-        // from; a Picker whose selection isn't in its options renders blank.
+        // from; a Picker whose selection isn't among its options renders blank.
         if !types.contains(mealType) {
             types.append(mealType)
         }
-        return types
+        mealTypes = types
     }
 
     var body: some View {
@@ -500,6 +505,7 @@ struct LogFoodForm: View {
             NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
             NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
         }
+        .task { loadMealTypes() }
         .navigationTitle(L10n.logFood)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
