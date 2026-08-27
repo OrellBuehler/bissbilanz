@@ -11,6 +11,20 @@ import WidgetKit
 extension WidgetSnapshotWriter {
     private static var pendingTask: Task<Void, Never>?
 
+    /// How far back the watch payload looks. Both builders below sit behind
+    /// every repository `save()` (via `scheduleUpdate`) and run again on every
+    /// foreground activation, on the main actor — and for a daily-use tracker
+    /// the entry table only grows, so an unwindowed scan gets slower every day
+    /// the app is used. A custom meal type unused for three months drops off
+    /// the watch picker until it is logged again, which is the intended
+    /// trade: the picker is "what you actually log", not "what you ever did".
+    private static let mealTypeWindowDays = 90
+    private static let recentsWindowDays = 30
+    /// Upper bound on rows examined for the recents list, so a dense window
+    /// costs no more than a sparse one. Ten distinct foods are found well
+    /// inside this.
+    private static let recentsScanLimit = 300
+
     static func scheduleUpdate(context: ModelContext) {
         pendingTask?.cancel()
         pendingTask = Task {
@@ -33,7 +47,7 @@ extension WidgetSnapshotWriter {
         let snapshot = snapshot ?? buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
         return WatchState(
             snapshot: snapshot,
-            mealTypes: watchMealTypes(context: context),
+            mealTypes: mealTypes(context: context),
             recents: watchRecents(context: context),
             weight: watchWeight(context: context),
             sleep: watchSleep(context: context)
@@ -42,10 +56,10 @@ extension WidgetSnapshotWriter {
 
     /// Standard meal types the app always offers, in display order. These match
     /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
-    /// entries carry locally, so `watchMealTypes` recognizes them rather than
+    /// entries carry locally, so `mealTypes` recognizes them rather than
     /// re-appending them as "custom". The watch list starts from these and
-    /// appends any custom meal types found in the log (see `watchMealTypes`).
-    private static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+    /// appends any custom meal types found in the log (see `mealTypes`).
+    static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     /// Day-granularity ISO formatter for the on-device 7-day weight delta.
     private static let isoDayFormatter: DateFormatter = {
@@ -97,9 +111,13 @@ extension WidgetSnapshotWriter {
 
     /// Server-driven meal types, learned from the synced log: the standard set
     /// first, then any custom meal types the user has actually logged. Never a
-    /// hardcoded-only list, so custom server meal types reach the watch.
-    private static func watchMealTypes(context: ModelContext) -> [String] {
-        let entries = (try? context.fetch(FetchDescriptor<LocalEntry>())) ?? []
+    /// hardcoded-only list, so custom server meal types reach the watch — and,
+    /// since `LogFoodForm` reads the same list, the phone's log form too.
+    static func mealTypes(context: ModelContext) -> [String] {
+        let cutoff = DateFormatting.isoString(from: Date().adding(days: -mealTypeWindowDays))
+        let entries = (try? context.fetch(
+            FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date >= cutoff })
+        )) ?? []
         // Compare case-insensitively: optimistic, not-yet-synced entries can still
         // carry a client's lowercase casing, and we don't want those reappearing
         // as phantom "custom" duplicates of the standard set.
@@ -114,30 +132,33 @@ extension WidgetSnapshotWriter {
     /// log the same way the in-app recents list is. Recipes are skipped — the
     /// watch logs by food id in Phase 1.
     private static func watchRecents(context: ModelContext, limit: Int = 10) -> [WatchFoodRef] {
-        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId != nil })
-        let entries = ((try? context.fetch(descriptor)) ?? []).compactMap { $0.toEntry() }
+        // Read off the typed columns instead of decoding `jsonData`: `foodName`
+        // and `calories` are stored already coalesced with their `quick*`
+        // counterparts, so `displayName`/`totalCalories` add nothing here. That
+        // drops the per-entry JSON decode this used to pay on every save.
+        //
+        // Ordering is by day, descending, which loses the intra-day precision
+        // `createdAt` gave — the only reason the decode existed. Within a
+        // single day the order is the store's, which for a "recently logged"
+        // list is close enough to not be worth a decode per row.
+        let cutoff = DateFormatting.isoString(from: Date().adding(days: -recentsWindowDays))
+        var descriptor = FetchDescriptor<LocalEntry>(
+            predicate: #Predicate { $0.foodId != nil && $0.date >= cutoff },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = recentsScanLimit
 
-        // Keep the most recent entry per food, ordered by when it was logged.
-        var latestByFood: [String: Entry] = [:]
-        for entry in entries {
-            guard let foodId = entry.foodId else { continue }
-            let stamp = entry.createdAt ?? entry.eatenAt ?? entry.date ?? ""
-            let existingStamp = latestByFood[foodId].map { $0.createdAt ?? $0.eatenAt ?? $0.date ?? "" } ?? ""
-            if latestByFood[foodId] == nil || stamp > existingStamp {
-                latestByFood[foodId] = entry
-            }
+        var seenFoodIds: Set<String> = []
+        var recents: [WatchFoodRef] = []
+        for row in (try? context.fetch(descriptor)) ?? [] {
+            guard let foodId = row.foodId, seenFoodIds.insert(foodId).inserted else { continue }
+            recents.append(WatchFoodRef(
+                id: foodId,
+                name: row.foodName ?? "Unknown",
+                calories: row.calories
+            ))
+            if recents.count == limit { break }
         }
-
-        return latestByFood.values
-            .sorted { ($0.createdAt ?? $0.date ?? "") > ($1.createdAt ?? $1.date ?? "") }
-            .prefix(limit)
-            .compactMap { entry -> WatchFoodRef? in
-                guard let foodId = entry.foodId else { return nil }
-                return WatchFoodRef(
-                    id: foodId,
-                    name: entry.displayName,
-                    calories: entry.calories ?? entry.quickCalories ?? 0
-                )
-            }
+        return recents
     }
 }

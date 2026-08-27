@@ -81,12 +81,21 @@ enum LocalRemap {
                 row.jsonData = LocalStoreCoding.encode(patched)
             }
         }
+        // Recipes and supplements keep their ingredient food ids inside the
+        // JSON blob, so there is no column to filter on — but a byte search for
+        // the id rules a row out far more cheaply than parsing it. Without this
+        // the migration's `uploadFoods` loop turned the pass into
+        // O(foods × (recipes + supplements)) full JSON round trips, and
+        // `normalizeOnce` paid the same before the upload even started.
+        guard let needle = oldId.data(using: .utf8) else { return }
         for row in (try? context.fetch(FetchDescriptor<LocalRecipe>())) ?? [] {
+            guard row.jsonData.range(of: needle) != nil else { continue }
             if let patched = patchIngredientFoodIds(in: row.jsonData, from: oldId, to: newId) {
                 row.jsonData = patched
             }
         }
         for row in (try? context.fetch(FetchDescriptor<LocalSupplement>())) ?? [] {
+            guard row.jsonData.range(of: needle) != nil else { continue }
             if let patched = patchIngredientFoodIds(in: row.jsonData, from: oldId, to: newId) {
                 row.jsonData = patched
             }

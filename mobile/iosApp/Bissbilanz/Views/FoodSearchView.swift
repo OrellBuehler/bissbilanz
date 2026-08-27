@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct FoodSearchView: View {
@@ -292,13 +293,25 @@ struct FoodSearchView: View {
         }
     }
 
+    /// The debounce checks `Task.isCancelled` before calling this, but never
+    /// again once the await is under way. Cancellation surfaces through
+    /// URLSession as a thrown error, which `searchFoods` turns into a local
+    /// fallback or an empty array — so a superseded search used to clear the
+    /// list and stop the spinner while the current one was still running (the
+    /// "No results" flash mid-typing). Only the search for the query still in
+    /// the field writes back.
     private func search(_ query: String) async {
         guard query.count >= 2 else {
             searchResults = []
+            // A superseded search no longer clears this, so the query dropping
+            // below the minimum length has to.
+            isSearching = false
             return
         }
         isSearching = true
-        searchResults = await foodRepository.searchFoods(query: query)
+        let results = await foodRepository.searchFoods(query: query)
+        guard !Task.isCancelled, query == self.query else { return }
+        searchResults = results
         isSearching = false
     }
 
@@ -320,13 +333,7 @@ struct FoodSearchView: View {
     }
 
     private func mealForCurrentTime() -> String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5 ..< 11: return "Breakfast"
-        case 11 ..< 14: return "Lunch"
-        case 14 ..< 17: return "Snacks"
-        default: return "Dinner"
-        }
+        MealTiming.mealForCurrentTime()
     }
 
     private func quickLogFood(_ food: Food) async {
@@ -390,6 +397,7 @@ struct LogFoodSheet: View {
 /// and one body stays correct in both modes.
 struct LogFoodForm: View {
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(\.modelContext) private var modelContext
 
     let food: Food
     /// Fired after a successful log; the enclosing flow dismisses (or pops)
@@ -403,7 +411,13 @@ struct LogFoodForm: View {
 
     @State private var logDate: Date
     @State private var servings: Double = 1.0
-    @State private var mealType = "Lunch"
+    @State private var mealType: String
+    /// The same list the watch offers, learned from the log rather than
+    /// hardcoded. A custom meal type created on the web was visible on the
+    /// phone (entries carry it, `MealGrouping` renders it) and pickable on the
+    /// watch, but could not be chosen when logging here. Seeded with the
+    /// standard set so the picker is never momentarily empty.
+    @State private var mealTypes = WidgetSnapshotWriter.standardMealTypes
     @State private var eatenTime = Date()
     @State private var isLogging = false
     @State private var errorMessage: String?
@@ -413,6 +427,9 @@ struct LogFoodForm: View {
         self.onLogged = onLogged
         self.showsDetailsLink = showsDetailsLink
         _logDate = State(initialValue: DateFormatting.date(from: date) ?? Date())
+        // The quick-log path picks the meal from the clock; this form defaulted
+        // to "Lunch" regardless, so the two disagreed about the meal at 8 a.m.
+        _mealType = State(initialValue: MealTiming.mealForCurrentTime())
     }
 
     /// "2 × 100 g = 200 g" — without the total there is no way to tell what a
@@ -425,7 +442,17 @@ struct LogFoodForm: View {
         return "\(count) × \(perServing) = \(total)"
     }
 
-    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+    /// Loaded once in `.task` rather than computed in `body`: it reads the
+    /// store, and `body` re-evaluates on every servings tick.
+    private func loadMealTypes() {
+        var types = WidgetSnapshotWriter.mealTypes(context: modelContext)
+        // The current selection may predate the window the list is learned
+        // from; a Picker whose selection isn't among its options renders blank.
+        if !types.contains(mealType) {
+            types.append(mealType)
+        }
+        mealTypes = types
+    }
 
     var body: some View {
         Form {
@@ -478,6 +505,7 @@ struct LogFoodForm: View {
             NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
             NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
         }
+        .task { loadMealTypes() }
         .navigationTitle(L10n.logFood)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

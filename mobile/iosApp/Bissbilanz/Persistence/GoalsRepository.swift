@@ -26,6 +26,9 @@ final class GoalsRepository {
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         guard let goals = try await api.getGoals() else { return }
+        // Goals are a singleton row, so the queued op carries no affectedId —
+        // any queued setGoals means the server copy is the stale one.
+        guard !syncManager.hasPending(table: "goals") else { return }
         upsert(goals)
         save()
     }

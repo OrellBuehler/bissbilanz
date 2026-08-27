@@ -2097,14 +2097,37 @@ enum L10n {
 
     private nonisolated(unsafe) static var _storedLocale: String?
 
+    /// Memoized on first read, not only on write: with the number of `L10n`
+    /// call sites in the view layer this was a `UserDefaults` lookup per string
+    /// per body evaluation.
+    ///
+    /// Seeded from the device's preferred languages when nothing has been
+    /// chosen. Only the Settings picker ever writes this, so before the seed a
+    /// German device started the app in English — and the widgets inherited
+    /// that — until the user found the language row. An explicit choice still
+    /// wins, because it is what's stored.
     private static var storedLocale: String {
         get {
-            _storedLocale ?? UserDefaults.standard.string(forKey: "app_locale") ?? ""
+            if let cached = _storedLocale { return cached }
+            let resolved = UserDefaults.standard.string(forKey: "app_locale") ?? systemLocale().rawValue
+            _storedLocale = resolved
+            return resolved
         }
         set {
             _storedLocale = newValue
             UserDefaults.standard.set(newValue, forKey: "app_locale")
         }
+    }
+
+    /// The shipped locale matching the device's preferred languages, or English
+    /// for anything the app doesn't have.
+    private static func systemLocale() -> AppLocale {
+        for language in Locale.preferredLanguages {
+            if let locale = AppLocale(rawValue: String(language.prefix(2))) {
+                return locale
+            }
+        }
+        return .en
     }
 
     static var currentLocale: AppLocale {

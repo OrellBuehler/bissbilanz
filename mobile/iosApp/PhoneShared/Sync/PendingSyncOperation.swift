@@ -28,12 +28,11 @@ final class PendingSyncOperation {
     var affectedId: String?
     var retryCount: Int = 0
     var idempotencyKey: String = UUID().uuidString
-    var clientEditedAt: String = ISO8601DateFormatter().string(from: Date())
+    var clientEditedAt: String = DateFormatting.isoDateTimeString(from: Date())
     var nextAttemptAt: Date = Date.distantPast
 
     init(seq: Int, operation: SyncOperation) {
         let now = Date()
-        let isoFormatter = ISO8601DateFormatter()
         id = UUID()
         self.seq = seq
         createdAt = now
@@ -43,7 +42,7 @@ final class PendingSyncOperation {
         affectedId = operation.affectedId
         retryCount = 0
         idempotencyKey = UUID().uuidString
-        clientEditedAt = isoFormatter.string(from: now)
+        clientEditedAt = DateFormatting.isoDateTimeString(from: now)
         nextAttemptAt = Date.distantPast
     }
 

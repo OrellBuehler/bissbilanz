@@ -44,7 +44,14 @@ final class SupplementRepository {
     /// with taken state from the cached logs (no schedule filtering).
     func localChecklist(date: String) -> [SupplementChecklist] {
         let logs = fetchLogs(date: date)
-        let takenAtById = Dictionary(uniqueKeysWithValues: logs.map { ($0.supplementId, $0.takenAt) })
+        // LocalSupplementLog has no unique constraint (CloudKit can't enforce one), so
+        // duplicates are expected between a mirrored delivery and the next LocalDedup.sweep.
+        // Earliest tick wins: takenAt is an ISO-8601 UTC string, so min() is chronological
+        // and independent of fetch order.
+        let takenAtById = Dictionary(
+            logs.map { ($0.supplementId, $0.takenAt) },
+            uniquingKeysWith: { Swift.min($0, $1) }
+        )
         return supplements().filter(\.isActive).map { supplement in
             SupplementChecklist(
                 supplement: supplement,
@@ -62,10 +69,17 @@ final class SupplementRepository {
         // The list endpoint returns the complete set — replace wholesale
         // (mirrors Android's getAllSupplements), keeping optimistic temp rows.
         let serverIds = Set(fetched.map(\.id))
-        for stale in supplements() where !serverIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingIds = syncManager.pendingAffectedIds(table: "supplements")
+        for stale in supplements() where !serverIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
+        {
             deleteRow(id: stale.id)
         }
-        for supplement in fetched {
+        for supplement in fetched where !pendingIds.contains(supplement.id) {
             upsert(supplement)
         }
         save()
@@ -75,16 +89,42 @@ final class SupplementRepository {
     func refreshChecklist(date: String) async throws -> [SupplementChecklist] {
         guard !appMode.isLocal else { return localChecklist(date: date) }
         let checklist = try await api.getSupplementChecklist(date: date)
-        try? context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.date == date })
-        for item in checklist where item.taken {
+        // A tick made offline is still in the queue, so the server response
+        // doesn't know about it yet. Rebuilding the day wholesale would clear
+        // the checkmark until the drain and a later refresh put it back — keep
+        // the queued rows and let their direction win over the server's.
+        let pending = syncManager.pendingSupplementLogs(date: date)
+        for row in fetchLogs(date: date) where !pending.logged.contains(row.supplementId) {
+            context.delete(row)
+        }
+        let takenAtById = Dictionary(
+            fetchLogs(date: date).map { ($0.supplementId, $0.takenAt) },
+            uniquingKeysWith: { Swift.min($0, $1) }
+        )
+        for item in checklist where item.taken
+            && !pending.unlogged.contains(item.supplement.id)
+            && !pending.logged.contains(item.supplement.id)
+        {
             context.insert(LocalSupplementLog(
                 supplementId: item.supplement.id,
                 date: date,
-                takenAt: item.takenAt ?? ISO8601DateFormatter().string(from: Date())
+                takenAt: item.takenAt ?? DateFormatting.isoDateTimeString(from: Date())
             ))
         }
         save()
-        return checklist
+        return checklist.map { item -> SupplementChecklist in
+            if pending.logged.contains(item.supplement.id) {
+                return SupplementChecklist(
+                    supplement: item.supplement,
+                    taken: true,
+                    takenAt: item.takenAt ?? takenAtById[item.supplement.id]
+                )
+            }
+            if pending.unlogged.contains(item.supplement.id) {
+                return SupplementChecklist(supplement: item.supplement, taken: false, takenAt: nil)
+            }
+            return item
+        }
     }
 
     /// History is server-computed; the cached logs answer offline and in Local mode.
@@ -103,7 +143,10 @@ final class SupplementRepository {
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         let logs = (try? context.fetch(descriptor)) ?? []
-        let namesById = Dictionary(uniqueKeysWithValues: supplements().map { ($0.id, $0.name) })
+        let namesById = Dictionary(
+            supplements().map { ($0.id, $0.name) },
+            uniquingKeysWith: { first, _ in first }
+        )
         return logs.map { log in
             SupplementHistoryItem(
                 supplementId: log.supplementId,
@@ -120,7 +163,7 @@ final class SupplementRepository {
         upsertLog(SupplementLog(
             supplementId: id,
             date: date,
-            takenAt: ISO8601DateFormatter().string(from: Date()),
+            takenAt: DateFormatting.isoDateTimeString(from: Date()),
             entryIds: []
         ))
         save()
@@ -163,35 +206,33 @@ final class SupplementRepository {
         return temp
     }
 
+    /// See `EntryRepository.updateEntry` — a missing local row is reported as a
+    /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateSupplement(id: String, _ update: SupplementUpdate) async throws -> Supplement {
-        var optimistic: Supplement?
-        if let row = fetchRow(id: id), let existing = row.toSupplement() {
-            var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            patch.removeValue(forKey: "ingredients")
-            var updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
-            // Ingredient edits apply to the local row in BOTH modes (in Local
-            // mode there is no server to reconcile from; in Synced mode the
-            // refresh replaces this with the resolved server shape).
-            if let inputs = update.ingredients {
-                updated = Self.applying(
-                    ingredients: resolvedIngredients(inputs, supplementId: id),
-                    to: updated
-                )
-            }
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toSupplement() else {
+            throw APIError.notFound
         }
+        var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        patch.removeValue(forKey: "ingredients")
+        var updated = (try? JSONPatch.merged(Supplement.self, base: existing, patch: patch)) ?? existing
+        // Ingredient edits apply to the local row in BOTH modes (in Local
+        // mode there is no server to reconcile from; in Synced mode the
+        // refresh replaces this with the resolved server shape).
+        if let inputs = update.ingredients {
+            updated = Self.applying(
+                ingredients: resolvedIngredients(inputs, supplementId: id),
+                to: updated
+            )
+        }
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateSupplement(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteSupplement(id: String) async throws {
@@ -233,7 +274,7 @@ final class SupplementRepository {
             sortOrder: create.sortOrder ?? 0,
             timeOfDay: create.timeOfDay,
             reminderTimes: create.reminderTimes,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
             ingredients: resolvedIngredients(create.ingredients, supplementId: id)
         )

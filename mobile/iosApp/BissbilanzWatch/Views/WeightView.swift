@@ -133,7 +133,8 @@ private struct WeightLoggerView: View {
         isLogging = true
         let request = WatchWeightLogRequest(
             weightKg: kg,
-            date: WidgetSnapshotStore.isoDateString(from: Date())
+            date: WidgetSnapshotStore.isoDateString(from: Date()),
+            requestId: UUID().uuidString
         )
         Task {
             let outcome = await connectivity.logWeight(request)

@@ -334,8 +334,17 @@ struct CameraPreviewView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_: UIView, coordinator: Coordinator) {
-        coordinator.session?.stopRunning()
+        // The lamp goes out here on the main thread — one device lock, and
+        // `AVCaptureDevice` isn't Sendable (see `ScannerTorch.device`).
         ScannerTorch.set(false, on: coordinator.device)
+        // `stopRunning` does not: Apple documents it as a blocking call that
+        // should not run on the main queue, and it routinely takes hundreds of
+        // milliseconds — a hitch on every dismissal of the scanner sheet. The
+        // session is retained by the closure until it has actually stopped.
+        let session = coordinator.session
+        DispatchQueue.global(qos: .userInitiated).async {
+            session?.stopRunning()
+        }
     }
 }
 

@@ -557,7 +557,16 @@ final class BissbilanzAPI {
     /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
     /// or unparseable responses.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
-        var request = URLRequest(url: URL(string: "\(baseURL)/api/openfoodfacts/\(barcode)")!)
+        // The barcode is untrusted external input: the scanner accepts Code 39
+        // (whose charset includes the space) and Code 128 (full ASCII), so a
+        // scan can legitimately produce a string that isn't a valid path
+        // segment. Percent-encode against alphanumerics — anything a product
+        // code actually contains survives, everything else is escaped rather
+        // than reshaping the URL.
+        guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
+              let url = URL(string: "\(baseURL)/api/openfoodfacts/\(encoded)")
+        else { return nil }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         guard let (data, httpResponse) = try? await executeRequestData(request),
@@ -798,6 +807,13 @@ final class BissbilanzAPI {
     }
 
     private func executeRequestData(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        // Refresh a token already past its `exp` before spending a request on
+        // it. The 401 path below still exists for everything this can't know
+        // (a revoked token, a clock skew, an unparseable JWT) — this just stops
+        // the predictable case from costing a full round trip every time.
+        if authManager.isAccessTokenExpired {
+            _ = await authManager.refreshAccessToken()
+        }
         var req = request
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -821,7 +837,18 @@ final class BissbilanzAPI {
                 if let token = authManager.accessToken {
                     retryReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 }
-                let (retryData, retryResponse) = try await session.data(for: retryReq)
+                // Wrapped like the first attempt above — an unwrapped
+                // `session.data` here let a raw URLError escape past the
+                // APIError taxonomy, so every `catch let error as APIError`
+                // missed it and ErrorReporter classified it down a different
+                // branch than the identical failure on the first attempt.
+                let retryData: Data
+                let retryResponse: URLResponse
+                do {
+                    (retryData, retryResponse) = try await session.data(for: retryReq)
+                } catch {
+                    throw APIError.networkError(error)
+                }
                 guard let retryHTTP = retryResponse as? HTTPURLResponse else {
                     throw APIError.networkError(URLError(.badServerResponse))
                 }

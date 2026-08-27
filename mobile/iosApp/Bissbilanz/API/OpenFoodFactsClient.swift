@@ -51,9 +51,13 @@ struct OpenFoodFactsClient {
     /// Looks the barcode up on Open Food Facts. Returns nil for unknown
     /// products or unparseable responses; throws on transport errors.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
-        var components = URLComponents(string: "\(Self.apiBase)/\(barcode).json")!
+        // Untrusted scanner input — see the twin in `BissbilanzAPI.lookupBarcode`.
+        guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
+              var components = URLComponents(string: "\(Self.apiBase)/\(encoded).json")
+        else { return nil }
         components.queryItems = [URLQueryItem(name: "fields", value: Self.fields)]
-        var request = URLRequest(url: components.url!)
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url)
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 

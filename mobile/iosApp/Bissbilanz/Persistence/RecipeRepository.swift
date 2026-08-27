@@ -53,10 +53,17 @@ final class RecipeRepository {
         let serverIds = Set(fetched.map(\.id))
         // The list endpoint is the complete set — drop rows deleted elsewhere
         // (keeping optimistic temp rows the server doesn't know about yet).
-        for stale in recipes() where !serverIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingIds = syncManager.pendingAffectedIds(table: "recipes")
+        for stale in recipes() where !serverIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
+        {
             deleteRow(id: stale.id)
         }
-        for recipe in fetched {
+        for recipe in fetched where !pendingIds.contains(recipe.id) {
             upsert(recipe)
         }
         save()
@@ -65,6 +72,7 @@ final class RecipeRepository {
     func refreshRecipe(id: String) async throws {
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let recipe = try await api.getRecipe(id: id)
+        guard !syncManager.pendingAffectedIds(table: "recipes").contains(id) else { return }
         upsert(recipe)
         save()
     }
@@ -80,34 +88,32 @@ final class RecipeRepository {
         return temp
     }
 
+    /// See `EntryRepository.updateEntry` — a missing local row is reported as a
+    /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateRecipe(id: String, _ update: RecipeUpdate) async throws -> Recipe {
-        var optimistic: Recipe?
-        if let row = fetchRow(id: id), let existing = row.toRecipe() {
-            var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            patch.removeValue(forKey: "ingredients")
-            var updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
-            // Ingredient edits apply to the local row in BOTH modes (in Local
-            // mode there is no server to reconcile from; in Synced mode the
-            // refresh replaces this with the resolved server shape). Macros
-            // are recomputed from the local food store.
-            if let inputs = update.ingredients {
-                let ingredients = resolvedIngredients(inputs, recipeId: id)
-                updated = Self.applying(ingredients: ingredients, to: updated)
-            }
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toRecipe() else {
+            throw APIError.notFound
         }
+        var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        patch.removeValue(forKey: "ingredients")
+        var updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
+        // Ingredient edits apply to the local row in BOTH modes (in Local
+        // mode there is no server to reconcile from; in Synced mode the
+        // refresh replaces this with the resolved server shape). Macros
+        // are recomputed from the local food store.
+        if let inputs = update.ingredients {
+            let ingredients = resolvedIngredients(inputs, recipeId: id)
+            updated = Self.applying(ingredients: ingredients, to: updated)
+        }
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateRecipe(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteRecipe(id: String) async throws {
@@ -150,7 +156,7 @@ final class RecipeRepository {
             carbs: macros.carbs,
             fat: macros.fat,
             fiber: macros.fiber,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
             ingredients: ingredients
         )

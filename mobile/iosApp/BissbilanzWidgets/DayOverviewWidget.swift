@@ -5,7 +5,7 @@ import WidgetKit
 /// a "Log food" shortcut into the app.
 struct DayOverviewWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "DayOverviewWidget", provider: SnapshotProvider()) { entry in
             DayOverviewWidgetView(entry: entry)
         }

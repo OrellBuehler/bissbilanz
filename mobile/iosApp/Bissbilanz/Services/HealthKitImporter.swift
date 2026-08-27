@@ -12,8 +12,29 @@ enum HealthKitImporter {
     /// dashboard cards) can re-read the local store.
     static let didImportNotification = Notification.Name("HealthKitImporterDidImport")
 
-    /// How far back imports look. Matches the pages' previous behaviour.
+    /// How far back an import looks when nothing has been imported yet.
     static let importWindowDays = -90
+
+    /// How far back past the last import a steady-state import still reaches.
+    /// HealthKit samples can arrive retroactively — a scale syncing late, a
+    /// sleep session finalized after the fact — so starting exactly at the
+    /// last-sync timestamp would miss them.
+    static let incrementalOverlapDays = -3
+
+    /// Start date for an import of `kind`.
+    ///
+    /// Ninety days of Apple Watch sleep analysis is thousands of category
+    /// samples (every stage transition is its own sample), all aggregated on
+    /// the main actor before anything is compared against existing entries —
+    /// and `importAllIfEnabled` runs on every foreground activation.
+    /// `HealthKitService` already records a last-sync timestamp on every
+    /// fetch; reading it back makes the steady-state import nearly free, while
+    /// a first run (or one after a long gap) still gets the full window.
+    static func importStart(kind: String, now: Date = Date()) -> Date {
+        let fullWindow = now.adding(days: importWindowDays)
+        guard let lastSync = HealthKitService.lastSync(kind) else { return fullWindow }
+        return max(fullWindow, lastSync.adding(days: incrementalOverlapDays))
+    }
 
     static func importAllIfEnabled(
         weightRepository: WeightRepository,
@@ -33,10 +54,10 @@ enum HealthKitImporter {
         guard UserDefaults.standard.bool(forKey: HealthKitService.syncEnabledKey) else { return false }
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return false }
-        let since = Date().adding(days: importWindowDays)
+        let since = importStart(kind: HealthKitService.weightReadSyncKind)
         guard let samples = try? await healthKit.fetchWeights(since: since), !samples.isEmpty else { return false }
 
-        let existingDates = Set(repository.entries().map(\.entryDate))
+        let existingDates = repository.entryDates()
         // Latest sample per day wins
         var latestPerDay: [String: HealthKitService.WeightSample] = [:]
         for sample in samples {
@@ -73,10 +94,10 @@ enum HealthKitImporter {
         guard UserDefaults.standard.bool(forKey: HealthKitService.readSleepEnabledKey) else { return false }
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return false }
-        let since = Date().adding(days: importWindowDays)
+        let since = importStart(kind: HealthKitService.sleepReadSyncKind)
         guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return false }
 
-        let existingDates = Set(repository.entries().map(\.entryDate))
+        let existingDates = repository.entryDates()
         let newNights = HealthKitService.nights(from: samples)
             .filter { !existingDates.contains($0.entryDate) }
         var imported = false

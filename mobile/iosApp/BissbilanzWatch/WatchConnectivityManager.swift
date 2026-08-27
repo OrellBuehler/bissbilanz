@@ -35,7 +35,7 @@ final class WatchConnectivityManager: NSObject {
     }
 
     override init() {
-        state = WatchStore.load() ?? .placeholder
+        state = WatchStore.load() ?? .empty(on: Date())
         super.init()
     }
 
@@ -132,10 +132,11 @@ final class WatchConnectivityManager: NSObject {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    /// Replaces just the snapshot (e.g. from a log reply) while keeping the
-    /// synced meal-type and recents lists.
+    /// Replaces just the snapshot (e.g. from a log reply), keeping every other
+    /// synced field. Goes through `replacingSnapshot` rather than a memberwise
+    /// init so fields added to `WatchState` later aren't dropped here.
     private func applySnapshot(_ snapshot: WidgetSnapshot) {
-        apply(WatchState(snapshot: snapshot, mealTypes: state.mealTypes, recents: state.recents))
+        apply(state.replacingSnapshot(snapshot))
     }
 }
 

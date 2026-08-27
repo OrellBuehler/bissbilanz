@@ -587,15 +587,16 @@ struct InsightsView: View {
         async let w = try? api.getWeeklyStats()
         async let m = try? api.getMonthlyStats()
         async let s = try? api.getStreaks()
-        async let t = try? api.getTopFoods(days: selectedRange)
         async let g = try? api.getGoals()
 
         weeklyStats = await w
         monthlyStats = await m
         streaks = await s
-        topFoods = await t ?? []
         goals = await g
 
+        // `topFoods` is not fetched here: `loadChartData` below requests the
+        // same endpoint with the same argument and assigns the same property,
+        // so doing it twice sent a ninth request per load for nothing.
         await loadChartData()
         await loadCalendar()
         isLoading = false

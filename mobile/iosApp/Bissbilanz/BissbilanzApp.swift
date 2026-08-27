@@ -163,14 +163,23 @@ struct BissbilanzApp: App {
             )
             return WidgetSnapshotWriter.buildWatchState(context: context)
         }
-        PhoneWatchConnectivity.shared.activate()
+        // `activate()` is deliberately NOT called here: WCSession activation is
+        // not needed before the first frame, and everything in this init runs
+        // before `body` is first evaluated. It happens on the first activation
+        // instead (see the `.active` branch below); the handlers above are set
+        // now, so any message arriving right after activation is served.
 
         // A conflict means the local row lost to a newer change; pull the server
         // state so the screen stops showing the value that was dropped. Same set
         // BackgroundRefresher pulls, minus its queue drain — this runs from inside
         // the drain and would only no-op against the reentrancy guard.
-        sync.onConflictResolved = {
-            try? await entryRepo.refresh(date: DateFormatting.today)
+        sync.onConflictResolved = { conflictDates in
+            // Refresh every day a conflicted operation touched, not just today:
+            // the banner tells the user their change was superseded while the
+            // screen would otherwise keep showing the superseded value.
+            for date in conflictDates.union([DateFormatting.today]) {
+                try? await entryRepo.refresh(date: date)
+            }
             try? await goalsRepo.refresh()
             try? await weightRepo.refresh()
             try? await sleepRepo.refresh()
@@ -261,54 +270,67 @@ struct BissbilanzApp: App {
                     // the Live Activity if the system expired it mid-fast
                     // (~8h cap) while the fast is still running.
                     fastingManager.refresh()
-                    // Collapse any cross-device duplicates CloudKit delivered
-                    // while we were away (Local mode only — see LocalDedup).
-                    if appModeManager.isLocal {
-                        LocalDedup.sweep(in: modelContainer.mainContext)
-                    }
                     // Covers launch, day rollover while backgrounded and any
-                    // change widgets might have missed.
+                    // change widgets might have missed. Debounced internally.
                     WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)
-                    // Keep Spotlight in step with the searchable catalog so
-                    // foods/recipes are findable before the next manual log.
-                    IntentDonations.indexCatalog(
-                        foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
-                        recipes: recipeRepository.favoriteRecipes()
-                    )
-                    // Publish current Food/Recipe values for the App Shortcut
-                    // phrases ("Log \(food) with Bissbilanz"). Without this the
-                    // system's shortcut registry has no parameter values, and
-                    // tapping Log Food / Log Recipe in Spotlight shows an empty
-                    // picker card.
-                    BissbilanzShortcuts.updateAppShortcutParameters()
-                    // Pull any new Apple Health weight/sleep data on every
-                    // activation (not only when those pages are visited) so it
-                    // reaches the local store and the queued backend upload
-                    // immediately.
-                    Task {
-                        await HealthKitImporter.importAllIfEnabled(
-                            weightRepository: weightRepository,
-                            sleepRepository: sleepRepository
-                        )
-                    }
-                    // Top up the rolling reminder window (iOS caps pending requests at
-                    // 64) and re-resolve wall-clock times against the current timezone.
-                    Task {
-                        await SupplementReminderScheduler.refill(repository: supplementRepository)
-                    }
-                    // Surface any widget-extension quick-add failures (the
-                    // extension has no Sentry of its own — see QuickAddDiagnostics).
-                    for entry in QuickAddDiagnostics.drain() {
-                        ErrorReporter.captureWarning(
-                            "Quick add (widget extension): \(entry.phase)",
-                            context: ["details": entry.message, "timestamp": entry.timestamp.description]
-                        )
-                    }
+                    Task { await runDeferredActivationWork() }
                 } else if phase == .background {
                     // Re-arm the background pull chain for the time away.
                     BackgroundRefresher.schedule()
                 }
             }
+        }
+    }
+
+    /// The half of activation the frame the user is looking at doesn't need.
+    ///
+    /// All of it is main-actor work over the whole store — `indexCatalog`'s
+    /// arguments alone are two full SwiftData reads with a JSON decode per row,
+    /// and `LocalDedup.sweep` fetches four model tables — so landing it in the
+    /// same run loop turn as the activation is a visible hitch on a screen
+    /// whose first principle is "fast to scan, fast to act". Ordered rather
+    /// than concurrent: these all contend for the same actor anyway, and each
+    /// `await` gives the run loop a turn.
+    @MainActor
+    private func runDeferredActivationWork() async {
+        // Long enough for the activation's own frames to land first.
+        try? await Task.sleep(for: .milliseconds(250))
+
+        // WCSession activation, moved off `init` — see the note there.
+        PhoneWatchConnectivity.shared.activate()
+        // Collapse any cross-device duplicates CloudKit delivered
+        // while we were away (Local mode only — see LocalDedup).
+        if appModeManager.isLocal {
+            LocalDedup.sweep(in: modelContainer.mainContext)
+        }
+        // Keep Spotlight in step with the searchable catalog so
+        // foods/recipes are findable before the next manual log.
+        IntentDonations.indexCatalog(
+            foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
+            recipes: recipeRepository.favoriteRecipes()
+        )
+        // Publish current Food/Recipe values for the App Shortcut phrases
+        // ("Log \(food) with Bissbilanz"). Without this the system's shortcut
+        // registry has no parameter values, and tapping Log Food / Log Recipe
+        // in Spotlight shows an empty picker card.
+        BissbilanzShortcuts.updateAppShortcutParameters()
+        // Pull any new Apple Health weight/sleep data on every activation (not
+        // only when those pages are visited) so it reaches the local store and
+        // the queued backend upload immediately.
+        await HealthKitImporter.importAllIfEnabled(
+            weightRepository: weightRepository,
+            sleepRepository: sleepRepository
+        )
+        // Top up the rolling reminder window (iOS caps pending requests at 64)
+        // and re-resolve wall-clock times against the current timezone.
+        await SupplementReminderScheduler.refill(repository: supplementRepository)
+        // Surface any widget-extension quick-add failures (the extension has no
+        // Sentry of its own — see QuickAddDiagnostics).
+        for entry in QuickAddDiagnostics.drain() {
+            ErrorReporter.captureWarning(
+                "Quick add (widget extension): \(entry.phase)",
+                context: ["details": entry.message, "timestamp": entry.timestamp.description]
+            )
         }
     }
 

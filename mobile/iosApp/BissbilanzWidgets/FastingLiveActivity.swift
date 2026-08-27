@@ -15,7 +15,7 @@ struct FastingLiveActivity: Widget {
         ActivityConfiguration(for: FastingActivityAttributes.self) { context in
             FastingLockScreenView(state: context.state)
         } dynamicIsland: { context in
-            let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+            let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -91,7 +91,7 @@ struct FastingLockScreenView: View {
     let state: FastingActivityAttributes.ContentState
 
     private var strings: WidgetStrings {
-        WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
     }
 
     var body: some View {

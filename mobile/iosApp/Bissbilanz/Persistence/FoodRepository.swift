@@ -67,16 +67,30 @@ final class FoodRepository {
         return rows.compactMap { $0.toFood() }
     }
 
+    /// Rank name matches ahead of brand-only matches; both stay alphabetical.
+    ///
+    /// One pass, with each row's comparisons evaluated once. The previous shape
+    /// filtered the table, then re-filtered the matches twice more to split the
+    /// two groups — up to four ICU comparisons per row. This backs offline
+    /// search, Local-mode search, and the on-device meal estimator's
+    /// `searchLocalFoods` tool, which calls it once per item while the model
+    /// waits. Rows arrive alphabetical and name matches rank first, so once
+    /// `limit` of them are found the rest of the table can't change the result.
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
-        let matches = rows.filter { row in
-            row.name.localizedCaseInsensitiveContains(query)
-                || (row.brand?.localizedCaseInsensitiveContains(query) ?? false)
+        var nameMatches: [LocalFood] = []
+        var brandOnly: [LocalFood] = []
+        for row in rows {
+            if row.name.localizedCaseInsensitiveContains(query) {
+                nameMatches.append(row)
+                if nameMatches.count == limit { break }
+            } else if brandOnly.count < limit,
+                      row.brand?.localizedCaseInsensitiveContains(query) == true
+            {
+                brandOnly.append(row)
+            }
         }
-        // Rank name matches ahead of brand-only matches; both stay alphabetical.
-        let nameMatches = matches.filter { $0.name.localizedCaseInsensitiveContains(query) }
-        let brandOnly = matches.filter { !$0.name.localizedCaseInsensitiveContains(query) }
         return (nameMatches + brandOnly)
             .prefix(limit)
             .compactMap { $0.toFood() }
@@ -93,6 +107,7 @@ final class FoodRepository {
     func refreshFood(id: String) async throws {
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let food = try await api.getFood(id: id)
+        guard !syncManager.pendingAffectedIds(table: "foods").contains(id) else { return }
         upsert(food)
         save()
     }
@@ -103,15 +118,23 @@ final class FoodRepository {
         guard !appMode.isLocal else { return }
         let response = try await api.getFavorites()
         let favoriteIds = Set(response.foods.map(\.id))
-        for stale in favorites() where !favoriteIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingFoodIds = syncManager.pendingAffectedIds(table: "foods")
+        let pendingRecipeIds = syncManager.pendingAffectedIds(table: "recipes")
+        for stale in favorites() where !favoriteIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingFoodIds.contains(stale.id)
+        {
             if let row = fetchRow(id: stale.id), let patched = patchedFavorite(stale, isFavorite: false) {
                 row.update(from: patched)
             }
         }
-        for food in response.foods {
+        for food in response.foods where !pendingFoodIds.contains(food.id) {
             upsert(food)
         }
-        for recipe in response.recipes ?? [] {
+        for recipe in response.recipes ?? [] where !pendingRecipeIds.contains(recipe.id) {
             LocalRemap.upsertRecipe(recipe, in: context)
         }
         save()
@@ -132,7 +155,8 @@ final class FoodRepository {
         guard !appMode.isLocal else { return searchLocal(query) }
         do {
             let results = try await api.searchFoods(query: query)
-            for food in results {
+            let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+            for food in results where !pendingIds.contains(food.id) {
                 upsert(food)
             }
             save()

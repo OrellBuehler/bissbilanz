@@ -59,7 +59,7 @@ struct WatchSleepInfo: Codable {
 /// server-driven meal-type list, a recents list, the weight glance, and last
 /// night's sleep.
 struct WatchState: Codable {
-    let snapshot: WidgetSnapshot
+    var snapshot: WidgetSnapshot
     /// Meal-type keys the watch offers in its log picker. Server-driven — the
     /// phone learns them from the synced log rather than hardcoding, so custom
     /// meal types appear here too.
@@ -80,6 +80,30 @@ struct WatchState: Codable {
             weight: WatchWeightInfo(latestKg: 78.4, latestDate: nil, delta7dKg: -0.3),
             sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 4)
         )
+    }
+
+    /// Real empty state for a watch that has never received a push (or whose
+    /// stored blob failed to decode) — `placeholder` is sample data for the
+    /// gallery and must not reach the face. See `WidgetSnapshot.empty(on:)`.
+    static func empty(on referenceDate: Date) -> WatchState {
+        WatchState(
+            snapshot: .empty(on: referenceDate),
+            mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
+            recents: [],
+            weight: nil,
+            sleep: nil
+        )
+    }
+
+    /// The same state with a new snapshot. Every other field is carried through
+    /// by copy rather than re-listed in a memberwise init, so a field added to
+    /// `WatchState` later can't be silently dropped here — `weight` and `sleep`
+    /// were, and each watch log wiped both glances until the phone pushed a
+    /// full state again.
+    func replacingSnapshot(_ snapshot: WidgetSnapshot) -> WatchState {
+        var updated = self
+        updated.snapshot = snapshot
+        return updated
     }
 
     /// Mirrors `WidgetSnapshot.resetIfStale`: the day-bound macro totals only
@@ -113,6 +137,13 @@ struct WatchLogRequest: Codable {
     var quickCarbs: Double?
     var quickFat: Double?
     var quickFiber: Double?
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// The watch → phone "log my weight" command. Mirrors `WeightCreate`; the phone
@@ -121,6 +152,13 @@ struct WatchWeightLogRequest: Codable {
     let weightKg: Double
     /// ISO day ("yyyy-MM-dd").
     let date: String
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// The watch → phone "log my sleep" command. Mirrors `SleepCreate`; the phone
@@ -131,6 +169,13 @@ struct WatchSleepLogRequest: Codable {
     let quality: Double
     /// ISO day ("yyyy-MM-dd") the sleep is attributed to.
     let date: String
+    /// Client-generated id for this request, stamped once on the watch and kept
+    /// across the `sendMessage` → `transferUserInfo` fallback. `sendMessage`'s
+    /// error handler can't tell "the phone never received this" from "the phone
+    /// applied it but the reply didn't come back", so on flaky connectivity the
+    /// same log arrives twice; the phone drops a repeat rather than writing it
+    /// again. Optional so payloads from an older watch build still decode.
+    var requestId: String?
 }
 
 /// Dictionary keys for the plist-safe `[String: Any]` payloads WCSession

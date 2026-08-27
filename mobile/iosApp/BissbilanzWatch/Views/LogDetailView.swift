@@ -115,7 +115,8 @@ struct LogDetailView: View {
             recipeId: food.isRecipe ? food.id : nil,
             mealType: mealType,
             servings: servings,
-            date: WidgetSnapshotStore.isoDateString(from: Date())
+            date: WidgetSnapshotStore.isoDateString(from: Date()),
+            requestId: UUID().uuidString
         )
         Task {
             let outcome = await connectivity.log(request)

@@ -4,7 +4,7 @@ import WidgetKit
 /// Protein progress: small home screen ring plus lock screen circular gauge.
 struct ProteinWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "ProteinWidget", provider: SnapshotProvider()) { entry in
             ProteinWidgetView(entry: entry)
         }

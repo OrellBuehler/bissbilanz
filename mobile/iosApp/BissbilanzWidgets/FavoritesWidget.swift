@@ -6,7 +6,7 @@ import WidgetKit
 /// favorites widget).
 struct FavoritesWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "FavoritesWidget", provider: SnapshotProvider()) { entry in
             FavoritesWidgetView(entry: entry)
         }

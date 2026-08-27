@@ -31,8 +31,12 @@ struct WatchComplicationProvider: TimelineProvider {
         completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
     }
 
+    /// Live timeline data only — `.placeholder` is sample data for the gallery
+    /// preview and must not reach the watch face (see `WidgetSnapshot.empty(on:)`).
     private func entry(at date: Date) -> WatchComplicationEntry {
-        let snapshot = (WatchStore.load()?.snapshot ?? .placeholder).resetIfStale(on: date)
-        return WatchComplicationEntry(date: date, snapshot: snapshot)
+        guard let stored = WatchStore.load()?.snapshot else {
+            return WatchComplicationEntry(date: date, snapshot: .empty(on: date))
+        }
+        return WatchComplicationEntry(date: date, snapshot: stored.resetIfStale(on: date))
     }
 }

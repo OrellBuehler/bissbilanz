@@ -80,12 +80,24 @@ final class EntryRepository {
         // the next manual refresh.
         let pendingIds = syncManager.pendingAffectedIds(table: "entries")
         let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == date })
-        let existing = (try? context.fetch(descriptor)) ?? []
-        for row in existing where !LocalStore.isTempId(row.id) && !pendingIds.contains(row.id) {
+        // Keyed off the bulk fetch the delete pass already needs, so the upsert
+        // below doesn't run a `fetchRow(id:)` of its own per server row.
+        var rowsById = Dictionary(
+            ((try? context.fetch(descriptor)) ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (id, row) in rowsById where !LocalStore.isTempId(id) && !pendingIds.contains(id) {
             context.delete(row)
+            rowsById.removeValue(forKey: id)
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
-            upsert(entry, date: date)
+            if let row = rowsById[entry.id] {
+                row.update(from: entry, date: date)
+            } else {
+                let row = LocalEntry(entry: entry, date: date)
+                context.insert(row)
+                rowsById[entry.id] = row
+            }
         }
         save()
         // Entries logged outside this device (web, MCP, Android) only reach the
@@ -112,18 +124,21 @@ final class EntryRepository {
         return temp
     }
 
+    /// A missing local row means the record is gone (deleted elsewhere, or
+    /// never cached) — the failure is reported without also queueing an upload
+    /// for it. Enqueuing first and throwing afterwards told the caller the edit
+    /// had failed while it was already on its way to the server, so the next
+    /// refresh brought back the change the UI had just reported as failed.
     @discardableResult
     func updateEntry(id: String, _ update: EntryUpdate) async throws -> Entry {
-        var local: Entry?
-        var previousDate: String?
-        if let row = fetchRow(id: id), let existing = row.toEntry() {
-            previousDate = row.date
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let updated = (try? JSONPatch.merged(Entry.self, base: existing, patch: patch)) ?? existing
-            row.update(from: updated, date: update.date ?? row.date)
-            save()
-            local = updated
+        guard let row = fetchRow(id: id), let existing = row.toEntry() else {
+            throw APIError.notFound
         }
+        let previousDate = row.date
+        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        let updated = (try? JSONPatch.merged(Entry.self, base: existing, patch: patch)) ?? existing
+        row.update(from: updated, date: update.date ?? row.date)
+        save()
         if LocalStore.isTempId(id) {
             // The row hasn't been uploaded — rewrite the queued create instead.
             coalesceQueuedCreate(tempId: id, update: update)
@@ -132,16 +147,11 @@ final class EntryRepository {
         }
         // Re-sync the affected day — both days when the entry moved dates.
         let currentDate = update.date ?? previousDate
-        if let currentDate {
-            syncDayToHealth(currentDate)
-        }
-        if let previousDate, previousDate != currentDate {
+        syncDayToHealth(currentDate)
+        if previousDate != currentDate {
             syncDayToHealth(previousDate)
         }
-        if let local {
-            return local
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteEntry(id: String) async throws {
@@ -200,14 +210,15 @@ final class EntryRepository {
             let copy = (try? JSONPatch.merged(Entry.self, base: entry, patch: [
                 "id": tempId,
                 "date": toDate,
-                "createdAt": ISO8601DateFormatter().string(from: Date()),
+                "createdAt": DateFormatting.isoDateTimeString(from: Date()),
             ])) ?? Self.makeEntry(from: create, id: tempId, food: nil, recipe: nil)
             upsert(copy, date: toDate)
-            save()
             syncManager.enqueue(.createEntry(body: create, localId: copy.id))
             copied += 1
         }
+        // One transaction for the whole day, not one per entry.
         if copied > 0 {
+            save()
             syncDayToHealth(toDate)
         }
         return copied

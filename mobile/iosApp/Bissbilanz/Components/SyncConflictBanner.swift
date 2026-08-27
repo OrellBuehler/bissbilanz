@@ -21,7 +21,7 @@ struct SyncConflictBanner: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(L10n.syncConflictBanner(syncManager.conflictNotices.count))
+                    Text(L10n.syncConflictBanner(syncManager.conflictNoticeCount))
                         .font(.caption.weight(.medium))
                     Text(first)
                         .font(.caption2)

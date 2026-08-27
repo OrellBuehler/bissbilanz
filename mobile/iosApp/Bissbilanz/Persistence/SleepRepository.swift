@@ -42,6 +42,14 @@ final class SleepRepository {
         return rows.compactMap { $0.toSleepEntry() }
     }
 
+    /// Just the logged days, read off the typed column. The Health import only
+    /// needs to know which days are already taken, and `entries()` would JSON-
+    /// decode every stored row to answer that — on every foreground activation.
+    func entryDates() -> Set<String> {
+        let rows = (try? context.fetch(FetchDescriptor<LocalSleepEntry>())) ?? []
+        return Set(rows.map(\.entryDate))
+    }
+
     func latest() -> SleepEntry? {
         var descriptor = FetchDescriptor<LocalSleepEntry>(sortBy: [
             SortDescriptor(\.entryDate, order: .reverse),
@@ -73,15 +81,40 @@ final class SleepRepository {
 
     // MARK: - Refresh (API → store)
 
+    /// One bulk fetch of the stored rows, keyed by id, instead of decoding every
+    /// row through `entries()` just to read its id and then running a
+    /// `fetchRow(id:)` per server row on top. That was an N+1 fetch plus a
+    /// decode and a re-encode for every historical entry, on the main actor,
+    /// several times a minute while browsing days — `DashboardView.loadData`
+    /// calls this on every day swipe, sheet dismissal and pull-to-refresh, and
+    /// `BackgroundRefresher.pull` calls it again on every background run.
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         let fetched = try await api.getSleepEntries()
         let serverIds = Set(fetched.map(\.id))
-        for stale in entries() where !serverIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
-            deleteRow(id: stale.id)
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingIds = syncManager.pendingAffectedIds(table: "sleep")
+        var rowsById = Dictionary(
+            ((try? context.fetch(FetchDescriptor<LocalSleepEntry>())) ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (id, row) in rowsById where !serverIds.contains(id)
+            && !LocalStore.isTempId(id) && !pendingIds.contains(id)
+        {
+            context.delete(row)
+            rowsById.removeValue(forKey: id)
         }
-        for entry in fetched {
-            upsert(entry)
+        for entry in fetched where !pendingIds.contains(entry.id) {
+            if let row = rowsById[entry.id] {
+                row.update(from: entry)
+            } else {
+                let row = LocalSleepEntry(entry: entry)
+                context.insert(row)
+                rowsById[entry.id] = row
+            }
         }
         save()
     }
@@ -97,25 +130,23 @@ final class SleepRepository {
         return temp
     }
 
+    /// See `EntryRepository.updateEntry` — a missing local row is reported as a
+    /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateEntry(id: String, _ update: SleepUpdate) async throws -> SleepEntry {
-        var optimistic: SleepEntry?
-        if let row = fetchRow(id: id), let existing = row.toSleepEntry() {
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let updated = (try? JSONPatch.merged(SleepEntry.self, base: existing, patch: patch)) ?? existing
-            row.update(from: updated)
-            save()
-            optimistic = updated
+        guard let row = fetchRow(id: id), let existing = row.toSleepEntry() else {
+            throw APIError.notFound
         }
+        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        let updated = (try? JSONPatch.merged(SleepEntry.self, base: existing, patch: patch)) ?? existing
+        row.update(from: updated)
+        save()
         if LocalStore.isTempId(id) {
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
             syncManager.enqueue(.updateSleep(id: id, body: update))
         }
-        if let optimistic {
-            return optimistic
-        }
-        throw APIError.notFound
+        return updated
     }
 
     func deleteEntry(id: String) async throws {
@@ -144,7 +175,7 @@ final class SleepRepository {
     // MARK: - Conversion helpers
 
     private func makeEntry(from create: SleepCreate, id: String) -> SleepEntry {
-        let now = ISO8601DateFormatter().string(from: Date())
+        let now = DateFormatting.isoDateTimeString(from: Date())
         return SleepEntry(
             id: id,
             userId: "",
@@ -197,15 +228,35 @@ final class SleepRepository {
     // MARK: - Apple Health write-back
 
     /// Dates `HealthKitImporter` is currently writing nights for, read *from*
-    /// Health. See the weight repository's twin.
-    @ObservationIgnored private var healthImportDates: Set<String> = []
+    /// Health, with the number of import scopes currently covering each. See the
+    /// weight repository's twin.
+    @ObservationIgnored private var healthImportDateCounts: [String: Int] = [:]
 
     /// Runs `body` with the Health write-back suppressed for `dates` — imported
     /// nights are marked as already synced rather than written back as
     /// duplicates of the Watch's own sleep samples.
+    ///
+    /// Reference-counted, because overlapping imports are the normal case:
+    /// `BissbilanzApp` runs `importAllIfEnabled` on every foreground
+    /// activation while the Sleep tab independently imports from its own `.task`
+    /// and pull-to-refresh. With a plain set cleared in `defer`, the inner
+    /// scope's exit re-enabled write-back while the outer one was still
+    /// writing — producing exactly the app-authored duplicates of the
+    /// device's own samples that this suppression exists to prevent.
     func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
-        healthImportDates = dates
-        defer { healthImportDates = [] }
+        for date in dates {
+            healthImportDateCounts[date, default: 0] += 1
+        }
+        defer {
+            for date in dates {
+                guard let count = healthImportDateCounts[date] else { continue }
+                if count <= 1 {
+                    healthImportDateCounts.removeValue(forKey: date)
+                } else {
+                    healthImportDateCounts[date] = count - 1
+                }
+            }
+        }
         return try await body()
     }
 
@@ -222,7 +273,7 @@ final class SleepRepository {
               let bedtime = DateFormatting.isoDateTime(from: bedtimeString),
               let wakeTime = DateFormatting.isoDateTime(from: wakeTimeString)
         else { return }
-        let alreadyInHealth = healthImportDates.contains(latest.entryDate)
+        let alreadyInHealth = healthImportDateCounts[latest.entryDate] != nil
         Task {
             await HealthKitService.shared.syncLatestSleep(
                 bedtime: bedtime,

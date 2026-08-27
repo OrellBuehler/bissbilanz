@@ -8,7 +8,7 @@ import WidgetKit
 /// `accessoryCircular`/`accessoryInline` widgets which stay navigation-only.
 struct QuickAddWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "QuickAddWidget", provider: SnapshotProvider()) { entry in
             QuickAddWidgetView(entry: entry)
         }

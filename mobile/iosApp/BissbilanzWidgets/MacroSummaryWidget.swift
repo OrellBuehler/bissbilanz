@@ -6,7 +6,7 @@ import WidgetKit
 /// the Android macro widget).
 struct MacroSummaryWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "MacroSummaryWidget", provider: SnapshotProvider()) { entry in
             MacroSummaryWidgetView(entry: entry)
         }

@@ -32,7 +32,17 @@ final class SyncManager {
     private(set) var isSyncing = false
     private(set) var pendingCount = 0
     private(set) var errors: [String] = []
+    /// Conflict notices for the banner, capped — a device that was offline for
+    /// a while can lose many writes, and `errors` is reset per drain while
+    /// these are only cleared by an explicit dismissal. The banner renders the
+    /// first notice plus a count, so the ones past the cap cost nothing but
+    /// memory; `conflictNoticeCount` keeps that count honest.
     private(set) var conflictNotices: [String] = []
+    /// Total conflicts recorded since the last dismissal, including any past
+    /// the `conflictNotices` cap.
+    private(set) var conflictNoticeCount = 0
+
+    private static let maxConflictNotices = 50
     private(set) var lastSyncedAt: Date?
 
     @ObservationIgnored private var isDraining = false
@@ -43,7 +53,11 @@ final class SyncManager {
     /// pull the affected entities back down. Without it the row that *lost* keeps
     /// showing its superseded value until some unrelated refresh overwrites it.
     /// Set by the app once its repositories exist.
-    @ObservationIgnored var onConflictResolved: (() async -> Void)?
+    ///
+    /// Carries the days the conflicted operations touched. Refreshing only
+    /// today left a conflict on a past day showing the superseded value — the
+    /// one case this callback exists to prevent.
+    @ObservationIgnored var onConflictResolved: ((Set<String>) async -> Void)?
 
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
@@ -64,7 +78,7 @@ final class SyncManager {
         self.api = api
         self.appMode = appMode
         self.connectivity = connectivity
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
         connectivity.onOnlineChange = { [weak self] online in
             if online {
                 self?.scheduleDrain()
@@ -81,7 +95,7 @@ final class SyncManager {
         guard !appMode.isLocal else { return }
         context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
         scheduleDrain()
     }
 
@@ -89,7 +103,50 @@ final class SyncManager {
     /// refresh uses this to avoid overwriting optimistic local rows with stale
     /// server state while their edit is still waiting in the queue.
     func pendingAffectedIds(table: String) -> Set<String> {
-        Set(queuedRows().filter { $0.affectedTable == table }.compactMap(\.affectedId))
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table }
+        )
+        return Set(((try? context.fetch(descriptor)) ?? []).compactMap(\.affectedId))
+    }
+
+    /// Whether any un-uploaded write is queued for `table`. The singleton
+    /// tables ("goals", "preferences") carry a nil `affectedId`, so
+    /// `pendingAffectedIds` can't speak for them — their refresh guards on
+    /// presence instead.
+    func hasPending(table: String) -> Bool {
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table }
+        )
+        return ((try? context.fetchCount(descriptor)) ?? 0) > 0
+    }
+
+    /// Supplement ids with a queued tick/untick for `date`, in FIFO order so a
+    /// later op wins. `refreshChecklist` rebuilds the day's logs from the server
+    /// response, which would otherwise clear a tick made offline until the queue
+    /// drains — `pendingAffectedIds` can't answer this because the date lives in
+    /// the operation body, not on the row.
+    func pendingSupplementLogs(date: String) -> (logged: Set<String>, unlogged: Set<String>) {
+        let table = "supplements"
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table },
+            sortBy: [SortDescriptor(\.seq)]
+        )
+        var logged: Set<String> = []
+        var unlogged: Set<String> = []
+        for row in (try? context.fetch(descriptor)) ?? [] {
+            guard let operation = row.operation() else { continue }
+            switch operation {
+            case let .logSupplement(supplementId, opDate) where opDate == date:
+                unlogged.remove(supplementId)
+                logged.insert(supplementId)
+            case let .unlogSupplement(supplementId, opDate) where opDate == date:
+                logged.remove(supplementId)
+                unlogged.insert(supplementId)
+            default:
+                continue
+            }
+        }
+        return (logged, unlogged)
     }
 
     /// Queued rows touching (table, id) in FIFO order — the coalescing lookup.
@@ -111,7 +168,7 @@ final class SyncManager {
     func remove(_ row: PendingSyncOperation) {
         context.delete(row)
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
     }
 
     /// Drops every queued operation touching (table, id) — used when a
@@ -122,12 +179,19 @@ final class SyncManager {
             context.delete(row)
         }
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
     }
 
     /// Drops the conflict notices once the user has acknowledged them.
     func clearConflictNotices() {
         conflictNotices = []
+        conflictNoticeCount = 0
+    }
+
+    private func noteConflict(_ notice: String) {
+        conflictNoticeCount += 1
+        guard conflictNotices.count < Self.maxConflictNotices else { return }
+        conflictNotices.append(notice)
     }
 
     func clearQueue() {
@@ -157,11 +221,12 @@ final class SyncManager {
         errors = []
         var processed = 0
         var sawConflict = false
+        var conflictDates: Set<String> = []
         ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
             isDraining = false
-            pendingCount = queuedRows().count
+            pendingCount = queuedCount()
             if processed > 0 {
                 lastSyncedAt = Date()
             }
@@ -215,7 +280,8 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     sawConflict = true
-                    conflictNotices.append(
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    noteConflict(
                         "Offline change to \(operation.summary) was superseded by a newer change from another device."
                     )
 
@@ -236,7 +302,8 @@ final class SyncManager {
                     remove(row)
                     processed += 1
                     sawConflict = true
-                    conflictNotices.append(
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    noteConflict(
                         "Offline change to \(operation.summary) was lost: the record was deleted on another device."
                     )
                     ErrorReporter.captureWarning(
@@ -286,15 +353,45 @@ final class SyncManager {
                     }
                 }
             }
-            pendingCount = queuedRows().count
+            pendingCount = queuedCount()
         }
         // Once per drain, not once per conflict: a batch that lost three edits needs
         // a single refresh. Reached on every exit path — a drain that resolved a
         // conflict and then hit an outage still owes the UI that refresh.
         if sawConflict {
-            await onConflictResolved?()
+            await onConflictResolved?(conflictDates)
         }
         return processed
+    }
+
+    /// The day(s) a conflicted operation touched, so the follow-up refresh
+    /// reloads them rather than only today. An update or delete carries no date
+    /// in its body, so the local row answers for it — for an update that row is
+    /// still present (only the queued op was dropped); a locally deleted row
+    /// has none, and today's refresh is the best available.
+    private func dayKeys(for operation: SyncOperation) -> Set<String> {
+        switch operation {
+        case let .createEntry(body, _):
+            return [body.date]
+        case let .updateEntry(id, body):
+            guard let date = body.date ?? localEntryDate(id: id) else { return [] }
+            return [date]
+        case let .deleteEntry(id):
+            guard let date = localEntryDate(id: id) else { return [] }
+            return [date]
+        case let .setDayProperties(date, _), let .deleteDayProperties(date):
+            return [date]
+        case let .logSupplement(_, date), let .unlogSupplement(_, date):
+            return [date]
+        default:
+            return []
+        }
+    }
+
+    private func localEntryDate(id: String) -> String? {
+        var descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.date
     }
 
     /// Rewrites still-queued operation payloads (and their affected table/id
@@ -583,6 +680,14 @@ final class SyncManager {
         return (try? context.fetch(limited))?.first
     }
 
+    /// Queue depth without materialising or sorting the rows. `queuedRows()`
+    /// fetches every queued operation, sorted by `seq`, purely to read
+    /// `.count` — and that ran on every enqueue, after each drain iteration
+    /// and on every retry schedule.
+    private func queuedCount() -> Int {
+        (try? context.fetchCount(FetchDescriptor<PendingSyncOperation>())) ?? 0
+    }
+
     /// All queued rows in FIFO order.
     func queuedRows() -> [PendingSyncOperation] {
         let descriptor = FetchDescriptor<PendingSyncOperation>(sortBy: [SortDescriptor(\.seq)])
@@ -628,7 +733,14 @@ final class SyncManager {
         guard autoDrain else { return }
         retryTask?.cancel()
         let now = Date()
-        guard let soonest = queuedRows().map(\.nextAttemptAt).filter({ $0 > now }).min() else {
+        // Asks the store for the single soonest backed-off row rather than
+        // loading the whole queue to take a minimum over it.
+        var descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.nextAttemptAt > now },
+            sortBy: [SortDescriptor(\.nextAttemptAt)]
+        )
+        descriptor.fetchLimit = 1
+        guard let soonest = (try? context.fetch(descriptor))?.first?.nextAttemptAt else {
             retryTask = nil
             return
         }
