@@ -112,7 +112,7 @@ final class SupplementRepository {
             ))
         }
         save()
-        return checklist.map { item in
+        return checklist.map { item -> SupplementChecklist in
             if pending.logged.contains(item.supplement.id) {
                 return SupplementChecklist(
                     supplement: item.supplement,
