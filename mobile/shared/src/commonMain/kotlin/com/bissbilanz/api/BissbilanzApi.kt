@@ -1,5 +1,7 @@
 package com.bissbilanz.api
 
+import com.bissbilanz.api.generated.model.AccountResponse
+import com.bissbilanz.api.generated.model.AccountUser
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
@@ -8,6 +10,7 @@ import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.api.generated.model.CalendarResponse
 import com.bissbilanz.api.generated.model.DailyStatsResponse
 import com.bissbilanz.api.generated.model.DayProperties
+import com.bissbilanz.api.generated.model.DayPropertiesRangeResponse
 import com.bissbilanz.api.generated.model.DayPropertiesResponse
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.EntriesCopyResponse
@@ -255,7 +258,15 @@ class BissbilanzApi(
     }
 
     // Account
+    suspend fun getAccount(): AccountUser {
+        val response: AccountResponse = get("/api/account")
+        return response.user
+    }
+
     suspend fun deleteAccount() = delete("/api/account")
+
+    /** Downloads an authenticated server-relative file (e.g. an /uploads/ image) as raw bytes. */
+    suspend fun downloadFile(path: String): ByteArray = get(path)
 
     suspend fun exportAccountData(): ByteArray =
         get("/api/account/export") {
@@ -778,6 +789,18 @@ class BissbilanzApi(
         }
 
     // Day Properties
+    suspend fun getDayPropertiesRange(
+        startDate: String,
+        endDate: String,
+    ): List<DayProperties> {
+        val response: DayPropertiesRangeResponse =
+            get("/api/day-properties") {
+                parameter("startDate", startDate)
+                parameter("endDate", endDate)
+            }
+        return response.data
+    }
+
     suspend fun getDayProperties(date: String): DayProperties? {
         val response: DayPropertiesResponse = get("/api/day-properties") { parameter("date", date) }
         return response.properties

@@ -29,6 +29,17 @@ import kotlinx.serialization.encoding.*
  * @param notes
  * @param foodId
  * @param recipeId
+ * @param supplementId
+ * @param eatenAt
+ * @param quickName
+ * @param quickCalories
+ * @param quickProtein
+ * @param quickCarbs
+ * @param quickFat
+ * @param quickFiber
+ * @param quickNutrients
+ * @param servingSize
+ * @param servingUnit
  * @param foodName
  * @param calories
  * @param protein
@@ -45,6 +56,17 @@ data class EntryRangeItem(
     @SerialName(value = "notes") @Required val notes: kotlin.String?,
     @SerialName(value = "foodId") @Required val foodId: kotlin.String?,
     @SerialName(value = "recipeId") @Required val recipeId: kotlin.String?,
+    @SerialName(value = "supplementId") @Required val supplementId: kotlin.String?,
+    @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
+    @SerialName(value = "quickName") @Required val quickName: kotlin.String?,
+    @SerialName(value = "quickCalories") @Required val quickCalories: kotlin.Double?,
+    @SerialName(value = "quickProtein") @Required val quickProtein: kotlin.Double?,
+    @SerialName(value = "quickCarbs") @Required val quickCarbs: kotlin.Double?,
+    @SerialName(value = "quickFat") @Required val quickFat: kotlin.Double?,
+    @SerialName(value = "quickFiber") @Required val quickFiber: kotlin.Double?,
+    @SerialName(value = "quickNutrients") @Required val quickNutrients: kotlin.collections.Map<kotlin.String, kotlin.Double>?,
+    @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
+    @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
     @SerialName(value = "foodName") @Required val foodName: kotlin.String?,
     @SerialName(value = "calories") @Required val calories: kotlin.Double,
     @SerialName(value = "protein") @Required val protein: kotlin.Double,

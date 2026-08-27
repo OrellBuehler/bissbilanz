@@ -58,6 +58,7 @@ import {
 	mealTypeResponseSchema
 } from './validation/responses/meal-types';
 import { favoritesResponseSchema } from './validation/responses/favorites';
+import { accountResponseSchema } from './validation/responses/account';
 import { maintenanceResponseSchema } from './validation/responses/maintenance';
 import { imageUploadResponseSchema } from './validation/responses/images';
 import {
@@ -1070,6 +1071,18 @@ export function generateSpec() {
 
 			// ── Account ───────────────────────────────────────────
 			'/api/account': {
+				get: {
+					operationId: 'getAccount',
+					tags: ['Account'],
+					description: 'Get the authenticated account profile (email, name, creation date).',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: accountResponseSchema } }
+						},
+						'401': res401
+					}
+				},
 				delete: {
 					operationId: 'deleteAccount',
 					tags: ['Account'],

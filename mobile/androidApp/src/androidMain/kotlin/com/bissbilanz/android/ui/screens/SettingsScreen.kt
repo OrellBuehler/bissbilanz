@@ -68,6 +68,8 @@ fun SettingsScreen(navController: NavController) {
     val haptic = rememberHaptic()
     var showMealTypeDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showDowngradeDialog by remember { mutableStateOf(false) }
+    val downgradeState by viewModel.downgradeState.collectAsStateWithLifecycle()
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -150,6 +152,16 @@ fun SettingsScreen(navController: NavController) {
                     Text(stringResource(R.string.settings_delete_account_message))
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
+                        onClick = {
+                            showDeleteAccountDialog = false
+                            showDowngradeDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_downgrade_option))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
                         onClick = { viewModel.exportData(context.cacheDir) },
                         enabled = !exportingData,
                         modifier = Modifier.fillMaxWidth(),
@@ -171,6 +183,78 @@ fun SettingsScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAccountDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
+    }
+
+    if (showDowngradeDialog) {
+        val downgradeInProgress =
+            downgradeState == SettingsViewModel.DowngradeState.Syncing ||
+                downgradeState == SettingsViewModel.DowngradeState.Downloading ||
+                downgradeState == SettingsViewModel.DowngradeState.Deleting
+        AlertDialog(
+            onDismissRequest = {
+                if (!downgradeInProgress) {
+                    showDowngradeDialog = false
+                    viewModel.resetDowngrade()
+                }
+            },
+            title = { Text(stringResource(R.string.settings_downgrade_title)) },
+            text = {
+                Column {
+                    when (val state = downgradeState) {
+                        SettingsViewModel.DowngradeState.Idle ->
+                            Text(stringResource(R.string.settings_downgrade_message))
+                        is SettingsViewModel.DowngradeState.Failed -> {
+                            Text(stringResource(R.string.settings_downgrade_message))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(state.message, color = MaterialTheme.colorScheme.error)
+                        }
+                        SettingsViewModel.DowngradeState.Done ->
+                            Text(stringResource(R.string.settings_downgrade_done))
+                        else ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    stringResource(
+                                        when (downgradeState) {
+                                            SettingsViewModel.DowngradeState.Syncing ->
+                                                R.string.settings_downgrade_progress_sync
+                                            SettingsViewModel.DowngradeState.Deleting ->
+                                                R.string.settings_downgrade_progress_delete
+                                            else -> R.string.settings_downgrade_progress_download
+                                        },
+                                    ),
+                                )
+                            }
+                    }
+                }
+            },
+            confirmButton = {
+                when {
+                    downgradeState == SettingsViewModel.DowngradeState.Done ->
+                        TextButton(onClick = {
+                            showDowngradeDialog = false
+                            viewModel.resetDowngrade()
+                        }) { Text(stringResource(R.string.settings_downgrade_close)) }
+                    downgradeInProgress -> {}
+                    else ->
+                        TextButton(onClick = { viewModel.downgradeToLocal() }) {
+                            Text(stringResource(R.string.settings_downgrade_confirm))
+                        }
+                }
+            },
+            dismissButton = {
+                if (!downgradeInProgress && downgradeState != SettingsViewModel.DowngradeState.Done) {
+                    TextButton(onClick = {
+                        showDowngradeDialog = false
+                        viewModel.resetDowngrade()
+                    }) { Text(stringResource(R.string.dialog_cancel)) }
+                }
             },
         )
     }

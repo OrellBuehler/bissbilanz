@@ -1913,6 +1913,26 @@
 			}
 		},
 		"/api/account": {
+			"get": {
+				"operationId": "getAccount",
+				"tags": ["Account"],
+				"description": "Get the authenticated account profile (email, name, creation date).",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AccountResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
 			"delete": {
 				"operationId": "deleteAccount",
 				"tags": ["Account"],
@@ -7110,6 +7130,117 @@
 							}
 						]
 					},
+					"supplementId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"eatenAt": {
+						"type": "string"
+					},
+					"quickName": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCalories": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickProtein": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickCarbs": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFat": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickFiber": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"quickNutrients": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {
+									"type": "number"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingUnit": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"foodName": {
 						"anyOf": [
 							{
@@ -7144,6 +7275,17 @@
 					"notes",
 					"foodId",
 					"recipeId",
+					"supplementId",
+					"eatenAt",
+					"quickName",
+					"quickCalories",
+					"quickProtein",
+					"quickCarbs",
+					"quickFat",
+					"quickFiber",
+					"quickNutrients",
+					"servingSize",
+					"servingUnit",
 					"foodName",
 					"calories",
 					"protein",
@@ -9120,6 +9262,53 @@
 					"startDate",
 					"endDate"
 				],
+				"additionalProperties": false
+			},
+			"AccountResponse": {
+				"type": "object",
+				"properties": {
+					"user": {
+						"$ref": "#/components/schemas/AccountUser"
+					}
+				},
+				"required": ["user"],
+				"additionalProperties": false
+			},
+			"AccountUser": {
+				"type": "object",
+				"properties": {
+					"email": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"name": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["email", "name", "createdAt"],
 				"additionalProperties": false
 			},
 			"ImageUploadResponse": {
