@@ -38,7 +38,14 @@ fun WeightWidget(
     val todayEntry = allEntries.find { it.entryDate == date }
 
     LaunchedEffect(Unit) {
-        weightRepo.refresh()
+        // An uncaught throw here kills the recomposer and takes the whole dashboard
+        // down; the cached entries above still render, so a failed refresh is silent.
+        try {
+            weightRepo.refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {

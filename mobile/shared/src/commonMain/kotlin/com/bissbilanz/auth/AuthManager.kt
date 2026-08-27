@@ -131,6 +131,7 @@ class AuthManager(
 
             val refreshToken = secureStorage.load(KEY_REFRESH_TOKEN) ?: return@withLock false
 
+            val stateBeforeRefresh = _authState.value
             _authState.value = AuthState.Refreshing
             try {
                 val httpResponse =
@@ -139,10 +140,20 @@ class AuthManager(
                         setBody(mapOf("refresh_token" to refreshToken))
                     }
 
-                if (httpResponse.status.value !in 200..299) {
+                val status = httpResponse.status.value
+
+                // Only an explicit rejection of the refresh token ends the session.
+                // A 5xx (server down, proxy 502) is transient: keep the tokens and let
+                // the next API call retry. Mirrors iosApp/API/AuthManager.performRefresh.
+                if (status == 400 || status == 401 || status == 403) {
                     secureStorage.delete(KEY_ACCESS_TOKEN)
                     secureStorage.delete(KEY_REFRESH_TOKEN)
                     _authState.value = AuthState.SessionExpired
+                    return@withLock false
+                }
+
+                if (status !in 200..299) {
+                    _authState.compareAndSet(AuthState.Refreshing, stateBeforeRefresh)
                     return@withLock false
                 }
 
@@ -152,10 +163,14 @@ class AuthManager(
                 _authState.value = AuthState.Authenticated
                 true
             } catch (e: Exception) {
+                // Transport-level failure (offline, DNS, timeout) or a malformed body —
+                // never the server rejecting the token, which is handled above. Keeping
+                // the tokens means a network hiccup can't permanently sign the user out;
+                // the caller's request fails and the next one retries the refresh.
+                // compareAndSet so a logout() or initialize() that raced this refresh
+                // keeps the state it just set.
+                _authState.compareAndSet(AuthState.Refreshing, stateBeforeRefresh)
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                secureStorage.delete(KEY_ACCESS_TOKEN)
-                secureStorage.delete(KEY_REFRESH_TOKEN)
-                _authState.value = AuthState.SessionExpired
                 false
             }
         }
