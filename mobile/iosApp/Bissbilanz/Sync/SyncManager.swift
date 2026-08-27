@@ -680,7 +680,6 @@ final class SyncManager {
         return (try? context.fetch(limited))?.first
     }
 
-    /// All queued rows in FIFO order.
     /// Queue depth without materialising or sorting the rows. `queuedRows()`
     /// fetches every queued operation, sorted by `seq`, purely to read
     /// `.count` — and that ran on every enqueue, after each drain iteration
@@ -689,6 +688,7 @@ final class SyncManager {
         (try? context.fetchCount(FetchDescriptor<PendingSyncOperation>())) ?? 0
     }
 
+    /// All queued rows in FIFO order.
     func queuedRows() -> [PendingSyncOperation] {
         let descriptor = FetchDescriptor<PendingSyncOperation>(sortBy: [SortDescriptor(\.seq)])
         return (try? context.fetch(descriptor)) ?? []

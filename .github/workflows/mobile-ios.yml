@@ -116,10 +116,18 @@ jobs:
             echo "No iPhone simulator available" >&2
             exit 1
           fi
+          # Serial: every test is @MainActor and StubURLProtocol keys its
+          # stubs and recorded requests in process-wide statics, so parallel
+          # execution puts unrelated tests in contention for the same actor.
+          # The two drain-semantics tests interleave a mid-drain enqueue with
+          # an in-flight response by sleeping 100ms against a 500ms stub — an
+          # ordering that only holds if nothing else is competing for the main
+          # actor. The whole suite is ~8s of work, so serial costs little.
           xcodebuild test \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
             -destination "id=$DEVICE_ID" \
             -configuration Debug \
+            -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
