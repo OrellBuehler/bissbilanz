@@ -119,15 +119,33 @@ jobs:
           # Serial: every test is @MainActor and StubURLProtocol keys its
           # stubs and recorded requests in process-wide statics, so parallel
           # execution puts unrelated tests in contention for the same actor.
-          # The two drain-semantics tests interleave a mid-drain enqueue with
-          # an in-flight response by sleeping 100ms against a 500ms stub — an
-          # ordering that only holds if nothing else is competing for the main
-          # actor. The whole suite is ~8s of work, so serial costs little.
+          # The whole suite is well under a minute of work, so serial is cheap.
+          #
+          # Retries: the test host crashes nondeterministically ("Restarting
+          # after unexpected exit") at drifting points — reproduced on
+          # unmodified main (baseline probe PR #500), so it predates the suite
+          # ever running and is not tied to any one test. Retry-on-failure
+          # keeps the gate useful (a deterministic failure still fails all
+          # attempts) while the root cause is only diagnosable from the
+          # xcresult bundle, which is uploaded on failure below.
           xcodebuild test \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
             -destination "id=$DEVICE_ID" \
             -configuration Debug \
             -parallel-testing-enabled NO \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
+            -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
+
+      # The host crashes leave nothing in stdout — the signal, thread and
+      # backtrace only exist in the result bundle.
+      - name: Upload iOS test results
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ios-test-results
+          path: mobile/iosApp/TestResults.xcresult
+          retention-days: 7
