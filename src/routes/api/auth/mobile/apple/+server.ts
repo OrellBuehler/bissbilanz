@@ -10,6 +10,7 @@ import { MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
 import { createAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
+import { getRequestIp } from '$lib/server/client-ip';
 
 const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
 
@@ -24,13 +25,14 @@ const requestSchema = z.object({
  * over the identity token, so there is no code to exchange — only a token to verify.
  * Its audience is the app's bundle id rather than the web Services ID.
  */
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request } = event;
 	if (!appleConfig() || !config.apple.bundleId) {
 		throw error(404, 'Sign in with Apple is not configured');
 	}
 
 	try {
-		rateLimit(`auth:mobile:apple:${getClientAddress()}`, 10, 60_000);
+		rateLimit(`auth:mobile:apple:${getRequestIp(event)}`, 10, 60_000);
 	} catch {
 		throw error(429, 'Too many requests');
 	}

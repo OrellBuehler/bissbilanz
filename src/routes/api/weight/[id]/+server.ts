@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
 import { updateWeightEntry, deleteWeightEntry } from '$lib/server/weight';
 import { notFound, unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
-import { respondUpdate } from '$lib/server/sync/conflict';
+import { isStaleDelete, respondUpdate, staleConflict } from '$lib/server/sync/conflict';
+import { weightEntries } from '$lib/server/schema';
 
 export const PATCH: RequestHandler = withAuthedResource(
 	async ({ userId, id, request, clientEditedAt }) => {
@@ -16,7 +17,11 @@ export const PATCH: RequestHandler = withAuthedResource(
 	}
 );
 
-export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id }) => {
+export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id, clientEditedAt }) => {
+	// A delete queued offline must not destroy a newer server-side edit.
+	if (await isStaleDelete(weightEntries, id, userId, clientEditedAt)) {
+		return staleConflict();
+	}
 	const deleted = await deleteWeightEntry(userId, id);
 
 	if (!deleted) {

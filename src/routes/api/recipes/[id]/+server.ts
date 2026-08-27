@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteRecipe, getRecipe, updateRecipe } from '$lib/server/recipes';
 import { notFound, unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
-import { respondUpdate } from '$lib/server/sync/conflict';
+import { isStaleDelete, respondUpdate, staleConflict } from '$lib/server/sync/conflict';
+import { recipes } from '$lib/server/schema';
 
 export const GET: RequestHandler = withAuthedResource(async ({ userId, id }) => {
 	const recipe = await getRecipe(userId, id);
@@ -28,11 +29,17 @@ export const PATCH: RequestHandler = withAuthedResource(
 	}
 );
 
-export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id, url }) => {
-	const force = url.searchParams.get('force') === 'true';
-	const result = await deleteRecipe(userId, id, force);
-	if (result.blocked) {
-		return json({ error: 'has_entries', entryCount: result.entryCount }, { status: 409 });
+export const DELETE: RequestHandler = withAuthedResource(
+	async ({ userId, id, clientEditedAt, url }) => {
+		// A delete queued offline must not destroy a newer server-side edit.
+		if (await isStaleDelete(recipes, id, userId, clientEditedAt)) {
+			return staleConflict();
+		}
+		const force = url.searchParams.get('force') === 'true';
+		const result = await deleteRecipe(userId, id, force);
+		if (result.blocked) {
+			return json({ error: 'has_entries', entryCount: result.entryCount }, { status: 409 });
+		}
+		return new Response(null, { status: 204 });
 	}
-	return new Response(null, { status: 204 });
-});
+);

@@ -28,9 +28,11 @@ describe('toEntryUpdate', () => {
 		expect(Object.prototype.hasOwnProperty.call(row, 'eatenAt')).toBe(false);
 	});
 
-	test('normalizes notes to null when undefined', () => {
+	// Previously this asserted notes became null when omitted, which is what made
+	// every partial PATCH (e.g. servings-only) silently wipe an existing note.
+	test('omits notes key when not provided', () => {
 		const row = toEntryUpdate({ servings: 1 });
-		expect(row.notes).toBeNull();
+		expect(Object.prototype.hasOwnProperty.call(row, 'notes')).toBe(false);
 	});
 
 	test('preserves notes string value', () => {

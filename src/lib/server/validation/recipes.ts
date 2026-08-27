@@ -1,6 +1,7 @@
 import 'zod-openapi';
 import { z } from 'zod';
 import { servingUnitSchema } from '$lib/units';
+import { imageUrlSchema } from './foods';
 
 export const recipeIngredientSchema = z
 	.object({
@@ -12,11 +13,11 @@ export const recipeIngredientSchema = z
 
 export const recipeCreateSchema = z
 	.object({
-		name: z.string().min(1),
+		name: z.string().min(1).max(200),
 		totalServings: z.coerce.number().positive(),
-		ingredients: z.array(recipeIngredientSchema).min(1),
+		ingredients: z.array(recipeIngredientSchema).min(1).max(100),
 		isFavorite: z.boolean().optional(),
-		imageUrl: z.string().optional().nullable()
+		imageUrl: imageUrlSchema.optional().nullable()
 	})
 	.meta({ id: 'RecipeCreate' });
 

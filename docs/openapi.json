@@ -2926,12 +2926,14 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"brand": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 200
 							},
 							{
 								"type": "null"
@@ -3441,7 +3443,8 @@
 					"barcode": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 64
 							},
 							{
 								"type": "null"
@@ -3477,9 +3480,11 @@
 					"additives": {
 						"anyOf": [
 							{
+								"maxItems": 100,
 								"type": "array",
 								"items": {
-									"type": "string"
+									"type": "string",
+									"maxLength": 100
 								}
 							},
 							{
@@ -3490,7 +3495,8 @@
 					"ingredientsText": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 10000
 							},
 							{
 								"type": "null"
@@ -3500,7 +3506,8 @@
 					"imageUrl": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2048
 							},
 							{
 								"type": "null"
@@ -3546,12 +3553,14 @@
 						"properties": {
 							"name": {
 								"type": "string",
-								"minLength": 1
+								"minLength": 1,
+								"maxLength": 200
 							},
 							"brand": {
 								"anyOf": [
 									{
-										"type": "string"
+										"type": "string",
+										"maxLength": 200
 									},
 									{
 										"type": "null"
@@ -4061,7 +4070,8 @@
 							"barcode": {
 								"anyOf": [
 									{
-										"type": "string"
+										"type": "string",
+										"maxLength": 64
 									},
 									{
 										"type": "null"
@@ -4097,9 +4107,11 @@
 							"additives": {
 								"anyOf": [
 									{
+										"maxItems": 100,
 										"type": "array",
 										"items": {
-											"type": "string"
+											"type": "string",
+											"maxLength": 100
 										}
 									},
 									{
@@ -4110,7 +4122,8 @@
 							"ingredientsText": {
 								"anyOf": [
 									{
-										"type": "string"
+										"type": "string",
+										"maxLength": 10000
 									},
 									{
 										"type": "null"
@@ -4120,7 +4133,8 @@
 							"imageUrl": {
 								"anyOf": [
 									{
-										"type": "string"
+										"type": "string",
+										"maxLength": 2048
 									},
 									{
 										"type": "null"
@@ -4137,12 +4151,14 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"brand": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 200
 							},
 							{
 								"type": "null"
@@ -4652,7 +4668,8 @@
 					"barcode": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 64
 							},
 							{
 								"type": "null"
@@ -4688,9 +4705,11 @@
 					"additives": {
 						"anyOf": [
 							{
+								"maxItems": 100,
 								"type": "array",
 								"items": {
-									"type": "string"
+									"type": "string",
+									"maxLength": 100
 								}
 							},
 							{
@@ -4701,7 +4720,8 @@
 					"ingredientsText": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 10000
 							},
 							{
 								"type": "null"
@@ -4711,7 +4731,8 @@
 					"imageUrl": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2048
 							},
 							{
 								"type": "null"
@@ -4745,7 +4766,8 @@
 					"notes": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2000
 							},
 							{
 								"type": "null"
@@ -4759,7 +4781,8 @@
 					"quickName": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 200
 							},
 							{
 								"type": "null"
@@ -4871,7 +4894,8 @@
 					"notes": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2000
 							},
 							{
 								"type": "null"
@@ -4885,7 +4909,8 @@
 					"quickName": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 200
 							},
 							{
 								"type": "null"
@@ -4976,7 +5001,8 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"totalServings": {
 						"type": "number",
@@ -4984,6 +5010,7 @@
 					},
 					"ingredients": {
 						"minItems": 1,
+						"maxItems": 100,
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/RecipeIngredientInput"
@@ -4995,7 +5022,8 @@
 					"imageUrl": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2048
 							},
 							{
 								"type": "null"
@@ -5028,7 +5056,8 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"totalServings": {
 						"type": "number",
@@ -5036,6 +5065,7 @@
 					},
 					"ingredients": {
 						"minItems": 1,
+						"maxItems": 100,
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/RecipeIngredientInput"
@@ -5047,7 +5077,8 @@
 					"imageUrl": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2048
 							},
 							{
 								"type": "null"
@@ -5083,7 +5114,8 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"scheduleType": {
 						"type": "string",
@@ -5107,7 +5139,8 @@
 					"scheduleStartDate": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 							},
 							{
 								"type": "null"
@@ -5164,7 +5197,8 @@
 				"properties": {
 					"name": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 200
 					},
 					"scheduleType": {
 						"type": "string",
@@ -5188,7 +5222,8 @@
 					"scheduleStartDate": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 							},
 							{
 								"type": "null"
@@ -5243,7 +5278,8 @@
 				"type": "object",
 				"properties": {
 					"date": {
-						"type": "string"
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 					}
 				}
 			},
@@ -5262,7 +5298,8 @@
 					"notes": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2000
 							},
 							{
 								"type": "null"
@@ -5287,7 +5324,8 @@
 					"notes": {
 						"anyOf": [
 							{
-								"type": "string"
+								"type": "string",
+								"maxLength": 2000
 							},
 							{
 								"type": "null"
@@ -5364,6 +5402,7 @@
 						"enum": ["time_based", "ask_meal"]
 					},
 					"favoriteMealTimeframes": {
+						"maxItems": 50,
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/FavoriteMealTimeframeInput"
@@ -5412,7 +5451,8 @@
 				"properties": {
 					"mealType": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 100
 					},
 					"customMealTypeId": {
 						"anyOf": [
@@ -5587,7 +5627,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -5599,7 +5639,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -5654,7 +5694,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -5666,7 +5706,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"

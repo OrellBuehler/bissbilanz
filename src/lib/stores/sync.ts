@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import {
+	DRAIN_BATCH_SIZE,
 	drainQueue,
 	removeFromQueue,
 	markFailed,
@@ -55,6 +56,7 @@ export async function syncQueue(): Promise<number> {
 	setSyncing(true);
 	clearSyncErrors();
 	let synced = 0;
+	let queuedCount = 0;
 	const affectedTables = new Set<string>();
 	const trackAffected = (req: { affectedTable?: string }) => {
 		if (req.affectedTable) affectedTables.add(req.affectedTable);
@@ -62,6 +64,7 @@ export async function syncQueue(): Promise<number> {
 
 	try {
 		const queued = await drainQueue();
+		queuedCount = queued.length;
 		setPendingCount(queued.length);
 
 		for (const req of queued) {
@@ -109,13 +112,31 @@ export async function syncQueue(): Promise<number> {
 					addSyncError('Session expired. Please log in again to sync pending changes.');
 					break;
 				} else if (response.status >= 400 && response.status < 500) {
-					// Other client errors (400, real 409 duplicate/validation, 422, …) are
-					// unrecoverable as-is. Park them so the user can retry or discard.
 					const data = await response.json().catch(() => ({}));
 					const reason = (data as Record<string, string>).error ?? `HTTP ${response.status}`;
-					await markFailed(req.id!, reason);
-					synced++;
-					addSyncError(`Failed to sync ${req.method} ${req.url}: ${reason}`);
+
+					// An in-flight idempotency claim is explicitly retryable: the server is
+					// telling us an earlier attempt with this key hasn't finished yet. Dead-
+					// lettering it here would discard a write the server may still apply.
+					if (response.status === 409 && reason === 'request_in_progress') {
+						const count = (req.retryCount ?? 0) + 1;
+						if (count >= MAX_RETRIES) {
+							await markFailed(req.id!, `${reason} after ${MAX_RETRIES} retries`);
+							synced++;
+							addSyncError(
+								`Gave up syncing ${req.method} ${req.url} after ${MAX_RETRIES} retries (still in progress).`
+							);
+						} else {
+							await scheduleRetry(req.id!, count, Date.now() + backoffDelay(count));
+							break;
+						}
+					} else {
+						// Other client errors (400, real 409 duplicate/validation, 422, …) are
+						// unrecoverable as-is. Park them so the user can retry or discard.
+						await markFailed(req.id!, reason);
+						synced++;
+						addSyncError(`Failed to sync ${req.method} ${req.url}: ${reason}`);
+					}
 				} else {
 					// Server error (5xx) — transient; retry with exponential backoff.
 					const count = (req.retryCount ?? 0) + 1;
@@ -173,6 +194,15 @@ export async function syncQueue(): Promise<number> {
 		for (const table of affectedTables) {
 			refreshMap[table]?.();
 		}
+	}
+
+	// drainQueue() returns at most DRAIN_BATCH_SIZE items. A full batch means more
+	// work is very likely still queued, and an item with no backoff gate arms no
+	// timer — so without this a backlog above one batch would sit untouched until
+	// the next online/visibility event. Scheduled as a task (not a microtask) so
+	// this pass, including the table refreshes above, fully settles first.
+	if (queuedCount >= DRAIN_BATCH_SIZE && synced > 0) {
+		setTimeout(() => void syncQueue(), 0);
 	}
 
 	return synced;

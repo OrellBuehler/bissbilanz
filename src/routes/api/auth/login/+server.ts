@@ -12,8 +12,10 @@ import { oidcCookieOptions } from '$lib/server/oidc-cookies';
 import { storeWebTransaction } from '$lib/server/auth-transactions';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
+import { getRequestIp } from '$lib/server/client-ip';
 
-export const GET: RequestHandler = async ({ cookies, url, locals, getClientAddress }) => {
+export const GET: RequestHandler = async (event) => {
+	const { cookies, url, locals } = event;
 	const provider = getProvider(url.searchParams.get('provider') ?? 'infomaniak');
 	if (!provider) throw error(404, 'Unknown or disabled sign-in provider');
 
@@ -23,7 +25,7 @@ export const GET: RequestHandler = async ({ cookies, url, locals, getClientAddre
 	if (isLink && !locals.user) throw error(401, 'Sign in before connecting another account');
 
 	try {
-		rateLimit(`auth:login:${getClientAddress()}`, 5, 60_000);
+		rateLimit(`auth:login:${getRequestIp(event)}`, 5, 60_000);
 	} catch {
 		throw error(429, 'Too many requests');
 	}

@@ -5,13 +5,25 @@ import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 
 const optNutrient = z.coerce.number().nonnegative().optional().nullable();
 
+/**
+ * Either an app-relative path or an absolute http(s) URL. `//host/x` is rejected:
+ * it passes a bare `startsWith('/')` check but is a protocol-relative URL that
+ * loads from an arbitrary third-party origin.
+ */
+export const imageUrlSchema = z
+	.string()
+	.max(2048)
+	.refine((val) => (val.startsWith('/') && !val.startsWith('//')) || /^https?:\/\//.test(val), {
+		message: 'Must be a relative path or absolute URL'
+	});
+
 /** Build the nutrient fields object from the catalog */
 const nutrientFields = Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, optNutrient]));
 
 export const foodCreateSchema = z
 	.object({
-		name: z.string().min(1),
-		brand: z.string().optional().nullable(),
+		name: z.string().min(1).max(200),
+		brand: z.string().max(200).optional().nullable(),
 		servingSize: z.coerce.number().positive(),
 		servingUnit: servingUnitSchema,
 		calories: z.coerce.number().nonnegative(),
@@ -21,20 +33,14 @@ export const foodCreateSchema = z
 		fiber: z.coerce.number().nonnegative(),
 		// All extended nutrients (derived from catalog)
 		...nutrientFields,
-		barcode: z.string().optional().nullable(),
+		barcode: z.string().max(64).optional().nullable(),
 		isFavorite: z.coerce.boolean().optional(),
 		// Open Food Facts quality data
 		nutriScore: z.enum(['a', 'b', 'c', 'd', 'e']).optional().nullable(),
 		novaGroup: z.coerce.number().int().min(1).max(4).optional().nullable(),
-		additives: z.array(z.string()).optional().nullable(),
-		ingredientsText: z.string().optional().nullable(),
-		imageUrl: z
-			.string()
-			.refine((val) => val.startsWith('/') || /^https?:\/\//.test(val), {
-				message: 'Must be a relative path or absolute URL'
-			})
-			.optional()
-			.nullable()
+		additives: z.array(z.string().max(100)).max(100).optional().nullable(),
+		ingredientsText: z.string().max(10000).optional().nullable(),
+		imageUrl: imageUrlSchema.optional().nullable()
 	})
 	.meta({ id: 'FoodCreate' });
 

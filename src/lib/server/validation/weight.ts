@@ -5,7 +5,7 @@ export const weightCreateSchema = z
 	.object({
 		weightKg: z.coerce.number().positive().max(500),
 		entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-		notes: z.string().optional().nullable()
+		notes: z.string().max(2000).optional().nullable()
 	})
 	.meta({ id: 'WeightCreate' });
 
@@ -16,6 +16,6 @@ export const weightUpdateSchema = z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
 			.optional(),
-		notes: z.string().optional().nullable()
+		notes: z.string().max(2000).optional().nullable()
 	})
 	.meta({ id: 'WeightUpdate' });

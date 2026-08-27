@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getSupplementById, updateSupplement, deleteSupplement } from '$lib/server/supplements';
 import { notFound, unwrapResult, parseJsonBody, withAuthedResource } from '$lib/server/errors';
-import { respondUpdate } from '$lib/server/sync/conflict';
+import { isStaleDelete, respondUpdate, staleConflict } from '$lib/server/sync/conflict';
+import { supplements } from '$lib/server/schema';
 
 export const GET: RequestHandler = withAuthedResource(async ({ userId, id }) => {
 	const supplement = await getSupplementById(userId, id);
@@ -25,7 +26,11 @@ export const PATCH: RequestHandler = withAuthedResource(
 	}
 );
 
-export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id }) => {
+export const DELETE: RequestHandler = withAuthedResource(async ({ userId, id, clientEditedAt }) => {
+	// A delete queued offline must not destroy a newer server-side edit.
+	if (await isStaleDelete(supplements, id, userId, clientEditedAt)) {
+		return staleConflict();
+	}
 	await deleteSupplement(userId, id);
 	return new Response(null, { status: 204 });
 });

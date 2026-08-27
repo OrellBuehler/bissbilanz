@@ -15,7 +15,7 @@ import { preferencesUpdateSchema } from '$lib/server/validation';
 import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
-import { lwwStamp } from '$lib/server/sync/conflict';
+import { lwwClamp, lwwStamp } from '$lib/server/sync/conflict';
 
 type FavoriteMealTimeframePreference = {
 	id: string;
@@ -287,12 +287,13 @@ export const updatePreferences = async (
 		// LWW guard. Preferences span several tables, so rather than a per-statement
 		// SQL guard we gate the whole update on the prefs row's version: if a newer
 		// edit already landed, this stale offline write is rejected (handler 409s).
-		if (clientEditedAt) {
+		const clampedEditedAt = lwwClamp(clientEditedAt);
+		if (clampedEditedAt) {
 			const [existing] = await db
 				.select({ updatedAt: userPreferences.updatedAt })
 				.from(userPreferences)
 				.where(eq(userPreferences.userId, userId));
-			if (existing?.updatedAt && existing.updatedAt > clientEditedAt) {
+			if (existing?.updatedAt && existing.updatedAt > clampedEditedAt) {
 				return { success: true, data: undefined };
 			}
 		}

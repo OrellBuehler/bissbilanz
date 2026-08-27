@@ -4,10 +4,12 @@ import { assertSameOrigin } from '$lib/server/security';
 import { config } from '$lib/server/env';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
+import { getRequestIp } from '$lib/server/client-ip';
 
-export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, cookies } = event;
 	try {
-		rateLimit(`auth:logout:${getClientAddress()}`, 5, 60_000);
+		rateLimit(`auth:logout:${getRequestIp(event)}`, 5, 60_000);
 	} catch {
 		throw error(429, 'Too many requests');
 	}
