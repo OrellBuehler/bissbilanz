@@ -17,7 +17,7 @@ jobs:
   build:
     if: github.event.pull_request.draft == false
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: mobile
@@ -94,5 +94,40 @@ jobs:
             -scheme Bissbilanz \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
+
+      # The suite (sync manager, migrator, repositories, quick-add writer,
+      # schedule maths, view logic) existed and was structured to be runnable —
+      # SyncManager.autoDrain and LocalStore.makeContainer(inMemory:) are
+      # explicit test seams — but every workflow ran `xcodebuild build`, so
+      # none of it ever executed. Runs against whichever iPhone simulator the
+      # installed Xcode ships, since the name changes with every Xcode release.
+      - name: Run iOS unit tests
+        working-directory: mobile/iosApp
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | jq -r '
+            [.devices | to_entries[]
+             | select(.key | test("iOS"))
+             | .value[]
+             | select(.name | startswith("iPhone"))
+             | .udid] | last')
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+            echo "No iPhone simulator available" >&2
+            exit 1
+          fi
+          # Serial: every test is @MainActor and StubURLProtocol keys its
+          # stubs and recorded requests in process-wide statics, so parallel
+          # execution puts unrelated tests in contention for the same actor.
+          # The two drain-semantics tests interleave a mid-drain enqueue with
+          # an in-flight response by sleeping 100ms against a 500ms stub — an
+          # ordering that only holds if nothing else is competing for the main
+          # actor. The whole suite is ~8s of work, so serial costs little.
+          xcodebuild test \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
+            -destination "id=$DEVICE_ID" \
+            -configuration Debug \
+            -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
