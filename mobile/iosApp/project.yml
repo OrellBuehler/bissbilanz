@@ -261,3 +261,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.tests
+        # `@testable import Bissbilanz` pulls in the app's own imports, and two
+        # app files `import shared` — so the test target has to be able to
+        # resolve the staged KMP framework too. Search paths are not inherited
+        # from a target dependency, which is why running the suite for the
+        # first time surfaced "unable to resolve module dependency: 'shared'".
+        FRAMEWORK_SEARCH_PATHS:
+          - '$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)'
