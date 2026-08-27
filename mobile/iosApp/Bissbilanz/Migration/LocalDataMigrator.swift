@@ -271,6 +271,21 @@ final class LocalDataMigrator {
         state = .running(done: done, total: total, step: step)
     }
 
+    /// Stable `Idempotency-Key` for one migrated row.
+    ///
+    /// The migration is a serial, resumable, one-request-per-row upload — the
+    /// highest-volume retry surface in the app — so a response lost to a
+    /// timeout or a backgrounded app would otherwise create a duplicate on the
+    /// next `migrate()`. The local `temp_` id is the right seed: it survives
+    /// every retry (a row is only re-keyed once its upload succeeded) and
+    /// `normalizeOnce` mints fresh ones after `abandonMigration`, so migrating
+    /// into a different account never replays the abandoned run's responses.
+    /// The scope keeps two endpoints from sharing a key, since the server
+    /// stores responses per (user, key) alone.
+    private static func migrationKey(_ scope: String, _ localId: String) -> String {
+        "migrate-\(scope)-\(localId)"
+    }
+
     private func uploadFoods(done startDone: Int, total: Int) async throws -> Int {
         var done = startDone
         progress(done, total, .foods)
@@ -280,7 +295,10 @@ final class LocalDataMigrator {
             else {
                 throw MigrationError.unreadableRow("food \"\(row.name)\"")
             }
-            let server = try await api.createFood(create)
+            let server = try await api.createFood(
+                create,
+                idempotencyKey: Self.migrationKey("food", row.id)
+            )
             LocalRemap.replaceFood(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .foods)
@@ -306,7 +324,10 @@ final class LocalDataMigrator {
                 isFavorite: recipe.isFavorite,
                 imageUrl: recipe.imageUrl
             )
-            let server = try await api.createRecipe(create)
+            let server = try await api.createRecipe(
+                create,
+                idempotencyKey: Self.migrationKey("recipe", row.id)
+            )
             LocalRemap.replaceRecipe(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .recipes)
@@ -321,7 +342,10 @@ final class LocalDataMigrator {
             guard let entry = row.toEntry() else {
                 throw MigrationError.unreadableRow("entry from \(row.date)")
             }
-            let server = try await api.createEntry(Self.entryCreate(from: entry, date: row.date))
+            let server = try await api.createEntry(
+                Self.entryCreate(from: entry, date: row.date),
+                idempotencyKey: Self.migrationKey("entry", row.id)
+            )
             let merged = EntryRepository.merge(server: server, local: entry)
             LocalRemap.replaceEntry(id: row.id, with: merged, date: row.date, in: context)
             done += 1
@@ -338,7 +362,8 @@ final class LocalDataMigrator {
                 throw MigrationError.unreadableRow("weight entry from \(row.entryDate)")
             }
             let server = try await api.createWeightEntry(
-                WeightCreate(weightKg: entry.weightKg, entryDate: entry.entryDate, notes: entry.notes)
+                WeightCreate(weightKg: entry.weightKg, entryDate: entry.entryDate, notes: entry.notes),
+                idempotencyKey: Self.migrationKey("weight", row.id)
             )
             LocalRemap.replaceWeight(id: row.id, with: server, in: context)
             done += 1
@@ -354,15 +379,18 @@ final class LocalDataMigrator {
             guard let entry = row.toSleepEntry() else {
                 throw MigrationError.unreadableRow("sleep entry from \(row.entryDate)")
             }
-            let server = try await api.createSleepEntry(SleepCreate(
-                durationMinutes: entry.durationMinutes,
-                quality: entry.quality,
-                entryDate: entry.entryDate,
-                bedtime: entry.bedtime,
-                wakeTime: entry.wakeTime,
-                wakeUps: entry.wakeUps,
-                notes: entry.notes
-            ))
+            let server = try await api.createSleepEntry(
+                SleepCreate(
+                    durationMinutes: entry.durationMinutes,
+                    quality: entry.quality,
+                    entryDate: entry.entryDate,
+                    bedtime: entry.bedtime,
+                    wakeTime: entry.wakeTime,
+                    wakeUps: entry.wakeUps,
+                    notes: entry.notes
+                ),
+                idempotencyKey: Self.migrationKey("sleep", row.id)
+            )
             LocalRemap.replaceSleep(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .sleep)
@@ -415,7 +443,10 @@ final class LocalDataMigrator {
                     }
                 }
             )
-            let server = try await api.createSupplement(create)
+            let server = try await api.createSupplement(
+                create,
+                idempotencyKey: Self.migrationKey("supplement", row.id)
+            )
             LocalRemap.replaceSupplement(id: row.id, with: server, rekeyLogIds: false, in: context)
             done += 1
             progress(done, total, .supplements)
@@ -435,7 +466,11 @@ final class LocalDataMigrator {
                 progress(done, total, .supplementLogs)
                 continue
             }
-            _ = try await api.logSupplement(id: row.supplementId, date: row.date)
+            _ = try await api.logSupplement(
+                id: row.supplementId,
+                date: row.date,
+                idempotencyKey: Self.migrationKey("supplement-log", row.id)
+            )
             let uploaded = LocalSupplementLog(supplementId: row.supplementId, date: row.date, takenAt: row.takenAt)
             context.delete(row)
             context.insert(uploaded)

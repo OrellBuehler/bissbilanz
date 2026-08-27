@@ -93,6 +93,7 @@ final class FoodRepository {
     func refreshFood(id: String) async throws {
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let food = try await api.getFood(id: id)
+        guard !syncManager.pendingAffectedIds(table: "foods").contains(id) else { return }
         upsert(food)
         save()
     }
@@ -103,15 +104,23 @@ final class FoodRepository {
         guard !appMode.isLocal else { return }
         let response = try await api.getFavorites()
         let favoriteIds = Set(response.foods.map(\.id))
-        for stale in favorites() where !favoriteIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingFoodIds = syncManager.pendingAffectedIds(table: "foods")
+        let pendingRecipeIds = syncManager.pendingAffectedIds(table: "recipes")
+        for stale in favorites() where !favoriteIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingFoodIds.contains(stale.id)
+        {
             if let row = fetchRow(id: stale.id), let patched = patchedFavorite(stale, isFavorite: false) {
                 row.update(from: patched)
             }
         }
-        for food in response.foods {
+        for food in response.foods where !pendingFoodIds.contains(food.id) {
             upsert(food)
         }
-        for recipe in response.recipes ?? [] {
+        for recipe in response.recipes ?? [] where !pendingRecipeIds.contains(recipe.id) {
             LocalRemap.upsertRecipe(recipe, in: context)
         }
         save()
@@ -132,7 +141,8 @@ final class FoodRepository {
         guard !appMode.isLocal else { return searchLocal(query) }
         do {
             let results = try await api.searchFoods(query: query)
-            for food in results {
+            let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+            for food in results where !pendingIds.contains(food.id) {
                 upsert(food)
             }
             save()

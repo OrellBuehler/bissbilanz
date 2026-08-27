@@ -557,7 +557,16 @@ final class BissbilanzAPI {
     /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
     /// or unparseable responses.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
-        var request = URLRequest(url: URL(string: "\(baseURL)/api/openfoodfacts/\(barcode)")!)
+        // The barcode is untrusted external input: the scanner accepts Code 39
+        // (whose charset includes the space) and Code 128 (full ASCII), so a
+        // scan can legitimately produce a string that isn't a valid path
+        // segment. Percent-encode against alphanumerics — anything a product
+        // code actually contains survives, everything else is escaped rather
+        // than reshaping the URL.
+        guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
+              let url = URL(string: "\(baseURL)/api/openfoodfacts/\(encoded)")
+        else { return nil }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         guard let (data, httpResponse) = try? await executeRequestData(request),

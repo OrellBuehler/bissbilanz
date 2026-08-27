@@ -79,6 +79,40 @@ extension WidgetSnapshot {
         )
     }
 
+    /// Real empty state for a live timeline: no snapshot has been written yet
+    /// (fresh install before the first app run), the App Group container is
+    /// unavailable (a build without the entitlement), or the stored blob
+    /// failed to decode after a schema change.
+    ///
+    /// This must NOT be `placeholder` — that is fabricated sample data, and
+    /// rendering it in `getTimeline` puts invented calories and an invented
+    /// weight on the home screen and the watch face with nothing to mark them
+    /// as not the user's. Its favorites also carry sample ids ("1", "2"),
+    /// so a tap runs `QuickAddFoodIntent` into `foodNotFound` and does
+    /// nothing. Zero goals render as empty rings (every widget guards
+    /// `goal > 0`), and no favorites hits the widgets' own empty states.
+    static func empty(on referenceDate: Date) -> WidgetSnapshot {
+        WidgetSnapshot(
+            date: WidgetSnapshotStore.isoDateString(from: referenceDate),
+            localeCode: WidgetSnapshotStore.systemLocaleCode(),
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            fiber: 0,
+            calorieGoal: 0,
+            proteinGoal: 0,
+            carbGoal: 0,
+            fatGoal: 0,
+            fiberGoal: 0,
+            meals: [],
+            latestWeightKg: nil,
+            latestWeightDate: nil,
+            favorites: [],
+            generatedAt: referenceDate
+        )
+    }
+
     /// Consumed values are only valid for the day the snapshot was written.
     /// Rendered on any later day (e.g. right after midnight, before the app
     /// next runs) the day-bound values reset to zero while goals and
@@ -124,6 +158,13 @@ enum WidgetSnapshotStore {
 
     static func isoDateString(from date: Date) -> String {
         isoFormatter.string(from: date)
+    }
+
+    /// Best guess at the app's language before any snapshot exists, so the
+    /// empty state isn't stuck in English on a German device. The app's own
+    /// stored choice wins as soon as it writes a snapshot.
+    static func systemLocaleCode() -> String {
+        Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
     }
 
     static func load() -> WidgetSnapshot? {

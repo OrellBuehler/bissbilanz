@@ -78,10 +78,17 @@ final class WeightRepository {
         guard !appMode.isLocal else { return }
         let fetched = try await api.getWeightEntries()
         let serverIds = Set(fetched.map(\.id))
-        for stale in entries() where !serverIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingIds = syncManager.pendingAffectedIds(table: "weight")
+        for stale in entries() where !serverIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
+        {
             deleteRow(id: stale.id)
         }
-        for entry in fetched {
+        for entry in fetched where !pendingIds.contains(entry.id) {
             upsert(entry)
         }
         save()
@@ -189,16 +196,36 @@ final class WeightRepository {
     // MARK: - Apple Health write-back
 
     /// Dates `HealthKitImporter` is currently writing entries for, read *from*
-    /// Health. Scoped to dates rather than a global flag so a refresh landing a
-    /// weight for some other day mid-import still writes back normally.
-    @ObservationIgnored private var healthImportDates: Set<String> = []
+    /// Health, with the number of import scopes currently covering each. Scoped
+    /// to dates rather than a global flag so a refresh landing a weight for some
+    /// other day mid-import still writes back normally.
+    @ObservationIgnored private var healthImportDateCounts: [String: Int] = [:]
 
     /// Runs `body` with the Health write-back suppressed for `dates`. Those
     /// entries came out of Health, so they get marked as already synced instead
     /// of being written back as app-authored duplicates of the scale's samples.
+    ///
+    /// Reference-counted, because overlapping imports are the normal case:
+    /// `BissbilanzApp` runs `importAllIfEnabled` on every foreground
+    /// activation while the Weight tab independently imports from its own `.task`
+    /// and pull-to-refresh. With a plain set cleared in `defer`, the inner
+    /// scope's exit re-enabled write-back while the outer one was still
+    /// writing — producing exactly the app-authored duplicates of the
+    /// device's own samples that this suppression exists to prevent.
     func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
-        healthImportDates = dates
-        defer { healthImportDates = [] }
+        for date in dates {
+            healthImportDateCounts[date, default: 0] += 1
+        }
+        defer {
+            for date in dates {
+                guard let count = healthImportDateCounts[date] else { continue }
+                if count <= 1 {
+                    healthImportDateCounts.removeValue(forKey: date)
+                } else {
+                    healthImportDateCounts[date] = count - 1
+                }
+            }
+        }
         return try await body()
     }
 
@@ -212,7 +239,7 @@ final class WeightRepository {
     /// `syncLatestWeight` makes an unchanged repeat free.
     private func syncLatestToHealth() {
         guard let latest = latest() else { return }
-        let alreadyInHealth = healthImportDates.contains(latest.entryDate)
+        let alreadyInHealth = healthImportDateCounts[latest.entryDate] != nil
         Task {
             await HealthKitService.shared.syncLatestWeight(
                 latest.weightKg,

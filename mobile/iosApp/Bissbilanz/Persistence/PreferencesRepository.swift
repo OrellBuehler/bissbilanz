@@ -27,6 +27,9 @@ final class PreferencesRepository {
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         let prefs = try await api.getPreferences()
+        // Singleton row — a queued updatePreferences carries no affectedId, so
+        // presence is the only guard available (see GoalsRepository.refresh).
+        guard !syncManager.hasPending(table: "preferences") else { return }
         upsert(prefs)
         save()
     }

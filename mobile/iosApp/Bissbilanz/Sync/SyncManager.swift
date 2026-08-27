@@ -89,7 +89,50 @@ final class SyncManager {
     /// refresh uses this to avoid overwriting optimistic local rows with stale
     /// server state while their edit is still waiting in the queue.
     func pendingAffectedIds(table: String) -> Set<String> {
-        Set(queuedRows().filter { $0.affectedTable == table }.compactMap(\.affectedId))
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table }
+        )
+        return Set(((try? context.fetch(descriptor)) ?? []).compactMap(\.affectedId))
+    }
+
+    /// Whether any un-uploaded write is queued for `table`. The singleton
+    /// tables ("goals", "preferences") carry a nil `affectedId`, so
+    /// `pendingAffectedIds` can't speak for them — their refresh guards on
+    /// presence instead.
+    func hasPending(table: String) -> Bool {
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table }
+        )
+        return ((try? context.fetchCount(descriptor)) ?? 0) > 0
+    }
+
+    /// Supplement ids with a queued tick/untick for `date`, in FIFO order so a
+    /// later op wins. `refreshChecklist` rebuilds the day's logs from the server
+    /// response, which would otherwise clear a tick made offline until the queue
+    /// drains — `pendingAffectedIds` can't answer this because the date lives in
+    /// the operation body, not on the row.
+    func pendingSupplementLogs(date: String) -> (logged: Set<String>, unlogged: Set<String>) {
+        let table = "supplements"
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.affectedTable == table },
+            sortBy: [SortDescriptor(\.seq)]
+        )
+        var logged: Set<String> = []
+        var unlogged: Set<String> = []
+        for row in (try? context.fetch(descriptor)) ?? [] {
+            guard let operation = row.operation() else { continue }
+            switch operation {
+            case let .logSupplement(supplementId, opDate) where opDate == date:
+                unlogged.remove(supplementId)
+                logged.insert(supplementId)
+            case let .unlogSupplement(supplementId, opDate) where opDate == date:
+                logged.remove(supplementId)
+                unlogged.insert(supplementId)
+            default:
+                continue
+            }
+        }
+        return (logged, unlogged)
     }
 
     /// Queued rows touching (table, id) in FIFO order — the coalescing lookup.

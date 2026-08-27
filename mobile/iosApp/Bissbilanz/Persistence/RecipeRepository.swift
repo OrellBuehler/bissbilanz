@@ -53,10 +53,17 @@ final class RecipeRepository {
         let serverIds = Set(fetched.map(\.id))
         // The list endpoint is the complete set — drop rows deleted elsewhere
         // (keeping optimistic temp rows the server doesn't know about yet).
-        for stale in recipes() where !serverIds.contains(stale.id) && !LocalStore.isTempId(stale.id) {
+        // Rows with an un-uploaded queued write must survive the server
+        // response: a refresh racing the sync-queue upload would otherwise
+        // reapply the stale server copy over the user's edit (see
+        // EntryRepository.refresh, PR #416).
+        let pendingIds = syncManager.pendingAffectedIds(table: "recipes")
+        for stale in recipes() where !serverIds.contains(stale.id)
+            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
+        {
             deleteRow(id: stale.id)
         }
-        for recipe in fetched {
+        for recipe in fetched where !pendingIds.contains(recipe.id) {
             upsert(recipe)
         }
         save()
@@ -65,6 +72,7 @@ final class RecipeRepository {
     func refreshRecipe(id: String) async throws {
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let recipe = try await api.getRecipe(id: id)
+        guard !syncManager.pendingAffectedIds(table: "recipes").contains(id) else { return }
         upsert(recipe)
         save()
     }

@@ -32,7 +32,10 @@ struct SnapshotProvider: TimelineProvider {
         completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
     }
 
+    /// Live timeline data only — `.placeholder` is sample data and belongs in
+    /// `placeholder(in:)`, never here (see `WidgetSnapshot.empty(on:)`).
     private func currentSnapshot(at date: Date) -> WidgetSnapshot {
-        (WidgetSnapshotStore.load() ?? .placeholder).resetIfStale(on: date)
+        guard let stored = WidgetSnapshotStore.load() else { return .empty(on: date) }
+        return stored.resetIfStale(on: date)
     }
 }
