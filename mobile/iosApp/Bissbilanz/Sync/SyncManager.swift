@@ -372,17 +372,19 @@ final class SyncManager {
     private func dayKeys(for operation: SyncOperation) -> Set<String> {
         switch operation {
         case let .createEntry(body, _):
-            [body.date]
+            return [body.date]
         case let .updateEntry(id, body):
-            (body.date ?? localEntryDate(id: id)).map { Set([$0]) } ?? []
+            guard let date = body.date ?? localEntryDate(id: id) else { return [] }
+            return [date]
         case let .deleteEntry(id):
-            localEntryDate(id: id).map { Set([$0]) } ?? []
+            guard let date = localEntryDate(id: id) else { return [] }
+            return [date]
         case let .setDayProperties(date, _), let .deleteDayProperties(date):
-            [date]
+            return [date]
         case let .logSupplement(_, date), let .unlogSupplement(_, date):
-            [date]
+            return [date]
         default:
-            []
+            return []
         }
     }
 
