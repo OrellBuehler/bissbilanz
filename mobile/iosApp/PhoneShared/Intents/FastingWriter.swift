@@ -27,7 +27,7 @@ enum FastingWriter {
     @MainActor
     private static func markFastingDay(date: String) {
         let isLocal = AppModeSnapshot.isLocal
-        let container = LocalStore.makeContainerWithFallback(
+        let container = LocalStore.extensionContainer(
             cloudKitEnabled: isLocal,
             onError: { error, context in
                 QuickAddDiagnostics.record(phase: context["phase"] as? String ?? "container", error: error)

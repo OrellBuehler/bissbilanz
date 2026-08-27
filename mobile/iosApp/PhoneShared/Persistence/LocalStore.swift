@@ -112,6 +112,30 @@ enum LocalStore {
         }
     }
 
+    /// Process-lifetime container for the app extensions, which have no
+    /// `BissbilanzApp.init()` to inherit one from.
+    ///
+    /// `makeContainerWithFallback` re-runs the coordinated App Group store
+    /// migration check and, in Local mode, CloudKit container setup — correct,
+    /// but a lot to pay for a one-tap widget action, and repeated taps on a
+    /// Quick Add widget each paid it again. Keyed on the mode so a change
+    /// between taps still rebuilds. Main-actor isolated, as both callers are.
+    @MainActor
+    private static var sharedExtensionContainer: (cloudKitEnabled: Bool, container: ModelContainer)?
+
+    @MainActor
+    static func extensionContainer(
+        cloudKitEnabled: Bool,
+        onError: (Error, [String: Any]) -> Void
+    ) -> ModelContainer {
+        if let cached = sharedExtensionContainer, cached.cloudKitEnabled == cloudKitEnabled {
+            return cached.container
+        }
+        let container = makeContainerWithFallback(cloudKitEnabled: cloudKitEnabled, onError: onError)
+        sharedExtensionContainer = (cloudKitEnabled, container)
+        return container
+    }
+
     /// Client-generated id prefix for optimistic creates. The "temp_" prefix
     /// matches the Android implementation so the future sync-queue package can
     /// coalesce pending creates the same way on both platforms.

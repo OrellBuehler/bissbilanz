@@ -63,7 +63,7 @@ struct QuickAddFoodIntent: AppIntent {
         guard !foodId.isEmpty else { return .result() }
 
         let isLocal = AppModeSnapshot.isLocal
-        let container = LocalStore.makeContainerWithFallback(
+        let container = LocalStore.extensionContainer(
             cloudKitEnabled: isLocal,
             onError: { error, context in
                 QuickAddDiagnostics.record(phase: context["phase"] as? String ?? "container", error: error)

@@ -47,7 +47,7 @@ extension WidgetSnapshotWriter {
         let snapshot = snapshot ?? buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
         return WatchState(
             snapshot: snapshot,
-            mealTypes: watchMealTypes(context: context),
+            mealTypes: mealTypes(context: context),
             recents: watchRecents(context: context),
             weight: watchWeight(context: context),
             sleep: watchSleep(context: context)
@@ -56,10 +56,10 @@ extension WidgetSnapshotWriter {
 
     /// Standard meal types the app always offers, in display order. These match
     /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
-    /// entries carry locally, so `watchMealTypes` recognizes them rather than
+    /// entries carry locally, so `mealTypes` recognizes them rather than
     /// re-appending them as "custom". The watch list starts from these and
-    /// appends any custom meal types found in the log (see `watchMealTypes`).
-    private static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+    /// appends any custom meal types found in the log (see `mealTypes`).
+    static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     /// Day-granularity ISO formatter for the on-device 7-day weight delta.
     private static let isoDayFormatter: DateFormatter = {
@@ -111,8 +111,9 @@ extension WidgetSnapshotWriter {
 
     /// Server-driven meal types, learned from the synced log: the standard set
     /// first, then any custom meal types the user has actually logged. Never a
-    /// hardcoded-only list, so custom server meal types reach the watch.
-    private static func watchMealTypes(context: ModelContext) -> [String] {
+    /// hardcoded-only list, so custom server meal types reach the watch — and,
+    /// since `LogFoodForm` reads the same list, the phone's log form too.
+    static func mealTypes(context: ModelContext) -> [String] {
         let cutoff = DateFormatting.isoString(from: Date().adding(days: -mealTypeWindowDays))
         let entries = (try? context.fetch(
             FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date >= cutoff })
