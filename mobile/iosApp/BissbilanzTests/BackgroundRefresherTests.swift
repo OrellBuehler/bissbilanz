@@ -15,7 +15,8 @@ struct BackgroundRefresherTests {
             goalsRepository: harness.goalsRepository,
             weightRepository: harness.weightRepository,
             sleepRepository: harness.sleepRepository,
-            foodRepository: harness.foodRepository
+            foodRepository: harness.foodRepository,
+            supplementRepository: harness.supplementRepository
         )
     }
 
