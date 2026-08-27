@@ -80,12 +80,24 @@ final class EntryRepository {
         // the next manual refresh.
         let pendingIds = syncManager.pendingAffectedIds(table: "entries")
         let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == date })
-        let existing = (try? context.fetch(descriptor)) ?? []
-        for row in existing where !LocalStore.isTempId(row.id) && !pendingIds.contains(row.id) {
+        // Keyed off the bulk fetch the delete pass already needs, so the upsert
+        // below doesn't run a `fetchRow(id:)` of its own per server row.
+        var rowsById = Dictionary(
+            ((try? context.fetch(descriptor)) ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (id, row) in rowsById where !LocalStore.isTempId(id) && !pendingIds.contains(id) {
             context.delete(row)
+            rowsById.removeValue(forKey: id)
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
-            upsert(entry, date: date)
+            if let row = rowsById[entry.id] {
+                row.update(from: entry, date: date)
+            } else {
+                let row = LocalEntry(entry: entry, date: date)
+                context.insert(row)
+                rowsById[entry.id] = row
+            }
         }
         save()
         // Entries logged outside this device (web, MCP, Android) only reach the
@@ -198,14 +210,15 @@ final class EntryRepository {
             let copy = (try? JSONPatch.merged(Entry.self, base: entry, patch: [
                 "id": tempId,
                 "date": toDate,
-                "createdAt": ISO8601DateFormatter().string(from: Date()),
+                "createdAt": DateFormatting.isoDateTimeString(from: Date()),
             ])) ?? Self.makeEntry(from: create, id: tempId, food: nil, recipe: nil)
             upsert(copy, date: toDate)
-            save()
             syncManager.enqueue(.createEntry(body: create, localId: copy.id))
             copied += 1
         }
+        // One transaction for the whole day, not one per entry.
         if copied > 0 {
+            save()
             syncDayToHealth(toDate)
         }
         return copied

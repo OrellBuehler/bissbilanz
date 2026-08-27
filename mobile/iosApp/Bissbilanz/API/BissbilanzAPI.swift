@@ -807,6 +807,13 @@ final class BissbilanzAPI {
     }
 
     private func executeRequestData(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        // Refresh a token already past its `exp` before spending a request on
+        // it. The 401 path below still exists for everything this can't know
+        // (a revoked token, a clock skew, an unparseable JWT) — this just stops
+        // the predictable case from costing a full round trip every time.
+        if authManager.isAccessTokenExpired {
+            _ = await authManager.refreshAccessToken()
+        }
         var req = request
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

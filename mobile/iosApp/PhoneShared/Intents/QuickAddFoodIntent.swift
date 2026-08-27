@@ -88,7 +88,7 @@ struct QuickAddFoodIntent: AppIntent {
             return .result()
         }
 
-        let localeCode = WidgetSnapshotStore.load()?.localeCode ?? "en"
+        let localeCode = WidgetSnapshotStore.currentLocaleCode()
         let snapshot = WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: localeCode)
         WidgetSnapshotWriter.saveAndReload(snapshot)
 

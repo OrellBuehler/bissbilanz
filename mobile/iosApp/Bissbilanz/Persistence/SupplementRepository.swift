@@ -163,7 +163,7 @@ final class SupplementRepository {
         upsertLog(SupplementLog(
             supplementId: id,
             date: date,
-            takenAt: ISO8601DateFormatter().string(from: Date()),
+            takenAt: DateFormatting.isoDateTimeString(from: Date()),
             entryIds: []
         ))
         save()
@@ -274,7 +274,7 @@ final class SupplementRepository {
             sortOrder: create.sortOrder ?? 0,
             timeOfDay: create.timeOfDay,
             reminderTimes: create.reminderTimes,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
             ingredients: resolvedIngredients(create.ingredients, supplementId: id)
         )

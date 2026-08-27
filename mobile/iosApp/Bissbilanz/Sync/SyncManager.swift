@@ -78,7 +78,7 @@ final class SyncManager {
         self.api = api
         self.appMode = appMode
         self.connectivity = connectivity
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
         connectivity.onOnlineChange = { [weak self] online in
             if online {
                 self?.scheduleDrain()
@@ -95,7 +95,7 @@ final class SyncManager {
         guard !appMode.isLocal else { return }
         context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
         scheduleDrain()
     }
 
@@ -168,7 +168,7 @@ final class SyncManager {
     func remove(_ row: PendingSyncOperation) {
         context.delete(row)
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
     }
 
     /// Drops every queued operation touching (table, id) — used when a
@@ -179,7 +179,7 @@ final class SyncManager {
             context.delete(row)
         }
         save()
-        pendingCount = queuedRows().count
+        pendingCount = queuedCount()
     }
 
     /// Drops the conflict notices once the user has acknowledged them.
@@ -226,7 +226,7 @@ final class SyncManager {
         defer {
             isSyncing = false
             isDraining = false
-            pendingCount = queuedRows().count
+            pendingCount = queuedCount()
             if processed > 0 {
                 lastSyncedAt = Date()
             }
@@ -353,7 +353,7 @@ final class SyncManager {
                     }
                 }
             }
-            pendingCount = queuedRows().count
+            pendingCount = queuedCount()
         }
         // Once per drain, not once per conflict: a batch that lost three edits needs
         // a single refresh. Reached on every exit path — a drain that resolved a
@@ -679,6 +679,14 @@ final class SyncManager {
     }
 
     /// All queued rows in FIFO order.
+    /// Queue depth without materialising or sorting the rows. `queuedRows()`
+    /// fetches every queued operation, sorted by `seq`, purely to read
+    /// `.count` — and that ran on every enqueue, after each drain iteration
+    /// and on every retry schedule.
+    private func queuedCount() -> Int {
+        (try? context.fetchCount(FetchDescriptor<PendingSyncOperation>())) ?? 0
+    }
+
     func queuedRows() -> [PendingSyncOperation] {
         let descriptor = FetchDescriptor<PendingSyncOperation>(sortBy: [SortDescriptor(\.seq)])
         return (try? context.fetch(descriptor)) ?? []
@@ -723,7 +731,14 @@ final class SyncManager {
         guard autoDrain else { return }
         retryTask?.cancel()
         let now = Date()
-        guard let soonest = queuedRows().map(\.nextAttemptAt).filter({ $0 > now }).min() else {
+        // Asks the store for the single soonest backed-off row rather than
+        // loading the whole queue to take a minimum over it.
+        var descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.nextAttemptAt > now },
+            sortBy: [SortDescriptor(\.nextAttemptAt)]
+        )
+        descriptor.fetchLimit = 1
+        guard let soonest = (try? context.fetch(descriptor))?.first?.nextAttemptAt else {
             retryTask = nil
             return
         }

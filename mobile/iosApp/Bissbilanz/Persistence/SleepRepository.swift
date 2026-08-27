@@ -42,6 +42,14 @@ final class SleepRepository {
         return rows.compactMap { $0.toSleepEntry() }
     }
 
+    /// Just the logged days, read off the typed column. The Health import only
+    /// needs to know which days are already taken, and `entries()` would JSON-
+    /// decode every stored row to answer that — on every foreground activation.
+    func entryDates() -> Set<String> {
+        let rows = (try? context.fetch(FetchDescriptor<LocalSleepEntry>())) ?? []
+        return Set(rows.map(\.entryDate))
+    }
+
     func latest() -> SleepEntry? {
         var descriptor = FetchDescriptor<LocalSleepEntry>(sortBy: [
             SortDescriptor(\.entryDate, order: .reverse),
@@ -73,6 +81,13 @@ final class SleepRepository {
 
     // MARK: - Refresh (API → store)
 
+    /// One bulk fetch of the stored rows, keyed by id, instead of decoding every
+    /// row through `entries()` just to read its id and then running a
+    /// `fetchRow(id:)` per server row on top. That was an N+1 fetch plus a
+    /// decode and a re-encode for every historical entry, on the main actor,
+    /// several times a minute while browsing days — `DashboardView.loadData`
+    /// calls this on every day swipe, sheet dismissal and pull-to-refresh, and
+    /// `BackgroundRefresher.pull` calls it again on every background run.
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         let fetched = try await api.getSleepEntries()
@@ -82,13 +97,24 @@ final class SleepRepository {
         // reapply the stale server copy over the user's edit (see
         // EntryRepository.refresh, PR #416).
         let pendingIds = syncManager.pendingAffectedIds(table: "sleep")
-        for stale in entries() where !serverIds.contains(stale.id)
-            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
+        var rowsById = Dictionary(
+            ((try? context.fetch(FetchDescriptor<LocalSleepEntry>())) ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (id, row) in rowsById where !serverIds.contains(id)
+            && !LocalStore.isTempId(id) && !pendingIds.contains(id)
         {
-            deleteRow(id: stale.id)
+            context.delete(row)
+            rowsById.removeValue(forKey: id)
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
-            upsert(entry)
+            if let row = rowsById[entry.id] {
+                row.update(from: entry)
+            } else {
+                let row = LocalSleepEntry(entry: entry)
+                context.insert(row)
+                rowsById[entry.id] = row
+            }
         }
         save()
     }
@@ -149,7 +175,7 @@ final class SleepRepository {
     // MARK: - Conversion helpers
 
     private func makeEntry(from create: SleepCreate, id: String) -> SleepEntry {
-        let now = ISO8601DateFormatter().string(from: Date())
+        let now = DateFormatting.isoDateTimeString(from: Date())
         return SleepEntry(
             id: id,
             userId: "",

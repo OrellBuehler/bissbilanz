@@ -167,6 +167,12 @@ enum WidgetSnapshotStore {
         Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
     }
 
+    /// The language every widget renders in: the app's stored choice, carried
+    /// on the snapshot, or the device's until one has been written.
+    static func currentLocaleCode() -> String {
+        load()?.localeCode ?? systemLocaleCode()
+    }
+
     static func load() -> WidgetSnapshot? {
         guard let defaults = UserDefaults(suiteName: appGroupId),
               let data = defaults.data(forKey: snapshotKey)

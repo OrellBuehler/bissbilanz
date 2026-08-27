@@ -31,7 +31,7 @@ enum EntryFactory {
             servingUnit: food?.servingUnit,
             date: create.date,
             eatenAt: create.eatenAt,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil
         )
     }

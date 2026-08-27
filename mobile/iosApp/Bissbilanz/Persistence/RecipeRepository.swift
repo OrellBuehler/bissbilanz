@@ -156,7 +156,7 @@ final class RecipeRepository {
             carbs: macros.carbs,
             fat: macros.fat,
             fiber: macros.fiber,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
             ingredients: ingredients
         )

@@ -5,7 +5,7 @@ import WidgetKit
 /// and inline text.
 struct CaloriesWidget: Widget {
     var body: some WidgetConfiguration {
-        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.load()?.localeCode ?? "en")
+        let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
         return StaticConfiguration(kind: "CaloriesWidget", provider: SnapshotProvider()) { entry in
             CaloriesWidgetView(entry: entry)
         }

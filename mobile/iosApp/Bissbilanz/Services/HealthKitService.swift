@@ -254,6 +254,8 @@ final class HealthKitService {
     }
 
     private static let nutritionMarkerPrefix = "healthkit_nutrition_marker_"
+    /// Index of the marker dates currently stored — see `storeNutritionMarker`.
+    private static let nutritionMarkerDatesKey = "healthkit_nutrition_marker_dates"
 
     private static func nutritionMarkerKey(_ date: String) -> String {
         nutritionMarkerPrefix + date
@@ -262,18 +264,47 @@ final class HealthKitService {
     /// Remembers what a day's last successful sync wrote and prunes markers
     /// older than 30 days so UserDefaults doesn't accumulate one key per day
     /// forever. Date keys are yyyy-MM-dd, so string order is date order.
+    ///
+    /// The live dates are tracked in one array-valued default rather than
+    /// found by scanning: `dictionaryRepresentation()` materialises every key
+    /// in every domain in the search list, including the whole of
+    /// NSGlobalDomain, to delete at most a handful — and this runs after each
+    /// successful nutrition sync, so after each entry write and each day refresh.
     private static func storeNutritionMarker(_ marker: String, forDate date: String) {
         let defaults = UserDefaults.standard
         defaults.set(marker, forKey: nutritionMarkerKey(date))
+
+        var dates = nutritionMarkerDates(defaults)
+        if !dates.contains(date) {
+            dates.append(date)
+        }
         guard let day = DateFormatting.date(from: date),
               let cutoffDay = Calendar.current.date(byAdding: .day, value: -30, to: day)
-        else { return }
-        let cutoff = nutritionMarkerKey(DateFormatting.isoString(from: cutoffDay))
-        for key in defaults.dictionaryRepresentation().keys
-            where key.hasPrefix(nutritionMarkerPrefix) && key < cutoff
-        {
-            defaults.removeObject(forKey: key)
+        else {
+            defaults.set(dates, forKey: nutritionMarkerDatesKey)
+            return
         }
+        let cutoff = DateFormatting.isoString(from: cutoffDay)
+        var kept: [String] = []
+        for stored in dates {
+            if stored < cutoff {
+                defaults.removeObject(forKey: nutritionMarkerKey(stored))
+            } else {
+                kept.append(stored)
+            }
+        }
+        defaults.set(kept, forKey: nutritionMarkerDatesKey)
+    }
+
+    /// The index, seeded once from a full scan for installs that predate it —
+    /// those markers are only discoverable that way, and only the first time.
+    private static func nutritionMarkerDates(_ defaults: UserDefaults) -> [String] {
+        if let dates = defaults.stringArray(forKey: nutritionMarkerDatesKey) { return dates }
+        let seeded = defaults.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix(nutritionMarkerPrefix) }
+            .map { String($0.dropFirst(nutritionMarkerPrefix.count)) }
+        defaults.set(seeded, forKey: nutritionMarkerDatesKey)
+        return seeded
     }
 
     /// Day totals per nutrient key. Food-backed entries use the food's full

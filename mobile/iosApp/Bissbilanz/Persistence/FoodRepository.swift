@@ -67,16 +67,30 @@ final class FoodRepository {
         return rows.compactMap { $0.toFood() }
     }
 
+    /// Rank name matches ahead of brand-only matches; both stay alphabetical.
+    ///
+    /// One pass, with each row's comparisons evaluated once. The previous shape
+    /// filtered the table, then re-filtered the matches twice more to split the
+    /// two groups — up to four ICU comparisons per row. This backs offline
+    /// search, Local-mode search, and the on-device meal estimator's
+    /// `searchLocalFoods` tool, which calls it once per item while the model
+    /// waits. Rows arrive alphabetical and name matches rank first, so once
+    /// `limit` of them are found the rest of the table can't change the result.
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
-        let matches = rows.filter { row in
-            row.name.localizedCaseInsensitiveContains(query)
-                || (row.brand?.localizedCaseInsensitiveContains(query) ?? false)
+        var nameMatches: [LocalFood] = []
+        var brandOnly: [LocalFood] = []
+        for row in rows {
+            if row.name.localizedCaseInsensitiveContains(query) {
+                nameMatches.append(row)
+                if nameMatches.count == limit { break }
+            } else if brandOnly.count < limit,
+                      row.brand?.localizedCaseInsensitiveContains(query) == true
+            {
+                brandOnly.append(row)
+            }
         }
-        // Rank name matches ahead of brand-only matches; both stay alphabetical.
-        let nameMatches = matches.filter { $0.name.localizedCaseInsensitiveContains(query) }
-        let brandOnly = matches.filter { !$0.name.localizedCaseInsensitiveContains(query) }
         return (nameMatches + brandOnly)
             .prefix(limit)
             .compactMap { $0.toFood() }

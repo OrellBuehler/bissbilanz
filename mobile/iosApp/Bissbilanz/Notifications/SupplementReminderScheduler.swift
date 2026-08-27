@@ -284,13 +284,21 @@ enum SupplementReminderScheduler {
 enum SupplementReminderSkips {
     private static let prefix = "supp_skip_"
     private static let retentionDays = 2
+    /// Index of the marker keys currently stored — see `prune`.
+    private static let indexKey = "supp_skip_keys"
 
     static func key(supplementId: String, on date: Date) -> String {
         "\(prefix)\(supplementId)_\(SupplementReminderDay.key(for: date))"
     }
 
     static func markSkipped(supplementId: String, on date: Date = Date()) {
-        UserDefaults.standard.set(true, forKey: key(supplementId: supplementId, on: date))
+        let defaults = UserDefaults.standard
+        let markerKey = key(supplementId: supplementId, on: date)
+        defaults.set(true, forKey: markerKey)
+        var index = storedKeys(defaults)
+        guard !index.contains(markerKey) else { return }
+        index.append(markerKey)
+        defaults.set(index, forKey: indexKey)
     }
 
     static func isSkipped(supplementId: String, on date: Date) -> Bool {
@@ -299,18 +307,36 @@ enum SupplementReminderSkips {
 
     /// Drops markers older than the retention window so the defaults dictionary can't grow
     /// without bound.
+    ///
+    /// The live keys are tracked in one array-valued default rather than found
+    /// by scanning: `dictionaryRepresentation()` materialises every key in
+    /// every domain in the search list, including the whole of
+    /// NSGlobalDomain, to delete at most a handful — and this runs inside
+    /// `refill`, on every foreground and every background refresh.
     static func prune(now: Date = Date()) {
         let calendar = Calendar.current
         let keep = Set((0 ... retentionDays).compactMap { offset -> String? in
             calendar.date(byAdding: .day, value: -offset, to: now).map { SupplementReminderDay.key(for: $0) }
         })
         let defaults = UserDefaults.standard
-        for storedKey in defaults.dictionaryRepresentation().keys where storedKey.hasPrefix(prefix) {
-            let day = String(storedKey.suffix(8))
-            if !keep.contains(day) {
+        var kept: [String] = []
+        for storedKey in storedKeys(defaults) {
+            if keep.contains(String(storedKey.suffix(8))) {
+                kept.append(storedKey)
+            } else {
                 defaults.removeObject(forKey: storedKey)
             }
         }
+        defaults.set(kept, forKey: indexKey)
+    }
+
+    /// The index, seeded once from a full scan for installs that predate it —
+    /// those markers are only discoverable that way, and only the first time.
+    private static func storedKeys(_ defaults: UserDefaults) -> [String] {
+        if let index = defaults.stringArray(forKey: indexKey) { return index }
+        let seeded = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(prefix) }
+        defaults.set(seeded, forKey: indexKey)
+        return seeded
     }
 }
 

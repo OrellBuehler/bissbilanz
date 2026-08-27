@@ -39,8 +39,40 @@ final class AuthManager {
         }
     }
 
+    /// In-memory copy of the keychain value. `SecItemCopyMatching` is a
+    /// synchronous XPC call to securityd, and `accessToken` is read at least
+    /// twice per request (once to sign it, once more on the 401 path) plus
+    /// once for `userId`. The keychain stays the source of truth — every write
+    /// goes through `storeAccessToken`, which keeps this in step, and `logout`
+    /// clears it.
+    @ObservationIgnored private var accessTokenCache: String?
+    @ObservationIgnored private var accessTokenCacheLoaded = false
+
     var accessToken: String? {
-        KeychainHelper.load(key: Self.accessTokenKey)
+        if accessTokenCacheLoaded { return accessTokenCache }
+        accessTokenCache = KeychainHelper.load(key: Self.accessTokenKey)
+        accessTokenCacheLoaded = true
+        return accessTokenCache
+    }
+
+    /// Leeway on `isAccessTokenExpired`, so a token that expires while a
+    /// request is in flight is refreshed before it is sent rather than after.
+    private static let expiryLeewaySeconds: TimeInterval = 30
+
+    /// Whether the stored access token is at (or within the leeway of) its
+    /// `exp` claim. `TokenResponse.expiresIn` was decoded and thrown away and
+    /// nothing read the claim, so every request after expiry paid a full 401
+    /// round trip, a refresh and a retry. A token that can't be parsed returns
+    /// false, leaving the 401 path as the fallback it already was.
+    var isAccessTokenExpired: Bool {
+        guard let token = accessToken, let expiry = Self.extractExpiry(fromJWT: token) else { return false }
+        return expiry.timeIntervalSinceNow <= Self.expiryLeewaySeconds
+    }
+
+    private func storeAccessToken(_ token: String) {
+        KeychainHelper.save(key: Self.accessTokenKey, value: token)
+        accessTokenCache = token
+        accessTokenCacheLoaded = true
     }
 
     /// The signed-in user's stable id — the OIDC `sub` claim decoded from the
@@ -56,6 +88,18 @@ final class AuthManager {
     /// Returns nil for anything that isn't a well-formed JWT with a string
     /// `sub`. `nonisolated` and pure so it is unit-testable off the main actor.
     nonisolated static func extractSub(fromJWT token: String) -> String? {
+        payload(fromJWT: token)?["sub"] as? String
+    }
+
+    /// Decodes the `exp` claim (seconds since the epoch) the same way.
+    nonisolated static func extractExpiry(fromJWT token: String) -> Date? {
+        guard let exp = payload(fromJWT: token)?["exp"] as? NSNumber else { return nil }
+        return Date(timeIntervalSince1970: exp.doubleValue)
+    }
+
+    /// The JWT's decoded payload. The token is read locally only; it is never
+    /// verified here (the server already did), this just reads public claims.
+    private nonisolated static func payload(fromJWT token: String) -> [String: Any]? {
         let segments = token.split(separator: ".")
         guard segments.count >= 2 else { return nil }
 
@@ -67,13 +111,8 @@ final class AuthManager {
             base64 += "="
         }
 
-        guard let data = Data(base64Encoded: base64),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let sub = json["sub"] as? String
-        else {
-            return nil
-        }
-        return sub
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
     /// Which sign-in providers the server has configured, or nil when the request fails.
@@ -116,7 +155,7 @@ final class AuthManager {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
+            storeAccessToken(tokenResponse.accessToken)
             if let refresh = tokenResponse.refreshToken {
                 KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
             }
@@ -148,7 +187,7 @@ final class AuthManager {
                 return false
             }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
+            storeAccessToken(tokenResponse.accessToken)
             if let refresh = tokenResponse.refreshToken {
                 KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
             }
@@ -206,7 +245,7 @@ final class AuthManager {
                     authState = .authenticated
                     return false
                 }
-                KeychainHelper.save(key: Self.accessTokenKey, value: tokenResponse.accessToken)
+                storeAccessToken(tokenResponse.accessToken)
                 if let refresh = tokenResponse.refreshToken {
                     KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
                 }
@@ -228,6 +267,8 @@ final class AuthManager {
     func logout() {
         KeychainHelper.delete(key: Self.accessTokenKey)
         KeychainHelper.delete(key: Self.refreshTokenKey)
+        accessTokenCache = nil
+        accessTokenCacheLoaded = true
         authState = .unauthenticated
     }
 }
