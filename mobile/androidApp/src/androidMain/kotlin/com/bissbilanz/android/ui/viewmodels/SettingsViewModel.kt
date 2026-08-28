@@ -162,6 +162,42 @@ class SettingsViewModel(
         }
     }
 
+    private val _exportingData = MutableStateFlow(false)
+    val exportingData: StateFlow<Boolean> = _exportingData.asStateFlow()
+
+    private val _exportedFile = MutableStateFlow<java.io.File?>(null)
+    val exportedFile: StateFlow<java.io.File?> = _exportedFile.asStateFlow()
+
+    fun exportData(cacheDir: java.io.File) {
+        if (_exportingData.value) return
+        viewModelScope.launch {
+            _exportingData.value = true
+            try {
+                val bytes = api.exportAccountData()
+                val file =
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val dir = java.io.File(cacheDir, "exports").apply { mkdirs() }
+                        val date =
+                            java.time.LocalDate
+                                .now()
+                                .toString()
+                        java.io.File(dir, "bissbilanz-export-$date.zip").apply { writeBytes(bytes) }
+                    }
+                _exportedFile.value = file
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Export failed"
+            } finally {
+                _exportingData.value = false
+            }
+        }
+    }
+
+    fun clearExportedFile() {
+        _exportedFile.value = null
+    }
+
     fun deleteAccount() {
         viewModelScope.launch {
             try {

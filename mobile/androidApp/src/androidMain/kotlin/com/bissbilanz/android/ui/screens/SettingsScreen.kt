@@ -86,6 +86,27 @@ fun SettingsScreen(navController: NavController) {
         }
     }
 
+    val exportingData by viewModel.exportingData.collectAsStateWithLifecycle()
+    val exportedFile by viewModel.exportedFile.collectAsStateWithLifecycle()
+    LaunchedEffect(exportedFile) {
+        exportedFile?.let { file ->
+            val uri =
+                androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file,
+                )
+            val intent =
+                android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "application/zip"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            context.startActivity(android.content.Intent.createChooser(intent, null))
+            viewModel.clearExportedFile()
+        }
+    }
+
     LaunchedEffect(prefs) {
         if (editedNutrients == null && prefs != null) {
             editedNutrients = prefs!!.visibleNutrients.toSet()
@@ -124,7 +145,19 @@ fun SettingsScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
             title = { Text(stringResource(R.string.settings_delete_account_title)) },
-            text = { Text(stringResource(R.string.settings_delete_account_message)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.settings_delete_account_message))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.exportData(context.cacheDir) },
+                        enabled = !exportingData,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_export_first))
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteAccountDialog = false
@@ -664,6 +697,21 @@ fun SettingsScreen(navController: NavController) {
                                 }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
+                            OutlinedButton(
+                                onClick = { viewModel.exportData(context.cacheDir) },
+                                enabled = !exportingData,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                if (exportingData) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.settings_export_data))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             OutlinedButton(
                                 onClick = { viewModel.logout() },
                                 modifier = Modifier.fillMaxWidth(),

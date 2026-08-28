@@ -1927,6 +1927,29 @@
 				}
 			}
 		},
+		"/api/account/export": {
+			"get": {
+				"operationId": "exportAccountData",
+				"tags": ["Account"],
+				"description": "Download a ZIP archive of all data belonging to the authenticated account: a canonical JSON export, spreadsheet-friendly CSV files, and uploaded images.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/zip": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/images/upload": {
 			"post": {
 				"operationId": "uploadImage",

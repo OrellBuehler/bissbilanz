@@ -808,6 +808,26 @@ enum L10n {
         )
     }
 
+    static var exportData: String {
+        localized("export_data", en: "Export My Data", de: "Meine Daten exportieren")
+    }
+
+    static var exportDataFirst: String {
+        localized(
+            "export_data_first",
+            en: "Download My Data First",
+            de: "Zuerst meine Daten herunterladen"
+        )
+    }
+
+    static var exportDataFailed: String {
+        localized(
+            "export_data_failed",
+            en: "Export failed. Please try again.",
+            de: "Export fehlgeschlagen. Bitte versuche es erneut."
+        )
+    }
+
     static var deleteAccount: String {
         localized("delete_account", en: "Delete Account", de: "Konto löschen")
     }

@@ -1082,6 +1082,26 @@ export function generateSpec() {
 				}
 			},
 
+			'/api/account/export': {
+				get: {
+					operationId: 'exportAccountData',
+					tags: ['Account'],
+					description:
+						'Download a ZIP archive of all data belonging to the authenticated account: a canonical JSON export, spreadsheet-friendly CSV files, and uploaded images.',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: {
+								'application/zip': {
+									schema: { type: 'string' as const, format: 'binary' }
+								}
+							}
+						},
+						'401': res401
+					}
+				}
+			},
+
 			// ── Images ────────────────────────────────────────────
 			'/api/images/upload': {
 				post: {

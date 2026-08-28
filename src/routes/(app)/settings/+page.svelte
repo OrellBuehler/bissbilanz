@@ -11,6 +11,8 @@
 	import { SortableList, sortItems } from '@rodrigodagostino/svelte-sortable-list';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Download from '@lucide/svelte/icons/download';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { getUser } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/api/client';
@@ -29,6 +31,7 @@
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let deleteAccountOpen = $state(false);
 	let deletingAccount = $state(false);
+	let exportingData = $state(false);
 	let newName = $state('');
 
 	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
@@ -193,6 +196,29 @@
 		loadMealTypes();
 	});
 
+	async function exportData() {
+		if (exportingData) return;
+		exportingData = true;
+		try {
+			const response = await fetch('/api/account/export');
+			if (!response.ok) throw new Error('Request failed');
+			const blob = await response.blob();
+			const filename =
+				response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ??
+				'bissbilanz-export.zip';
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = filename;
+			anchor.click();
+			URL.revokeObjectURL(url);
+		} catch {
+			toast.error(m.settings_export_failed());
+		} finally {
+			exportingData = false;
+		}
+	}
+
 	async function deleteAccount() {
 		if (deletingAccount) return;
 		deletingAccount = true;
@@ -354,6 +380,23 @@
 		</Card.Root>
 	</div>
 
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_export_data()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_export_data_desc()}</p>
+		</Card.Header>
+		<Card.Content>
+			<Button variant="outline" disabled={exportingData} onclick={exportData}>
+				{#if exportingData}
+					<LoaderCircle class="size-4 animate-spin" />
+				{:else}
+					<Download class="size-4" />
+				{/if}
+				{m.settings_export_download()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
+
 	<Card.Root class="border-destructive/50">
 		<Card.Header>
 			<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
@@ -377,6 +420,19 @@
 					{m.settings_delete_account_confirm_desc()}
 				</AlertDialog.Description>
 			</AlertDialog.Header>
+			<Button
+				variant="outline"
+				class="w-full"
+				disabled={exportingData || deletingAccount}
+				onclick={exportData}
+			>
+				{#if exportingData}
+					<LoaderCircle class="size-4 animate-spin" />
+				{:else}
+					<Download class="size-4" />
+				{/if}
+				{m.settings_delete_account_export_first()}
+			</Button>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel disabled={deletingAccount}>{m.cancel()}</AlertDialog.Cancel>
 				<AlertDialog.Action
