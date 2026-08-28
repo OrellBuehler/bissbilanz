@@ -143,6 +143,14 @@ final class BissbilanzAPI {
         return response.entries
     }
 
+    func getEntriesRange(startDate: String, endDate: String) async throws -> [Entry] {
+        let response: EntriesResponse = try await get("/api/entries/range", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return response.entries
+    }
+
     func createEntry(
         _ entry: EntryCreate,
         idempotencyKey: String? = nil,
