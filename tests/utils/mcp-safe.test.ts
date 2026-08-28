@@ -3,6 +3,20 @@ import { safe, type McpResult } from '../../src/lib/server/mcp/safe';
 import { ResultValidationError } from '../../src/lib/server/errors';
 import { foodCreateSchema } from '../../src/lib/server/validation/foods';
 
+describe('asText structuredContent', () => {
+	test('mirrors object payloads as structuredContent', async () => {
+		const result = await safe(async () => ({ total: 1, items: [1, 2] }))();
+		expect(result.structuredContent).toEqual({ total: 1, items: [1, 2] });
+		expect(JSON.parse(textOf(result.content[0]))).toEqual(result.structuredContent);
+	});
+
+	test('omits structuredContent for non-object payloads', async () => {
+		expect((await safe(async () => [1, 2])()).structuredContent).toBeUndefined();
+		expect((await safe(async () => 'ok')()).structuredContent).toBeUndefined();
+		expect((await safe(async () => null)()).structuredContent).toBeUndefined();
+	});
+});
+
 const textOf = (block: McpResult['content'][number]): string => {
 	if (block.type !== 'text') throw new Error('expected a text content block');
 	return block.text;

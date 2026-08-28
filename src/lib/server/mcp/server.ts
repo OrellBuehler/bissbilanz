@@ -89,11 +89,24 @@ const dateRangeSchema = {
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
 
+export const MCP_INSTRUCTIONS = `Bissbilanz is the user's personal diary for food, body weight, sleep and supplements. Tools operate on the authenticated user's data only.
+
+Conventions that apply to every tool:
+- Dates are "YYYY-MM-DD" in the user's own timezone. "Today" is resolved server-side from the user's timezone preference, so omit the date to mean today instead of computing it yourself. Timestamps (eatenAt, bedtime, wakeTime) are ISO 8601 with an explicit UTC offset.
+- Meal types are capitalized: "Breakfast", "Lunch", "Dinner", "Snacks". Lowercase aliases are normalized, but custom meal types are matched verbatim; call list_meal_types when unsure.
+- Search before you create. Check search_foods (and find_food_by_barcode or search_openfoodfacts for packaged products) before create_food, and prefer logging an existing foodId or recipeId over a quick log. Use quickName/quickCalories only for one-off estimates such as restaurant meals.
+- Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes.
+- Supplements: timeOfDay ("morning", "noon", "evening", or omitted for anytime) and reminderTimes (local "HH:MM") are scheduling preferences only. log_supplement marks a supplement taken for the whole day and creates the matching food entries; there are no per-slot logs. Check get_supplement_status before logging to avoid duplicates.
+- log_food and delete_entry return the updated daily status, so a follow-up get_daily_status is unnecessary after logging.`;
+
 export function createMcpServer(userId: string): McpServer {
-	const server = new McpServer({
-		name: MCP_SERVER_NAME,
-		version: MCP_SERVER_VERSION
-	});
+	const server = new McpServer(
+		{
+			name: MCP_SERVER_NAME,
+			version: MCP_SERVER_VERSION
+		},
+		{ instructions: MCP_INSTRUCTIONS }
+	);
 
 	server.registerTool(
 		'get_daily_status',

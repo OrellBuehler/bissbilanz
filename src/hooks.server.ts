@@ -70,7 +70,7 @@ const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': '*',
-	'Access-Control-Expose-Headers': 'Mcp-Session-Id'
+	'Access-Control-Expose-Headers': 'Mcp-Session-Id, WWW-Authenticate'
 } as const;
 
 function isMcpRoute(pathname: string): boolean {
