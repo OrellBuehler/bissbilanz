@@ -59,8 +59,11 @@ final class BissbilanzAPI {
         return response.foods
     }
 
-    func getFoods(limit: Int = 100) async throws -> [Food] {
-        let response: FoodsResponse = try await get("/api/foods", params: ["limit": "\(limit)"])
+    func getFoods(limit: Int = 100, offset: Int = 0) async throws -> [Food] {
+        let response: FoodsResponse = try await get(
+            "/api/foods",
+            params: ["limit": "\(limit)", "offset": "\(offset)"]
+        )
         return response.foods
     }
 
@@ -301,8 +304,11 @@ final class BissbilanzAPI {
 
     // MARK: - Sleep
 
-    func getSleepEntries() async throws -> [SleepEntry] {
-        let response: SleepEntriesResponse = try await get("/api/sleep")
+    func getSleepEntries(from: String? = nil, to: String? = nil) async throws -> [SleepEntry] {
+        var params: [String: String] = [:]
+        if let from { params["from"] = from }
+        if let to { params["to"] = to }
+        let response: SleepEntriesResponse = try await get("/api/sleep", params: params)
         return response.entries
     }
 
@@ -521,6 +527,14 @@ final class BissbilanzAPI {
         return response.properties
     }
 
+    func getDayPropertiesRange(startDate: String, endDate: String) async throws -> [DayProperties] {
+        let response: DayPropertiesRangeResponse = try await get("/api/day-properties", params: [
+            "startDate": startDate,
+            "endDate": endDate,
+        ])
+        return response.data
+    }
+
     func setDayProperties(
         date: String,
         isFastingDay: Bool,
@@ -711,6 +725,11 @@ final class BissbilanzAPI {
         body.append(data)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         return body
+    }
+
+    func getAccount() async throws -> AccountUser {
+        let response: AccountResponse = try await get("/api/account")
+        return response.user
     }
 
     func deleteAccount() async throws {
