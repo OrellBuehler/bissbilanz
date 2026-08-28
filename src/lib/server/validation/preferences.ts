@@ -6,7 +6,7 @@ const timeStringSchema = z.string().regex(/^\d{2}:\d{2}$/);
 
 export const favoriteMealTimeframeInputSchema = z
 	.object({
-		mealType: z.string().min(1),
+		mealType: z.string().min(1).max(100),
 		customMealTypeId: z.string().uuid().nullable().optional(),
 		startTime: timeStringSchema,
 		endTime: timeStringSchema
@@ -42,7 +42,7 @@ export const preferencesUpdateSchema = z
 		startPage: z.enum(['dashboard', 'favorites']).optional(),
 		favoriteTapAction: z.enum(['instant', 'picker']).optional(),
 		favoriteMealAssignmentMode: z.enum(['time_based', 'ask_meal']).optional(),
-		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).optional(),
+		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).max(50).optional(),
 		mealOrder: z.array(z.string().min(1).max(100)).max(50).optional(),
 		visibleNutrients: z
 			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))

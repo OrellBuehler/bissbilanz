@@ -225,4 +225,96 @@ describe('idempotency (withIdempotency)', () => {
 		expect(calls).toBe(2);
 		expect(second.headers.get('x-idempotent-replay')).not.toBe('true');
 	});
+
+	it('answers 409 while an earlier attempt is genuinely still in flight', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const db = getTestDB(dbUrl);
+
+		// A fresh claim with no recorded status = a request still running.
+		await db.insert(idempotencyKeys).values({
+			userId,
+			key: 'key-inflight',
+			method: 'POST',
+			path: '/api/entries'
+		});
+
+		const response = await withIdempotency(
+			fakeEvent(),
+			async () => new Response(null, { status: 201 }),
+			userId,
+			'key-inflight'
+		);
+
+		expect(response.status).toBe(409);
+		expect(await response.json()).toEqual({ error: 'request_in_progress' });
+	});
+
+	// Without this, a process death between claiming the key and writing the
+	// response stranded the claim for the full 7-day retention: every retry got
+	// 409 request_in_progress and the client dead-lettered the user's write.
+	it('reclaims an abandoned claim so a crashed request can retry', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const db = getTestDB(dbUrl);
+
+		await db.insert(idempotencyKeys).values({
+			userId,
+			key: 'key-stale',
+			method: 'POST',
+			path: '/api/entries',
+			createdAt: new Date(Date.now() - 10 * 60 * 1000)
+		});
+
+		let calls = 0;
+		const response = await withIdempotency(
+			fakeEvent(),
+			async () => {
+				calls += 1;
+				return new Response(JSON.stringify({ ok: true }), {
+					status: 201,
+					headers: { 'content-type': 'application/json' }
+				});
+			},
+			userId,
+			'key-stale'
+		);
+
+		expect(calls).toBe(1); // handler actually ran instead of 409-ing forever
+		expect(response.status).toBe(201);
+	});
+
+	// A key names one logical mutation; replaying another endpoint's body under it
+	// would hand the client a response that never described its request.
+	it('refuses a key reused for a different method or path', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const resolve = async () =>
+			new Response(JSON.stringify({ ok: true }), {
+				status: 201,
+				headers: { 'content-type': 'application/json' }
+			});
+
+		const first = await withIdempotency(
+			fakeEvent('POST', '/api/entries'),
+			resolve,
+			userId,
+			'key-reuse'
+		);
+		expect(first.status).toBe(201);
+
+		const reusedPath = await withIdempotency(
+			fakeEvent('POST', '/api/weight'),
+			resolve,
+			userId,
+			'key-reuse'
+		);
+		expect(reusedPath.status).toBe(422);
+		expect(await reusedPath.json()).toEqual({ error: 'idempotency_key_reused' });
+
+		const reusedMethod = await withIdempotency(
+			fakeEvent('DELETE', '/api/entries'),
+			resolve,
+			userId,
+			'key-reuse'
+		);
+		expect(reusedMethod.status).toBe(422);
+	});
 });

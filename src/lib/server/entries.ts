@@ -147,7 +147,12 @@ export const toEntryUpdate = (input: EntryUpdateInput) => {
 	const { eatenAt, ...rest } = input;
 	return {
 		...rest,
-		notes: input.notes ?? null,
+		// Only touch `notes` when the caller actually sent the field. The update
+		// schema is `.partial()`, so an omitted `notes` arrives as undefined — an
+		// unconditional `?? null` here wrote NULL and silently destroyed the note on
+		// every partial PATCH (e.g. changing only `servings`). An explicit null still
+		// clears it, which is what a client sending `notes: null` means.
+		...('notes' in input ? { notes: input.notes ?? null } : {}),
 		...(input.quickNutrients !== undefined
 			? { quickNutrients: normalizeQuickNutrients(input.quickNutrients) }
 			: {}),

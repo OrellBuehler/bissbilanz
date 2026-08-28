@@ -1,5 +1,5 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, isNull } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { getDB } from '$lib/server/db';
 import { idempotencyKeys } from '$lib/server/schema';
@@ -10,6 +10,18 @@ const REPLAY_HEADER = 'x-idempotent-replay';
 
 /** Stored idempotency records older than this are pruned. */
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * How long a claim may stay in flight before a retry is allowed to take it over.
+ *
+ * A claim row is written before the handler runs and cleared on 5xx/throw, but a
+ * process death (deploy, restart, OOM) between those two points strands it with a
+ * NULL status forever. Without this window every retry would answer 409
+ * `request_in_progress` until the 7-day prune, and the client — which cannot
+ * distinguish that from a permanent client error — would dead-letter the user's
+ * write. Longer than any real request, short enough that a retry recovers fast.
+ */
+const CLAIM_STALE_MS = 60_000;
 
 type ResolveFn = (event: RequestEvent) => Response | Promise<Response>;
 
@@ -31,8 +43,13 @@ function replayResponse(statusCode: number, body: string | null): Response {
  *  - First time we see (user, key): claim it, run the handler, and persist the
  *    final response when it is safe to replay (status < 500). Transient failures
  *    (5xx / thrown) release the claim so a later retry runs for real.
- *  - Replay: a completed record exists → return the original response verbatim.
- *  - In flight: a claim exists but hasn't completed → 409 so the client retries.
+ *  - Replay of the same (method, path): a completed record exists → return the
+ *    original response verbatim.
+ *  - Same key, different (method, path): 422 — the key was reused for a different
+ *    logical mutation, and replaying another endpoint's body would be a lie.
+ *  - In flight: a fresh claim exists → 409 so the client backs off and retries.
+ *    A claim older than {@link CLAIM_STALE_MS} is treated as abandoned and taken
+ *    over instead, so a crashed request can never strand the write.
  */
 export async function withIdempotency(
 	event: RequestEvent,
@@ -64,18 +81,44 @@ export async function withIdempotency(
 		const [existing] = await db
 			.select({
 				statusCode: idempotencyKeys.statusCode,
-				responseBody: idempotencyKeys.responseBody
+				responseBody: idempotencyKeys.responseBody,
+				method: idempotencyKeys.method,
+				path: idempotencyKeys.path
 			})
 			.from(idempotencyKeys)
 			.where(and(eq(idempotencyKeys.userId, userId), eq(idempotencyKeys.key, key)))
 			.limit(1);
 
+		// A key identifies one logical mutation. Reusing it for a different target
+		// would replay an unrelated response body as if it were this request's, so
+		// refuse rather than answer with someone else's result (RFC 9110 §8.8.3).
+		if (existing && (existing.method !== method || existing.path !== path)) {
+			return json({ error: 'idempotency_key_reused' }, { status: 422 });
+		}
+
 		if (existing && existing.statusCode !== null) {
 			return replayResponse(existing.statusCode, existing.responseBody);
 		}
-		// Claim exists but the original request hasn't finished yet. Tell the client
-		// to back off and retry; the completed response will be replayed next time.
-		return json({ error: 'request_in_progress' }, { status: 409 });
+
+		// Claim exists but the original request hasn't finished. If it is older than
+		// the staleness window its owner is gone (crash/restart), so reclaim it and
+		// run for real; otherwise tell the client to back off and retry.
+		const reclaimed = await db
+			.update(idempotencyKeys)
+			.set({ createdAt: new Date() })
+			.where(
+				and(
+					eq(idempotencyKeys.userId, userId),
+					eq(idempotencyKeys.key, key),
+					isNull(idempotencyKeys.statusCode),
+					lt(idempotencyKeys.createdAt, new Date(Date.now() - CLAIM_STALE_MS))
+				)
+			)
+			.returning({ userId: idempotencyKeys.userId });
+
+		if (reclaimed.length === 0) {
+			return json({ error: 'request_in_progress' }, { status: 409 });
+		}
 	}
 
 	const release = async () => {

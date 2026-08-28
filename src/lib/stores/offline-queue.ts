@@ -40,6 +40,12 @@ export async function enqueue(
 	});
 }
 
+/**
+ * Max items returned by one {@link drainQueue} call. Callers must treat a full
+ * batch as "more may be waiting" and schedule another pass — see syncQueue().
+ */
+export const DRAIN_BATCH_SIZE = 50;
+
 export async function drainQueue(): Promise<QueuedRequest[]> {
 	if (!browser) return [];
 	const now = Date.now();
@@ -48,7 +54,7 @@ export async function drainQueue(): Promise<QueuedRequest[]> {
 			.orderBy('createdAt')
 			// Skip dead-lettered items and anything still inside its backoff window.
 			.filter((item) => !item.failedAt && (item.nextAttemptAt ?? 0) <= now)
-			.limit(50)
+			.limit(DRAIN_BATCH_SIZE)
 			.toArray()
 	);
 }

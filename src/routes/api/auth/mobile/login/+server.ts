@@ -9,8 +9,10 @@ import {
 import { storePendingState } from '$lib/server/mobile-auth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
+import { getRequestIp } from '$lib/server/client-ip';
 
-export const GET: RequestHandler = async ({ url, getClientAddress }) => {
+export const GET: RequestHandler = async (event) => {
+	const { url } = event;
 	const state = url.searchParams.get('state');
 	if (!state || state.length > 128) {
 		throw error(400, 'Missing or invalid state parameter');
@@ -20,7 +22,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 	if (!provider) throw error(404, 'Unknown or disabled sign-in provider');
 
 	try {
-		rateLimit(`auth:mobile:${getClientAddress()}`, 10, 60_000);
+		rateLimit(`auth:mobile:${getRequestIp(event)}`, 10, 60_000);
 	} catch {
 		throw error(429, 'Too many requests');
 	}

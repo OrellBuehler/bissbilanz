@@ -9,12 +9,14 @@ import {
 } from '$lib/server/oauth';
 import { rateLimitRegistration } from '$lib/server/rate-limit';
 import { requireAuth } from '$lib/server/errors';
+import { getRequestIp } from '$lib/server/client-ip';
 
 /**
  * RFC 7591 — OAuth 2.0 Dynamic Client Registration
  * Requires authentication to prevent abuse.
  */
-export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	try {
 		requireAuth(locals);
 	} catch {
@@ -25,7 +27,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 	}
 
 	try {
-		rateLimitRegistration(getClientAddress());
+		rateLimitRegistration(getRequestIp(event));
 	} catch {
 		return json(
 			{ error: 'too_many_requests', error_description: 'Rate limit exceeded' },

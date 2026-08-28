@@ -24,6 +24,9 @@ if (env.PUBLIC_SENTRY_DSN) {
 	});
 }
 
+/** Scope a bearer token must carry to act on the REST API on a user's behalf. */
+const API_ACCESS_SCOPE = 'mcp:access';
+
 // Process-lifetime guard — runMigrations() only needs to run once per process.
 // In dev, HMR can re-invoke init() without a full restart; in prod this still
 // runs on every cold start (new process = flag resets to false).
@@ -127,6 +130,14 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			if (!bearerUser) {
 				const tokenResult = await withDbRetry(() => validateAccessToken(token));
 				if (tokenResult) {
+					// Tokens carry scopes but nothing outside /api/mcp checked them, so a
+					// token issued for any purpose granted full account access. Enforce it
+					// here too. Every token issued to date defaults to this scope, so this
+					// rejects nothing currently valid — it makes the field load-bearing so
+					// narrower scopes can actually restrict access later.
+					if (!tokenResult.scopes.includes(API_ACCESS_SCOPE)) {
+						return json({ error: 'insufficient_scope' }, { status: 403 });
+					}
 					bearerUser = await withDbRetry(() => getUserById(tokenResult.userId));
 					if (!bearerUser) {
 						return json({ error: 'Unauthorized' }, { status: 401 });

@@ -4,6 +4,7 @@ import { consumeOneTimeCode, MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
 import { createAccessToken, refreshAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
+import { getRequestIp } from '$lib/server/client-ip';
 
 const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
 
@@ -12,9 +13,10 @@ const tokenRequestSchema = z.union([
 	z.object({ refresh_token: z.string().min(1).max(2048) })
 ]);
 
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request } = event;
 	try {
-		rateLimit(`auth:mobile:token:${getClientAddress()}`, 10, 60_000);
+		rateLimit(`auth:mobile:token:${getRequestIp(event)}`, 10, 60_000);
 	} catch {
 		throw error(429, 'Too many requests');
 	}

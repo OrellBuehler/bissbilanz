@@ -34,6 +34,9 @@ const reminderTimesSchema = z
  * verbatim; it is normalised to NULL here so those PATCHes don't 400 and silently lose
  * the whole edit (the sync queue drops client errors permanently).
  */
+/** Calendar date backing a Postgres `date` column; unvalidated strings 500 on insert. */
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
 const timeOfDaySchema = z
 	.enum(['morning', 'noon', 'evening', 'anytime'])
 	.transform((value) => (value === 'anytime' ? null : value))
@@ -42,10 +45,10 @@ const timeOfDaySchema = z
 
 export const supplementCreateSchema = z
 	.object({
-		name: z.string().min(1),
+		name: z.string().min(1).max(200),
 		scheduleType: z.enum(scheduleTypeValues),
 		scheduleDays: z.array(z.coerce.number().int().min(0).max(6)).optional().nullable(),
-		scheduleStartDate: z.string().optional().nullable(),
+		scheduleStartDate: dateStringSchema.optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
 		timeOfDay: timeOfDaySchema,
@@ -65,10 +68,10 @@ export const supplementCreateSchema = z
 
 export const supplementUpdateSchema = z
 	.object({
-		name: z.string().min(1).optional(),
+		name: z.string().min(1).max(200).optional(),
 		scheduleType: z.enum(scheduleTypeValues).optional(),
 		scheduleDays: z.array(z.coerce.number().int().min(0).max(6)).optional().nullable(),
-		scheduleStartDate: z.string().optional().nullable(),
+		scheduleStartDate: dateStringSchema.optional().nullable(),
 		isActive: z.coerce.boolean().optional(),
 		sortOrder: z.coerce.number().int().optional(),
 		timeOfDay: timeOfDaySchema,
@@ -79,6 +82,6 @@ export const supplementUpdateSchema = z
 
 export const supplementLogSchema = z
 	.object({
-		date: z.string().optional() // defaults to today server-side
+		date: dateStringSchema.optional() // defaults to today server-side
 	})
 	.meta({ id: 'SupplementLogCreate' });
