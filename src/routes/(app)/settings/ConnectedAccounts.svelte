@@ -16,6 +16,8 @@
 		createdAt: string | null;
 	};
 
+	const LINK_TOAST_ID = 'connected-accounts-link-outcome';
+
 	let identities = $state<Identity[]>([]);
 	let available = $state<string[]>([]);
 	let loading = $state(true);
@@ -60,8 +62,13 @@
 		// The link flow returns here from the provider with its outcome in the URL.
 		const linked = page.url.searchParams.get('linked');
 		const linkError = page.url.searchParams.get('link_error');
-		if (linked) toast.success(m.connected_accounts_connected({ provider: label(linked) }));
-		if (linkError) toast.error(m.connected_accounts_conflict());
+		// The app layout renders its children twice (desktop + mobile branches), so this
+		// component mounts twice — a stable id keeps the outcome to a single toast.
+		if (linked)
+			toast.success(m.connected_accounts_connected({ provider: label(linked) }), {
+				id: LINK_TOAST_ID
+			});
+		if (linkError) toast.error(m.connected_accounts_conflict(), { id: LINK_TOAST_ID });
 		// Drop the outcome params so a reload does not re-toast.
 		if (linked || linkError) {
 			goto(page.url.pathname, { replaceState: true, noScroll: true });
