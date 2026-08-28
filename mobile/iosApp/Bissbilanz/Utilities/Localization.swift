@@ -828,6 +828,87 @@ enum L10n {
         )
     }
 
+    static var downgradeOption: String {
+        localized(
+            "downgrade_option",
+            en: "Keep My Data on This Device",
+            de: "Meine Daten auf diesem Gerät behalten"
+        )
+    }
+
+    static var downgradeTitle: String {
+        localized("downgrade_title", en: "Switch to Local-Only?", de: "Zu lokalem Modus wechseln?")
+    }
+
+    static var downgradeMessage: String {
+        localized(
+            "downgrade_message",
+            en: "All your data is first downloaded to this device, then your account is deleted. "
+                + "The app keeps working without an account — but without sync, the web app, or "
+                + "other devices. You can sign in again later to move the data back to an account.",
+            de: "Alle deine Daten werden zuerst auf dieses Gerät heruntergeladen, danach wird dein "
+                + "Konto gelöscht. Die App funktioniert weiter ohne Konto — aber ohne "
+                + "Synchronisierung, Web-App oder andere Geräte. Du kannst dich später wieder "
+                + "anmelden, um die Daten zurück in ein Konto zu übertragen."
+        )
+    }
+
+    static var downgradeConfirm: String {
+        localized(
+            "downgrade_confirm",
+            en: "Download & Delete Account",
+            de: "Herunterladen & Konto löschen"
+        )
+    }
+
+    static var downgradeProgressSync: String {
+        localized(
+            "downgrade_progress_sync",
+            en: "Uploading pending changes…",
+            de: "Ausstehende Änderungen werden hochgeladen…"
+        )
+    }
+
+    static var downgradeProgressDownload: String {
+        localized(
+            "downgrade_progress_download",
+            en: "Downloading your data…",
+            de: "Deine Daten werden heruntergeladen…"
+        )
+    }
+
+    static var downgradeProgressDelete: String {
+        localized(
+            "downgrade_progress_delete",
+            en: "Deleting account…",
+            de: "Konto wird gelöscht…"
+        )
+    }
+
+    static var downgradeDone: String {
+        localized(
+            "downgrade_done",
+            en: "Done — your data now lives on this device only.",
+            de: "Fertig — deine Daten sind jetzt nur noch auf diesem Gerät."
+        )
+    }
+
+    static var downgradePendingChanges: String {
+        localized(
+            "downgrade_pending_changes",
+            en: "Some changes could not be uploaded yet. Check pending changes and try again.",
+            de: "Einige Änderungen konnten noch nicht hochgeladen werden. Prüfe die ausstehenden Änderungen und versuche es erneut."
+        )
+    }
+
+    static var downgradeFailed: String {
+        localized(
+            "downgrade_failed",
+            en: "Switching to local-only failed. Your account was not deleted.",
+            de: "Der Wechsel zum lokalen Modus ist fehlgeschlagen. Dein Konto wurde nicht gelöscht."
+        )
+    }
+
     static var deleteAccount: String {
         localized("delete_account", en: "Delete Account", de: "Konto löschen")
     }

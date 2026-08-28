@@ -635,6 +635,15 @@
     <string name="settings_sign_out">Abmelden</string>
     <string name="settings_export_data">Meine Daten exportieren</string>
     <string name="settings_export_first">Zuerst meine Daten herunterladen</string>
+    <string name="settings_downgrade_option">Meine Daten auf diesem Gerät behalten</string>
+    <string name="settings_downgrade_title">Zu lokalem Modus wechseln?</string>
+    <string name="settings_downgrade_message">Alle deine Daten werden zuerst auf dieses Gerät heruntergeladen, danach wird dein Konto gelöscht. Die App funktioniert weiter ohne Konto — aber ohne Synchronisierung, Web-App oder andere Geräte. Du kannst dich später wieder anmelden, um die Daten zurück in ein Konto zu übertragen.</string>
+    <string name="settings_downgrade_progress_sync">Ausstehende Änderungen werden hochgeladen…</string>
+    <string name="settings_downgrade_progress_download">Deine Daten werden heruntergeladen…</string>
+    <string name="settings_downgrade_progress_delete">Konto wird gelöscht…</string>
+    <string name="settings_downgrade_done">Fertig — deine Daten sind jetzt nur noch auf diesem Gerät.</string>
+    <string name="settings_downgrade_confirm">Herunterladen &amp; Konto löschen</string>
+    <string name="settings_downgrade_close">Schliessen</string>
     <string name="settings_delete_account">Konto löschen</string>
     <string name="settings_delete_account_title">Konto wirklich löschen?</string>
     <string name="settings_delete_account_message">Dein Konto und alle Daten auf dem Server werden endgültig gelöscht — Ernährungstagebuch, Lebensmittel, Rezepte, Gewicht, Schlaf und Einstellungen. Dies kann nicht rückgängig gemacht werden.</string>

@@ -7,6 +7,10 @@ struct DayProperties: Codable {
     let isFastingDay: Bool
 }
 
+struct DayPropertiesRangeResponse: Codable {
+    let data: [DayProperties]
+}
+
 struct DayPropertiesResponse: Codable {
     let properties: DayProperties?
 }

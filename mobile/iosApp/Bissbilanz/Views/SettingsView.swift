@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(AppModeManager.self) private var appModeManager
     @Environment(SyncManager.self) private var syncManager
+    @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
 
     @State private var signInSession: ASWebAuthenticationSession?
@@ -22,6 +23,10 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var isExportingData = false
     @State private var exportedArchive: ExportedArchive?
+    @State private var showDowngradeSheet = false
+    @State private var downgradePhase: AccountDowngrader.Phase?
+    @State private var downgradeFinished = false
+    @State private var downgradeError: String?
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
@@ -316,6 +321,9 @@ struct SettingsView: View {
                             isPresented: $showDeleteAccountConfirmation,
                             titleVisibility: .visible
                         ) {
+                            Button(L10n.downgradeOption) {
+                                showDowngradeSheet = true
+                            }
                             Button(L10n.exportDataFirst) {
                                 exportData()
                             }
@@ -328,6 +336,9 @@ struct SettingsView: View {
                         }
                         .sheet(item: $exportedArchive) { archive in
                             ShareSheet(url: archive.url)
+                        }
+                        .sheet(isPresented: $showDowngradeSheet) {
+                            downgradeSheet
                         }
                     }
                 }
@@ -469,6 +480,81 @@ struct SettingsView: View {
             goals = goalsRepository.goals() ?? .defaults
         }
         isEditingGoals = false
+    }
+
+    private var downgradeSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                if downgradeFinished {
+                    Label(L10n.downgradeDone, systemImage: "checkmark.circle")
+                    Button(L10n.close) {
+                        showDowngradeSheet = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                } else if let phase = downgradePhase {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text(phaseLabel(phase))
+                    }
+                } else {
+                    Text(L10n.downgradeMessage)
+                    if let downgradeError {
+                        Text(downgradeError)
+                            .foregroundStyle(.red)
+                    }
+                    Button(L10n.downgradeConfirm) {
+                        downgradeToLocal()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                    Button(L10n.cancel) {
+                        showDowngradeSheet = false
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(L10n.downgradeTitle)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .interactiveDismissDisabled(downgradePhase != nil)
+        .presentationDetents([.medium])
+    }
+
+    private func phaseLabel(_ phase: AccountDowngrader.Phase) -> String {
+        switch phase {
+        case .syncing: L10n.downgradeProgressSync
+        case .downloading: L10n.downgradeProgressDownload
+        case .deleting: L10n.downgradeProgressDelete
+        }
+    }
+
+    private func downgradeToLocal() {
+        guard downgradePhase == nil else { return }
+        downgradeError = nil
+        downgradePhase = .syncing
+        Task {
+            do {
+                let downgrader = AccountDowngrader(
+                    api: api,
+                    context: modelContext,
+                    syncManager: syncManager,
+                    authManager: authManager,
+                    appModeManager: appModeManager
+                )
+                try await downgrader.downgrade { phase in
+                    downgradePhase = phase
+                }
+                downgradeFinished = true
+            } catch AccountDowngrader.DowngradeError.pendingChanges {
+                downgradeError = L10n.downgradePendingChanges
+            } catch {
+                downgradeError = L10n.downgradeFailed
+            }
+            downgradePhase = nil
+        }
     }
 
     private func exportData() {

@@ -625,7 +625,8 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		get?: never;
+		/** @description Get the authenticated account profile (email, name, creation date). */
+		get: operations['getAccount'];
 		put?: never;
 		post?: never;
 		/** @description Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible. */
@@ -1584,6 +1585,19 @@ export interface components {
 			notes: string | null;
 			foodId: string | null;
 			recipeId: string | null;
+			supplementId: string | null;
+			eatenAt: string;
+			quickName: string | null;
+			quickCalories: number | null;
+			quickProtein: number | null;
+			quickCarbs: number | null;
+			quickFat: number | null;
+			quickFiber: number | null;
+			quickNutrients: {
+				[key: string]: number;
+			} | null;
+			servingSize: number | null;
+			servingUnit: string | null;
 			foodName: string | null;
 			calories: number;
 			protein: number;
@@ -1999,6 +2013,14 @@ export interface components {
 			lastWeight: number;
 			startDate: string;
 			endDate: string;
+		};
+		AccountResponse: {
+			user: components['schemas']['AccountUser'];
+		};
+		AccountUser: {
+			email: string | null;
+			name: string | null;
+			createdAt: string | null;
 		};
 		ImageUploadResponse: {
 			imageUrl: string;
@@ -3505,6 +3527,27 @@ export interface operations {
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getAccount: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AccountResponse'];
+				};
+			};
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};

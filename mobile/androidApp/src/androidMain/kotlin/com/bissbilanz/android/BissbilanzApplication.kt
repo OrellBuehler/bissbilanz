@@ -12,6 +12,7 @@ import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.sync.AndroidPhotoLocalizer
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -32,6 +33,7 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
+import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.repository.FoodRepository
@@ -77,6 +79,17 @@ class BissbilanzApplication : Application() {
                 single { ConnectivityProvider(androidContext()) }
                 single<ErrorReporter> { SentryErrorReporter() }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
+                single {
+                    AccountDowngrader(
+                        api = get(),
+                        db = get(),
+                        syncQueue = get(),
+                        authManager = get(),
+                        appModeManager = get(),
+                        json = get(),
+                        photoLocalizer = AndroidPhotoLocalizer(androidContext(), get()),
+                    )
+                }
                 single { FastingSessionStore(androidContext(), get()) }
                 single { FastingManager(androidContext(), get(), get(), get()) }
                 single { HealthConnectService(androidContext()) }

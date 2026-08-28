@@ -5,11 +5,13 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.LocalDataWiper
+import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.storage.KeyValueStore
+import com.bissbilanz.sync.SyncManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -57,6 +59,8 @@ class SettingsViewModelTest {
     private lateinit var errorReporter: ErrorReporter
     private lateinit var appModeManager: AppModeManager
     private lateinit var localDataWiper: LocalDataWiper
+    private lateinit var accountDowngrader: AccountDowngrader
+    private lateinit var syncManager: SyncManager
 
     @BeforeTest
     fun setup() {
@@ -67,6 +71,8 @@ class SettingsViewModelTest {
         errorReporter = mockk(relaxed = true)
         appModeManager = AppModeManager(InMemoryKeyValueStore())
         localDataWiper = mockk(relaxed = true)
+        accountDowngrader = mockk(relaxed = true)
+        syncManager = mockk(relaxed = true)
         goalsRepo =
             mockk(relaxed = true) {
                 every { goals() } returns MutableStateFlow(null)
@@ -92,6 +98,8 @@ class SettingsViewModelTest {
             errorReporter,
             appModeManager,
             localDataWiper,
+            accountDowngrader,
+            syncManager,
         )
 
     @Test

@@ -229,6 +229,17 @@ export const listEntriesByDateRange = async (
 			notes: foodEntries.notes,
 			foodId: foodEntries.foodId,
 			recipeId: foodEntries.recipeId,
+			supplementId: foodEntries.supplementId,
+			eatenAt: foodEntries.eatenAt,
+			quickName: foodEntries.quickName,
+			quickCalories: foodEntries.quickCalories,
+			quickProtein: foodEntries.quickProtein,
+			quickCarbs: foodEntries.quickCarbs,
+			quickFat: foodEntries.quickFat,
+			quickFiber: foodEntries.quickFiber,
+			quickNutrients: foodEntries.quickNutrients,
+			servingSize: foods.servingSize,
+			servingUnit: foods.servingUnit,
 			...entryMacroColumns(recipeMacrosCte)
 		})
 		.from(foodEntries)

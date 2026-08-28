@@ -635,6 +635,15 @@
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_export_data">Export my data</string>
     <string name="settings_export_first">Download my data first</string>
+    <string name="settings_downgrade_option">Keep my data on this device</string>
+    <string name="settings_downgrade_title">Switch to local-only?</string>
+    <string name="settings_downgrade_message">All your data is first downloaded to this device, then your account is deleted. The app keeps working without an account — but without sync, the web app, or other devices. You can sign in again later to move the data back to an account.</string>
+    <string name="settings_downgrade_progress_sync">Uploading pending changes…</string>
+    <string name="settings_downgrade_progress_download">Downloading your data…</string>
+    <string name="settings_downgrade_progress_delete">Deleting account…</string>
+    <string name="settings_downgrade_done">Done — your data now lives on this device only.</string>
+    <string name="settings_downgrade_confirm">Download &amp; delete account</string>
+    <string name="settings_downgrade_close">Close</string>
     <string name="settings_delete_account">Delete account</string>
     <string name="settings_delete_account_title">Delete your account?</string>
     <string name="settings_delete_account_message">Your account and all data on the server will be permanently deleted — food log, foods, recipes, weight, sleep and settings. This cannot be undone.</string>
