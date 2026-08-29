@@ -87,6 +87,20 @@
 		immediate and removes all of your data.
 	</p>
 
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Security</h2>
+	<p class="mb-6">
+		Found a security problem? Please report it privately rather than in a public issue — either
+		through
+		<a href="https://github.com/OrellBuehler/bissbilanz/security/advisories/new" class="underline"
+			>GitHub's private vulnerability reporting</a
+		>
+		or by email to
+		<a href="mailto:me@orellbuehler.ch" class="underline">me@orellbuehler.ch</a>. The
+		<a href="https://github.com/OrellBuehler/bissbilanz/blob/main/SECURITY.md" class="underline"
+			>security policy</a
+		> says what to include and what happens next.
+	</p>
+
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Privacy</h2>
 	<p class="mb-6">
 		What Bissbilanz stores and why is described in the
