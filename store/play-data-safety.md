@@ -33,9 +33,9 @@ Notes:
   advertising.
 - Umami analytics runs only on the web app, not in the Android app — it does
   not belong on this form.
-- Sign-in providers: Infomaniak, Google, Microsoft and Apple. Only the provider
-  the user picks is involved, and none of them receives app data — so they are
-  not "sharing" either.
+- Sign-in providers: Infomaniak, Google and Apple. Only the provider the user
+  picks is involved, and none of them receives app data — so they are not
+  "sharing" either.
 - Health Connect: values the user imports become normal entries and are covered
   by the Health & fitness row; nothing read from Health Connect is shared or
   sent to Sentry.
