@@ -100,6 +100,17 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun nextDayStopsAtToday() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val today = viewModel.selectedDate.value
+
+            viewModel.nextDay()
+
+            assertEquals(today, viewModel.selectedDate.value)
+        }
+
+    @Test
     fun goToTodayResetsDate() =
         runTest {
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())

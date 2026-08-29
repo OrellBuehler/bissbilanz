@@ -93,7 +93,11 @@ class DashboardViewModel(
     }
 
     fun nextDay() {
-        setSelectedDate(LocalDate.parse(selectedDateString.value).plus(1, DateTimeUnit.DAY))
+        // Future days hold nothing to show and can't be logged to, so stop at
+        // today — same rule as the iOS dashboard.
+        val next = LocalDate.parse(selectedDateString.value).plus(1, DateTimeUnit.DAY)
+        if (next > Clock.System.todayIn(TimeZone.currentSystemDefault())) return
+        setSelectedDate(next)
         loadData()
     }
 
