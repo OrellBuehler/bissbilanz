@@ -4,9 +4,7 @@ import { handleApiError, requireAuth, ApiError } from '$lib/server/errors';
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { getWeightEntriesByDateRange } from '$lib/server/weight';
 import { maintenanceDateSchema, maintenanceMuscleRatioSchema } from '$lib/server/validation';
-import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
-import { calculateEntryMacros } from '$lib/utils/nutrition';
-import { daysBetween } from '$lib/utils/dates';
+import { buildMaintenanceReport, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
 import { getFastingDays } from '$lib/server/day-properties';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -48,83 +46,23 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			getFastingDays(userId, startDate, endDate)
 		]);
 
-		if (weights.length < 2) {
-			return json(
-				{
-					error: 'insufficient_data',
-					message: 'At least 2 weight entries are required in the selected range'
-				},
-				{ status: 400 }
-			);
-		}
-
-		const dailyTotals: Record<string, number> = {};
-		for (const entry of entries) {
-			const macros = calculateEntryMacros(entry);
-			dailyTotals[entry.date] = (dailyTotals[entry.date] ?? 0) + macros.calories;
-		}
-
-		// Include fasting days (0 calories intentionally) in the totals
-		for (const fastingDate of fastingDays) {
-			if (!(fastingDate in dailyTotals)) {
-				dailyTotals[fastingDate] = 0;
-			}
-		}
-
-		const daysWithEntries = Object.keys(dailyTotals);
-		if (daysWithEntries.length === 0) {
-			return json(
-				{
-					error: 'insufficient_data',
-					message: 'No food entries found in the selected range'
-				},
-				{ status: 400 }
-			);
-		}
-
-		const days = daysBetween(startDate, endDate);
-
-		if (days <= 0) {
-			throw new ApiError(400, 'End date must be after start date');
-		}
-
-		// The food query is inclusive of both endpoints, so it covers `days + 1`
-		// calendar days; average intake over that inclusive count (dividing by `days`
-		// inflated the average). The weight-change *rate* (calculateMaintenance) is
-		// per-interval, so it keeps `days`.
-		const inclusiveDays = days + 1;
-		const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
-		const avgDailyCalories = totalCalories / inclusiveDays;
-		const coverage = daysWithEntries.length / inclusiveDays;
-
-		const firstWeight = weights[0];
-		const lastWeight = weights[weights.length - 1];
-		const weightChangeKg = lastWeight.weightKg - firstWeight.weightKg;
-
-		const result = calculateMaintenance({
-			weightChangeKg,
-			avgDailyCalories,
-			days,
+		const report = buildMaintenanceReport({
+			entries,
+			weights,
+			fastingDays,
+			startDate,
+			endDate,
 			muscleRatio
 		});
 
-		if (!result) {
-			throw new ApiError(400, 'Could not calculate maintenance calories');
+		if ('error' in report) {
+			if (report.error === 'insufficient_data') {
+				return json({ error: report.error, message: report.message }, { status: 400 });
+			}
+			throw new ApiError(400, report.message);
 		}
 
-		return json({
-			result,
-			meta: {
-				weightEntries: weights.length,
-				foodEntryDays: daysWithEntries.length,
-				totalDays: inclusiveDays,
-				coverage,
-				firstWeight: firstWeight.weightKg,
-				lastWeight: lastWeight.weightKg,
-				startDate,
-				endDate
-			}
-		});
+		return json(report);
 	} catch (error) {
 		return handleApiError(error);
 	}

@@ -8,6 +8,8 @@
  * Production code uses handlers.ts which creates a default instance with real deps.
  */
 
+import { shiftDate } from '$lib/utils/dates';
+import { buildMaintenanceReport } from '$lib/utils/maintenance';
 import type {
 	listFoods,
 	createFood,
@@ -39,7 +41,8 @@ import type {
 	updateWeightEntry,
 	deleteWeightEntry,
 	getLatestWeight,
-	getWeightWithTrend
+	getWeightWithTrend,
+	getWeightEntriesByDateRange
 } from '$lib/server/weight';
 import type {
 	getWeeklyStats,
@@ -156,6 +159,7 @@ export type HandlerDeps = {
 	// Custom range stats
 	computeAverages: typeof computeAverages;
 	listEntriesByDateRange: typeof listEntriesByDateRange;
+	getWeightEntriesByDateRange: typeof getWeightEntriesByDateRange;
 	getFastingDays: typeof getFastingDays;
 	// Analytics
 	getFoodDiversityData: typeof getFoodDiversityData;
@@ -837,6 +841,33 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	const handleGetMaintenanceCalories = async (
+		userId: string,
+		args: { startDate?: string; endDate?: string; muscleRatio?: number }
+	) => {
+		try {
+			const endDate = args.endDate ?? (await d.todayForUser(userId));
+			const startDate = args.startDate ?? shiftDate(endDate, -27);
+			const err = guardDateRange(startDate, endDate);
+			if (err) return err;
+			const [entries, weights, fastingDays] = await Promise.all([
+				d.listEntriesByDateRange(userId, startDate, endDate),
+				d.getWeightEntriesByDateRange(userId, startDate, endDate),
+				d.getFastingDays(userId, startDate, endDate)
+			]);
+			return buildMaintenanceReport({
+				entries,
+				weights,
+				fastingDays,
+				startDate,
+				endDate,
+				muscleRatio: args.muscleRatio
+			});
+		} catch (e) {
+			wrapError('get maintenance calories', e);
+		}
+	};
+
 	const handleGetStreaks = async (userId: string) => {
 		try {
 			return d.getStreaks(userId);
@@ -1223,6 +1254,7 @@ export function createHandlers(d: HandlerDeps) {
 		handleGetMealBreakdown,
 		handleGetTopFoods,
 		handleGetStreaks,
+		handleGetMaintenanceCalories,
 		handleSearchOpenFoodFacts,
 		handleLogSleep,
 		handleGetSleep,

@@ -1,6 +1,8 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { safe } from './safe';
+import { TOOL_OUTPUT } from './output-schemas';
+import { registerPrompts } from './prompts';
 import { describeShape } from './schema-utils';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation/foods';
 import { entryBaseSchema, entryUpdateSchema } from '$lib/server/validation/entries';
@@ -48,6 +50,7 @@ import {
 	handleGetMealBreakdown,
 	handleGetTopFoods,
 	handleGetStreaks,
+	handleGetMaintenanceCalories,
 	handleCopyEntries,
 	handleFindFoodByBarcode,
 	handleSearchOpenFoodFacts,
@@ -111,6 +114,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_daily_status',
 		{
+			title: 'Get Daily Status',
+			outputSchema: TOOL_OUTPUT.get_daily_status,
 			description:
 				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown.",
 			inputSchema: {
@@ -128,6 +133,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'search_foods',
 		{
+			title: 'Search Foods',
 			description:
 				"Search the user's food database by name. Returns matching foods with nutritional information, sorted by recent usage.",
 			inputSchema: {
@@ -189,6 +195,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'create_food',
 		{
+			title: 'Create Food',
 			description:
 				"Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
 			inputSchema: describeShape(foodCreateSchema.shape, FOOD_FIELD_DOCS),
@@ -209,6 +216,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'create_recipe',
 		{
+			title: 'Create Recipe',
 			description:
 				'Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.',
 			inputSchema: describeShape(recipeCreateSchema.shape, RECIPE_FIELD_DOCS),
@@ -239,6 +247,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'log_food',
 		{
+			title: 'Log Food',
+			outputSchema: TOOL_OUTPUT.log_food,
 			description:
 				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). Quick logs can also carry extended nutrients via quickNutrients. If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
 			inputSchema: describeShape(
@@ -253,6 +263,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_supplement_status',
 		{
+			title: 'Get Supplement Status',
+			outputSchema: TOOL_OUTPUT.get_supplement_status,
 			description:
 				"Get a supplement checklist showing which supplements are due and whether they've been taken.",
 			inputSchema: {
@@ -266,6 +278,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'log_supplement',
 		{
+			title: 'Log Supplement',
 			description:
 				'Mark a supplement as taken. Search by name or provide a specific supplement ID.',
 			inputSchema: {
@@ -281,6 +294,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_entries',
 		{
+			title: 'List Entries',
+			outputSchema: TOOL_OUTPUT.list_entries,
 			description:
 				'List all food entries for a given date with food names, meal types, servings, and macros.',
 			inputSchema: {
@@ -294,6 +309,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_entry',
 		{
+			title: 'Update Entry',
 			description:
 				'Update an existing food entry. Can change servings, meal type, notes, date, food/recipe reference, or quick log fields.',
 			inputSchema: {
@@ -308,6 +324,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_entry',
 		{
+			title: 'Delete Entry',
+			outputSchema: TOOL_OUTPUT.delete_entry,
 			description:
 				'Delete a food entry from the diary. Returns the updated daily nutrition status.',
 			inputSchema: {
@@ -327,6 +345,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_goals',
 		{
+			title: 'Get Goals',
+			outputSchema: TOOL_OUTPUT.get_goals,
 			description:
 				"Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber.",
 			inputSchema: {},
@@ -338,6 +358,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_goals',
 		{
+			title: 'Update Goals',
 			description: 'Set or update daily nutrition goals.',
 			inputSchema: describeShape(goalsSchema.shape, {
 				calorieGoal: 'Daily calorie goal',
@@ -356,6 +377,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_recipes',
 		{
+			title: 'List Recipes',
 			description: "List all recipes in the user's database with total macros per serving.",
 			inputSchema: {},
 			annotations: READ_ONLY
@@ -366,6 +388,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_recipe',
 		{
+			title: 'Get Recipe',
 			description: 'Get a recipe with its full ingredient list and macros.',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
@@ -378,6 +401,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_food',
 		{
+			title: 'Get Food',
 			description: 'Get full nutritional details for a specific food by ID.',
 			inputSchema: {
 				foodId: z.string().describe('ID of the food')
@@ -390,6 +414,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_favorites',
 		{
+			title: 'List Favorites',
 			description: "List the user's favorite foods and recipes, sorted by most frequently logged.",
 			inputSchema: {},
 			annotations: READ_ONLY
@@ -400,6 +425,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'log_weight',
 		{
+			title: 'Log Weight',
 			description: 'Log a body weight measurement.',
 			inputSchema: {
 				weightKg: weightCreateSchema.shape.weightKg.describe('Weight in kilograms'),
@@ -416,6 +442,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_weight',
 		{
+			title: 'Get Weight',
 			description: 'Get the latest weight entry, or weight trend over a date range.',
 			inputSchema: {
 				from: z.string().optional().describe('Start date in YYYY-MM-DD format (for trend)'),
@@ -429,6 +456,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_weekly_stats',
 		{
+			title: 'Get Weekly Stats',
+			outputSchema: TOOL_OUTPUT.get_weekly_stats,
 			description:
 				'Get average daily nutrition over 7 days. Defaults to the past 7 days. Use startDate and endDate for a custom range.',
 			inputSchema: {
@@ -447,6 +476,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_monthly_stats',
 		{
+			title: 'Get Monthly Stats',
+			outputSchema: TOOL_OUTPUT.get_monthly_stats,
 			description:
 				'Get average daily nutrition over 30 days. Defaults to the past 30 days. Use startDate and endDate for a custom range.',
 			inputSchema: {
@@ -465,6 +496,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'copy_entries',
 		{
+			title: 'Copy Entries',
 			description:
 				"Copy all food entries from one date to another. Useful for repeating a day's meals.",
 			inputSchema: {
@@ -482,6 +514,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'find_food_by_barcode',
 		{
+			title: 'Find Food By Barcode',
 			description:
 				"Look up a food in the user's database by barcode number. Falls back to Open Food Facts if not found locally.",
 			inputSchema: {
@@ -495,6 +528,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'search_openfoodfacts',
 		{
+			title: 'Search Open Food Facts',
 			description:
 				'Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database.',
 			inputSchema: {
@@ -509,6 +543,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_food',
 		{
+			title: 'Update Food',
 			description:
 				'Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).',
 			inputSchema: {
@@ -523,6 +558,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_food',
 		{
+			title: 'Delete Food',
 			description:
 				'Delete a food from the database. If the food has diary entries, returns blocked status unless force=true.',
 			inputSchema: {
@@ -537,6 +573,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_recent_foods',
 		{
+			title: 'List Recent Foods',
 			description: 'List recently logged foods, ordered by most recent.',
 			inputSchema: {
 				limit: z.number().optional().describe('Max number of foods to return. Defaults to 25.')
@@ -549,6 +586,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_recipe',
 		{
+			title: 'Update Recipe',
 			description:
 				'Update an existing recipe. Can change name, servings, or replace all ingredients.',
 			inputSchema: {
@@ -563,6 +601,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_recipe',
 		{
+			title: 'Delete Recipe',
 			description:
 				'Delete a recipe. If the recipe has diary entries, returns blocked status unless force=true.',
 			inputSchema: {
@@ -609,6 +648,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'create_supplement',
 		{
+			title: 'Create Supplement',
 			description:
 				"Create a new supplement with schedule and ingredients. Each ingredient needs a backing food (kind='supplement') that carries its nutrient data. Pass `foodId` to reuse an existing backing food, or `food: { name, nutrients... }` to create one inline.",
 			inputSchema: {
@@ -648,6 +688,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_supplements',
 		{
+			title: 'List Supplements',
 			description: "List the user's supplements.",
 			inputSchema: {
 				activeOnly: z
@@ -663,6 +704,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_supplement',
 		{
+			title: 'Update Supplement',
 			description: 'Update an existing supplement.',
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to update'),
@@ -702,6 +744,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_supplement',
 		{
+			title: 'Delete Supplement',
 			description: 'Delete a supplement.',
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to delete')
@@ -714,6 +757,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'unlog_supplement',
 		{
+			title: 'Unlog Supplement',
 			description: 'Remove a supplement log entry (mark as not taken).',
 			inputSchema: {
 				supplementId: z.string().describe('The supplement ID to unlog'),
@@ -727,6 +771,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_weight',
 		{
+			title: 'Update Weight',
 			description: 'Update an existing weight entry.',
 			inputSchema: {
 				weightId: z.string().uuid().describe('The weight entry ID to update'),
@@ -744,6 +789,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_weight',
 		{
+			title: 'Delete Weight',
 			description: 'Delete a weight entry.',
 			inputSchema: {
 				weightId: z.string().describe('The weight entry ID to delete')
@@ -756,6 +802,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'log_sleep',
 		{
+			title: 'Log Sleep',
 			description: 'Log a sleep entry. Records duration and quality for a given date.',
 			inputSchema: {
 				durationMinutes: sleepCreateSchema.shape.durationMinutes.describe(
@@ -782,6 +829,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_sleep',
 		{
+			title: 'Get Sleep',
 			description: 'Get the latest sleep entry, or sleep entries over a date range.',
 			inputSchema: {
 				from: z
@@ -810,6 +858,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'update_sleep',
 		{
+			title: 'Update Sleep',
 			description: 'Update an existing sleep entry.',
 			inputSchema: {
 				id: z.string().uuid().describe('Sleep entry ID to update'),
@@ -831,6 +880,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_sleep',
 		{
+			title: 'Delete Sleep',
 			description: 'Delete a sleep entry.',
 			inputSchema: {
 				id: z.string().uuid().describe('Sleep entry ID to delete')
@@ -843,6 +893,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_daily_breakdown',
 		{
+			title: 'Get Daily Breakdown',
 			description: 'Get daily nutrition totals for a date range, with one row per day.',
 			inputSchema: {
 				...dateRangeSchema
@@ -855,6 +906,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_meal_breakdown',
 		{
+			title: 'Get Meal Breakdown',
 			description: 'Get nutrition totals broken down by meal type for a date range.',
 			inputSchema: {
 				...dateRangeSchema
@@ -867,6 +919,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_top_foods',
 		{
+			title: 'Get Top Foods',
 			description: 'Get the most frequently logged foods over a period.',
 			inputSchema: {
 				days: z
@@ -892,6 +945,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_streaks',
 		{
+			title: 'Get Streaks',
+			outputSchema: TOOL_OUTPUT.get_streaks,
 			description: 'Get current and longest logging streaks (consecutive days with entries).',
 			inputSchema: {},
 			annotations: READ_ONLY
@@ -899,10 +954,41 @@ export function createMcpServer(userId: string): McpServer {
 		safe(() => handleGetStreaks(userId))
 	);
 
+	server.registerTool(
+		'get_maintenance_calories',
+		{
+			title: 'Get Maintenance Calories',
+			description:
+				'Estimate maintenance calories (TDEE) from the weight trend and logged intake over a date range. Needs at least two weight entries and some food entries in the range; 4+ weeks of consistent logging gives a usable estimate. Defaults to the last 28 days.',
+			inputSchema: {
+				startDate: z
+					.string()
+					.optional()
+					.describe('Start date in YYYY-MM-DD format. Defaults to 27 days before endDate.'),
+				endDate: z
+					.string()
+					.optional()
+					.describe('End date in YYYY-MM-DD format. Defaults to today.'),
+				muscleRatio: z
+					.number()
+					.min(0)
+					.max(1)
+					.optional()
+					.describe(
+						'Share of the weight change assumed to be lean mass (0-1). Defaults to the app-wide assumption.'
+					)
+			},
+			outputSchema: TOOL_OUTPUT.get_maintenance_calories,
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetMaintenanceCalories(userId, args))
+	);
+
 	// Analytics tools
 	server.registerTool(
 		'get_food_diversity',
 		{
+			title: 'Get Food Diversity',
 			description:
 				'Analyze dietary variety over a date range. Shows unique foods consumed, diversity score, and most/least eaten foods.',
 			inputSchema: {
@@ -916,6 +1002,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_meal_timing',
 		{
+			title: 'Get Meal Timing',
 			description:
 				'Analyze meal timing patterns over a date range. Shows when meals are typically eaten and calorie distribution by time of day.',
 			inputSchema: {
@@ -929,6 +1016,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_sleep_food_correlation',
 		{
+			title: 'Get Sleep Food Correlation',
 			description:
 				'Analyze correlations between sleep quality/duration and daily nutrition. Shows how calorie and macro intake relates to sleep patterns.',
 			inputSchema: {
@@ -942,6 +1030,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_weight_food_series',
 		{
+			title: 'Get Weight Food Series',
 			description:
 				'Get weight and daily calorie data over a date range for trend analysis. Shows how calorie intake correlates with weight changes.',
 			inputSchema: {
@@ -955,6 +1044,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_extended_nutrients',
 		{
+			title: 'Get Extended Nutrients',
 			description:
 				'Get detailed extended nutrient data (vitamins, minerals, etc.) for food entries over a date range.',
 			inputSchema: {
@@ -968,6 +1058,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_daily_nutrients',
 		{
+			title: 'Get Daily Nutrients',
 			description:
 				'Get daily totals for all nutrients (core macros and extended) over a date range, with one row per day.',
 			inputSchema: {
@@ -982,6 +1073,8 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_meal_types',
 		{
+			title: 'List Meal Types',
+			outputSchema: TOOL_OUTPUT.list_meal_types,
 			description:
 				"List all meal types available to the user, including default types (Breakfast, Lunch, Dinner, Snacks) and any custom meal types they've created.",
 			inputSchema: {},
@@ -994,6 +1087,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_supplement_history',
 		{
+			title: 'Get Supplement History',
 			description:
 				'Get supplement intake history over a date range. Shows which supplements were taken on which days.',
 			inputSchema: {
@@ -1009,6 +1103,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_day_properties',
 		{
+			title: 'Get Day Properties',
 			description:
 				'Get properties for a specific day (e.g., whether it is marked as a fasting day).',
 			inputSchema: {
@@ -1022,6 +1117,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'set_day_properties',
 		{
+			title: 'Set Day Properties',
 			description: 'Set properties for a specific day, such as marking it as a fasting day.',
 			inputSchema: describeShape(dayPropertiesSetSchema.shape, {
 				date: 'Date in YYYY-MM-DD format',
@@ -1035,6 +1131,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'delete_day_properties',
 		{
+			title: 'Delete Day Properties',
 			description: 'Remove all properties for a specific day (resets fasting status, etc.).',
 			inputSchema: {
 				date: dateStr.describe('Date in YYYY-MM-DD format')
@@ -1048,6 +1145,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_calendar_stats',
 		{
+			title: 'Get Calendar Stats',
 			description:
 				'Get per-day entry presence for a month. Shows which days have food entries logged, useful for adherence tracking.',
 			inputSchema: {
@@ -1072,6 +1170,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'list_ai_tasks',
 		{
+			title: 'List AI Tasks',
 			description:
 				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes the meal photo if present) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary.",
 			inputSchema: {
@@ -1101,6 +1200,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'get_ai_task',
 		{
+			title: 'Get AI Task',
 			description:
 				'Get full details for a specific AI task, including the meal photo as an image when present.',
 			inputSchema: {
@@ -1114,6 +1214,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'complete_ai_task',
 		{
+			title: 'Complete AI Task',
 			description:
 				"Mark an AI task as completed after logging its food entries with log_food. Pass the created entry IDs so the task's history links back to the diary.",
 			inputSchema: {
@@ -1132,6 +1233,7 @@ export function createMcpServer(userId: string): McpServer {
 	server.registerTool(
 		'dismiss_ai_task',
 		{
+			title: 'Dismiss AI Task',
 			description:
 				'Dismiss an AI task without logging any entries, e.g. if it is a duplicate or not actionable.',
 			inputSchema: {
@@ -1142,6 +1244,8 @@ export function createMcpServer(userId: string): McpServer {
 		},
 		safe((args) => handleDismissAiTask(userId, args))
 	);
+
+	registerPrompts(server);
 
 	// Static resources
 	server.registerResource(
